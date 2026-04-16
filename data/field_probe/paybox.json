@@ -122,7 +122,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "VERSION=00104&TYPE=00003&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=USD&REFERENCE=probe_txn_001&DATEQ=00000000000000&PORTEUR=4111111111111111&DATEVAL=0330&CVV=737&ACTIVITE=024"
+          "body": "VERSION=00104&TYPE=00003&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=840&REFERENCE=probe_txn_001&DATEQ=00000000000000&PORTEUR=4111111111111111&DATEVAL=0330&CVV=737&ACTIVITE=024"
         }
       },
       "CashappQr": {
@@ -420,7 +420,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "VERSION=00104&TYPE=00002&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=USD&REFERENCE=probe_capture_001&DATEQ=00000000000000&NUMTRANS=probe_req_001&NUMAPPEL=probe_connector_txn_001"
+          "body": "VERSION=00104&TYPE=00002&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=840&REFERENCE=probe_capture_001&DATEQ=00000000000000&NUMTRANS=probe_req_001&NUMAPPEL=probe_connector_txn_001"
         }
       }
     },
@@ -546,7 +546,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "VERSION=00104&TYPE=00003&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=USD&REFERENCE=probe_proxy_txn_001&DATEQ=00000000000000&PORTEUR=4111111111111111&DATEVAL=0330&CVV=123&ACTIVITE=024"
+          "body": "VERSION=00104&TYPE=00003&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=840&REFERENCE=probe_proxy_txn_001&DATEQ=00000000000000&PORTEUR=4111111111111111&DATEVAL=0330&CVV=123&ACTIVITE=024"
         }
       }
     },
@@ -583,7 +583,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "VERSION=00104&TYPE=00056&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=0&DEVISE=USD&REFERENCE=probe_proxy_mandate_001&DATEQ=00000000000000&PORTEUR=4111111111111111&DATEVAL=0330&CVV=123&REFABONNE=probe_proxy_mandate_001&ACTIVITE=024"
+          "body": "VERSION=00104&TYPE=00056&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=0&DEVISE=840&REFERENCE=probe_proxy_mandate_001&DATEQ=00000000000000&PORTEUR=4111111111111111&DATEVAL=0330&CVV=123&REFABONNE=probe_proxy_mandate_001&ACTIVITE=024"
         }
       }
     },
@@ -619,7 +619,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "VERSION=00104&TYPE=00053&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=USD&REFERENCE=&DATEQ=00000000000000&PORTEUR=&DATEVAL=0000&REFABONNE=probe-mandate-123&ACTIVITE=027"
+          "body": "VERSION=00104&TYPE=00053&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=840&REFERENCE=&DATEQ=00000000000000&PORTEUR=probe-mandate-123&DATEVAL=0000&REFABONNE=probe-mandate-123&ACTIVITE=027"
         }
       }
     },
@@ -648,7 +648,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "VERSION=00104&TYPE=00014&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=USD&REFERENCE=probe_refund_001&DATEQ=00000000000000&NUMTRANS=probe_req_001&NUMAPPEL=probe_connector_txn_001&ACTIVITE=024"
+          "body": "VERSION=00104&TYPE=00014&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=840&REFERENCE=probe_refund_001&DATEQ=00000000000000&NUMTRANS=probe_req_001&NUMAPPEL=probe_connector_txn_001&ACTIVITE=024"
         }
       }
     },
@@ -714,7 +714,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "VERSION=00104&TYPE=00056&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=0&DEVISE=USD&REFERENCE=probe_mandate_001&DATEQ=00000000000000&PORTEUR=4111111111111111&DATEVAL=0330&CVV=737&REFABONNE=probe_mandate_001&ACTIVITE=024"
+          "body": "VERSION=00104&TYPE=00056&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=0&DEVISE=840&REFERENCE=probe_mandate_001&DATEQ=00000000000000&PORTEUR=4111111111111111&DATEVAL=0330&CVV=737&REFABONNE=probe_mandate_001&ACTIVITE=024"
         }
       }
     },
@@ -758,7 +758,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "VERSION=00104&TYPE=00005&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=USD&REFERENCE=probe_void_001&DATEQ=00000000000000&NUMTRANS=probe_req_001&NUMAPPEL=probe_connector_txn_001"
+          "body": "VERSION=00104&TYPE=00005&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=840&REFERENCE=probe_void_001&DATEQ=00000000000000&NUMTRANS=probe_req_001&NUMAPPEL=probe_connector_txn_001"
         }
       }
     }

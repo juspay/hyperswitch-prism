@@ -1418,11 +1418,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // REFABONNE = connector_mandate_request_reference_id (subscriber reference)
         let refabonne = match &router_data.request.mandate_reference {
-            MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => {
-                connector_mandate_ids
-                    .get_connector_mandate_request_reference_id()
-                    .unwrap_or_else(|| porteur.clone())
-            }
+            MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => connector_mandate_ids
+                .get_connector_mandate_request_reference_id()
+                .unwrap_or_else(|| porteur.clone()),
             _ => porteur.clone(),
         };
 
