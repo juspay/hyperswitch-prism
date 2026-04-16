@@ -2864,8 +2864,7 @@ impl TryFrom<ResponseRouterData<CybersourcePaymentsIncrementalAuthorizationRespo
                     .collect::<Vec<_>>()
                     .join(", ")
             });
-            let reason =
-                get_error_reason(error_info.message.clone(), detailed_error_info, None);
+            let reason = get_error_reason(error_info.message.clone(), detailed_error_info, None);
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
                     // Keep the parent payment status unchanged (Authorized) —

@@ -802,7 +802,31 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_authorization_id": "probe_auth_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1100,
+            "currency": "USD"
+          },
+          "reason": "incremental_auth_probe"
+        },
+        "sample": {
+          "url": "https://apitest.cybersource.com/pts/v2/payments/probe_connector_txn_001",
+          "method": "Patch",
+          "headers": {
+            "accept": "application/hal+json;charset=utf-8",
+            "content-type": "application/json;charset=utf-8",
+            "date": "2020-01-01T00:00:00+00:00",
+            "digest": "SHA-256=cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "host": "apitest.cybersource.com",
+            "signature": "keyid=\"probe_key\", algorithm=\"HmacSHA256\", headers=\"host date (request-target) digest v-c-merchant-id\", signature=\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"",
+            "v-c-merchant-id": "probe_merchant",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"processingInformation\":{\"actionList\":null,\"actionTokenTypes\":null,\"authorizationOptions\":{\"initiator\":{\"type\":null,\"credentialStoredOnFile\":null,\"storedCredentialUsed\":true},\"merchantInitiatedTransaction\":null,\"ignoreAvsResult\":null,\"ignoreCvResult\":null},\"commerceIndicator\":\"internet\",\"capture\":null,\"captureOptions\":null,\"paymentSolution\":null},\"orderInformation\":{\"amountDetails\":{\"additionalAmount\":\"11.00\",\"currency\":\"USD\"}}}"
+        }
       }
     },
     "post_authenticate": {

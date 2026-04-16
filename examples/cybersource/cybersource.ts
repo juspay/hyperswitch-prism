@@ -103,6 +103,18 @@ function _buildGetRequest(connectorTransactionId: string): PaymentServiceGetRequ
     };
 }
 
+function _buildIncrementalAuthorizationRequest(): PaymentServiceIncrementalAuthorizationRequest {
+    return {
+        "merchantAuthorizationId": "probe_auth_001",  // Identification.
+        "connectorTransactionId": "probe_connector_txn_001",
+        "amount": {  // new amount to be authorized (in minor currency units).
+            "minorAmount": 1100,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "reason": "incremental_auth_probe"  // Optional Fields.
+    };
+}
+
 function _buildPostAuthenticateRequest(): PaymentMethodAuthenticationServicePostAuthenticateRequest {
     return {
         "amount": {  // Amount Information.
@@ -419,6 +431,15 @@ async function get(merchantTransactionId: string, config: ConnectorConfig = _def
     return { status: getResponse.status };
 }
 
+// Flow: PaymentService.IncrementalAuthorization
+async function incrementalAuthorization(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceIncrementalAuthorizationResponse> {
+    const paymentClient = new PaymentClient(config);
+
+    const incrementalResponse = await paymentClient.incrementalAuthorization(_buildIncrementalAuthorizationRequest());
+
+    return { status: incrementalResponse.status };
+}
+
 // Flow: PaymentMethodAuthenticationService.PostAuthenticate
 async function postAuthenticate(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentMethodAuthenticationServicePostAuthenticateResponse> {
     const paymentMethodAuthenticationClient = new PaymentMethodAuthenticationClient(config);
@@ -503,7 +524,7 @@ async function voidPayment(merchantTransactionId: string, config: ConnectorConfi
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authenticate, authorize, capture, get, postAuthenticate, preAuthenticate, proxyAuthorize, recurringCharge, recurringRevoke, refund, refundGet, tokenAuthorize, voidPayment, _buildAuthenticateRequest, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildPostAuthenticateRequest, _buildPreAuthenticateRequest, _buildProxyAuthorizeRequest, _buildRecurringChargeRequest, _buildRecurringRevokeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authenticate, authorize, capture, get, incrementalAuthorization, postAuthenticate, preAuthenticate, proxyAuthorize, recurringCharge, recurringRevoke, refund, refundGet, tokenAuthorize, voidPayment, _buildAuthenticateRequest, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildIncrementalAuthorizationRequest, _buildPostAuthenticateRequest, _buildPreAuthenticateRequest, _buildProxyAuthorizeRequest, _buildRecurringChargeRequest, _buildRecurringRevokeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
 };
 
 // CLI runner

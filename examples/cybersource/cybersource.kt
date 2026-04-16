@@ -17,6 +17,7 @@ import payments.PaymentServiceRefundRequest
 import payments.PaymentServiceVoidRequest
 import payments.PaymentServiceGetRequest
 import payments.PaymentMethodAuthenticationServiceAuthenticateRequest
+import payments.PaymentServiceIncrementalAuthorizationRequest
 import payments.PaymentMethodAuthenticationServicePostAuthenticateRequest
 import payments.PaymentMethodAuthenticationServicePreAuthenticateRequest
 import payments.PaymentServiceProxyAuthorizeRequest
@@ -278,6 +279,22 @@ fun get(txnId: String) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: PaymentService.IncrementalAuthorization
+fun incrementalAuthorization(txnId: String) {
+    val client = PaymentClient(_defaultConfig)
+    val request = PaymentServiceIncrementalAuthorizationRequest.newBuilder().apply {
+        merchantAuthorizationId = "probe_auth_001"  // Identification.
+        connectorTransactionId = "probe_connector_txn_001"
+        amountBuilder.apply {  // new amount to be authorized (in minor currency units).
+            minorAmount = 1100L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        reason = "incremental_auth_probe"  // Optional Fields.
+    }.build()
+    val response = client.incremental_authorization(request)
+    println("Status: ${response.status.name}")
+}
+
 // Flow: PaymentMethodAuthenticationService.PostAuthenticate
 fun postAuthenticate(txnId: String) {
     val client = PaymentMethodAuthenticationClient(_defaultConfig)
@@ -480,6 +497,7 @@ fun main(args: Array<String>) {
         "authorize" -> authorize(txnId)
         "capture" -> capture(txnId)
         "get" -> get(txnId)
+        "incrementalAuthorization" -> incrementalAuthorization(txnId)
         "postAuthenticate" -> postAuthenticate(txnId)
         "preAuthenticate" -> preAuthenticate(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
@@ -489,6 +507,6 @@ fun main(args: Array<String>) {
         "refundGet" -> refundGet(txnId)
         "tokenAuthorize" -> tokenAuthorize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authenticate, authorize, capture, get, postAuthenticate, preAuthenticate, proxyAuthorize, recurringCharge, recurringRevoke, refund, refundGet, tokenAuthorize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authenticate, authorize, capture, get, incrementalAuthorization, postAuthenticate, preAuthenticate, proxyAuthorize, recurringCharge, recurringRevoke, refund, refundGet, tokenAuthorize, void")
     }
 }

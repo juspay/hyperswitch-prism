@@ -110,6 +110,18 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
     })).unwrap_or_default()
 }
 
+pub fn build_incremental_authorization_request() -> PaymentServiceIncrementalAuthorizationRequest {
+    serde_json::from_value::<PaymentServiceIncrementalAuthorizationRequest>(serde_json::json!({
+    "merchant_authorization_id": "probe_auth_001",  // Identification.
+    "connector_transaction_id": "probe_connector_txn_001",
+    "amount": {  // new amount to be authorized (in minor currency units).
+        "minor_amount": 1100,  // Amount in minor units (e.g., 1000 = $10.00).
+        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
+    },
+    "reason": "incremental_auth_probe",  // Optional Fields.
+    })).unwrap_or_default()
+}
+
 pub fn build_post_authenticate_request() -> PaymentMethodAuthenticationServicePostAuthenticateRequest {
     serde_json::from_value::<PaymentMethodAuthenticationServicePostAuthenticateRequest>(serde_json::json!({
     "amount": {  // Amount Information.
@@ -415,6 +427,13 @@ pub async fn get(client: &ConnectorClient, _merchant_transaction_id: &str) -> Re
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: PaymentService.IncrementalAuthorization
+#[allow(dead_code)]
+pub async fn incremental_authorization(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.incremental_authorization(build_incremental_authorization_request(), &HashMap::new(), None).await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: PaymentMethodAuthenticationService.PostAuthenticate
 #[allow(dead_code)]
 pub async fn post_authenticate(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
@@ -493,6 +512,7 @@ async fn main() {
         "authorize" => authorize(&client, "order_001").await,
         "capture" => capture(&client, "order_001").await,
         "get" => get(&client, "order_001").await,
+        "incremental_authorization" => incremental_authorization(&client, "order_001").await,
         "post_authenticate" => post_authenticate(&client, "order_001").await,
         "pre_authenticate" => pre_authenticate(&client, "order_001").await,
         "proxy_authorize" => proxy_authorize(&client, "order_001").await,
@@ -502,7 +522,7 @@ async fn main() {
         "refund_get" => refund_get(&client, "order_001").await,
         "token_authorize" => token_authorize(&client, "order_001").await,
         "void" => void(&client, "order_001").await,
-        _ => { eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, authenticate, authorize, capture, get, post_authenticate, pre_authenticate, proxy_authorize, recurring_charge, recurring_revoke, refund, refund_get, token_authorize, void", flow); return; }
+        _ => { eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, authenticate, authorize, capture, get, incremental_authorization, post_authenticate, pre_authenticate, proxy_authorize, recurring_charge, recurring_revoke, refund, refund_get, token_authorize, void", flow); return; }
     };
     match result {
         Ok(msg) => println!("✓ {msg}"),
