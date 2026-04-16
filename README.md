@@ -283,12 +283,10 @@ cargo test
 
 The `hyperswitch-prism` SDK contains platform-specific native libraries compiled for **x86_64 (AMD64)** architecture.
 
-| Platform | Architecture | Notes |
-|----------|--------------|-------|
-| macOS (Intel) | x86_64 | Native support |
-| macOS (Apple Silicon) | arm64 | Uses x86_64 emulation with Rosetta 2 |
-| Linux | x86_64 | Native support |
-
+| Platform | Architecture |
+|----------|--------------|
+| macOS (Apple Silicon) | arm64 |
+| Linux | x86_64 |
 
 ### Reporting Vulnerabilities
 Please report security issues to [security@juspay.in](mailto:security@juspay.in).
