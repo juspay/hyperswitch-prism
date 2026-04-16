@@ -111,6 +111,33 @@ pub struct PeachpaymentsConnectorMetadataObject {
     pub merchant_payment_method_route_id: Secret<String>,
 }
 
+/// Determines routing fields based on whether the route ID is a UUID or a route name.
+/// Peach Payments API accepts either:
+/// - `routingReference.merchantPaymentMethodRouteId` (UUID format)
+/// - `routing.route` (route name string)
+fn build_routing_fields(
+    route_id: Secret<String>,
+) -> (
+    Option<requests::PeachpaymentsRoutingReference>,
+    Option<requests::PeachpaymentsRouting>,
+) {
+    let value = route_id.peek().clone();
+    // UUID format: 36 chars with dashes (e.g., "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
+    if value.len() == 36 && value.contains('-') {
+        (
+            Some(requests::PeachpaymentsRoutingReference {
+                merchant_payment_method_route_id: route_id,
+            }),
+            None,
+        )
+    } else {
+        (
+            None,
+            Some(requests::PeachpaymentsRouting { route: route_id }),
+        )
+    }
+}
+
 impl TryFrom<&Option<SecretSerdeValue>> for PeachpaymentsConnectorMetadataObject {
     type Error = error_stack::Report<IntegrationError>;
 
@@ -240,9 +267,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         client_merchant_reference_id: connector_meta_data
                             .client_merchant_reference_id,
                     },
-                    routing_reference: requests::PeachpaymentsRoutingReference {
-                        merchant_payment_method_route_id: connector_meta_data
-                            .merchant_payment_method_route_id,
+                    routing_reference: {
+                        let (rr, _) = build_routing_fields(connector_meta_data.merchant_payment_method_route_id.clone());
+                        rr
+                    },
+                    routing: {
+                        let (_, rt) = build_routing_fields(connector_meta_data.merchant_payment_method_route_id.clone());
+                        rt
                     },
                     card: requests::PeachpaymentsCardDetails {
                         pan: card_info.card_number.clone(),
@@ -292,9 +323,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             client_merchant_reference_id: connector_meta_data
                                 .client_merchant_reference_id,
                         },
-                        routing_reference: requests::PeachpaymentsRoutingReference {
-                            merchant_payment_method_route_id: connector_meta_data
-                                .merchant_payment_method_route_id,
+                        routing_reference: {
+                            let (rr, _) = build_routing_fields(connector_meta_data.merchant_payment_method_route_id.clone());
+                            rr
+                        },
+                        routing: {
+                            let (_, rt) = build_routing_fields(connector_meta_data.merchant_payment_method_route_id.clone());
+                            rt
                         },
                         network_token_data: requests::PeachpaymentsNetworkTokenDetails {
                             token: Secret::new(token_data.token_number.peek().clone()),
@@ -756,9 +791,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         client_merchant_reference_id: connector_meta_data
                             .client_merchant_reference_id,
                     },
-                    routing_reference: requests::PeachpaymentsRoutingReference {
-                        merchant_payment_method_route_id: connector_meta_data
-                            .merchant_payment_method_route_id,
+                    routing_reference: {
+                        let (rr, _) = build_routing_fields(connector_meta_data.merchant_payment_method_route_id.clone());
+                        rr
+                    },
+                    routing: {
+                        let (_, rt) = build_routing_fields(connector_meta_data.merchant_payment_method_route_id.clone());
+                        rt
                     },
                     card: requests::PeachpaymentsCardDetails {
                         pan: card_info.card_number.clone(),
@@ -780,14 +819,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         display_amount: None,
                     },
                     rrn: item.router_data.request.merchant_order_id.clone(),
-                    pre_auth_inc_ext_capture_flow: Some(requests::PeachpaymentsPreAuthFlow {
-                        dcc_mode: requests::DccMode::NoDcc,
-                        txn_ref_nr: item
-                            .router_data
-                            .resource_common_data
-                            .connector_request_reference_id
-                            .clone(),
-                    }),
+                    pre_auth_inc_ext_capture_flow: None,
                     cof_data,
                 })
             }
@@ -945,9 +977,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         client_merchant_reference_id: connector_meta_data
                             .client_merchant_reference_id,
                     },
-                    routing_reference: requests::PeachpaymentsRoutingReference {
-                        merchant_payment_method_route_id: connector_meta_data
-                            .merchant_payment_method_route_id,
+                    routing_reference: {
+                        let (rr, _) = build_routing_fields(connector_meta_data.merchant_payment_method_route_id.clone());
+                        rr
+                    },
+                    routing: {
+                        let (_, rt) = build_routing_fields(connector_meta_data.merchant_payment_method_route_id.clone());
+                        rt
                     },
                     card: requests::PeachpaymentsCardDetails {
                         pan: card_info.card_number.clone(),
@@ -980,9 +1016,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             client_merchant_reference_id: connector_meta_data
                                 .client_merchant_reference_id,
                         },
-                        routing_reference: requests::PeachpaymentsRoutingReference {
-                            merchant_payment_method_route_id: connector_meta_data
-                                .merchant_payment_method_route_id,
+                        routing_reference: {
+                            let (rr, _) = build_routing_fields(connector_meta_data.merchant_payment_method_route_id.clone());
+                            rr
+                        },
+                        routing: {
+                            let (_, rt) = build_routing_fields(connector_meta_data.merchant_payment_method_route_id.clone());
+                            rt
                         },
                         network_token_data: requests::PeachpaymentsNetworkTokenDetails {
                             token: Secret::new(token_data.token_number.peek().clone()),

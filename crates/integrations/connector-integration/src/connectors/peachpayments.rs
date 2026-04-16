@@ -297,7 +297,7 @@ macros::macro_connector_implementation!(
         }
         fn get_url(&self, req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>) -> CustomResult<String, IntegrationError> {
             Ok(format!(
-                "{}/transactions/authorization",
+                "{}/transactions/create-and-confirm",
                 self.connector_base_url_payments(req)
             ))
         }
