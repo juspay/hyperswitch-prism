@@ -265,15 +265,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         // Constant-time comparison to prevent timing attacks on webhook signature.
-        // Both values are hex-encoded SHA256 hashes, so length check + byte-by-byte
-        // XOR accumulation avoids early-exit leaks.
-        let a = incoming_verify.as_bytes();
-        let b = expected_checksum.as_bytes();
-        Ok(a.len() == b.len()
-            && a.iter()
-                .zip(b.iter())
-                .fold(0u8, |acc, (x, y)| acc | (x ^ y))
-                == 0)
+        #[allow(deprecated)] // ring 0.17 renamed the module; function is still sound
+        Ok(ring::constant_time::verify_slices_are_equal(
+            incoming_verify.as_bytes(),
+            expected_checksum.as_bytes(),
+        )
+        .is_ok())
     }
 
     fn get_event_type(
@@ -612,7 +609,7 @@ macros::macro_connector_implementation!(
             // Route wallet debit to /v3/wallet/debit endpoint
             if matches!(
                 &req.request.payment_method_data,
-                PaymentMethodData::Wallet(WalletData::Mifinity(_))
+                PaymentMethodData::Wallet(WalletData::PhonePeRedirect(_))
             ) {
                 return Ok(format!("{}{}", base_url, constants::API_WALLET_DEBIT_ENDPOINT));
             }
@@ -938,7 +935,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 static PHONEPE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
-    let phonepe_supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+    let phonepe_supported_capture_methods = vec![
+        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::Manual,
+    ];
 
     let mut phonepe_supported_payment_methods = SupportedPaymentMethods::new();
 
@@ -948,7 +948,7 @@ static PHONEPE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
         enums::PaymentMethodType::UpiIntent,
         PaymentMethodDetails {
             mandates: FeatureStatus::NotSupported,
-            refunds: FeatureStatus::NotSupported,
+            refunds: FeatureStatus::Supported,
             supported_capture_methods: phonepe_supported_capture_methods.clone(),
             specific_features: None,
         },
@@ -959,7 +959,7 @@ static PHONEPE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
         enums::PaymentMethodType::UpiQr,
         PaymentMethodDetails {
             mandates: FeatureStatus::NotSupported,
-            refunds: FeatureStatus::NotSupported,
+            refunds: FeatureStatus::Supported,
             supported_capture_methods: phonepe_supported_capture_methods.clone(),
             specific_features: None,
         },
@@ -970,19 +970,19 @@ static PHONEPE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
         enums::PaymentMethodType::UpiCollect,
         PaymentMethodDetails {
             mandates: FeatureStatus::NotSupported,
-            refunds: FeatureStatus::NotSupported,
+            refunds: FeatureStatus::Supported,
             supported_capture_methods: phonepe_supported_capture_methods.clone(),
             specific_features: None,
         },
     );
 
-    // Wallet: direct debit (mapped via Mifinity PMT)
+    // Wallet: PhonePe wallet direct debit
     phonepe_supported_payment_methods.add(
         enums::PaymentMethod::Wallet,
-        enums::PaymentMethodType::Mifinity,
+        enums::PaymentMethodType::PhonePe,
         PaymentMethodDetails {
             mandates: FeatureStatus::NotSupported,
-            refunds: FeatureStatus::NotSupported,
+            refunds: FeatureStatus::Supported,
             supported_capture_methods: phonepe_supported_capture_methods.clone(),
             specific_features: None,
         },

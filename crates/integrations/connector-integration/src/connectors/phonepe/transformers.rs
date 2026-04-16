@@ -281,8 +281,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .get_optional_billing_phone_number()
             .map(|phone| Secret::new(phone.peek().to_string()));
 
-        // Handle wallet debit (Mifinity variant maps to PhonePe wallet direct debit)
-        if let PaymentMethodData::Wallet(WalletData::Mifinity(_)) =
+        // Handle PhonePe wallet direct debit
+        if let PaymentMethodData::Wallet(WalletData::PhonePeRedirect(_)) =
             &router_data.request.payment_method_data
         {
             let wallet_mobile_number =
@@ -520,8 +520,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .get_optional_billing_phone_number()
             .map(|phone| Secret::new(phone.peek().to_string()));
 
-        // Handle wallet debit (Mifinity variant maps to PhonePe wallet direct debit)
-        if let PaymentMethodData::Wallet(WalletData::Mifinity(_)) =
+        // Handle PhonePe wallet direct debit
+        if let PaymentMethodData::Wallet(WalletData::PhonePeRedirect(_)) =
             &router_data.request.payment_method_data
         {
             let wallet_mobile_number =
