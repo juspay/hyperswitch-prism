@@ -42,7 +42,9 @@ use serde::Serialize;
 use transformers::{
     self as multisafepay, MultisafepayClientAuthResponse, MultisafepayPaymentsRequest,
     MultisafepayPaymentsResponse, MultisafepayPaymentsSyncResponse, MultisafepayRefundRequest,
-    MultisafepayRefundResponse, MultisafepayRefundSyncResponse,
+    MultisafepayRefundResponse, MultisafepayRefundSyncResponse, MultisafepayRepeatPaymentRequest,
+    MultisafepayRepeatPaymentResponse, MultisafepaySetupMandateRequest,
+    MultisafepaySetupMandateResponse,
 };
 
 use super::macros;
@@ -254,6 +256,18 @@ macros::create_all_prerequisites!(
             flow: ClientAuthenticationToken,
             response_body: MultisafepayClientAuthResponse,
             router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: MultisafepaySetupMandateRequest<T>,
+            response_body: MultisafepaySetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: MultisafepayRepeatPaymentRequest,
+            response_body: MultisafepayRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -492,27 +506,69 @@ macros::macro_connector_implementation!(
     }
 );
 
-// Setup Mandate
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
-        PaymentsResponseData,
-    > for Multisafepay<T>
-{
-}
+// Setup Mandate (CIT initial for MIT - tokenize card and create recurring reference)
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Multisafepay,
+    curl_request: Json(MultisafepaySetupMandateRequest<T>),
+    curl_response: MultisafepaySetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
 
-// Repeat Payment
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
-    > for Multisafepay<T>
-{
-}
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let auth = multisafepay::MultisafepayAuthType::try_from(&req.connector_config)
+                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
+            Ok(format!("{}/orders?api_key={}", self.connector_base_url_payments(req), auth.api_key.expose()))
+        }
+    }
+);
+
+// Repeat Payment (MIT subsequent - charge using stored token/recurring_id)
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Multisafepay,
+    curl_request: Json(MultisafepayRepeatPaymentRequest),
+    curl_response: MultisafepayRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let auth = multisafepay::MultisafepayAuthType::try_from(&req.connector_config)
+                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
+            Ok(format!("{}/orders?api_key={}", self.connector_base_url_payments(req), auth.api_key.expose()))
+        }
+    }
+);
 
 // Order Create
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
