@@ -78,26 +78,40 @@ _shared_js_env_dir: Optional[Path] = None
 
 
 def get_all_connectors(repo_root: Path) -> List[str]:
-    """Discover all available connectors from the Python generated harness directory."""
-    generated = repo_root / "sdk" / "python" / "smoke-test" / "generated"
-    if not generated.exists():
+    """Discover all available connectors from the examples directory."""
+    examples_dir = repo_root / "examples"
+    if not examples_dir.exists():
         return ["stripe"]
     return sorted(
-        d.name for d in generated.iterdir()
-        if d.is_dir() and d.name != "__pycache__"
+        d.name for d in examples_dir.iterdir()
+        if d.is_dir() and not d.name.startswith(".")
     )
+
+
+def get_platform_triple() -> str:
+    """Return the Rust target triple for the current platform."""
+    uname = platform.uname()
+    if uname.system == "Darwin":
+        return "aarch64-apple-darwin" if uname.machine == "arm64" else "x86_64-apple-darwin"
+    else:
+        return "aarch64-unknown-linux-gnu" if uname.machine == "aarch64" else "x86_64-unknown-linux-gnu"
 
 
 def get_ffi_lib_path(repo_root: Path) -> Path:
     """Return the expected FFI library path for the current platform."""
-    uname = platform.uname()
-    if uname.system == "Darwin":
-        triple = "aarch64-apple-darwin" if uname.machine == "arm64" else "x86_64-apple-darwin"
-        ext = "dylib"
-    else:
-        triple = "aarch64-unknown-linux-gnu" if uname.machine == "aarch64" else "x86_64-unknown-linux-gnu"
-        ext = "so"
+    triple = get_platform_triple()
+    ext = "dylib" if platform.uname().system == "Darwin" else "so"
     return repo_root / "target" / triple / "release-fast" / f"libconnector_service_ffi.{ext}"
+
+
+def get_js_sdk_version(repo_root: Path) -> str:
+    """Read JavaScript SDK version from package.json."""
+    pkg_json = repo_root / "sdk" / "javascript" / "package.json"
+    if pkg_json.exists():
+        import json
+        data = json.loads(pkg_json.read_text())
+        return data.get("version", "0.0.1")
+    return "0.0.1"
 
 
 def build_javascript_sdk_once(repo_root: Path) -> Optional[Path]:
@@ -106,7 +120,8 @@ def build_javascript_sdk_once(repo_root: Path) -> Optional[Path]:
     if _js_sdk_path is not None:
         return _js_sdk_path
 
-    tarball = repo_root / "artifacts" / "sdk-javascript" / "hyperswitch-prism-0.0.1.tgz"
+    version = get_js_sdk_version(repo_root)
+    tarball = repo_root / "artifacts" / "sdk-javascript" / f"hyperswitch-prism-{version}.tgz"
     if tarball.exists():
         _js_sdk_path = tarball
         return _js_sdk_path
@@ -148,9 +163,10 @@ def prepare_kotlin_sdk_once(repo_root: Path) -> bool:
     print("  Preparing Kotlin SDK (generate-all install)...")
     try:
         result = subprocess.run(
-            ["make", "generate-all", "install"],
+            # Pass PROFILE=release-fast explicitly so this always matches the
+            # pre-built artifacts (CI env may carry PROFILE=dev from the job env).
+            ["make", "PROFILE=release-fast", "generate-all", "install"],
             cwd=repo_root / "sdk" / "java",
-            capture_output=True,
             text=True,
             timeout=600
         )
@@ -159,8 +175,6 @@ def prepare_kotlin_sdk_once(repo_root: Path) -> bool:
             print("  Kotlin SDK ready")
             return True
         print(f"  Warning: Kotlin SDK prep failed (rc={result.returncode})")
-        if result.stderr:
-            print(f"  {result.stderr[-300:]}")
     except Exception as e:
         print(f"  Warning: Kotlin SDK prep exception: {e}")
 
@@ -173,13 +187,13 @@ _rust_valid_connectors: List[str] = []
 
 def get_valid_rust_connectors(repo_root: Path, connectors: List[str]) -> List[str]:
     """
-    Return only connectors whose Rust harnesses pass build.rs validation:
+    Return only connectors whose Rust examples pass build.rs validation:
     every flow in SUPPORTED_FLOWS must have a matching pub async fn process_<flow>.
     """
-    harness_dir = repo_root / "sdk" / "rust" / "smoke-test" / "generated"
+    examples_dir = repo_root / "examples"
     valid = []
     for connector in connectors:
-        rs_file = harness_dir / connector / f"{connector}.rs"
+        rs_file = examples_dir / connector / f"{connector}.rs"
         if not rs_file.exists():
             continue
         content = rs_file.read_text()
@@ -211,8 +225,17 @@ def prepare_rust_smoke_test_once(repo_root: Path, connectors: List[str]) -> bool
     Connectors whose harnesses fail build.rs validation are silently excluded.
     """
     global _rust_smoke_test_prepared, _rust_valid_connectors
-    if _rust_smoke_test_prepared:
-        return True
+
+    # Check if we need to rebuild (connector list changed from cached)
+    if _rust_smoke_test_prepared and _rust_valid_connectors:
+        current_set = set(connectors)
+        cached_set = set(_rust_valid_connectors)
+        if current_set != cached_set:
+            print(f"  Connector list changed ({len(cached_set)} → {len(current_set)} connectors), rebuilding...")
+            _rust_smoke_test_prepared = False
+            _rust_valid_connectors = []
+        else:
+            return True
 
     valid = get_valid_rust_connectors(repo_root, connectors)
     if not valid:
@@ -226,16 +249,19 @@ def prepare_rust_smoke_test_once(repo_root: Path, connectors: List[str]) -> bool
     print(f"  Building Rust smoke-test with CONNECTORS={','.join(valid)}...")
     env = os.environ.copy()
     env["CONNECTORS"] = ",".join(valid)
-    env["HARNESS_DIR"] = str(repo_root / "sdk" / "rust" / "smoke-test" / "generated")
+    env["HARNESS_DIR"] = str(repo_root / "examples")
 
     try:
         result = subprocess.run(
             # Build only the FFI smoke-test binary; skip grpc-smoke-test which may
             # have unrelated compile errors (different binary target, same package).
+            # Use --target to match the platform triple used everywhere else so that
+            # Cargo reuses already-compiled artifacts from the explicit build step.
             ["cargo", "build", "--profile", "release-fast",
+             "--target", get_platform_triple(),
              "-p", "hyperswitch-smoke-test", "--bin", "hyperswitch-smoke-test"],
             cwd=repo_root,
-            capture_output=True, text=True, timeout=300, env=env
+            text=True, timeout=300, env=env
         )
         if result.returncode == 0:
             _rust_smoke_test_prepared = True
@@ -243,34 +269,11 @@ def prepare_rust_smoke_test_once(repo_root: Path, connectors: List[str]) -> bool
             print(f"  Rust smoke-test ready ({len(valid)} connectors)")
             return True
         print(f"  Warning: Rust smoke-test build failed (rc={result.returncode})")
-        if result.stderr:
-            print(f"  {result.stderr[-300:]}")
     except Exception as e:
         print(f"  Warning: Rust smoke-test build exception: {e}")
 
     return False
 
-
-def copy_kotlin_harnesses(repo_root: Path, connectors: List[str]) -> None:
-    """Copy all connector harness kt files to the smoke-test source directory."""
-    dest_base = (
-        repo_root / "sdk" / "java" / "smoke-test"
-        / "src" / "main" / "kotlin" / "generated"
-    )
-    # Clean destination directory to avoid compiling stale/broken connectors
-    if dest_base.exists():
-        shutil.rmtree(dest_base)
-    dest_base.mkdir(parents=True, exist_ok=True)
-    
-    for connector in connectors:
-        src = (
-            repo_root / "sdk" / "java" / "smoke-test"
-            / "generated" / connector / f"{connector}.kt"
-        )
-        if src.exists():
-            dest_dir = dest_base / connector
-            dest_dir.mkdir(parents=True, exist_ok=True)
-            shutil.copy(src, dest_dir / f"{connector}.kt")
 
 
 def setup_shared_js_env(
@@ -315,16 +318,13 @@ def setup_shared_js_env(
         if creds_src.exists():
             shutil.copy(creds_src, tmpdir / "creds.json")
 
-        # Copy all harnesses
+        # Copy all examples
         for connector in connectors:
-            harness_src = (
-                repo_root / "sdk" / "javascript" / "smoke-test"
-                / "generated" / connector / f"{connector}.ts"
-            )
-            if harness_src.exists():
-                harness_dir = tmpdir / "smoke-test" / "generated" / connector
-                harness_dir.mkdir(parents=True, exist_ok=True)
-                shutil.copy(harness_src, harness_dir / f"{connector}.ts")
+            example_src = repo_root / "examples" / connector / f"{connector}.ts"
+            if example_src.exists():
+                example_dir = tmpdir / "examples" / connector
+                example_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy(example_src, example_dir / f"{connector}.ts")
 
         _shared_js_env_dir = tmpdir
         print(f"  JS environment ready")
@@ -499,20 +499,18 @@ def run_python_test_batch(
         )
 
         for connector in connectors:
-            examples_dir = smoke_test_dir / "examples" / connector
-            examples_dir.mkdir(parents=True, exist_ok=True)
-            harness_src = (
-                repo_root / "sdk" / "python" / "smoke-test"
-                / "generated" / connector / f"{connector}.py"
-            )
-            if harness_src.exists():
-                shutil.copy(harness_src, examples_dir / f"{connector}.py")
+            examples_dest = smoke_test_dir / "examples" / connector
+            examples_dest.mkdir(parents=True, exist_ok=True)
+            example_src = repo_root / "examples" / connector / f"{connector}.py"
+            if example_src.exists():
+                shutil.copy(example_src, examples_dest / f"{connector}.py")
 
         cmd = [
             sys.executable, "smoke-test/test_smoke.py",
             "--connectors", ",".join(connectors),
             "--json-output",
             "--creds-file", "creds.json",
+            "--examples-dir", "smoke-test/examples",
         ]
         if mock:
             cmd.append("--mock")
@@ -580,7 +578,7 @@ def run_javascript_test_batch(
     env["NODE_PATH"] = str(js_env / "node_modules")
     env["NO_COLOR"] = "1"
 
-    examples_dir = js_env / "smoke-test" / "generated"
+    examples_dir = js_env / "examples"
     cmd = [
         "npx", "tsx", "test_smoke.ts",
         "--connectors", ",".join(connectors),
@@ -634,8 +632,8 @@ def run_kotlin_test_batch(
 
     try:
         result = subprocess.run(
-            [str(repo_root / "sdk" / "java" / "gradlew"), "run", f"--args={run_args}"],
-            cwd=smoke_test_dir,
+            ["../gradlew", "run", f"--args={run_args}"],
+            cwd=str(smoke_test_dir),
             capture_output=True, text=True, timeout=300, env=env
         )
 
@@ -667,17 +665,29 @@ def run_rust_test_batch(
     valid = _rust_valid_connectors if _rust_valid_connectors else connectors
     invalid_connectors = [c for c in connectors if c not in valid]
 
-    # Use the pre-built binary directly to avoid any cargo lock during parallel tests
-    uname = platform.uname()
-    if uname.system == "Darwin":
-        triple = "aarch64-apple-darwin" if uname.machine == "arm64" else "x86_64-apple-darwin"
-    else:
-        triple = "aarch64-unknown-linux-gnu" if uname.machine == "aarch64" else "x86_64-unknown-linux-gnu"
-    binary = repo_root / "target" / triple / "release-fast" / "hyperswitch-smoke-test"
+    # Use the pre-built binary directly to avoid any cargo lock during parallel tests.
+    # Check both locations: with and without platform subdirectory (CI uses --target flag)
+    binary_no_platform = repo_root / "target" / "release-fast" / "hyperswitch-smoke-test"
+    
+    # Look for binary in any platform-specific subdirectory
+    binary_with_platform = None
+    target_dir = repo_root / "target"
+    if target_dir.exists():
+        for platform_dir in target_dir.iterdir():
+            if platform_dir.is_dir() and "-" in platform_dir.name:  # Looks like a target triple
+                candidate = platform_dir / "release-fast" / "hyperswitch-smoke-test"
+                if candidate.exists():
+                    binary_with_platform = candidate
+                    break
+    
+    binary = binary_with_platform if binary_with_platform else binary_no_platform
 
     if not binary.exists():
-        # Fall back to cargo run if binary not found
-        binary_cmd = ["cargo", "run", "--profile", "release-fast", "-p", "hyperswitch-smoke-test", "--"]
+        # Fall back to cargo run if binary not found. Use --target to match the
+        # pre-built artifact directory so Cargo reuses compiled objects.
+        binary_cmd = ["cargo", "run", "--profile", "release-fast",
+                      "--target", get_platform_triple(),
+                      "-p", "hyperswitch-smoke-test", "--bin", "hyperswitch-smoke-test", "--"]
     else:
         binary_cmd = [str(binary)]
 
@@ -698,7 +708,7 @@ def run_rust_test_batch(
         cmd.append("--mock")
 
     env = os.environ.copy()
-    env["HARNESS_DIR"] = str(repo_root / "sdk" / "rust" / "smoke-test" / "generated")
+    env["HARNESS_DIR"] = str(repo_root / "examples")
     env["CONNECTORS"] = ",".join(valid)
     env["NO_COLOR"] = "1"
 
@@ -866,7 +876,6 @@ def main() -> None:
 
     if "kotlin" in sdks:
         prepare_kotlin_sdk_once(repo_root)
-        copy_kotlin_harnesses(repo_root, connectors)
 
     if "rust" in sdks:
         prepare_rust_smoke_test_once(repo_root, connectors)

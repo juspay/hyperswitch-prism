@@ -22,11 +22,15 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        tsys=payment_pb2.TsysConfig(
+            device_id=payment_methods_pb2.SecretString(value="YOUR_DEVICE_ID"),
+            transaction_key=payment_methods_pb2.SecretString(value="YOUR_TRANSACTION_KEY"),
+            developer_id=payment_methods_pb2.SecretString(value="YOUR_DEVELOPER_ID"),
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     tsys=payment_pb2.TsysConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,14 +42,19 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Tsys',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
+const config = ConnectorConfig.create({
+    connector: Connector.TSYS,
+    environment: Environment.SANDBOX,
+    auth: {
+        tsys: {
+            deviceId: { value: 'YOUR_DEVICE_ID' },
+            transactionKey: { value: 'YOUR_TRANSACTION_KEY' },
+            developerId: { value: 'YOUR_DEVELOPER_ID' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
     },
 });
 ```
@@ -59,11 +68,16 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Tsys")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setTsys(TsysConfig.newBuilder()
+                .setDeviceId(SecretString.newBuilder().setValue("YOUR_DEVICE_ID").build())
+                .setTransactionKey(SecretString.newBuilder().setValue("YOUR_TRANSACTION_KEY").build())
+                .setDeveloperId(SecretString.newBuilder().setValue("YOUR_DEVELOPER_ID").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
     )
     .build()
 ```
@@ -76,13 +90,22 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Tsys".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Tsys(TsysConfig {
+                device_id: Some(hyperswitch_masking::Secret::new("YOUR_DEVICE_ID".to_string())),  // Authentication credential
+                transaction_key: Some(hyperswitch_masking::Secret::new("YOUR_TRANSACTION_KEY".to_string())),  // Authentication credential
+                developer_id: Some(hyperswitch_masking::Secret::new("YOUR_DEVELOPER_ID".to_string())),  // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -108,7 +131,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/tsys/tsys.py#L139) · [JavaScript](../../examples/tsys/tsys.js) · [Kotlin](../../examples/tsys/tsys.kt#L103) · [Rust](../../examples/tsys/tsys.rs#L131)
+**Examples:** [Python](../../examples/tsys/tsys.py#L121) · [JavaScript](../../examples/tsys/tsys.js) · [Kotlin](../../examples/tsys/tsys.kt#L112) · [Rust](../../examples/tsys/tsys.rs#L157)
 
 ### Card Payment (Authorize + Capture)
 
@@ -122,25 +145,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/tsys/tsys.py#L158) · [JavaScript](../../examples/tsys/tsys.js) · [Kotlin](../../examples/tsys/tsys.kt#L119) · [Rust](../../examples/tsys/tsys.rs#L147)
+**Examples:** [Python](../../examples/tsys/tsys.py#L140) · [JavaScript](../../examples/tsys/tsys.js) · [Kotlin](../../examples/tsys/tsys.kt#L128) · [Rust](../../examples/tsys/tsys.rs#L173)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/tsys/tsys.py#L183) · [JavaScript](../../examples/tsys/tsys.js) · [Kotlin](../../examples/tsys/tsys.kt#L141) · [Rust](../../examples/tsys/tsys.rs#L170)
+**Examples:** [Python](../../examples/tsys/tsys.py#L165) · [JavaScript](../../examples/tsys/tsys.js) · [Kotlin](../../examples/tsys/tsys.kt#L150) · [Rust](../../examples/tsys/tsys.rs#L196)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/tsys/tsys.py#L208) · [JavaScript](../../examples/tsys/tsys.js) · [Kotlin](../../examples/tsys/tsys.kt#L163) · [Rust](../../examples/tsys/tsys.rs#L193)
+**Examples:** [Python](../../examples/tsys/tsys.py#L190) · [JavaScript](../../examples/tsys/tsys.js) · [Kotlin](../../examples/tsys/tsys.kt#L172) · [Rust](../../examples/tsys/tsys.rs#L219)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/tsys/tsys.py#L230) · [JavaScript](../../examples/tsys/tsys.js) · [Kotlin](../../examples/tsys/tsys.kt#L182) · [Rust](../../examples/tsys/tsys.rs#L212)
+**Examples:** [Python](../../examples/tsys/tsys.py#L212) · [JavaScript](../../examples/tsys/tsys.js) · [Kotlin](../../examples/tsys/tsys.kt#L191) · [Rust](../../examples/tsys/tsys.rs#L238)
 
 ## API Reference
 
@@ -267,17 +290,17 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "card": {  # Generic card payment.
-        "card_number": {"value": "4111111111111111"},  # Card Identification.
-        "card_exp_month": {"value": "03"},
-        "card_exp_year": {"value": "2030"},
-        "card_cvc": {"value": "737"},
-        "card_holder_name": {"value": "John Doe"}  # Cardholder Information.
-    }
+  "card": {
+    "card_number": "4111111111111111",
+    "card_exp_month": "03",
+    "card_exp_year": "2030",
+    "card_cvc": "737",
+    "card_holder_name": "John Doe"
+  }
 }
 ```
 
-**Examples:** [Python](../../examples/tsys/tsys.py#L252) · [TypeScript](../../examples/tsys/tsys.ts#L240) · [Kotlin](../../examples/tsys/tsys.kt#L200) · [Rust](../../examples/tsys/tsys.rs#L230)
+**Examples:** [Python](../../examples/tsys/tsys.py) · [TypeScript](../../examples/tsys/tsys.ts#L245) · [Kotlin](../../examples/tsys/tsys.kt#L209) · [Rust](../../examples/tsys/tsys.rs)
 
 #### PaymentService.Capture
 
@@ -288,7 +311,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/tsys/tsys.py#L261) · [TypeScript](../../examples/tsys/tsys.ts#L249) · [Kotlin](../../examples/tsys/tsys.kt#L212) · [Rust](../../examples/tsys/tsys.rs#L242)
+**Examples:** [Python](../../examples/tsys/tsys.py) · [TypeScript](../../examples/tsys/tsys.ts#L254) · [Kotlin](../../examples/tsys/tsys.kt#L221) · [Rust](../../examples/tsys/tsys.rs)
 
 #### PaymentService.Get
 
@@ -299,7 +322,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/tsys/tsys.py#L270) · [TypeScript](../../examples/tsys/tsys.ts#L258) · [Kotlin](../../examples/tsys/tsys.kt#L222) · [Rust](../../examples/tsys/tsys.rs#L249)
+**Examples:** [Python](../../examples/tsys/tsys.py) · [TypeScript](../../examples/tsys/tsys.ts#L263) · [Kotlin](../../examples/tsys/tsys.kt#L231) · [Rust](../../examples/tsys/tsys.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -310,7 +333,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/tsys/tsys.py#L279) · [TypeScript](../../examples/tsys/tsys.ts#L267) · [Kotlin](../../examples/tsys/tsys.kt#L230) · [Rust](../../examples/tsys/tsys.rs#L256)
+**Examples:** [Python](../../examples/tsys/tsys.py) · [TypeScript](../../examples/tsys/tsys.ts#L272) · [Kotlin](../../examples/tsys/tsys.kt#L239) · [Rust](../../examples/tsys/tsys.rs)
 
 #### PaymentService.Refund
 
@@ -321,7 +344,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/tsys/tsys.py#L288) · [TypeScript](../../examples/tsys/tsys.ts#L276) · [Kotlin](../../examples/tsys/tsys.kt#L258) · [Rust](../../examples/tsys/tsys.rs#L263)
+**Examples:** [Python](../../examples/tsys/tsys.py) · [TypeScript](../../examples/tsys/tsys.ts#L281) · [Kotlin](../../examples/tsys/tsys.kt#L267) · [Rust](../../examples/tsys/tsys.rs)
 
 #### PaymentService.Void
 
@@ -332,7 +355,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/tsys/tsys.py#L306) · [TypeScript](../../examples/tsys/tsys.ts) · [Kotlin](../../examples/tsys/tsys.kt#L280) · [Rust](../../examples/tsys/tsys.rs#L277)
+**Examples:** [Python](../../examples/tsys/tsys.py) · [TypeScript](../../examples/tsys/tsys.ts) · [Kotlin](../../examples/tsys/tsys.kt#L289) · [Rust](../../examples/tsys/tsys.rs)
 
 ### Refunds
 
@@ -345,4 +368,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/tsys/tsys.py#L297) · [TypeScript](../../examples/tsys/tsys.ts#L285) · [Kotlin](../../examples/tsys/tsys.kt#L268) · [Rust](../../examples/tsys/tsys.rs#L270)
+**Examples:** [Python](../../examples/tsys/tsys.py) · [TypeScript](../../examples/tsys/tsys.ts#L290) · [Kotlin](../../examples/tsys/tsys.kt#L277) · [Rust](../../examples/tsys/tsys.rs)

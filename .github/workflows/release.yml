@@ -263,7 +263,7 @@ jobs:
           name: generated-javascript
           path: sdk/javascript/src/payments/generated/
       - name: Package JavaScript SDK
-        run: make -C sdk/javascript pack-archive
+        run: make -C sdk/javascript dist
       - name: Upload JavaScript SDK artifact
         uses: actions/upload-artifact@v4
         with:
@@ -506,6 +506,13 @@ jobs:
         continue-on-error: true
         run: make -C sdk/python publish-check-dry-run
 
+      - name: Download JavaScript SDK artifact for dry-run
+        if: ${{ inputs.preview_only == true || inputs.publish_javascript == true }}
+        uses: actions/download-artifact@v4
+        with:
+          name: sdk-javascript
+          path: artifacts/sdk-javascript
+
       - name: JavaScript dry-run (npm publish --dry-run)
         id: check-js-dryrun
         if: ${{ inputs.preview_only == true || inputs.publish_javascript == true }}
@@ -515,7 +522,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           npm ci
-          npm publish --dry-run --access public
+          npm publish ../../artifacts/sdk-javascript/*.tgz --dry-run --access public
 
       - name: Pre-Publish Check Summary
         run: |
@@ -627,7 +634,11 @@ jobs:
           CENTRAL_TOKEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
           GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
           GPG_SIGNING_KEY_PASSWORD: ${{ secrets.GPG_SIGNING_KEY_PASSWORD }}
-        run: make -C sdk/java publish
+        run: |
+          # Copy the JAR to build/libs where Gradle expects it
+          mkdir -p sdk/java/build/libs
+          cp artifacts/sdk-java/*.jar sdk/java/build/libs/
+          make -C sdk/java publish
 
   publish-python:
     name: Publish Python SDK to PyPI
@@ -747,4 +758,4 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           npm ci
-          npm publish --access public
+          npm publish ../../artifacts/sdk-javascript/*.tgz --access public
