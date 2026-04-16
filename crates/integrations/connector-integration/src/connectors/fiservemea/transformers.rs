@@ -9,11 +9,12 @@ use common_utils::{
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ResponseId, SetupMandateRequestData,
     },
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::ConnectorSpecificConfig,
@@ -219,6 +220,15 @@ pub type FiservemeaCaptureResponse = FiservemeaPaymentsResponse;
 pub type FiservemeaVoidResponse = FiservemeaPaymentsResponse;
 pub type FiservemeaRefundResponse = FiservemeaPaymentsResponse;
 pub type FiservemeaRefundSyncResponse = FiservemeaPaymentsResponse;
+pub type FiservemeaSetupMandateResponse = FiservemeaPaymentsResponse;
+
+// Distinct request type for SetupMandate to avoid templating-struct name clash
+// with the Authorize flow. Serializes identically to FiservemeaPaymentsRequest.
+#[derive(Debug, Serialize)]
+#[serde(transparent)]
+pub struct FiservemeaSetupMandateRequest<T: PaymentMethodDataTypes>(
+    pub FiservemeaPaymentsRequest<T>,
+);
 
 // The macro creates a FiservemeaRouterData type. We need to provide the use statement.
 use super::FiservemeaRouterData;
@@ -488,6 +498,123 @@ impl TryFrom<&RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsRespo
         // The transaction ID is passed in the URL path parameter
         Ok(Self {
             request_type: FiservemeaRequestType::VoidPreAuthTransactions,
+        })
+    }
+}
+
+// TryFrom for SetupMandate (via FiservemeaRouterData wrapper for the macro)
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        FiservemeaRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for FiservemeaSetupMandateRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: FiservemeaRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let inner = FiservemeaPaymentsRequest::try_from(&item.router_data)?;
+        Ok(FiservemeaSetupMandateRequest(inner))
+    }
+}
+
+impl<T: PaymentMethodDataTypes>
+    TryFrom<
+        &RouterDataV2<
+            SetupMandate,
+            PaymentFlowData,
+            SetupMandateRequestData<T>,
+            PaymentsResponseData,
+        >,
+    > for FiservemeaPaymentsRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: &RouterDataV2<
+            SetupMandate,
+            PaymentFlowData,
+            SetupMandateRequestData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        // Use 0 when no amount supplied (account verification style).
+        let minor_amount = item
+            .request
+            .minor_amount
+            .unwrap_or_else(|| common_utils::types::MinorUnit::new(0));
+
+        let converter = StringMajorUnitForConnector;
+        let amount_major = converter
+            .convert(minor_amount, item.request.currency)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
+
+        let transaction_amount = TransactionAmount {
+            total: amount_major,
+            currency: item.request.currency,
+        };
+
+        let payment_method = match &item.request.payment_method_data {
+            PaymentMethodData::Card(card_data) => {
+                let year_str = card_data.card_exp_year.peek();
+                let year_yy = if year_str.len() == 4 {
+                    Secret::new(year_str[2..].to_string())
+                } else {
+                    card_data.card_exp_year.clone()
+                };
+
+                let payment_card = PaymentCard {
+                    number: card_data.card_number.clone(),
+                    expiry_date: ExpiryDate {
+                        month: Secret::new(card_data.card_exp_month.peek().clone()),
+                        year: Secret::new(year_yy.peek().clone()),
+                    },
+                    security_code: Some(card_data.card_cvc.clone()),
+                    holder: item.request.customer_name.clone().map(Secret::new),
+                };
+                PaymentMethod { payment_card }
+            }
+            _ => {
+                return Err(error_stack::report!(IntegrationError::not_implemented(
+                    "Only card payments are supported".to_string()
+                )))
+            }
+        };
+
+        let merchant_transaction_id = item
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+
+        let order = OrderDetails {
+            order_id: merchant_transaction_id.clone(),
+        };
+
+        // Use PreAuth to set up the card for recurring/mandate usage.
+        Ok(Self {
+            request_type: FiservemeaRequestType::PaymentCardPreAuthTransaction,
+            merchant_transaction_id,
+            transaction_amount,
+            order,
+            payment_method,
         })
     }
 }
@@ -963,6 +1090,313 @@ impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
                 mandate_reference: None,
                 connector_metadata,
                 network_txn_id: item.response.api_trace_id.clone(),
+                connector_response_reference_id: item.response.client_request_id.clone(),
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+            }),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// Response conversion for SetupMandate / SetupRecurring flow
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<FiservemeaPaymentsResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let status = map_status(
+            item.response.transaction_status.clone(),
+            item.response.transaction_result.clone(),
+            item.response.transaction_type.clone(),
+        );
+
+        let connector_metadata = item.response.payment_token.as_ref().map(|token| {
+            let mut metadata = HashMap::new();
+            if let Some(value) = &token.value {
+                metadata.insert("payment_token".to_string(), value.clone());
+            }
+            if let Some(reusable) = token.reusable {
+                metadata.insert("token_reusable".to_string(), reusable.to_string());
+            }
+            serde_json::Value::Object(
+                metadata
+                    .into_iter()
+                    .map(|(k, v)| (k, serde_json::Value::String(v)))
+                    .collect(),
+            )
+        });
+
+        // Extract schemeTransactionId as the mandate reference for MIT follow-ups.
+        // The ipgTransactionId is stored as connector_mandate_request_reference_id
+        // so Step B can use schemeTransactionId for storedCredentials and
+        // ipgTransactionId for transaction identification.
+        let mandate_reference = item
+            .response
+            .scheme_transaction_id
+            .as_ref()
+            .map(|scheme_txn_id| {
+                Box::new(MandateReference {
+                    connector_mandate_id: Some(scheme_txn_id.clone()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: Some(
+                        item.response.ipg_transaction_id.clone(),
+                    ),
+                })
+            });
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(
+                    item.response.ipg_transaction_id.clone(),
+                ),
+                redirection_data: None,
+                mandate_reference,
+                connector_metadata,
+                network_txn_id: item.response.scheme_transaction_id.clone(),
+                connector_response_reference_id: item.response.client_request_id.clone(),
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+            }),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// ===== RepeatPayment (MIT) types and transformers =====
+
+/// Fiserv EMEA stored credentials block for MIT transactions
+///
+/// Per Fiserv IPG EMEA docs (MIT): field names are `sequence`, `scheduled`,
+/// `initiator`, and `referencedSchemeTransactionId`.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoredCredentials {
+    /// FIRST for CIT, SUBSEQUENT for MIT
+    pub sequence: String,
+    /// CARDHOLDER for CIT, MERCHANT for MIT
+    pub initiator: String,
+    /// false for one-off / unscheduled MIT, true for scheduled recurring
+    pub scheduled: bool,
+    /// The schemeTransactionId from the original CIT response
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub referenced_scheme_transaction_id: Option<String>,
+}
+
+/// Fiserv EMEA repeat payment request — a Sale with storedCredentials for MIT
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservemeaRepeatPaymentRequest<T: PaymentMethodDataTypes> {
+    pub request_type: FiservemeaRequestType,
+    pub merchant_transaction_id: String,
+    pub transaction_amount: TransactionAmount,
+    pub order: OrderDetails,
+    pub payment_method: PaymentMethod<T>,
+    pub stored_credentials: StoredCredentials,
+}
+
+pub type FiservemeaRepeatPaymentResponse = FiservemeaPaymentsResponse;
+
+// TryFrom wrapper for the macro framework (FiservemeaRouterData)
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        FiservemeaRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for FiservemeaRepeatPaymentRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: FiservemeaRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Self::try_from(&item.router_data)
+    }
+}
+
+impl<T: PaymentMethodDataTypes>
+    TryFrom<
+        &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+    > for FiservemeaRepeatPaymentRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: &RouterDataV2<
+            RepeatPayment,
+            PaymentFlowData,
+            RepeatPaymentData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        // Convert amount
+        let converter = StringMajorUnitForConnector;
+        let amount_major = converter
+            .convert(item.request.minor_amount, item.request.currency)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
+
+        let transaction_amount = TransactionAmount {
+            total: amount_major,
+            currency: item.request.currency,
+        };
+
+        // Extract schemeTransactionId from mandate_reference for storedCredentials
+        let network_transaction_reference = match &item.request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(mandate_ids) => mandate_ids
+                .get_connector_mandate_id()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "connector_mandate_id (schemeTransactionId)",
+                    context: Default::default(),
+                })?,
+            MandateReferenceId::NetworkMandateId(nti) => nti.clone(),
+            MandateReferenceId::NetworkTokenWithNTI(_) => {
+                return Err(IntegrationError::not_implemented(
+                    "NetworkTokenWithNTI not supported for Fiserv EMEA repeat payments".to_string(),
+                )
+                .into())
+            }
+        };
+
+        // Build card from payment method data (Fiserv EMEA requires card on every MIT)
+        let payment_method = match &item.request.payment_method_data {
+            PaymentMethodData::Card(card_data) => {
+                let year_str = card_data.card_exp_year.peek();
+                let year_yy = if year_str.len() == 4 {
+                    Secret::new(year_str[2..].to_string())
+                } else {
+                    card_data.card_exp_year.clone()
+                };
+
+                let payment_card = PaymentCard {
+                    number: card_data.card_number.clone(),
+                    expiry_date: ExpiryDate {
+                        month: Secret::new(card_data.card_exp_month.peek().clone()),
+                        year: Secret::new(year_yy.peek().clone()),
+                    },
+                    security_code: Some(card_data.card_cvc.clone()),
+                    holder: None,
+                };
+                PaymentMethod { payment_card }
+            }
+            _ => {
+                return Err(error_stack::report!(IntegrationError::not_implemented(
+                    "Only card payments are supported for Fiserv EMEA MIT".to_string()
+                )))
+            }
+        };
+
+        // Determine capture: Sale (auto) vs PreAuth (manual)
+        let is_auto_capture = item
+            .request
+            .capture_method
+            .map(|cm| !matches!(cm, common_enums::CaptureMethod::Manual))
+            .unwrap_or(true);
+
+        let request_type = if is_auto_capture {
+            FiservemeaRequestType::PaymentCardSaleTransaction
+        } else {
+            FiservemeaRequestType::PaymentCardPreAuthTransaction
+        };
+
+        let merchant_transaction_id = item
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+
+        let order = OrderDetails {
+            order_id: merchant_transaction_id.clone(),
+        };
+
+        let stored_credentials = StoredCredentials {
+            sequence: "SUBSEQUENT".to_string(),
+            initiator: "MERCHANT".to_string(),
+            scheduled: false,
+            referenced_scheme_transaction_id: Some(network_transaction_reference),
+        };
+
+        Ok(Self {
+            request_type,
+            merchant_transaction_id,
+            transaction_amount,
+            order,
+            payment_method,
+            stored_credentials,
+        })
+    }
+}
+
+// Response conversion for RepeatPayment flow
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<FiservemeaRepeatPaymentResponse, Self>>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<FiservemeaRepeatPaymentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let status = map_status(
+            item.response.transaction_status.clone(),
+            item.response.transaction_result.clone(),
+            item.response.transaction_type.clone(),
+        );
+
+        let connector_metadata = item.response.payment_token.as_ref().map(|token| {
+            let mut metadata = HashMap::new();
+            if let Some(value) = &token.value {
+                metadata.insert("payment_token".to_string(), value.clone());
+            }
+            if let Some(reusable) = token.reusable {
+                metadata.insert("token_reusable".to_string(), reusable.to_string());
+            }
+            serde_json::Value::Object(
+                metadata
+                    .into_iter()
+                    .map(|(k, v)| (k, serde_json::Value::String(v)))
+                    .collect(),
+            )
+        });
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(
+                    item.response.ipg_transaction_id.clone(),
+                ),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata,
+                network_txn_id: item.response.scheme_transaction_id.clone(),
                 connector_response_reference_id: item.response.client_request_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
