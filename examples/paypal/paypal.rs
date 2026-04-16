@@ -136,6 +136,25 @@ pub fn build_handle_event_request() -> EventServiceHandleRequest {
     })).unwrap_or_default()
 }
 
+pub fn build_incremental_authorization_request() -> PaymentServiceIncrementalAuthorizationRequest {
+    serde_json::from_value::<PaymentServiceIncrementalAuthorizationRequest>(serde_json::json!({
+    "merchant_authorization_id": "probe_auth_001",  // Identification.
+    "connector_transaction_id": "probe_connector_txn_001",
+    "amount": {  // new amount to be authorized (in minor currency units).
+        "minor_amount": 1100,  // Amount in minor units (e.g., 1000 = $10.00).
+        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
+    },
+    "reason": "incremental_auth_probe",  // Optional Fields.
+    "state": {  // State Information.
+        "access_token": {  // Access token obtained from connector.
+            "token": "probe_access_token",  // The token string.
+            "expires_in_seconds": 3600,  // Expiration timestamp (seconds since epoch).
+            "token_type": "Bearer",  // Token type (e.g., "Bearer", "Basic").
+        },
+    },
+    })).unwrap_or_default()
+}
+
 pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
     serde_json::from_value::<PaymentServiceProxyAuthorizeRequest>(serde_json::json!({
     "merchant_transaction_id": "probe_proxy_txn_001",
@@ -480,6 +499,13 @@ pub async fn handle_event(client: &ConnectorClient, _merchant_transaction_id: &s
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: PaymentService.IncrementalAuthorization
+#[allow(dead_code)]
+pub async fn incremental_authorization(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.incremental_authorization(build_incremental_authorization_request(), &HashMap::new(), None).await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: PaymentService.ProxyAuthorize
 #[allow(dead_code)]
 pub async fn proxy_authorize(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
@@ -550,6 +576,7 @@ async fn main() {
         "create_server_authentication_token" => create_server_authentication_token(&client, "order_001").await,
         "get" => get(&client, "order_001").await,
         "handle_event" => handle_event(&client, "order_001").await,
+        "incremental_authorization" => incremental_authorization(&client, "order_001").await,
         "proxy_authorize" => proxy_authorize(&client, "order_001").await,
         "proxy_setup_recurring" => proxy_setup_recurring(&client, "order_001").await,
         "recurring_charge" => recurring_charge(&client, "order_001").await,
@@ -557,7 +584,7 @@ async fn main() {
         "refund_get" => refund_get(&client, "order_001").await,
         "setup_recurring" => setup_recurring(&client, "order_001").await,
         "void" => void(&client, "order_001").await,
-        _ => { eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, authorize, capture, create_client_authentication_token, create_order, create_server_authentication_token, get, handle_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void", flow); return; }
+        _ => { eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, authorize, capture, create_client_authentication_token, create_order, create_server_authentication_token, get, handle_event, incremental_authorization, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void", flow); return; }
     };
     match result {
         Ok(msg) => println!("✓ {msg}"),

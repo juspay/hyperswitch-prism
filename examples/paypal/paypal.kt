@@ -21,6 +21,7 @@ import payments.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequ
 import payments.PaymentServiceCreateOrderRequest
 import payments.MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
 import payments.EventServiceHandleRequest
+import payments.PaymentServiceIncrementalAuthorizationRequest
 import payments.PaymentServiceProxyAuthorizeRequest
 import payments.PaymentServiceProxySetupRecurringRequest
 import payments.RecurringPaymentServiceChargeRequest
@@ -331,6 +332,29 @@ fun handleEvent(txnId: String) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: PaymentService.IncrementalAuthorization
+fun incrementalAuthorization(txnId: String) {
+    val client = PaymentClient(_defaultConfig)
+    val request = PaymentServiceIncrementalAuthorizationRequest.newBuilder().apply {
+        merchantAuthorizationId = "probe_auth_001"  // Identification.
+        connectorTransactionId = "probe_connector_txn_001"
+        amountBuilder.apply {  // new amount to be authorized (in minor currency units).
+            minorAmount = 1100L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        reason = "incremental_auth_probe"  // Optional Fields.
+        stateBuilder.apply {  // State Information.
+            accessTokenBuilder.apply {  // Access token obtained from connector.
+                tokenBuilder.value = "probe_access_token"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
+                tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        }
+    }.build()
+    val response = client.incremental_authorization(request)
+    println("Status: ${response.status.name}")
+}
+
 // Flow: PaymentService.ProxyAuthorize
 fun proxyAuthorize(txnId: String) {
     val client = PaymentClient(_defaultConfig)
@@ -544,6 +568,7 @@ fun main(args: Array<String>) {
         "createServerAuthenticationToken" -> createServerAuthenticationToken(txnId)
         "get" -> get(txnId)
         "handleEvent" -> handleEvent(txnId)
+        "incrementalAuthorization" -> incrementalAuthorization(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
         "proxySetupRecurring" -> proxySetupRecurring(txnId)
         "recurringCharge" -> recurringCharge(txnId)
@@ -551,6 +576,6 @@ fun main(args: Array<String>) {
         "refundGet" -> refundGet(txnId)
         "setupRecurring" -> setupRecurring(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createOrder, createServerAuthenticationToken, get, handleEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createOrder, createServerAuthenticationToken, get, handleEvent, incrementalAuthorization, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, void")
     }
 }

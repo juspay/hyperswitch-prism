@@ -872,7 +872,36 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_authorization_id": "probe_auth_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1100,
+            "currency": "USD"
+          },
+          "reason": "incremental_auth_probe",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api-m.sandbox.paypal.com/v2/payments/authorizations/probe_auth_001/reauthorize",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
+            "paypal-request-id": "probe_auth_001",
+            "prefer": "return=representation",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":{\"currency_code\":\"USD\",\"value\":\"11.00\"}}"
+        }
       }
     },
     "post_authenticate": {
