@@ -181,6 +181,8 @@ generate: install-deps ## Auto-discover flows and regenerate all SDK clients (pa
 		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/payouts.proto \
 		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/payment_methods.proto \
 		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/sdk_config.proto
+	@echo "Generating JavaScript protobuf stubs (proto.js / proto.d.ts)..."
+	@$(MAKE) -C $(MAKEFILE_DIR)javascript generate-proto
 	@echo "All SDK clients regenerated successfully!"
 
 # ---------------------------------------------------------------------------
