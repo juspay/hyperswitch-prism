@@ -554,6 +554,20 @@ macros::macro_connector_implementation!(
             let connector_payout_id = req.request.connector_payout_id.clone().ok_or(errors::IntegrationError::MissingConnectorTransactionID{ context: Default::default() })?;
             Ok(format!("{}v1/pagamentos_sispag/{}", base_url, connector_payout_id))
         }
+        fn get_certificate(
+            &self,
+            req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
+        ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, errors::IntegrationError> {
+            let auth = ItaubankAuthType::try_from(&req.connector_config)?;
+            Ok(auth.certificates)
+        }
+        fn get_certificate_key(
+            &self,
+            req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
+        ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, errors::IntegrationError> {
+            let auth = ItaubankAuthType::try_from(&req.connector_config)?;
+            Ok(auth.private_key)
+        }
     }
 );
 
