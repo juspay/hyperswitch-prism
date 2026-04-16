@@ -609,7 +609,8 @@
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported for Fiserv EMEA MIT"
       }
     },
     "recurring_revoke": {

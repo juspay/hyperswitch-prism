@@ -1143,19 +1143,19 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<FiservemeaPaymentsRes
         // The ipgTransactionId is stored as connector_mandate_request_reference_id
         // so Step B can use schemeTransactionId for storedCredentials and
         // ipgTransactionId for transaction identification.
-        let mandate_reference =
-            item.response
-                .scheme_transaction_id
-                .as_ref()
-                .map(|scheme_txn_id| {
-                    Box::new(MandateReference {
-                        connector_mandate_id: Some(scheme_txn_id.clone()),
-                        payment_method_id: None,
-                        connector_mandate_request_reference_id: Some(
-                            item.response.ipg_transaction_id.clone(),
-                        ),
-                    })
-                });
+        let mandate_reference = item
+            .response
+            .scheme_transaction_id
+            .as_ref()
+            .map(|scheme_txn_id| {
+                Box::new(MandateReference {
+                    connector_mandate_id: Some(scheme_txn_id.clone()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: Some(
+                        item.response.ipg_transaction_id.clone(),
+                    ),
+                })
+            });
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1274,19 +1274,16 @@ impl<T: PaymentMethodDataTypes>
 
         // Extract schemeTransactionId from mandate_reference for storedCredentials
         let network_transaction_reference = match &item.request.mandate_reference {
-            MandateReferenceId::ConnectorMandateId(mandate_ids) => {
-                mandate_ids.get_connector_mandate_id().ok_or(
-                    IntegrationError::MissingRequiredField {
-                        field_name: "connector_mandate_id (schemeTransactionId)",
-                        context: Default::default(),
-                    },
-                )?
-            }
+            MandateReferenceId::ConnectorMandateId(mandate_ids) => mandate_ids
+                .get_connector_mandate_id()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "connector_mandate_id (schemeTransactionId)",
+                    context: Default::default(),
+                })?,
             MandateReferenceId::NetworkMandateId(nti) => nti.clone(),
             MandateReferenceId::NetworkTokenWithNTI(_) => {
                 return Err(IntegrationError::not_implemented(
-                    "NetworkTokenWithNTI not supported for Fiserv EMEA repeat payments"
-                        .to_string(),
+                    "NetworkTokenWithNTI not supported for Fiserv EMEA repeat payments".to_string(),
                 )
                 .into())
             }
