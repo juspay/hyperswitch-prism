@@ -111,6 +111,38 @@ def _build_proxy_authorize_request():
         payment_pb2.PaymentServiceProxyAuthorizeRequest(),
     )
 
+def _build_proxy_setup_recurring_request():
+    return ParseDict(
+        {
+            "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+            "amount": {
+                "minor_amount": 0,  # Amount in minor units (e.g., 1000 = $10.00).
+                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
+            },
+            "card_proxy": {  # Card proxy for vault-aliased payments.
+                "card_number": {"value": "4111111111111111"},  # Card Identification.
+                "card_exp_month": {"value": "03"},
+                "card_exp_year": {"value": "2030"},
+                "card_cvc": {"value": "123"},
+                "card_holder_name": {"value": "John Doe"}  # Cardholder Information.
+            },
+            "customer": {
+                "email": {"value": "test@example.com"}  # Customer's email address.
+            },
+            "address": {
+                "billing_address": {
+                }
+            },
+            "customer_acceptance": {
+                "acceptance_type": "OFFLINE",  # Type of acceptance (e.g., online, offline).
+                "accepted_at": 0  # Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+            },
+            "auth_type": "NO_THREE_DS",
+            "setup_future_usage": "OFF_SESSION"
+        },
+        payment_pb2.PaymentServiceProxySetupRecurringRequest(),
+    )
+
 def _build_refund_request(connector_transaction_id: str):
     return ParseDict(
         {
@@ -134,6 +166,43 @@ def _build_refund_get_request():
             "refund_id": "probe_refund_id_001"
         },
         payment_pb2.RefundServiceGetRequest(),
+    )
+
+def _build_setup_recurring_request():
+    return ParseDict(
+        {
+            "merchant_recurring_payment_id": "probe_mandate_001",  # Identification.
+            "amount": {  # Mandate Details.
+                "minor_amount": 0,  # Amount in minor units (e.g., 1000 = $10.00).
+                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
+            },
+            "payment_method": {
+                "card": {  # Generic card payment.
+                    "card_number": {"value": "4111111111111111"},  # Card Identification.
+                    "card_exp_month": {"value": "03"},
+                    "card_exp_year": {"value": "2030"},
+                    "card_cvc": {"value": "737"},
+                    "card_holder_name": {"value": "John Doe"}  # Cardholder Information.
+                }
+            },
+            "customer": {
+                "email": {"value": "test@example.com"}  # Customer's email address.
+            },
+            "address": {  # Address Information.
+                "billing_address": {
+                }
+            },
+            "auth_type": "NO_THREE_DS",  # Type of authentication to be used.
+            "enrolled_for_3ds": False,  # Indicates if the customer is enrolled for 3D Secure.
+            "return_url": "https://example.com/mandate-return",  # URL to redirect after setup.
+            "setup_future_usage": "OFF_SESSION",  # Indicates future usage intention.
+            "request_incremental_authorization": False,  # Indicates if incremental authorization is requested.
+            "customer_acceptance": {  # Details of customer acceptance.
+                "acceptance_type": "OFFLINE",  # Type of acceptance (e.g., online, offline).
+                "accepted_at": 0  # Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+            }
+        },
+        payment_pb2.PaymentServiceSetupRecurringRequest(),
     )
 async def process_checkout_autocapture(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """One-step Payment (Authorize + Capture)
@@ -237,6 +306,15 @@ async def proxy_authorize(merchant_transaction_id: str, config: sdk_config_pb2.C
     return {"status": proxy_response.status}
 
 
+async def proxy_setup_recurring(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.ProxySetupRecurring"""
+    payment_client = PaymentClient(config)
+
+    proxy_response = await payment_client.proxy_setup_recurring(_build_proxy_setup_recurring_request())
+
+    return {"status": proxy_response.status}
+
+
 async def refund(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: PaymentService.Refund"""
     payment_client = PaymentClient(config)
@@ -253,6 +331,15 @@ async def refund_get(merchant_transaction_id: str, config: sdk_config_pb2.Connec
     refund_response = await refund_client.refund_get(_build_refund_get_request())
 
     return {"status": refund_response.status}
+
+
+async def setup_recurring(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.SetupRecurring"""
+    payment_client = PaymentClient(config)
+
+    setup_response = await payment_client.setup_recurring(_build_setup_recurring_request())
+
+    return {"status": setup_response.status, "mandate_id": setup_response.connector_transaction_id}
 
 if __name__ == "__main__":
     scenario = sys.argv[1] if len(sys.argv) > 1 else "checkout_autocapture"
