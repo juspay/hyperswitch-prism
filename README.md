@@ -30,10 +30,10 @@
 
 > **Use `curl` to fetch the complete SDK reference:**
 > ```bash
-> curl -fsSL https://raw.githubusercontent.com/juspay/hyperswitch-prism/main/llm/sdk-reference.md
+> curl -fsSL https://raw.githubusercontent.com/juspay/hyperswitch-prism/main/llm/llm.txt
 > ```
 >
-> This file contains complete SDK documentation including installation, payment operations, error handling, connector configuration, field probe data, and examples for all 70+ connectors.
+> This file contains complete SDK documentation including installation, payment operations, error handling, connector configuration, field probe data, and examples for all 100+ connectors.
 
 
 ---
@@ -111,6 +111,27 @@ The Prism library is compliant for payment processing by design. It is:
 > |----------|-----------------------|
 > | **Python** | [sdk/python/README.md](./sdk/python/README.md) |
 > | **Node.js** | [sdk/javascript/README.md](./sdk/javascript/README.md) |
+> | **Rust** | [sdk/rust](./sdk/rust) |
+>
+> **Demo Application**: See the [E-Commerce Demo](./demo/e-commerce) for a complete working example with Stripe and Adyen integration.
+
+---
+
+## 💻 Platform Support
+
+The `hyperswitch-prism` SDK contains platform-specific native libraries compiled for **x86_64 (AMD64)** architecture.
+
+| Platform | Architecture | Notes |
+|----------|--------------|-------|
+| macOS (Intel) | x86_64 | Native support |
+| macOS (Apple Silicon) | arm64 | Uses x86_64 emulation with Rosetta 2 |
+| Linux | x86_64 | Native support |
+
+### Docker Users
+
+The [E-Commerce Demo Dockerfile](./demo/e-commerce/Dockerfile) uses `--platform=linux/amd64` with Ubuntu 24.04 to ensure compatibility. The SDK requires glibc 2.38+.
+
+For more details, see the [E-Commerce Demo README](./demo/e-commerce/README.md#platform-requirements).
 
 ---
 
@@ -133,7 +154,7 @@ npm install hyperswitch-prism
 pip install hyperswitch-prism
 ```
 
-#### **Java**
+#### **Java/Kotlin**
 
 Add to your `pom.xml`:
 
@@ -141,14 +162,8 @@ Add to your `pom.xml`:
 <dependency>
     <groupId>io.hyperswitch</groupId>
     <artifactId>prism</artifactId>
-    <version>0.0.1</version>
+    <version>0.0.4</version>
 </dependency>
-```
-
-#### **PHP**
-
-```bash
-composer require juspay/hyperswitch-prism
 ```
 
 For detailed installation instructions, see [Installation Guide](./getting-started/installation.md).
@@ -286,6 +301,7 @@ You can learn more about [intelligent routing](https://docs.hyperswitch.io/explo
 
 ### Prerequisites
 
+- **Platform**: x86_64 (AMD64) architecture (ARM64 not supported)
 - Rust 1.70+
 - Protocol Buffers (protoc)
 

@@ -27,13 +27,13 @@ use domain_types::{
     },
     payment_method_data::{
         ApplePayPaymentData, BankDebitData, BankRedirectData, BankTransferData, Card,
-        CardRedirectData, CardToken, DefaultPCIHolder, GiftCardData, GpayTokenizationData,
-        NetworkTokenData, PayLaterData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
-        VoucherData, VoucherNextStepData, WalletData,
+        CardRedirectData, DefaultPCIHolder, GiftCardData, GpayTokenizationData, NetworkTokenData,
+        PayLaterData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, VoucherData,
+        VoucherNextStepData, WalletData,
     },
     router_data::{
         ConnectorResponseData, ConnectorSpecificConfig, ErrorResponse,
-        ExtendedAuthorizationResponseData, PaymentMethodToken,
+        ExtendedAuthorizationResponseData,
     },
     router_data_v2::RouterDataV2,
     router_request_types::SyncRequestType,
@@ -292,12 +292,62 @@ pub enum AdyenPaymentMethod<
     Seicomart(Box<JCSVoucherData>),
     #[serde(rename = "econtext_stores")]
     PayEasy(Box<JCSVoucherData>),
+    // Wallet redirect payment methods
+    #[serde(rename = "alipay")]
+    AliPay,
+    #[serde(rename = "alipay_hk")]
+    AliPayHk,
+    #[serde(rename = "dana")]
+    Dana,
+    #[serde(rename = "gcash")]
+    Gcash(Box<GcashData>),
+    #[serde(rename = "gopay_wallet")]
+    GoPay(Box<GoPayData>),
+    #[serde(rename = "kakaopay")]
+    Kakaopay(Box<KakaoPayData>),
+    #[serde(rename = "mbway")]
+    Mbway(Box<MbwayData>),
+    #[serde(rename = "momo_wallet")]
+    Momo(Box<MomoData>),
+    #[serde(rename = "touchngo")]
+    TouchNGo(Box<TouchNGoData>),
+    #[serde(rename = "wechatpayWeb")]
+    WeChatPayWeb,
+    #[serde(rename = "twint")]
+    Twint,
+    #[serde(rename = "vipps")]
+    Vipps,
+    #[serde(rename = "swish")]
+    Swish,
+    #[serde(rename = "paypal")]
+    AdyenPaypal,
 }
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BlikRedirectionData {
     blik_code: Secret<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GoPayData {}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KakaoPayData {}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GcashData {}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MomoData {}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TouchNGoData {}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MbwayData {
+    telephone_number: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1400,7 +1450,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             >,
         ),
     ) -> Result<Self, Self::Error> {
-        let (wallet_data, _item) = value;
+        let (wallet_data, item) = value;
         match wallet_data {
             WalletData::GooglePay(data) => {
                 let google_pay_wallet_data = match &data.tokenization_data {
@@ -1469,29 +1519,30 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         Self::ApplePay(Box::new(apple_pay_data))
                     }
                 };
-
                 Ok(apple_pay_wallet_data)
             }
 
-            WalletData::PaypalRedirect(_)
-            | WalletData::AmazonPayRedirect(_)
+            WalletData::AliPayRedirect(_) => Ok(Self::AliPay),
+            WalletData::AliPayHkRedirect(_) => Ok(Self::AliPayHk),
+            WalletData::DanaRedirect { .. } => Ok(Self::Dana),
+            WalletData::GcashRedirect(_) => Ok(Self::Gcash(Box::new(GcashData {}))),
+            WalletData::GoPayRedirect(_) => Ok(Self::GoPay(Box::new(GoPayData {}))),
+            WalletData::KakaoPayRedirect(_) => Ok(Self::Kakaopay(Box::new(KakaoPayData {}))),
+            WalletData::MbWayRedirect(_) => Ok(Self::Mbway(Box::new(MbwayData {
+                telephone_number: item.resource_common_data.get_billing_phone_number()?,
+            }))),
+            WalletData::MomoRedirect(_) => Ok(Self::Momo(Box::new(MomoData {}))),
+            WalletData::TouchNGoRedirect(_) => Ok(Self::TouchNGo(Box::new(TouchNGoData {}))),
+            WalletData::WeChatPayRedirect(_) => Ok(Self::WeChatPayWeb),
+            WalletData::TwintRedirect { .. } => Ok(Self::Twint),
+            WalletData::VippsRedirect { .. } => Ok(Self::Vipps),
+            WalletData::SwishQr(_) => Ok(Self::Swish),
+            WalletData::PaypalRedirect(_) => Ok(Self::AdyenPaypal),
+            WalletData::AmazonPayRedirect(_)
             | WalletData::Paze(_)
             | WalletData::RevolutPay(_)
-            | WalletData::AliPayRedirect(_)
-            | WalletData::AliPayHkRedirect(_)
-            | WalletData::GoPayRedirect(_)
-            | WalletData::KakaoPayRedirect(_)
-            | WalletData::GcashRedirect(_)
-            | WalletData::MomoRedirect(_)
-            | WalletData::TouchNGoRedirect(_)
-            | WalletData::MbWayRedirect(_)
             | WalletData::MobilePayRedirect(_)
-            | WalletData::WeChatPayRedirect(_)
             | WalletData::SamsungPay(_)
-            | WalletData::TwintRedirect { .. }
-            | WalletData::VippsRedirect { .. }
-            | WalletData::DanaRedirect { .. }
-            | WalletData::SwishQr(_)
             | WalletData::AliPayQr(_)
             | WalletData::ApplePayRedirect(_)
             | WalletData::ApplePayThirdPartySdk(_)
@@ -1504,7 +1555,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | WalletData::BluecodeRedirect { .. }
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
-            | WalletData::Wero(_) => {
+            | WalletData::Wero(_)
+            | WalletData::LazyPayRedirect(_)
+            | WalletData::PhonePeRedirect(_)
+            | WalletData::BillDeskRedirect(_)
+            | WalletData::CashfreeRedirect(_)
+            | WalletData::PayURedirect(_)
+            | WalletData::EaseBuzzRedirect(_) => {
                 Err(IntegrationError::not_implemented("payment_method").into())
             }
         }
@@ -2376,9 +2433,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             get_adyen_metadata(item.router_data.request.metadata.clone().expose_option());
         let device_fingerprint = adyen_metadata.device_fingerprint.clone();
         let platform_chargeback_logic = adyen_metadata.platform_chargeback_logic.clone();
-        let country_code =
-            get_country_code(item.router_data.resource_common_data.get_optional_billing());
-
         let mpi_data = match wallet_data {
             WalletData::ApplePay(apple_data) => {
                 if let ApplePayPaymentData::Decrypted(decrypt_data) = &apple_data.payment_data {
@@ -2445,12 +2499,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .router_data
                 .resource_common_data
                 .get_optional_billing_phone_number(),
-            shopper_name: get_shopper_name(
-                item.router_data
-                    .resource_common_data
-                    .address
-                    .get_payment_billing(),
-            ),
+            shopper_name: None,
             shopper_email: item
                 .router_data
                 .resource_common_data
@@ -2470,7 +2519,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .get_optional_shipping(),
             )
             .and_then(Result::ok),
-            country_code,
+            country_code: None,
             line_items: None,
             shopper_reference,
             store_payment_method,
@@ -3647,26 +3696,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 PaymentMethodData::NetworkToken(ref token_data) => {
                     Self::try_from((item, token_data))
                 }
-                // TODO: Add payment method token field and also rename the struct to PaymentMethodToken since it is not being used anywhere
-                PaymentMethodData::CardToken(CardToken { .. }) => {
-                    let token = item
-                        .router_data
-                        .resource_common_data
-                        .payment_method_token
-                        .as_ref()
-                        .map(|t| match t {
-                            PaymentMethodToken::Token(s) => s.clone(),
-                        })
-                        .ok_or_else(|| {
-                            error_stack::report!(IntegrationError::MissingRequiredField {
-                                field_name: "payment_method_token",
-                                context: domain_types::errors::IntegrationErrorContext {
-                                    doc_url: Some("https://docs.adyen.com/api-explorer/Checkout/68/post/payments".to_string()),
-                                    additional_context: Some("Adyen requires a storedPaymentMethodId (payment_method_token) for token-based card payments. Ensure the token was obtained via a prior session or tokenization flow.".to_string()),
-                                    ..Default::default()
-                                },
-                            })
-                        })?;
+                PaymentMethodData::PaymentMethodToken(token_data) => {
+                    let token = token_data.token.clone();
 
                     let amount = get_amount_data(&item);
                     let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
@@ -6100,7 +6131,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::NetworkToken(_)
                 | PaymentMethodData::MobilePayment(_)
-                | PaymentMethodData::CardToken(_) => {
+                | PaymentMethodData::PaymentMethodToken(_) => {
                     Err(IntegrationError::not_implemented("payment method").into())
                 }
             },
