@@ -218,8 +218,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             _ => {
                 return Err(IntegrationError::not_implemented(
-                    "Payment method not supported for Mollie".to_string(),
-                ));
+                    "Payment method not yet implemented for Mollie".to_string(),
+                )
+                .into());
             }
         };
 

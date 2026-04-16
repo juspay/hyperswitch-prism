@@ -276,10 +276,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Extract card data
         let card_data = match &item.request.payment_method_data {
             PaymentMethodData::Card(card) => card,
-            payment_method_data => Err(error_stack::report!(IntegrationError::NotImplemented(
-                format!("Payment method {payment_method_data:?}"),
-                Default::default(),
-            )))?,
+            payment_method_data => Err(error_stack::report!(
+                IntegrationError::not_implemented(format!(
+                    "Payment method {payment_method_data:?}"
+                ))
+            ))?,
         };
 
         // Build card data structure using utility function for expiry date
@@ -1166,10 +1167,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
         )? {
             PaymentMethodData::Card(card) => card,
-            payment_method_data => Err(error_stack::report!(IntegrationError::NotImplemented(
-                format!("Payment method {payment_method_data:?} for 3DS"),
-                Default::default(),
-            )))?,
+            payment_method_data => Err(error_stack::report!(
+                IntegrationError::not_implemented(format!(
+                    "Payment method {payment_method_data:?} for 3DS"
+                ))
+            ))?,
         };
 
         // Build card data structure using utility function for expiry date
