@@ -857,6 +857,7 @@ enum PaymentMethodType {
   CASH_FREE = 109;
   PAY_U = 110;
   EASE_BUZZ = 111;
+  OPEN_BANKING = 112;
 }
 
 // Product type enumeration
