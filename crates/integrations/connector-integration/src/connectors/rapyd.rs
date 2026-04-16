@@ -45,8 +45,9 @@ use transformers::{
     RapydCreateOrderRequest, RapydCreateOrderResponse, RapydPaymentsRequest,
     RapydPaymentsResponse as RapydCaptureResponse, RapydPaymentsResponse as RapydPSyncResponse,
     RapydPaymentsResponse, RapydPaymentsResponse as RapydVoidResponse,
-    RapydPaymentsResponse as RapydAuthorizeResponse, RapydRefundRequest, RefundResponse,
-    RefundResponse as RapydRSyncResponse,
+    RapydPaymentsResponse as RapydAuthorizeResponse, RapydRefundRequest,
+    RapydRepeatPaymentRequest, RapydRepeatPaymentResponse, RapydSetupMandateRequest,
+    RapydSetupMandateResponse, RefundResponse, RefundResponse as RapydRSyncResponse,
 };
 
 use super::macros;
@@ -346,6 +347,18 @@ macros::create_all_prerequisites!(
             request_body: RapydCreateOrderRequest,
             response_body: RapydCreateOrderResponse,
             router_data: RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: RapydSetupMandateRequest<T>,
+            response_body: RapydSetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: RapydRepeatPaymentRequest<T>,
+            response_body: RapydRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -658,6 +671,85 @@ macros::macro_connector_implementation!(
     }
 );
 
+// SetupMandate flow – reuses the standard `/v1/payments` endpoint for
+// card-on-file verification. The returned payment id is surfaced as the
+// connector_mandate_id for subsequent RepeatPayment (MIT) calls.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Rapyd,
+    curl_request: Json(RapydSetupMandateRequest),
+    curl_response: RapydSetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let url = self.get_url(req)?;
+            let url_path = url.strip_prefix(self.connector_base_url_payments(req))
+                .unwrap_or(&url);
+            let body = self.get_request_body(req)?
+                .map(|content| content.get_inner_value().expose())
+                .unwrap_or_default();
+            self.build_headers(req, "post", url_path, &body)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // Reuse /v1/payments — `save_payment_method: true` + inline customer
+            // object in the body yields a reusable `card_*` token without
+            // requiring the complete_payment_url whitelist that the
+            // /v1/customers endpoint enforces on sandbox accounts.
+            Ok(format!("{}/v1/payments", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
+// RepeatPayment (MIT) – Rapyd has no dedicated recurring endpoint. It reuses
+// `/v1/payments` but substitutes the card object with a stored
+// `payment_method` token (the card_* id returned by SetupMandate) paired
+// with the `customer` id and `initiation_type: recurring`.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Rapyd,
+    curl_request: Json(RapydRepeatPaymentRequest),
+    curl_response: RapydRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let url = self.get_url(req)?;
+            let url_path = url.strip_prefix(self.connector_base_url_payments(req))
+                .unwrap_or(&url);
+            let body = self.get_request_body(req)?
+                .map(|content| content.get_inner_value().expose())
+                .unwrap_or_default();
+            self.build_headers(req, "post", url_path, &body)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/v1/payments", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
 // Stub implementations for unsupported flows
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -678,25 +770,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
-        PaymentsResponseData,
-    > for Rapyd<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
-    > for Rapyd<T>
-{
-}
+// ConnectorIntegrationV2 for SetupMandate and RepeatPayment are implemented
+// via macros::macro_connector_implementation! blocks below.
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
