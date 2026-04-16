@@ -319,10 +319,11 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     fn try_from(
         item: ResponseRouterData<ImerchantsolutionsPaymentsResponseData, Self>,
     ) -> Result<Self, Self::Error> {
-        let status = get_attempt_status(
+        let status = AttemptStatus::foreign_try_from((
             item.response.status.clone(),
             item.router_data.request.capture_method,
-        );
+            item.http_code,
+        ))?;
 
         if is_payment_failure(status) {
             let error_response = ErrorResponse {
@@ -395,41 +396,35 @@ struct Captures {
     captured_at: Option<String>,
 }
 
-impl utils::MultipleCaptureSyncResponse for ImerchantsolutionsPSyncResponseData {
+#[derive(Clone, Debug)]
+struct CaptureWithStatus<'a> {
+    capture: &'a Captures,
+    status: &'a ImerchantsolutionsPaymentStatus,
+    psp_reference: &'a String,
+}
+
+impl<'a> utils::MultipleCaptureSyncResponse for CaptureWithStatus<'a> {
     fn get_connector_capture_id(&self) -> String {
-        self.payment_id.clone()
+        self.capture.psp_reference.clone()
     }
 
+    // Connector does not provide per-capture status.
+    // We derive capture status from overall payment status.
+    // This assumes uniform outcome across all captures.
     fn get_capture_attempt_status(&self) -> AttemptStatus {
-        let capture_method = match self.capture_mode {
-            CaptureMode::Auto => CaptureMethod::Automatic,
-            CaptureMode::Manual => {
-                if !self.captures.is_empty() && self.can_capture {
-                    CaptureMethod::ManualMultiple
-                } else {
-                    CaptureMethod::Manual
-                }
-            }
-        };
+        self.status.clone().into()
+    }
 
-        get_attempt_status(self.status.clone(), Some(capture_method))
+    fn is_capture_response(&self) -> bool {
+        true
     }
 
     fn get_connector_reference_id(&self) -> Option<String> {
         Some(self.psp_reference.clone())
     }
 
-    fn is_capture_response(&self) -> bool {
-        matches!(
-            self.status,
-            ImerchantsolutionsPaymentStatus::Captured
-                | ImerchantsolutionsPaymentStatus::PartiallyCaptured
-                | ImerchantsolutionsPaymentStatus::Pending
-        )
-    }
-
     fn get_amount_captured(&self) -> Result<Option<MinorUnit>, error_stack::Report<ParsingError>> {
-        Ok(self.total_captured)
+        Ok(Some(self.capture.amount))
     }
 }
 
@@ -445,10 +440,11 @@ impl<F> TryFrom<ResponseRouterData<ImerchantsolutionsPSyncResponseData, Self>>
             SyncRequestType::SinglePaymentSync => false,
         };
 
-        let status = get_attempt_status(
+        let status = AttemptStatus::foreign_try_from((
             item.response.status.clone(),
             item.router_data.request.capture_method,
-        );
+            item.http_code,
+        ))?;
 
         if is_payment_failure(status) {
             let error_response = ErrorResponse {
@@ -472,20 +468,33 @@ impl<F> TryFrom<ResponseRouterData<ImerchantsolutionsPSyncResponseData, Self>>
                 ..item.router_data
             })
         } else if is_multiple_capture_psync_flow {
-            let capture_sync_response_list =
-                utils::construct_captures_response_hashmap(vec![item.response.clone()])
-                    .change_context(utils::response_handling_fail_for_connector(
-                        item.http_code,
-                        "imerchantsolutions",
-                    ))?;
+            let wrapped_captures: Vec<CaptureWithStatus<'_>> = item
+                .response
+                .captures
+                .iter()
+                .map(|c| CaptureWithStatus {
+                    capture: c,
+                    status: &item.response.status,
+                    psp_reference: &item.response.psp_reference,
+                })
+                .collect();
+
+            let capture_sync_response_list = utils::construct_captures_response_hashmap(
+                wrapped_captures,
+            )
+            .change_context(utils::response_handling_fail_for_connector(
+                item.http_code,
+                "imerchantsolutions",
+            ))?;
 
             Ok(Self {
                 resource_common_data: PaymentFlowData {
-                    status,
+                    status: item.response.status.clone().into(),
                     ..item.router_data.resource_common_data
                 },
                 response: Ok(PaymentsResponseData::MultipleCaptureResponse {
                     capture_sync_response_list,
+                    status_code: item.http_code,
                 }),
                 ..item.router_data
             })
@@ -665,10 +674,11 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsCaptureResponseData, Self>>
     fn try_from(
         item: ResponseRouterData<ImerchantsolutionsCaptureResponseData, Self>,
     ) -> Result<Self, Self::Error> {
-        let status = get_capture_status(
+        let status = AttemptStatus::foreign_try_from((
             item.response.status,
             item.router_data.request.capture_method,
-        );
+            item.http_code,
+        ))?;
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -757,7 +767,7 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsRefundResponseData, Self>>
     fn try_from(
         item: ResponseRouterData<ImerchantsolutionsRefundResponseData, Self>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = get_refund_status(item.response.status);
+        let refund_status = item.response.status.into();
 
         Ok(Self {
             response: Ok(RefundsResponseData {
@@ -803,7 +813,7 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsRsyncResponse, Self>>
     fn try_from(
         item: ResponseRouterData<ImerchantsolutionsRsyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = get_refund_status(item.response.status.clone());
+        let refund_status = item.response.status.clone().into();
         let connector_refund_id = item.router_data.request.connector_refund_id.clone();
 
         Ok(Self {
@@ -817,48 +827,125 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsRsyncResponse, Self>>
     }
 }
 
-fn get_attempt_status(
-    item: ImerchantsolutionsPaymentStatus,
-    capture_method: Option<CaptureMethod>,
-) -> AttemptStatus {
-    match item {
-        ImerchantsolutionsPaymentStatus::Authorised
-        | ImerchantsolutionsPaymentStatus::Authorized
-        | ImerchantsolutionsPaymentStatus::PendingCapture => AttemptStatus::Authorized,
-        ImerchantsolutionsPaymentStatus::Pending3ds => AttemptStatus::AuthenticationPending,
-        ImerchantsolutionsPaymentStatus::Cancelled => AttemptStatus::Voided,
-        ImerchantsolutionsPaymentStatus::PartiallyCaptured => match capture_method {
-            Some(CaptureMethod::ManualMultiple) => AttemptStatus::PartialChargedAndChargeable,
-            _ => AttemptStatus::PartialCharged,
-        },
-        ImerchantsolutionsPaymentStatus::Captured
-        | ImerchantsolutionsPaymentStatus::PartiallyRefunded
-        | ImerchantsolutionsPaymentStatus::Refunded => AttemptStatus::Charged,
-        ImerchantsolutionsPaymentStatus::Pending => AttemptStatus::Pending,
-        ImerchantsolutionsPaymentStatus::Refused | ImerchantsolutionsPaymentStatus::Failed => {
-            AttemptStatus::Failure
+pub trait ForeignTryFrom<F>: Sized {
+    type Error;
+
+    fn foreign_try_from(from: F) -> Result<Self, Self::Error>;
+}
+
+impl ForeignTryFrom<(ImerchantsolutionsPaymentStatus, Option<CaptureMethod>, u16)>
+    for AttemptStatus
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn foreign_try_from(
+        (item, capture_method, http_status): (
+            ImerchantsolutionsPaymentStatus,
+            Option<CaptureMethod>,
+            u16,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(match item {
+            ImerchantsolutionsPaymentStatus::Authorised
+            | ImerchantsolutionsPaymentStatus::Authorized
+            | ImerchantsolutionsPaymentStatus::PendingCapture => Self::Authorized,
+
+            ImerchantsolutionsPaymentStatus::Pending3ds => Self::AuthenticationPending,
+
+            ImerchantsolutionsPaymentStatus::Cancelled => Self::Voided,
+
+            ImerchantsolutionsPaymentStatus::PartiallyCaptured => match capture_method {
+                Some(CaptureMethod::ManualMultiple) => Self::PartialChargedAndChargeable,
+                Some(CaptureMethod::Manual) => Self::PartialCharged,
+                Some(CaptureMethod::Automatic)
+                | Some(CaptureMethod::SequentialAutomatic)
+                | Some(CaptureMethod::Scheduled)
+                | None => {
+                    return Err(error_stack::Report::new(
+                        errors::ConnectorError::response_handling_failed_with_context(
+                            http_status,
+                            Some("capture method not supported".to_string()),
+                        ),
+                    ));
+                }
+            },
+
+            ImerchantsolutionsPaymentStatus::Captured
+            | ImerchantsolutionsPaymentStatus::PartiallyRefunded
+            | ImerchantsolutionsPaymentStatus::Refunded => Self::Charged,
+
+            ImerchantsolutionsPaymentStatus::Pending => Self::Pending,
+
+            ImerchantsolutionsPaymentStatus::Refused | ImerchantsolutionsPaymentStatus::Failed => {
+                Self::Failure
+            }
+        })
+    }
+}
+
+impl ForeignTryFrom<(ImerchantsolutionsCaptureStatus, Option<CaptureMethod>, u16)>
+    for AttemptStatus
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn foreign_try_from(
+        (capture_status, capture_method, http_status): (
+            ImerchantsolutionsCaptureStatus,
+            Option<CaptureMethod>,
+            u16,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(match capture_status {
+            ImerchantsolutionsCaptureStatus::Received => AttemptStatus::CaptureInitiated,
+
+            ImerchantsolutionsCaptureStatus::PartiallyCaptured => match capture_method {
+                Some(CaptureMethod::ManualMultiple) => AttemptStatus::PartialChargedAndChargeable,
+                Some(CaptureMethod::Manual) => Self::PartialCharged,
+                Some(CaptureMethod::Automatic)
+                | Some(CaptureMethod::SequentialAutomatic)
+                | Some(CaptureMethod::Scheduled)
+                | None => {
+                    return Err(error_stack::Report::new(
+                        errors::ConnectorError::response_handling_failed_with_context(
+                            http_status,
+                            Some("capture method not supported".to_string()),
+                        ),
+                    ));
+                }
+            },
+
+            ImerchantsolutionsCaptureStatus::Captured => AttemptStatus::Charged,
+        })
+    }
+}
+
+impl From<ImerchantsolutionsPaymentStatus> for AttemptStatus {
+    fn from(status: ImerchantsolutionsPaymentStatus) -> Self {
+        match status {
+            ImerchantsolutionsPaymentStatus::Authorised
+            | ImerchantsolutionsPaymentStatus::Authorized
+            | ImerchantsolutionsPaymentStatus::PendingCapture
+            | ImerchantsolutionsPaymentStatus::Pending3ds
+            | ImerchantsolutionsPaymentStatus::Pending => Self::Pending,
+
+            ImerchantsolutionsPaymentStatus::Cancelled
+            | ImerchantsolutionsPaymentStatus::Refused
+            | ImerchantsolutionsPaymentStatus::Failed => Self::CaptureFailed,
+
+            ImerchantsolutionsPaymentStatus::PartiallyCaptured
+            | ImerchantsolutionsPaymentStatus::Captured
+            | ImerchantsolutionsPaymentStatus::PartiallyRefunded
+            | ImerchantsolutionsPaymentStatus::Refunded => Self::Charged,
         }
     }
 }
 
-fn get_capture_status(
-    capture_status: ImerchantsolutionsCaptureStatus,
-    capture_method: Option<CaptureMethod>,
-) -> AttemptStatus {
-    match capture_status {
-        ImerchantsolutionsCaptureStatus::Received => AttemptStatus::CaptureInitiated,
-        ImerchantsolutionsCaptureStatus::PartiallyCaptured => match capture_method {
-            Some(CaptureMethod::ManualMultiple) => AttemptStatus::PartialChargedAndChargeable,
-            _ => AttemptStatus::PartialCharged,
-        },
-        ImerchantsolutionsCaptureStatus::Captured => AttemptStatus::Charged,
-    }
-}
-
-fn get_refund_status(refund_status: ImerchantsolutionsRefundStatus) -> RefundStatus {
-    match refund_status {
-        ImerchantsolutionsRefundStatus::Received => RefundStatus::Pending,
-        ImerchantsolutionsRefundStatus::PartiallyRefunded
-        | ImerchantsolutionsRefundStatus::Refunded => RefundStatus::Success,
+impl From<ImerchantsolutionsRefundStatus> for RefundStatus {
+    fn from(status: ImerchantsolutionsRefundStatus) -> Self {
+        match status {
+            ImerchantsolutionsRefundStatus::Received => RefundStatus::Pending,
+            ImerchantsolutionsRefundStatus::PartiallyRefunded
+            | ImerchantsolutionsRefundStatus::Refunded => RefundStatus::Success,
+        }
     }
 }

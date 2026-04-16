@@ -1416,6 +1416,7 @@ pub enum PaymentsResponseData {
     },
     MultipleCaptureResponse {
         capture_sync_response_list: HashMap<String, CaptureSyncResponse>,
+        status_code: u16,
     },
     IncrementalAuthorizationResponse {
         status: AuthorizationStatus,
