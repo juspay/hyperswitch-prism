@@ -812,7 +812,11 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}/v1/customers", self.connector_base_url_payments(req)))
+            // Reuse /v1/payments — `save_payment_method: true` + inline customer
+            // object in the body yields a reusable `card_*` token without
+            // requiring the complete_payment_url whitelist that the
+            // /v1/customers endpoint enforces on sandbox accounts.
+            Ok(format!("{}/v1/payments", self.connector_base_url_payments(req)))
         }
     }
 );
