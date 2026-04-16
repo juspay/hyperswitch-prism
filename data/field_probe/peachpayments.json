@@ -125,7 +125,7 @@
             "x-exi-auth-ver": "v1",
             "x-tenant-id": "probe_secret"
           },
-          "body": "{\"paymentMethod\":\"ecommerce_card_payment_only\",\"referenceId\":\"probe_txn_001\",\"ecommerceCardPaymentOnlyTransactionData\":{\"merchantInformation\":{\"clientMerchantReferenceId\":\"probe_merchant_ref_001\"},\"routingReference\":{\"merchantPaymentMethodRouteId\":\"probe_route_001\"},\"card\":{\"pan\":\"4111111111111111\",\"cardholderName\":\"John Doe\",\"expiryYear\":\"30\",\"expiryMonth\":\"03\",\"cvv\":\"737\"},\"amount\":{\"amount\":1000,\"currencyCode\":\"USD\"}},\"sendDateTime\":\"2020-01-01T00:00:00+00:00\"}"
+          "body": "{\"paymentMethod\":\"ecommerce_card_payment_only\",\"referenceId\":\"probe_txn_001\",\"ecommerceCardPaymentOnlyTransactionData\":{\"merchantInformation\":{\"clientMerchantReferenceId\":\"probe_merchant_ref_001\"},\"routing\":{\"route\":\"probe_route_001\"},\"card\":{\"pan\":\"4111111111111111\",\"cardholderName\":\"John Doe\",\"expiryYear\":\"30\",\"expiryMonth\":\"03\",\"cvv\":\"737\"},\"amount\":{\"amount\":1000,\"currencyCode\":\"USD\"}},\"sendDateTime\":\"2020-01-01T00:00:00+00:00\"}"
         }
       },
       "CashappQr": {
@@ -558,7 +558,7 @@
             "x-exi-auth-ver": "v1",
             "x-tenant-id": "probe_secret"
           },
-          "body": "{\"paymentMethod\":\"ecommerce_card_payment_only\",\"referenceId\":\"probe_proxy_txn_001\",\"ecommerceCardPaymentOnlyTransactionData\":{\"merchantInformation\":{\"clientMerchantReferenceId\":\"probe_merchant_ref_001\"},\"routingReference\":{\"merchantPaymentMethodRouteId\":\"probe_route_001\"},\"card\":{\"pan\":\"4111111111111111\",\"cardholderName\":\"John Doe\",\"expiryYear\":\"30\",\"expiryMonth\":\"03\",\"cvv\":\"123\"},\"amount\":{\"amount\":1000,\"currencyCode\":\"USD\"}},\"sendDateTime\":\"2020-01-01T00:00:00+00:00\"}"
+          "body": "{\"paymentMethod\":\"ecommerce_card_payment_only\",\"referenceId\":\"probe_proxy_txn_001\",\"ecommerceCardPaymentOnlyTransactionData\":{\"merchantInformation\":{\"clientMerchantReferenceId\":\"probe_merchant_ref_001\"},\"routing\":{\"route\":\"probe_route_001\"},\"card\":{\"pan\":\"4111111111111111\",\"cardholderName\":\"John Doe\",\"expiryYear\":\"30\",\"expiryMonth\":\"03\",\"cvv\":\"123\"},\"amount\":{\"amount\":1000,\"currencyCode\":\"USD\"}},\"sendDateTime\":\"2020-01-01T00:00:00+00:00\"}"
         }
       }
     },
@@ -589,7 +589,7 @@
           "setup_future_usage": "OFF_SESSION"
         },
         "sample": {
-          "url": "https://apitest.bankint.ppay.io/v/1/transactions/authorization",
+          "url": "https://apitest.bankint.ppay.io/v/1/transactions/create-and-confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -598,7 +598,7 @@
             "x-exi-auth-ver": "v1",
             "x-tenant-id": "probe_secret"
           },
-          "body": "{\"paymentMethod\":\"ecommerce_card_payment_only\",\"referenceId\":\"probe_proxy_mandate_001\",\"ecommerceCardPaymentOnlyTransactionData\":{\"merchantInformation\":{\"clientMerchantReferenceId\":\"probe_merchant_ref_001\"},\"routingReference\":{\"merchantPaymentMethodRouteId\":\"probe_route_001\"},\"card\":{\"pan\":\"4111111111111111\",\"cardholderName\":\"John Doe\",\"expiryYear\":\"30\",\"expiryMonth\":\"03\",\"cvv\":\"123\"},\"amount\":{\"amount\":0,\"currencyCode\":\"USD\"},\"preAuthIncExtCaptureFlow\":{\"dccMode\":\"no_dcc\",\"txnRefNr\":\"probe_proxy_mandate_001\"},\"cofData\":{\"type\":\"recurring\",\"source\":\"cit\",\"mode\":\"initial\"}},\"sendDateTime\":\"2020-01-01T00:00:00+00:00\"}"
+          "body": "{\"paymentMethod\":\"ecommerce_card_payment_only\",\"referenceId\":\"probe_proxy_mandate_001\",\"ecommerceCardPaymentOnlyTransactionData\":{\"merchantInformation\":{\"clientMerchantReferenceId\":\"probe_merchant_ref_001\"},\"routing\":{\"route\":\"probe_route_001\"},\"card\":{\"pan\":\"4111111111111111\",\"cardholderName\":\"John Doe\",\"expiryYear\":\"30\",\"expiryMonth\":\"03\",\"cvv\":\"123\"},\"amount\":{\"amount\":0,\"currencyCode\":\"USD\"},\"cofData\":{\"type\":\"recurring\",\"source\":\"cit\",\"mode\":\"initial\"}},\"sendDateTime\":\"2020-01-01T00:00:00+00:00\"}"
         }
       }
     },
@@ -699,7 +699,7 @@
           }
         },
         "sample": {
-          "url": "https://apitest.bankint.ppay.io/v/1/transactions/authorization",
+          "url": "https://apitest.bankint.ppay.io/v/1/transactions/create-and-confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -708,7 +708,7 @@
             "x-exi-auth-ver": "v1",
             "x-tenant-id": "probe_secret"
           },
-          "body": "{\"paymentMethod\":\"ecommerce_card_payment_only\",\"referenceId\":\"probe_mandate_001\",\"ecommerceCardPaymentOnlyTransactionData\":{\"merchantInformation\":{\"clientMerchantReferenceId\":\"probe_merchant_ref_001\"},\"routingReference\":{\"merchantPaymentMethodRouteId\":\"probe_route_001\"},\"card\":{\"pan\":\"4111111111111111\",\"cardholderName\":\"John Doe\",\"expiryYear\":\"30\",\"expiryMonth\":\"03\",\"cvv\":\"737\"},\"amount\":{\"amount\":0,\"currencyCode\":\"USD\"},\"preAuthIncExtCaptureFlow\":{\"dccMode\":\"no_dcc\",\"txnRefNr\":\"probe_mandate_001\"},\"cofData\":{\"type\":\"recurring\",\"source\":\"cit\",\"mode\":\"initial\"}},\"sendDateTime\":\"2020-01-01T00:00:00+00:00\"}"
+          "body": "{\"paymentMethod\":\"ecommerce_card_payment_only\",\"referenceId\":\"probe_mandate_001\",\"ecommerceCardPaymentOnlyTransactionData\":{\"merchantInformation\":{\"clientMerchantReferenceId\":\"probe_merchant_ref_001\"},\"routing\":{\"route\":\"probe_route_001\"},\"card\":{\"pan\":\"4111111111111111\",\"cardholderName\":\"John Doe\",\"expiryYear\":\"30\",\"expiryMonth\":\"03\",\"cvv\":\"737\"},\"amount\":{\"amount\":0,\"currencyCode\":\"USD\"},\"cofData\":{\"type\":\"recurring\",\"source\":\"cit\",\"mode\":\"initial\"}},\"sendDateTime\":\"2020-01-01T00:00:00+00:00\"}"
         }
       }
     },
