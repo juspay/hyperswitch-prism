@@ -873,9 +873,21 @@ pub struct MultisafepayResponseData {
     pub status: MultisafepayPaymentStatus,
     pub amount: Option<MinorUnit>,
     pub currency: Option<common_enums::Currency>,
+    /// Payment details including recurring_id for mandate reference extraction
+    pub payment_details: Option<MultisafepayPaymentDetails>,
     // Additional fields that may appear in GET response - using flatten to ignore unknown fields
     #[serde(flatten)]
     pub extra: std::collections::HashMap<String, serde_json::Value>,
+}
+
+/// Payment details returned by MultiSafepay, contains recurring_id for mandate flows
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub struct MultisafepayPaymentDetails {
+    pub recurring_id: Option<String>,
+    pub recurring_model: Option<String>,
+    pub recurring_flow: Option<String>,
+    #[serde(rename = "type")]
+    pub payment_type: Option<String>,
 }
 
 // Custom deserializer to handle transaction_id as either string or integer
@@ -1154,7 +1166,7 @@ impl TryFrom<ResponseRouterData<MultisafepayClientAuthResponse, Self>>
 
 /// MultiSafepay recurring model types
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "lowercase")]
 pub enum RecurringModel {
     CardOnFile,
     Subscription,
@@ -1178,7 +1190,8 @@ pub struct MultisafepaySetupMandateRequest<T: PaymentMethodDataTypes> {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gateway_info: Option<MultisafepayGatewayInfo<T>>,
     pub recurring_model: RecurringModel,
-    pub recurring_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recurring_id: Option<String>,
 }
 
 /// SetupMandate response reuses the standard payments response
@@ -1218,7 +1231,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let gateway = get_gateway_from_payment_method(&item.request.payment_method_data)?;
         let gateway_info = build_gateway_info(&order_type, &item.request.payment_method_data)?;
 
-        let recurring_id = item
+        let customer_reference = item
             .resource_common_data
             .connector_request_reference_id
             .clone();
@@ -1226,7 +1239,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let customer = CustomerInfo {
             locale: None,
             ip_address: None,
-            reference: Some(recurring_id.clone()),
+            reference: Some(customer_reference),
             email: item
                 .request
                 .email
@@ -1275,7 +1288,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             customer,
             gateway_info,
             recurring_model: RecurringModel::Unscheduled,
-            recurring_id,
+            // CIT setup does not send recurring_id; it is only used for MIT
+            recurring_id: None,
         })
     }
 }
@@ -1307,11 +1321,17 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MultisafepaySetupMand
             .or_else(|| response_data.order_id.clone())
             .unwrap_or_else(|| "unknown".to_string());
 
-        // The recurring_id (customer reference) is the mandate reference for MultiSafepay
-        // It's used to identify the stored token for subsequent MIT payments
-        let mandate_reference = response_data.order_id.as_ref().map(|order_id| {
+        // Extract recurring_id from payment_details (preferred, per upstream hyperswitch),
+        // falling back to order_id if payment_details is not yet populated (initial response)
+        let connector_mandate_id = response_data
+            .payment_details
+            .as_ref()
+            .and_then(|pd| pd.recurring_id.clone())
+            .or_else(|| response_data.order_id.clone());
+
+        let mandate_reference = connector_mandate_id.map(|id| {
             Box::new(connector_types::MandateReference {
-                connector_mandate_id: Some(order_id.clone()),
+                connector_mandate_id: Some(id),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
             })
