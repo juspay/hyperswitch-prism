@@ -108,10 +108,13 @@ pub struct PixBankTransfer {
     pub bank_branch: Option<String>,
 
     /// Bank account number is an unique identifier assigned by a bank to a customer.
-    pub bank_account_number: Secret<String>,
+    pub bank_account_number: Option<Secret<String>>,
 
     /// Unique key for pix customer
-    pub pix_key: Secret<String>,
+    pub pix_key: Option<Secret<String>>,
+
+    /// EMV data for pix
+    pub pix_emv: Option<Secret<String>>,
 
     /// Individual taxpayer identification number
     pub tax_id: Option<Secret<String>>,

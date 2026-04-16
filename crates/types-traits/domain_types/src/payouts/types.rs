@@ -574,39 +574,10 @@ impl ForeignTryFrom<grpc_api_types::payouts::PixBankTransferPayout>
         Ok(payouts::payout_method_data::PixBankTransfer {
             bank_name,
             bank_branch: pix.bank_branch,
-            bank_account_number: ::hyperswitch_masking::Secret::new(
-                pix.bank_account_number
-                    .ok_or_else(|| {
-                        error_stack::report!(IntegrationError::MissingRequiredField {
-                            field_name: "bank_account_number",
-                            context: IntegrationErrorContext {
-                                additional_context: Some(
-                                    "Bank account number is required for Pix".to_owned()
-                                ),
-                                ..Default::default()
-                            },
-                        })
-                    })?
-                    .peek()
-                    .to_string(),
-            ),
-            pix_key: ::hyperswitch_masking::Secret::new(
-                pix.pix_key
-                    .ok_or_else(|| {
-                        error_stack::report!(IntegrationError::MissingRequiredField {
-                            field_name: "pix_key",
-                            context: IntegrationErrorContext {
-                                additional_context: Some("Pix key is required for Pix".to_owned()),
-                                ..Default::default()
-                            },
-                        })
-                    })?
-                    .peek()
-                    .to_string(),
-            ),
-            tax_id: pix
-                .tax_id
-                .map(|t| ::hyperswitch_masking::Secret::new(t.peek().to_string())),
+            bank_account_number: pix.bank_account_number,
+            pix_key: pix.pix_key,
+            tax_id: pix.tax_id,
+            pix_emv: pix.pix_emv,
         })
     }
 }
