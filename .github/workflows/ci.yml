@@ -435,6 +435,19 @@ jobs:
         with:
           shared-key: "ci-rust"
 
+      - name: Free up disk space
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          echo "Before cleanup:"
+          df -h
+          # Remove release-fast artifacts from previous jobs
+          rm -rf target/x86_64-unknown-linux-gnu/release-fast
+          rm -rf target/release-fast
+          # Clean apt cache
+          sudo apt-get clean
+          echo "After cleanup:"
+          df -h
+
       - name: Install nextest
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
