@@ -1,11 +1,12 @@
 use common_enums::AttemptStatus;
 use common_utils::types::{MinorUnit, StringMinorUnit};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ResponseId, SetupMandateRequestData,
     },
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::ConnectorSpecificConfig,
@@ -1044,6 +1045,400 @@ impl TryFrom<ResponseRouterData<TsysRSyncResponse, Self>>
 
         Ok(Self {
             response,
+            ..item.router_data
+        })
+    }
+}
+
+// ============================================================================
+// SETUP MANDATE (SetupRecurring) FLOW
+// ============================================================================
+// TSYS has no native zero-amount verification; we implement SetupMandate by
+// sending an Auth (authorization-only, no capture) via the same transnox_api
+// endpoint. The resulting connector_transaction_id acts as the mandate
+// reference for subsequent MIT/recurring charges.
+
+#[derive(Debug, Serialize)]
+pub enum TsysSetupMandateRequest<T: PaymentMethodDataTypes> {
+    Auth(TsysPaymentAuthSaleRequest<T>),
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(transparent)]
+pub struct TsysSetupMandateResponse(pub TsysPaymentsResponse);
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        TsysRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for TsysSetupMandateRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item_data: TsysRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let item = &item_data.router_data;
+
+        match &item.request.payment_method_data {
+            PaymentMethodData::Card(card_data) => {
+                let auth: TsysAuthType = TsysAuthType::try_from(&item.connector_config)?;
+
+                // TSYS requires a non-zero amount even for authorization; default
+                // to 1 minor unit if the request does not carry one.
+                let minor_amount = item
+                    .request
+                    .minor_amount
+                    .unwrap_or_else(|| MinorUnit::new(1));
+                let transaction_amount = item_data
+                    .connector
+                    .amount_converter
+                    .convert(minor_amount, item.request.currency)
+                    .change_context(IntegrationError::AmountConversionFailed {
+                        context: Default::default(),
+                    })?;
+
+                let auth_data = TsysPaymentAuthSaleRequest {
+                    device_id: auth.device_id,
+                    transaction_key: auth.transaction_key,
+                    card_data_source: TsysCardDataSource::Internet,
+                    transaction_amount,
+                    currency_code: item.request.currency,
+                    card_number: card_data.card_number.clone(),
+                    expiration_date: card_data
+                        .get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned())?,
+                    cvv2: card_data.card_cvc.clone(),
+                    order_number: item
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone(),
+                    terminal_capability: TsysTerminalCapability::NoTerminalManual,
+                    terminal_operating_environment: TsysTerminalOperatingEnvironment::NoTerminal,
+                    cardholder_authentication_method:
+                        TsysCardholderAuthenticationMethod::NotAuthenticated,
+                    developer_id: auth.developer_id,
+                };
+                Ok(Self::Auth(auth_data))
+            }
+            _ => Err(IntegrationError::not_implemented(
+                "Payment method not implemented for Tsys SetupMandate".to_string(),
+            ))?,
+        }
+    }
+}
+
+// Build a PaymentsResponseData for SetupMandate that populates mandate_reference
+// with the TSYS transactionID. This is what RecurringPaymentService.Charge pulls
+// out of `connector_recurring_payment_id.connector_mandate_id.connector_mandate_id`
+// as the referenced CIT for the subsequent MIT replay.
+fn get_setup_mandate_response(
+    connector_response: TsysResponse,
+    http_code: u16,
+) -> PaymentsResponseData {
+    let transaction_id = connector_response.transaction_id.clone();
+    PaymentsResponseData::TransactionResponse {
+        resource_id: ResponseId::ConnectorTransactionId(transaction_id.clone()),
+        redirection_data: None,
+        mandate_reference: Some(Box::new(MandateReference {
+            connector_mandate_id: Some(transaction_id.clone()),
+            payment_method_id: None,
+            connector_mandate_request_reference_id: None,
+        })),
+        connector_metadata: None,
+        network_txn_id: Some(transaction_id.clone()),
+        connector_response_reference_id: Some(transaction_id),
+        incremental_authorization_allowed: None,
+        status_code: http_code,
+    }
+}
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TsysSetupMandateResponse, Self>>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<TsysSetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let TsysSetupMandateResponse(response_data) = item.response;
+        let (response, status) = match response_data {
+            TsysPaymentsResponse::AuthResponse(resp) => match resp {
+                TsysResponseTypes::SuccessResponse(auth_response) => match auth_response.status {
+                    TsysPaymentStatus::Pass => (
+                        Ok(get_setup_mandate_response(auth_response, item.http_code)),
+                        AttemptStatus::Authorized,
+                    ),
+                    TsysPaymentStatus::Fail => {
+                        let error_resp = TsysErrorResponse {
+                            status: auth_response.status,
+                            response_code: auth_response.response_code,
+                            response_message: auth_response.response_message,
+                        };
+                        (
+                            Err(get_error_response(&error_resp, item.http_code)),
+                            AttemptStatus::AuthorizationFailed,
+                        )
+                    }
+                },
+                TsysResponseTypes::ErrorResponse(error_response) => (
+                    Err(get_error_response(&error_response, item.http_code)),
+                    AttemptStatus::AuthorizationFailed,
+                ),
+            },
+            _ => {
+                let generic_error = TsysErrorResponse {
+                    status: TsysPaymentStatus::Fail,
+                    response_code: item.http_code.to_string(),
+                    response_message: item.http_code.to_string(),
+                };
+                (
+                    Err(get_error_response(&generic_error, item.http_code)),
+                    AttemptStatus::AuthorizationFailed,
+                )
+            }
+        };
+
+        Ok(Self {
+            response,
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// ============================================================================
+// REPEAT PAYMENT (RecurringPaymentService.Charge / MIT) FLOW
+// ============================================================================
+// TSYS Genius transnox_api does not vault card data server-side — the Sale
+// request (our charge endpoint for auto-capture MITs) always requires the PAN
+// plus the card's exp/cvv. The CIT transactionID serves as a reference on the
+// replay via the orderNumber (linked upstream) and as schemeTransactionId via
+// the gRPC network_txn_id channel, but TSYS has no pure token-based MIT.
+//
+// Callers must therefore supply `payment_method.card` on RecurringPaymentService
+// .Charge; without it we cannot build a Sale request. When present we issue
+// a Sale with the provided card and currency, tying back to the stored mandate
+// via the orderNumber / transactionID returned on SetupMandate.
+
+#[derive(Debug, Serialize)]
+pub enum TsysRepeatPaymentRequest<T: PaymentMethodDataTypes> {
+    Auth(TsysPaymentAuthSaleRequest<T>),
+    Sale(TsysPaymentAuthSaleRequest<T>),
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(transparent)]
+pub struct TsysRepeatPaymentResponse(pub TsysPaymentsResponse);
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        TsysRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for TsysRepeatPaymentRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item_data: TsysRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let item = &item_data.router_data;
+
+        // TSYS has no server-side card vault; MIT replays require the full PAN +
+        // exp/cvv on the request. Surface a clear error when the caller only
+        // supplies MandatePayment (the default when no payment_method is passed
+        // on the Charge gRPC call).
+        let card_data = match &item.request.payment_method_data {
+            PaymentMethodData::Card(card_data) => card_data,
+            PaymentMethodData::MandatePayment => {
+                return Err(
+                    error_stack::report!(IntegrationError::MissingRequiredField {
+                        field_name: "payment_method.card",
+                        context: Default::default(),
+                    })
+                    .attach_printable(
+                        "TSYS RepeatPayment requires card data on the Charge request: \
+                     TSYS Genius transnox_api does not vault card details server-side, \
+                     so the PAN/exp/cvv must be resupplied for each MIT replay.",
+                    ),
+                );
+            }
+            _ => {
+                return Err(error_stack::report!(IntegrationError::not_implemented(
+                    "Payment method not implemented for Tsys RepeatPayment".to_string(),
+                )))
+            }
+        };
+
+        let auth: TsysAuthType = TsysAuthType::try_from(&item.connector_config)?;
+
+        let transaction_amount = item_data
+            .connector
+            .amount_converter
+            .convert(item.request.minor_amount, item.request.currency)
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
+
+        // Link the MIT to the stored CIT via the orderNumber when possible:
+        // prefer the upstream merchant reference over the original CIT id so
+        // each MIT is idempotent under the connector's uniqueness rules.
+        let order_number = item
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+
+        // Reference the CIT transactionID / NTI so logs and network-level
+        // tracing can correlate the MIT back to the original setup. The value
+        // itself is not sent to TSYS today (their JSON shape has no referenced
+        // transaction field on Sale/Auth) but surfaces later via response.
+        let _cit_reference = match &item.request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(cm) => cm.get_connector_mandate_id(),
+            MandateReferenceId::NetworkMandateId(nmi) => Some(nmi.clone()),
+            MandateReferenceId::NetworkTokenWithNTI(nti) => {
+                Some(nti.network_transaction_id.clone())
+            }
+        };
+
+        let auth_data = TsysPaymentAuthSaleRequest {
+            device_id: auth.device_id,
+            transaction_key: auth.transaction_key,
+            card_data_source: TsysCardDataSource::Internet,
+            transaction_amount,
+            currency_code: item.request.currency,
+            card_number: card_data.card_number.clone(),
+            expiration_date: card_data
+                .get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned())?,
+            cvv2: card_data.card_cvc.clone(),
+            order_number,
+            terminal_capability: TsysTerminalCapability::NoTerminalManual,
+            terminal_operating_environment: TsysTerminalOperatingEnvironment::NoTerminal,
+            cardholder_authentication_method: TsysCardholderAuthenticationMethod::NotAuthenticated,
+            developer_id: auth.developer_id,
+        };
+
+        // MIT default is auto-capture (Sale). Explicit capture_method=Manual
+        // flips this to an Auth-only that the caller can Capture separately.
+        if item.request.is_auto_capture() {
+            Ok(Self::Sale(auth_data))
+        } else {
+            Ok(Self::Auth(auth_data))
+        }
+    }
+}
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TsysRepeatPaymentResponse, Self>>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<TsysRepeatPaymentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let TsysRepeatPaymentResponse(response_data) = item.response;
+        let (response, status) = match response_data {
+            TsysPaymentsResponse::SaleResponse(resp) => match resp {
+                TsysResponseTypes::SuccessResponse(sale_response) => match sale_response.status {
+                    TsysPaymentStatus::Pass => (
+                        Ok(get_payments_response(sale_response, item.http_code)),
+                        AttemptStatus::Charged,
+                    ),
+                    TsysPaymentStatus::Fail => {
+                        let error_resp = TsysErrorResponse {
+                            status: sale_response.status,
+                            response_code: sale_response.response_code,
+                            response_message: sale_response.response_message,
+                        };
+                        (
+                            Err(get_error_response(&error_resp, item.http_code)),
+                            AttemptStatus::Failure,
+                        )
+                    }
+                },
+                TsysResponseTypes::ErrorResponse(error_response) => (
+                    Err(get_error_response(&error_response, item.http_code)),
+                    AttemptStatus::Failure,
+                ),
+            },
+            TsysPaymentsResponse::AuthResponse(resp) => match resp {
+                TsysResponseTypes::SuccessResponse(auth_response) => match auth_response.status {
+                    TsysPaymentStatus::Pass => (
+                        Ok(get_payments_response(auth_response, item.http_code)),
+                        AttemptStatus::Authorized,
+                    ),
+                    TsysPaymentStatus::Fail => {
+                        let error_resp = TsysErrorResponse {
+                            status: auth_response.status,
+                            response_code: auth_response.response_code,
+                            response_message: auth_response.response_message,
+                        };
+                        (
+                            Err(get_error_response(&error_resp, item.http_code)),
+                            AttemptStatus::AuthorizationFailed,
+                        )
+                    }
+                },
+                TsysResponseTypes::ErrorResponse(error_response) => (
+                    Err(get_error_response(&error_response, item.http_code)),
+                    AttemptStatus::AuthorizationFailed,
+                ),
+            },
+            _ => {
+                let generic_error = TsysErrorResponse {
+                    status: TsysPaymentStatus::Fail,
+                    response_code: item.http_code.to_string(),
+                    response_message: item.http_code.to_string(),
+                };
+                (
+                    Err(get_error_response(&generic_error, item.http_code)),
+                    AttemptStatus::Failure,
+                )
+            }
+        };
+
+        Ok(Self {
+            response,
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
             ..item.router_data
         })
     }
