@@ -10,8 +10,8 @@ use domain_types::{
         PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
         RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
-    payment_method_data::{BankDebitData, CardToken, PaymentMethodData, PaymentMethodDataTypes},
-    router_data::{ConnectorSpecificConfig, PaymentMethodToken},
+    payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes},
+    router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -21,8 +21,7 @@ use serde::{Deserialize, Serialize};
 use super::{requests, responses};
 use crate::types::ResponseRouterData;
 use domain_types::errors::{
-    ConnectorError, IntegrationError, IntegrationErrorContext, ResponseTransformationErrorContext,
-    WebhookError,
+    ConnectorError, IntegrationError, ResponseTransformationErrorContext, WebhookError,
 };
 
 // Wallet type constants
@@ -493,37 +492,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     "Only ACH and SEPA Bank Debit are supported".to_string(),
                 ))?,
             },
-            // TODO: Refactor CardToken to use a more descriptive name (e.g., PaymentMethodToken)
-            // and add the token field directly to the struct instead of relying on payment_method_token
-            PaymentMethodData::CardToken(CardToken { .. }) => {
-                let token = router_data
-                    .resource_common_data
-                    .payment_method_token
-                    .as_ref()
-                    .map(|t| match t {
-                        PaymentMethodToken::Token(s) => s.clone(),
-                    })
-                    .ok_or_else(|| {
-                        error_stack::report!(IntegrationError::MissingRequiredField {
-                            field_name: "payment_method_token",
-                            context: IntegrationErrorContext {
-                                suggested_action: Some(
-                                    "Ensure the ClientAuthenticationToken flow runs before \
-                                     Authorize so a pfToken is available as payment_method_token."
-                                        .to_owned(),
-                                ),
-                                doc_url: Some(
-                                    "https://developers.bluesnap.com/v8976-JSON/docs/hosted-payment-fields"
-                                        .to_owned(),
-                                ),
-                                additional_context: Some(
-                                    "Bluesnap CardToken payments require a pfToken obtained from \
-                                     the Hosted Payment Fields token endpoint."
-                                        .to_owned(),
-                                ),
-                            },
-                        })
-                    })?;
+            PaymentMethodData::PaymentMethodToken(token_data) => {
+                let token = token_data.token.clone();
 
                 let card_transaction_type = match router_data.request.capture_method {
                     Some(common_enums::CaptureMethod::Manual) => BluesnapTxnType::AuthOnly,

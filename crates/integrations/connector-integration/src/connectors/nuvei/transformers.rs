@@ -1,18 +1,20 @@
 use common_utils::{consts, pii, types::StringMajorUnit};
 use domain_types::{
-    connector_flow::{Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund, Void},
+    connector_flow::{
+        Authorize, Capture, ClientAuthenticationToken, CreateOrder, PSync, RSync, Refund, Void,
+    },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse,
         NuveiClientAuthenticationResponse as NuveiClientAuthenticationResponseDomain,
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     payment_method_data::{
-        BankTransferData, CardToken, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        BankTransferData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
     },
-    router_data::{ConnectorSpecificConfig, PaymentMethodToken},
+    router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
 };
 use error_stack::{Report, ResultExt};
@@ -733,32 +735,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }
                 }
             }
-            // TODO: Handle additional CardToken fields (card_holder_name, card_cvc) if needed by Nuvei
-            PaymentMethodData::CardToken(CardToken { .. }) => {
-                let token = router_data
-                    .resource_common_data
-                    .payment_method_token
-                    .as_ref()
-                    .map(|t| match t {
-                        PaymentMethodToken::Token(s) => s.clone(),
-                    })
-                    .ok_or_else(|| {
-                        error_stack::report!(IntegrationError::MissingRequiredField {
-                            field_name: "payment_method_token",
-                            context: domain_types::errors::IntegrationErrorContext {
-                                doc_url: Some("https://docs.nuvei.com/api/main/indexMain_v1_0.html?json#payment".to_string()),
-                                additional_context: Some("Nuvei requires a userPaymentOptionId (payment_method_token) for token-based card payments. Ensure the token was obtained via a prior openOrder or createPayment flow.".to_string()),
-                                ..Default::default()
-                            },
-                        })
-                    })?;
-
-                NuveiPaymentOption {
-                    card: None,
-                    alternative_payment_method: None,
-                    user_payment_option_id: Some(token),
-                }
-            }
+            PaymentMethodData::PaymentMethodToken(token_data) => NuveiPaymentOption {
+                card: None,
+                alternative_payment_method: None,
+                user_payment_option_id: Some(token_data.token.clone()),
+            },
             _ => {
                 return Err(IntegrationError::NotSupported {
                     message: "Payment method not supported".to_string(),
@@ -1917,6 +1898,228 @@ impl TryFrom<ResponseRouterData<NuveiClientAuthResponse, Self>>
                 session_data,
                 status_code: item.http_code,
             }),
+            ..item.router_data
+        })
+    }
+}
+
+// ============================================================================
+// OpenOrder (CreateOrder) Request/Response Types
+// ============================================================================
+
+/// OpenOrder request — creates a Nuvei order session and returns a sessionToken + orderId.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiOpenOrderRequest {
+    pub merchant_id: Secret<String>,
+    pub merchant_site_id: Secret<String>,
+    pub client_unique_id: String,
+    pub client_request_id: String,
+    pub currency: common_enums::Currency,
+    pub amount: StringMajorUnit,
+    pub time_stamp: common_utils::date_time::DateTime<common_utils::date_time::YYYYMMDDHHmmss>,
+    pub checksum: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transaction_type: Option<TransactionType>,
+}
+
+/// OpenOrder response — returns sessionToken and orderId for subsequent payment flows.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiOpenOrderResponse {
+    pub session_token: Option<String>,
+    #[serde(default, deserialize_with = "str_or_i64")]
+    pub order_id: Option<String>,
+    pub client_unique_id: Option<String>,
+    pub internal_request_id: Option<i64>,
+    pub status: NuveiPaymentStatus,
+    pub err_code: Option<i32>,
+    pub reason: Option<String>,
+    pub merchant_id: Option<String>,
+    pub merchant_site_id: Option<String>,
+    pub version: Option<String>,
+    pub client_request_id: Option<String>,
+}
+
+/// Nuvei's `openOrder.do` returns `orderId` as a bare JSON integer despite docs
+/// declaring it as String(20). Mirrors the Bambora `str_or_i32` pattern.
+fn str_or_i64<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum StrOrI64 {
+        Str(String),
+        I64(i64),
+    }
+
+    Ok(
+        Option::<StrOrI64>::deserialize(deserializer)?.map(|v| match v {
+            StrOrI64::Str(s) => s,
+            StrOrI64::I64(n) => n.to_string(),
+        }),
+    )
+}
+
+// --- TryFrom: RouterDataV2 -> NuveiOpenOrderRequest (via macro wrapper) ---
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        NuveiRouterData<
+            RouterDataV2<
+                CreateOrder,
+                PaymentFlowData,
+                PaymentCreateOrderData,
+                PaymentCreateOrderResponse,
+            >,
+            T,
+        >,
+    > for NuveiOpenOrderRequest
+{
+    type Error = Report<IntegrationError>;
+
+    fn try_from(
+        item: NuveiRouterData<
+            RouterDataV2<
+                CreateOrder,
+                PaymentFlowData,
+                PaymentCreateOrderData,
+                PaymentCreateOrderResponse,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        // Extract auth data
+        let auth = NuveiAuthType::try_from(&router_data.connector_config)?;
+
+        let time_stamp = NuveiAuthType::get_timestamp();
+        let client_request_id = router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+        let client_unique_id = router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+
+        // Convert amount using the connector's amount converter
+        let amount = item
+            .connector
+            .amount_converter_webhooks
+            .convert(router_data.request.amount, router_data.request.currency)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
+
+        let currency = router_data.request.currency;
+
+        // Generate checksum for openOrder: merchantId + merchantSiteId + clientRequestId + amount + currency + timeStamp + merchantSecretKey
+        let checksum = auth.generate_checksum(&[
+            auth.merchant_id.peek(),
+            auth.merchant_site_id.peek(),
+            &client_request_id,
+            &amount.get_amount_as_string(),
+            &currency.to_string(),
+            &time_stamp.to_string(),
+        ]);
+
+        Ok(Self {
+            merchant_id: auth.merchant_id,
+            merchant_site_id: auth.merchant_site_id,
+            client_unique_id,
+            client_request_id,
+            currency,
+            amount,
+            time_stamp,
+            checksum,
+            transaction_type: Some(TransactionType::Auth),
+        })
+    }
+}
+
+// --- TryFrom: NuveiOpenOrderResponse -> PaymentCreateOrderResponse ---
+
+impl TryFrom<NuveiOpenOrderResponse> for PaymentCreateOrderResponse {
+    type Error = Report<ConnectorError>;
+
+    fn try_from(response: NuveiOpenOrderResponse) -> Result<Self, Self::Error> {
+        let connector_order_id = response.order_id.unwrap_or_default();
+        Ok(Self {
+            connector_order_id,
+            session_data: None,
+        })
+    }
+}
+
+// --- TryFrom: ResponseRouterData -> RouterDataV2 (CreateOrder response handler) ---
+
+impl TryFrom<ResponseRouterData<NuveiOpenOrderResponse, Self>>
+    for RouterDataV2<
+        CreateOrder,
+        PaymentFlowData,
+        PaymentCreateOrderData,
+        PaymentCreateOrderResponse,
+    >
+{
+    type Error = Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<NuveiOpenOrderResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        // Check if the request status is ERROR
+        if matches!(
+            response.status,
+            NuveiPaymentStatus::Error | NuveiPaymentStatus::Failed
+        ) {
+            let error_code = response.err_code.map(|c| c.to_string()).unwrap_or_default();
+            let error_message = response
+                .reason
+                .clone()
+                .unwrap_or_else(|| "Unknown error".to_string());
+
+            return Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status: common_enums::AttemptStatus::Failure,
+                    ..item.router_data.resource_common_data
+                },
+                response: Err(domain_types::router_data::ErrorResponse {
+                    code: error_code,
+                    message: error_message.clone(),
+                    reason: Some(error_message),
+                    status_code: item.http_code,
+                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    connector_transaction_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }),
+                ..item.router_data
+            });
+        }
+
+        let order_response = PaymentCreateOrderResponse::try_from(response.clone())?;
+
+        // Extract order_id to store for Authorize flow
+        let order_id = order_response.connector_order_id.clone();
+
+        // Store session_token in session_token field for use by Authorize flow
+        let session_token = response.session_token.clone();
+
+        Ok(Self {
+            response: Ok(order_response),
+            resource_common_data: PaymentFlowData {
+                status: common_enums::AttemptStatus::Pending,
+                reference_id: Some(order_id.clone()),
+                connector_order_id: Some(order_id),
+                // Store session_token for use by subsequent payment flows
+                session_token,
+                ..item.router_data.resource_common_data
+            },
             ..item.router_data
         })
     }
