@@ -1045,7 +1045,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )));
         }
 
-        let payload = parts[1];
+        let payload = parts.get(1).ok_or_else(|| {
+            Report::new(ConnectorError::response_handling_failed(res.status_code))
+        })?;
         let decoded_bytes = Engine::decode(&BASE64_ENGINE, payload)
             .map_err(|_| ConnectorError::response_handling_failed(res.status_code))?;
         let decoded_str = String::from_utf8(decoded_bytes)
@@ -1053,12 +1055,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let decoded: serde_json::Value = serde_json::from_str(&decoded_str)
             .map_err(|_| ConnectorError::response_handling_failed(res.status_code))?;
 
-        let client_library = decoded["ctx"][0]["data"]["clientLibrary"]
-            .as_str()
+        let client_library = decoded
+            .get("ctx")
+            .and_then(|v| v.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|v| v.get("data"))
+            .and_then(|v| v.get("clientLibrary"))
+            .and_then(|v| v.as_str())
             .unwrap_or_default()
             .to_string();
-        let client_library_integrity = decoded["ctx"][0]["data"]["clientLibraryIntegrity"]
-            .as_str()
+        let client_library_integrity = decoded
+            .get("ctx")
+            .and_then(|v| v.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|v| v.get("data"))
+            .and_then(|v| v.get("clientLibraryIntegrity"))
+            .and_then(|v| v.as_str())
             .unwrap_or_default()
             .to_string();
 
