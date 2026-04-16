@@ -170,6 +170,14 @@ jobs:
         with:
           toolchain: nightly
           components: rustfmt
+      
+      - uses: Swatinem/rust-cache@v2.7.8
+        with:
+          shared-key: "ci-rust"
+          cache-targets: true
+          cache-directories: |
+            target/x86_64-unknown-linux-gnu/release-fast
+            target/aarch64-unknown-linux-gnu/release-fast
 
       - uses: Swatinem/rust-cache@v2.7.8
         with:
@@ -568,6 +576,21 @@ jobs:
           echo "Running SDK mock tests (no real HTTP calls)"
           python3 scripts/run_smoke_tests_parallel.py --mock --connectors stripe --sdks python,javascript,kotlin,rust
 
+
+      - name: Save SDK binaries cache
+        if: always() && steps.sdk-cache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            target/*/*/libconnector_service_ffi.so
+            target/*/*/libconnector_service_ffi.dylib
+            target/*/*/libhyperswitch_grpc_ffi.so
+            target/*/*/libhyperswitch_grpc_ffi.dylib
+            target/*/*/grpc-server
+            target/*/*/uniffi-bindgen
+            target/*/*/hyperswitch-smoke-test
+            target/*/*/grpc-smoke-test
+          key: sdk-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs') }}
 
   # ── CI Gate ───────────────────────────────────────────────────────────────
   # Single required status check. Passes if all jobs succeeded, were skipped,

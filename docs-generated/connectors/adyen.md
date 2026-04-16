@@ -213,9 +213,9 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | PayPal SDK | ⚠ |
 | Amazon Pay | ⚠ |
 | Cash App | ⚠ |
-| PayPal | ⚠ |
+| PayPal | ✓ |
 | WeChat Pay | ⚠ |
-| Alipay | ⚠ |
+| Alipay | ✓ |
 | Revolut Pay | ⚠ |
 | MiFinity | ⚠ |
 | Bluecode | ⚠ |
