@@ -122,6 +122,20 @@ pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
     })).unwrap_or_default()
 }
 
+pub fn build_recurring_revoke_request() -> RecurringPaymentServiceRevokeRequest {
+    serde_json::from_value::<RecurringPaymentServiceRevokeRequest>(serde_json::json!({
+    "merchant_revoke_id": "probe_revoke_001",  // Identification.
+    "merchant_mandate_id": "probe_mandate_001",  // Mandate Details Merchant-side identifier for the mandate being revoked.
+    "mandate_reference_id": {  // Typed mandate reference supporting connector mandate ids, network transaction ids, and network-token-with-NTI references. Preferred over the legacy `connector_mandate_id` field above.
+        "mandate_id_type": {
+            "connector_mandate_id": {
+                "connector_mandate_id": "probe_connector_mandate_001",
+            },
+        },
+    },
+    })).unwrap_or_default()
+}
+
 pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRefundRequest {
     serde_json::from_value::<PaymentServiceRefundRequest>(serde_json::json!({
     "merchant_refund_id": "probe_refund_001",  // Identification.
@@ -272,6 +286,13 @@ pub async fn proxy_authorize(client: &ConnectorClient, _merchant_transaction_id:
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: RecurringPaymentService.Revoke
+#[allow(dead_code)]
+pub async fn recurring_revoke(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.recurring_revoke(build_recurring_revoke_request(), &HashMap::new(), None).await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: PaymentService.Refund
 #[allow(dead_code)]
 pub async fn refund(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
@@ -302,9 +323,10 @@ async fn main() {
         "get" => get(&client, "order_001").await,
         "handle_event" => handle_event(&client, "order_001").await,
         "proxy_authorize" => proxy_authorize(&client, "order_001").await,
+        "recurring_revoke" => recurring_revoke(&client, "order_001").await,
         "refund" => refund(&client, "order_001").await,
         "refund_get" => refund_get(&client, "order_001").await,
-        _ => { eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_get_payment, authorize, capture, create_order, get, handle_event, proxy_authorize, refund, refund_get", flow); return; }
+        _ => { eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_get_payment, authorize, capture, create_order, get, handle_event, proxy_authorize, recurring_revoke, refund, refund_get", flow); return; }
     };
     match result {
         Ok(msg) => println!("✓ {msg}"),

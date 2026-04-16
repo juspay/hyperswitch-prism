@@ -5,7 +5,7 @@
 // Razorpay — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx razorpay.ts checkout_autocapture
 
-import { PaymentClient, EventClient, RefundClient, types } from 'hyperswitch-prism';
+import { PaymentClient, EventClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
 const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment, AuthenticationType, CaptureMethod, Currency } = types;
 
 const _defaultConfig: ConnectorConfig = {
@@ -113,6 +113,18 @@ function _buildProxyAuthorizeRequest(): PaymentServiceProxyAuthorizeRequest {
         "authType": AuthenticationType.NO_THREE_DS,
         "returnUrl": "https://example.com/return",
         "connectorOrderId": "connector_order_id"  // Send the connector order identifier here if an order was created before authorize.
+    };
+}
+
+function _buildRecurringRevokeRequest(): RecurringPaymentServiceRevokeRequest {
+    return {
+        "merchantRevokeId": "probe_revoke_001",  // Identification.
+        "merchantMandateId": "probe_mandate_001",  // Mandate Details Merchant-side identifier for the mandate being revoked.
+        "mandateReferenceId": {  // Typed mandate reference supporting connector mandate ids, network transaction ids, and network-token-with-NTI references. Preferred over the legacy `connector_mandate_id` field above.
+            "connectorMandateId": {  // mandate_id sent by the connector.
+                "connectorMandateId": "probe_connector_mandate_001"
+            }
+        }
     };
 }
 
@@ -286,6 +298,15 @@ async function proxyAuthorize(merchantTransactionId: string, config: ConnectorCo
     return { status: proxyResponse.status };
 }
 
+// Flow: RecurringPaymentService.Revoke
+async function recurringRevoke(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<RecurringPaymentServiceRevokeResponse> {
+    const recurringPaymentClient = new RecurringPaymentClient(config);
+
+    const recurringResponse = await recurringPaymentClient.recurringRevoke(_buildRecurringRevokeRequest());
+
+    return { status: recurringResponse.status };
+}
+
 // Flow: PaymentService.Refund
 async function refund(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<RefundResponse> {
     const paymentClient = new PaymentClient(config);
@@ -307,7 +328,7 @@ async function refundGet(merchantTransactionId: string, config: ConnectorConfig 
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processGetPayment, authorize, capture, createOrder, get, handleEvent, proxyAuthorize, refund, refundGet, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateOrderRequest, _buildGetRequest, _buildHandleEventRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildRefundGetRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processGetPayment, authorize, capture, createOrder, get, handleEvent, proxyAuthorize, recurringRevoke, refund, refundGet, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateOrderRequest, _buildGetRequest, _buildHandleEventRequest, _buildProxyAuthorizeRequest, _buildRecurringRevokeRequest, _buildRefundRequest, _buildRefundGetRequest
 };
 
 // CLI runner

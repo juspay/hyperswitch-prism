@@ -68,7 +68,7 @@ use transformers::{
 use super::macros;
 use crate::{types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
-use domain_types::errors::IntegrationError;
+use domain_types::errors::{IntegrationError, IntegrationErrorContext};
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -1090,15 +1090,62 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             MandateRevokeResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        let connector_mandate_id = req
-            .request
-            .connector_mandate_id
-            .clone()
-            .ok_or_else(utils::missing_field_err("connector_mandate_id"))?;
+        let connector_mandate_id = match &req.request.mandate_reference_id {
+            Some(domain_types::connector_types::MandateReferenceId::ConnectorMandateId(
+                connector_mandate_ref,
+            )) => connector_mandate_ref.get_connector_mandate_id().ok_or(
+                IntegrationError::MissingRequiredField {
+                    field_name: "mandate_reference_id.connector_mandate_id",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Populate `mandate_reference_id.connector_mandate_id` with the \
+                             Cybersource payment-instrument id (e.g. the token returned by \
+                             Cybersource when the instrument was created). Cybersource revokes \
+                             a mandate by deleting the payment instrument via \
+                             `DELETE /tms/v1/paymentinstruments/{id}`."
+                                .to_owned(),
+                        ),
+                        doc_url: Some(
+                            "https://developer.cybersource.com/api-reference-assets/index.html#token-management_payment-instrument_delete-a-payment-instrument"
+                                .to_owned(),
+                        ),
+                        additional_context: Some(
+                            "Cybersource MandateRevoke requires a connector_mandate_id \
+                             (payment instrument id) to build the delete-instrument URL."
+                                .to_owned(),
+                        ),
+                    },
+                },
+            )?,
+            _ => {
+                return Err(IntegrationError::MissingRequiredField {
+                    field_name: "mandate_reference_id",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Send a `mandate_reference_id` of variant `ConnectorMandateId` \
+                             containing the Cybersource payment-instrument id. Cybersource \
+                             MandateRevoke does not support `NetworkMandateId` or \
+                             `NetworkTokenWithNTI`."
+                                .to_owned(),
+                        ),
+                        doc_url: Some(
+                            "https://developer.cybersource.com/api-reference-assets/index.html#token-management_payment-instrument_delete-a-payment-instrument"
+                                .to_owned(),
+                        ),
+                        additional_context: Some(
+                            "Cybersource only accepts a ConnectorMandateId variant for the \
+                             MandateRevoke flow."
+                                .to_owned(),
+                        ),
+                    },
+                }
+                .into())
+            }
+        };
         Ok(format!(
             "{}tms/v1/paymentinstruments/{}",
             self.connector_base_url_payments(req),
-            connector_mandate_id.expose(),
+            connector_mandate_id,
         ))
     }
     fn get_request_body(

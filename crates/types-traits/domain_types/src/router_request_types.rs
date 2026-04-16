@@ -445,7 +445,7 @@ pub struct IncrementalAuthorizationIntegrityObject {}
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct MandateRevokeIntegrityObject {
-    pub mandate_id: Secret<String>,
+    pub merchant_mandate_id: Secret<String>,
 }
 
 #[derive(Debug, Clone)]

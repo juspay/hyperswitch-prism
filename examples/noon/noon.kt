@@ -346,8 +346,12 @@ fun recurringRevoke(txnId: String) {
     val client = RecurringPaymentClient(_defaultConfig)
     val request = RecurringPaymentServiceRevokeRequest.newBuilder().apply {
         merchantRevokeId = "probe_revoke_001"  // Identification.
-        mandateId = "probe_mandate_001"  // Mandate Details.
-        connectorMandateId = "probe_connector_mandate_001"
+        merchantMandateId = "probe_mandate_001"  // Mandate Details Merchant-side identifier for the mandate being revoked.
+        mandateReferenceIdBuilder.apply {  // Typed mandate reference supporting connector mandate ids, network transaction ids, and network-token-with-NTI references. Preferred over the legacy `connector_mandate_id` field above.
+            connectorMandateIdBuilder.apply {  // mandate_id sent by the connector.
+                connectorMandateId = "probe_connector_mandate_001"
+            }
+        }
     }.build()
     val response = client.recurring_revoke(request)
     println("Status: ${response.status.name}")

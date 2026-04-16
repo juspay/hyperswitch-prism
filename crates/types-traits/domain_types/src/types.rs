@@ -11493,9 +11493,54 @@ impl ForeignTryFrom<RecurringPaymentServiceRevokeRequest> for MandateRevokeReque
     fn foreign_try_from(
         value: RecurringPaymentServiceRevokeRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
+        // Prefer the typed `mandate_reference_id` field. Fall back to the
+        // deprecated `connector_mandate_id` string field so older clients
+        // that have not yet migrated keep working during the transition.
+        let mandate_reference_id = match value.mandate_reference_id {
+            Some(mandate_reference_id) => match mandate_reference_id.mandate_id_type {
+                Some(grpc_payment_types::mandate_reference::MandateIdType::ConnectorMandateId(
+                    cm,
+                )) => Some(MandateReferenceId::ConnectorMandateId(
+                    ConnectorMandateReferenceId::new(
+                        cm.connector_mandate_id,
+                        cm.payment_method_id,
+                        None,
+                        None,
+                        cm.connector_mandate_request_reference_id,
+                    ),
+                )),
+                Some(grpc_payment_types::mandate_reference::MandateIdType::NetworkMandateId(
+                    nmi,
+                )) => Some(MandateReferenceId::NetworkMandateId(nmi)),
+                Some(
+                    grpc_payment_types::mandate_reference::MandateIdType::NetworkTokenWithNti(nti),
+                ) => Some(MandateReferenceId::NetworkTokenWithNTI(
+                    NetworkTokenWithNTIRef {
+                        network_transaction_id: nti.network_transaction_id,
+                        token_exp_month: nti.token_exp_month,
+                        token_exp_year: nti.token_exp_year,
+                    },
+                )),
+                None => None,
+            },
+            None => {
+                #[allow(deprecated)]
+                let legacy = value.connector_mandate_id;
+                legacy.map(|id| {
+                    MandateReferenceId::ConnectorMandateId(ConnectorMandateReferenceId::new(
+                        Some(id),
+                        None,
+                        None,
+                        None,
+                        None,
+                    ))
+                })
+            }
+        };
+
         Ok(Self {
-            mandate_id: Secret::new(value.mandate_id),
-            connector_mandate_id: value.connector_mandate_id.map(Secret::new),
+            merchant_mandate_id: Secret::new(value.merchant_mandate_id),
+            mandate_reference_id,
             payment_method_type: None,
         })
     }

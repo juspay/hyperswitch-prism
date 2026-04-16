@@ -804,7 +804,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             api_operation: NoonApiOperations::CancelSubscription,
             subscription: NoonSubscriptionObject {
-                identifier: item.router_data.request.mandate_id,
+                identifier: item.router_data.request.merchant_mandate_id,
             },
         })
     }

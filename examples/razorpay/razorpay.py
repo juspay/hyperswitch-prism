@@ -10,6 +10,7 @@ import sys
 from google.protobuf.json_format import ParseDict
 from payments import PaymentClient
 from payments import EventClient
+from payments import RecurringPaymentClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
@@ -131,6 +132,20 @@ def _build_proxy_authorize_request():
             "connector_order_id": "connector_order_id"  # Send the connector order identifier here if an order was created before authorize.
         },
         payment_pb2.PaymentServiceProxyAuthorizeRequest(),
+    )
+
+def _build_recurring_revoke_request():
+    return ParseDict(
+        {
+            "merchant_revoke_id": "probe_revoke_001",  # Identification.
+            "merchant_mandate_id": "probe_mandate_001",  # Mandate Details Merchant-side identifier for the mandate being revoked.
+            "mandate_reference_id": {  # Typed mandate reference supporting connector mandate ids, network transaction ids, and network-token-with-NTI references. Preferred over the legacy `connector_mandate_id` field above.
+                "connector_mandate_id": {  # mandate_id sent by the connector.
+                    "connector_mandate_id": "probe_connector_mandate_001"
+                }
+            }
+        },
+        payment_pb2.RecurringPaymentServiceRevokeRequest(),
     )
 
 def _build_refund_request(connector_transaction_id: str):
@@ -300,6 +315,15 @@ async def proxy_authorize(merchant_transaction_id: str, config: sdk_config_pb2.C
     proxy_response = await payment_client.proxy_authorize(_build_proxy_authorize_request())
 
     return {"status": proxy_response.status}
+
+
+async def recurring_revoke(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: RecurringPaymentService.Revoke"""
+    recurringpayment_client = RecurringPaymentClient(config)
+
+    recurring_response = await recurringpayment_client.recurring_revoke(_build_recurring_revoke_request())
+
+    return {"status": recurring_response.status}
 
 
 async def refund(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

@@ -168,6 +168,10 @@ pub struct RazorpayPaymentRequest<
     pub ip: Secret<String>,
     pub referer: String,
     pub user_agent: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub save: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -546,6 +550,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .and_then(|info| info.get_referer().ok())
             .unwrap_or_else(|| "https://example.com".to_string());
 
+        let save = item
+            .router_data
+            .request
+            .setup_future_usage
+            .as_ref()
+            .and_then(|usage| match usage {
+                common_enums::FutureUsage::OffSession => Some(1),
+                _ => None,
+            });
+
+        let customer_id = crate::utils::get_customer_id_as_optional_string(
+            &item.router_data.resource_common_data.customer_id,
+        );
+
         Ok(Self {
             amount,
             currency,
@@ -560,6 +578,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ip,
             referer,
             user_agent,
+            save,
+            customer_id,
         })
     }
 }
@@ -1429,6 +1449,8 @@ pub struct RazorpayWebCollectRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub recurring: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub save: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub customer_id: Option<String>,
     #[serde(rename = "upi[expiry_time]", skip_serializing_if = "Option::is_none")]
     pub __upi_91_expiry_time_93_: Option<i64>,
@@ -1596,7 +1618,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .and_then(|v| v.parse::<i64>().ok()),
             __upi_91_vpa_93_: metadata_map.get("__upi_91_vpa_93_").cloned(),
             recurring: None,
-            customer_id: None,
+            save: item
+                .router_data
+                .request
+                .setup_future_usage
+                .as_ref()
+                .and_then(|usage| match usage {
+                    common_enums::FutureUsage::OffSession => Some(1),
+                    _ => None,
+                }),
+            customer_id: crate::utils::get_customer_id_as_optional_string(
+                &item.router_data.resource_common_data.customer_id,
+            ),
             __upi_91_expiry_time_93_: metadata_map
                 .get("__upi_91_expiry_time_93_")
                 .and_then(|v| v.parse::<i64>().ok()),
@@ -1970,5 +2003,44 @@ pub fn json_value_to_string(value: &serde_json::Value) -> String {
     match value {
         serde_json::Value::String(s) => s.clone(),
         _ => value.to_string(), // For Number, Bool, Null, Object, Array - serialize as JSON
+    }
+}
+
+// ============ Mandate Revoke (Delete Token) ============
+
+/// Razorpay response when deleting a customer token
+/// Success: `{"deleted": true}`
+/// The `deleted` field indicates whether the token was successfully removed.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RazorpayDeleteTokenResponse {
+    pub deleted: bool,
+}
+
+impl ForeignTryFrom<(RazorpayDeleteTokenResponse, Self, u16)>
+    for RouterDataV2<
+        domain_types::connector_flow::MandateRevoke,
+        PaymentFlowData,
+        domain_types::connector_types::MandateRevokeRequestData,
+        domain_types::connector_types::MandateRevokeResponseData,
+    >
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        (response, data, http_code): (RazorpayDeleteTokenResponse, Self, u16),
+    ) -> Result<Self, Self::Error> {
+        let mandate_status = if response.deleted {
+            common_enums::MandateStatus::Revoked
+        } else {
+            common_enums::MandateStatus::Active
+        };
+
+        Ok(Self {
+            response: Ok(domain_types::connector_types::MandateRevokeResponseData {
+                mandate_status,
+                status_code: http_code,
+            }),
+            ..data
+        })
     }
 }
