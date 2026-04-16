@@ -1256,8 +1256,7 @@ mod tests {
         };
         use hyperswitch_masking::{ExposeInterface, Secret};
         use interfaces::{
-            connector_integration_v2::BoxedConnectorIntegrationV2,
-            connector_types::BoxedConnector,
+            connector_integration_v2::BoxedConnectorIntegrationV2, connector_types::BoxedConnector,
         };
 
         use crate::{connectors::Fiserv, types::ConnectorData};
@@ -1427,8 +1426,8 @@ mod tests {
                 RequestContent::Json(_) => body.get_inner_value().expose(),
                 other => panic!("expected JSON body, got {other:?}"),
             };
-            let parsed: serde_json::Value = serde_json::from_str(&raw_json)
-                .expect("fiserv Authorize body is not valid JSON");
+            let parsed: serde_json::Value =
+                serde_json::from_str(&raw_json).expect("fiserv Authorize body is not valid JSON");
 
             assert_eq!(
                 parsed["merchantDetails"]["terminalId"], terminal_id,
