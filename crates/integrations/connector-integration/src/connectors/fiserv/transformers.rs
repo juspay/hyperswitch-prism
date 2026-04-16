@@ -2,6 +2,7 @@ use crate::{connectors::fiserv::FiservRouterData, types::ResponseRouterData};
 use common_enums::enums;
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    ext_traits::ValueExt,
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use domain_types::{
@@ -267,6 +268,13 @@ impl TryFrom<&ConnectorSpecificConfig> for FiservAuthType {
         }
     }
 }
+
+/// Metadata stored on the merchant connector account for Fiserv.
+/// HS stores `terminal_id` here (as `{"terminal_id": "..."}`) rather than in the auth type.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FiservSessionObject {
+    pub terminal_id: Secret<String>,
+}
 #[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservErrorResponse {
@@ -486,9 +494,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             total,
             currency: item.router_data.request.currency.to_string(),
         };
+        // terminal_id may arrive either via the FiservConfig proto field (direct UCS calls)
+        // or via connector_feature_data / merchant_account_metadata when HS calls UCS,
+        // where HS stores it as {"terminal_id": "..."} in the connector metadata.
+        let terminal_id = auth.terminal_id.or_else(|| {
+            item.router_data
+                .resource_common_data
+                .connector_feature_data
+                .as_ref()
+                .and_then(|m| {
+                    m.clone()
+                        .expose()
+                        .parse_value::<FiservSessionObject>("FiservSessionObject")
+                        .ok()
+                        .map(|s| s.terminal_id)
+                })
+        });
         let merchant_details = MerchantDetails {
             merchant_id: auth.merchant_account,
-            terminal_id: auth.terminal_id,
+            terminal_id,
         };
 
         let checkout_charges_request = match item.router_data.request.payment_method_data.clone() {
