@@ -2941,6 +2941,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 pub struct VaultCreditCardInputData {
     pub payment_method_id: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub verification: Option<VaultCreditCardVerificationOptions>,
 }
 
@@ -2990,7 +2992,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         })?;
 
         let payment_method_id = match &item.router_data.request.payment_method_data {
-            PaymentMethodData::PaymentMethodToken(t) => t.token.clone(),
+            PaymentMethodData::PaymentMethodToken(payment_method_token) => {
+                payment_method_token.token.clone()
+            }
             _ => {
                 return Err(IntegrationError::MissingRequiredField {
                     field_name: "payment_method_token",
@@ -3000,11 +3004,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
+        let customer_id = item
+            .router_data
+            .request
+            .customer_id
+            .as_ref()
+            .map(|id| Secret::new(id.get_string_repr().to_string()));
+
         Ok(Self {
             query: constants::VAULT_CREDIT_CARD_MUTATION.to_string(),
             variables: SetupMandateVariableInput {
                 input: VaultCreditCardInputData {
                     payment_method_id,
+                    customer_id,
                     verification: Some(VaultCreditCardVerificationOptions {
                         merchant_account_id,
                     }),
@@ -3064,6 +3076,7 @@ pub struct ProcessorResponse {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BraintreeVerificationStatus {
     Verified,
+    Verifying,
     ProcessorDeclined,
     GatewayRejected,
     Failed,
@@ -3074,7 +3087,9 @@ impl From<BraintreeVerificationStatus> for enums::AttemptStatus {
     fn from(item: BraintreeVerificationStatus) -> Self {
         match item {
             BraintreeVerificationStatus::Verified => Self::Charged,
-            BraintreeVerificationStatus::Pending => Self::Pending,
+            BraintreeVerificationStatus::Pending | BraintreeVerificationStatus::Verifying => {
+                Self::Pending
+            }
             BraintreeVerificationStatus::ProcessorDeclined
             | BraintreeVerificationStatus::GatewayRejected
             | BraintreeVerificationStatus::Failed => Self::Failure,
@@ -3119,13 +3134,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .unwrap_or(enums::AttemptStatus::Charged);
 
                 let response = if domain_types::utils::is_payment_failure(status) {
-                    let verification_status = vault_data
+                    let error_code = vault_data
                         .verification
                         .as_ref()
                         .map(|v| v.status.to_string())
-                        .unwrap_or_else(|| "unknown".to_string());
+                        .unwrap_or_else(|| NO_ERROR_CODE.to_string());
                     Err(create_failure_error_response(
-                        verification_status,
+                        error_code,
                         vault_data
                             .payment_method
                             .as_ref()
@@ -3141,14 +3156,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         })
                     });
 
-                    let resource_id = vault_data
-                        .payment_method
-                        .as_ref()
-                        .map(|pm| ResponseId::ConnectorTransactionId(pm.id.clone().expose()))
-                        .unwrap_or(ResponseId::NoResponseId);
-
                     Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id,
+                        resource_id: ResponseId::NoResponseId,
                         redirection_data: None,
                         mandate_reference,
                         connector_metadata: None,

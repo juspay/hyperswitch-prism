@@ -848,8 +848,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// SetupMandate (ZeroDollarAuth) is implemented via macro_connector_implementation! below
-
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
         MandateRevoke,
