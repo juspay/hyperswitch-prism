@@ -22,11 +22,16 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        forte=payment_pb2.ForteConfig(
+            api_access_id=payment_methods_pb2.SecretString(value="YOUR_API_ACCESS_ID"),
+            organization_id=payment_methods_pb2.SecretString(value="YOUR_ORGANIZATION_ID"),
+            location_id=payment_methods_pb2.SecretString(value="YOUR_LOCATION_ID"),
+            api_secret_key=payment_methods_pb2.SecretString(value="YOUR_API_SECRET_KEY"),
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     forte=payment_pb2.ForteConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,14 +43,20 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Forte',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
+const config = ConnectorConfig.create({
+    connector: Connector.FORTE,
+    environment: Environment.SANDBOX,
+    auth: {
+        forte: {
+            apiAccessId: { value: 'YOUR_API_ACCESS_ID' },
+            organizationId: { value: 'YOUR_ORGANIZATION_ID' },
+            locationId: { value: 'YOUR_LOCATION_ID' },
+            apiSecretKey: { value: 'YOUR_API_SECRET_KEY' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
     },
 });
 ```
@@ -59,11 +70,17 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Forte")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setForte(ForteConfig.newBuilder()
+                .setApiAccessId(SecretString.newBuilder().setValue("YOUR_API_ACCESS_ID").build())
+                .setOrganizationId(SecretString.newBuilder().setValue("YOUR_ORGANIZATION_ID").build())
+                .setLocationId(SecretString.newBuilder().setValue("YOUR_LOCATION_ID").build())
+                .setApiSecretKey(SecretString.newBuilder().setValue("YOUR_API_SECRET_KEY").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
     )
     .build()
 ```
@@ -76,13 +93,23 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Forte".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Forte(ForteConfig {
+                api_access_id: Some(hyperswitch_masking::Secret::new("YOUR_API_ACCESS_ID".to_string())),  // Authentication credential
+                organization_id: Some(hyperswitch_masking::Secret::new("YOUR_ORGANIZATION_ID".to_string())),  // Authentication credential
+                location_id: Some(hyperswitch_masking::Secret::new("YOUR_LOCATION_ID".to_string())),  // Authentication credential
+                api_secret_key: Some(hyperswitch_masking::Secret::new("YOUR_API_SECRET_KEY".to_string())),  // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -108,19 +135,19 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/forte/forte.py#L113) · [JavaScript](../../examples/forte/forte.js) · [Kotlin](../../examples/forte/forte.kt#L78) · [Rust](../../examples/forte/forte.rs#L109)
+**Examples:** [Python](../../examples/forte/forte.py#L104) · [JavaScript](../../examples/forte/forte.js) · [Kotlin](../../examples/forte/forte.kt#L90) · [Rust](../../examples/forte/forte.rs#L134)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/forte/forte.py#L132) · [JavaScript](../../examples/forte/forte.js) · [Kotlin](../../examples/forte/forte.kt#L94) · [Rust](../../examples/forte/forte.rs#L125)
+**Examples:** [Python](../../examples/forte/forte.py#L123) · [JavaScript](../../examples/forte/forte.js) · [Kotlin](../../examples/forte/forte.kt#L106) · [Rust](../../examples/forte/forte.rs#L150)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/forte/forte.py#L154) · [JavaScript](../../examples/forte/forte.js) · [Kotlin](../../examples/forte/forte.kt#L113) · [Rust](../../examples/forte/forte.rs#L144)
+**Examples:** [Python](../../examples/forte/forte.py#L145) · [JavaScript](../../examples/forte/forte.js) · [Kotlin](../../examples/forte/forte.kt#L125) · [Rust](../../examples/forte/forte.rs#L169)
 
 ## API Reference
 
@@ -245,13 +272,13 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "card": {  # Generic card payment.
-        "card_number": {"value": "4111111111111111"},  # Card Identification.
-        "card_exp_month": {"value": "03"},
-        "card_exp_year": {"value": "2030"},
-        "card_cvc": {"value": "737"},
-        "card_holder_name": {"value": "John Doe"}  # Cardholder Information.
-    }
+  "card": {
+    "card_number": "4111111111111111",
+    "card_exp_month": "03",
+    "card_exp_year": "2030",
+    "card_cvc": "737",
+    "card_holder_name": "John Doe"
+  }
 }
 ```
 
@@ -259,15 +286,15 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "ach": {  # Ach - Automated Clearing House.
-        "account_number": {"value": "000123456789"},  # Account number for ach bank debit payment.
-        "routing_number": {"value": "110000000"},  # Routing number for ach bank debit payment.
-        "bank_account_holder_name": {"value": "John Doe"}  # Bank account holder name.
-    }
+  "ach": {
+    "account_number": "000123456789",
+    "routing_number": "110000000",
+    "bank_account_holder_name": "John Doe"
+  }
 }
 ```
 
-**Examples:** [Python](../../examples/forte/forte.py#L176) · [TypeScript](../../examples/forte/forte.ts#L166) · [Kotlin](../../examples/forte/forte.kt#L131) · [Rust](../../examples/forte/forte.rs#L162)
+**Examples:** [Python](../../examples/forte/forte.py) · [TypeScript](../../examples/forte/forte.ts#L172) · [Kotlin](../../examples/forte/forte.kt#L143) · [Rust](../../examples/forte/forte.rs)
 
 #### PaymentService.Get
 
@@ -278,7 +305,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/forte/forte.py#L185) · [TypeScript](../../examples/forte/forte.ts#L175) · [Kotlin](../../examples/forte/forte.kt#L143) · [Rust](../../examples/forte/forte.rs#L174)
+**Examples:** [Python](../../examples/forte/forte.py) · [TypeScript](../../examples/forte/forte.ts#L181) · [Kotlin](../../examples/forte/forte.kt#L155) · [Rust](../../examples/forte/forte.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -289,7 +316,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/forte/forte.py#L194) · [TypeScript](../../examples/forte/forte.ts#L184) · [Kotlin](../../examples/forte/forte.kt#L151) · [Rust](../../examples/forte/forte.rs#L181)
+**Examples:** [Python](../../examples/forte/forte.py) · [TypeScript](../../examples/forte/forte.ts#L190) · [Kotlin](../../examples/forte/forte.kt#L163) · [Rust](../../examples/forte/forte.rs)
 
 #### PaymentService.Void
 
@@ -300,7 +327,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/forte/forte.py#L212) · [TypeScript](../../examples/forte/forte.ts) · [Kotlin](../../examples/forte/forte.kt#L192) · [Rust](../../examples/forte/forte.rs#L195)
+**Examples:** [Python](../../examples/forte/forte.py) · [TypeScript](../../examples/forte/forte.ts) · [Kotlin](../../examples/forte/forte.kt#L204) · [Rust](../../examples/forte/forte.rs)
 
 ### Refunds
 
@@ -313,4 +340,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/forte/forte.py#L203) · [TypeScript](../../examples/forte/forte.ts#L193) · [Kotlin](../../examples/forte/forte.kt#L180) · [Rust](../../examples/forte/forte.rs#L188)
+**Examples:** [Python](../../examples/forte/forte.py) · [TypeScript](../../examples/forte/forte.ts#L199) · [Kotlin](../../examples/forte/forte.kt#L192) · [Rust](../../examples/forte/forte.rs)
