@@ -83,7 +83,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"alias\":\"probe_user\",\"version\":\"1.00\",\"request\":[{\"accounttypedescription\":\"ECOM\",\"baseamount\":\"1000\",\"credentialsonfile\":\"1\",\"currencyiso3a\":\"USD\",\"orderreference\":\"probe_txn_001\",\"requesttypedescriptions\":[\"AUTH\"],\"sitereference\":\"probe_site_ref\",\"settlestatus\":\"0\",\"pan\":\"4111111111111111\",\"expirydate\":\"03/2030\",\"tavv\":\"AAAAAA==\",\"eci\":\"05\",\"tokenisedpayment\":\"1\",\"tokentype\":\"APPLEPAY\",\"walletsource\":\"APPLEPAY\"}]}"
+          "body": "{\"alias\":\"probe_user\",\"version\":\"1.00\",\"request\":[{\"accounttypedescription\":\"ECOM\",\"baseamount\":\"1000\",\"credentialsonfile\":\"1\",\"currencyiso3a\":\"USD\",\"orderreference\":\"probe_txn_001\",\"requesttypedescriptions\":[\"AUTH\"],\"sitereference\":\"probe_site_ref\",\"settlestatus\":\"0\",\"pan\":\"4111111111111111\",\"expirydate\":\"03/2030\",\"tavv\":\"AAAAAA==\",\"eci\":\"05\",\"tokenisedpayment\":\"1\",\"tokentype\":\"APPLEPAY\",\"walletdisplayname\":\"Visa 1111\",\"walletsource\":\"APPLEPAY\"}]}"
         }
       },
       "ApplePayThirdPartySdk": {
