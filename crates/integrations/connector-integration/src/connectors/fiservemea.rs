@@ -44,9 +44,10 @@ use interfaces::{
 use serde::Serialize;
 use transformers as fiservemea;
 use transformers::{
-    FiservemeaAuthorizeResponse, FiservemeaCaptureResponse, FiservemeaPaymentsRequest,
-    FiservemeaRefundResponse, FiservemeaRefundSyncResponse, FiservemeaSyncResponse,
-    FiservemeaVoidResponse, PostAuthTransaction, ReturnTransaction, VoidTransaction,
+    FiservemeaAuthorizeResponse, FiservemeaCaptureResponse, FiservemeaIncrementalAuthRequest,
+    FiservemeaIncrementalAuthResponse, FiservemeaPaymentsRequest, FiservemeaRefundResponse,
+    FiservemeaRefundSyncResponse, FiservemeaSyncResponse, FiservemeaVoidResponse,
+    PostAuthTransaction, ReturnTransaction, VoidTransaction,
 };
 
 use super::macros;
@@ -100,6 +101,12 @@ macros::create_all_prerequisites!(
             flow: RSync,
             response_body: FiservemeaRefundSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: IncrementalAuthorization,
+            request_body: FiservemeaIncrementalAuthRequest,
+            response_body: FiservemeaIncrementalAuthResponse,
+            router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -166,15 +173,8 @@ macros::create_all_prerequisites!(
 // ===== CONNECTOR SERVICE TRAIT IMPLEMENTATIONS =====
 // Main service trait - aggregates all other traits
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Fiservemea<T>
-{
-}
+// IncrementalAuthorization ConnectorIntegrationV2 is implemented via
+// macro_connector_implementation! below alongside the other flow macros.
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Fiservemea<T>
@@ -518,6 +518,51 @@ macros::macro_connector_implementation!(
                 }.into());
             }
             Ok(format!("{}/{}", base_url.trim_end_matches('/'), refund_id))
+        }
+    }
+);
+
+// IncrementalAuthorization flow - Increase the authorized amount of a pre-auth
+//
+// Fiserv EMEA (IPG payments-gateway v2) exposes incremental auth as a
+// secondary transaction. POST /payments/{ipgTransactionId} with
+//   { "requestType": "PreAuthSecondaryTransaction",
+//     "incrementalFlag": true,
+//     "transactionAmount": { "total": <major>, "currency": "<ISO>" } }
+// The response shape is the same FiservemeaPaymentsResponse used by the other
+// flows; transactionType = PREAUTH on success.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Fiservemea,
+    curl_request: Json(FiservemeaIncrementalAuthRequest),
+    curl_response: FiservemeaIncrementalAuthResponse,
+    flow_name: IncrementalAuthorization,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsIncrementalAuthorizationData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // Secondary-transaction URL pattern: POST {base_url}/{ipgTransactionId}
+            let transaction_id = req
+                .request
+                .connector_transaction_id
+                .get_connector_transaction_id()
+                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
+
+            let base_url = self.connector_base_url_payments(req);
+            Ok(format!("{}/{}", base_url.trim_end_matches('/'), transaction_id))
         }
     }
 );
