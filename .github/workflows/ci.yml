@@ -163,6 +163,12 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
+
+      - name: Install Rust (nightly for fmt)
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: rustfmt
       
       - uses: Swatinem/rust-cache@v2.7.8
         with:
@@ -171,12 +177,6 @@ jobs:
           cache-directories: |
             target/x86_64-unknown-linux-gnu/release-fast
             target/aarch64-unknown-linux-gnu/release-fast
-
-      - name: Install Rust (nightly for fmt)
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: nightly
-          components: rustfmt
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
