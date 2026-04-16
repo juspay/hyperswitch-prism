@@ -167,6 +167,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
+          components: clippy
 
       - name: Install Rust (nightly for fmt)
         uses: dtolnay/rust-toolchain@master
@@ -220,6 +221,12 @@ jobs:
 
       - name: Format Rust code
         run: cargo +nightly fmt --all
+
+      - name: Run Clippy
+        if: needs.changes.outputs.any-rust == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.ci == 'true'
+        env:
+          RUSTFLAGS: "-D warnings"
+        run: cargo +stable clippy --all-features --all-targets --profile release-fast
 
       - name: Generate SDK bindings
         if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.sdk == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.ci == 'true'
@@ -341,7 +348,6 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-          components: clippy
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
@@ -351,9 +357,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2.7.8
         with:
           shared-key: "ci-rust"
-
-      - name: Run Clippy
-        run: cargo +stable clippy --all-features --all-targets
 
       - name: Run Composite Request Schema Checks
         run: cargo test -p composite-service --all-features --test composite_request_schema_check
@@ -578,6 +581,29 @@ jobs:
             target/*/*/grpc-smoke-test
           key: sdk-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs') }}
 
+      - name: Build SDK binaries (cache miss)
+        if: steps.sdk-cache-restore.outputs.cache-hit != 'true'
+        env:
+          RUSTUP_TOOLCHAIN: stable
+        run: |
+          cargo build -p grpc-server -p hyperswitch-grpc-ffi -p ffi -p hyperswitch-smoke-test -p uniffi-bindgen \
+            --profile release-fast --target x86_64-unknown-linux-gnu
+
+      - name: Save SDK binaries cache
+        if: steps.sdk-cache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            target/*/*/libconnector_service_ffi.so
+            target/*/*/libconnector_service_ffi.dylib
+            target/*/*/libhyperswitch_grpc_ffi.so
+            target/*/*/libhyperswitch_grpc_ffi.dylib
+            target/*/*/grpc-server
+            target/*/*/uniffi-bindgen
+            target/*/*/hyperswitch-smoke-test
+            target/*/*/grpc-smoke-test
+          key: sdk-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs') }}
+
       - name: Create connector credentials
         shell: bash
         env:
@@ -611,22 +637,6 @@ jobs:
         run: |
           echo "Running SDK mock tests (no real HTTP calls)"
           python3 scripts/run_smoke_tests_parallel.py --mock --connectors stripe --sdks python,javascript,kotlin,rust
-
-
-      - name: Save SDK binaries cache
-        if: always() && steps.sdk-cache-restore.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            target/*/*/libconnector_service_ffi.so
-            target/*/*/libconnector_service_ffi.dylib
-            target/*/*/libhyperswitch_grpc_ffi.so
-            target/*/*/libhyperswitch_grpc_ffi.dylib
-            target/*/*/grpc-server
-            target/*/*/uniffi-bindgen
-            target/*/*/hyperswitch-smoke-test
-            target/*/*/grpc-smoke-test
-          key: sdk-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs') }}
 
   # ── CI Gate ───────────────────────────────────────────────────────────────
   # Single required status check. Passes if all jobs succeeded, were skipped,
