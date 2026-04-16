@@ -5,9 +5,9 @@ use common_utils::types::FloatMajorUnit;
 use domain_types::{
     connector_flow::{Authorize, Capture, Refund, SetupMandate, Void},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId, SetupMandateRequestData,
+        MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{
@@ -1142,6 +1142,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let response_code = item.response.response.response_code;
         let action = item.response.action;
         let transaction_id = &item.response.transaction_id;
+        // Forte has no tokenize / vault endpoint; downstream RepeatPayment
+        // reuses the SetupMandate `transaction_id` as the mandate identifier
+        // (Forte v3 `/transactions` accepts a referenced prior transaction).
+        let mandate_reference = MandateReference {
+            connector_mandate_id: Some(transaction_id.to_string()),
+            payment_method_id: None,
+            connector_mandate_request_reference_id: None,
+        };
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status: get_status(response_code, action),
@@ -1150,7 +1158,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(transaction_id.to_string()),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Some(Box::new(mandate_reference)),
                 connector_metadata: Some(serde_json::json!(ForteMeta {
                     auth_id: item.response.authorization_code
                 })),
