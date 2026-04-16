@@ -608,13 +608,14 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":{\"total\":0.0,\"currency\":\"USD\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":null},\"source\":{\"sourceType\":\"PaymentCard\",\"card\":{\"cardData\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"123\"}},\"transactionInteraction\":{\"origin\":\"ECOM\",\"eciIndicator\":\"CHANNEL_ENCRYPTED\",\"posConditionCode\":\"CARD_NOT_PRESENT_ECOM\"},\"transactionDetails\":{\"captureFlag\":false,\"merchantTransactionId\":\"probe_proxy_mandate_001\"}}"
+          "body": "{\"amount\":{\"total\":0.0,\"currency\":\"USD\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":null},\"source\":{\"sourceType\":\"PaymentCard\",\"card\":{\"cardData\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"123\"}},\"transactionInteraction\":{\"origin\":\"ECOM\",\"eciIndicator\":\"CHANNEL_ENCRYPTED\",\"posConditionCode\":\"CARD_NOT_PRESENT_ECOM\"},\"transactionDetails\":{\"captureFlag\":false,\"merchantTransactionId\":\"probe_proxy_mandate_001\"},\"storedCredentials\":{\"sequence\":\"FIRST\",\"scheduled\":false,\"initiator\":\"CARD_HOLDER\"}}"
         }
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through fiserv"
       }
     },
     "recurring_revoke": {
@@ -723,7 +724,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":{\"total\":0.0,\"currency\":\"USD\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":null},\"source\":{\"sourceType\":\"PaymentCard\",\"card\":{\"cardData\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"737\"}},\"transactionInteraction\":{\"origin\":\"ECOM\",\"eciIndicator\":\"CHANNEL_ENCRYPTED\",\"posConditionCode\":\"CARD_NOT_PRESENT_ECOM\"},\"transactionDetails\":{\"captureFlag\":false,\"merchantTransactionId\":\"probe_mandate_001\"}}"
+          "body": "{\"amount\":{\"total\":0.0,\"currency\":\"USD\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":null},\"source\":{\"sourceType\":\"PaymentCard\",\"card\":{\"cardData\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"737\"}},\"transactionInteraction\":{\"origin\":\"ECOM\",\"eciIndicator\":\"CHANNEL_ENCRYPTED\",\"posConditionCode\":\"CARD_NOT_PRESENT_ECOM\"},\"transactionDetails\":{\"captureFlag\":false,\"merchantTransactionId\":\"probe_mandate_001\"},\"storedCredentials\":{\"sequence\":\"FIRST\",\"scheduled\":false,\"initiator\":\"CARD_HOLDER\"}}"
         }
       }
     },
