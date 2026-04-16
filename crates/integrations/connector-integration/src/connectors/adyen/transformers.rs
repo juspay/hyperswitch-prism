@@ -1669,7 +1669,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             BankRedirectData::Blik { blik_code } => Ok(Self::Blik(Box::new(BlikRedirectionData {
                 blik_code: Secret::new(blik_code.clone().ok_or(
                     IntegrationError::MissingRequiredField {
-                        field_name: "blik_code",
+                        field_name: "blik_code_11",
                         context: Default::default(),
                     },
                 )?),
