@@ -293,6 +293,19 @@ fun get(txnId: String) {
     println("Status: ${response.status.name}")
 }
 
+<<<<<<< Updated upstream
+=======
+// Flow: EventService.HandleEvent
+fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = EventClient(config)
+    val request = EventServiceHandleRequest.newBuilder().apply {
+
+    }.build()
+    val response = client.handle_event(request)
+    println("Webhook: type=${response.eventType.name} verified=${response.sourceVerified}")
+}
+
+>>>>>>> Stashed changes
 // Flow: PaymentService.ProxyAuthorize
 fun proxyAuthorize(txnId: String) {
     val client = PaymentClient(_defaultConfig)

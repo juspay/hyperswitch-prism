@@ -110,7 +110,7 @@ fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
 
     }.build()
     val response = client.handle_event(request)
-    println("Event status: ${response.eventStatus.name}")
+    println("Webhook: type=${response.eventType.name} verified=${response.sourceVerified}")
 }
 
 // Flow: RecurringPaymentService.Charge

@@ -2503,8 +2503,8 @@ _KT_FLOW_STATUS_BLOCK: dict[str, str] = {
     "create_server_session_authentication_token":       '    println("Session token: ${response.sessionToken} (statusCode=${response.statusCode})")',
     "create_client_authentication_token":               '    println("StatusCode: ${response.statusCode}")',
     "create_order":                         '    println("Order: ${response.connectorOrderId}")',
-    # EventServiceHandleResponse has event_status, not status
-    "handle_event":                         '    println("Event status: ${response.eventStatus.name}")',
+    # EventServiceHandleResponse: event_type + source_verified (no legacy event_status)
+    "handle_event":                         '    println("Webhook: type=${response.eventType.name} verified=${response.sourceVerified}")',
     # VerifyRedirectResponseResponse has no status field — report source_verified
     "verify_redirect":                      '    println("Source verified: ${response.sourceVerified}")',
 }
@@ -2648,7 +2648,11 @@ def _kotlin_payload_lines(
         elif isinstance(val, float):
             lines.append(f"{pad}{camel} = {val}{cmt_part}")
         elif isinstance(val, str):
-            if child_msg and db.is_wrapper(child_msg):
+            if child_msg == "bytes":
+                lines.append(
+                    f"{pad}{camel} = com.google.protobuf.ByteString.copyFromUtf8({json.dumps(val)}){cmt_part}"
+                )
+            elif child_msg and db.is_wrapper(child_msg):
                 # Wrapper message (e.g. SecretString) — uses Builder.value
                 lines.append(f'{pad}{camel}Builder.value = {json.dumps(val)}{cmt_part}')
             elif child_msg and child_msg not in _KOTLIN_PRIMITIVES and child_msg not in _PROTO_FIELD_TYPES:

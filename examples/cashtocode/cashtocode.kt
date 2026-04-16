@@ -27,7 +27,11 @@ fun handleEvent(txnId: String) {
 
     }.build()
     val response = client.handle_event(request)
+<<<<<<< Updated upstream
     println("Status: ${response.status.name}")
+=======
+    println("Webhook: type=${response.eventType.name} verified=${response.sourceVerified}")
+>>>>>>> Stashed changes
 }
 
 
