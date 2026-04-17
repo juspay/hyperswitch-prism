@@ -2666,16 +2666,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             })?;
 
-        // Format expiry date as MM/YY
-        let expiry_date = {
-            let year = card_data.card_exp_year.peek();
-            let year_2_digit = if year.len() == 4 { &year[2..] } else { year };
-            Secret::new(format!(
-                "{}/{}",
-                card_data.card_exp_month.peek(),
-                year_2_digit
-            ))
-        };
+        let expiry_date =
+            card_data.get_card_expiry_month_year_2_digit_with_delimiter("/".to_string())?;
 
         // Build cardholder name
         let cardholder = get_full_name(billing_first_name.clone(), billing_last_name);
@@ -2726,17 +2718,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<
-        ResponseRouterData<
-            TrustpaySetupMandateResponse,
-            RouterDataV2<
-                SetupMandate,
-                PaymentFlowData,
-                SetupMandateRequestData<T>,
-                PaymentsResponseData,
-            >,
-        >,
-    >
+    TryFrom<ResponseRouterData<TrustpaySetupMandateResponse, Self>>
     for RouterDataV2<
         SetupMandate,
         PaymentFlowData,
@@ -2747,15 +2729,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            TrustpaySetupMandateResponse,
-            RouterDataV2<
-                SetupMandate,
-                PaymentFlowData,
-                SetupMandateRequestData<T>,
-                PaymentsResponseData,
-            >,
-        >,
+        item: ResponseRouterData<TrustpaySetupMandateResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
 
@@ -2917,31 +2891,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<
-        ResponseRouterData<
-            TrustpayRepeatPaymentResponse,
-            RouterDataV2<
-                RepeatPayment,
-                PaymentFlowData,
-                RepeatPaymentData<T>,
-                PaymentsResponseData,
-            >,
-        >,
-    >
+    TryFrom<ResponseRouterData<TrustpayRepeatPaymentResponse, Self>>
     for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            TrustpayRepeatPaymentResponse,
-            RouterDataV2<
-                RepeatPayment,
-                PaymentFlowData,
-                RepeatPaymentData<T>,
-                PaymentsResponseData,
-            >,
-        >,
+        item: ResponseRouterData<TrustpayRepeatPaymentResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
 
