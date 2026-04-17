@@ -635,7 +635,7 @@ jobs:
             target/*/*/uniffi-bindgen
             target/*/*/hyperswitch-smoke-test
             target/*/*/grpc-smoke-test
-          key: sdk-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs', 'crates/grpc-server/**/*.rs') }}
+          key: sdk-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs', 'crates/grpc-server/**/*.rs', 'crates/types-traits/grpc-api-types/proto/**') }}
 
       - name: Build SDK binaries (cache miss)
         if: steps.sdk-cache-restore.outputs.cache-hit != 'true'
@@ -658,7 +658,7 @@ jobs:
             target/*/*/uniffi-bindgen
             target/*/*/hyperswitch-smoke-test
             target/*/*/grpc-smoke-test
-          key: sdk-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs', 'crates/grpc-server/**/*.rs') }}
+          key: sdk-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs', 'crates/grpc-server/**/*.rs', 'crates/types-traits/grpc-api-types/proto/**') }}
 
       - name: Create connector credentials
         shell: bash
