@@ -182,8 +182,7 @@ jobs:
       (needs.changes.outputs.any-rs == 'true' ||
        needs.changes.outputs.docs-trigger == 'true' ||
        needs.changes.outputs.sdk == 'true' ||
-       needs.changes.outputs.proto == 'true' ||
-       needs.changes.outputs.ci == 'true')
+       needs.changes.outputs.proto == 'true')
     runs-on: ubuntu-latest
     permissions:
       contents: write
