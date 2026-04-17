@@ -693,7 +693,6 @@ pub struct StandardResponse {
     pub cvvresponse: Option<String>,
     pub orderid: String,
     pub response_code: String,
-    #[serde(default)]
     pub customer_vault_id: Option<Secret<String>>,
 }
 
@@ -1613,7 +1612,6 @@ pub struct NmiSetupMandateResponse {
     pub cvvresponse: Option<String>,
     pub orderid: String,
     pub response_code: String,
-    #[serde(default)]
     pub customer_vault_id: Option<Secret<String>>,
 }
 
