@@ -209,7 +209,7 @@ macro_rules! res_transformer {
                 &connector_integration,
                 None,
                 None,
-                common_utils::Method::Post,
+                &common_utils::Method::Post.to_string(),
                 "".to_string(),
                 None,
             )
@@ -436,7 +436,7 @@ macro_rules! payout_res_transformer {
                 &connector_integration,
                 None,
                 None,
-                common_utils::Method::Post,
+                &common_utils::Method::Post.to_string(),
                 "".to_string(),
                 None,
             )

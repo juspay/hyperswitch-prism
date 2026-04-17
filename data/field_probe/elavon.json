@@ -122,7 +122,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "xmldata=%3Ctxn%3E%3Cssl_transaction_type%3Eccsale%3C%2Fssl_transaction_type%3E%3Cssl_account_id%3Eprobe_merchant%3C%2Fssl_account_id%3E%3Cssl_user_id%3Eprobe_user%3C%2Fssl_user_id%3E%3Cssl_pin%3Eprobe_pin%3C%2Fssl_pin%3E%3Cssl_amount%3E10.00%3C%2Fssl_amount%3E%3Cssl_card_number%3E4111111111111111%3C%2Fssl_card_number%3E%3Cssl_exp_date%3E0330%3C%2Fssl_exp_date%3E%3Cssl_cvv2cvc2%3E737%3C%2Fssl_cvv2cvc2%3E%3Cssl_cvv2cvc2_indicator%3E1%3C%2Fssl_cvv2cvc2_indicator%3E%3Cssl_transaction_currency%3EUSD%3C%2Fssl_transaction_currency%3E%3Cssl_invoice_number%3EIRRELEVANT_PAYMENT_ID%3C%2Fssl_invoice_number%3E%3C%2Ftxn%3E"
+          "body": "xmldata=%3Ctxn%3E%3Cssl_transaction_type%3Eccsale%3C%2Fssl_transaction_type%3E%3Cssl_account_id%3Eprobe_merchant%3C%2Fssl_account_id%3E%3Cssl_user_id%3Eprobe_user%3C%2Fssl_user_id%3E%3Cssl_pin%3Eprobe_pin%3C%2Fssl_pin%3E%3Cssl_amount%3E10.00%3C%2Fssl_amount%3E%3Cssl_card_number%3E4111111111111111%3C%2Fssl_card_number%3E%3Cssl_exp_date%3E0330%3C%2Fssl_exp_date%3E%3Cssl_cvv2cvc2%3E737%3C%2Fssl_cvv2cvc2%3E%3Cssl_cvv2cvc2_indicator%3E1%3C%2Fssl_cvv2cvc2_indicator%3E%3Cssl_invoice_number%3EIRRELEVANT_PAYMENT_ID%3C%2Fssl_invoice_number%3E%3C%2Ftxn%3E"
         }
       },
       "CashappQr": {
@@ -551,7 +551,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "xmldata=%3Ctxn%3E%3Cssl_transaction_type%3Eccsale%3C%2Fssl_transaction_type%3E%3Cssl_account_id%3Eprobe_merchant%3C%2Fssl_account_id%3E%3Cssl_user_id%3Eprobe_user%3C%2Fssl_user_id%3E%3Cssl_pin%3Eprobe_pin%3C%2Fssl_pin%3E%3Cssl_amount%3E10.00%3C%2Fssl_amount%3E%3Cssl_card_number%3E4111111111111111%3C%2Fssl_card_number%3E%3Cssl_exp_date%3E0330%3C%2Fssl_exp_date%3E%3Cssl_cvv2cvc2%3E123%3C%2Fssl_cvv2cvc2%3E%3Cssl_cvv2cvc2_indicator%3E1%3C%2Fssl_cvv2cvc2_indicator%3E%3Cssl_transaction_currency%3EUSD%3C%2Fssl_transaction_currency%3E%3Cssl_invoice_number%3EIRRELEVANT_PAYMENT_ID%3C%2Fssl_invoice_number%3E%3C%2Ftxn%3E"
+          "body": "xmldata=%3Ctxn%3E%3Cssl_transaction_type%3Eccsale%3C%2Fssl_transaction_type%3E%3Cssl_account_id%3Eprobe_merchant%3C%2Fssl_account_id%3E%3Cssl_user_id%3Eprobe_user%3C%2Fssl_user_id%3E%3Cssl_pin%3Eprobe_pin%3C%2Fssl_pin%3E%3Cssl_amount%3E10.00%3C%2Fssl_amount%3E%3Cssl_card_number%3E4111111111111111%3C%2Fssl_card_number%3E%3Cssl_exp_date%3E0330%3C%2Fssl_exp_date%3E%3Cssl_cvv2cvc2%3E123%3C%2Fssl_cvv2cvc2%3E%3Cssl_cvv2cvc2_indicator%3E1%3C%2Fssl_cvv2cvc2_indicator%3E%3Cssl_invoice_number%3EIRRELEVANT_PAYMENT_ID%3C%2Fssl_invoice_number%3E%3C%2Ftxn%3E"
         }
       }
     },

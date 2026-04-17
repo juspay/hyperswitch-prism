@@ -568,6 +568,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }
                     BankDebitData::SepaGuaranteedBankDebit { .. }
                     | BankDebitData::BecsBankDebit { .. }
+                    | BankDebitData::EftBankDebit { .. }
                     | BankDebitData::BacsBankDebit { .. } => {
                         return Err(IntegrationError::not_implemented(
                             utils::get_unimplemented_payment_method_error_message("novalnet"),

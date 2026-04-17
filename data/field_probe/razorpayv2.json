@@ -919,7 +919,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "eft": {
+            "eft_bank_redirect": {
               "provider": "ozow"
             }
           },

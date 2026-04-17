@@ -741,6 +741,7 @@ enum Connector {
   PPRO = 113;
   FISERVCOMMERCEHUB = 114;
   TRUSTLY = 115;
+  SANLAMMULTIDATA = 116;
 }
 
 // Payment method types
@@ -3975,6 +3976,12 @@ message FiservcommercehubConfig {
   optional string base_url = 50;
 }
 
+message SanlamMultiDataConfig {
+  SecretString api_key = 1;
+  SecretString merchant_id = 2;
+  optional string base_url = 50;
+}
+
 message ItaubankConfig {
   SecretString client_secret = 1;
   SecretString client_id = 2;
@@ -4382,6 +4389,9 @@ message ConnectorSpecificConfig {
 
     // TRUSTLY = 116
     TrustlyConfig trustly = 115;
+
+    // SANLAMMULTIDATA
+    SanlamMultiDataConfig sanlammultidata = 116;
   }
 }
 

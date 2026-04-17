@@ -138,6 +138,7 @@ pub enum ConnectorEnum {
     Finix,
     Trustly,
     Itaubank,
+    Sanlammultidata,
 }
 
 impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
@@ -3040,6 +3041,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::BankDebitData::SepaGuaranteedBankDebit { .. } => {
                     Self::SepaGuaranteedBankDebit
                 }
+                payment_method_data::BankDebitData::EftBankDebit { .. } => Self::EftBankDebit,
             },
             PaymentMethodData::BankTransfer(bank_transfer_data) => match *bank_transfer_data {
                 payment_method_data::BankTransferData::AchBankTransfer { .. } => {
@@ -4112,6 +4114,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Elavon(_) => Ok(Self::Elavon),
             AuthType::Fiserv(_) => Ok(Self::Fiserv),
             AuthType::Fiservemea(_) => Ok(Self::Fiservemea),
+            AuthType::Sanlammultidata(_) => Ok(Self::Sanlammultidata),
             AuthType::Forte(_) => Ok(Self::Forte),
             AuthType::Getnet(_) => Ok(Self::Getnet),
             AuthType::Globalpay(_) => Ok(Self::Globalpay),

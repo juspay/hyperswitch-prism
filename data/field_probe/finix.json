@@ -517,12 +517,45 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id. Finix requires an identity — Missing required field: connector_customer_id. Finix requires an identity (connector customer) to create a payment instrument. The identity ID (ID...) must be provided in the 'identity' field."
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://finix.sandbox-payments-api.com/transfers",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"probe-mandate-123\",\"merchant\":\"probe_merchant\",\"idempotency_id\":\"\",\"tags\":{\"merchant_reference\":\"\"}}"
+        }
       }
     },
     "recurring_revoke": {
@@ -582,7 +615,8 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id. Finix requires an identity — Missing required field: connector_customer_id. Finix requires an identity (connector customer) to create a payment instrument. The identity ID (ID...) must be provided in the 'identity' field."
       }
     },
     "token_authorize": {
@@ -615,7 +649,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id. Finix requires an identity — Missing required field: connector_customer_id. Finix requires an identity (connector customer) to create a payment instrument. The identity ID (ID...) must be provided in the 'identity' field."
       }
     },
     "tokenize": {
