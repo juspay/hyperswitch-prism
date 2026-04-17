@@ -3508,6 +3508,10 @@ pub struct CheckoutClientAuthenticationResponse {
 pub struct CybersourceClientAuthenticationResponse {
     /// The capture context JWT token for client-side Flex Microform SDK
     pub capture_context: Secret<String>,
+    /// URL to the Flex Microform JavaScript library (extracted from JWT payload)
+    pub client_library: String,
+    /// Subresource Integrity hash for the client library (extracted from JWT payload)
+    pub client_library_integrity: String,
 }
 
 /// Nuvei's session_token for client-side SDK operations

@@ -19,6 +19,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.04.17.0
+
+### Features
+
+- **examples:** Change json to typed examples ([#1026](https://github.com/juspay/connector-service/pull/1026)) ([`e6dafee`](https://github.com/juspay/connector-service/commit/e6dafeea87942772f2732f22f87c34011ae8d126))
+
+### Bug Fixes
+
+- **connector:** [cybersource] fix Microform URL and extract mandatory client library ([#1129](https://github.com/juspay/connector-service/pull/1129)) ([`c1acf81`](https://github.com/juspay/connector-service/commit/c1acf8158cc52ad582916051dd86a183ac0bf385))
+
+### Documentation
+
+- **readme:** Update README with refined messaging and structure ([#1118](https://github.com/juspay/connector-service/pull/1118)) ([`7019f45`](https://github.com/juspay/connector-service/commit/7019f452414793175f5b93b98286c7e0feaad9ed))
+- Remove platform details in build section ([#1130](https://github.com/juspay/connector-service/pull/1130)) ([`d604e19`](https://github.com/juspay/connector-service/commit/d604e1918fde90a2370565e5d9292474ab9facb3))
+
+**Full Changelog:** [`2026.04.16.0...2026.04.17.0`](https://github.com/juspay/connector-service/compare/2026.04.16.0...2026.04.17.0)
+
+- - -
+
 ## 2026.04.16.0
 
 ### Features
