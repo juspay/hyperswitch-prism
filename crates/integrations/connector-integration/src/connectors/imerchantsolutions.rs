@@ -320,7 +320,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         let auth =
             imerchantsolutions::ImerchantsolutionsAuthType::try_from(auth_type).map_err(|_| {
                 errors::IntegrationError::FailedToObtainAuthType {
-                    context: Default::default(),
+                    context: errors::IntegrationErrorContext {
+                        suggested_action: Some("Provide AuthType as HeaderKey".to_string()),
+                        doc_url: None,
+                        additional_context: Some(
+                            "Provided AuthType is incorrect. AuthType should be HeaderKey."
+                                .to_string(),
+                        ),
+                    },
                 }
             })?;
         Ok(vec![(
@@ -419,7 +426,11 @@ macros::macro_connector_implementation!(
                 .connector_transaction_id
                 .get_connector_transaction_id()
                 .change_context(errors::IntegrationError::MissingConnectorTransactionID {
-                    context: Default::default(),
+                    context: errors::IntegrationErrorContext {
+                        suggested_action: None,
+                        doc_url: None,
+                        additional_context: Some("connector_transaction_id is missing from the PSync request.".to_string()),
+                    },
                 })?;
             Ok(format!("{base_url}/payments/capture?pspReference={psp_reference}"))
         }
@@ -550,7 +561,11 @@ macros::macro_connector_implementation!(
             if transaction_id.is_empty() {
                 return Err(errors::IntegrationError::MissingRequiredField {
                     field_name: "connector_transaction_id",
-                    context: Default::default(),
+                    context: errors::IntegrationErrorContext {
+                        suggested_action: None,
+                        doc_url: None,
+                        additional_context: Some("connector_transaction_id is missing from the Rsync request.".to_string()),
+                    },
                 }
                 .into());
             }

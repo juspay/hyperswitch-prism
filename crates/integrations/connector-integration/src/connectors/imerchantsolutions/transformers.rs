@@ -24,6 +24,8 @@ use crate::{
     utils::{self, is_manual_capture},
 };
 
+const IMERCHANTSOLUTIONS: &str = "imerchantsolutions";
+
 pub struct ImerchantsolutionsAuthType {
     pub(super) api_key: Secret<String>,
 }
@@ -44,7 +46,13 @@ impl TryFrom<&ConnectorSpecificConfig> for ImerchantsolutionsAuthType {
                 api_key: api_key.to_owned(),
             }),
             _ => Err(errors::IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: errors::IntegrationErrorContext {
+                    suggested_action: Some("Provide AuthType as HeaderKey".to_string()),
+                    doc_url: None,
+                    additional_context: Some(
+                        "Provided AuthType is incorrect. AuthType should be HeaderKey.".to_string(),
+                    ),
+                },
             }
             .into()),
         }
@@ -75,10 +83,24 @@ struct ImerchantsolutionsMetadata {
 
 fn get_imerchantsolutions_metadata(
     metadata: Option<serde_json::Value>,
-) -> ImerchantsolutionsMetadata {
+) -> error_stack::Result<ImerchantsolutionsMetadata, errors::IntegrationError> {
     metadata
-        .and_then(|value| serde_json::from_value(value).ok())
-        .unwrap_or_default()
+        .map(|meta| {
+            serde_json::from_value::<ImerchantsolutionsMetadata>(meta).change_context(
+                errors::IntegrationError::InvalidDataFormat {
+                    field_name: "connector_metadata",
+                    context: errors::IntegrationErrorContext {
+                        suggested_action: None,
+                        doc_url: None,
+                        additional_context: Some(
+                            "Failed to deserialize Imerchantsolutions metadata".to_string(),
+                        ),
+                    },
+                },
+            )
+        })
+        .transpose()
+        .map(|opt| opt.unwrap_or_default())
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -202,7 +224,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 });
                 let imerchantsolutions_metadata = get_imerchantsolutions_metadata(
                     item.router_data.request.metadata.clone().expose_option(),
-                );
+                )?;
                 Ok(Self {
                     amount: item.router_data.request.amount,
                     currency: item.router_data.request.currency,
@@ -479,13 +501,10 @@ impl<F> TryFrom<ResponseRouterData<ImerchantsolutionsPSyncResponseData, Self>>
                 })
                 .collect();
 
-            let capture_sync_response_list = utils::construct_captures_response_hashmap(
-                wrapped_captures,
-            )
-            .change_context(utils::response_handling_fail_for_connector(
-                item.http_code,
-                "imerchantsolutions",
-            ))?;
+            let capture_sync_response_list =
+                utils::construct_captures_response_hashmap(wrapped_captures).change_context(
+                    utils::response_handling_fail_for_connector(item.http_code, IMERCHANTSOLUTIONS),
+                )?;
 
             Ok(Self {
                 resource_common_data: PaymentFlowData {
@@ -634,7 +653,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector_transaction_id
             .get_connector_transaction_id()
             .change_context(errors::IntegrationError::MissingConnectorTransactionID {
-                context: Default::default(),
+                context: errors::IntegrationErrorContext {
+                    suggested_action: None,
+                    doc_url: None,
+                    additional_context: Some(
+                        "Expected connector transaction ID not found".to_string(),
+                    ),
+                },
             })?;
 
         Ok(Self {
@@ -896,10 +921,10 @@ impl ForeignTryFrom<(ImerchantsolutionsCaptureStatus, Option<CaptureMethod>, u16
         ),
     ) -> Result<Self, Self::Error> {
         Ok(match capture_status {
-            ImerchantsolutionsCaptureStatus::Received => AttemptStatus::CaptureInitiated,
+            ImerchantsolutionsCaptureStatus::Received => Self::CaptureInitiated,
 
             ImerchantsolutionsCaptureStatus::PartiallyCaptured => match capture_method {
-                Some(CaptureMethod::ManualMultiple) => AttemptStatus::PartialChargedAndChargeable,
+                Some(CaptureMethod::ManualMultiple) => Self::PartialChargedAndChargeable,
                 Some(CaptureMethod::Manual) => Self::PartialCharged,
                 Some(CaptureMethod::Automatic)
                 | Some(CaptureMethod::SequentialAutomatic)
@@ -914,7 +939,7 @@ impl ForeignTryFrom<(ImerchantsolutionsCaptureStatus, Option<CaptureMethod>, u16
                 }
             },
 
-            ImerchantsolutionsCaptureStatus::Captured => AttemptStatus::Charged,
+            ImerchantsolutionsCaptureStatus::Captured => Self::Charged,
         })
     }
 }
@@ -943,9 +968,9 @@ impl From<ImerchantsolutionsPaymentStatus> for AttemptStatus {
 impl From<ImerchantsolutionsRefundStatus> for RefundStatus {
     fn from(status: ImerchantsolutionsRefundStatus) -> Self {
         match status {
-            ImerchantsolutionsRefundStatus::Received => RefundStatus::Pending,
+            ImerchantsolutionsRefundStatus::Received => Self::Pending,
             ImerchantsolutionsRefundStatus::PartiallyRefunded
-            | ImerchantsolutionsRefundStatus::Refunded => RefundStatus::Success,
+            | ImerchantsolutionsRefundStatus::Refunded => Self::Success,
         }
     }
 }
