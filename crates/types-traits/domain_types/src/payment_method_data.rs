@@ -203,6 +203,12 @@ impl<T: PaymentMethodDataTypes> Card<T> {
         )))
     }
 
+    pub fn get_card_expiry_year_month_2_digit(&self) -> Result<Secret<String>, IntegrationError> {
+        let year = self.get_card_expiry_year_2_digit()?;
+        let month = self.get_card_expiry_month_2_digit()?;
+        Ok(Secret::new(format!("{}{}", year.peek(), month.peek())))
+    }
+
     pub fn get_cardholder_name(&self) -> Result<Secret<String>, Error> {
         self.card_holder_name
             .clone()

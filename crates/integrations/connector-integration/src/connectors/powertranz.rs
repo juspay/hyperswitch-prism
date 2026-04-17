@@ -8,6 +8,7 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
+    types::FloatMajorUnit,
 };
 use domain_types::{
     connector_flow::{
@@ -364,8 +365,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // Macros Framework - Amount Converter and Prerequisites
 // ============================================================================
 
-macros::create_amount_converter_wrapper!(connector_name: Powertranz, amount_type: FloatMajorUnit);
-
 use super::macros;
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
@@ -420,7 +419,9 @@ macros::create_all_prerequisites!(
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
-    amount_converters: [],
+    amount_converters: [
+        amount_converter: FloatMajorUnit
+    ],
     member_functions: {
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
