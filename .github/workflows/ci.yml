@@ -288,6 +288,10 @@ jobs:
           path: target/x86_64-unknown-linux-gnu/release-fast/field-probe
           key: field-probe-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml', 'crates/**/*.rs', 'crates/**/*.proto') }}
 
+      - name: Publish Java SDK to Maven Local
+        if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true'
+        run: cd sdk/java && ./gradlew publishToMavenLocal -q
+
       - name: Generate documentation
         if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true'
         env:
