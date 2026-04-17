@@ -21,7 +21,7 @@ permissions:
 # Job dependency graph:
 #
 #   changes ─┬─ typos              (always, ~8s)
-#            ├─ auto-fix           (PR only: format + docs → bot commit if needed)
+#            ├─ auto-fix           (PR only: format + generate + docs → bot commit if needed)
 #            │   ├─ check          (if rust changed AND auto-fix didn't push, ~11min)
 #            │   ├─ test           (parallel with check, ~15min)
 #            │   └─ sdk-test       (if sdk/rust-core/proto changed: FFI+gRPC tests, ~25min)
@@ -97,11 +97,13 @@ jobs:
               - 'crates/integrations/**'
               - 'crates/types-traits/**'
               - 'crates/internal/field-probe/**'
-              - 'data/field_probe/**'
               - 'docs/**'
               - 'docs-generated/**'
               - 'examples/**'
               - 'scripts/**'
+            stripe:
+              - 'crates/integrations/connector-integration/src/connectors/stripe.rs'
+              - 'crates/integrations/connector-integration/src/connectors/stripe/transformers.rs'
             any-rs:
               - '**/*.rs'
             ci:
@@ -134,18 +136,49 @@ jobs:
         with:
           config: ./.typos.toml
 
+  clippy:
+    name: Clippy check
+    needs: changes
+    if: needs.changes.outputs.any-rust == 'true' || needs.changes.outputs.proto == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: clippy
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: Swatinem/rust-cache@v2.7.8
+        with:
+          shared-key: "ci-clippy"
+
+      - name: Run Clippy
+        env:
+          RUSTFLAGS: "-D warnings"
+        run: cargo +stable clippy --all-features --all-targets --profile release-fast
+
   # ── Auto-fix (formatting + docs) ─────────────────────────────────────────
   # On PRs: auto-format code and regenerate docs, commit if changes found.
   # If a commit is pushed, remaining jobs skip — the new push triggers fresh CI.
   # On push/merge_group: not applicable (code should already be clean from PR).
   auto-fix:
-    name: Auto-fix (format + docs)
+    name: Auto-fix (format + docs + generate)
     needs: changes
     if: >-
       github.event_name == 'pull_request' &&
       github.event.pull_request.user.login != 'github-actions[bot]' &&
       (needs.changes.outputs.any-rs == 'true' ||
        needs.changes.outputs.docs-trigger == 'true' ||
+       needs.changes.outputs.sdk == 'true' ||
+       needs.changes.outputs.proto == 'true' ||
        needs.changes.outputs.ci == 'true')
     runs-on: ubuntu-latest
     permissions:
@@ -172,11 +205,8 @@ jobs:
       
       - uses: Swatinem/rust-cache@v2.7.8
         with:
-          shared-key: "ci-rust"
+          shared-key: "ci-release-fast"
           cache-targets: true
-          cache-directories: |
-            target/x86_64-unknown-linux-gnu/release-fast
-            target/aarch64-unknown-linux-gnu/release-fast
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
@@ -184,29 +214,80 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Python
-        if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true'
+        if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.sdk == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.ci == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
+      - name: Setup Java
+        if: needs.changes.outputs.sdk == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.ci == 'true'
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Node.js
+        if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.sdk == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.ci == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: sdk/javascript/package-lock.json
+
       - name: Install Python dependencies
-        if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true'
+        if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.sdk == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.ci == 'true'
         run: |
           python3 -m pip install --upgrade pip
           pip3 install jinja2 google-cloud-vision python-dotenv requests types-requests grpcio-tools mypy
 
+      - name: Install SDK codegen dependencies
+        if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.sdk == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.ci == 'true'
+        run: |
+          pip install -r sdk/python/requirements.txt grpcio-tools protobuf
+          make -C sdk install-deps
+          cd sdk/javascript && npm ci && cd ../..
+
       - name: Format Rust code
         run: cargo +nightly fmt --all
+
+      - name: Generate SDK bindings
+        if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.sdk == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.ci == 'true'
+        env:
+          RUSTUP_TOOLCHAIN: stable
+        run: make -C sdk generate PROFILE=release-fast
+
+      - name: Restore field-probe binary cache
+        id: field-probe-cache-restore
+        if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: target/x86_64-unknown-linux-gnu/release-fast/field-probe
+          key: field-probe-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml', 'crates/**/*.rs', 'crates/**/*.proto') }}
+
+      - name: Build field-probe (cache miss)
+        if: >-
+          (needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true') &&
+          steps.field-probe-cache-restore.outputs.cache-hit != 'true'
+        env:
+          RUSTUP_TOOLCHAIN: stable
+        run: cargo build -p field-probe --target x86_64-unknown-linux-gnu --profile release-fast
+
+      - name: Save field-probe binary cache
+        if: >-
+          (needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true') &&
+          steps.field-probe-cache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: target/x86_64-unknown-linux-gnu/release-fast/field-probe
+          key: field-probe-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml', 'crates/**/*.rs', 'crates/**/*.proto') }}
 
       - name: Generate documentation
         if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true'
         env:
           RUSTUP_TOOLCHAIN: stable
         run: |
-          echo "Generating all-connectors coverage document..."
-          make all-connectors-doc
-          echo "Generating connector documentation..."
-          make docs CONNECTORS=all
+          ./target/x86_64-unknown-linux-gnu/release-fast/field-probe || true
+          make docs SKIP_PROBE=1
 
       - name: Check for changes and commit
         id: commit
@@ -228,7 +309,8 @@ jobs:
 
           Auto-applied by CI:
           - cargo +nightly fmt --all
-          - make docs CONNECTORS=all (if applicable)
+          - make -C sdk generate (if applicable)
+          - make docs (if applicable)
 
           This commit was automatically generated by GitHub Actions."
 
@@ -288,7 +370,6 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-          components: clippy
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
@@ -298,9 +379,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2.7.8
         with:
           shared-key: "ci-rust"
-
-      - name: Run Clippy
-        run: cargo +stable clippy --all-features --all-targets
 
       - name: Run Composite Request Schema Checks
         run: cargo test -p composite-service --all-features --test composite_request_schema_check
@@ -392,6 +470,24 @@ jobs:
             echo "No connector credentials available - tests will use default values"
           fi
 
+      - name: Free up disk space
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          echo "Before cleanup:"
+          df -h
+          du -sh target 2>/dev/null || echo "No target dir"
+          # Aggressive target cleanup - keep only essentials
+          rm -rf target/debug
+          rm -rf target/incremental
+          find target -name "*.rlib" -size +50M -delete 2>/dev/null || true
+          # System cleanup
+          sudo apt-get clean
+          sudo rm -rf /var/cache/apt/archives
+          npm cache clean --force 2>/dev/null || true
+          echo "After cleanup:"
+          df -h
+          du -sh target 2>/dev/null || echo "No target dir"
+
       - name: Run Tests
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
@@ -445,13 +541,13 @@ jobs:
       (needs.changes.outputs.sdk == 'true' ||
        needs.changes.outputs.rust-core == 'true' ||
        needs.changes.outputs.proto == 'true' ||
-       needs.changes.outputs.ci == 'true')
+       needs.changes.outputs.ci == 'true' ||
+       needs.changes.outputs.stripe == 'true')
     runs-on: ubuntu-latest
 
     env:
       RUSTFLAGS: "-D warnings"
       PROFILE: release-fast
-      CARGO_INCREMENTAL: 0
 
     steps:
       - name: Checkout code
@@ -507,7 +603,8 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2.7.8
         with:
-          shared-key: "ci-rust-sdk"
+          shared-key: "ci-release-fast"
+          cache-targets: true
 
       - name: Restore SDK binaries cache
         id: sdk-cache-restore
@@ -523,55 +620,29 @@ jobs:
             target/*/*/hyperswitch-smoke-test
             target/*/*/grpc-smoke-test
           key: sdk-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs') }}
-          restore-keys: |
-            sdk-${{ runner.os }}-
 
-      - name: Build SDK binaries
+      - name: Build SDK binaries (cache miss)
+        if: steps.sdk-cache-restore.outputs.cache-hit != 'true'
+        env:
+          RUSTUP_TOOLCHAIN: stable
         run: |
-          ARCH=$(uname -m)
-          if [ "$ARCH" = "aarch64" ]; then
-            PLATFORM="aarch64-unknown-linux-gnu"
-          else
-            PLATFORM="x86_64-unknown-linux-gnu"
-          fi
-          PROFILE="release-fast"
-          
-          # Check which binaries are missing
-          MISSING_BINS=""
-          [ ! -f "target/${PLATFORM}/${PROFILE}/grpc-server" ] && MISSING_BINS="grpc-server ${MISSING_BINS}"
-          [ ! -f "target/${PLATFORM}/${PROFILE}/libconnector_service_ffi.so" ] && MISSING_BINS="ffi-lib ${MISSING_BINS}"
-          [ ! -f "target/${PLATFORM}/${PROFILE}/libhyperswitch_grpc_ffi.so" ] && MISSING_BINS="grpc-ffi-lib ${MISSING_BINS}"
-          [ ! -f "target/${PLATFORM}/${PROFILE}/uniffi-bindgen" ] && MISSING_BINS="uniffi-bindgen ${MISSING_BINS}"
-          [ ! -f "target/${PLATFORM}/${PROFILE}/hyperswitch-smoke-test" ] && MISSING_BINS="smoke-test ${MISSING_BINS}"
-          [ ! -f "target/${PLATFORM}/${PROFILE}/grpc-smoke-test" ] && MISSING_BINS="grpc-smoke-test ${MISSING_BINS}"
-          
-          if [ -z "$MISSING_BINS" ]; then
-            echo "All SDK binaries found in cache, skipping build"
-            exit 0
-          fi
-          
-          echo "Missing binaries: ${MISSING_BINS}"
-          echo "Building SDK binaries for $PLATFORM..."
-          
-          # Build FFI library
-          cargo build -p ffi --no-default-features --features uniffi \
-            --profile "$PROFILE" --target "$PLATFORM"
-          
-          # Build uniffi-bindgen
-          cargo build -p uniffi-bindgen --profile "$PROFILE" --target "$PLATFORM"
-          
-          # Build smoke test binaries
-          CONNECTORS=stripe HARNESS_DIR="$(pwd)/examples" \
-            cargo build -p hyperswitch-smoke-test --bin hyperswitch-smoke-test \
-            --profile "$PROFILE" --target "$PLATFORM"
-          
-          CONNECTORS=stripe HARNESS_DIR="$(pwd)/examples" \
-            cargo build -p hyperswitch-smoke-test --bin grpc-smoke-test \
-            --profile "$PROFILE" --target "$PLATFORM"
-          
-          # Build gRPC server and FFI
-          cargo build -p grpc-server -p hyperswitch-grpc-ffi \
-            --profile "$PROFILE" --target "$PLATFORM"
+          cargo build -p grpc-server -p hyperswitch-grpc-ffi -p ffi -p hyperswitch-smoke-test -p uniffi-bindgen \
+            --profile release-fast --target x86_64-unknown-linux-gnu
+
+      - name: Save SDK binaries cache
+        if: steps.sdk-cache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            target/*/*/libconnector_service_ffi.so
+            target/*/*/libconnector_service_ffi.dylib
+            target/*/*/libhyperswitch_grpc_ffi.so
+            target/*/*/libhyperswitch_grpc_ffi.dylib
+            target/*/*/grpc-server
+            target/*/*/uniffi-bindgen
+            target/*/*/hyperswitch-smoke-test
+            target/*/*/grpc-smoke-test
+          key: sdk-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs') }}
 
       - name: Create connector credentials
         shell: bash
@@ -589,7 +660,7 @@ jobs:
         shell: bash
         run: |
           echo "Running SDK gRPC tests"
-          make -C sdk test-grpc GRPC_SKIP_BUILD=1 PROFILE=release-fast
+          GRPC_SKIP_BUILD=1 make -C sdk test-grpc PROFILE=release-fast
 
       - name: Run SDK FFI Tests
         shell: bash
@@ -599,7 +670,7 @@ jobs:
           else
             echo "Running SDK FFI tests without connector credentials (dry-run mode)"
           fi
-          make -C sdk test FFI_SKIP_BUILD=1 PROFILE=release-fast
+          FFI_SKIP_BUILD=1 make -C sdk test PROFILE=release-fast
 
       - name: Run SDK Mock Tests
         shell: bash
@@ -607,37 +678,13 @@ jobs:
           echo "Running SDK mock tests (no real HTTP calls)"
           python3 scripts/run_smoke_tests_parallel.py --mock --connectors stripe --sdks python,javascript,kotlin,rust
 
-      - name: Verify SDK code regeneration produces no changes
-        shell: bash
-        run: make -C sdk generate FFI_SKIP_BUILD=1 PROFILE=release-fast
-
-      - name: Check for uncommitted changes
-        shell: bash
-        run: |
-          git diff --exit-code || (echo "ERROR: Generated SDK code is out of date. Run 'make -C sdk generate' and commit the changes." && exit 1)
-
-      - name: Save SDK binaries cache
-        if: always() && steps.sdk-cache-restore.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            target/*/*/libconnector_service_ffi.so
-            target/*/*/libconnector_service_ffi.dylib
-            target/*/*/libhyperswitch_grpc_ffi.so
-            target/*/*/libhyperswitch_grpc_ffi.dylib
-            target/*/*/grpc-server
-            target/*/*/uniffi-bindgen
-            target/*/*/hyperswitch-smoke-test
-            target/*/*/grpc-smoke-test
-          key: sdk-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs') }}
-
   # ── CI Gate ───────────────────────────────────────────────────────────────
   # Single required status check. Passes if all jobs succeeded, were skipped,
   # or if auto-fix pushed a commit (new CI run will validate clean code).
   ci-gate:
     name: CI Result
     if: always()
-    needs: [typos, formatting, auto-fix, check, test, sdk-test]
+    needs: [typos, clippy, formatting, auto-fix, check, test, sdk-test]
     runs-on: ubuntu-latest
     steps:
       - name: Evaluate CI results

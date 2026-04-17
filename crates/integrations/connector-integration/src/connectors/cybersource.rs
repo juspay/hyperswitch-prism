@@ -1057,20 +1057,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let client_library = decoded
             .get("ctx")
-            .and_then(|v| v.as_array())
+            .and_then(|ctx| ctx.as_array())
             .and_then(|arr| arr.first())
-            .and_then(|v| v.get("data"))
-            .and_then(|v| v.get("clientLibrary"))
-            .and_then(|v| v.as_str())
+            .and_then(|item| item.get("data"))
+            .and_then(|data| data.get("clientLibrary"))
+            .and_then(|val| val.as_str())
             .unwrap_or_default()
             .to_string();
         let client_library_integrity = decoded
             .get("ctx")
-            .and_then(|v| v.as_array())
+            .and_then(|ctx| ctx.as_array())
             .and_then(|arr| arr.first())
-            .and_then(|v| v.get("data"))
-            .and_then(|v| v.get("clientLibraryIntegrity"))
-            .and_then(|v| v.as_str())
+            .and_then(|item| item.get("data"))
+            .and_then(|data| data.get("clientLibraryIntegrity"))
+            .and_then(|val| val.as_str())
             .unwrap_or_default()
             .to_string();
 

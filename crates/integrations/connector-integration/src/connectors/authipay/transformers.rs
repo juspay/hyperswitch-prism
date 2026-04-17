@@ -837,10 +837,9 @@ fn map_refund_status(
     if let Some(state) = transaction_state {
         match state {
             AuthipayTransactionState::Captured | AuthipayTransactionState::Settled
-            // Verify result/status is also success
-            if (matches!(transaction_result, Some(AuthipayPaymentResult::Approved))
-                || matches!(transaction_status, Some(AuthipayPaymentStatus::Approved)))
-            => {
+                if matches!(transaction_result, Some(AuthipayPaymentResult::Approved))
+                    || matches!(transaction_status, Some(AuthipayPaymentStatus::Approved)) =>
+            {
                 return RefundStatus::Success;
             }
             AuthipayTransactionState::Declined => return RefundStatus::Failure,
