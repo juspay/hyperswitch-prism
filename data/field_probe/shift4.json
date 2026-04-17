@@ -660,7 +660,9 @@
             "card_holder_name": "John Doe"
           },
           "address": {
-            "billing_address": {}
+            "billing_address": {
+              "first_name": "John"
+            }
           },
           "customer_acceptance": {
             "acceptance_type": "OFFLINE",
@@ -677,7 +679,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":0,\"currency\":\"USD\",\"captured\":false,\"card\":{\"number\":\"4111111111111111\",\"expMonth\":\"03\",\"expYear\":\"2030\",\"cardholderName\":\"\"}}"
+          "body": "{\"amount\":0,\"currency\":\"USD\",\"captured\":false,\"card\":{\"number\":\"4111111111111111\",\"expMonth\":\"03\",\"expYear\":\"2030\",\"cardholderName\":\"John\"}}"
         }
       }
     },
@@ -791,7 +793,9 @@
             }
           },
           "address": {
-            "billing_address": {}
+            "billing_address": {
+              "first_name": "John"
+            }
           },
           "auth_type": "NO_THREE_DS",
           "enrolled_for_3ds": false,
@@ -811,7 +815,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":0,\"currency\":\"USD\",\"captured\":false,\"card\":{\"number\":\"4111111111111111\",\"expMonth\":\"03\",\"expYear\":\"2030\",\"cardholderName\":\"\"}}"
+          "body": "{\"amount\":0,\"currency\":\"USD\",\"captured\":false,\"card\":{\"number\":\"4111111111111111\",\"expMonth\":\"03\",\"expYear\":\"2030\",\"cardholderName\":\"John\"}}"
         }
       }
     },
