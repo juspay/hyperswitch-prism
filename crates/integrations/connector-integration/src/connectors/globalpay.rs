@@ -44,9 +44,10 @@ use serde::Serialize;
 use transformers as globalpay;
 use transformers::{
     GlobalpayAuthorizeResponse, GlobalpayCaptureRequest, GlobalpayCaptureResponse,
-    GlobalpayClientAuthRequest, GlobalpayClientAuthResponse, GlobalpayPSyncResponse,
-    GlobalpayPaymentsRequest, GlobalpayRSyncResponse, GlobalpayRefundRequest,
-    GlobalpayRefundResponse, GlobalpayVoidRequest, GlobalpayVoidResponse,
+    GlobalpayClientAuthRequest, GlobalpayClientAuthResponse, GlobalpayIncrementalAuthRequest,
+    GlobalpayIncrementalAuthResponse, GlobalpayPSyncResponse, GlobalpayPaymentsRequest,
+    GlobalpayRSyncResponse, GlobalpayRefundRequest, GlobalpayRefundResponse, GlobalpayVoidRequest,
+    GlobalpayVoidResponse,
 };
 
 use crate::connectors::macros;
@@ -108,6 +109,12 @@ macros::create_all_prerequisites!(
             request_body: GlobalpayClientAuthRequest,
             response_body: GlobalpayClientAuthResponse,
             router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ),
+        (
+            flow: IncrementalAuthorization,
+            request_body: GlobalpayIncrementalAuthRequest,
+            response_body: GlobalpayIncrementalAuthResponse,
+            router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -235,16 +242,6 @@ macros::create_all_prerequisites!(
 
 // ===== CONNECTOR SERVICE TRAIT IMPLEMENTATIONS =====
 // Main service trait - aggregates all other traits
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Globalpay<T>
-{
-}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Globalpay<T>
@@ -537,6 +534,48 @@ macros::macro_connector_implementation!(
                 .get_connector_transaction_id()
                 .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
             Ok(format!("{}/transactions/{}/capture", self.connector_base_url_payments(req), transaction_id))
+        }
+    }
+);
+
+// Incremental Authorization flow implementation using macro
+// GlobalPay GP-API endpoint: POST /transactions/{transaction_id}/incremental
+// Body: { "amount": "<minor_units_as_string>" }
+// Response: transaction object (GlobalpayPaymentsResponse shape) with status
+// remaining PREAUTHORIZED after a successful incremental auth.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Globalpay,
+    curl_request: Json(GlobalpayIncrementalAuthRequest),
+    curl_response: GlobalpayIncrementalAuthResponse,
+    flow_name: IncrementalAuthorization,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsIncrementalAuthorizationData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_payment_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let transaction_id = req
+                .request
+                .connector_transaction_id
+                .get_connector_transaction_id()
+                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
+            Ok(format!(
+                "{}/transactions/{}/incremental",
+                self.connector_base_url_payments(req),
+                transaction_id
+            ))
         }
     }
 );

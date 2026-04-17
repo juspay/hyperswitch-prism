@@ -7,17 +7,17 @@ use common_utils::request::Method;
 use common_utils::types::StringMinorUnit;
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund,
-        ServerAuthenticationToken, Void,
+        Authorize, Capture, ClientAuthenticationToken, IncrementalAuthorization, PSync, RSync,
+        Refund, ServerAuthenticationToken, Void,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse,
         GlobalpayClientAuthenticationResponse as GlobalpayClientAuthenticationResponseDomain,
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData,
+        PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{
@@ -1179,6 +1179,146 @@ impl TryFrom<ResponseRouterData<GlobalpayClientAuthResponse, Self>>
                 session_data,
                 status_code: item.http_code,
             }),
+            ..item.router_data
+        })
+    }
+}
+
+// ===== INCREMENTAL AUTHORIZATION FLOW =====
+//
+// GlobalPay GP-API endpoint: POST /transactions/{transaction_id}/incremental
+// Request body only requires the additional `amount` (in the connector's
+// minor-unit string format). The response payload mirrors the standard
+// transaction envelope used by Authorize/Capture/Void
+// (id + status + payment_method.message/result on failure); on success the
+// transaction `status` remains `PREAUTHORIZED` with an updated `amount`.
+// See: https://developer.globalpayments.com/ecommerce/incremental-auth
+
+/// Request body for POST /transactions/{id}/incremental.
+/// Only the new increment `amount` is required — GlobalPay applies it on top
+/// of the already-authorized amount for the referenced transaction.
+#[derive(Debug, Clone, Serialize)]
+pub struct GlobalpayIncrementalAuthRequest {
+    pub amount: StringMinorUnit,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        GlobalpayRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for GlobalpayIncrementalAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        wrapper: GlobalpayRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let item = &wrapper.router_data;
+        Ok(Self {
+            amount: GlobalpayAmountConvertor::convert(
+                item.request.minor_amount,
+                item.request.currency,
+            )
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?,
+        })
+    }
+}
+
+/// Response body for POST /transactions/{id}/incremental.
+/// Reuses the transaction envelope shared with Authorize/Capture/Void flows.
+pub type GlobalpayIncrementalAuthResponse = GlobalpayPaymentsResponse;
+
+impl TryFrom<ResponseRouterData<GlobalpayIncrementalAuthResponse, Self>>
+    for RouterDataV2<
+        IncrementalAuthorization,
+        PaymentFlowData,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<GlobalpayIncrementalAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        // Map GlobalPay transaction status to UCS AuthorizationStatus.
+        // After a successful incremental auth the transaction remains in
+        // PREAUTHORIZED state with the updated (higher) authorized amount,
+        // so PREAUTHORIZED/CAPTURED/FUNDED/PENDING/INITIATED all indicate
+        // the request was accepted.
+        let authorization_status = match item.response.status {
+            GlobalpayPaymentStatus::Preauthorized
+            | GlobalpayPaymentStatus::Captured
+            | GlobalpayPaymentStatus::Funded => common_enums::AuthorizationStatus::Success,
+            GlobalpayPaymentStatus::Pending
+            | GlobalpayPaymentStatus::Initiated
+            | GlobalpayPaymentStatus::ForReview => common_enums::AuthorizationStatus::Processing,
+            GlobalpayPaymentStatus::Declined
+            | GlobalpayPaymentStatus::Failed
+            | GlobalpayPaymentStatus::Rejected
+            | GlobalpayPaymentStatus::Reversed => common_enums::AuthorizationStatus::Failure,
+        };
+
+        let response = match authorization_status {
+            common_enums::AuthorizationStatus::Failure => Err(ErrorResponse {
+                status_code: item.http_code,
+                code: item
+                    .response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|pm| pm.result.clone())
+                    .unwrap_or_else(|| "UNKNOWN_ERROR".to_string()),
+                message: item
+                    .response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|pm| pm.message.clone())
+                    .unwrap_or_else(|| "Incremental authorization failed".to_string()),
+                reason: item
+                    .response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|pm| pm.message.clone()),
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.id.clone()),
+                network_decline_code: item
+                    .response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|pm| pm.result.clone()),
+                network_advice_code: None,
+                network_error_message: item
+                    .response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|pm| pm.message.clone()),
+            }),
+            _ => Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                status: authorization_status,
+                connector_authorization_id: Some(item.response.id.clone()),
+                status_code: item.http_code,
+            }),
+        };
+
+        Ok(Self {
+            response,
             ..item.router_data
         })
     }
