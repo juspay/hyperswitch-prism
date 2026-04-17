@@ -115,125 +115,79 @@ let config = ConnectorConfig {
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
+| [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
+| [PaymentService.CreateOrder](#paymentservicecreateorder) | Payments | `PaymentServiceCreateOrderRequest` |
+| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
+| [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
+| [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
 
 ### Payments
 
-#### PaymentService.Authorize
+#### PaymentService.Capture
 
-Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing.
+Finalize an authorized payment by transferring funds. Captures the authorized amount to complete the transaction and move funds to your merchant account.
 
 | | Message |
 |---|---------|
-| **Request** | `PaymentServiceAuthorizeRequest` |
-| **Response** | `PaymentServiceAuthorizeResponse` |
+| **Request** | `PaymentServiceCaptureRequest` |
+| **Response** | `PaymentServiceCaptureResponse` |
 
-**Supported payment method types:**
+**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L91) · [Kotlin](../../examples/cashfree/cashfree.kt#L84) · [Rust](../../examples/cashfree/cashfree.rs)
 
-| Payment Method | Supported |
-|----------------|:---------:|
-| Card | x |
-| Bancontact | x |
-| Apple Pay | x |
-| Apple Pay Dec | x |
-| Apple Pay SDK | x |
-| Google Pay | x |
-| Google Pay Dec | x |
-| Google Pay SDK | x |
-| PayPal SDK | x |
-| Amazon Pay | x |
-| Cash App | x |
-| PayPal | x |
-| WeChat Pay | x |
-| Alipay | x |
-| Revolut Pay | x |
-| MiFinity | x |
-| Bluecode | x |
-| Paze | x |
-| Samsung Pay | x |
-| MB Way | x |
-| Satispay | x |
-| Wero | x |
-| Affirm | x |
-| Afterpay | x |
-| Klarna | x |
-| UPI Collect | ✓ |
-| UPI Intent | ✓ |
-| UPI QR | ✓ |
-| Thailand | x |
-| Czech | x |
-| Finland | x |
-| FPX | x |
-| Poland | x |
-| Slovakia | x |
-| UK | x |
-| PIS | x |
-| Generic | x |
-| Local | x |
-| iDEAL | x |
-| Sofort | x |
-| Trustly | x |
-| Giropay | x |
-| EPS | x |
-| Przelewy24 | x |
-| PSE | x |
-| BLIK | x |
-| Interac | x |
-| Bizum | x |
-| EFT | x |
-| DuitNow | x |
-| ACH | x |
-| SEPA | x |
-| BACS | x |
-| Multibanco | x |
-| Instant | x |
-| Instant FI | x |
-| Instant PL | x |
-| Pix | x |
-| Permata | x |
-| BCA | x |
-| BNI VA | x |
-| BRI VA | x |
-| CIMB VA | x |
-| Danamon VA | x |
-| Mandiri VA | x |
-| Local | x |
-| Indonesian | x |
-| ACH | x |
-| SEPA | x |
-| BACS | x |
-| BECS | x |
-| SEPA Guaranteed | x |
-| Crypto | x |
-| Reward | x |
-| Givex | x |
-| PaySafeCard | x |
-| E-Voucher | x |
-| Boleto | x |
-| Efecty | x |
-| Pago Efectivo | x |
-| Red Compra | x |
-| Red Pagos | x |
-| Alfamart | x |
-| Indomaret | x |
-| Oxxo | x |
-| 7-Eleven | x |
-| Lawson | x |
-| Mini Stop | x |
-| Family Mart | x |
-| Seicomart | x |
-| Pay Easy | x |
+#### PaymentService.CreateOrder
 
-**Payment method objects** — use these in the `payment_method` field of the Authorize request.
+Create a payment order for later processing. Establishes a transaction context that can be authorized or captured in subsequent API calls.
 
-##### UPI Collect
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceCreateOrderRequest` |
+| **Response** | `PaymentServiceCreateOrderResponse` |
 
-```python
-"payment_method": {
-  "upi_collect": {
-    "vpa_id": "test@upi"
-  }
-}
-```
+**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L100) · [Kotlin](../../examples/cashfree/cashfree.kt#L94) · [Rust](../../examples/cashfree/cashfree.rs)
 
-**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L52) · [Kotlin](../../examples/cashfree/cashfree.kt#L64) · [Rust](../../examples/cashfree/cashfree.rs)
+#### PaymentService.Get
+
+Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceGetRequest` |
+| **Response** | `PaymentServiceGetResponse` |
+
+**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L109) · [Kotlin](../../examples/cashfree/cashfree.kt#L108) · [Rust](../../examples/cashfree/cashfree.rs)
+
+#### PaymentService.Refund
+
+Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceRefundRequest` |
+| **Response** | `RefundResponse` |
+
+**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L118) · [Kotlin](../../examples/cashfree/cashfree.kt#L116) · [Rust](../../examples/cashfree/cashfree.rs)
+
+#### PaymentService.Void
+
+Cancel an authorized payment that has not been captured. Releases held funds back to the customer's payment method when a transaction cannot be completed.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceVoidRequest` |
+| **Response** | `PaymentServiceVoidResponse` |
+
+**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts) · [Kotlin](../../examples/cashfree/cashfree.kt#L138) · [Rust](../../examples/cashfree/cashfree.rs)
+
+### Refunds
+
+#### RefundService.Get
+
+Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
+
+| | Message |
+|---|---------|
+| **Request** | `RefundServiceGetRequest` |
+| **Response** | `RefundResponse` |
+
+**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L127) · [Kotlin](../../examples/cashfree/cashfree.kt#L126) · [Rust](../../examples/cashfree/cashfree.rs)

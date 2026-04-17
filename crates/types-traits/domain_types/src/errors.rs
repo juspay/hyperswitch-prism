@@ -597,6 +597,8 @@ pub enum ConnectorFlowError {
     Request(#[from] IntegrationError),
     #[error("Client error: {0}")]
     Client(#[from] ApiClientError),
+    #[error("Kafka client error: {0}")]
+    KafkaClient(common_enums::KafkaClientError),
     #[error("Connector error: {0}")]
     Response(#[from] ConnectorError),
 }
@@ -661,6 +663,14 @@ pub fn report_common_api_client_to_flow(
 ) -> Report<ConnectorFlowError> {
     let ctx: ApiClientError = report.current_context().clone().into();
     report.change_context(ConnectorFlowError::Client(ctx))
+}
+
+/// Map `common_enums::KafkaClientError` reports into `ConnectorFlowError::KafkaClient`.
+pub fn report_kafka_client_to_flow(
+    report: Report<common_enums::KafkaClientError>,
+) -> Report<ConnectorFlowError> {
+    let ctx = report.current_context().clone();
+    report.change_context(ConnectorFlowError::KafkaClient(ctx))
 }
 
 #[derive(Debug, thiserror::Error)]

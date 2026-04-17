@@ -388,6 +388,7 @@ pub struct Connectors {
     pub finix: ConnectorParams,
     pub trustly: ConnectorParams,
     pub itaubank: ConnectorParams,
+    pub sanlammultidata: ConnectorParams,
     pub imerchantsolutions: ConnectorParams,
 }
 
@@ -1427,7 +1428,7 @@ impl<
                         payment_method_data::BankRedirectData::Bizum {},
                     ))
                 }
-                grpc_api_types::payments::payment_method::PaymentMethod::Eft(eft) => {
+                grpc_api_types::payments::payment_method::PaymentMethod::EftBankRedirect(eft) => {
                     Ok(PaymentMethodData::BankRedirect(
                         payment_method_data::BankRedirectData::Eft {
                             provider: eft.provider,
@@ -1603,6 +1604,25 @@ impl<
                         )?,
                         routing_number: ach.routing_number.ok_or(
                             IntegrationError::InvalidDataFormat { field_name: "unknown", context: IntegrationErrorContext { additional_context: Some("ACH routing number is required".to_string()), ..Default::default() } },
+                        )?,
+                    }),
+                ),
+                grpc_api_types::payments::payment_method::PaymentMethod::Eft(eft) => Ok(
+                    Self::BankDebit(payment_method_data::BankDebitData::EftBankDebit {
+                        bank_name: match eft.bank_name() {
+                            grpc_payment_types::BankNames::Unspecified => None,
+                            _ => Some(common_enums::BankNames::foreign_try_from(eft.bank_name())?),
+                        },
+                        bank_type: match eft.bank_type() {
+                            grpc_payment_types::BankType::Unspecified => None,
+                            _ => Some(common_enums::BankType::foreign_try_from(eft.bank_type())?),
+                        },
+                        bank_account_holder_name: eft.bank_account_holder_name,
+                        account_number: eft.account_number.ok_or(
+                            IntegrationError::InvalidDataFormat { field_name: "unknown", context: IntegrationErrorContext { additional_context: Some("EFT account number is required".to_string()), ..Default::default() } },
+                        )?,
+                        branch_code: eft.branch_code.ok_or(
+                            IntegrationError::InvalidDataFormat { field_name: "unknown", context: IntegrationErrorContext { additional_context: Some("EFT branch code is required".to_string()), ..Default::default() } },
                         )?,
                     }),
                 ),
@@ -1963,6 +1983,14 @@ impl ForeignTryFrom<grpc_api_types::payments::BankType> for common_enums::BankTy
         match value {
             grpc_api_types::payments::BankType::Checking => Ok(common_enums::BankType::Checking),
             grpc_api_types::payments::BankType::Savings => Ok(common_enums::BankType::Savings),
+            grpc_api_types::payments::BankType::Current => Ok(common_enums::BankType::Current),
+            grpc_api_types::payments::BankType::Bond => Ok(common_enums::BankType::Bond),
+            grpc_api_types::payments::BankType::SubscriptionShare => {
+                Ok(common_enums::BankType::SubscriptionShare)
+            }
+            grpc_api_types::payments::BankType::Transmission => {
+                Ok(common_enums::BankType::Transmission)
+            }
             grpc_api_types::payments::BankType::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "unknown",
@@ -2231,7 +2259,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::Blik(_) => Ok(Some(PaymentMethodType::Blik)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Sofort(_) => Ok(Some(PaymentMethodType::Sofort)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Bizum(_) => Ok(Some(PaymentMethodType::Bizum)),
-                grpc_api_types::payments::payment_method::PaymentMethod::Eft(_) => Ok(Some(PaymentMethodType::Eft)),
+                grpc_api_types::payments::payment_method::PaymentMethod::EftBankRedirect(_) => Ok(Some(PaymentMethodType::Eft)),
                 // ============================================================================
                 // MOBILE & CRYPTO PAYMENTS - PaymentMethodType mappings
                 // ============================================================================
@@ -2250,6 +2278,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::Sepa(_) => Ok(Some(PaymentMethodType::Sepa)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Bacs(_) => Ok(Some(PaymentMethodType::Bacs)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Becs(_) => Ok(Some(PaymentMethodType::Becs)),
+                grpc_api_types::payments::payment_method::PaymentMethod::Eft(_) => Ok(Some(PaymentMethodType::Eft)),
                 grpc_api_types::payments::payment_method::PaymentMethod::SepaGuaranteedDebit(_) => Ok(Some(PaymentMethodType::SepaGuaranteedDebit)),
                 // ============================================================================
                 // NETWORK TRANSACTION METHODS - recurring payments
@@ -4643,7 +4672,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             } => Ok(Self::BankRedirect),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
-                    Some(grpc_api_types::payments::payment_method::PaymentMethod::Eft(_)),
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::EftBankRedirect(_)),
             } => Ok(Self::BankRedirect),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -4733,6 +4762,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::Becs(_)),
+            } => Ok(Self::BankDebit),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::Eft(_)),
             } => Ok(Self::BankDebit),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -8958,6 +8991,7 @@ pub enum PaymentMethodDataType {
     OnlineBankingFpx,
     OnlineBankingThailand,
     AchBankDebit,
+    EftBankDebit,
     SepaBankDebit,
     BecsBankDebit,
     BacsBankDebit,
@@ -10961,6 +10995,7 @@ impl ForeignTryFrom<grpc_api_types::payments::BankNames> for common_enums::BankN
             grpc_api_types::payments::BankNames::UlsterBank => Ok(Self::UlsterBank),
             grpc_api_types::payments::BankNames::Yoursafe => Ok(Self::Yoursafe),
             grpc_api_types::payments::BankNames::N26 => Ok(Self::N26),
+            grpc_api_types::payments::BankNames::Absa => Ok(Self::Absa),
             grpc_api_types::payments::BankNames::NationaleNederlanden => {
                 Ok(Self::NationaleNederlanden)
             }
