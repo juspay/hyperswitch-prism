@@ -38,7 +38,7 @@ def _build_authorize_request(capture_method: str):
             minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
             currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
         ),
-            "shipping_cost": 0,  # Cost of shipping for the order.
+        shipping_cost=0,  # Cost of shipping for the order.
         payment_method=payment_methods_pb2.PaymentMethod(  # Payment method to be used.
             card=payment_methods_pb2.CardDetails(
                 card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
@@ -135,8 +135,8 @@ def _build_proxy_authorize_request():
             minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
             currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
         ),
-        card_proxy=payment_methods_pb2.CardDetails(  # Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
-            card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
+        card_proxy=payment_methods_pb2.ProxyCardDetails(  # Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
+            card_number=payment_methods_pb2.SecretString(value="4111111111111111"),  # Card Identification.
             card_exp_month=payment_methods_pb2.SecretString(value="03"),
             card_exp_year=payment_methods_pb2.SecretString(value="2030"),
             card_cvc=payment_methods_pb2.SecretString(value="123"),
@@ -155,6 +155,7 @@ def _build_proxy_authorize_request():
                 token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
             ),
         ),
+        shipping_cost=0,  # Cost of shipping for the order.
     )
 
 def _build_proxy_setup_recurring_request():
@@ -164,8 +165,8 @@ def _build_proxy_setup_recurring_request():
             minor_amount=0,  # Amount in minor units (e.g., 1000 = $10.00).
             currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
         ),
-        card_proxy=payment_methods_pb2.CardDetails(  # Card proxy for vault-aliased payments.
-            card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
+        card_proxy=payment_methods_pb2.ProxyCardDetails(  # Card proxy for vault-aliased payments.
+            card_number=payment_methods_pb2.SecretString(value="4111111111111111"),  # Card Identification.
             card_exp_month=payment_methods_pb2.SecretString(value="03"),
             card_exp_year=payment_methods_pb2.SecretString(value="2030"),
             card_cvc=payment_methods_pb2.SecretString(value="123"),
