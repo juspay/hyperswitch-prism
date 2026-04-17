@@ -2,14 +2,14 @@ use base64::Engine;
 use common_enums::{enums, AttemptStatus};
 use common_utils::{errors::CustomResult, request::Method};
 use domain_types::{
-    connector_flow::{Authorize, Capture, ClientAuthenticationToken, Void},
+    connector_flow::{Authorize, Capture, ClientAuthenticationToken, IncrementalAuthorization, Void},
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse, MandateReference,
         NexinetsClientAuthenticationResponse as NexinetsClientAuthenticationResponseDomain,
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        ResponseId,
+        PaymentsIncrementalAuthorizationData, PaymentsResponseData, RefundFlowData, RefundSyncData,
+        RefundsData, RefundsResponseData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{
@@ -1002,6 +1002,102 @@ impl TryFrom<ResponseRouterData<NexinetsClientAuthResponse, Self>>
         Ok(Self {
             response: Ok(PaymentsResponseData::ClientAuthenticationTokenResponse {
                 session_data,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
+}
+
+// ===== INCREMENTAL AUTHORIZATION FLOW STRUCTURES =====
+
+/// Request for Nexinets incremental authorization.
+/// Nexinets uses the capture endpoint structure to modify preauth amounts.
+/// The request sends the new total amount and currency.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NexinetsIncrementalAuthRequest {
+    pub initial_amount: i64,
+    pub currency: enums::Currency,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        NexinetsRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for NexinetsIncrementalAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: NexinetsRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            initial_amount: item.router_data.request.minor_amount.get_amount_as_i64(),
+            currency: item.router_data.request.currency,
+        })
+    }
+}
+
+/// Response from Nexinets incremental authorization.
+/// Reuses the same transaction response format as capture/void.
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NexinetsIncrementalAuthResponse {
+    pub transaction_id: String,
+    pub status: NexinetsPaymentStatus,
+    pub order: NexinetsOrder,
+    #[serde(rename = "type")]
+    pub transaction_type: NexinetsTransactionType,
+}
+
+impl TryFrom<ResponseRouterData<NexinetsIncrementalAuthResponse, Self>>
+    for RouterDataV2<
+        IncrementalAuthorization,
+        PaymentFlowData,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<NexinetsIncrementalAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let authorization_status = match item.response.status {
+            NexinetsPaymentStatus::Success | NexinetsPaymentStatus::Ok => {
+                common_enums::AuthorizationStatus::Success
+            }
+            NexinetsPaymentStatus::Pending | NexinetsPaymentStatus::InProgress => {
+                common_enums::AuthorizationStatus::Processing
+            }
+            NexinetsPaymentStatus::Failure
+            | NexinetsPaymentStatus::Declined
+            | NexinetsPaymentStatus::Expired
+            | NexinetsPaymentStatus::Aborted => common_enums::AuthorizationStatus::Failure,
+        };
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status: AttemptStatus::Authorized,
+                ..item.router_data.resource_common_data
+            },
+            response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                status: authorization_status,
+                connector_authorization_id: Some(item.response.transaction_id),
                 status_code: item.http_code,
             }),
             ..item.router_data

@@ -39,11 +39,11 @@ use serde::Serialize;
 use transformers::{
     self as nexinets, NexinetsCaptureOrVoidRequest,
     NexinetsCaptureOrVoidRequest as NexinetsVoidRequest, NexinetsClientAuthRequest,
-    NexinetsClientAuthResponse, NexinetsErrorResponse,
-    NexinetsPaymentResponse as NexinetsCaptureResponse, NexinetsPaymentResponse,
-    NexinetsPaymentResponse as NexinetsVoidResponse, NexinetsPaymentsRequest,
-    NexinetsPreAuthOrDebitResponse, NexinetsRefundRequest, NexinetsRefundResponse,
-    NexinetsRefundResponse as RefundSyncResponse,
+    NexinetsClientAuthResponse, NexinetsErrorResponse, NexinetsIncrementalAuthRequest,
+    NexinetsIncrementalAuthResponse, NexinetsPaymentResponse as NexinetsCaptureResponse,
+    NexinetsPaymentResponse, NexinetsPaymentResponse as NexinetsVoidResponse,
+    NexinetsPaymentsRequest, NexinetsPreAuthOrDebitResponse, NexinetsRefundRequest,
+    NexinetsRefundResponse, NexinetsRefundResponse as RefundSyncResponse,
 };
 
 use super::macros;
@@ -56,16 +56,6 @@ use error_stack::ResultExt;
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
     pub(crate) const AUTHORIZATION: &str = "Authorization";
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Nexinets<T>
-{
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
@@ -327,6 +317,12 @@ macros::create_all_prerequisites!(
             request_body: NexinetsClientAuthRequest,
             response_body: NexinetsClientAuthResponse,
             router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ),
+        (
+            flow: IncrementalAuthorization,
+            request_body: NexinetsIncrementalAuthRequest,
+            response_body: NexinetsIncrementalAuthResponse,
+            router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -611,6 +607,46 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/orders", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
+// IncrementalAuthorization — PATCH to
+// /orders/{order_id}/transactions/{transaction_id}
+// Per Nexinets PayEngine v1 API, the "Update order transaction" endpoint is a
+// PATCH on the transaction resource (not a POST /amend). Sends the new total
+// amount for the pre-authorized transaction.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Nexinets,
+    curl_request: Json(NexinetsIncrementalAuthRequest),
+    curl_response: NexinetsIncrementalAuthResponse,
+    flow_name: IncrementalAuthorization,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsIncrementalAuthorizationData,
+    flow_response: PaymentsResponseData,
+    http_method: Patch,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let meta: nexinets::NexinetsPaymentsMetadata =
+                utils::to_connector_meta(req.request.connector_feature_data.clone().map(|secret| secret.expose()))?;
+            let order_id = nexinets::get_order_id(&meta)?;
+            let transaction_id = nexinets::get_transaction_id(&meta)?;
+            Ok(format!(
+                "{}/orders/{order_id}/transactions/{transaction_id}",
+                self.connector_base_url_payments(req),
+            ))
         }
     }
 );
