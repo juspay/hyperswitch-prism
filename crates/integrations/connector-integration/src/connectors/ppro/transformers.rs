@@ -203,11 +203,11 @@ where
             .get_optional_billing_email()
             .or_else(|| router_data.request.get_optional_email());
 
-        let merchant_consumer_reference = Some(
-            router_data
+        let merchant_consumer_reference = Some(sanitize_merchant_consumer_reference(
+            &router_data
                 .resource_common_data
                 .get_connector_customer_id()?,
-        );
+        ));
 
         let consumer = router_data
             .resource_common_data
@@ -1114,11 +1114,11 @@ where
 
         let email = router_data.request.email.clone();
 
-        let merchant_consumer_reference = Some(
-            router_data
+        let merchant_consumer_reference = Some(sanitize_merchant_consumer_reference(
+            &router_data
                 .resource_common_data
                 .get_connector_customer_id()?,
-        );
+        ));
 
         let consumer = router_data
             .resource_common_data
@@ -1297,6 +1297,15 @@ pub fn get_ppro_bank_code(bank_name: common_enums::BankNames) -> Option<String> 
         common_enums::BankNames::VanLanschot => Some("FVLB".to_string()),
         _ => None,
     }
+}
+
+/// Sanitize the merchantConsumerReference
+fn sanitize_merchant_consumer_reference(connector_customer_id: &str) -> String {
+    connector_customer_id
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || "@$%&*-+/.,".contains(*c))
+        .take(50)
+        .collect()
 }
 
 /// TryFrom to convert a PPRO Agreement response into the RouterDataV2 for SetupMandate.
