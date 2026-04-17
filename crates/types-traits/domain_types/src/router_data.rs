@@ -711,6 +711,11 @@ pub enum ConnectorSpecificConfig {
         client_secret: Secret<String>,
         base_url: Option<String>,
     },
+    Sanlammultidata {
+        api_key: Secret<String>,
+        merchant_id: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -825,6 +830,7 @@ impl ConnectorSpecificConfig {
                 merchant_account,
                 api_secret
             },
+            Sanlammultidata { api_key, base_url },
             Bamboraapac {
                 username,
                 password,
@@ -1304,6 +1310,7 @@ impl ConnectorSpecificConfig {
                     api_secret,
                     merchant_acceptor_key
                 },
+                Sanlammultidata { api_key, base_url },
                 Trustpay {
                     api_key,
                     project_id,
@@ -1652,6 +1659,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 access_key: rapyd.access_key.ok_or_else(err)?,
                 secret_key: rapyd.secret_key.ok_or_else(err)?,
                 base_url: rapyd.base_url,
+            }),
+            AuthType::Sanlammultidata(sanlammultidata) => Ok(Self::Sanlammultidata {
+                api_key: sanlammultidata.api_key.ok_or_else(err)?,
+                merchant_id: sanlammultidata.merchant_id.ok_or_else(err)?,
+                base_url: sanlammultidata.base_url,
             }),
             AuthType::Redsys(redsys) => Ok(Self::Redsys {
                 merchant_id: redsys.merchant_id.ok_or_else(err)?,
@@ -2146,6 +2158,15 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                     product_name: None,
                     merchant_purchase_description: None,
                     statement_descriptor: None,
+                }),
+                _ => Err(err().into()),
+            },
+
+            ConnectorEnum::Sanlammultidata => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Sanlammultidata {
+                    api_key: api_key.clone(),
+                    merchant_id: key1.clone(),
+                    base_url: None,
                 }),
                 _ => Err(err().into()),
             },

@@ -361,11 +361,13 @@ fn create_and_emit_grpc_event<R>(
         flow_type: flow_name,
         connector: metadata_payload.map_or("unknown".to_string(), |md| md.connector.to_string()),
         url: None,
+        method: None,
         stage: EventStage::GrpcRequest,
         latency_ms: Some(u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX)),
         status_code: None,
         request_data: masked_request_data,
         response_data: None,
+        error: None,
         headers: masked_headers,
         additional_fields: HashMap::new(),
         lineage_ids: metadata_payload
