@@ -841,7 +841,8 @@ impl<F, Req> TryFrom<ResponseRouterData<PproPaymentsResponse, Self>>
             resource_common_data: PaymentFlowData {
                 status,
                 amount: response_amount.or(item.router_data.resource_common_data.amount),
-                amount_captured: captured_amount.or(item.router_data.resource_common_data.amount_captured),
+                amount_captured: captured_amount
+                    .or(item.router_data.resource_common_data.amount_captured),
                 ..item.router_data.resource_common_data
             },
             response,

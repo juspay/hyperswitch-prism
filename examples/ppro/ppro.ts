@@ -91,7 +91,12 @@ function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
     };
 }
 
-function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServiceVoidRequest {
+function _buildVerifyRedirectRequest(): PaymentServiceVerifyRedirectResponseRequest {
+    return {
+    };
+}
+
+function _buildVoidRequest(connectorTransactionId: string): PaymentServiceVoidRequest {
     return {
         "merchantVoidId": "probe_void_001",  // Identification.
         "connectorTransactionId": connectorTransactionId,
@@ -155,7 +160,16 @@ async function refundGet(merchantTransactionId: string, config: types.IConnector
 
     const refundResponse = await refundClient.refundGet(_buildRefundGetRequest());
 
-    return refundResponse;
+    return { status: refundResponse.status };
+}
+
+// Flow: PaymentService.VerifyRedirectResponse
+async function verifyRedirect(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceVerifyRedirectResponseResponse> {
+    const paymentClient = new PaymentClient(config);
+
+    const verifyResponse = await paymentClient.verifyRedirect(_buildVerifyRedirectRequest());
+
+    return { status: verifyResponse.status };
 }
 
 // Flow: PaymentService.Void
@@ -170,7 +184,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    capture, get, handleEvent, recurringCharge, refund, refundGet, voidPayment, _buildCaptureRequest, _buildGetRequest, _buildHandleEventRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
+    capture, get, handleEvent, recurringCharge, refund, refundGet, verifyRedirect, voidPayment, _buildCaptureRequest, _buildGetRequest, _buildHandleEventRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVerifyRedirectRequest, _buildVoidRequest
 };
 
 // CLI runner

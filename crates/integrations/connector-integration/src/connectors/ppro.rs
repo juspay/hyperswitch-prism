@@ -27,12 +27,11 @@ use domain_types::{
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
-        RedirectDetailsResponse, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails,
-        ResponseId, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        SetupMandateRequestData, SubmitEvidenceData, SupportedPaymentMethodsExt,
-        WebhookDetailsResponse,
+        RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, RequestDetails, ResponseId, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData, ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData, SubmitEvidenceData,
+        SupportedPaymentMethodsExt, WebhookDetailsResponse,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -606,14 +605,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: &RequestDetails,
     ) -> CustomResult<RedirectDetailsResponse, IntegrationError> {
-        let charge_id = request
-            .query_params
-            .as_deref()
-            .and_then(|qs| {
-                url::form_urlencoded::parse(qs.as_bytes())
-                    .find(|(k, _)| k == "payment-charge-id")
-                    .map(|(_, v)| v.into_owned())
-            });
+        let charge_id = request.query_params.as_deref().and_then(|qs| {
+            url::form_urlencoded::parse(qs.as_bytes())
+                .find(|(k, _)| k == "payment-charge-id")
+                .map(|(_, v)| v.into_owned())
+        });
 
         Ok(RedirectDetailsResponse {
             resource_id: charge_id.map(ResponseId::ConnectorTransactionId),

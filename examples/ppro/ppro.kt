@@ -13,6 +13,14 @@ import payments.PaymentClient
 import payments.EventClient
 import payments.RecurringPaymentClient
 import payments.RefundClient
+import payments.PaymentServiceCaptureRequest
+import payments.PaymentServiceGetRequest
+import payments.EventServiceHandleRequest
+import payments.RecurringPaymentServiceChargeRequest
+import payments.PaymentServiceRefundRequest
+import payments.RefundServiceGetRequest
+import payments.PaymentServiceVerifyRedirectResponseRequest
+import payments.PaymentServiceVoidRequest
 import payments.Currency
 import payments.PaymentMethodType
 import payments.ConnectorConfig
@@ -166,9 +174,19 @@ fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: PaymentService.VerifyRedirectResponse
+fun verifyRedirect(txnId: String) {
+    val client = PaymentClient(_defaultConfig)
+    val request = PaymentServiceVerifyRedirectResponseRequest.newBuilder().apply {
+
+    }.build()
+    val response = client.verify_redirect(request)
+    println("Status: ${response.status.name}")
+}
+
 // Flow: PaymentService.Void
-fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentClient(config)
+fun void(txnId: String) {
+    val client = PaymentClient(_defaultConfig)
     val request = buildVoidRequest("probe_connector_txn_001")
     val response = client.void(request)
     if (response.status.name == "FAILED")
@@ -187,7 +205,8 @@ fun main(args: Array<String>) {
         "recurringCharge" -> recurringCharge(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
+        "verifyRedirect" -> verifyRedirect(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, get, handleEvent, recurringCharge, refund, refundGet, void")
+        else -> System.err.println("Unknown flow: $flow. Available: capture, get, handleEvent, recurringCharge, refund, refundGet, verifyRedirect, void")
     }
 }
