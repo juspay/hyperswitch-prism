@@ -1094,17 +1094,7 @@ fn build_paypal_card_source_from_apple_pay<
         })?;
 
     // PayPal card expiry is YYYY-MM.
-    let exp_month_secret = apple_pay_decrypted_data.get_expiry_month();
-    let exp_year_full_secret = apple_pay_decrypted_data.get_four_digit_expiry_year();
-    let exp_month_str = exp_month_secret.expose();
-    let formatted_exp_month = format!("{exp_month_str:0>2}");
-    let exp_year_full = exp_year_full_secret.expose();
-    let formatted_exp_year = if exp_year_full.len() == 4 {
-        exp_year_full
-    } else {
-        format!("20{exp_year_full}")
-    };
-    let expiry = Secret::new(format!("{formatted_exp_year}-{formatted_exp_month}"));
+    let expiry = apple_pay_decrypted_data.get_expiry_date_as_yyyymm("-");
 
     let card_number_string = apple_pay_decrypted_data
         .application_primary_account_number

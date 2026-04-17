@@ -1240,6 +1240,13 @@ impl ApplePayDecryptedData {
         let month = self.application_expiration_month.clone().expose();
         Ok(Secret::new(format!("{month}{year}")))
     }
+
+    /// Get the expiry date in YYYY{delimiter}MM format from the Apple Pay pre-decrypt data
+    pub fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String> {
+        let year = self.get_four_digit_expiry_year();
+        let month = self.application_expiration_month.peek().clone();
+        Secret::new(format!("{}{}{:0>2}", year.peek(), delimiter, month))
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
