@@ -187,7 +187,7 @@ connector_id: dlocal
 doc: docs/connectors/dlocal.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, proxy_authorize, recurring_charge, refund, refund_get, void
+flows: authorize, capture, get, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
 examples_python: examples/dlocal/dlocal.py
 
 ## Elavon
@@ -371,7 +371,7 @@ connector_id: nmi
 doc: docs/connectors/nmi.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Ach, Card, GooglePay, GooglePayDecrypted
-flows: authorize, capture, get, pre_authenticate, proxy_authorize, refund, refund_get, void
+flows: authorize, capture, get, pre_authenticate, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
 examples_python: examples/nmi/nmi.py
 
 ## Noon
@@ -603,7 +603,7 @@ connector_id: trustpay
 doc: docs/connectors/trustpay.md
 scenarios: checkout_autocapture, refund, get_payment
 payment_methods: Blik, Card, Eps, Giropay, Ideal, InstantBankTransfer, InstantBankTransferFinland, InstantBankTransferPoland, SepaBankTransfer, Sofort
-flows: authorize, create_order, create_server_authentication_token, get, handle_event, proxy_authorize, refund, refund_get
+flows: authorize, create_order, create_server_authentication_token, get, handle_event, proxy_authorize, recurring_charge, refund, refund_get
 examples_python: examples/trustpay/trustpay.py
 
 ## Trustpayments
