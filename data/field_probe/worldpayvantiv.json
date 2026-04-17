@@ -586,7 +586,7 @@
     "recurring_charge": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: token.expDate — Missing required field: token.expDate"
+        "error": "Stuck on field: mandate_reference.connector_mandate_id[expDate]. Expected connector_mandate_id to encode the token expiry as — Missing required field: mandate_reference.connector_mandate_id[expDate]. Expected connector_mandate_id to encode the token expiry as \"<cnpToken>|<MMYY>[|<NTI>]\"; rerun SetupMandate against a tokenization-enabled merchant account to populate it."
       }
     },
     "recurring_revoke": {
