@@ -263,13 +263,16 @@ jobs:
           RUSTUP_TOOLCHAIN: stable
         run: make -C sdk generate PROFILE=release-fast
 
-      - name: Restore field-probe binary cache
+      - name: Restore docs binaries cache
         id: field-probe-cache-restore
         if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true'
         uses: actions/cache/restore@v4
         with:
-          path: target/x86_64-unknown-linux-gnu/release-fast/field-probe
-          key: field-probe-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml', 'crates/**/*.rs', 'crates/**/*.proto') }}
+          path: |
+            target/x86_64-unknown-linux-gnu/release-fast/field-probe
+            target/x86_64-unknown-linux-gnu/release-fast/libconnector_service_ffi.so
+            target/x86_64-unknown-linux-gnu/release-fast/uniffi-bindgen
+          key: docs-binaries-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml', 'crates/**/*.rs', 'crates/**/*.proto') }}
 
       - name: Build field-probe + FFI + uniffi-bindgen (cache miss)
         if: >-
@@ -281,27 +284,26 @@ jobs:
           cargo build -p field-probe -p ffi -p uniffi-bindgen \
             --target x86_64-unknown-linux-gnu --profile release-fast
 
-      - name: Save field-probe binary cache
+      - name: Save docs binaries cache
         if: >-
           (needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true') &&
           steps.field-probe-cache-restore.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: target/x86_64-unknown-linux-gnu/release-fast/field-probe
-          key: field-probe-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml', 'crates/**/*.rs', 'crates/**/*.proto') }}
+          path: |
+            target/x86_64-unknown-linux-gnu/release-fast/field-probe
+            target/x86_64-unknown-linux-gnu/release-fast/libconnector_service_ffi.so
+            target/x86_64-unknown-linux-gnu/release-fast/uniffi-bindgen
+          key: docs-binaries-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml', 'crates/**/*.rs', 'crates/**/*.proto') }}
 
       - name: Generate UniFFI Kotlin bindings
-        if: >-
-          (needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true') &&
-          steps.field-probe-cache-restore.outputs.cache-hit != 'true'
+        if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true'
         env:
           RUSTUP_TOOLCHAIN: stable
         run: make -C sdk/java generate-bindings PROFILE=release-fast
 
       - name: Publish Java SDK to Maven Local
-        if: >-
-          (needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true') &&
-          steps.field-probe-cache-restore.outputs.cache-hit != 'true'
+        if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true'
         run: cd sdk/java && ./gradlew publishToMavenLocal -q
 
       - name: Generate documentation
