@@ -136,8 +136,8 @@ generate-python: ## Regenerate Python SDK client (flows + protobuf stubs)
 generate-javascript: ## Regenerate JavaScript/TypeScript SDK client (flows)
 	@$(MAKE) -C $(MAKEFILE_DIR)javascript generate-flows
 
-generate-kotlin: ## Regenerate Kotlin SDK client (flows + bindings)
-	@$(MAKE) -C $(MAKEFILE_DIR)java generate-bindings generate-flows
+generate-kotlin: ## Regenerate Kotlin SDK client (Java proto stubs + UniFFI bindings + flows)
+	@$(MAKE) -C $(MAKEFILE_DIR)java generate-proto generate-bindings generate-flows
 
 
 

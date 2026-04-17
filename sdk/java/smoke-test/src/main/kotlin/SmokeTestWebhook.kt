@@ -2,8 +2,8 @@
  * Webhook smoke test — Adyen AUTHORISATION
  *
  * Uses a real Adyen AUTHORISATION webhook body and feeds it into
- * EventClient.handle_event / parse_event with connector identity only
- * (no API credentials, no webhook secret).
+ * EventClient.parse_event / handle_event with connector identity only
+ * (no API credentials, no webhook secret for parse; handle may still need secrets for verify).
  *
  * What this validates:
  *  1. SDK routes to the correct connector from identity alone
@@ -107,8 +107,7 @@ fun testHandleEvent(): Boolean {
                 .setBody(com.google.protobuf.ByteString.copyFromUtf8(ADYEN_WEBHOOK_BODY))
                 .build()
         )
-        // capture_method is the EventContext use case:
-        // Adyen AUTHORISATION maps to AUTHORIZED (manual) or CAPTURED (automatic)
+        // capture_method: Adyen AUTHORISATION maps to AUTHORIZED (manual) or CAPTURED (automatic)
         .setEventContext(
             EventContext.newBuilder()
                 .setPayment(
@@ -142,7 +141,7 @@ fun testHandleEvent(): Boolean {
     }
 }
 
-// ── Test 2: parse_event ────────────────────────────────────────────────────────
+// ── Test 2: parse_event — AUTHORISATION (no credentials) ───────────────────────
 fun testParseEvent(): Boolean {
     println(bold("\n[Adyen Webhook — AUTHORISATION parse_event]"))
     val client = EventClient(buildConfig())

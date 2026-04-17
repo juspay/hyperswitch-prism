@@ -7,6 +7,8 @@
 
 package examples.payload
 
+import types.Payment.*
+import payments.EventClient
 import payments.PaymentClient
 import payments.MerchantAuthenticationClient
 import payments.RecurringPaymentClient
@@ -293,8 +295,6 @@ fun get(txnId: String) {
     println("Status: ${response.status.name}")
 }
 
-<<<<<<< Updated upstream
-=======
 // Flow: EventService.HandleEvent
 fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = EventClient(config)
@@ -305,7 +305,6 @@ fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Webhook: type=${response.eventType.name} verified=${response.sourceVerified}")
 }
 
->>>>>>> Stashed changes
 // Flow: PaymentService.ProxyAuthorize
 fun proxyAuthorize(txnId: String) {
     val client = PaymentClient(_defaultConfig)
