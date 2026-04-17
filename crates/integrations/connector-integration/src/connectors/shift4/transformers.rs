@@ -1317,9 +1317,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        // Prefer caller-supplied amount, fall back to 0 for a zero-dollar
-        // verification. Shift4 accepts 0-amount auth for card-on-file.
-        let amount = item.request.minor_amount.unwrap_or(MinorUnit::new(0));
+        // Require the caller to specify an amount. Shift4 accepts 0 for
+        // card-on-file verification, but we don't silently default to it —
+        // the caller must pass 0 explicitly if that's what they mean, so a
+        // missing amount is always a client error rather than an implicit
+        // zero-dollar auth.
+        let amount = item.request.minor_amount.ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "amount",
+                context: Default::default(),
+            })
+        })?;
 
         // captured=false for SetupMandate; we only authorize (or
         // verify) to store the card-on-file. `customer_id` is the
