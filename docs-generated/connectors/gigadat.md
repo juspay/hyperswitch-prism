@@ -22,11 +22,16 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        gigadat=payment_pb2.GigadatConfig(
+            campaign_id=payment_methods_pb2.SecretString(value="YOUR_CAMPAIGN_ID"),
+            access_token=payment_methods_pb2.SecretString(value="YOUR_ACCESS_TOKEN"),
+            security_token=payment_methods_pb2.SecretString(value="YOUR_SECURITY_TOKEN"),
+            base_url="YOUR_BASE_URL",
+            site="YOUR_SITE",
+        ),
+    ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     gigadat=payment_pb2.GigadatConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,14 +43,20 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Gigadat',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
+const config = ConnectorConfig.create({
+    connector: Connector.GIGADAT,
+    environment: Environment.SANDBOX,
+    auth: {
+        gigadat: {
+            campaignId: { value: 'YOUR_CAMPAIGN_ID' },
+            accessToken: { value: 'YOUR_ACCESS_TOKEN' },
+            securityToken: { value: 'YOUR_SECURITY_TOKEN' },
+            baseUrl: 'YOUR_BASE_URL',
+            site: 'YOUR_SITE',
+        }
     },
 });
 ```
@@ -59,11 +70,17 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Gigadat")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setGigadat(GigadatConfig.newBuilder()
+                .setCampaignId(SecretString.newBuilder().setValue("YOUR_CAMPAIGN_ID").build())
+                .setAccessToken(SecretString.newBuilder().setValue("YOUR_ACCESS_TOKEN").build())
+                .setSecurityToken(SecretString.newBuilder().setValue("YOUR_SECURITY_TOKEN").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .setSite("YOUR_SITE")
+                .build())
+            .build()
     )
     .build()
 ```
@@ -76,13 +93,23 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Gigadat".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Gigadat(GigadatConfig {
+                campaign_id: Some(hyperswitch_masking::Secret::new("YOUR_CAMPAIGN_ID".to_string())),  // Authentication credential
+                access_token: Some(hyperswitch_masking::Secret::new("YOUR_ACCESS_TOKEN".to_string())),  // Authentication credential
+                security_token: Some(hyperswitch_masking::Secret::new("YOUR_SECURITY_TOKEN".to_string())),  // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                site: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -218,7 +245,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/gigadat/gigadat.py#L52) · [TypeScript](../../examples/gigadat/gigadat.ts#L49) · [Kotlin](../../examples/gigadat/gigadat.kt#L50) · [Rust](../../examples/gigadat/gigadat.rs#L51)
+**Examples:** [Python](../../examples/gigadat/gigadat.py) · [TypeScript](../../examples/gigadat/gigadat.ts#L55) · [Kotlin](../../examples/gigadat/gigadat.kt#L65) · [Rust](../../examples/gigadat/gigadat.rs)
 
 #### PaymentService.Refund
 
@@ -229,4 +256,4 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/gigadat/gigadat.py#L61) · [TypeScript](../../examples/gigadat/gigadat.ts#L58) · [Kotlin](../../examples/gigadat/gigadat.kt#L58) · [Rust](../../examples/gigadat/gigadat.rs#L58)
+**Examples:** [Python](../../examples/gigadat/gigadat.py) · [TypeScript](../../examples/gigadat/gigadat.ts#L64) · [Kotlin](../../examples/gigadat/gigadat.kt#L73) · [Rust](../../examples/gigadat/gigadat.rs)
