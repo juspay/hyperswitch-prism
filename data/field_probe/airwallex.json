@@ -554,7 +554,8 @@
     },
     "create_customer": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Failed to obtain authentication type"
       }
     },
     "create_order": {
