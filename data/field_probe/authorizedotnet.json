@@ -77,7 +77,7 @@
       },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: SEPA, SEPA Guaranteed, BECS, and BACS bank debits are not supported for authorizedotnet"
+        "error": "This feature is not implemented: SEPA, SEPA Guaranteed, BECS, EFT, and BACS bank debits are not supported for authorizedotnet"
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
@@ -93,7 +93,7 @@
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: SEPA, SEPA Guaranteed, BECS, and BACS bank debits are not supported for authorizedotnet"
+        "error": "This feature is not implemented: SEPA, SEPA Guaranteed, BECS, EFT, and BACS bank debits are not supported for authorizedotnet"
       },
       "Bizum": {
         "status": "not_implemented",
@@ -387,7 +387,7 @@
       },
       "Sepa": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: SEPA, SEPA Guaranteed, BECS, and BACS bank debits are not supported for authorizedotnet"
+        "error": "This feature is not implemented: SEPA, SEPA Guaranteed, BECS, EFT, and BACS bank debits are not supported for authorizedotnet"
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
@@ -395,7 +395,7 @@
       },
       "SepaGuaranteedDebit": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: SEPA, SEPA Guaranteed, BECS, and BACS bank debits are not supported for authorizedotnet"
+        "error": "This feature is not implemented: SEPA, SEPA Guaranteed, BECS, EFT, and BACS bank debits are not supported for authorizedotnet"
       },
       "SevenEleven": {
         "status": "not_implemented",

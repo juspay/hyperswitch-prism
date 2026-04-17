@@ -1,0 +1,6 @@
+{
+  "connector": "sanlammultidata",
+  "supported_suites": [
+    "authorize"
+  ]
+}
