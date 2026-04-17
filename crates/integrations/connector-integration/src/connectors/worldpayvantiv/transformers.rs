@@ -12,7 +12,7 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -201,6 +201,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     enhanced_data: None,
                     processing_instructions: None,
                     cardholder_authentication: None,
+                    processing_type: None,
+                    original_network_transaction_id: None,
                 };
                 (Some(authorization), None)
             };
@@ -332,6 +334,10 @@ pub struct Authorization<T: PaymentMethodDataTypes> {
     pub processing_instructions: Option<ProcessingInstructions>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cardholder_authentication: Option<CardholderAuthentication>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub processing_type: Option<VantivProcessingType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub original_network_transaction_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -2695,20 +2701,24 @@ fn is_payment_failure(status: common_enums::AttemptStatus) -> bool {
 // reject the request.
 fn extract_exp_date_mmyy<T: PaymentMethodDataTypes>(pmd: &PaymentMethodData<T>) -> Option<String> {
     match pmd {
-        PaymentMethodData::Card(card_data) => {
-            let year_str = card_data.card_exp_year.peek();
-            let formatted_year = if year_str.len() == 4 {
-                &year_str[2..]
-            } else {
-                year_str.as_str()
-            };
-            Some(format!(
-                "{}{}",
-                card_data.card_exp_month.peek(),
-                formatted_year
-            ))
-        }
+        PaymentMethodData::Card(card_data) => card_data
+            .get_expiry_date_as_mmyy()
+            .ok()
+            .map(|exp| exp.expose()),
         _ => None,
+    }
+}
+
+// Truncate merchant_txn_id to Vantiv's 28-character cap on <authorization id=..>
+// / <sale id=..>. UUID-based connector_request_reference_ids (36 chars) otherwise
+// overflow the schema; the full reference is still preserved on order_id.
+fn truncate_merchant_txn_id(raw: String) -> String {
+    if raw.len() > worldpayvantiv_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH {
+        raw.chars()
+            .take(worldpayvantiv_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH)
+            .collect()
+    } else {
+        raw
     }
 }
 
@@ -2763,24 +2773,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }
                 };
 
-                let year_str = card_data.card_exp_year.peek();
-                let formatted_year = if year_str.len() == 4 {
-                    &year_str[2..]
-                } else {
-                    year_str
-                };
-                let exp_date = format!("{}{}", card_data.card_exp_month.peek(), formatted_year);
-
                 let worldpay_card = WorldpayvantivCardData {
                     card_type,
                     number: card_data.card_number.clone(),
-                    exp_date: exp_date.into(),
+                    exp_date: card_data.get_expiry_date_as_mmyy()?,
                     card_validation_num: Some(card_data.card_cvc.clone()),
                 };
 
+                // CIT under card-on-file: tag the zero-dollar authorization as
+                // `initialCOF` so Vantiv links the resulting cnpToken to the
+                // customer-initiated mandate setup. Subsequent MIT sales then
+                // reuse that token under `merchantInitiatedCOF`.
                 PaymentInfo::Card(CardData {
                     card: worldpay_card,
-                    processing_type: None,
+                    processing_type: Some(VantivProcessingType::InitialCOF),
                     network_transaction_id: None,
                 })
             }
@@ -2794,26 +2800,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        // The SetupMandate `connector_request_reference_id` can be the
-        // merchant_recurring_payment_id (UUID, 36 chars) which exceeds
-        // Vantiv's 28-character cap on `<authorization id=...>`. Truncate
-        // rather than failing — the id is only used for connector-side
-        // tracing and the order_id keeps the full reference.
-        let raw_merchant_txn_id = item
-            .router_data
-            .resource_common_data
-            .connector_request_reference_id
-            .clone();
-        let merchant_txn_id = if raw_merchant_txn_id.len()
-            > worldpayvantiv_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH
-        {
-            raw_merchant_txn_id
-                .chars()
-                .take(worldpayvantiv_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH)
-                .collect::<String>()
-        } else {
-            raw_merchant_txn_id
-        };
+        let merchant_txn_id = truncate_merchant_txn_id(
+            item.router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+        );
 
         let report_group = extract_report_group(&item.router_data.connector_config)
             .unwrap_or_else(|| "rtpGrp".to_string());
@@ -2823,7 +2815,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Zero-dollar Authorization: Vantiv returns tokenResponse automatically
         // when tokenization is enabled on the merchant account (standard for
-        // mandate setup).
+        // mandate setup). `processingType`/`originalNetworkTransactionId` are
+        // carried on the flattened CardData (initialCOF), not on Authorization.
         let authorization = Authorization {
             id: format!("{}_{}", OperationId::Auth, merchant_txn_id),
             report_group,
@@ -2838,8 +2831,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             enhanced_data: None,
             processing_instructions: None,
             cardholder_authentication: None,
+            processing_type: None,
+            original_network_transaction_id: None,
         };
 
+        // `cnpOnlineRequest` is a choice element: the schema expects exactly
+        // one of authorization/sale/capture/authReversal/void/credit per call.
+        // SetupMandate always issues a zero-dollar <authorization>, so the
+        // other branches are unconditionally None.
         let cnp_request = CnpOnlineRequest {
             version: worldpayvantiv_constants::WORLDPAYVANTIV_VERSION.to_string(),
             xmlns: worldpayvantiv_constants::XMLNS.to_string(),
@@ -2926,10 +2925,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // we cannot construct a reusable mandate ID (cnpTxnId is a one-shot
         // transaction id, not a token) so we surface a clear error rather
         // than silently returning an ID that RepeatPayment would reject.
-        // Vantiv requires an <expDate> alongside <cnpToken> on MIT sale requests,
-        // so when the card details are available we pack them together as
-        // "cnpToken|MMYY" into the connector_mandate_id. RepeatPayment splits
-        // on `|` to recover both fields.
         let cnp_token = auth_response
             .token_response
             .as_ref()
@@ -2948,26 +2943,33 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )
             })?;
 
-        let packed_exp_date = extract_exp_date_mmyy(&item.router_data.request.payment_method_data);
-        let connector_mandate_id = match packed_exp_date.as_deref() {
-            Some(exp) if !exp.is_empty() => format!("{cnp_token}|{exp}"),
-            _ => cnp_token,
-        };
-
         let network_txn_id = auth_response
             .network_transaction_id
             .clone()
             .map(|id| id.expose());
 
-        // Surface NTI inside `connector_mandate_request_reference_id` so the
-        // downstream RepeatPayment (MIT) flow can submit it as
-        // <originalNetworkTransactionId> alongside the cnpToken. The same
-        // value is also returned on `PaymentsResponseData.network_txn_id`
-        // for protocol parity.
+        // Vantiv's MIT <sale>/<authorization> requires the <expDate> sibling of
+        // <cnpToken>, and Visa/MC stored-credential compliance recommends
+        // echoing the original CIT's network transaction id as
+        // <originalNetworkTransactionId>. Neither field has a first-class slot
+        // on `MandateReference`, so pack them after the token:
+        //     "<cnpToken>|<MMYY>[|<NTI>]"
+        // RepeatPayment splits on `|` to recover them. NTI intentionally does
+        // NOT reuse `connector_mandate_request_reference_id`, which is the
+        // merchant's own mandate-setup reference — not an NTI carrier.
+        let packed_exp_date = extract_exp_date_mmyy(&item.router_data.request.payment_method_data);
+        let connector_mandate_id = match (packed_exp_date.as_deref(), network_txn_id.as_deref()) {
+            (Some(exp), Some(nti)) if !exp.is_empty() && !nti.is_empty() => {
+                format!("{cnp_token}|{exp}|{nti}")
+            }
+            (Some(exp), _) if !exp.is_empty() => format!("{cnp_token}|{exp}"),
+            _ => cnp_token,
+        };
+
         let mandate_reference = Some(Box::new(MandateReference {
             connector_mandate_id: Some(connector_mandate_id),
             payment_method_id: None,
-            connector_mandate_request_reference_id: network_txn_id.clone(),
+            connector_mandate_request_reference_id: None,
         }));
 
         let payments_response = PaymentsResponseData::TransactionResponse {
@@ -3032,62 +3034,66 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             password: auth.password,
         };
 
-        // SetupMandate packed the cnpToken as "cnpToken|MMYY" and stashed NTI
-        // under `connector_mandate_request_reference_id`. Recover both.
-        let (cnp_token, exp_date, original_nti) = match &router_data.request.mandate_reference {
-            MandateReferenceId::ConnectorMandateId(cm) => {
-                let packed = cm.get_connector_mandate_id().ok_or_else(|| {
-                    IntegrationError::MissingRequiredField {
-                        field_name: "connector_mandate_id",
+        // SetupMandate packed the token triple as "cnpToken|MMYY[|NTI]" into
+        // connector_mandate_id. Recover each part here — NTI is intentionally
+        // not read from connector_mandate_request_reference_id (that field is
+        // the merchant's mandate-setup reference, not an NTI carrier).
+        let (cnp_token, card_expiry_mmyy, original_network_transaction_id) =
+            match &router_data.request.mandate_reference {
+                MandateReferenceId::ConnectorMandateId(connector_mandate) => {
+                    let packed_mandate_id = connector_mandate
+                        .get_connector_mandate_id()
+                        .ok_or_else(|| IntegrationError::MissingRequiredField {
+                            field_name: "connector_mandate_id",
+                            context: Default::default(),
+                        })?;
+                    let mut parts = packed_mandate_id.splitn(3, '|');
+                    let cnp_token = parts.next().unwrap_or_default().to_owned();
+                    let card_expiry_mmyy = parts.next().map(str::to_owned);
+                    let original_network_transaction_id = parts
+                        .next()
+                        .filter(|v| !v.is_empty())
+                        .map(|v| Secret::new(v.to_owned()));
+                    (cnp_token, card_expiry_mmyy, original_network_transaction_id)
+                }
+                _ => {
+                    return Err(IntegrationError::NotSupported {
+                        message: "Worldpayvantiv MIT requires ConnectorMandateId with cnpToken"
+                            .to_string(),
+                        connector: "worldpayvantiv",
                         context: Default::default(),
                     }
-                })?;
-                let (token, exp) = match packed.split_once('|') {
-                    Some((t, e)) => (t.to_string(), Some(e.to_string())),
-                    None => (packed, None),
-                };
-                let nti = cm
-                    .get_connector_mandate_request_reference_id()
-                    .map(Secret::new);
-                (token, exp, nti)
-            }
-            _ => {
-                return Err(IntegrationError::NotSupported {
-                    message: "Worldpayvantiv MIT requires ConnectorMandateId with cnpToken"
-                        .to_string(),
-                    connector: "worldpayvantiv",
-                    context: Default::default(),
+                    .into())
                 }
-                .into())
-            }
-        };
+            };
 
-        let exp_date = exp_date.ok_or_else(|| IntegrationError::MissingRequiredField {
-            field_name: "token.expDate",
-            context: Default::default(),
-        })?;
+        let card_expiry_mmyy =
+            card_expiry_mmyy.ok_or_else(|| IntegrationError::MissingRequiredField {
+                field_name: "mandate_reference.connector_mandate_id[expDate]",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Expected connector_mandate_id to encode the token expiry as \
+                         \"<cnpToken>|<MMYY>[|<NTI>]\"; rerun SetupMandate against a \
+                         tokenization-enabled merchant account to populate it."
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
 
         let payment_info = PaymentInfo::Token(TokenData {
             token: TokenizationData {
                 cnp_token: Secret::new(cnp_token),
-                exp_date: Secret::new(exp_date),
+                exp_date: Secret::new(card_expiry_mmyy),
             },
         });
 
-        let raw_merchant_txn_id = router_data
-            .resource_common_data
-            .connector_request_reference_id
-            .clone();
-        let merchant_txn_id = if raw_merchant_txn_id.len()
-            > worldpayvantiv_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH
-        {
-            raw_merchant_txn_id
-                .chars()
-                .take(worldpayvantiv_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH)
-                .collect::<String>()
-        } else {
-            raw_merchant_txn_id
-        };
+        let merchant_txn_id = truncate_merchant_txn_id(
+            router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+        );
 
         let report_group = extract_report_group(&router_data.connector_config)
             .unwrap_or_else(|| "rtpGrp".to_string());
@@ -3096,23 +3102,48 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let ship_to_address = get_shipping_address(&router_data.resource_common_data);
 
         let amount = router_data.request.minor_amount;
+        let customer_id =
+            extract_customer_id(&router_data.resource_common_data.customer_id).map(Secret::new);
 
-        let sale = Sale {
-            id: format!("{}_{}", OperationId::Sale, merchant_txn_id),
-            report_group,
-            customer_id: extract_customer_id(&router_data.resource_common_data.customer_id)
-                .map(Secret::new),
-            order_id: merchant_txn_id,
-            amount,
-            order_source: OrderSource::Ecommerce,
-            bill_to_address,
-            ship_to_address,
-            payment_info,
-            enhanced_data: None,
-            processing_instructions: None,
-            cardholder_authentication: None,
-            processing_type: Some(VantivProcessingType::MerchantInitiatedCOF),
-            original_network_transaction_id: original_nti,
+        // Manual capture → <authorization> (capture happens via a separate
+        // Capture call). Auto capture → single-step <sale>. The choice is the
+        // same schema split as the CIT Authorize flow above.
+        let (authorization, sale) = if router_data.request.is_auto_capture() {
+            let sale = Sale {
+                id: format!("{}_{}", OperationId::Sale, merchant_txn_id),
+                report_group,
+                customer_id,
+                order_id: merchant_txn_id,
+                amount,
+                order_source: OrderSource::Ecommerce,
+                bill_to_address,
+                ship_to_address,
+                payment_info,
+                enhanced_data: None,
+                processing_instructions: None,
+                cardholder_authentication: None,
+                processing_type: Some(VantivProcessingType::MerchantInitiatedCOF),
+                original_network_transaction_id,
+            };
+            (None, Some(sale))
+        } else {
+            let authorization = Authorization {
+                id: format!("{}_{}", OperationId::Auth, merchant_txn_id),
+                report_group,
+                customer_id,
+                order_id: merchant_txn_id,
+                amount,
+                order_source: OrderSource::Ecommerce,
+                bill_to_address,
+                ship_to_address,
+                payment_info,
+                enhanced_data: None,
+                processing_instructions: None,
+                cardholder_authentication: None,
+                processing_type: Some(VantivProcessingType::MerchantInitiatedCOF),
+                original_network_transaction_id,
+            };
+            (Some(authorization), None)
         };
 
         let cnp_request = CnpOnlineRequest {
@@ -3120,8 +3151,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             xmlns: worldpayvantiv_constants::XMLNS.to_string(),
             merchant_id: auth.merchant_id,
             authentication,
-            authorization: None,
-            sale: Some(sale),
+            authorization,
+            sale,
             capture: None,
             auth_reversal: None,
             void: None,
@@ -3132,16 +3163,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-// TryFrom for RepeatPayment response — reuses <saleResponse> parsing.
+// TryFrom for RepeatPayment response — parses either <saleResponse>
+// (auto-capture) or <authorizationResponse> (manual-capture) and maps to the
+// corresponding WorldpayvantivPaymentFlow so `get_attempt_status` picks
+// Charged vs Authorized correctly.
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
     for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
     type Error = Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<CnpOnlineResponse, Self>) -> Result<Self, Self::Error> {
-        let sale_response = match item.response.sale_response.as_ref() {
-            Some(r) => r,
-            None => {
+        let (payment_response, flow) = match (
+            item.response.sale_response.as_ref(),
+            item.response.authorization_response.as_ref(),
+        ) {
+            (Some(sale_response), None) => (sale_response, WorldpayvantivPaymentFlow::Sale),
+            (None, Some(auth_response)) => (auth_response, WorldpayvantivPaymentFlow::Auth),
+            (None, None) => {
                 let error_response = ErrorResponse {
                     code: item.response.response_code,
                     message: item.response.message.clone(),
@@ -3162,18 +3200,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ..item.router_data
                 });
             }
+            (Some(_), Some(_)) => {
+                return Err(Report::from(crate::utils::unexpected_response_fail(
+                    item.http_code,
+                    "worldpayvantiv: RepeatPayment response contained both saleResponse \
+                     and authorizationResponse; only one is expected per request.",
+                )));
+            }
         };
 
-        let status = get_attempt_status(WorldpayvantivPaymentFlow::Sale, sale_response.response)?;
+        let status = get_attempt_status(flow, payment_response.response)?;
 
         if is_payment_failure(status) {
             let error_response = ErrorResponse {
-                code: sale_response.response.to_string(),
-                message: sale_response.message.clone(),
-                reason: Some(sale_response.message.clone()),
+                code: payment_response.response.to_string(),
+                message: payment_response.message.clone(),
+                reason: Some(payment_response.message.clone()),
                 status_code: item.http_code,
                 attempt_status: Some(status),
-                connector_transaction_id: Some(sale_response.cnp_txn_id.clone()),
+                connector_transaction_id: Some(payment_response.cnp_txn_id.clone()),
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -3188,18 +3233,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             });
         }
 
-        let network_txn_id = sale_response
+        let network_txn_id = payment_response
             .network_transaction_id
             .clone()
             .map(|id| id.expose());
 
         let payments_response = PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::ConnectorTransactionId(sale_response.cnp_txn_id.clone()),
+            resource_id: ResponseId::ConnectorTransactionId(payment_response.cnp_txn_id.clone()),
             redirection_data: None,
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id,
-            connector_response_reference_id: Some(sale_response.order_id.clone()),
+            connector_response_reference_id: Some(payment_response.order_id.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
         };

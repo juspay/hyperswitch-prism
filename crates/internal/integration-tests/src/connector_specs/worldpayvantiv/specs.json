@@ -3,6 +3,7 @@
   "supported_suites": [
     "authorize",
     "get",
+    "recurring_charge",
     "setup_recurring"
   ]
 }
