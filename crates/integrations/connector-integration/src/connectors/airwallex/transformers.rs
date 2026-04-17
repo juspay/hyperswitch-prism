@@ -1,17 +1,21 @@
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, Currency, RefundStatus};
 use common_utils::{
+    pii::Email,
     request::Method,
     types::{FloatMajorUnit, StringMajorUnit},
 };
 use domain_types::errors::{ConnectorError, IntegrationError};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
+    connector_flow::{
+        Authorize, Capture, CreateConnectorCustomer, PSync, RSync, Refund, RepeatPayment,
+        SetupMandate, Void,
+    },
     connector_types::{
-        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId, SetupMandateRequestData,
+        ConnectorCustomerData, ConnectorCustomerResponse, MandateReference, MandateReferenceId,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::ConnectorSpecificConfig,
@@ -1778,5 +1782,118 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexRepeatPaymen
             },
             ..item.router_data
         })
+    }
+}
+
+// ===== CREATE CONNECTOR CUSTOMER FLOW =====
+// Airwallex POST /api/v1/pa/customers/create — mirrors the hyperswitch implementation at
+// hyperswitch/crates/hyperswitch_connectors/src/connectors/airwallex.rs.
+
+#[derive(Debug, Serialize)]
+pub struct AirwallexCustomerRequest {
+    pub request_id: String,
+    pub merchant_customer_id: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phone_number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_name: Option<Secret<String>>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AirwallexCustomerResponse {
+    pub id: String,
+    pub merchant_customer_id: Option<String>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::AirwallexRouterData<
+            RouterDataV2<
+                CreateConnectorCustomer,
+                PaymentFlowData,
+                ConnectorCustomerData,
+                ConnectorCustomerResponse,
+            >,
+            T,
+        >,
+    > for AirwallexCustomerRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: super::AirwallexRouterData<
+            RouterDataV2<
+                CreateConnectorCustomer,
+                PaymentFlowData,
+                ConnectorCustomerData,
+                ConnectorCustomerResponse,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let data = &item.router_data.request;
+
+        let merchant_customer_id =
+            data.customer_id
+                .clone()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "merchant_customer_id",
+                    context: Default::default(),
+                })?;
+
+        let email = data.email.clone().map(|e| e.expose());
+
+        // Split name on the last whitespace so "First Last" maps to first_name / last_name.
+        // Single-token names go to first_name only (mirrors Finix's convention).
+        let (first_name, last_name) = data
+            .name
+            .as_ref()
+            .map(|name| {
+                let raw = name.clone().expose();
+                let trimmed = raw.trim();
+                match trimmed.rsplit_once(' ') {
+                    Some((first, last)) => (
+                        Some(Secret::new(first.to_string())),
+                        Some(Secret::new(last.to_string())),
+                    ),
+                    None => (Some(Secret::new(trimmed.to_string())), None),
+                }
+            })
+            .unwrap_or((None, None));
+
+        Ok(Self {
+            request_id: uuid::Uuid::new_v4().to_string(),
+            merchant_customer_id,
+            email,
+            phone_number: data.phone.clone(),
+            first_name,
+            last_name,
+        })
+    }
+}
+
+impl TryFrom<ResponseRouterData<AirwallexCustomerResponse, Self>>
+    for RouterDataV2<
+        CreateConnectorCustomer,
+        PaymentFlowData,
+        ConnectorCustomerData,
+        ConnectorCustomerResponse,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<AirwallexCustomerResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let mut router_data = item.router_data;
+        router_data.response = Ok(ConnectorCustomerResponse {
+            connector_customer_id: item.response.id,
+        });
+        router_data.resource_common_data.connector_http_status_code = Some(item.http_code);
+        Ok(router_data)
     }
 }
