@@ -9,7 +9,7 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError, ResponseTransformationErrorContext},
     payment_method_data::{self, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
     utils,
@@ -146,7 +146,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     payer: Payer {
                         name,
                         email,
-                        // [#589]: Allow securely collecting PII from customer in payments request
+                        // dLocal requires a payer document (tax ID) for Latin American markets.
+                        // The hyperswitch reference uses `get_customer_document_details()` to pull
+                        // the real customer document; UCS does not yet surface this PII on the
+                        // Authorize request, so a country-specific sandbox-valid placeholder is
+                        // used here. Production flows should pass the real customer document.
                         document: get_doc_from_currency(country.to_string()),
                     },
                     card: Some(Card {
@@ -156,6 +160,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         expiration_month: ccard.card_exp_month.clone(),
                         expiration_year: ccard.card_exp_year.clone(),
                         capture: should_capture.to_string(),
+                        // `save` is None for regular Authorize flow — card tokenization
+                        // is handled separately via SetupMandate with `save: Some(true)`.
                         save: None,
                     }),
                     order_id,
@@ -184,6 +190,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     payer: Payer {
                         name,
                         email,
+                        // Same placeholder rationale as the card Authorize branch above —
+                        // UCS has not yet plumbed the real customer document through.
                         document: get_doc_from_currency(country.to_string()),
                     },
                     card: None,
@@ -490,14 +498,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let name = address.get_full_name()?;
 
         // For SetupMandate (CIT), dLocal requires a non-zero authorization amount
-        // alongside `card.save = true` to tokenize the card. Use a minimal
-        // 500 minor units (e.g. 5.00 BRL) verify amount — dLocal rejects very
-        // small amounts (<= 1.00) with code 5016 "Amount too low". The request
+        // alongside `card.save = true` to tokenize the card. dLocal rejects
+        // amounts <= 1.00 with code 5016 "Amount too low", so callers must
+        // provide an appropriate verify amount (e.g. 5.00 BRL). The request
         // runs with `capture: false` so funds are released immediately after
         // the authorization.
+        let minor_amount =
+            router_data
+                .request
+                .minor_amount
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "minor_amount",
+                    context: Default::default(),
+                })?;
         let amount = utils::convert_amount(
             item.connector.amount_converter,
-            common_utils::types::MinorUnit::new(500),
+            minor_amount,
             router_data.request.currency,
         )?;
 
@@ -518,6 +534,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 payer: Payer {
                     name,
                     email,
+                    // dLocal requires a payer document (tax ID) for Latin American markets.
+                    // The hyperswitch reference uses `get_customer_document_details()` to pull
+                    // the real customer document; UCS does not yet surface this PII on the
+                    // SetupMandate request, so a country-specific sandbox-valid placeholder is
+                    // used here. Production flows should pass the real customer document.
                     document: get_doc_from_currency(country.to_string()),
                 },
                 card: Card {
@@ -575,6 +596,40 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn try_from(
         item: ResponseRouterData<DlocalSetupMandateResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        // For failed payments (Rejected/Cancelled), return ErrorResponse instead
+        // of TransactionResponse to capture the failure details.
+        if matches!(
+            item.response.status,
+            DlocalPaymentStatus::Rejected | DlocalPaymentStatus::Cancelled
+        ) {
+            return Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status: common_enums::AttemptStatus::from(item.response.status.clone()),
+                    ..item.router_data.resource_common_data
+                },
+                response: Err(ErrorResponse {
+                    code: format!("{:?}", item.response.status),
+                    message: format!(
+                        "SetupMandate failed with status: {:?}",
+                        item.response.status
+                    ),
+                    reason: Some(format!(
+                        "dLocal returned {:?} status for SetupMandate request",
+                        item.response.status
+                    )),
+                    status_code: item.http_code,
+                    attempt_status: Some(common_enums::AttemptStatus::from(
+                        item.response.status.clone(),
+                    )),
+                    connector_transaction_id: Some(item.response.id.clone()),
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }),
+                ..item.router_data
+            });
+        }
+
         let redirection_data = item
             .response
             .three_dsecure
@@ -584,7 +639,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Extract the saved card identifier from the response. Per dLocal's
         // Save-Card API contract the token is returned on `card.card_id`.
-        let connector_mandate_id = item.response.card.as_ref().and_then(|c| c.card_id.clone());
+        let saved_card_id = item.response.card.as_ref().and_then(|c| c.card_id.clone());
 
         // SetupMandate only succeeds if dLocal hands us a tokenised card_id —
         // otherwise the downstream RepeatPayment (MIT) flow has nothing to
@@ -594,7 +649,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             item.response.status,
             DlocalPaymentStatus::Authorized | DlocalPaymentStatus::Paid
         );
-        if is_successful && connector_mandate_id.is_none() {
+        if is_successful && saved_card_id.is_none() {
             return Err(ConnectorError::UnexpectedResponseError {
                 context: ResponseTransformationErrorContext {
                     http_status_code: Some(item.http_code),
@@ -608,7 +663,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .into());
         }
 
-        let mandate_reference = connector_mandate_id.map(|card_id| MandateReference {
+        let mandate_reference = saved_card_id.map(|card_id| MandateReference {
             connector_mandate_id: Some(card_id),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
@@ -994,6 +1049,18 @@ fn get_bank_transfer_method_id_for_country(
     }
 }
 
+/// Returns a placeholder payer document (tax ID) for the given country.
+///
+/// dLocal requires a payer document for Latin American markets. These hardcoded
+/// values are test/placeholder documents used when the actual customer document
+/// is not provided in the request. In production, merchants should pass the real
+/// customer document via the billing address or payer information.
+///
+/// The format varies by country:
+/// - BR: CPF (11 digits) — Brazilian individual tax ID
+/// - MX: CURP (18 chars) — Mexican unique population registry code
+/// - AR: DNI (7-9 digits) — Argentine national identity document
+/// - etc.
 fn get_doc_from_currency(country: String) -> Secret<String> {
     let doc = match country.as_str() {
         "BR" => "91483309223",        // CPF (11 digits)

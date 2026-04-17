@@ -625,7 +625,8 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             // dLocal card tokenization uses the same /secure_payments endpoint as
-            // card authorize flow with an `amount: 0` and `card.save: true` payload.
+            // card authorize flow with `card.save: true` and a minimal verify amount
+            // (dLocal rejects amounts <= 1.00 with code 5016 "Amount too low").
             Ok(format!("{}secure_payments", self.connector_base_url_payments(req)))
         }
     }
