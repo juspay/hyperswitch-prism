@@ -354,7 +354,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         match &request_data.payment_method_data {
             domain_types::payment_method_data::PaymentMethodData::Card(card_data) => {
-                let card_expiration = card_data.get_card_expiry_year_month_2_digit().change_context(
+                let card_expiration = card_data.get_expiry_date_as_yymm().change_context(
                     IntegrationError::RequestEncodingFailed {
                         context: Default::default(),
                     },
@@ -834,7 +834,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         match &request_data.payment_method_data {
             domain_types::payment_method_data::PaymentMethodData::Card(card_data) => {
-                let card_expiration = card_data.get_card_expiry_year_month_2_digit().change_context(
+                let card_expiration = card_data.get_expiry_date_as_yymm().change_context(
                     IntegrationError::RequestEncodingFailed {
                         context: Default::default(),
                     },
@@ -1016,7 +1016,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         match &request_data.payment_method_data {
             domain_types::payment_method_data::PaymentMethodData::Card(card_data) => {
-                let card_expiration = card_data.get_card_expiry_year_month_2_digit().change_context(
+                let card_expiration = card_data.get_expiry_date_as_yymm().change_context(
                     IntegrationError::RequestEncodingFailed {
                         context: Default::default(),
                     },
