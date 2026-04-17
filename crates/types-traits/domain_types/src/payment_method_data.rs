@@ -174,6 +174,21 @@ impl<T: PaymentMethodDataTypes> Card<T> {
             .map(Secret::new)
     }
 
+    pub fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error> {
+        self.card_exp_year
+            .peek()
+            .clone()
+            .parse::<i32>()
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "payment_method_data.card.card_exp_year",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Expected format: YY or YYYY".to_owned()),
+                    ..Default::default()
+                },
+            })
+            .map(Secret::new)
+    }
+
     pub fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String> {
         let year = self.get_expiry_year_4_digit();
         Secret::new(format!(
@@ -228,20 +243,6 @@ impl Card<DefaultPCIHolder> {
             delimiter,
             year.peek()
         ))
-    }
-    pub fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error> {
-        self.card_exp_year
-            .peek()
-            .clone()
-            .parse::<i32>()
-            .change_context(IntegrationError::InvalidDataFormat {
-                field_name: "payment_method_data.card.card_exp_year",
-                context: IntegrationErrorContext {
-                    additional_context: Some("Expected format: YY or YYYY".to_owned()),
-                    ..Default::default()
-                },
-            })
-            .map(Secret::new)
     }
 }
 
@@ -578,6 +579,13 @@ pub enum BankDebitData {
         bank_name: Option<common_enums::BankNames>,
         bank_type: Option<common_enums::BankType>,
         bank_holder_type: Option<common_enums::BankHolderType>,
+    },
+    EftBankDebit {
+        account_number: Secret<String>,
+        branch_code: Secret<String>,
+        bank_account_holder_name: Option<Secret<String>>,
+        bank_name: Option<common_enums::BankNames>,
+        bank_type: Option<common_enums::BankType>,
     },
     SepaBankDebit {
         iban: Secret<String>,
