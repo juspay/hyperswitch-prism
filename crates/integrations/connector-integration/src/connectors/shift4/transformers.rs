@@ -22,7 +22,7 @@ use domain_types::{
     router_response_types::RedirectForm,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeOptionInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeOptionInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -399,12 +399,10 @@ pub struct Shift4PaymentsResponse {
     /// Nested stored-card object — Shift4 returns this on any /charges
     /// success. Its `id` (e.g., `card_xxx`) is the token used for
     /// subsequent RepeatPayment / MIT calls.
-    #[serde(default)]
     pub card: Option<Shift4ResponseCard>,
     /// Nested customer object — present when a customerId was supplied
     /// or created during the charge. Required alongside a stored card
     /// id for MIT charges.
-    #[serde(default)]
     pub customer: Option<Shift4ResponseCustomer>,
 }
 
@@ -1281,20 +1279,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let payment_method = match &item.request.payment_method_data {
             PaymentMethodData::Card(card_data) => {
-                // Cardholder name: prefer billing full name, fall back to
-                // SetupMandateRequestData.customer_name, then empty.
+                // Cardholder name comes from the billing address — the
+                // cardholder and customer may be different entities, so
+                // never fall back to the customer-level name.
                 let cardholder_name = item
                     .resource_common_data
                     .address
                     .get_payment_method_billing()
                     .and_then(|billing| billing.get_optional_full_name())
-                    .or_else(|| {
-                        item.request
-                            .customer_name
-                            .as_ref()
-                            .map(|name| Secret::new(name.clone()))
-                    })
-                    .unwrap_or_else(|| Secret::new(String::new()));
+                    .ok_or_else(|| {
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "billing_address.first_name",
+                            context: Default::default(),
+                        })
+                    })?;
 
                 Shift4PaymentMethod::Card(Shift4CardPayment {
                     card: Shift4CardData {
@@ -1324,31 +1322,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item.request.minor_amount.unwrap_or(MinorUnit::new(0));
 
         // captured=false for SetupMandate; we only authorize (or
-        // verify) to store the card-on-file. Pass customerId only when
-        // the caller has pre-provisioned a Shift4 customer (via
-        // CreateConnectorCustomer); Shift4 rejects embedded customer
-        // objects on /charges.
-        //
-        // Resolution order for the Shift4 customerId:
-        //   1. `connector_customer` on the flow (populated by the
-        //      orchestrator after CreateConnectorCustomer).
-        //   2. `request.customer_id` when it looks like a Shift4 cust id
-        //      (`cust_...`) — allows bare grpcurl callers to pass an
-        //      existing Shift4 customer via the request's `customer.id`.
-        let customer_id = item
-            .resource_common_data
-            .connector_customer
-            .clone()
-            .or_else(|| {
-                item.request.customer_id.as_ref().and_then(|cid| {
-                    let s = cid.get_string_repr().to_string();
-                    if s.starts_with("cust_") {
-                        Some(s)
-                    } else {
-                        None
-                    }
-                })
-            });
+        // verify) to store the card-on-file. `customer_id` is the
+        // Shift4 customer identifier, sourced exclusively from
+        // `connector_customer` (populated by the orchestrator after a
+        // CreateConnectorCustomer call). We do not infer it from the
+        // merchant-side `request.customer_id`, which is an opaque
+        // Hyperswitch identifier and may coincidentally share any
+        // prefix.
+        let customer_id = item.resource_common_data.connector_customer.clone();
 
         Ok(Self {
             amount,
@@ -1435,23 +1416,19 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4SetupMandateRes
                 network_error_message: None,
             }),
             _ => {
-                // For MIT/RepeatPayment, Shift4 requires `card: <card_id>`
-                // (the stored-card token from the charge response), not
-                // the charge id itself. Prefer `card.id` as the
-                // connector_mandate_id; fall back to charge id only if
-                // the card object is absent (e.g., alternative payment
-                // methods).
-                let mandate_id = item
-                    .response
-                    .card
-                    .as_ref()
-                    .map(|c| c.id.clone())
-                    .unwrap_or_else(|| item.response.id.clone());
-                let mandate_reference = Some(Box::new(MandateReference {
-                    connector_mandate_id: Some(mandate_id),
-                    payment_method_id: None,
-                    connector_mandate_request_reference_id: None,
-                }));
+                // For MIT/RepeatPayment, Shift4 requires the stored-card
+                // token (`card_xxx`) returned inside `response.card`. The
+                // top-level `response.id` is the charge id (`char_xxx`)
+                // and cannot be used to charge the card again, so we do
+                // not fall back to it — returning `None` instead lets
+                // downstream detect an unusable mandate.
+                let mandate_reference = item.response.card.as_ref().map(|card| {
+                    Box::new(MandateReference {
+                        connector_mandate_id: Some(card.id.clone()),
+                        payment_method_id: Some(card.id.clone()),
+                        connector_mandate_request_reference_id: None,
+                    })
+                });
 
                 Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
@@ -1459,6 +1436,9 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4SetupMandateRes
                     mandate_reference,
                     connector_metadata: None,
                     network_txn_id: None,
+                    // Shift4 PSync hits `GET /charges/{id}` with the
+                    // charge id, so surfacing it here lets sync flows
+                    // look up this attempt.
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
