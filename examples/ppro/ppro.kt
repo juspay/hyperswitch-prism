@@ -7,22 +7,36 @@
 
 package examples.ppro
 
+import types.Payment.*
+import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.EventClient
 import payments.RecurringPaymentClient
 import payments.RefundClient
-import payments.PaymentServiceCaptureRequest
-import payments.PaymentServiceGetRequest
-import payments.EventServiceHandleRequest
-import payments.RecurringPaymentServiceChargeRequest
-import payments.PaymentServiceRefundRequest
-import payments.RefundServiceGetRequest
-import payments.PaymentServiceVoidRequest
 import payments.Currency
 import payments.PaymentMethodType
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
+import payments.ConnectorSpecificConfig
+import types.Payment.PproConfig
+import payments.SecretString
+
+val SUPPORTED_FLOWS = listOf<String>("capture", "get", "recurring_charge", "refund", "refund_get", "void")
+
+val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setPpro(PproConfig.newBuilder()
+                .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
+                .setMerchantId(SecretString.newBuilder().setValue("YOUR_MERCHANT_ID").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
+    )
+    .build()
+
 
 
 private fun buildCaptureRequest(connectorTransactionIdStr: String): PaymentServiceCaptureRequest {
@@ -71,15 +85,9 @@ private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceV
     }.build()
 }
 
-val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
-    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your connector config here
-    .build()
-
-
 // Flow: PaymentService.Capture
-fun capture(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun capture(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildCaptureRequest("probe_connector_txn_001")
     val response = client.capture(request)
     if (response.status.name == "FAILED")
@@ -88,26 +96,26 @@ fun capture(txnId: String) {
 }
 
 // Flow: PaymentService.Get
-fun get(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildGetRequest("probe_connector_txn_001")
     val response = client.get(request)
     println("Status: ${response.status.name}")
 }
 
 // Flow: EventService.HandleEvent
-fun handleEvent(txnId: String) {
-    val client = EventClient(_defaultConfig)
+fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = EventClient(config)
     val request = EventServiceHandleRequest.newBuilder().apply {
 
     }.build()
     val response = client.handle_event(request)
-    println("Status: ${response.status.name}")
+    println("Event status: ${response.eventStatus.name}")
 }
 
 // Flow: RecurringPaymentService.Charge
-fun recurringCharge(txnId: String) {
-    val client = RecurringPaymentClient(_defaultConfig)
+fun recurringCharge(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = RecurringPaymentClient(config)
     val request = RecurringPaymentServiceChargeRequest.newBuilder().apply {
         connectorRecurringPaymentIdBuilder.apply {  // Reference to existing mandate.
             connectorMandateIdBuilder.apply {  // mandate_id sent by the connector.
@@ -137,8 +145,8 @@ fun recurringCharge(txnId: String) {
 }
 
 // Flow: PaymentService.Refund
-fun refund(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun refund(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildRefundRequest("probe_connector_txn_001")
     val response = client.refund(request)
     if (response.status.name == "FAILED")
@@ -147,8 +155,8 @@ fun refund(txnId: String) {
 }
 
 // Flow: RefundService.Get
-fun refundGet(txnId: String) {
-    val client = RefundClient(_defaultConfig)
+fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = RefundClient(config)
     val request = RefundServiceGetRequest.newBuilder().apply {
         merchantRefundId = "probe_refund_001"  // Identification.
         connectorTransactionId = "probe_connector_txn_001"
@@ -159,8 +167,8 @@ fun refundGet(txnId: String) {
 }
 
 // Flow: PaymentService.Void
-fun void(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildVoidRequest("probe_connector_txn_001")
     val response = client.void(request)
     if (response.status.name == "FAILED")
