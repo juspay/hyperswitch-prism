@@ -43,7 +43,7 @@ endif
 
 .PHONY: all fmt check clippy test nextest ci check-specs help \
         proto-format proto-generate proto-build proto-lint proto-clean \
-        generate certify-client-sanity field-probe docs docs-check all-connectors-doc \
+        generate certify-client-sanity field-probe docs docs-check \
         setup-connector-tests \
         start-grpc stop-grpc \
         test-prism test-ucs test-connector test-scenario cargo \
@@ -313,42 +313,26 @@ validate-pre-push-fix:
 	@echo "▶ Running pre-push validation with auto-fix..."
 	@./scripts/validation/pre-push.sh --fix
 
-## Generate connector docs (default: stripe only; use CONNECTORS=all for all connectors)
+## Generate connector docs and update all_connector.md coverage matrix
 ## Variables:
-##   CONNECTORS=all       - Generate docs for all connectors (default: stripe only)
-##   FORCE_PROBE=1        - Re-run field-probe even if data exists
-##   SKIP_PROBE=1         - Skip field-probe entirely (use cached data if available)
+##   DOCS_CONNECTORS=stripe,adyen   - Generate docs for specific connectors only (default: all)
+##   SKIP_PROBE=1                   - Skip field-probe and use existing cached data
 ## Usage:
-##   make docs                          # Generate stripe docs, use cached probe data
-##   make docs CONNECTORS=all           # Generate all docs, use cached probe data
-##   make docs CONNECTORS=all FORCE_PROBE=1  # Regenerate all probe data
+##   make docs                                    # Run field-probe then generate all connector docs
+##   make docs SKIP_PROBE=1                      # Skip field-probe, use cached probe data
+##   make docs DOCS_CONNECTORS=stripe,adyen      # Run field-probe then generate specific connectors
 docs:
 	@echo "▶ Generating connector docs…"
-	@if [ "$(CONNECTORS)" = "all" ]; then \
-		if [ -n "$(FORCE_PROBE)" ]; then \
-			echo "▶ Re-running field-probe (FORCE_PROBE=1)…"; \
-			$(MAKE) field-probe; \
-		elif [ -n "$(SKIP_PROBE)" ]; then \
-			echo "▶ Using cached probe data ($(shell ls data/field_probe/*.json 2>/dev/null | wc -l) connectors)…"; \
-		elif [ ! -f data/field_probe/stripe.json ] || [ ! -f data/field_probe/adyen.json ]; then \
-			echo "▶ Probe data incomplete, running field-probe…"; \
-			$(MAKE) field-probe; \
-		else \
-			echo "▶ Using cached probe data ($(shell ls data/field_probe/*.json 2>/dev/null | wc -l) connectors)…"; \
-		fi; \
-		python3 scripts/generators/docs/generate.py --all --probe-path data/field_probe; \
+	@if [ -n "$(SKIP_PROBE)" ]; then \
+		echo "▶ Using cached probe data ($(shell ls data/field_probe/*.json 2>/dev/null | wc -l) connectors)…"; \
 	else \
-		if [ ! -f data/field_probe/stripe.json ]; then \
-			echo "▶ Probe data missing, running field-probe…"; \
-			$(MAKE) field-probe; \
-		fi; \
-		python3 scripts/generators/docs/generate.py stripe --probe-path data/field_probe; \
+		$(MAKE) field-probe; \
 	fi
-
-## Generate the all-connectors coverage document
-all-connectors-doc: field-probe
-	@echo "▶ Generating all-connectors coverage doc…"
-	python3 scripts/generators/docs/generate.py --all-connectors-doc --probe-path data/field_probe
+	@if [ -n "$(DOCS_CONNECTORS)" ]; then \
+		python3 scripts/generators/docs/generate.py $$(echo "$(DOCS_CONNECTORS)" | tr ',' ' ') --probe-path data/field_probe; \
+	else \
+		python3 scripts/generators/docs/generate.py --all --probe-path data/field_probe; \
+	fi
 
 ## Report annotation coverage for connector docs
 docs-check:
@@ -512,8 +496,7 @@ help:
 	@echo "  generate         Generate SDK flow bindings (Python, JS, Kotlin) from services.proto"
 	@echo ""
 	@echo "Docs Targets:"
-	@echo "  docs               Regenerate connector docs (default: stripe; CONNECTORS=all for all)"
-	@echo "  all-connectors-doc Generate the all-connectors coverage document"
+	@echo "  docs               Run field-probe then regenerate all connector docs + all_connector.md (SKIP_PROBE=1 to skip probe)"
 	@echo "  docs-check         Report which connectors are missing annotation files"
 	@echo ""
 	@echo "Certification Targets:"

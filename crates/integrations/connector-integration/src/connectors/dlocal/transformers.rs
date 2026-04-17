@@ -1021,6 +1021,7 @@ fn get_bank_debit_payment_method_id(
             Ok((PaymentMethodId::Other(method_id), None))
         }
         payment_method_data::BankDebitData::BecsBankDebit { .. }
+        | payment_method_data::BankDebitData::EftBankDebit { .. }
         | payment_method_data::BankDebitData::BacsBankDebit { .. } => {
             Err(IntegrationError::not_implemented(
                 crate::utils::get_unimplemented_payment_method_error_message("Dlocal"),
