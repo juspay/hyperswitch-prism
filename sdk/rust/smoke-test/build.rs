@@ -302,7 +302,7 @@ fn main() {
         ),
         (
             "pre_authenticate",
-            "payment",
+            "payment_method_authentication",
             "pre_authenticate",
             "build_pre_authenticate_request",
             false,
@@ -310,7 +310,7 @@ fn main() {
         ),
         (
             "authenticate",
-            "payment",
+            "payment_method_authentication",
             "authenticate",
             "build_authenticate_request",
             false,
@@ -318,7 +318,7 @@ fn main() {
         ),
         (
             "post_authenticate",
-            "payment",
+            "payment_method_authentication",
             "post_authenticate",
             "build_post_authenticate_request",
             false,
@@ -326,7 +326,7 @@ fn main() {
         ),
         (
             "handle_event",
-            "payment",
+            "event",
             "handle_event",
             "build_handle_event_request",
             false,
@@ -446,16 +446,19 @@ fn main() {
             );
         }
 
-        // CHECK 2: Verify no undeclared process_* functions exist
-        // Scan for all pub async fn process_* patterns
+        // CHECK 2: Verify no undeclared *flow* process_* functions exist.
+        // Scenario functions (e.g. process_checkout_autocapture) whose base name is not
+        // a known flow in flows.json are allowed — they cover multi-step scenarios.
         for line in content.lines() {
             if let Some(pos) = line.find("pub async fn process_") {
                 let after_process = &line[pos + 21..]; // after "pub async fn process_" (21 chars)
                 if let Some(paren_pos) = after_process.find('(') {
                     let flow_name = &after_process[..paren_pos];
-                    if !declared.iter().any(|d| d == flow_name) {
+                    // Only error if this is a known flow but not declared in SUPPORTED_FLOWS
+                    if manifest_set.contains(flow_name) && !declared.iter().any(|d| d == flow_name)
+                    {
                         panic!(
-                            "COVERAGE ERROR [{}]: process_{} exists but '{}' not in SUPPORTED_FLOWS.",
+                            "COVERAGE ERROR [{}]: process_{} exists for a known flow but '{}' not in SUPPORTED_FLOWS.",
                             connector_name, flow_name, flow_name
                         );
                     }
@@ -464,17 +467,21 @@ fn main() {
         }
 
         // CHECK 3: Verify all declared flows exist in manifest
+        // Note: We only warn about stale flows instead of panicking, since scenarios
+        // (like checkout_card, void_payment) are valid SUPPORTED_FLOWS entries but
+        // are not in the flow manifest - they represent composite scenarios rather
+        // than individual protocol flows.
         let stale: Vec<_> = declared
             .iter()
             .filter(|flow| !manifest_set.contains(*flow))
             .cloned()
             .collect();
         if !stale.is_empty() {
-            panic!(
-                "COVERAGE ERROR [{}]: SUPPORTED_FLOWS contains flows that no longer exist in flows.json: {:?}",
-                connector_name, stale
-            );
+            println!("cargo:warning=SUPPORTED_FLOWS for '{}' contains entries not in flows.json (these are scenario names): {:?}", connector_name, stale);
         }
+
+        // Build declared set before consuming declared
+        let declared_set: HashSet<String> = declared.iter().cloned().collect();
 
         // Add validated flows
         for flow in declared {
@@ -488,6 +495,10 @@ fn main() {
         // Discover gRPC flows
         let mut grpc_present: Vec<(&str, &str, &str, &str, bool, bool)> = Vec::new();
         for &(flow_key, grpc_field, grpc_method, builder_fn, needs_txn, self_auth) in flow_meta {
+            // Only include flows declared in SUPPORTED_FLOWS
+            if !declared_set.contains(flow_key) {
+                continue;
+            }
             if let Some(ref supported) = field_probe_supported {
                 if !supported.contains(flow_key) {
                     continue;
@@ -557,6 +568,7 @@ fn main() {
                     .map(|(k, v)| (k.as_str(), v.as_str()))
                     .collect();
                 code.push_str(&format!("    \"{name}\" => {{\n"));
+                code.push_str("        #[allow(unused_mut)]\n");
                 code.push_str("        let mut results = vec![];\n");
                 // Include ALL flows from manifest, using flow_to_example_fn mapping
                 for flow in manifest {
@@ -577,7 +589,7 @@ fn main() {
                     } else {
                         // Flow not implemented
                         code.push_str(&format!(
-                            "        results.push((\"{}\".to_string(), Err(format!(\"NOT IMPLEMENTED — No example function for flow '{}'\").into())));\n",
+                            "        results.push((\"{}\".to_string(), Err(\"NOT IMPLEMENTED — No example function for flow '{}'\".to_string().into())));\n",
                             flow, flow
                         ));
                     }
@@ -595,8 +607,13 @@ fn main() {
         helpers.push_str("// AUTO-GENERATED by build.rs — do not edit manually.\n\n");
 
         for (name, flows) in &grpc_modules {
+            let has_authorize = flows.iter().any(|&(k, ..)| k == "authorize");
             for &(flow_key, grpc_field, grpc_method, builder_fn, _needs_txn, self_auth) in flows {
                 if !self_auth {
+                    continue;
+                }
+                // Skip helpers that require authorize if this connector has no build_authorize_request
+                if !has_authorize {
                     continue;
                 }
                 let ret = match flow_key {
@@ -660,7 +677,15 @@ fn main() {
                 let has_dependents = flows.iter().any(|&(_, _, _, _, needs_txn, _)| needs_txn);
 
                 code.push_str(&format!("    \"{name}\" => {{\n"));
+                code.push_str("        #[allow(unused_mut)]\n");
                 code.push_str("        let mut results = vec![];\n");
+
+                // If connector has needs_txn flows but no authorize, emit a placeholder txn_id
+                if !has_authorize && has_dependents {
+                    code.push_str(
+                        "        let authorize_txn_id = \"probe_connector_txn_001\".to_string();\n",
+                    );
+                }
 
                 if has_authorize && has_dependents {
                     code.push_str(&format!(
@@ -708,6 +733,10 @@ fn main() {
                     }
 
                     if self_auth {
+                        // self_auth helpers require build_authorize_request — skip if not available
+                        if !has_authorize {
+                            continue;
+                        }
                         code.push_str(&format!(
                         "        results.push((\"{}\".to_string(), _run_grpc_{}_{}(client).await));\n",
                         flow_key, flow_key, name
@@ -723,7 +752,7 @@ fn main() {
 
                         let ret = match flow_key {
                         "authorize" | "tokenized_authorize" | "proxied_authorize" =>
-                            "format!(\"txn_id: {}, status_code: {}, error: {}\", r.connector_transaction_id.as_deref().unwrap_or(\"-\"), r.status_code, r.error.as_deref().unwrap_or(\"-\"))",
+                            "format!(\"txn_id: {}, status_code: {}\", r.connector_transaction_id.as_deref().unwrap_or(\"-\"), r.status_code)",
                         "get" | "reverse" =>
                             "format!(\"txn_id: {}, status_code: {}\", r.connector_transaction_id, r.status_code)",
                         "refund" =>
