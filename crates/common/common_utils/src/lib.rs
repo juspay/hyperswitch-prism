@@ -42,6 +42,7 @@ pub use types::{
     AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit, MinorUnitForConnector,
     StringMajorUnit, StringMajorUnitForConnector, StringMinorUnit,
 };
+pub mod connector_request_kafka;
 pub mod events;
 pub mod global_id;
 
