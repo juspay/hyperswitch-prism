@@ -1584,6 +1584,8 @@ message CheckoutClientAuthenticationResponse {
 // Cybersource SDK initialization data — capture_context JWT for Flex Microform SDK
 message CybersourceClientAuthenticationResponse {
   SecretString capture_context = 1;
+  string client_library = 2;
+  string client_library_integrity = 3;
 }
 
 // Nuvei SDK initialization data — session_token for client-side SDK operations
