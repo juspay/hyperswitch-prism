@@ -8,7 +8,6 @@ Usage:
     python3 scripts/generators/docs/generate.py stripe adyen
     python3 scripts/generators/docs/generate.py --all
     python3 scripts/generators/docs/generate.py --list
-    python3 scripts/generators/docs/generate.py --all-connectors-doc
 
 How it works:
   1. Loads probe data from data/field_probe/{connector}.json
@@ -554,6 +553,10 @@ def load_probe_data(probe_path: Optional[Path]) -> dict[str, dict]:
     if probe_path is None:
         return {}
 
+    # Already loaded — skip expensive proto compilation and JSON parsing
+    if _PROBE_DATA:
+        return _PROBE_DATA
+
     probe_dir = probe_path if probe_path.is_dir() else probe_path
 
     # Discover connectors from filesystem (no manifest needed)
@@ -563,10 +566,12 @@ def load_probe_data(probe_path: Optional[Path]) -> dict[str, dict]:
     proto_dir = probe_dir.parent.parent / "crates" / "types-traits" / "grpc-api-types" / "proto"
     if proto_dir.exists():
         try:
+            print("  Compiling proto metadata…", end=" ", flush=True)
             _FLOW_METADATA, _MESSAGE_SCHEMAS = _build_proto_metadata(proto_dir)
             snippets.load_proto_type_map(proto_dir)
+            print("✓")
         except Exception as exc:
-            print(f"Warning: failed to build proto metadata: {exc}", file=sys.stderr)
+            print(f"✗\nWarning: failed to build proto metadata: {exc}", file=sys.stderr)
             _FLOW_METADATA = []
             _MESSAGE_SCHEMAS = {}
     else:
@@ -605,7 +610,7 @@ def _probe_pm_support(probe_connector: dict, flow_key: str) -> Optional[dict[str
 
 # ─── Paths ────────────────────────────────────────────────────────────────────
 
-REPO_ROOT       = Path(__file__).parent.parent.parent.parent
+REPO_ROOT    = Path(__file__).parent.parent.parent.parent
 DOCS_DIR     = REPO_ROOT / "docs-generated/connectors"
 EXAMPLES_DIR = REPO_ROOT / "examples"
 PROTO_DIR    = REPO_ROOT / "crates/types-traits/grpc-api-types/proto"
@@ -1454,12 +1459,8 @@ def cmd_generate(connectors: list[str], output_dir: Path, probe_path: Optional[P
     if update_llms:
         generate_llms_txt(probe_data, output_dir)
     print(f"\nDone: {ok} generated, {skip} skipped.")
-    if syntax_check:
-        ok_syntax = check_example_syntax(EXAMPLES_DIR, connectors=connectors)
-        if not ok_syntax:
-            sys.exit(1)
-    
-    # Format generated Rust files with nightly rustfmt
+
+    # Format generated Rust files before syntax check so the check sees clean files
     rs_files = list(EXAMPLES_DIR.rglob("*.rs"))
     if rs_files:
         print("  Formatting generated Rust files ...", end=" ", flush=True)
@@ -1474,6 +1475,14 @@ def cmd_generate(connectors: list[str], output_dir: Path, probe_path: Optional[P
                 print(f"✗ (some files may have formatting issues)")
         except FileNotFoundError:
             print("skipped (rustfmt not found)")
+
+    if syntax_check:
+        ok_syntax = check_example_syntax(EXAMPLES_DIR, connectors=connectors)
+        if not ok_syntax:
+            sys.exit(1)
+
+    print("\n▶ Updating all_connector.md coverage matrix…")
+    cmd_all_connectors_doc(output_dir, probe_path)
 
 
 # ─── All Connectors Coverage Document ─────────────────────────────────────────
@@ -1578,7 +1587,7 @@ def generate_all_connector_doc(probe_data: dict[str, dict], output_dir: Path) ->
     a("<!--")
     a("This file is auto-generated. Do not edit by hand.")
     a("Source: data/field_probe/")
-    a("Regenerate: python3 scripts/generators/docs/generate.py --all-connectors-doc")
+    a("Regenerate: make docs")
     a("-->")
     a("")
     a("This document provides a comprehensive overview of payment method support")
@@ -1858,11 +1867,6 @@ def main():
         help="List all available connectors"
     )
     parser.add_argument(
-        "--all-connectors-doc",
-        action="store_true",
-        help="Generate the all_connector.md coverage document"
-    )
-    parser.add_argument(
         "--probe-path",
         type=Path,
         default=REPO_ROOT / "data" / "field_probe",
@@ -1899,10 +1903,6 @@ def main():
 
     if args.list:
         cmd_list()
-        return
-
-    if args.all_connectors_doc:
-        cmd_all_connectors_doc(args.output_dir, args.probe_path)
         return
 
     if args.all:

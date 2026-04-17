@@ -246,6 +246,15 @@ def prepare_rust_smoke_test_once(repo_root: Path, connectors: List[str]) -> bool
     if skipped:
         print(f"  Skipping Rust harnesses with coverage errors: {', '.join(sorted(skipped))}")
 
+    # Check if binary already exists (CI cache)
+    platform = get_platform_triple()
+    binary_path = repo_root / "target" / platform / "release-fast" / "hyperswitch-smoke-test"
+    if binary_path.exists():
+        print(f"  Rust smoke-test binary found (CI mode)")
+        _rust_smoke_test_prepared = True
+        _rust_valid_connectors = valid
+        return True
+
     print(f"  Building Rust smoke-test with CONNECTORS={','.join(valid)}...")
     env = os.environ.copy()
     env["CONNECTORS"] = ",".join(valid)
