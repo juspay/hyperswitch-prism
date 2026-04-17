@@ -633,6 +633,7 @@ where
                         flow_type: event_params.flow_name,
                         connector: event_params.connector_name.to_string(),
                         url: Some(url.clone()),
+                        method: Some(method.to_string()),
                         stage: EventStage::ConnectorCall,
                         latency_ms: Some(latency),
                         status_code,

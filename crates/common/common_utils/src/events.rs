@@ -219,6 +219,8 @@ pub struct Event {
     pub flow_type: FlowName,
     pub connector: String,
     pub url: Option<String>,
+    /// HTTP verb for outbound connector calls; `None` for gRPC-only audit events.
+    pub method: Option<String>,
     pub stage: EventStage,
     pub latency_ms: Option<u64>,
     pub status_code: Option<i32>,

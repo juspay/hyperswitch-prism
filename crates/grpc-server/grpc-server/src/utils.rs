@@ -361,6 +361,7 @@ fn create_and_emit_grpc_event<R>(
         flow_type: flow_name,
         connector: metadata_payload.map_or("unknown".to_string(), |md| md.connector.to_string()),
         url: None,
+        method: None,
         stage: EventStage::GrpcRequest,
         latency_ms: Some(u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX)),
         status_code: None,
