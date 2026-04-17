@@ -3744,6 +3744,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tonic 0.14.5",
+ "ucs_cards",
 ]
 
 [[package]]

@@ -22,6 +22,10 @@ Homepage = "https://github.com/juspay/hyperswitch-prism#readme"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+include = ["payments*"]
 
 [tool.setuptools.package-data]
 payments = ["generated/*.dylib", "generated/*.so", "generated/*.py"]
+
+[tool.setuptools]
+include-package-data = true
