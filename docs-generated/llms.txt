@@ -603,7 +603,7 @@ connector_id: trustpay
 doc: docs/connectors/trustpay.md
 scenarios: checkout_autocapture, refund, get_payment
 payment_methods: Blik, Card, Eps, Giropay, Ideal, InstantBankTransfer, InstantBankTransferFinland, InstantBankTransferPoland, SepaBankTransfer, Sofort
-flows: authorize, create_order, create_server_authentication_token, get, handle_event, proxy_authorize, refund, refund_get
+flows: authorize, create_order, create_server_authentication_token, get, handle_event, proxy_authorize, recurring_charge, refund, refund_get
 examples_python: examples/trustpay/trustpay.py
 
 ## Trustpayments
