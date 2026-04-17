@@ -129,7 +129,7 @@ async fn run() -> RunnerOutput {
     let proxy_cfg = input.proxy.as_ref().map(|p| ProxyConfig {
         http_url: p.http_url.clone(),
         https_url: p.https_url.clone(),
-        bypass_urls: vec![input.request.url.clone()],
+        bypass_urls: vec![],
     });
 
     let options = HttpOptions {
