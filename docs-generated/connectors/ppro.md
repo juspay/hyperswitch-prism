@@ -135,7 +135,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/ppro/ppro.py#L130) · [TypeScript](../../examples/ppro/ppro.ts#L112) · [Kotlin](../../examples/ppro/ppro.kt#L82) · [Rust](../../examples/ppro/ppro.rs#L120)
+**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts#L113) · [Kotlin](../../examples/ppro/ppro.kt#L89) · [Rust](../../examples/ppro/ppro.rs)
 
 #### PaymentService.Get
 
@@ -146,7 +146,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/ppro/ppro.py#L139) · [TypeScript](../../examples/ppro/ppro.ts#L121) · [Kotlin](../../examples/ppro/ppro.kt#L92) · [Rust](../../examples/ppro/ppro.rs#L127)
+**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts#L122) · [Kotlin](../../examples/ppro/ppro.kt#L99) · [Rust](../../examples/ppro/ppro.rs)
 
 #### PaymentService.Refund
 
@@ -157,7 +157,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/ppro/ppro.py#L166) · [TypeScript](../../examples/ppro/ppro.ts#L148) · [Kotlin](../../examples/ppro/ppro.kt#L141) · [Rust](../../examples/ppro/ppro.rs#L148)
+**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts#L149) · [Kotlin](../../examples/ppro/ppro.kt#L148) · [Rust](../../examples/ppro/ppro.rs)
 
 #### PaymentService.VerifyRedirectResponse
 
@@ -168,7 +168,7 @@ Verify and process redirect responses from 3D Secure or other external flows. Va
 | **Request** | `PaymentServiceVerifyRedirectResponseRequest` |
 | **Response** | `PaymentServiceVerifyRedirectResponseResponse` |
 
-**Examples:** [Python](../../examples/ppro/ppro.py#L184) · [TypeScript](../../examples/ppro/ppro.ts#L166) · [Kotlin](../../examples/ppro/ppro.kt#L163) · [Rust](../../examples/ppro/ppro.rs#L162)
+**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts#L167) · [Kotlin](../../examples/ppro/ppro.kt#L170) · [Rust](../../examples/ppro/ppro.rs)
 
 #### PaymentService.Void
 
@@ -179,7 +179,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/ppro/ppro.py#L193) · [TypeScript](../../examples/ppro/ppro.ts) · [Kotlin](../../examples/ppro/ppro.kt#L173) · [Rust](../../examples/ppro/ppro.rs#L169)
+**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts) · [Kotlin](../../examples/ppro/ppro.kt#L180) · [Rust](../../examples/ppro/ppro.rs)
 
 ### Refunds
 
@@ -192,7 +192,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/ppro/ppro.py#L175) · [TypeScript](../../examples/ppro/ppro.ts#L157) · [Kotlin](../../examples/ppro/ppro.kt#L151) · [Rust](../../examples/ppro/ppro.rs#L155)
+**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts#L158) · [Kotlin](../../examples/ppro/ppro.kt#L158) · [Rust](../../examples/ppro/ppro.rs)
 
 ### Mandates
 
@@ -205,4 +205,4 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/ppro/ppro.py#L157) · [TypeScript](../../examples/ppro/ppro.ts#L139) · [Kotlin](../../examples/ppro/ppro.kt#L110) · [Rust](../../examples/ppro/ppro.rs#L141)
+**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts#L140) · [Kotlin](../../examples/ppro/ppro.kt#L117) · [Rust](../../examples/ppro/ppro.rs)

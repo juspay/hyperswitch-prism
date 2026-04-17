@@ -84,20 +84,10 @@ def _build_refund_request(connector_transaction_id: str):
     )
 
 def _build_refund_get_request():
-    return ParseDict(
-        {
-            "merchant_refund_id": "probe_refund_001",  # Identification.
-            "connector_transaction_id": "probe_connector_txn_001",
-            "refund_id": "probe_refund_id_001"
-        },
-        payment_pb2.RefundServiceGetRequest(),
-    )
-
-def _build_verify_redirect_request():
-    return ParseDict(
-        {
-        },
-        payment_pb2.PaymentServiceVerifyRedirectResponseRequest(),
+    return payment_pb2.RefundServiceGetRequest(
+        merchant_refund_id="probe_refund_001",  # Identification.
+        connector_transaction_id="probe_connector_txn_001",
+        refund_id="probe_refund_id_001",
     )
 
 def _build_void_request(connector_transaction_id: str):
@@ -154,16 +144,7 @@ async def process_refund_get(merchant_transaction_id: str, config: sdk_config_pb
     return {"status": refund_response.status}
 
 
-async def verify_redirect(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.VerifyRedirectResponse"""
-    payment_client = PaymentClient(config)
-
-    verify_response = await payment_client.verify_redirect(_build_verify_redirect_request())
-
-    return {"status": verify_response.status}
-
-
-async def void(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+async def process_void(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: PaymentService.Void"""
     payment_client = PaymentClient(config)
 

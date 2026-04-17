@@ -13,14 +13,6 @@ import payments.PaymentClient
 import payments.EventClient
 import payments.RecurringPaymentClient
 import payments.RefundClient
-import payments.PaymentServiceCaptureRequest
-import payments.PaymentServiceGetRequest
-import payments.EventServiceHandleRequest
-import payments.RecurringPaymentServiceChargeRequest
-import payments.PaymentServiceRefundRequest
-import payments.RefundServiceGetRequest
-import payments.PaymentServiceVerifyRedirectResponseRequest
-import payments.PaymentServiceVoidRequest
 import payments.Currency
 import payments.PaymentMethodType
 import payments.ConnectorConfig
@@ -175,18 +167,18 @@ fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
 }
 
 // Flow: PaymentService.VerifyRedirectResponse
-fun verifyRedirect(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun verifyRedirect(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = PaymentServiceVerifyRedirectResponseRequest.newBuilder().apply {
 
     }.build()
-    val response = client.verify_redirect(request)
-    println("Status: ${response.status.name}")
+    val response = client.verify_redirect_response(request)
+    println("Source verified: ${response.sourceVerified}")
 }
 
 // Flow: PaymentService.Void
-fun void(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildVoidRequest("probe_connector_txn_001")
     val response = client.void(request)
     if (response.status.name == "FAILED")

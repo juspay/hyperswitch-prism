@@ -91,12 +91,12 @@ function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
     };
 }
 
-function _buildVerifyRedirectRequest(): PaymentServiceVerifyRedirectResponseRequest {
+function _buildVerifyRedirectRequest(): types.IPaymentServiceVerifyRedirectResponseRequest {
     return {
     };
 }
 
-function _buildVoidRequest(connectorTransactionId: string): PaymentServiceVoidRequest {
+function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServiceVoidRequest {
     return {
         "merchantVoidId": "probe_void_001",  // Identification.
         "connectorTransactionId": connectorTransactionId,
@@ -160,16 +160,16 @@ async function refundGet(merchantTransactionId: string, config: types.IConnector
 
     const refundResponse = await refundClient.refundGet(_buildRefundGetRequest());
 
-    return { status: refundResponse.status };
+    return refundResponse;
 }
 
 // Flow: PaymentService.VerifyRedirectResponse
-async function verifyRedirect(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceVerifyRedirectResponseResponse> {
+async function verifyRedirect(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
 
-    const verifyResponse = await paymentClient.verifyRedirect(_buildVerifyRedirectRequest());
+    const verifyResponse = await paymentClient.verifyRedirectResponse(_buildVerifyRedirectRequest());
 
-    return { status: verifyResponse.status };
+    return verifyResponse;
 }
 
 // Flow: PaymentService.Void

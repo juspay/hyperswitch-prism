@@ -118,17 +118,18 @@ pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRef
 }
 
 pub fn build_refund_get_request() -> RefundServiceGetRequest {
-    serde_json::from_value::<RefundServiceGetRequest>(serde_json::json!({
-    "merchant_refund_id": "probe_refund_001",  // Identification.
-    "connector_transaction_id": "probe_connector_txn_001",
-    "refund_id": "probe_refund_id_001",
-    })).unwrap_or_default()
+    RefundServiceGetRequest {
+        merchant_refund_id: Some("probe_refund_001".to_string()), // Identification.
+        connector_transaction_id: "probe_connector_txn_001".to_string(),
+        refund_id: "probe_refund_id_001".to_string(),
+        ..Default::default()
+    }
 }
 
 pub fn build_verify_redirect_request() -> PaymentServiceVerifyRedirectResponseRequest {
-    serde_json::from_value::<PaymentServiceVerifyRedirectResponseRequest>(serde_json::json!({
-
-    })).unwrap_or_default()
+    PaymentServiceVerifyRedirectResponseRequest {
+        ..Default::default()
+    }
 }
 
 pub fn build_void_request(connector_transaction_id: &str) -> PaymentServiceVoidRequest {
@@ -206,15 +207,13 @@ pub async fn process_refund(
 
 // Flow: RefundService.Get
 #[allow(dead_code)]
-pub async fn refund_get(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.refund_get(build_refund_get_request(), &HashMap::new(), None).await?;
-    Ok(format!("status: {:?}", response.status()))
-}
-
-// Flow: PaymentService.VerifyRedirectResponse
-#[allow(dead_code)]
-pub async fn verify_redirect(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.verify_redirect(build_verify_redirect_request(), &HashMap::new(), None).await?;
+pub async fn process_refund_get(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .refund_get(build_refund_get_request(), &HashMap::new(), None)
+        .await?;
     Ok(format!("status: {:?}", response.status()))
 }
 
@@ -242,15 +241,16 @@ async fn main() {
         .nth(1)
         .unwrap_or_else(|| "process_capture".to_string());
     let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
-        "capture" => capture(&client, "order_001").await,
-        "get" => get(&client, "order_001").await,
-        "handle_event" => handle_event(&client, "order_001").await,
-        "recurring_charge" => recurring_charge(&client, "order_001").await,
-        "refund" => refund(&client, "order_001").await,
-        "refund_get" => refund_get(&client, "order_001").await,
-        "verify_redirect" => verify_redirect(&client, "order_001").await,
-        "void" => void(&client, "order_001").await,
-        _ => { eprintln!("Unknown flow: {}. Available: capture, get, handle_event, recurring_charge, refund, refund_get, verify_redirect, void", flow); return; }
+        "process_capture" => process_capture(&client, "txn_001").await,
+        "process_get" => process_get(&client, "txn_001").await,
+        "process_recurring_charge" => process_recurring_charge(&client, "txn_001").await,
+        "process_refund" => process_refund(&client, "txn_001").await,
+        "process_refund_get" => process_refund_get(&client, "txn_001").await,
+        "process_void" => process_void(&client, "txn_001").await,
+        _ => {
+            eprintln!("Unknown flow: {}. Available: process_capture, process_get, process_recurring_charge, process_refund, process_refund_get, process_void", flow);
+            return;
+        }
     };
     match result {
         Ok(msg) => println!("✓ {msg}"),
