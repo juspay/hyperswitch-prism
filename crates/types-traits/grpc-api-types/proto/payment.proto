@@ -741,6 +741,7 @@ enum Connector {
   PPRO = 113;
   FISERVCOMMERCEHUB = 114;
   TRUSTLY = 115;
+  SANLAMMULTIDATA = 116;
 }
 
 // Payment method types
@@ -857,6 +858,7 @@ enum PaymentMethodType {
   CASH_FREE = 109;
   PAY_U = 110;
   EASE_BUZZ = 111;
+  OPEN_BANKING = 112;
 }
 
 // Product type enumeration
@@ -1583,6 +1585,8 @@ message CheckoutClientAuthenticationResponse {
 // Cybersource SDK initialization data — capture_context JWT for Flex Microform SDK
 message CybersourceClientAuthenticationResponse {
   SecretString capture_context = 1;
+  string client_library = 2;
+  string client_library_integrity = 3;
 }
 
 // Nuvei SDK initialization data — session_token for client-side SDK operations
@@ -3880,6 +3884,12 @@ message FiservcommercehubConfig {
   optional string base_url = 50;
 }
 
+message SanlamMultiDataConfig {
+  SecretString api_key = 1;
+  SecretString merchant_id = 2;
+  optional string base_url = 50;
+}
+
 message ItaubankConfig {
   SecretString client_secret = 1;
   SecretString client_id = 2;
@@ -4287,6 +4297,9 @@ message ConnectorSpecificConfig {
 
     // TRUSTLY = 116
     TrustlyConfig trustly = 115;
+
+    // SANLAMMULTIDATA
+    SanlamMultiDataConfig sanlammultidata = 116;
   }
 }
 
