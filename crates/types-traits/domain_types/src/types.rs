@@ -529,6 +529,12 @@ impl Connectors {
             ConnectorEnum::Revolut => {
                 patched.revolut.apply(params_patch);
             }
+            ConnectorEnum::Aci => {
+                patched.aci.apply(params_patch);
+            }
+            ConnectorEnum::Bankofamerica => {
+                patched.bankofamerica.apply(params_patch);
+            }
             ConnectorEnum::Worldpay => {
                 patched.worldpay.apply(params_patch);
             }
@@ -547,7 +553,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, worldpay, trustpay",
+                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, trustpay",
                             connector
                         )),
                         ..Default::default()

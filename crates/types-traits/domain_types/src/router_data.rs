@@ -1427,6 +1427,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
         let auth_type = auth.config.ok_or_else(err)?;
 
         match auth_type {
+            AuthType::Aci(aci) => Ok(Self::Aci {
+                api_key: aci.api_key.ok_or_else(err)?,
+                entity_id: aci.entity_id.ok_or_else(err)?,
+                base_url: aci.base_url,
+            }),
             AuthType::Adyen(adyen) => Ok(Self::Adyen {
                 api_key: adyen.api_key.ok_or_else(err)?,
                 merchant_account: adyen.merchant_account.ok_or_else(err)?,

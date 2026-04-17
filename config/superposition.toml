@@ -247,6 +247,11 @@ connector_base_url = "https://sandboxapi.rapyd.net"
 _context_ = { connector = "aci" }
 connector_base_url = "https://eu-test.oppwa.com/"
 
+# ACI Development
+[[overrides]]
+_context_ = { connector = "aci", environment = "development" }
+connector_base_url = "https://eu-test.oppwa.com/"
+
 # Nuvei
 [[overrides]]
 _context_ = { connector = "nuvei" }
@@ -291,6 +296,11 @@ connector_base_url = "https://stagegw.transnox.com/"
 # Bank of America
 [[overrides]]
 _context_ = { connector = "bankofamerica" }
+connector_base_url = "https://apitest.merchant-services.bankofamerica.com/"
+
+# Bank of America Development
+[[overrides]]
+_context_ = { connector = "bankofamerica", environment = "development" }
 connector_base_url = "https://apitest.merchant-services.bankofamerica.com/"
 
 # PowerTranz
@@ -583,6 +593,11 @@ connector_base_url = "https://api.paysafe.com/paymenthub/"
 [[overrides]]
 _context_ = { connector = "tsys", environment = "production" }
 connector_base_url = "https://gateway.transit-pass.com/"
+
+# BankofAmerica Production
+[[overrides]]
+_context_ = { connector = "bankofamerica", environment = "production" }
+connector_base_url = "https://api.merchant-services.bankofamerica.com/"
 
 # Revolut Production
 [[overrides]]
