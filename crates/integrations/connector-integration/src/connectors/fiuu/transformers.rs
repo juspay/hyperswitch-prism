@@ -818,10 +818,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let (mps_token_status, customer_email) =
             if item.request.is_customer_initiated_mandate_payment() {
-                (
-                    Some(1),
-                    Some(item.resource_common_data.get_billing_email()?),
-                )
+                let email = item.resource_common_data.get_billing_email()?;
+                // Filter out empty emails - don't send CustEmail field if email is empty
+                if email.peek().is_empty() {
+                    (Some(1), None)
+                } else {
+                    (Some(1), Some(email))
+                }
             } else {
                 (Some(3), None)
             };

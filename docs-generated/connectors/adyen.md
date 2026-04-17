@@ -367,9 +367,9 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "paypal_redirect": {  # PayPal.
-        "email": {"value": "test@example.com"}  # PayPal's email address.
-    }
+  "paypal_redirect": {
+    "email": "test@example.com"
+  }
 }
 ```
 
