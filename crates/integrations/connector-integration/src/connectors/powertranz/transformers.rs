@@ -849,7 +849,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                 Ok(Self {
                     transaction_identifier: powertranz_transaction_identifier(
-                        &router_data.resource_common_data.connector_request_reference_id,
+                        &router_data
+                            .resource_common_data
+                            .connector_request_reference_id,
                     ),
                     total_amount: amount,
                     currency_code,
@@ -1031,7 +1033,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                 Ok(Self {
                     transaction_identifier: powertranz_transaction_identifier(
-                        &router_data.resource_common_data.connector_request_reference_id,
+                        &router_data
+                            .resource_common_data
+                            .connector_request_reference_id,
                     ),
                     total_amount: amount,
                     currency_code,
