@@ -202,17 +202,20 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           token: ${{ steps.generate_token.outputs.token }}
 
-      - name: Install Rust (stable)
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-
       - name: Install Rust (nightly for fmt)
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly
           components: rustfmt
-      
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Set stable as default toolchain
+        run: rustup default stable
+
       - uses: Swatinem/rust-cache@v2.7.8
         with:
           shared-key: "ci-release-fast"
