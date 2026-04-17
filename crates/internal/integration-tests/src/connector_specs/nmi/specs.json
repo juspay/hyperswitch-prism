@@ -5,8 +5,10 @@
     "capture",
     "get",
     "pre_authenticate",
+    "recurring_charge",
     "refund",
     "refund_sync",
+    "setup_recurring",
     "void"
   ]
 }
