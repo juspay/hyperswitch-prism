@@ -613,8 +613,6 @@ where
                             event_params.connector_name,
                         ])
                         .observe(external_service_elapsed.as_secs_f64());
-                    tracing::info!(?response, "response from connector");
-
                     // Extract status code BEFORE creating event - one liner
                     let status_code = response.as_ref().ok().map(|result| match result {
                         Ok(body) | Err(body) => i32::from(body.status_code),

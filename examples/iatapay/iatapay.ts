@@ -6,20 +6,25 @@
 // Run a scenario:  npx tsx iatapay.ts checkout_autocapture
 
 import { PaymentClient, MerchantAuthenticationClient, RefundClient, types } from 'hyperswitch-prism';
-const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment, AuthenticationType, CaptureMethod, Currency } = types;
+const { Environment, AuthenticationType, CaptureMethod, Currency } = types;
+export const SUPPORTED_FLOWS = ["authorize", "create_server_authentication_token", "get", "refund", "refund_get"];
 
-const _defaultConfig: ConnectorConfig = {
+const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
+    connectorConfig: {
+        iatapay: {
+            clientId: { value: 'YOUR_CLIENT_ID' },
+            merchantId: { value: 'YOUR_MERCHANT_ID' },
+            clientSecret: { value: 'YOUR_CLIENT_SECRET' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
+    },
 };
-// Standalone credentials (field names depend on connector auth type):
-// _defaultConfig.connectorConfig = {
-//     iatapay: { apiKey: { value: 'YOUR_API_KEY' } }
-// };
 
 
-function _buildAuthorizeRequest(captureMethod: CaptureMethod): PaymentServiceAuthorizeRequest {
+function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaymentServiceAuthorizeRequest {
     return {
         "merchantTransactionId": "probe_txn_001",  // Identification.
         "amount": {  // The amount for the payment.
@@ -48,12 +53,12 @@ function _buildAuthorizeRequest(captureMethod: CaptureMethod): PaymentServiceAut
     };
 }
 
-function _buildCreateServerAuthenticationTokenRequest(): MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+function _buildCreateServerAuthenticationTokenRequest(): types.IMerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
     return {
     };
 }
 
-function _buildGetRequest(connectorTransactionId: string): PaymentServiceGetRequest {
+function _buildGetRequest(connectorTransactionId: string): types.IPaymentServiceGetRequest {
     return {
         "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
         "connectorTransactionId": connectorTransactionId,
@@ -72,7 +77,7 @@ function _buildGetRequest(connectorTransactionId: string): PaymentServiceGetRequ
     };
 }
 
-function _buildRefundRequest(connectorTransactionId: string): PaymentServiceRefundRequest {
+function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServiceRefundRequest {
     return {
         "merchantRefundId": "probe_refund_001",  // Identification.
         "connectorTransactionId": connectorTransactionId,
@@ -93,7 +98,7 @@ function _buildRefundRequest(connectorTransactionId: string): PaymentServiceRefu
     };
 }
 
-function _buildRefundGetRequest(): RefundServiceGetRequest {
+function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
     return {
         "merchantRefundId": "probe_refund_001",  // Identification.
         "connectorTransactionId": "probe_connector_txn_001",
@@ -111,48 +116,48 @@ function _buildRefundGetRequest(): RefundServiceGetRequest {
 
 // ANCHOR: scenario_functions
 // Flow: PaymentService.Authorize (Ideal)
-async function authorize(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceAuthorizeResponse> {
+async function authorize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
 
     const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest(CaptureMethod.AUTOMATIC));
 
-    return { status: authorizeResponse.status, transactionId: authorizeResponse.connectorTransactionId };
+    return authorizeResponse;
 }
 
 // Flow: MerchantAuthenticationService.CreateServerAuthenticationToken
-async function createServerAuthenticationToken(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse> {
+async function createServerAuthenticationToken(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const merchantAuthenticationClient = new MerchantAuthenticationClient(config);
 
     const createResponse = await merchantAuthenticationClient.createServerAuthenticationToken(_buildCreateServerAuthenticationTokenRequest());
 
-    return { status: createResponse.status };
+    return createResponse;
 }
 
 // Flow: PaymentService.Get
-async function get(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceGetResponse> {
+async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
 
     const getResponse = await paymentClient.get(_buildGetRequest('probe_connector_txn_001'));
 
-    return { status: getResponse.status };
+    return getResponse;
 }
 
 // Flow: PaymentService.Refund
-async function refund(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<RefundResponse> {
+async function refund(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
 
     const refundResponse = await paymentClient.refund(_buildRefundRequest('probe_connector_txn_001'));
 
-    return { status: refundResponse.status };
+    return refundResponse;
 }
 
 // Flow: RefundService.Get
-async function refundGet(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<RefundResponse> {
+async function refundGet(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const refundClient = new RefundClient(config);
 
     const refundResponse = await refundClient.refundGet(_buildRefundGetRequest());
 
-    return { status: refundResponse.status };
+    return refundResponse;
 }
 
 
