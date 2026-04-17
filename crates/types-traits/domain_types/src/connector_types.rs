@@ -1601,6 +1601,9 @@ pub struct ClientAuthenticationTokenRequestData {
     pub shipping_cost: Option<MinorUnit>,
     /// The specific payment method type for which the session token is being generated
     pub payment_method_type: Option<PaymentMethodType>,
+    /// Connector-specific permissions for client authentication token
+    /// e.g., ["PMT_POST_Create_Single"] for GlobalPay hosted fields
+    pub permissions: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
