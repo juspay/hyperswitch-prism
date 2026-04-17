@@ -22,11 +22,10 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    # connector_config=payment_pb2.ConnectorSpecificConfig(
+    #     aci=payment_pb2.AciConfig(api_key=...),
+    # ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     aci=payment_pb2.AciConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,15 +37,13 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Aci',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
-    },
+const config = ConnectorConfig.create({
+    connector: Connector.ACI,
+    environment: Environment.SANDBOX,
+    // auth: { aci: { apiKey: { value: 'YOUR_API_KEY' } } },
 });
 ```
 
@@ -59,12 +56,8 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Aci")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
-    )
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    // .setConnectorConfig(...) — set your Aci credentials here
     .build()
 ```
 
@@ -76,13 +69,14 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Aci".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: None,  // TODO: Add your connector config here,
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -108,7 +102,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/aci/aci.py#L219) · [JavaScript](../../examples/aci/aci.js) · [Kotlin](../../examples/aci/aci.kt#L109) · [Rust](../../examples/aci/aci.rs#L213)
+**Examples:** [Python](../../examples/aci/aci.py#L190) · [JavaScript](../../examples/aci/aci.js) · [Kotlin](../../examples/aci/aci.kt#L105) · [Rust](../../examples/aci/aci.rs#L236)
 
 ### Card Payment (Authorize + Capture)
 
@@ -122,25 +116,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/aci/aci.py#L238) · [JavaScript](../../examples/aci/aci.js) · [Kotlin](../../examples/aci/aci.kt#L125) · [Rust](../../examples/aci/aci.rs#L229)
+**Examples:** [Python](../../examples/aci/aci.py#L209) · [JavaScript](../../examples/aci/aci.js) · [Kotlin](../../examples/aci/aci.kt#L121) · [Rust](../../examples/aci/aci.rs#L252)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/aci/aci.py#L263) · [JavaScript](../../examples/aci/aci.js) · [Kotlin](../../examples/aci/aci.kt#L147) · [Rust](../../examples/aci/aci.rs#L252)
+**Examples:** [Python](../../examples/aci/aci.py#L234) · [JavaScript](../../examples/aci/aci.js) · [Kotlin](../../examples/aci/aci.kt#L143) · [Rust](../../examples/aci/aci.rs#L275)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/aci/aci.py#L288) · [JavaScript](../../examples/aci/aci.js) · [Kotlin](../../examples/aci/aci.kt#L169) · [Rust](../../examples/aci/aci.rs#L275)
+**Examples:** [Python](../../examples/aci/aci.py#L259) · [JavaScript](../../examples/aci/aci.js) · [Kotlin](../../examples/aci/aci.kt#L165) · [Rust](../../examples/aci/aci.rs#L298)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/aci/aci.py#L310) · [JavaScript](../../examples/aci/aci.js) · [Kotlin](../../examples/aci/aci.kt#L188) · [Rust](../../examples/aci/aci.rs#L294)
+**Examples:** [Python](../../examples/aci/aci.py#L281) · [JavaScript](../../examples/aci/aci.js) · [Kotlin](../../examples/aci/aci.kt#L184) · [Rust](../../examples/aci/aci.rs#L317)
 
 ## API Reference
 
@@ -269,13 +263,13 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "card": {  # Generic card payment.
-        "card_number": {"value": "4111111111111111"},  # Card Identification.
-        "card_exp_month": {"value": "03"},
-        "card_exp_year": {"value": "2030"},
-        "card_cvc": {"value": "737"},
-        "card_holder_name": {"value": "John Doe"}  # Cardholder Information.
-    }
+  "card": {
+    "card_number": "4111111111111111",
+    "card_exp_month": "03",
+    "card_exp_year": "2030",
+    "card_cvc": "737",
+    "card_holder_name": "John Doe"
+  }
 }
 ```
 
@@ -283,9 +277,9 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "ideal": {
-        "bank_name": "Ing"  # The bank name for ideal.
-    }
+  "ideal": {
+    "bank_name": "Ing"
+  }
 }
 ```
 
@@ -293,8 +287,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "klarna": {  # Klarna - Swedish BNPL service.
-    }
+  "klarna": {}
 }
 ```
 
@@ -302,8 +295,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "afterpay_clearpay": {  # Afterpay/Clearpay - BNPL service.
-    }
+  "afterpay_clearpay": {}
 }
 ```
 
@@ -311,12 +303,11 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "affirm": {  # Affirm - US BNPL service.
-    }
+  "affirm": {}
 }
 ```
 
-**Examples:** [Python](../../examples/aci/aci.py#L332) · [TypeScript](../../examples/aci/aci.ts#L316) · [Kotlin](../../examples/aci/aci.kt#L206) · [Rust](../../examples/aci/aci.rs#L312)
+**Examples:** [Python](../../examples/aci/aci.py) · [TypeScript](../../examples/aci/aci.ts#L311) · [Kotlin](../../examples/aci/aci.kt#L202) · [Rust](../../examples/aci/aci.rs)
 
 #### PaymentService.Capture
 
@@ -327,7 +318,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/aci/aci.py#L341) · [TypeScript](../../examples/aci/aci.ts#L325) · [Kotlin](../../examples/aci/aci.kt#L218) · [Rust](../../examples/aci/aci.rs#L324)
+**Examples:** [Python](../../examples/aci/aci.py) · [TypeScript](../../examples/aci/aci.ts#L320) · [Kotlin](../../examples/aci/aci.kt#L214) · [Rust](../../examples/aci/aci.rs)
 
 #### PaymentService.Get
 
@@ -338,7 +329,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/aci/aci.py#L350) · [TypeScript](../../examples/aci/aci.ts#L334) · [Kotlin](../../examples/aci/aci.kt#L228) · [Rust](../../examples/aci/aci.rs#L331)
+**Examples:** [Python](../../examples/aci/aci.py) · [TypeScript](../../examples/aci/aci.ts#L329) · [Kotlin](../../examples/aci/aci.kt#L224) · [Rust](../../examples/aci/aci.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -349,7 +340,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/aci/aci.py#L359) · [TypeScript](../../examples/aci/aci.ts#L343) · [Kotlin](../../examples/aci/aci.kt#L236) · [Rust](../../examples/aci/aci.rs#L338)
+**Examples:** [Python](../../examples/aci/aci.py) · [TypeScript](../../examples/aci/aci.ts#L338) · [Kotlin](../../examples/aci/aci.kt#L232) · [Rust](../../examples/aci/aci.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -360,7 +351,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/aci/aci.py#L368) · [TypeScript](../../examples/aci/aci.ts#L352) · [Kotlin](../../examples/aci/aci.kt#L265) · [Rust](../../examples/aci/aci.rs#L345)
+**Examples:** [Python](../../examples/aci/aci.py) · [TypeScript](../../examples/aci/aci.ts#L347) · [Kotlin](../../examples/aci/aci.kt#L261) · [Rust](../../examples/aci/aci.rs)
 
 #### PaymentService.Refund
 
@@ -371,7 +362,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/aci/aci.py#L386) · [TypeScript](../../examples/aci/aci.ts#L370) · [Kotlin](../../examples/aci/aci.kt#L327) · [Rust](../../examples/aci/aci.rs#L359)
+**Examples:** [Python](../../examples/aci/aci.py) · [TypeScript](../../examples/aci/aci.ts#L365) · [Kotlin](../../examples/aci/aci.kt#L323) · [Rust](../../examples/aci/aci.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -382,7 +373,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/aci/aci.py#L395) · [TypeScript](../../examples/aci/aci.ts#L379) · [Kotlin](../../examples/aci/aci.kt#L337) · [Rust](../../examples/aci/aci.rs#L366)
+**Examples:** [Python](../../examples/aci/aci.py) · [TypeScript](../../examples/aci/aci.ts#L374) · [Kotlin](../../examples/aci/aci.kt#L333) · [Rust](../../examples/aci/aci.rs)
 
 #### PaymentService.Void
 
@@ -393,7 +384,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/aci/aci.py#L404) · [TypeScript](../../examples/aci/aci.ts) · [Kotlin](../../examples/aci/aci.kt#L376) · [Rust](../../examples/aci/aci.rs#L376)
+**Examples:** [Python](../../examples/aci/aci.py) · [TypeScript](../../examples/aci/aci.ts) · [Kotlin](../../examples/aci/aci.kt#L372) · [Rust](../../examples/aci/aci.rs)
 
 ### Mandates
 
@@ -406,4 +397,4 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/aci/aci.py#L377) · [TypeScript](../../examples/aci/aci.ts#L361) · [Kotlin](../../examples/aci/aci.kt#L296) · [Rust](../../examples/aci/aci.rs#L352)
+**Examples:** [Python](../../examples/aci/aci.py) · [TypeScript](../../examples/aci/aci.ts#L356) · [Kotlin](../../examples/aci/aci.kt#L292) · [Rust](../../examples/aci/aci.rs)
