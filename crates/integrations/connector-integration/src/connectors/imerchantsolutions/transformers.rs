@@ -48,7 +48,7 @@ impl TryFrom<&ConnectorSpecificConfig> for ImerchantsolutionsAuthType {
             _ => Err(errors::IntegrationError::FailedToObtainAuthType {
                 context: errors::IntegrationErrorContext {
                     suggested_action: Some("Provide AuthType as HeaderKey".to_string()),
-                    doc_url: None,
+                    doc_url: Some("https://imerchantsolutions.com/docs#authentication".to_string()),
                     additional_context: Some(
                         "Provided AuthType is incorrect. AuthType should be HeaderKey.".to_string(),
                     ),
@@ -655,7 +655,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .change_context(errors::IntegrationError::MissingConnectorTransactionID {
                 context: errors::IntegrationErrorContext {
                     suggested_action: None,
-                    doc_url: None,
+                    doc_url: Some("https://imerchantsolutions.com/docs/api#post--payments-capture".to_string()),
                     additional_context: Some(
                         "Expected connector transaction ID not found".to_string(),
                     ),
