@@ -5,6 +5,7 @@ on:
     branches:
       - main
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
 
   merge_group:
     types:
@@ -126,6 +127,7 @@ jobs:
 
   typos:
     name: Spell check
+    if: "!github.event.pull_request.draft"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -139,7 +141,7 @@ jobs:
   clippy:
     name: Clippy check
     needs: changes
-    if: needs.changes.outputs.any-rust == 'true' || needs.changes.outputs.proto == 'true'
+    if: "!github.event.pull_request.draft && (needs.changes.outputs.any-rust == 'true' || needs.changes.outputs.proto == 'true')"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -174,6 +176,7 @@ jobs:
     needs: changes
     if: >-
       github.event_name == 'pull_request' &&
+      !github.event.pull_request.draft &&
       github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name &&
       github.event.pull_request.user.login != 'hyperswitch-bot[bot]' &&
       (needs.changes.outputs.any-rs == 'true' ||
@@ -360,6 +363,7 @@ jobs:
     # Skip if auto-fix pushed (new CI run incoming) or if auto-fix failed.
     # 'success() || skipped' handles non-PR events where auto-fix is skipped.
     if: >-
+      !github.event.pull_request.draft &&
       (success() || needs.auto-fix.result == 'skipped') &&
       needs.auto-fix.outputs.pushed != 'true' &&
       (needs.changes.outputs.any-rust == 'true' ||
@@ -405,6 +409,7 @@ jobs:
     # Run if rust/proto/CI files changed AND auto-fix succeeded without pushing.
     # Skip if auto-fix pushed (new CI run incoming) or if auto-fix failed.
     if: >-
+      !github.event.pull_request.draft &&
       (success() || needs.auto-fix.result == 'skipped') &&
       needs.auto-fix.outputs.pushed != 'true' &&
       (needs.changes.outputs.any-rust == 'true' ||
@@ -544,6 +549,7 @@ jobs:
     name: SDK Tests
     needs: [changes, auto-fix]
     if: >-
+      !github.event.pull_request.draft &&
       (success() || needs.auto-fix.result == 'skipped') &&
       needs.auto-fix.outputs.pushed != 'true' &&
       (needs.changes.outputs.sdk == 'true' ||
