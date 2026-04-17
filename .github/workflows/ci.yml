@@ -619,6 +619,9 @@ jobs:
           shared-key: "ci-release-fast"
           cache-targets: true
 
+      - name: Generate flows.json
+        run: python3 scripts/generators/code/generate.py --lang rust
+
       - name: Restore SDK binaries cache
         id: sdk-cache-restore
         uses: actions/cache/restore@v4
