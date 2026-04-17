@@ -6,6 +6,9 @@ license = "MIT"
 keywords = ["hyperswitch", "prism", "payments", "payment-processing", "credit-cards", "juspay", "payment-gateway", "stripe", "adyen", "paypal", "unified-payments"]
 description = "Hyperswitch Payments SDK — Rust client for connector integrations"
 
+[lints.clippy]
+needless_update = "allow"
+
 [[example]]
 name = "stripe"
 path = "../../examples/stripe/stripe.rs"
