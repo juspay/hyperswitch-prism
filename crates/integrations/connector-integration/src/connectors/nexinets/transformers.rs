@@ -1074,16 +1074,28 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let request = &router_data.request;
+
+        // Nexinets SetupMandate performs a PREAUTH with cofContract=UNSCHEDULED,
+        // which triggers the 3DS/SCA challenge required by PSD2 for
+        // stored-credential enrollment. Non-3DS SetupMandate is not supported.
+        if router_data.resource_common_data.auth_type == common_enums::AuthenticationType::NoThreeDs
+        {
+            return Err(IntegrationError::FlowNotSupported {
+                flow: "SetupMandate with NoThreeDs".to_string(),
+                connector: "Nexinets".to_string(),
+                context: Default::default(),
+            }
+            .into());
+        }
+
         // Prefer request-level return URLs (SetupMandateRequestData.return_url
         // / router_return_url) over the flow-data return_url, which is often
-        // None for SetupMandate. Nexinets rejects the preauth call when the
-        // async URLs are null, so fall back to a benign placeholder.
+        // None for SetupMandate.
         let return_url = request
             .return_url
             .clone()
             .or_else(|| request.router_return_url.clone())
-            .or_else(|| router_data.resource_common_data.return_url.clone())
-            .or_else(|| Some("https://hyperswitch.io/return".to_string()));
+            .or_else(|| router_data.resource_common_data.return_url.clone());
         let nexinets_async = NexinetsAsyncDetails {
             success_url: return_url.clone(),
             cancel_url: return_url.clone(),
@@ -1111,13 +1123,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        // Prefer caller-supplied amount; fall back to a minimal unit amount
-        // (1) since Nexinets does not universally accept zero-amount
-        // preauths for card-on-file verification.
+        // Nexinets requires a positive initialAmount. Error upfront when
+        // the caller omits amount instead of silently defaulting.
         let initial_amount = request
             .amount
             .or_else(|| request.minor_amount.map(|m| m.get_amount_as_i64()))
-            .unwrap_or(1);
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "amount",
+                context: Default::default(),
+            })?;
 
         let merchant_order_id = Some(
             router_data
@@ -1299,8 +1313,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let return_url = request
             .router_return_url
             .clone()
-            .or_else(|| router_data.resource_common_data.return_url.clone())
-            .or_else(|| Some("https://hyperswitch.io/return".to_string()));
+            .or_else(|| router_data.resource_common_data.return_url.clone());
         let nexinets_async = NexinetsAsyncDetails {
             success_url: return_url.clone(),
             cancel_url: return_url.clone(),
