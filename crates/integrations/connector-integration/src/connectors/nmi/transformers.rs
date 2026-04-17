@@ -3,13 +3,14 @@ use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector};
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, SetupMandate, Void,
+        Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, RepeatPayment, SetupMandate,
+        Void,
     },
     connector_types::{
-        MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
-        SetupMandateRequestData,
+        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsPreAuthenticateData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{
@@ -1600,8 +1601,21 @@ pub struct NmiSetupMandateAch {
     account_type: Option<common_enums::BankType>,
 }
 
-/// NMI SetupMandate response - same as StandardResponse, includes customer_vault_id
-pub type NmiSetupMandateResponse = StandardResponse;
+/// NMI SetupMandate response - typed `response` via the shared `Response` enum so
+/// the raw "1"/"2"/"3" codes deserialize into `Approved`/`Declined`/`Error` variants.
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct NmiSetupMandateResponse {
+    pub response: Response,
+    pub responsetext: String,
+    pub authcode: Option<String>,
+    pub transactionid: String,
+    pub avsresponse: Option<String>,
+    pub cvvresponse: Option<String>,
+    pub orderid: String,
+    pub response_code: String,
+    #[serde(default)]
+    pub customer_vault_id: Option<Secret<String>>,
+}
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
@@ -1645,8 +1659,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let payment_method = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card_data) => {
-                let ccexp =
-                    card_data.get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?;
+                let ccexp = card_data.get_expiry_date_as_mmyy()?;
                 NmiSetupMandatePaymentMethod::Card(NmiSetupMandateCard {
                     ccnumber: card_data.card_number.clone(),
                     ccexp,
@@ -1685,45 +1698,29 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        let billing_address = router_data
-            .resource_common_data
-            .get_optional_billing()
-            .and_then(|b| b.address.as_ref());
+        let common_data = &router_data.resource_common_data;
 
         Ok(Self {
             transaction_type: TransactionType::Validate,
             security_key: auth.api_key,
-            orderid: router_data
-                .resource_common_data
-                .connector_request_reference_id
-                .clone(),
+            orderid: common_data.connector_request_reference_id.clone(),
             customer_vault: CustomerAction::AddCustomer,
             payment_method,
-            first_name: billing_address.and_then(|a| a.first_name.clone()),
-            last_name: billing_address.and_then(|a| a.last_name.clone()),
+            first_name: common_data.get_optional_billing_first_name(),
+            last_name: common_data.get_optional_billing_last_name(),
             email: router_data.request.email.clone(),
-            address1: billing_address.and_then(|a| a.line1.clone()),
-            address2: billing_address.and_then(|a| a.line2.clone()),
-            city: billing_address.and_then(|a| a.city.clone()),
-            state: billing_address.and_then(|a| a.state.clone()),
-            zip: billing_address.and_then(|a| a.zip.clone()),
-            country: billing_address.and_then(|a| a.country),
+            address1: common_data.get_optional_billing_line1(),
+            address2: common_data.get_optional_billing_line2(),
+            city: common_data.get_optional_billing_city(),
+            state: common_data.get_optional_billing_state(),
+            zip: common_data.get_optional_billing_zip(),
+            country: common_data.get_optional_billing_country(),
         })
     }
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<
-        ResponseRouterData<
-            NmiSetupMandateResponse,
-            RouterDataV2<
-                SetupMandate,
-                PaymentFlowData,
-                SetupMandateRequestData<T>,
-                PaymentsResponseData,
-            >,
-        >,
-    >
+    TryFrom<ResponseRouterData<NmiSetupMandateResponse, Self>>
     for RouterDataV2<
         SetupMandate,
         PaymentFlowData,
@@ -1734,22 +1731,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            NmiSetupMandateResponse,
-            RouterDataV2<
-                SetupMandate,
-                PaymentFlowData,
-                SetupMandateRequestData<T>,
-                PaymentsResponseData,
-            >,
-        >,
+        item: ResponseRouterData<NmiSetupMandateResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
 
-        // NMI response codes: "1" = Approved, "2" = Declined, "3" = Error
-        let (status, payment_response) = match response.response.as_str() {
-            "1" => {
-                // Approved - Extract customer_vault_id as the mandate reference
+        let (status, payment_response) = match response.response {
+            Response::Approved => {
                 let connector_mandate_id = response
                     .customer_vault_id
                     .as_ref()
@@ -1764,7 +1751,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 });
 
                 (
-                    AttemptStatus::Charged, // Mandate setup successful
+                    AttemptStatus::Charged,
                     Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(
                             response.transactionid.clone(),
@@ -1779,8 +1766,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }),
                 )
             }
-            "2" | "3" => (
-                // Declined or Error
+            Response::Declined | Response::Error => (
                 AttemptStatus::Failure,
                 Err(domain_types::router_data::ErrorResponse {
                     code: response.response_code.clone(),
@@ -1794,9 +1780,118 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     network_error_message: None,
                 }),
             ),
-            _ => (
-                // Unknown response - treat as pending
-                AttemptStatus::Pending,
+        };
+
+        Ok(Self {
+            response: payment_response,
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// ===== REPEAT PAYMENT (RecurringPaymentService/Charge) =====
+
+#[derive(Debug, Serialize)]
+pub struct NmiRepeatPaymentRequest {
+    #[serde(rename = "type")]
+    transaction_type: TransactionType,
+    security_key: Secret<String>,
+    amount: FloatMajorUnit,
+    currency: common_enums::Currency,
+    orderid: String,
+    customer_vault_id: Secret<String>,
+}
+
+pub type NmiRepeatPaymentResponse = NmiSetupMandateResponse;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::NmiRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for NmiRepeatPaymentRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: super::NmiRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let auth = NmiAuthType::try_from(&router_data.connector_config)?;
+
+        let customer_vault_id = match &router_data.request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => connector_mandate_ids
+                .get_connector_mandate_id()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "connector_mandate_id",
+                    context: Default::default(),
+                })?,
+            _ => {
+                return Err(IntegrationError::NotSupported {
+                    message: "Only ConnectorMandateId is supported for NMI recurring payments"
+                        .to_string(),
+                    connector: "NMI",
+                    context: Default::default(),
+                }
+                .into())
+            }
+        };
+
+        let amount = FloatMajorUnitForConnector
+            .convert(
+                router_data.request.minor_amount,
+                router_data.request.currency,
+            )
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
+
+        Ok(Self {
+            transaction_type: TransactionType::Sale,
+            security_key: auth.api_key,
+            amount,
+            currency: router_data.request.currency,
+            orderid: router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            customer_vault_id: Secret::new(customer_vault_id),
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<NmiRepeatPaymentResponse, Self>>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<NmiRepeatPaymentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+
+        let (status, payment_response) = match response.response {
+            Response::Approved => (
+                AttemptStatus::Charged,
                 Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(response.transactionid.clone()),
                     redirection_data: None,
@@ -1806,6 +1901,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     connector_response_reference_id: Some(response.transactionid.clone()),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                }),
+            ),
+            Response::Declined | Response::Error => (
+                AttemptStatus::Failure,
+                Err(domain_types::router_data::ErrorResponse {
+                    code: response.response_code.clone(),
+                    message: response.responsetext.clone(),
+                    reason: Some(response.responsetext.clone()),
+                    status_code: item.http_code,
+                    attempt_status: Some(AttemptStatus::Failure),
+                    connector_transaction_id: Some(response.transactionid.clone()),
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
                 }),
             ),
         };
