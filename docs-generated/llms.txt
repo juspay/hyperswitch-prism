@@ -130,8 +130,8 @@ examples_python: none
 connector_id: cashfree
 doc: docs/connectors/cashfree.md
 scenarios: none
-payment_methods: UpiCollect, UpiIntent, UpiQr
-flows: authorize
+payment_methods: none
+flows: capture, create_order, get, refund, refund_get, void
 examples_python: none
 
 ## CashtoCode
@@ -203,7 +203,7 @@ connector_id: finix
 doc: docs/connectors/finix.md
 scenarios: none
 payment_methods: none
-flows: capture, create_customer, get, refund, refund_get, token_authorize, tokenize, void
+flows: capture, create_customer, get, recurring_charge, refund, refund_get, token_authorize, tokenize, void
 examples_python: none
 
 ## Fiserv
@@ -549,6 +549,14 @@ scenarios: checkout_autocapture, checkout_card, refund, void_payment
 payment_methods: Card
 flows: authorize, capture, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
 examples_python: examples/revolv3/revolv3.py
+
+## Sanlammultidata
+connector_id: sanlammultidata
+doc: docs/connectors/sanlammultidata.md
+scenarios: none
+payment_methods: none
+flows: 
+examples_python: none
 
 ## Shift4
 connector_id: shift4
