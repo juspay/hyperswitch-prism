@@ -682,8 +682,7 @@ impl Payments {
         let success_response = response.into_grpc_status()?;
 
         let setup_mandate_response =
-            generate_setup_mandate_response(success_response)
-                .into_grpc_status()?;
+            generate_setup_mandate_response(success_response).into_grpc_status()?;
 
         Ok(setup_mandate_response)
     }
