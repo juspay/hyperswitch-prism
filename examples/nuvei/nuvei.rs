@@ -501,16 +501,6 @@ pub async fn process_refund_get(
     Ok(format!("status: {:?}", response.status()))
 }
 
-// Flow: PaymentService.SetupRecurring
-#[allow(dead_code)]
-pub async fn setup_recurring(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.setup_recurring(build_setup_recurring_request(), &HashMap::new(), None).await?;
-    if response.status() == PaymentStatus::Failure {
-        return Err(format!("Setup failed: {:?}", response.error).into());
-    }
-    Ok(format!("Mandate: {}", response.connector_recurring_payment_id.as_deref().unwrap_or("")))
-}
-
 // Flow: PaymentService.Void
 #[allow(dead_code)]
 pub async fn process_void(
