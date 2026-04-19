@@ -990,7 +990,8 @@
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: billing_country or connector_feature_data.country — Missing required field: billing_country or connector_feature_data.country"
       }
     },
     "create_server_authentication_token": {

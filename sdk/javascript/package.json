@@ -1,6 +1,6 @@
 {
   "name": "hyperswitch-prism",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "Hyperswitch Payments SDK — Node.js client for connector integrations via UniFFI FFI",
   "main": "dist/src/index.js",
   "repository": {

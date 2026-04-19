@@ -155,13 +155,13 @@ test-package: generate-all install
 # ---------------------------------------------------------------------------
 # test-package-mock
 # Same as test-package but runs in MOCK mode (no real HTTP calls).
-# Uses generated harnesses instead of examples and verifies req_transformer only.
+# Uses examples/connector/connector.kt files and verifies req_transformer only.
 # ---------------------------------------------------------------------------
 test-package-mock: generate-all install
 	@echo "Running Kotlin smoke test in MOCK mode..."
-	@# Copy generated harness to smoke-test source
+	@# Copy example to smoke-test source
 	@mkdir -p $(SDK_ROOT)/smoke-test/src/main/kotlin/generated/$(CONNECTORS)
-	@cp $(SDK_ROOT)/smoke-test/generated/$(CONNECTORS)/$(CONNECTORS).kt $(SDK_ROOT)/smoke-test/src/main/kotlin/generated/$(CONNECTORS)/
+	@cp $(REPO_ROOT)/examples/$(CONNECTORS)/$(CONNECTORS).kt $(SDK_ROOT)/smoke-test/src/main/kotlin/generated/$(CONNECTORS)/
 	@if [ -f $(REPO_ROOT)/creds_dummy.json ]; then \
 		cp $(REPO_ROOT)/creds_dummy.json $(SDK_ROOT)/smoke-test/creds.json; \
 	fi
@@ -177,7 +177,7 @@ GRPC_PROFILE    ?= release-fast
 GRPC_SERVER_BIN := $(REPO_ROOT)/target/$(PLATFORM)/$(GRPC_PROFILE)/grpc-server
 
 # Run gRPC test assuming server is already running (used by top-level test-grpc)
-test-grpc-no-server: install
+test-grpc-no-server: generate-all install
 	@echo "Running Kotlin gRPC smoke test..."
 	@mkdir -p $(SDK_ROOT)/smoke-test/src/main/resources/native
 	@cp -f $(GRPC_FFI_LIBRARY) $(SDK_ROOT)/smoke-test/src/main/resources/native/
@@ -188,9 +188,9 @@ test-grpc-no-server: install
 
 test-grpc: install generate-all ## Build grpc-ffi lib + grpc-server → start server → run Kotlin gRPC smoke test → stop server
 	@echo "Building gRPC FFI library ($(GRPC_PROFILE))..."
-	@cd $(REPO_ROOT) && cargo build -p hyperswitch-grpc-ffi --profile $(GRPC_PROFILE) 2>&1
+	@cd $(REPO_ROOT) && cargo build -p hyperswitch-grpc-ffi --profile $(GRPC_PROFILE) --target $(PLATFORM) 2>&1
 	@echo "Building gRPC server ($(GRPC_PROFILE))..."
-	@cd $(REPO_ROOT) && cargo build -p grpc-server --profile $(GRPC_PROFILE) 2>&1
+	@cd $(REPO_ROOT) && cargo build -p grpc-server --profile $(GRPC_PROFILE) --target $(PLATFORM) 2>&1
 	@echo "Starting gRPC server..."
 	@pkill -KILL -f grpc-server 2>/dev/null || true
 	@sleep 1
