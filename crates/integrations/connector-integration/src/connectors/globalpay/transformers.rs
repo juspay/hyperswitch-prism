@@ -1,8 +1,6 @@
-use crate::{
-    connectors::globalpay::{GlobalpayAmountConvertor, GlobalpayRouterData},
-    types::ResponseRouterData,
-};
+use crate::{connectors::globalpay::GlobalpayRouterData, types::ResponseRouterData};
 use common_enums::{AttemptStatus, RefundStatus};
+use common_utils::consts::NO_ERROR_CODE;
 use common_utils::request::Method;
 use common_utils::types::StringMinorUnit;
 use domain_types::{
@@ -54,18 +52,17 @@ pub type GlobalpayCaptureResponse = GlobalpayPaymentsResponse;
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct GlobalpaySetupMandateResponse {
     pub id: String,
-    pub status: Option<String>,
     pub reference: Option<String>,
-    pub usage_mode: Option<String>,
+    pub usage_mode: Option<GlobalpayUsageMode>,
     pub card: Option<GlobalpayTokenizedCard>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct GlobalpayTokenizedCard {
-    pub masked_number_last4: Option<String>,
-    pub brand: Option<String>,
-    pub expiry_month: Option<String>,
-    pub expiry_year: Option<String>,
+    pub masked_number_last4: Option<Secret<String>>,
+    pub brand: Option<Secret<String>>,
+    pub expiry_month: Option<Secret<String>>,
+    pub expiry_year: Option<Secret<String>>,
 }
 /// Response type for RSync flow - reuses GlobalpayRefundResponse
 pub type GlobalpayRSyncResponse = GlobalpayRefundResponse;
@@ -184,6 +181,16 @@ pub enum Sequence {
     First,
     Last,
     Subsequent,
+}
+
+/// GlobalPay `usage_mode` on /payment-methods. `MULTIPLE` allows the returned
+/// PMT_ id to be reused for subsequent MIT charges; `SINGLE` restricts it to
+/// a single subsequent transaction.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum GlobalpayUsageMode {
+    Single,
+    Multiple,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -502,11 +509,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             _ => Some(GlobalpayCaptureMode::Auto),
         };
 
-        // Get country from billing address or use default
-        let country = item
-            .resource_common_data
-            .get_billing_country()
-            .unwrap_or(common_enums::CountryAlpha2::US);
+        // Country is required by GlobalPay - missing billing country is a user error
+        let country = item.resource_common_data.get_billing_country()?;
 
         // Build notifications object from router data
         let notifications = if let (Some(return_url), Some(webhook_url)) = (
@@ -522,16 +526,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             None
         };
 
+        let amount = wrapper
+            .connector
+            .amount_converter
+            .convert(item.request.minor_amount, item.request.currency)
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
+
         Ok(Self {
             account_name: constants::ACCOUNT_NAME.to_string(),
             channel: constants::CHANNEL_CNP.to_string(),
-            amount: GlobalpayAmountConvertor::convert(
-                item.request.minor_amount,
-                item.request.currency,
-            )
-            .change_context(IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
-            })?,
+            amount,
             currency: item.request.currency,
             reference: item
                 .resource_common_data
@@ -572,15 +578,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let item = &wrapper.router_data;
+        let amount = wrapper
+            .connector
+            .amount_converter
+            .convert(item.request.minor_amount_to_capture, item.request.currency)
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
 
         Ok(Self {
-            amount: GlobalpayAmountConvertor::convert(
-                item.request.minor_amount_to_capture,
-                item.request.currency,
-            )
-            .change_context(IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
-            })?,
+            amount,
             capture_sequence: item.request.multiple_capture_data.as_ref().map(|mcd| {
                 if mcd.capture_sequence == 1 {
                     Sequence::First
@@ -688,7 +695,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GlobalpayPaymentsResp
                     .payment_method
                     .as_ref()
                     .and_then(|pm| pm.result.clone())
-                    .unwrap_or_else(|| "UNKNOWN_ERROR".to_string()),
+                    .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
                 message: item
                     .response
                     .payment_method
@@ -766,7 +773,7 @@ impl TryFrom<ResponseRouterData<GlobalpayPaymentsResponse, Self>>
                     .payment_method
                     .as_ref()
                     .and_then(|pm| pm.result.clone())
-                    .unwrap_or_else(|| "UNKNOWN_ERROR".to_string()),
+                    .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
                 message: item
                     .response
                     .payment_method
@@ -844,7 +851,7 @@ impl TryFrom<ResponseRouterData<GlobalpayPaymentsResponse, Self>>
                     .payment_method
                     .as_ref()
                     .and_then(|pm| pm.result.clone())
-                    .unwrap_or_else(|| "UNKNOWN_ERROR".to_string()),
+                    .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
                 message: item
                     .response
                     .payment_method
@@ -919,15 +926,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let item = &wrapper.router_data;
-        Ok(Self {
-            amount: GlobalpayAmountConvertor::convert(
-                item.request.minor_refund_amount,
-                item.request.currency,
-            )
-            .change_context(IntegrationError::RequestEncodingFailed {
+        let amount = wrapper
+            .connector
+            .amount_converter
+            .convert(item.request.minor_refund_amount, item.request.currency)
+            .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
-            })?,
-        })
+            })?;
+        Ok(Self { amount })
     }
 }
 
@@ -1026,11 +1032,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .amount
             .zip(item.request.currency)
             .map(|(amount_value, currency)| {
-                GlobalpayAmountConvertor::convert(amount_value, currency).change_context(
-                    IntegrationError::RequestEncodingFailed {
+                wrapper
+                    .connector
+                    .amount_converter
+                    .convert(amount_value, currency)
+                    .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
-                    },
-                )
+                    })
             })
             .transpose()?;
 
@@ -1254,7 +1262,7 @@ pub struct GlobalpaySetupMandateCard<T: PaymentMethodDataTypes> {
 #[derive(Debug, Serialize)]
 pub struct GlobalpaySetupMandateRequest<T: PaymentMethodDataTypes> {
     pub reference: String,
-    pub usage_mode: String,
+    pub usage_mode: GlobalpayUsageMode,
     pub card: GlobalpaySetupMandateCard<T>,
 }
 
@@ -1317,15 +1325,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            usage_mode: "MULTIPLE".to_string(),
+            usage_mode: GlobalpayUsageMode::Multiple,
             card,
         })
     }
 }
 
-// SetupMandate response: tokenization succeeded when we receive a PMT_ id with
-// status ACTIVE. That PMT_ id becomes the connector_mandate_id used later by
-// RepeatPayment (as `payment_method.id` on /transactions).
+// SetupMandate response: a 2xx from /payment-methods returns a PMT_ id which
+// becomes the connector_mandate_id used later by RepeatPayment (as
+// `payment_method.id` on /transactions). GlobalPay's /payment-methods response
+// has no status field - a successful parse implies tokenization succeeded.
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GlobalpaySetupMandateResponse, Self>>
     for RouterDataV2<
         SetupMandate,
@@ -1339,44 +1348,19 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GlobalpaySetupMandate
     fn try_from(
         item: ResponseRouterData<GlobalpaySetupMandateResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let is_active = item
-            .response
-            .status
-            .as_deref()
-            .map(|s| s.eq_ignore_ascii_case("ACTIVE"))
-            .unwrap_or(true);
+        // The PMT_ id is a payment-method token, not a transaction id, so PSync
+        // (which hits /transactions/{id}) cannot be performed against it. We
+        // surface the PMT_ id through MandateReference.connector_mandate_id for
+        // later RepeatPayment use and leave resource_id as NoResponseId.
+        let mandate_reference = Some(Box::new(MandateReference {
+            connector_mandate_id: Some(item.response.id.clone()),
+            payment_method_id: None,
+            connector_mandate_request_reference_id: None,
+        }));
 
-        let status = if is_active {
-            AttemptStatus::Charged
-        } else {
-            AttemptStatus::Failure
-        };
-
-        let response = if !is_active {
-            Err(ErrorResponse {
-                status_code: item.http_code,
-                code: item
-                    .response
-                    .status
-                    .clone()
-                    .unwrap_or_else(|| "TOKENIZATION_FAILED".to_string()),
-                message: "Tokenization failed".to_string(),
-                reason: item.response.status.clone(),
-                attempt_status: Some(status),
-                connector_transaction_id: Some(item.response.id.clone()),
-                network_decline_code: None,
-                network_advice_code: None,
-                network_error_message: None,
-            })
-        } else {
-            let mandate_reference = Some(Box::new(MandateReference {
-                connector_mandate_id: Some(item.response.id.clone()),
-                payment_method_id: None,
-                connector_mandate_request_reference_id: None,
-            }));
-
-            Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::NoResponseId,
                 redirection_data: None,
                 mandate_reference,
                 connector_metadata: None,
@@ -1384,13 +1368,9 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GlobalpaySetupMandate
                 connector_response_reference_id: item.response.reference.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
-            })
-        };
-
-        Ok(Self {
-            response,
+            }),
             resource_common_data: PaymentFlowData {
-                status,
+                status: AttemptStatus::Charged,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -1477,10 +1457,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        let country = item
-            .resource_common_data
-            .get_billing_country()
-            .unwrap_or(common_enums::CountryAlpha2::US);
+        let country = item.resource_common_data.get_billing_country()?;
 
         let notifications = if let Some(webhook_url) = item.request.webhook_url.as_ref() {
             let return_url = item
@@ -1502,13 +1479,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             _ => Some(GlobalpayCaptureMode::Auto),
         };
 
-        let amount = GlobalpayAmountConvertor::convert(
-            item.request.minor_amount,
-            item.request.currency,
-        )
-        .change_context(IntegrationError::RequestEncodingFailed {
-            context: Default::default(),
-        })?;
+        let amount = wrapper
+            .connector
+            .amount_converter
+            .convert(item.request.minor_amount, item.request.currency)
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
 
         Ok(Self {
             account_name: constants::ACCOUNT_NAME.to_string(),
@@ -1561,7 +1538,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GlobalpayRepeatPaymen
                     .payment_method
                     .as_ref()
                     .and_then(|pm| pm.result.clone())
-                    .unwrap_or_else(|| "UNKNOWN_ERROR".to_string()),
+                    .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
                 message: item
                     .response
                     .payment_method

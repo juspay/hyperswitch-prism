@@ -46,8 +46,8 @@ use transformers::{
     GlobalpayAuthorizeResponse, GlobalpayCaptureRequest, GlobalpayCaptureResponse,
     GlobalpayClientAuthRequest, GlobalpayClientAuthResponse, GlobalpayPSyncResponse,
     GlobalpayPaymentsRequest, GlobalpayRSyncResponse, GlobalpayRefundRequest,
-    GlobalpayRefundResponse, GlobalpaySetupMandateRequest, GlobalpaySetupMandateResponse,
-    GlobalpayRepeatPaymentRequest, GlobalpayRepeatPaymentResponse, GlobalpayVoidRequest,
+    GlobalpayRefundResponse, GlobalpayRepeatPaymentRequest, GlobalpayRepeatPaymentResponse,
+    GlobalpaySetupMandateRequest, GlobalpaySetupMandateResponse, GlobalpayVoidRequest,
     GlobalpayVoidResponse,
 };
 
