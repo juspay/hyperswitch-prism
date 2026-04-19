@@ -678,55 +678,12 @@ impl Payments {
         )
         .await;
 
-        // Generate response - handle both success and error cases like process_authorization_internal
-        let setup_mandate_response = match response {
-            Ok(success_response) => generate_setup_mandate_response(success_response)
-                .map_err(|e| e.into_grpc_status())?,
-            Err(error_report) => {
-                tracing::error!("{:?}", error_report);
-                // Extract error details from ConnectorFlowError
-                let (status_code, code, message) = match error_report.current_context() {
-                    domain_types::errors::ConnectorFlowError::Request(integration_err) => {
-                        let api_error = integration_err.get_api_error();
-                        (
-                            api_error.error_identifier,
-                            api_error.sub_code.clone(),
-                            api_error.error_message.clone(),
-                        )
-                    }
-                    domain_types::errors::ConnectorFlowError::Response(connector_err) => {
-                        let status = connector_err.http_status_code().unwrap_or(500);
-                        let code = connector_err.error_code().to_string();
-                        let msg = connector_err.to_string();
-                        (status, code, msg)
-                    }
-                    domain_types::errors::ConnectorFlowError::Client(client_err) => {
-                        (500u16, "CLIENT_ERROR".to_string(), client_err.to_string())
-                    }
-                };
+        // Generate response - connector flow errors propagate as Err(tonic::Status)
+        let success_response = response.into_grpc_status()?;
 
-                // Convert error to RouterDataV2 with error response
-                let error_router_data = RouterDataV2 {
-                    flow: std::marker::PhantomData,
-                    resource_common_data: payment_flow_data,
-                    connector_config,
-                    request: setup_mandate_request_data,
-                    response: Err(ErrorResponse {
-                        status_code,
-                        code,
-                        message,
-                        reason: None,
-                        attempt_status: Some(common_enums::AttemptStatus::Failure),
-                        connector_transaction_id: None,
-                        network_decline_code: None,
-                        network_advice_code: None,
-                        network_error_message: None,
-                    }),
-                };
-                generate_setup_mandate_response::<T>(error_router_data)
-                    .map_err(|e| e.into_grpc_status())?
-            }
-        };
+        let setup_mandate_response =
+            generate_setup_mandate_response(success_response)
+                .into_grpc_status()?;
 
         Ok(setup_mandate_response)
     }
@@ -2235,59 +2192,12 @@ impl PaymentMethod {
         )
         .await;
 
-        // Generate response - handle both success and error cases like process_authorization_internal
-        let payment_method_token_response = match response {
-            Ok(success_response) => {
-                domain_types::types::generate_create_payment_method_token_response(success_response)
-                    .map_err(|e| e.into_grpc_status())?
-            }
-            Err(error_report) => {
-                tracing::error!("{:?}", error_report);
-                // Extract error details from ConnectorFlowError
-                let (status_code, code, message) = match error_report.current_context() {
-                    domain_types::errors::ConnectorFlowError::Request(integration_err) => {
-                        let api_error = integration_err.get_api_error();
-                        (
-                            api_error.error_identifier,
-                            api_error.sub_code.clone(),
-                            api_error.error_message.clone(),
-                        )
-                    }
-                    domain_types::errors::ConnectorFlowError::Response(connector_err) => {
-                        let status = connector_err.http_status_code().unwrap_or(500);
-                        let code = connector_err.error_code().to_string();
-                        let msg = connector_err.to_string();
-                        (status, code, msg)
-                    }
-                    domain_types::errors::ConnectorFlowError::Client(client_err) => {
-                        (500u16, "CLIENT_ERROR".to_string(), client_err.to_string())
-                    }
-                };
+        // Generate response - connector flow errors propagate as Err(tonic::Status)
+        let success_response = response.into_grpc_status()?;
 
-                // Convert error to RouterDataV2 with error response
-                let error_router_data = RouterDataV2 {
-                    flow: std::marker::PhantomData,
-                    resource_common_data: payment_flow_data,
-                    connector_config,
-                    request: payment_method_token_request_data,
-                    response: Err(ErrorResponse {
-                        status_code,
-                        code,
-                        message,
-                        reason: None,
-                        attempt_status: Some(common_enums::AttemptStatus::Failure),
-                        connector_transaction_id: None,
-                        network_decline_code: None,
-                        network_advice_code: None,
-                        network_error_message: None,
-                    }),
-                };
-                domain_types::types::generate_create_payment_method_token_response(
-                    error_router_data,
-                )
-                .map_err(|e| e.into_grpc_status())?
-            }
-        };
+        let payment_method_token_response =
+            domain_types::types::generate_create_payment_method_token_response(success_response)
+                .into_grpc_status()?;
 
         Ok(payment_method_token_response)
     }
