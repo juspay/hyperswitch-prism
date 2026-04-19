@@ -20,6 +20,7 @@ hyperswitch_masking = { version = "0.0.1", default-features = false, features = 
 # TODO! update to latest Hyperswitch Tag once hyperswitch_masking crate changes are merged to hyperswitch main
 injector = { git = "https://github.com/juspay/hyperswitch",  branch = "solve-injector-masking-cyclic-dependency" }
 tracing-kafka = { path = "../../common/tracing-kafka", optional = true }
+connector_request_kafka = { path = "../../common/connector_request_kafka", optional = true }
 ucs_env = { path = "../../common/ucs_env" }
 ucs_interface_common = { path = "../../types-traits/ucs_interface_common" }
 
@@ -88,6 +89,7 @@ serial_test = "3.2.0"
 [features]
 default = []
 kafka = ["tracing-kafka"]
+connector-request-kafka = ["dep:connector_request_kafka"]
 
 [lints]
 workspace = true
