@@ -252,6 +252,13 @@ pub struct ConnectorSuiteSpec {
     /// Max length for auto-generated reference IDs (default: no truncation).
     #[serde(default)]
     pub request_id_length: Option<usize>,
+    /// When set, `get`/sync scenarios re-issue the sync call until the status
+    /// reaches a terminal value (`CHARGED`, `FAILURE`, `VOIDED`, etc.) or this
+    /// many seconds elapse. Use for connectors whose sandbox auto-settles UPI
+    /// payments after a delay (e.g. Cashfree settles `testsuccess@gocash` at
+    /// ~30s). Default: no polling (status returned on first call is final).
+    #[serde(default)]
+    pub sync_poll_until_terminal_seconds: Option<u64>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

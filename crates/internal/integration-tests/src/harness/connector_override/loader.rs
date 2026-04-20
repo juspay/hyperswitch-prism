@@ -12,6 +12,43 @@ pub struct ScenarioOverridePatch {
     pub grpc_req: Option<Value>,
     #[serde(rename = "assert", default)]
     pub assert_rules: Option<BTreeMap<String, Value>>,
+    /// Connector-specific context map patch. Keys are target paths in the
+    /// scenario request; values are `req.` / `res.` source references into the
+    /// scenario's dependency payloads. Applied AFTER the suite-level
+    /// `context_map`, so it can fill in fields the suite doesn't set.
+    #[serde(default)]
+    pub context_map: Option<BTreeMap<String, String>>,
+    /// Fire an HTTP request (fire-and-forget) before this scenario runs.
+    /// Used to drive sandbox simulators that settle a payment outside of the
+    /// normal connector API surface — e.g. Cashfree's `/pg/view/simulate`
+    /// endpoint which flips a UPI Intent payment to SUCCESS so the subsequent
+    /// sync returns `CHARGED` without browser automation.
+    #[serde(default)]
+    pub pre_request_http: Option<PreRequestHttpHook>,
+}
+
+/// Fire-and-forget HTTP call issued before the scenario's gRPC request.
+/// Body supports `{{dep_res.<index>.<json-path>}}` templating from
+/// dependency responses (e.g. pulling cf_payment_id out of the authorize
+/// response at dep_res index 1).
+#[derive(Debug, Clone, Deserialize)]
+pub struct PreRequestHttpHook {
+    pub url: String,
+    #[serde(default = "default_http_method")]
+    pub method: String,
+    #[serde(default)]
+    pub headers: BTreeMap<String, String>,
+    #[serde(default)]
+    pub body: Option<String>,
+    #[serde(default = "default_hook_timeout_secs")]
+    pub timeout_secs: u64,
+}
+
+fn default_http_method() -> String {
+    "POST".to_string()
+}
+fn default_hook_timeout_secs() -> u64 {
+    10
 }
 
 type SuiteOverrideFile = BTreeMap<String, ScenarioOverridePatch>;
@@ -63,6 +100,32 @@ pub fn load_scenario_override_patch(
 
     Ok(None)
 }
+
+/// Loads the optional `pre_request_http` hook for a scenario override.
+pub fn load_scenario_pre_request_http(
+    connector: &str,
+    suite: &str,
+    scenario: &str,
+) -> Result<Option<PreRequestHttpHook>, ScenarioError> {
+    Ok(load_scenario_override_patch(connector, suite, scenario)?
+        .and_then(|patch| patch.pre_request_http))
+}
+
+/// Loads optional per-connector `context_map` patch for a given scenario.
+///
+/// Used to inject dependency-derived fields into the effective request for
+/// connectors whose sync/flow transformers require fields the default suite
+/// context_map doesn't set (e.g. PhonePe reads `connector_order_reference_id`
+/// from the sync request as its `merchant_order_id`).
+pub fn load_scenario_override_context_map(
+    connector: &str,
+    suite: &str,
+    scenario: &str,
+) -> Result<Option<BTreeMap<String, String>>, ScenarioError> {
+    Ok(load_scenario_override_patch(connector, suite, scenario)?
+        .and_then(|patch| patch.context_map))
+}
+
 
 /// Path to `<connector>/webhook_payload.json` under connector override root.
 pub fn connector_webhook_payload_file_path(connector: &str) -> PathBuf {

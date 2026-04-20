@@ -23,8 +23,9 @@ use uuid::Uuid;
 use crate::harness::{
     auto_gen::resolve_auto_generate,
     connector_override::{
-        apply_connector_overrides, context_deferred_paths_for_connector,
-        normalize_tonic_request_for_connector, transform_response_for_connector,
+        apply_connector_overrides, connector_override_context_map, connector_pre_request_http_hook,
+        context_deferred_paths_for_connector, normalize_tonic_request_for_connector,
+        transform_response_for_connector, PreRequestHttpHook,
     },
     credentials::{creds_file_path, load_connector_config},
     metadata::add_connector_metadata,
@@ -4022,6 +4023,166 @@ fn append_follow_up_trace(existing: &mut Option<String>, heading: &str, payload:
     *existing = Some(merged);
 }
 
+/// Templates `{{dep_res.<index>.<json-path>}}` placeholders in a string
+/// using the list of dependency responses. Unknown placeholders are left as-is
+/// so the caller can see what didn't resolve.
+fn template_with_dep_res(template: &str, dependency_res: &[Value]) -> String {
+    let mut out = template.to_string();
+    while let Some(start) = out.find("{{dep_res.") {
+        let Some(end) = out[start..].find("}}") else {
+            break;
+        };
+        let end_abs = start + end;
+        let inner = &out[start + 10..end_abs];
+        let (idx_str, rest) = match inner.find('.') {
+            Some(dot) => (&inner[..dot], &inner[dot + 1..]),
+            None => (inner, ""),
+        };
+        let replacement = idx_str
+            .parse::<usize>()
+            .ok()
+            .and_then(|i| dependency_res.get(i))
+            .and_then(|res| {
+                if rest.is_empty() {
+                    res.as_str().map(|s| s.to_string())
+                } else {
+                    lookup_json_path_with_case_fallback(res, rest)
+                        .and_then(|v| v.as_str().map(|s| s.to_string()))
+                }
+            })
+            .unwrap_or_default();
+        out.replace_range(start..end_abs + 2, &replacement);
+    }
+    out
+}
+
+/// Fires the configured pre-request HTTP hook. Fire-and-forget: network
+/// errors are logged (when debug env is set) but do not fail the scenario.
+#[allow(clippy::print_stdout)]
+fn fire_pre_request_http_hook(hook: &PreRequestHttpHook, dependency_res: &[Value]) {
+    let url = template_with_dep_res(&hook.url, dependency_res);
+    let body = hook
+        .body
+        .as_ref()
+        .map(|b| template_with_dep_res(b, dependency_res));
+    let method = hook.method.to_uppercase();
+
+    let mut cmd = Command::new("curl");
+    cmd.arg("-sS")
+        .arg("-m")
+        .arg(hook.timeout_secs.to_string())
+        .arg("-X")
+        .arg(&method)
+        .arg(&url);
+    for (k, v) in &hook.headers {
+        cmd.arg("-H").arg(format!("{k}: {v}"));
+    }
+    if let Some(body) = body.as_ref() {
+        cmd.arg("-H")
+            .arg("Content-Type: application/json")
+            .arg("-d")
+            .arg(body);
+    }
+    let output = cmd.output();
+    if std::env::var("UCS_DEBUG_PRE_REQUEST_HOOK").as_deref() == Ok("1") {
+        match output {
+            Ok(out) => println!(
+                "[suite_run_test] pre_request_http → status={} body={}",
+                out.status,
+                String::from_utf8_lossy(&out.stdout)
+                    .chars()
+                    .take(300)
+                    .collect::<String>()
+            ),
+            Err(e) => println!("[suite_run_test] pre_request_http error: {e}"),
+        }
+    }
+}
+
+/// For the `get`/sync suite only: if the connector spec has
+/// `sync_poll_until_terminal_seconds` set and the response status is still
+/// non-terminal (e.g. `PENDING`), re-issue the sync call every 5s until a
+/// terminal status arrives or the budget elapses. Mutates `response_json` in
+/// place with the final body.
+///
+/// Used for connectors whose sandbox auto-settles after a delay — e.g.
+/// Cashfree's `testsuccess@gocash` UPI collect transitions from
+/// `NOT_ATTEMPTED` to `SUCCESS` at ~30s.
+fn maybe_poll_sync_until_terminal(
+    suite: &str,
+    scenario: &str,
+    connector: &str,
+    options: SuiteRunOptions<'_>,
+    effective_req: &Value,
+    response_json: &mut Value,
+    grpc_request: &mut Option<String>,
+    grpc_response: &mut Option<String>,
+) {
+    if suite != "get" || options.backend != ExecutionBackend::Grpcurl {
+        return;
+    }
+    let Some(spec) = load_connector_spec(connector) else {
+        return;
+    };
+    let Some(budget_secs) = spec.sync_poll_until_terminal_seconds else {
+        return;
+    };
+
+    let is_terminal = |status: &str| {
+        matches!(
+            status,
+            "CHARGED" | "AUTHORIZED" | "VOIDED" | "FAILURE" | "REJECTED" | "CANCELLED" | "EXPIRED"
+        )
+    };
+    let current_status = |body: &Value| {
+        lookup_json_path_with_case_fallback(body, "status")
+            .and_then(Value::as_str)
+            .map(|s| s.to_string())
+    };
+
+    if let Some(status) = current_status(response_json) {
+        if is_terminal(&status) {
+            return;
+        }
+    }
+
+    let deadline = std::time::Instant::now() + Duration::from_secs(budget_secs);
+    let poll_interval = Duration::from_secs(5);
+
+    while std::time::Instant::now() < deadline {
+        thread::sleep(poll_interval);
+
+        let trace = match execute_grpcurl_request_from_payload_with_trace(
+            suite,
+            scenario,
+            effective_req,
+            options.endpoint,
+            Some(connector),
+            options.merchant_id,
+            options.tenant_id,
+            options.plaintext,
+        ) {
+            Ok(trace) if trace.success => trace,
+            _ => continue,
+        };
+
+        let Ok(mut next_json) = serde_json::from_str::<Value>(&trace.response_body) else {
+            continue;
+        };
+        transform_response_for_connector(connector, suite, scenario, &mut next_json);
+
+        *response_json = next_json;
+        *grpc_request = Some(trace.request_command);
+        *grpc_response = Some(trace.response_output);
+
+        if let Some(status) = current_status(response_json) {
+            if is_terminal(&status) {
+                break;
+            }
+        }
+    }
+}
+
 fn maybe_sync_complete_authorize_pending(
     suite: &str,
     connector: &str,
@@ -4163,6 +4324,34 @@ fn execute_single_scenario_with_context(
     // Apply any explicit dependency path mappings from suite_spec.json.
     apply_context_map(explicit_context_entries, &mut effective_req);
 
+    // Per-connector context_map patch from `<connector>/override.json`.
+    // Lets a single connector inject dependency-derived fields without
+    // changing the suite-level context_map shared by all connectors.
+    //
+    // Applied against ALL dependencies (not only those with an explicit
+    // suite-level context_map), so a connector can reach into the req/res of
+    // a dep that the global spec didn't wire through.  For each dependency,
+    // `apply_context_map` silently skips keys that don't resolve, so listing
+    // the same mapping against every dep is safe.
+    if let Ok(Some(connector_map)) = connector_override_context_map(connector, suite, scenario) {
+        let connector_entries: Vec<ExplicitContextEntry> = dependency_reqs
+            .iter()
+            .zip(dependency_res.iter())
+            .map(|(req, res)| {
+                (
+                    connector_map
+                        .iter()
+                        .map(|(k, v)| (k.clone(), v.clone()))
+                        .collect(),
+                    req.clone(),
+                    res.clone(),
+                )
+            })
+            .collect();
+        apply_context_map(&connector_entries, &mut effective_req);
+    }
+
+
     // Fallback generation for unresolved non-context placeholders.
     resolve_auto_generate(&mut effective_req)?;
 
@@ -4184,6 +4373,13 @@ fn execute_single_scenario_with_context(
         dependency_entries,
         &mut effective_req,
     )?;
+
+    // Fire any connector-specific `pre_request_http` hook (e.g. Cashfree's
+    // `/pg/view/simulate` to flip a UPI Intent payment to SUCCESS before
+    // sync). Dependency responses are available for body templating.
+    if let Ok(Some(hook)) = connector_pre_request_http_hook(connector, suite, scenario) {
+        fire_pre_request_http_hook(&hook, dependency_res);
+    }
 
     let (response, mut grpc_request, mut grpc_response) = match options.backend {
         ExecutionBackend::Grpcurl => {
@@ -4240,6 +4436,17 @@ fn execute_single_scenario_with_context(
     })?;
 
     transform_response_for_connector(connector, suite, scenario, &mut response_json);
+
+    maybe_poll_sync_until_terminal(
+        suite,
+        scenario,
+        connector,
+        options,
+        &effective_req,
+        &mut response_json,
+        &mut grpc_request,
+        &mut grpc_response,
+    );
 
     maybe_sync_complete_authorize_pending(
         suite,
