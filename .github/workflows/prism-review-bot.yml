@@ -50,6 +50,19 @@ jobs:
           echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
           echo "Resolved — PR: #$PR_NUMBER"
 
+      - name: Acknowledge trigger with eye reaction
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+        run: |
+          if [ "$EVENT_NAME" == "pull_request_review_comment" ]; then
+            REACTION_ENDPOINT="repos/$SOURCE_REPO/pulls/comments/$COMMENT_ID/reactions"
+          else
+            REACTION_ENDPOINT="repos/$SOURCE_REPO/issues/comments/$COMMENT_ID/reactions"
+          fi
+          gh api "$REACTION_ENDPOINT" --method POST -f content=eyes --silent \
+            || echo "Failed to add eye reaction (non-fatal, continuing)"
+
       - name: Sync review skill from spec repo
         run: |
           set -euo pipefail
@@ -103,10 +116,6 @@ jobs:
           echo "Source repo: $SOURCE_REPO"
           echo "Skill: $SKILL_NAME"
 
-          # Post acknowledgement comment so users know the review is in progress
-          gh pr comment "$PR_NUMBER" --repo "$SOURCE_REPO" \
-            --body "🔍 Prism review in progress..." || true
-
           PROMPT="You MUST operate exclusively as the agent defined in:
           $AGENT_FILE
 
@@ -129,8 +138,6 @@ jobs:
           Comment      : $COMMENT_BODY
           In reply to  : $IN_REPLY_TO"
 
-          SESSION_CREATED=false
-
           if [ -f "$SESSION_FILE" ]; then
             SAVED_ID=$(cat "$SESSION_FILE")
             echo "Resuming session $SAVED_ID for review #$PR_NUMBER"
@@ -146,7 +153,6 @@ jobs:
             fi
           fi
 
-          # Create a new session with a unique title to avoid race conditions
           UNIQUE_TITLE="review-$TEAM_NAME-$PR_NUMBER-$GITHUB_RUN_ID"
           echo "Creating new session for review #$PR_NUMBER"
           opencode run \
