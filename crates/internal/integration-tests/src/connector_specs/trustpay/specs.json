@@ -4,8 +4,10 @@
     "authorize",
     "create_order",
     "get",
+    "recurring_charge",
     "refund",
     "refund_sync",
-    "server_authentication_token"
+    "server_authentication_token",
+    "setup_recurring"
   ]
 }

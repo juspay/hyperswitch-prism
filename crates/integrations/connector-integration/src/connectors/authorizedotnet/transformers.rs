@@ -232,7 +232,7 @@ impl AuthorizedotnetRawCardNumber<DefaultPCIHolder> {
 }
 
 impl AuthorizedotnetRawCardNumber<VaultTokenHolder> {
-    pub fn from_token_string(token: String) -> Self {
+    pub fn from_token_string(token: Secret<String>) -> Self {
         Self(RawCardNumber(token))
     }
 }
@@ -672,9 +672,10 @@ fn create_regular_transaction_request<
                 BankDebitData::SepaBankDebit { .. }
                 | BankDebitData::SepaGuaranteedBankDebit { .. }
                 | BankDebitData::BecsBankDebit { .. }
+                | BankDebitData::EftBankDebit { .. }
                 | BankDebitData::BacsBankDebit { .. } => {
                     Err(error_stack::report!(IntegrationError::not_implemented(
-                        "SEPA, SEPA Guaranteed, BECS, and BACS bank debits are not supported for authorizedotnet"
+                        "SEPA, SEPA Guaranteed, BECS, EFT, and BACS bank debits are not supported for authorizedotnet"
                             .to_string(),
                     )))
                 }
