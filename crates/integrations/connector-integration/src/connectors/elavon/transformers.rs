@@ -268,9 +268,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 tracing::debug!(?card_req, "Elavon Card Payment Request");
                 Ok(Self::Card(card_req))
             }
-            _ => Err(report!(IntegrationError::not_implemented(
-                "Only card payments are supported for Elavon".to_string()
-            ))),
+            _ => Err(report!(IntegrationError::NotSupported {
+                message: "Only card payments are supported for Elavon".to_string(),
+                connector: "Elavon",
+                context: Default::default(),
+            })),
         }
     }
 }

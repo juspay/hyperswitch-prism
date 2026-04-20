@@ -331,9 +331,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     card_data.clone(),
                 )?
             }
-            _ => Err(IntegrationError::not_implemented(
-                domain_types::utils::get_unimplemented_payment_method_error_message("revolv3"),
-            ))?,
+            _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: domain_types::utils::get_unimplemented_payment_method_error_message(
+                    "revolv3"
+                ),
+                connector: "Revolv3",
+                context: Default::default(),
+            }))?,
         };
 
         let three_ds = item
@@ -1129,9 +1133,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )?
             }
             PaymentMethodData::MandatePayment => Revolv3PaymentMethodData::set_mandate_data()?,
-            _ => Err(IntegrationError::not_implemented(
-                domain_types::utils::get_unimplemented_payment_method_error_message("revolv3"),
-            ))?,
+            _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: domain_types::utils::get_unimplemented_payment_method_error_message(
+                    "revolv3"
+                ),
+                connector: "Revolv3",
+                context: Default::default(),
+            }))?,
         };
 
         let amount = Revolv3AmountData {
@@ -1269,9 +1277,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     },
                 })
             }
-            _ => Err(IntegrationError::not_implemented(
-                domain_types::utils::get_unimplemented_payment_method_error_message("revolv3"),
-            ))?,
+            _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: domain_types::utils::get_unimplemented_payment_method_error_message(
+                    "revolv3"
+                ),
+                connector: "Revolv3",
+                context: Default::default(),
+            }))?,
         };
 
         let network_processing = NetworkProcessingData {

@@ -206,10 +206,11 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::CashfreeRedirect(_)
             | WalletDataPaymentMethod::PayURedirect(_)
             | WalletDataPaymentMethod::EaseBuzzRedirect(_) => {
-                Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("worldpay"),
-                )
-                .into())
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("worldpay"),
+                    connector: "Worldpay",
+                    context: Default::default(),
+                }))
             }
         },
         PaymentMethodData::PayLater(_)
@@ -227,10 +228,13 @@ fn fetch_payment_instrument<
         | PaymentMethodData::OpenBanking(_)
         | PaymentMethodData::PaymentMethodToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-        | PaymentMethodData::NetworkToken(_) => Err(IntegrationError::not_implemented(
-            utils::get_unimplemented_payment_method_error_message("worldpay"),
-        )
-        .into())
+        | PaymentMethodData::NetworkToken(_) => {
+            Err(error_stack::report!(IntegrationError::NotSupported {
+                message: utils::get_unimplemented_payment_method_error_message("worldpay"),
+                connector: "Worldpay",
+                context: Default::default(),
+            }))
+        }
 }
 }
 
@@ -249,16 +253,18 @@ impl TryFrom<(enums::PaymentMethod, Option<enums::PaymentMethodType>)> for Payme
                 match pm {
                     enums::PaymentMethodType::ApplePay => Ok(Self::ApplePay),
                     enums::PaymentMethodType::GooglePay => Ok(Self::GooglePay),
-                    _ => Err(IntegrationError::not_implemented(
-                        utils::get_unimplemented_payment_method_error_message("worldpay"),
-                    )
-                    .into()),
+                    _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: utils::get_unimplemented_payment_method_error_message("worldpay"),
+                        connector: "Worldpay",
+                        context: Default::default(),
+                    })),
                 }
             }
-            _ => Err(IntegrationError::not_implemented(
-                utils::get_unimplemented_payment_method_error_message("worldpay"),
-            )
-            .into()),
+            _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: utils::get_unimplemented_payment_method_error_message("worldpay"),
+                connector: "Worldpay",
+                context: Default::default(),
+            })),
         }
     }
 }

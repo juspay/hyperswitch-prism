@@ -196,9 +196,11 @@ impl TryFrom<&common_enums::PaymentMethodType> for NovalNetPaymentTypes {
             common_enums::PaymentMethodType::Paypal => Ok(Self::PAYPAL),
             common_enums::PaymentMethodType::Sepa => Ok(Self::DirectDebitSepa),
             common_enums::PaymentMethodType::Ach => Ok(Self::DirectDebitAch),
-            _ => Err(IntegrationError::not_implemented(
-                utils::get_unimplemented_payment_method_error_message("Novalnet"),
-            ))?,
+            _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: utils::get_unimplemented_payment_method_error_message("Novalnet"),
+                connector: "Novalnet",
+                context: Default::default(),
+            }))?,
         }
     }
 }
@@ -483,10 +485,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::CashfreeRedirect(_)
                 | WalletDataPaymentMethod::PayURedirect(_)
                 | WalletDataPaymentMethod::EaseBuzzRedirect(_) => {
-                    Err(IntegrationError::not_implemented(
-                        utils::get_unimplemented_payment_method_error_message("novalnet"),
-                    )
-                    .into())
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: utils::get_unimplemented_payment_method_error_message("novalnet"),
+                        connector: "Novalnet",
+                        context: Default::default(),
+                    }))
                 }
             },
             PaymentMethodData::BankDebit(ref bank_debit_data) => {
@@ -570,10 +573,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     | BankDebitData::BecsBankDebit { .. }
                     | BankDebitData::EftBankDebit { .. }
                     | BankDebitData::BacsBankDebit { .. } => {
-                        return Err(IntegrationError::not_implemented(
-                            utils::get_unimplemented_payment_method_error_message("novalnet"),
-                        )
-                        .into());
+                        return Err(error_stack::report!(IntegrationError::NotSupported {
+                            message: utils::get_unimplemented_payment_method_error_message(
+                                "novalnet"
+                            ),
+                            connector: "Novalnet",
+                            context: Default::default(),
+                        }));
                     }
                 };
 
@@ -2159,9 +2165,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::MbWayRedirect(_)
                 | WalletDataPaymentMethod::MobilePayRedirect(_)
                 | WalletDataPaymentMethod::RevolutPay(_) => {
-                    Err(IntegrationError::not_implemented(
-                        utils::get_unimplemented_payment_method_error_message("novalnet"),
-                    ))?
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: utils::get_unimplemented_payment_method_error_message("novalnet"),
+                        connector: "Novalnet",
+                        context: Default::default(),
+                    }))?
                 }
                 WalletDataPaymentMethod::PaypalRedirect(_) => {
                     let transaction = NovalnetPaymentsRequestTransaction {
@@ -2209,9 +2217,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::CashfreeRedirect(_)
                 | WalletDataPaymentMethod::PayURedirect(_)
                 | WalletDataPaymentMethod::EaseBuzzRedirect(_) => {
-                    Err(IntegrationError::not_implemented(
-                        utils::get_unimplemented_payment_method_error_message("novalnet"),
-                    ))?
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: utils::get_unimplemented_payment_method_error_message("novalnet"),
+                        connector: "Novalnet",
+                        context: Default::default(),
+                    }))?
                 }
             },
             _ => Err(IntegrationError::not_implemented(
@@ -2406,10 +2416,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             custom,
                         })
                     }
-                    _ => Err(IntegrationError::not_implemented(
-                        utils::get_unimplemented_payment_method_error_message("novalnet"),
-                    )
-                    .into()),
+                    _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: utils::get_unimplemented_payment_method_error_message("novalnet"),
+                        connector: "Novalnet",
+                        context: Default::default(),
+                    })),
                 }
             }
             _ => Err(IntegrationError::not_implemented(

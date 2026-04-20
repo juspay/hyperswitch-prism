@@ -212,9 +212,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         bank_type,
                     }))
                 }
-                _ => Err(IntegrationError::not_implemented(
-                    get_unimplemented_payment_method_error_message("Sanlammultidata"),
-                ))?,
+                _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: get_unimplemented_payment_method_error_message("Sanlammultidata"),
+                    connector: "Sanlammultidata",
+                    context: Default::default(),
+                }))?,
             },
             PaymentMethodData::Card(_)
             | PaymentMethodData::CardRedirect(_)
@@ -235,9 +237,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
-                    get_unimplemented_payment_method_error_message("Sanlammultidata"),
-                ))
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: get_unimplemented_payment_method_error_message("Sanlammultidata"),
+                    connector: "Sanlammultidata",
+                    context: Default::default(),
+                }))
             }
         }?;
 

@@ -674,16 +674,20 @@ fn create_regular_transaction_request<
                 | BankDebitData::BecsBankDebit { .. }
                 | BankDebitData::EftBankDebit { .. }
                 | BankDebitData::BacsBankDebit { .. } => {
-                    Err(error_stack::report!(IntegrationError::not_implemented(
-                        "SEPA, SEPA Guaranteed, BECS, EFT, and BACS bank debits are not supported for authorizedotnet"
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: "SEPA, SEPA Guaranteed, BECS, EFT, and BACS bank debits are not supported for authorizedotnet"
                             .to_string(),
-                    )))
+                        connector: "authorizedotnet",
+                        context: Default::default(),
+                    }))
                 }
             }
         }
-        pm => Err(error_stack::report!(IntegrationError::not_implemented(
-            format!("Payment method {:?}", pm)
-        ))),
+        pm => Err(error_stack::report!(IntegrationError::NotSupported {
+            message: format!("Payment method {:?}", pm),
+            connector: "authorizedotnet",
+            context: Default::default(),
+        })),
     }?;
 
     let transaction_type = match item.router_data.request.capture_method {
@@ -937,9 +941,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                 // Case 3: Network token with NTI - NOT SUPPORTED (same as Hyperswitch)
                 MandateReferenceId::NetworkTokenWithNTI(_) => {
-                    return Err(error_stack::report!(IntegrationError::not_implemented(
-                        "Network token with NTI not supported for authorizedotnet".to_string(),
-                    )))
+                    return Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: "Network token with NTI not supported for authorizedotnet"
+                            .to_string(),
+                        connector: "authorizedotnet",
+                        context: Default::default(),
+                    }))
                 }
             };
 
@@ -2724,9 +2731,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let ccard = match &item.router_data.request.payment_method_data {
             PaymentMethodData::Card(card) => card,
             pm => {
-                return Err(error_stack::report!(IntegrationError::not_implemented(
-                    format!("Payment method {:?}", pm)
-                )))
+                return Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: format!("Payment method {:?}", pm),
+                    connector: "authorizedotnet",
+                    context: Default::default(),
+                }))
             }
         };
 

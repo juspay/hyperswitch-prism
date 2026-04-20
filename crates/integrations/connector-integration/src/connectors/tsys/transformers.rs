@@ -250,10 +250,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let item = &item_data.router_data;
         if item.resource_common_data.is_three_ds() {
-            return Err(IntegrationError::not_implemented(
-                "Three_ds payments through Tsys".to_string(),
-            )
-            .into());
+            return Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "Three_ds payments through Tsys".to_string(),
+                connector: "Tsys",
+                context: Default::default(),
+            }));
         };
 
         match &item.request.payment_method_data {
@@ -294,9 +295,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     Ok(Self::Auth(auth_data))
                 }
             }
-            _ => Err(IntegrationError::not_implemented(
-                "Payment method not implemented".to_string(),
-            ))?,
+            _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "Payment method not implemented".to_string(),
+                connector: "Tsys",
+                context: Default::default(),
+            }))?,
         }
     }
 }

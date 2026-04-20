@@ -101,9 +101,11 @@ impl TryFrom<SaleStatus> for RefundStatus {
             SaleStatus::Initial | SaleStatus::Authorized => Ok(Self::Pending),
             SaleStatus::Failed => Ok(Self::Failure),
             SaleStatus::Voided | SaleStatus::PartialVoid | SaleStatus::Chargeback => {
-                Err(IntegrationError::not_implemented(
-                    "refund status mapping not defined for this sale status".to_string(),
-                ))?
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "refund status mapping not defined for this sale status".to_string(),
+                    connector: "Payme",
+                    context: Default::default(),
+                }))?
             }
         }
     }
@@ -192,10 +194,11 @@ fn create_payment_request_from_router_data<T: PaymentMethodDataTypes>(
     let card = match &router_data.request.payment_method_data {
         PaymentMethodData::Card(card_data) => build_card_details(card_data)?,
         _ => {
-            return Err(IntegrationError::not_implemented(
-                "Payment method not yet implemented for Payme".to_string(),
-            )
-            .into())
+            return Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "Payment method not yet implemented for Payme".to_string(),
+                connector: "Payme",
+                context: Default::default(),
+            }))
         }
     };
 

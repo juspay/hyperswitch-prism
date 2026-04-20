@@ -142,7 +142,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 card_number: card.card_number.clone(),
                 card_c_v_v: card.card_cvc.clone(),
             },
-            _ => return Err(IntegrationError::not_implemented("payment method").into()),
+            _ => {
+                return Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "payment method".to_string(),
+                    connector: "Helcim",
+                    context: Default::default(),
+                }))
+            }
         };
 
         let req_address = item
@@ -573,7 +579,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 card_number: card.card_number.clone(),
                 card_c_v_v: card.card_cvc.clone(),
             },
-            _ => return Err(IntegrationError::not_implemented("payment method").into()),
+            _ => {
+                return Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "payment method".to_string(),
+                    connector: "Helcim",
+                    context: Default::default(),
+                }))
+            }
         };
 
         let req_address = item

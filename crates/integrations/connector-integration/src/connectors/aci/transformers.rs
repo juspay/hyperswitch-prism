@@ -420,9 +420,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | BankRedirectData::LocalBankRedirect {}
             | BankRedirectData::OpenBankingUk { .. }
             | BankRedirectData::OpenBanking {}
-            | BankRedirectData::Netbanking { .. } => Err(IntegrationError::not_implemented(
-                "Payment method".to_string(),
-            ))?,
+            | BankRedirectData::Netbanking { .. } => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "Payment method".to_string(),
+                    connector: "Aci",
+                    context: Default::default(),
+                }))?
+            }
         };
         Ok(payment_data)
     }
@@ -756,9 +760,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("Aci"),
-                ))?
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("Aci"),
+                    connector: "Aci",
+                    context: Default::default(),
+                }))?
             }
         }
     }

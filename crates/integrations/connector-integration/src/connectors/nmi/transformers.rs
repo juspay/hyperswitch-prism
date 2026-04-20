@@ -616,14 +616,16 @@ impl<T: PaymentMethodDataTypes> TryFrom<&PaymentMethodData<T>> for NmiPaymentMet
                 BankDebitData::SepaBankDebit { .. }
                 | BankDebitData::BecsBankDebit { .. }
                 | BankDebitData::BacsBankDebit { .. },
-            ) => Err(error_stack::report!(IntegrationError::NotImplemented(
-                "Bank Debit type not supported for NMI".to_string(),
-                Default::default(),
-            ))),
-            _ => Err(error_stack::report!(IntegrationError::NotImplemented(
-                "Payment method not supported".to_string(),
-                Default::default()
-            ))),
+            ) => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "Bank Debit type not supported for NMI".to_string(),
+                connector: "NMI",
+                context: Default::default(),
+            })),
+            _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "Payment method not supported".to_string(),
+                connector: "NMI",
+                context: Default::default(),
+            })),
         }
     }
 }
@@ -674,10 +676,11 @@ fn create_ach_data<T: PaymentMethodDataTypes>(
             };
             Ok(ach_data)
         }
-        _ => Err(error_stack::report!(IntegrationError::NotImplemented(
-            "Only ACH Bank Debit is supported for NMI".to_string(),
-            Default::default(),
-        ))),
+        _ => Err(error_stack::report!(IntegrationError::NotSupported {
+            message: "Only ACH Bank Debit is supported for NMI".to_string(),
+            connector: "NMI",
+            context: Default::default(),
+        })),
     }
 }
 
@@ -1371,11 +1374,11 @@ fn get_card_details<T: PaymentMethodDataTypes>(
             card_details.get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
             card_details.card_cvc.clone(),
         )),
-        _ => Err(IntegrationError::NotImplemented(
-            get_unimplemented_payment_method_error_message("NMI"),
-            Default::default(),
-        )
-        .into()),
+        _ => Err(error_stack::report!(IntegrationError::NotSupported {
+            message: get_unimplemented_payment_method_error_message("NMI"),
+            connector: "NMI",
+            context: Default::default(),
+        })),
     }
 }
 
@@ -1688,11 +1691,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 })
             }
             _ => {
-                return Err(IntegrationError::NotImplemented(
-                    get_unimplemented_payment_method_error_message("NMI SetupMandate"),
-                    Default::default(),
-                )
-                .into())
+                return Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: get_unimplemented_payment_method_error_message("NMI SetupMandate"),
+                    connector: "NMI",
+                    context: Default::default(),
+                }))
             }
         };
 

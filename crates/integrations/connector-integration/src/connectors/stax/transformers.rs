@@ -287,9 +287,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
             }
             _ => {
-                return Err(IntegrationError::not_implemented(
-                    "Only card and ACH bank debit payments are supported for Stax".to_string(),
-                ))?;
+                return Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "Only card and ACH bank debit payments are supported for Stax"
+                        .to_string(),
+                    connector: "Stax",
+                    context: Default::default(),
+                }))?;
             }
         };
 
@@ -1090,9 +1093,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
-                    "Only card and ACH bank debit tokenization are supported for Stax".to_string(),
-                ))?
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "Only card and ACH bank debit tokenization are supported for Stax"
+                        .to_string(),
+                    connector: "Stax",
+                    context: Default::default(),
+                }))?
             }
         }
     }
