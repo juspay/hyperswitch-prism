@@ -3,7 +3,9 @@ use std::borrow::Cow;
 use common_enums::{self, CountryAlpha2, Currency};
 use common_utils::{id_type::CustomerId, types::MinorUnit, StringMajorUnit};
 use domain_types::{
-    connector_flow::{Authorize, Capture, IncrementalAuthorization, PSync, RSync, Refund, Void, VoidPC},
+    connector_flow::{
+        Authorize, Capture, IncrementalAuthorization, PSync, RSync, Refund, Void, VoidPC,
+    },
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
         PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsResponseData,
@@ -2693,12 +2695,11 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                     ..item.router_data
                 })
             } else {
-                let payments_response =
-                    PaymentsResponseData::IncrementalAuthorizationResponse {
-                        status: common_enums::AuthorizationStatus::Success,
-                        connector_authorization_id: Some(auth_response.cnp_txn_id.clone()),
-                        status_code: item.http_code,
-                    };
+                let payments_response = PaymentsResponseData::IncrementalAuthorizationResponse {
+                    status: common_enums::AuthorizationStatus::Success,
+                    connector_authorization_id: Some(auth_response.cnp_txn_id.clone()),
+                    status_code: item.http_code,
+                };
 
                 Ok(Self {
                     resource_common_data: PaymentFlowData {
