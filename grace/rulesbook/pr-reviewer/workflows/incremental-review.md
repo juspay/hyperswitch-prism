@@ -43,7 +43,7 @@ Minimum rule:
 - always re-run the scenario subagent that raised a blocker if its relevant files changed
 - re-run `ci-config-security` if workflows, config, credentials, or verification logic files changed
 - re-run `tests-docs` if tests, specs, generated docs, or source-of-truth companions changed
-- re-run `grace-generated-pr` if the PR still routes through the GRACE code-pattern lens and relevant code changed
+- re-run `grace-generated-pr` if the PR still routes through the `10xGRACE` code-pattern lens and relevant code changed
 
 ## Step 4: Aggregate again
 

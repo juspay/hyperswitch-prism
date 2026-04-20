@@ -1,6 +1,6 @@
 # Batch GRACE PR Review Workflow
 
-Use this workflow to review all currently open PRs raised by `GRACE`.
+Use this workflow to review all currently open PRs raised by `10xGRACE`.
 
 ## Goal
 
@@ -33,7 +33,7 @@ For each matched PR, run:
 
 ```text
 Review PR <PR-REFERENCE> in hyperswitch-prism.
-This PR was raised by GRACE / GRACE automation.
+This PR was raised by 10xGRACE / GRACE automation.
 Read grace/rulesbook/pr-reviewer/workflows/grace-pr-review.md and follow it exactly.
 Use nested subagents if the tool supports them; otherwise emulate the same phases serially.
 ```
@@ -49,4 +49,4 @@ For the batch summary, report per PR:
 
 ## Success Criteria
 
-The batch is complete only when each open `GRACE` PR has its own review result.
+The batch is complete only when each open `10xGRACE` PR has its own review result.

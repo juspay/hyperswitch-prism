@@ -1,6 +1,6 @@
 # GRACE PR Review Workflow
 
-Use this workflow for PRs raised by `GRACE`.
+Use this workflow for PRs raised by `10xGRACE`.
 
 ## Goal
 
@@ -23,7 +23,7 @@ Read these first:
 
 Resolve the PR and collect:
 
-- PR author/login or head repository owner/name to detect `GRACE`
+- PR author/login or head repository owner/name to detect `10xGRACE`
 - changed file list with status
 - full unified diff
 - code files and required companion files
@@ -64,7 +64,7 @@ Run `grace/rulesbook/pr-reviewer/prompts/aggregator.md` and keep the final repor
 
 ```text
 Review PR <PR-REFERENCE> in hyperswitch-prism.
-This PR was raised by GRACE.
+This PR was raised by 10xGRACE.
 Read grace/rulesbook/pr-reviewer/workflows/grace-pr-review.md and follow it exactly.
 Use nested subagents if the tool supports them; otherwise emulate the same phases serially.
 ```

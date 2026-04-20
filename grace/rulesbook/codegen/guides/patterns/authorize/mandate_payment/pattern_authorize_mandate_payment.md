@@ -107,10 +107,10 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub capture_method: Option<common_enums::CaptureMethod>,
     // Mandates
     pub mandate_id: Option<MandateIds>,            // <-- line 1110: canonical mandate reference
-    pub setup_future_usage: Option<common_enums::FutureUsage>, // line 1111
-    pub off_session: Option<bool>,                  // line 1112
-    pub customer_acceptance: Option<CustomerAcceptance>, // line 1117
-    pub setup_mandate_details: Option<MandateData>, // line 1140
+    pub setup_future_usage: Option<common_enums::FutureUsage>,
+    pub off_session: Option<bool>,
+    pub customer_acceptance: Option<CustomerAcceptance>,
+    pub setup_mandate_details: Option<MandateData>,
     // ...
 }
 ```

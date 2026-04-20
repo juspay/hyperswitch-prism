@@ -106,4 +106,4 @@ RATIONALE:
 - Prefer over-classifying to under-classifying.
 - Do not omit companion files.
 - Do not return “generic review” as a scenario.
-- If the PR is raised by `GRACE`, always include `grace-generated-pr`.
+- If the PR is raised by `10xGRACE`, always include `grace-generated-pr`.

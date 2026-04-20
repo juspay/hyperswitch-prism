@@ -20,7 +20,7 @@ metadata_scenarios:
   - id: grace-generated-pr
     reviewer: grace-generated-pr
     subagent_prompt: grace/rulesbook/pr-reviewer/subagents/grace-generated-pr.md
-    description: Extra code-pattern scrutiny for PRs raised by GRACE automation.
+    description: Extra code-pattern scrutiny for PRs raised by `10xGRACE`.
     matching_rule: activate when the PR author is `10xGRACE` or branch matches `feat/grace-*`.
     pr_author_any:
       - "10xGRACE"

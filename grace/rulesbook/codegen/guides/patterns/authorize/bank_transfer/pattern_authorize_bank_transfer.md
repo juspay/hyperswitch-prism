@@ -103,18 +103,18 @@ Bank Transfer is a payment method where customers transfer funds directly from t
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BankTransferData {
-    AchBankTransfer {},                                                  // line 533
-    SepaBankTransfer {},                                                 // line 534
-    BacsBankTransfer {},                                                 // line 535
-    MultibancoBankTransfer {},                                           // line 536
-    PermataBankTransfer {},                                              // line 537
-    BcaBankTransfer {},                                                  // line 538
-    BniVaBankTransfer {},                                                // line 539
-    BriVaBankTransfer {},                                                // line 540
-    CimbVaBankTransfer {},                                               // line 541
-    DanamonVaBankTransfer {},                                            // line 542
-    MandiriVaBankTransfer {},                                            // line 543
-    Pix {                                                                // line 544
+    AchBankTransfer {},
+    SepaBankTransfer {},
+    BacsBankTransfer {},
+    MultibancoBankTransfer {},
+    PermataBankTransfer {},
+    BcaBankTransfer {},
+    BniVaBankTransfer {},
+    BriVaBankTransfer {},
+    CimbVaBankTransfer {},
+    DanamonVaBankTransfer {},
+    MandiriVaBankTransfer {},
+    Pix {
         pix_key: Option<Secret<String>>,
         cpf: Option<Secret<String>>,
         cnpj: Option<Secret<String>>,
@@ -122,12 +122,12 @@ pub enum BankTransferData {
         destination_bank_account_id: Option<MaskedBankAccount>,
         expiry_date: Option<time::PrimitiveDateTime>,
     },
-    Pse {},                                                              // line 558
-    LocalBankTransfer { bank_code: Option<String> },                     // line 559
-    InstantBankTransfer {},                                              // line 562
-    InstantBankTransferFinland {},                                       // line 563
-    InstantBankTransferPoland {},                                        // line 564
-    IndonesianBankTransfer {                                             // line 565
+    Pse {},
+    LocalBankTransfer { bank_code: Option<String> },
+    InstantBankTransfer {},
+    InstantBankTransferFinland {},
+    InstantBankTransferPoland {},
+    IndonesianBankTransfer {
         bank_name: Option<common_enums::BankNames>,
     },
 }

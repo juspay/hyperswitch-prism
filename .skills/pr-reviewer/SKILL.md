@@ -32,7 +32,7 @@ companion files, and produces a structured verdict with blocking/non-blocking fi
 - User asks to **review a PR** (by URL, number, or diff)
 - User asks to **review all open GRACE PRs** in batch
 - User asks to **re-review a PR** after author updates
-- User asks to **review a PR raised by GRACE**
+- User asks to **review a PR raised by 10xGRACE**
 
 ## Workflows
 
@@ -58,11 +58,11 @@ Read grace/rulesbook/pr-reviewer/workflows/full-pr-review.md and follow it exact
 Use nested subagents if the tool supports them; otherwise emulate the same phases serially.
 ```
 
-### Review a PR raised by GRACE
+### Review a PR raised by 10xGRACE
 
 ```text
 Review PR #123 in hyperswitch-prism.
-This PR was raised by GRACE / GRACE automation.
+This PR was raised by 10xGRACE / GRACE automation.
 Read grace/rulesbook/pr-reviewer/workflows/grace-pr-review.md and follow it exactly.
 Use nested subagents if the tool supports them; otherwise emulate the same phases serially.
 ```

@@ -46,7 +46,7 @@ The system supports **six** bank debit variants defined in `crates/types-traits/
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum BankDebitData {
-    AchBankDebit {                                 // line 573
+    AchBankDebit {
         account_number: Secret<String>,
         routing_number: Secret<String>,
         card_holder_name: Option<Secret<String>>,
@@ -55,27 +55,27 @@ pub enum BankDebitData {
         bank_type: Option<common_enums::BankType>,
         bank_holder_type: Option<common_enums::BankHolderType>,
     },
-    EftBankDebit {                                 // line 582 (NEW)
+    EftBankDebit {
         account_number: Secret<String>,
         branch_code: Secret<String>,
         bank_account_holder_name: Option<Secret<String>>,
         bank_name: Option<common_enums::BankNames>,
         bank_type: Option<common_enums::BankType>,
     },
-    SepaBankDebit {                                // line 589
+    SepaBankDebit {
         iban: Secret<String>,
         bank_account_holder_name: Option<Secret<String>>,
     },
-    SepaGuaranteedBankDebit {                      // line 593 (NEW)
+    SepaGuaranteedBankDebit {
         iban: Secret<String>,
         bank_account_holder_name: Option<Secret<String>>,
     },
-    BecsBankDebit {                                // line 597
+    BecsBankDebit {
         account_number: Secret<String>,
         bsb_number: Secret<String>,
         bank_account_holder_name: Option<Secret<String>>,
     },
-    BacsBankDebit {                                // line 602
+    BacsBankDebit {
         account_number: Secret<String>,
         sort_code: Secret<String>,
         bank_account_holder_name: Option<Secret<String>>,
