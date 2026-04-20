@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "Authenticate flow not supported by CryptoPay connector"
       }
     },
     "authorize": {
@@ -108,8 +109,8 @@
         "error": "This feature is not implemented: Selected payment method through CryptoPay"
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "status": "error",
+        "error": "Stuck on field: crypto_data.pay_currency — Missing required field: crypto_data.pay_currency"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
@@ -374,7 +375,8 @@
     },
     "capture": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "Capture flow not supported by CryptoPay connector"
       }
     },
     "create_client_authentication_token": {
@@ -404,12 +406,14 @@
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "AcceptDispute flow not supported by CryptoPay connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "DefendDispute flow not supported by CryptoPay connector"
       }
     },
     "dispute_get": {
@@ -419,7 +423,8 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "SubmitEvidence flow not supported by CryptoPay connector"
       }
     },
     "eligibility": {
@@ -458,17 +463,20 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "IncrementalAuthorization flow not supported by CryptoPay connector"
       }
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "PostAuthenticate flow not supported by CryptoPay connector"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "PreAuthenticate flow not supported by CryptoPay connector"
       }
     },
     "proxy_authorize": {
@@ -479,27 +487,32 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "SetupMandate flow not supported by CryptoPay connector"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "RepeatPayment flow not supported by CryptoPay connector"
       }
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "MandateRevoke flow not supported by CryptoPay connector"
       }
     },
     "refund": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "Refund flow not supported by CryptoPay connector"
       }
     },
     "refund_get": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "RSync flow not supported by CryptoPay connector"
       }
     },
     "reverse": {
@@ -509,7 +522,8 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "SetupMandate flow not supported by CryptoPay connector"
       }
     },
     "token_authorize": {
@@ -520,7 +534,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "SetupMandate flow not supported by CryptoPay connector"
       }
     },
     "tokenize": {
@@ -535,7 +550,8 @@
     },
     "void": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "Void flow not supported by CryptoPay connector"
       }
     }
   }

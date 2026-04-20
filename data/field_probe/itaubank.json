@@ -83,8 +83,7 @@
         "status": "not_implemented"
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "status": "not_implemented"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented"

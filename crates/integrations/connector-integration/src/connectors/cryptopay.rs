@@ -84,6 +84,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Cryptopay<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            IncrementalAuthorization,
+            PaymentFlowData,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(report!(IntegrationError::FlowNotSupported {
+            flow: "IncrementalAuthorization".to_string(),
+            connector: "CryptoPay".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
@@ -531,24 +546,64 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
     for Cryptopay<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(report!(IntegrationError::FlowNotSupported {
+            flow: "Void".to_string(),
+            connector: "CryptoPay".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
     for Cryptopay<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(report!(IntegrationError::FlowNotSupported {
+            flow: "RSync".to_string(),
+            connector: "CryptoPay".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
     for Cryptopay<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(report!(IntegrationError::FlowNotSupported {
+            flow: "Refund".to_string(),
+            connector: "CryptoPay".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
     for Cryptopay<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(report!(IntegrationError::FlowNotSupported {
+            flow: "Capture".to_string(),
+            connector: "CryptoPay".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -559,21 +614,71 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Cryptopay<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            SetupMandate,
+            PaymentFlowData,
+            SetupMandateRequestData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(report!(IntegrationError::FlowNotSupported {
+            flow: "SetupMandate".to_string(),
+            connector: "CryptoPay".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
     for Cryptopay<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(report!(IntegrationError::FlowNotSupported {
+            flow: "AcceptDispute".to_string(),
+            connector: "CryptoPay".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>
     for Cryptopay<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            SubmitEvidence,
+            DisputeFlowData,
+            SubmitEvidenceData,
+            DisputeResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(report!(IntegrationError::FlowNotSupported {
+            flow: "SubmitEvidence".to_string(),
+            connector: "CryptoPay".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
     for Cryptopay<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(report!(IntegrationError::FlowNotSupported {
+            flow: "DefendDispute".to_string(),
+            connector: "CryptoPay".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
@@ -622,6 +727,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Cryptopay<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            PreAuthenticate,
+            PaymentFlowData,
+            PaymentsPreAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(report!(IntegrationError::FlowNotSupported {
+            flow: "PreAuthenticate".to_string(),
+            connector: "CryptoPay".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -632,6 +752,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Cryptopay<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            Authenticate,
+            PaymentFlowData,
+            PaymentsAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(report!(IntegrationError::FlowNotSupported {
+            flow: "Authenticate".to_string(),
+            connector: "CryptoPay".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -642,6 +777,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Cryptopay<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            PostAuthenticate,
+            PaymentFlowData,
+            PaymentsPostAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(report!(IntegrationError::FlowNotSupported {
+            flow: "PostAuthenticate".to_string(),
+            connector: "CryptoPay".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -672,6 +822,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         MandateRevokeResponseData,
     > for Cryptopay<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            MandateRevoke,
+            PaymentFlowData,
+            MandateRevokeRequestData,
+            MandateRevokeResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(report!(IntegrationError::FlowNotSupported {
+            flow: "MandateRevoke".to_string(),
+            connector: "CryptoPay".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -682,4 +847,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Cryptopay<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            RepeatPayment,
+            PaymentFlowData,
+            RepeatPaymentData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(report!(IntegrationError::FlowNotSupported {
+            flow: "RepeatPayment".to_string(),
+            connector: "CryptoPay".to_string(),
+            context: Default::default(),
+        }))
+    }
 }

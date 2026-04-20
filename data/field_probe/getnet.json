@@ -148,7 +148,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Payment method  is not supported by Getnet"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",

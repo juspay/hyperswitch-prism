@@ -108,8 +108,8 @@
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
