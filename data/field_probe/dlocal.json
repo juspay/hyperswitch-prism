@@ -48,8 +48,8 @@
         "error": "This feature is not implemented: Selected payment method through Dlocal"
       },
       "Bacs": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "not_supported",
+        "error": "Selected payment method through Dlocal is not supported by Dlocal"
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
@@ -64,8 +64,8 @@
         "error": "This feature is not implemented: Selected payment method through Dlocal"
       },
       "Becs": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "not_supported",
+        "error": "Selected payment method through Dlocal is not supported by Dlocal"
       },
       "Bizum": {
         "status": "not_implemented",
@@ -803,8 +803,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "not_supported",
+        "error": "Selected payment method through Dlocal is not supported by Dlocal"
       }
     },
     "tokenize": {

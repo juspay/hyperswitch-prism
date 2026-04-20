@@ -813,11 +813,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     },
                 }),
             ),
-            PaymentMethodData::Wallet(_) => Err(error_stack::report!(IntegrationError::NotSupported {
-                message: utils::get_unimplemented_payment_method_error_message("Paypal"),
-                connector: "Paypal",
-                context: Default::default(),
-            }))?,
+            PaymentMethodData::Wallet(_) => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("Paypal"),
+                    connector: "Paypal",
+                    context: Default::default(),
+                }))?
+            }
             PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
                 get_payment_source(item.router_data.clone(), bank_redirection_data)?
             }

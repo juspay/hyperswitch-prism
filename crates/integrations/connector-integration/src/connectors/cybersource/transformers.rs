@@ -2209,9 +2209,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_) => {
                     Err(error_stack::report!(IntegrationError::NotSupported {
-                        message: domain_types::utils::get_unimplemented_payment_method_error_message(
-                            "Cybersource",
-                        ),
+                        message:
+                            domain_types::utils::get_unimplemented_payment_method_error_message(
+                                "Cybersource",
+                            ),
                         connector: "Cybersource",
                         context: Default::default(),
                     }))

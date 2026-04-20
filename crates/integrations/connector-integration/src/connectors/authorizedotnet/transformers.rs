@@ -885,70 +885,70 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let currency = item.router_data.request.currency;
 
         // Handle different mandate reference types with appropriate MIT structures
-        let (profile, processing_options, subsequent_auth_information) =
-            match &item.router_data.request.mandate_reference {
-                // Case 1: Mandate-based MIT (using stored customer profile)
-                MandateReferenceId::ConnectorMandateId(connector_mandate_ref) => {
-                    let mandate_id = connector_mandate_ref
-                        .get_connector_mandate_id()
-                        .ok_or_else(|| {
-                            error_stack::report!(IntegrationError::MissingRequiredField {
-                                field_name: "connector_mandate_id",
-                                context: Default::default()
-                            })
-                        })?;
-
-                    // Parse mandate_id to extract customer_profile_id and payment_profile_id
-                    let profile = mandate_id
-                        .split_once('-')
-                        .map(|(customer_profile_id, payment_profile_id)| {
-                            ProfileDetails::CustomerProfileDetails(CustomerProfileDetails {
-                                customer_profile_id: Secret::from(customer_profile_id.to_string()),
-                                payment_profile: PaymentProfileDetails {
-                                    payment_profile_id: Secret::from(
-                                        payment_profile_id.to_string(),
-                                    ),
-                                },
-                            })
+        let (profile, processing_options, subsequent_auth_information) = match &item
+            .router_data
+            .request
+            .mandate_reference
+        {
+            // Case 1: Mandate-based MIT (using stored customer profile)
+            MandateReferenceId::ConnectorMandateId(connector_mandate_ref) => {
+                let mandate_id = connector_mandate_ref
+                    .get_connector_mandate_id()
+                    .ok_or_else(|| {
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "connector_mandate_id",
+                            context: Default::default()
                         })
-                        .ok_or_else(|| {
-                            error_stack::report!(IntegrationError::MissingRequiredField {
-                                field_name: "valid mandate_id format (should contain '-')",
-                                context: Default::default()
-                            })
-                        })?;
+                    })?;
 
-                    (
-                        Some(profile),
-                        Some(ProcessingOptions {
-                            is_subsequent_auth: true,
-                        }),
-                        None, // No network transaction ID for mandate-based flow
-                    )
-                }
+                // Parse mandate_id to extract customer_profile_id and payment_profile_id
+                let profile = mandate_id
+                    .split_once('-')
+                    .map(|(customer_profile_id, payment_profile_id)| {
+                        ProfileDetails::CustomerProfileDetails(CustomerProfileDetails {
+                            customer_profile_id: Secret::from(customer_profile_id.to_string()),
+                            payment_profile: PaymentProfileDetails {
+                                payment_profile_id: Secret::from(payment_profile_id.to_string()),
+                            },
+                        })
+                    })
+                    .ok_or_else(|| {
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "valid mandate_id format (should contain '-')",
+                            context: Default::default()
+                        })
+                    })?;
 
-                // Case 2: Network mandate ID flow (PG agnostic with network trans ID)
-                MandateReferenceId::NetworkMandateId(network_trans_id) => (
-                    None, // No customer profile for network transaction flow
+                (
+                    Some(profile),
                     Some(ProcessingOptions {
                         is_subsequent_auth: true,
                     }),
-                    Some(SubsequentAuthInformation {
-                        original_network_trans_id: Secret::new(network_trans_id.clone()),
-                        reason: Reason::Resubmission,
-                    }),
-                ),
+                    None, // No network transaction ID for mandate-based flow
+                )
+            }
 
-                // Case 3: Network token with NTI - NOT SUPPORTED (same as Hyperswitch)
-                MandateReferenceId::NetworkTokenWithNTI(_) => {
-                    return Err(error_stack::report!(IntegrationError::NotSupported {
-                        message: "Network token with NTI not supported for authorizedotnet"
-                            .to_string(),
-                        connector: "authorizedotnet",
-                        context: Default::default(),
-                    }))
-                }
-            };
+            // Case 2: Network mandate ID flow (PG agnostic with network trans ID)
+            MandateReferenceId::NetworkMandateId(network_trans_id) => (
+                None, // No customer profile for network transaction flow
+                Some(ProcessingOptions {
+                    is_subsequent_auth: true,
+                }),
+                Some(SubsequentAuthInformation {
+                    original_network_trans_id: Secret::new(network_trans_id.clone()),
+                    reason: Reason::Resubmission,
+                }),
+            ),
+
+            // Case 3: Network token with NTI - NOT SUPPORTED (same as Hyperswitch)
+            MandateReferenceId::NetworkTokenWithNTI(_) => {
+                return Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "Network token with NTI not supported for authorizedotnet".to_string(),
+                    connector: "authorizedotnet",
+                    context: Default::default(),
+                }))
+            }
+        };
 
         // Order description should be connector_request_reference_id (same as Hyperswitch)
         let order_description = item

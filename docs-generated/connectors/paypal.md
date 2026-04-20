@@ -201,32 +201,32 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 |----------------|:---------:|
 | Card | ✓ |
 | Bancontact | ⚠ |
-| Apple Pay | ⚠ |
-| Apple Pay Dec | ⚠ |
-| Apple Pay SDK | ⚠ |
+| Apple Pay | x |
+| Apple Pay Dec | x |
+| Apple Pay SDK | x |
 | Google Pay | ⚠ |
 | Google Pay Dec | ✓ |
-| Google Pay SDK | ⚠ |
+| Google Pay SDK | x |
 | PayPal SDK | ✓ |
-| Amazon Pay | ⚠ |
-| Cash App | ⚠ |
+| Amazon Pay | x |
+| Cash App | x |
 | PayPal | ✓ |
-| WeChat Pay | ⚠ |
-| Alipay | ⚠ |
-| Revolut Pay | ⚠ |
-| MiFinity | ⚠ |
-| Bluecode | ⚠ |
+| WeChat Pay | x |
+| Alipay | x |
+| Revolut Pay | x |
+| MiFinity | x |
+| Bluecode | x |
 | Paze | x |
-| Samsung Pay | ⚠ |
-| MB Way | ⚠ |
-| Satispay | ⚠ |
-| Wero | ⚠ |
-| Affirm | ⚠ |
-| Afterpay | ⚠ |
-| Klarna | ⚠ |
-| UPI Collect | ⚠ |
-| UPI Intent | ⚠ |
-| UPI QR | ⚠ |
+| Samsung Pay | x |
+| MB Way | x |
+| Satispay | x |
+| Wero | x |
+| Affirm | x |
+| Afterpay | x |
+| Klarna | x |
+| UPI Collect | x |
+| UPI Intent | x |
+| UPI QR | x |
 | Thailand | ⚠ |
 | Czech | ⚠ |
 | Finland | ⚠ |
@@ -266,16 +266,16 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Mandiri VA | ⚠ |
 | Local | ⚠ |
 | Indonesian | ⚠ |
-| ACH | ⚠ |
-| SEPA | ⚠ |
-| BACS | ⚠ |
-| BECS | ⚠ |
-| SEPA Guaranteed | ⚠ |
+| ACH | x |
+| SEPA | x |
+| BACS | x |
+| BECS | x |
+| SEPA Guaranteed | x |
 | Crypto | x |
-| Reward | ⚠ |
+| Reward | x |
 | Givex | x |
 | PaySafeCard | x |
-| E-Voucher | ⚠ |
+| E-Voucher | x |
 | Boleto | ⚠ |
 | Efecty | ⚠ |
 | Pago Efectivo | ⚠ |
