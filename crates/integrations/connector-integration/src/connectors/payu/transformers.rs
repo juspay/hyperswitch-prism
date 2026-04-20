@@ -696,12 +696,10 @@ fn determine_upi_flow<
                 }
             }
         }
-        _ => Err(IntegrationError::NotSupported {
-            message: "Payment method not supported by PayU. Only UPI payments are supported"
+        _ => Err(IntegrationError::not_implemented(
+            "Payment method not supported by this PayU transformer. Only UPI is implemented"
                 .to_string(),
-            connector: "PayU",
-            context: Default::default(),
-        }),
+        )),
     }
 }
 
