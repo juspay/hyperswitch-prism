@@ -1,7 +1,7 @@
 use domain_types::{
     connector_types::EventContext, errors::WebhookError,
     payment_method_data::PaymentMethodDataTypes, router_data::ConnectorSpecificConfig,
-    types::CardConversionHelper, utils::ForeignTryFrom,
+    utils::ForeignTryFrom,
 };
 use error_stack::ResultExt;
 use grpc_api_types::payments::{
