@@ -549,12 +549,44 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://transact.vantivprelive.com/vap/communicator/online",
+          "method": "Post",
+          "headers": {
+            "via": "HyperSwitch"
+          },
+          "body": ""
+        }
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: mandate_reference.connector_mandate_id[expDate]. Expected connector_mandate_id to encode the token expiry as — Missing required field: mandate_reference.connector_mandate_id[expDate]. Expected connector_mandate_id to encode the token expiry as \"<cnpToken>|<MMYY>[|<NTI>]\"; rerun SetupMandate against a tokenization-enabled merchant account to populate it."
       }
     },
     "recurring_revoke": {
@@ -623,7 +655,43 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://transact.vantivprelive.com/vap/communicator/online",
+          "method": "Post",
+          "headers": {
+            "via": "HyperSwitch"
+          },
+          "body": ""
+        }
       }
     },
     "token_authorize": {
@@ -634,7 +702,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "Payment method for SetupMandate is not supported by worldpayvantiv"
       }
     },
     "tokenize": {
