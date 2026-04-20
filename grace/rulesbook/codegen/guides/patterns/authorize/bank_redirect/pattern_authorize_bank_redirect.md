@@ -13,28 +13,46 @@ Bank Redirect is a payment method category that enables customers to complete pa
 
 ### Bank Redirect Variants
 
-| Variant | Description | Common Regions |
-|---------|-------------|----------------|
-| `BancontactCard` | Belgian payment system | Belgium |
-| `Bizum` | Spanish mobile payment | Spain |
-| `Blik` | Polish mobile payment | Poland |
-| `Eft` | Electronic Funds Transfer | South Africa |
-| `Eps` | Austrian payment standard | Austria |
-| `Giropay` | German online banking | Germany |
-| `Ideal` | Dutch payment system | Netherlands |
-| `Interac` | Canadian debit system | Canada |
-| `OnlineBankingCzechRepublic` | Czech bank transfers | Czech Republic |
-| `OnlineBankingFinland` | Finnish bank transfers | Finland |
-| `OnlineBankingPoland` | Polish bank transfers | Poland |
-| `OnlineBankingSlovakia` | Slovak bank transfers | Slovakia |
-| `OpenBanking` | Generic Open Banking EU | EU |
-| `OpenBankingUk` | UK Open Banking | UK |
-| `Przelewy24` | Polish payment system | Poland |
-| `Sofort` | Instant bank transfer | Germany, Austria, Switzerland |
-| `Trustly` | European bank transfers | Europe |
-| `OnlineBankingFpx` | Malaysian FPX | Malaysia |
-| `OnlineBankingThailand` | Thai bank transfers | Thailand |
-| `LocalBankRedirect` | Generic local redirect | Various |
+The `BankRedirectData` enum in `crates/types-traits/domain_types/src/payment_method_data.rs:610-677` defines **21** variants (as of pinned SHA `60540470cf84a350cc02b0d41565e5766437eb95`):
+
+| Variant | Description | Common Regions | Source |
+|---------|-------------|----------------|--------|
+| `BancontactCard` | Belgian payment system | Belgium | `payment_method_data.rs:611` |
+| `Bizum` | Spanish mobile payment | Spain | `payment_method_data.rs:617` |
+| `Blik` | Polish mobile payment | Poland | `payment_method_data.rs:618` |
+| `Eft` | Electronic Funds Transfer | South Africa | `payment_method_data.rs:670` |
+| `Eps` | Austrian payment standard | Austria | `payment_method_data.rs:621` |
+| `Giropay` | German online banking | Germany | `payment_method_data.rs:625` |
+| `Ideal` | Dutch payment system | Netherlands | `payment_method_data.rs:630` |
+| `Interac` | Canadian debit system | Canada | `payment_method_data.rs:633` |
+| `OnlineBankingCzechRepublic` | Czech bank transfers | Czech Republic | `payment_method_data.rs:637` |
+| `OnlineBankingFinland` | Finnish bank transfers | Finland | `payment_method_data.rs:640` |
+| `OnlineBankingPoland` | Polish bank transfers | Poland | `payment_method_data.rs:643` |
+| `OnlineBankingSlovakia` | Slovak bank transfers | Slovakia | `payment_method_data.rs:646` |
+| `OpenBanking` | Generic Open Banking EU | EU | `payment_method_data.rs:673` |
+| `OpenBankingUk` | UK Open Banking | UK | `payment_method_data.rs:649` |
+| `Przelewy24` | Polish payment system | Poland | `payment_method_data.rs:653` |
+| `Sofort` | Instant bank transfer | Germany, Austria, Switzerland | `payment_method_data.rs:656` |
+| `Trustly` | European bank transfers | Europe | `payment_method_data.rs:660` |
+| `OnlineBankingFpx` | Malaysian FPX | Malaysia | `payment_method_data.rs:663` |
+| `OnlineBankingThailand` | Thai bank transfers | Thailand | `payment_method_data.rs:666` |
+| `LocalBankRedirect` | Generic local redirect | Various | `payment_method_data.rs:669` |
+| `Netbanking` | Issuer-routed netbanking redirect (carries `issuer: BankNames`) | India (primary) | `payment_method_data.rs:674` (NEW) |
+
+#### `Netbanking` variant (added)
+
+```rust
+// crates/types-traits/domain_types/src/payment_method_data.rs:674
+Netbanking {
+    issuer: common_enums::BankNames,
+},
+```
+
+`Netbanking` carries a single required field — `issuer: common_enums::BankNames` — used by connectors to route the redirect to the correct bank's online-banking endpoint. It is distinct from `OnlineBankingCzechRepublic` / `OnlineBankingPoland` / `OnlineBankingSlovakia` / `OnlineBankingFpx` / `OnlineBankingThailand` (all issuer-typed) in that it is region-agnostic and is the primary variant used by the Indian payments ecosystem.
+
+**Implementing connectors**:
+
+- **Cashfree** (PR #1092) — `crates/integrations/connector-integration/src/connectors/cashfree/transformers.rs:388-402`. The match arm destructures `BankRedirectData::Netbanking { issuer }`, maps `issuer` through `map_to_cashfree_bank_code(bank_name)` (`cashfree/transformers.rs:210-240`) onto Cashfree's integer `netbanking_bank_code` (`cashfree/transformers.rs:199-205`), and emits a `CashfreeNBDetails { channel: "link", netbanking_bank_code }` payload (`cashfree/transformers.rs:395-398`). Unsupported `BankNames` values return an `IntegrationError::NotSupported` (`cashfree/transformers.rs:230-238`). The response handler routes netbanking flows through the `data.url` redirect branch (`cashfree/transformers.rs:747-754`).
 
 ## Table of Contents
 
@@ -78,6 +96,7 @@ Bank Redirect is a payment method category that enables customers to complete pa
 | **Shift4** | JSON | API Key | Various | Yes |
 | **Fiuu** | JSON | API Key | Various | Yes |
 | **ACI** | JSON | API Key | Various | Yes |
+| **Cashfree** | JSON | API Key | Netbanking (Indian banks — see `cashfree/transformers.rs:388-402`), UPI, Wallet | Yes |
 
 ## Request Patterns
 
@@ -740,6 +759,7 @@ impl<F, T> TryFrom<ResponseRouterData<ConnectorAuthUpdateResponse, Self>>
 | `Przelewy24` | Poland | Yes | `bank_name` - Required |
 | `Interac` | Canada | No | `email` - Required |
 | `Blik` | Poland | No | `blik_code` - Required |
+| `Netbanking` | India (primary) | Yes | `issuer: BankNames` - Required; connector must map `BankNames` to its internal bank code (e.g. Cashfree `netbanking_bank_code` — `cashfree/transformers.rs:210-240`) |
 
 ### Implementation Pattern for Sub-types
 
@@ -1064,6 +1084,14 @@ When implementing a new connector with Bank Redirect support:
 
 ---
 
-**Document Version**: 1.0
-**Last Updated**: 2026-02-19
+**Document Version**: 1.1.0
+**Last Updated**: 2026-04-20
+**Pinned SHA**: `60540470cf84a350cc02b0d41565e5766437eb95`
 **Maintained By**: Grace-UCS Connector Team
+
+## Change Log
+
+| Version | Date | Pinned SHA | Summary |
+|---------|------|------------|---------|
+| 1.1.0 | 2026-04-20 | `60540470cf84a350cc02b0d41565e5766437eb95` | Document the 21st `BankRedirectData` variant — `Netbanking { issuer: BankNames }` — at `crates/types-traits/domain_types/src/payment_method_data.rs:674`. Add Cashfree (PR #1092) as the first Netbanking implementer with citation to `crates/integrations/connector-integration/src/connectors/cashfree/transformers.rs:388-402` and the supporting `map_to_cashfree_bank_code` helper at `cashfree/transformers.rs:210-240`. Update Supported Connectors matrix and Sub-type Variations table. |
+| 1.0   | 2026-02-19 | (prior)     | Initial revision — documented 20 bank redirect variants. |

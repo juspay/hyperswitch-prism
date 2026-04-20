@@ -72,7 +72,10 @@ Bank Transfer is a payment method where customers transfer funds directly from t
 | `Pix` | ❌ | ✅ | ❌ | ✅ | Brazil Pix |
 | `Pse` | ❌ | ❌ | ❌ | ❌ | Colombia PSE |
 | `LocalBankTransfer` | ❌ | ❌ | ❌ | ❌ | Generic local transfer |
-| `InstantBankTransfer` | ❌ | ❌ | ❌ | ❌ | Generic instant transfer |
+| `InstantBankTransfer` | ❌ | ❌ | ✅ | ❌ | Generic instant transfer (Trustpay: `transformers.rs:207`) |
+| `InstantBankTransferFinland` | ❌ | ❌ | ✅ | ❌ | Finland instant transfer — Trustpay `InstantBankTransferFI` (`crates/integrations/connector-integration/src/connectors/trustpay/transformers.rs:208`). Adyen/PayPal/Stripe reject in `NotImplemented` fall-through arms. |
+| `InstantBankTransferPoland` | ❌ | ❌ | ✅ | ❌ | Poland instant transfer — Trustpay `InstantBankTransferPL` (`crates/integrations/connector-integration/src/connectors/trustpay/transformers.rs:209`). Adyen/PayPal/Stripe reject in `NotImplemented` fall-through arms. |
+| `IndonesianBankTransfer` | ❌ | ❌ | ❌ | ❌ | Indonesian bank transfer with `bank_name: Option<common_enums::BankNames>` field. No connector issues a variant-specific request body at the pinned SHA. Adyen rejects at `crates/integrations/connector-integration/src/connectors/adyen/transformers.rs:1867`; PayPal rejects at `crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:1591`; Stripe rejects at `crates/integrations/connector-integration/src/connectors/stripe/transformers.rs:1462`. |
 
 ---
 
@@ -96,28 +99,49 @@ Bank Transfer is a payment method where customers transfer funds directly from t
 ### Rust Enum Definition
 
 ```rust
-// From crates/types-traits/domain_types/src/payment_method_data.rs
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+// From crates/types-traits/domain_types/src/payment_method_data.rs:532-568
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum BankTransferData {
-    AchBankTransfer,
-    SepaBankTransfer,
-    BacsBankTransfer,
-    MultibancoBankTransfer,
-    PermataBankTransfer,
-    BcaBankTransfer,
-    BniVaBankTransfer,
-    BriVaBankTransfer,
-    CimbVaBankTransfer,
-    DanamonVaBankTransfer,
-    MandiriVaBankTransfer,
-    Pix { pix_key: Option<String>, pix_key_type: Option<String> },
-    Pse,
-    LocalBankTransfer { bank_name: Option<String> },
-    InstantBankTransfer,
-    InstantBankTransferFinland,
-    InstantBankTransferPoland,
+    AchBankTransfer {},                                                  // line 533
+    SepaBankTransfer {},                                                 // line 534
+    BacsBankTransfer {},                                                 // line 535
+    MultibancoBankTransfer {},                                           // line 536
+    PermataBankTransfer {},                                              // line 537
+    BcaBankTransfer {},                                                  // line 538
+    BniVaBankTransfer {},                                                // line 539
+    BriVaBankTransfer {},                                                // line 540
+    CimbVaBankTransfer {},                                               // line 541
+    DanamonVaBankTransfer {},                                            // line 542
+    MandiriVaBankTransfer {},                                            // line 543
+    Pix {                                                                // line 544
+        pix_key: Option<Secret<String>>,
+        cpf: Option<Secret<String>>,
+        cnpj: Option<Secret<String>>,
+        source_bank_account_id: Option<MaskedBankAccount>,
+        destination_bank_account_id: Option<MaskedBankAccount>,
+        expiry_date: Option<time::PrimitiveDateTime>,
+    },
+    Pse {},                                                              // line 558
+    LocalBankTransfer { bank_code: Option<String> },                     // line 559
+    InstantBankTransfer {},                                              // line 562
+    InstantBankTransferFinland {},                                       // line 563
+    InstantBankTransferPoland {},                                        // line 564
+    IndonesianBankTransfer {                                             // line 565
+        bank_name: Option<common_enums::BankNames>,
+    },
 }
 ```
+
+### Per-Variant Notes (Full variant enumeration at pinned SHA)
+
+The source enum at `crates/types-traits/domain_types/src/payment_method_data.rs:532-568` defines 18 variants. The matrix above covers the originals (Ach/Sepa/Bacs/Multibanco/Indonesian-VA/Pix/Pse/Local/Instant). The three variants added after v1.0 of this pattern — previously missing from the enumeration here — are:
+
+| Variant | Source line | Data shape | Connector handling at pinned SHA |
+|---------|-------------|------------|----------------------------------|
+| `InstantBankTransferFinland {}` | `payment_method_data.rs:563` | Empty brace-struct variant | Fully implemented by **Trustpay** — maps to `TrustpayBankTransferPaymentMethod::InstantBankTransferFI` at `crates/integrations/connector-integration/src/connectors/trustpay/transformers.rs:208`. Explicitly rejected by Adyen (`crates/integrations/connector-integration/src/connectors/adyen/transformers.rs:1868`), PayPal (`crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:1589`), and Stripe (`crates/integrations/connector-integration/src/connectors/stripe/transformers.rs:1460` and `:4598`). |
+| `InstantBankTransferPoland {}` | `payment_method_data.rs:564` | Empty brace-struct variant | Fully implemented by **Trustpay** — maps to `TrustpayBankTransferPaymentMethod::InstantBankTransferPL` at `crates/integrations/connector-integration/src/connectors/trustpay/transformers.rs:209`. Explicitly rejected by Adyen (`crates/integrations/connector-integration/src/connectors/adyen/transformers.rs:1869`), PayPal (`crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:1590`), and Stripe (`crates/integrations/connector-integration/src/connectors/stripe/transformers.rs:1461` and `:4599`). |
+| `IndonesianBankTransfer { bank_name: Option<common_enums::BankNames> }` | `payment_method_data.rs:565-567` | Struct variant with optional `bank_name` discriminator | **No connector implements this variant at the pinned SHA.** Rejected explicitly by Adyen (`crates/integrations/connector-integration/src/connectors/adyen/transformers.rs:1867`), PayPal (`crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:1591`), and Stripe (`crates/integrations/connector-integration/src/connectors/stripe/transformers.rs:1462` and `:4600`). Trustpay returns `IntegrationError::not_implemented` through its `_ =>` fall-through arm at `crates/integrations/connector-integration/src/connectors/trustpay/transformers.rs:210-214`. Authors adding connector support should match on the `bank_name` field to discriminate between the Indonesian VA variants above. |
 
 ---
 
@@ -1145,3 +1169,11 @@ mod tests {
 - [Pattern: Psync Flow](pattern_psync.md) - Status polling patterns
 - [Pattern: Amount Handling](pattern_amount.md) - Amount conversion patterns
 - [Connector Guide](../connector-integration-guide.md) - General connector implementation
+
+---
+
+## Change Log
+
+| Date | Version | Pinned SHA | Change |
+|------|---------|------------|--------|
+| 2026-04-20 | 1.1.0 | `60540470cf84a350cc02b0d41565e5766437eb95` | Added canonical metadata header table. Added three missing `BankTransferData` variants — `InstantBankTransferFinland` (impl: Trustpay `transformers.rs:208`), `InstantBankTransferPoland` (impl: Trustpay `transformers.rs:209`), and `IndonesianBankTransfer` (no connector impl at pinned SHA; rejected by Adyen/PayPal/Stripe) — to the Variant Enumeration matrix, the Rust enum definition snippet, and a new Per-Variant Notes section, with `file:line` citations to source (`crates/types-traits/domain_types/src/payment_method_data.rs:563-567`) and connector handling. |

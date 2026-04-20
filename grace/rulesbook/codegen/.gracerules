@@ -484,7 +484,7 @@ fn map_{connector_name}_status_to_attempt_status(
 
 #### CREATECONNECTORCUSTOMER FLOW SUBAGENT
 - **Flow Name**: CreateConnectorCustomer
-- **Pattern File**: (no dedicated pattern — follow macro patterns and reference connectors like Stripe,Shift4)
+- **Pattern File**: guides/patterns/pattern_create_connector_customer.md
 - **Primary Responsibility**: Customer creation on connector side before payment
 - **Key Implementation**: ConnectorIntegrationV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>
 - **ValidationTrait**: Override `should_create_connector_customer()` to return `true`
@@ -502,6 +502,22 @@ fn map_{connector_name}_status_to_attempt_status(
 - **Primary Responsibility**: Session initialization before payment
 - **Key Implementation**: ConnectorIntegrationV2<CreateSessionToken, PaymentFlowData, SessionTokenRequestData, SessionTokenResponseData>
 - **ValidationTrait**: Override `should_do_session_token()` to return `true`
+
+#### CANONICAL PATTERN INDEX (for all flows and payment methods)
+
+For flow-marker → pattern-file mapping across all 33 `FlowName` variants
+(connector_flow.rs) see: `.gracerules_add_flow` → "Flow-Marker → Pattern Map"
+table.
+
+For `PaymentMethodData` variant → authorize-dir mapping across all 20
+variants (payment_method_data.rs) see: `.gracerules_add_payment_method` →
+"PaymentMethodData → Pattern Map" table.
+
+Token-marker note: `ServerSessionAuthenticationToken`,
+`ServerAuthenticationToken`, and `ClientAuthenticationToken` all use
+`guides/patterns/pattern_CreateAccessToken_flow.md` as their canonical
+implementation source — see its "Mapping to connector_flow.rs token markers"
+section.
 
 #### CORE FLOW SUBAGENTS (always executed):
 

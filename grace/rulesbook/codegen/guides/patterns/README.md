@@ -58,32 +58,73 @@ The flat pattern files in this directory are being migrated to the new `flows/` 
 
 | Flow | Pattern File | Status | Description |
 |------|--------------|--------|-------------|
-| **IncomingWebhook** | [`flows/IncomingWebhook/`](./flows/IncomingWebhook/) | ✅ Complete | Webhook handling and signature verification |
-| **SetupMandate** | [`flows/setup_mandate/`](./flows/setup_mandate/) | ✅ Complete | Recurring payment setup |
-| **RepeatPayment** | [`flows/repeat_payment/`](./flows/repeat_payment/) | ✅ Complete | Process recurring payments |
-| **MandateRevoke** | [`flows/mandate_revoke/`](./flows/mandate_revoke/) | ✅ Complete | Cancel stored mandates |
-| **PaymentMethodToken** | [`flows/payment_method_token/`](./flows/payment_method_token/) | ✅ Complete | Payment method tokenization |
-| **CreateOrder** | [`flows/createorder/`](./flows/createorder/) | ✅ Complete | Multi-step payment initiation |
-| **SessionToken** | [`flows/session_token/`](./flows/session_token/) | ✅ Complete | Secure session management |
-| **DefendDispute** | [`flows/defend_dispute/`](./flows/defend_dispute/) | ✅ Complete | Defend against disputes |
-| **AcceptDispute** | [`flows/accept_dispute/`](./flows/accept_dispute/) | ✅ Complete | Accept chargeback |
-| **DSync** | [`flows/dsync/`](./flows/dsync/) | ✅ Complete | Dispute status sync |
+| **IncomingWebhook** | [`pattern_IncomingWebhook_flow.md`](./pattern_IncomingWebhook_flow.md) | ✅ Complete | Webhook handling and signature verification |
+| **VerifyWebhookSource** | [`pattern_verify_webhook_source.md`](./pattern_verify_webhook_source.md) | ✅ Complete | Verify webhook signatures / source authenticity |
+| **SetupMandate** | [`pattern_setup_mandate.md`](./pattern_setup_mandate.md) | ✅ Complete | Recurring payment setup |
+| **RepeatPayment** | [`pattern_repeat_payment_flow.md`](./pattern_repeat_payment_flow.md) | ✅ Complete | Process recurring payments |
+| **MandateRevoke** | [`pattern_mandate_revoke.md`](./pattern_mandate_revoke.md) | ✅ Complete | Cancel stored mandates |
+| **PaymentMethodToken** | [`pattern_payment_method_token.md`](./pattern_payment_method_token.md) | ✅ Complete | Payment method tokenization |
+| **CreateOrder** | [`pattern_createorder.md`](./pattern_createorder.md) | ✅ Complete | Multi-step payment initiation |
+| **SessionToken** | [`pattern_session_token.md`](./pattern_session_token.md) | ✅ Complete | Secure session management |
+| **CreateAccessToken** | [`pattern_CreateAccessToken_flow.md`](./pattern_CreateAccessToken_flow.md) | ✅ Complete | OAuth / access-token acquisition. Canonical source for the `ServerSessionAuthenticationToken`, `ServerAuthenticationToken`, and `ClientAuthenticationToken` flow markers (see the "Mapping to connector_flow.rs token markers" section). |
+| **ClientAuthenticationToken** | [`pattern_client_authentication_token.md`](./pattern_client_authentication_token.md) | ✅ Complete | Client-side auth-token flow marker companion pattern |
+| **CreateConnectorCustomer** | [`pattern_create_connector_customer.md`](./pattern_create_connector_customer.md) | ✅ Complete | Create customer on connector side before payment |
+| **IncrementalAuthorization** | [`pattern_IncrementalAuthorization_flow.md`](./pattern_IncrementalAuthorization_flow.md) | ✅ Complete | Incremental authorization on existing auth |
+| **VoidPC** | [`pattern_void_pc.md`](./pattern_void_pc.md) | ✅ Complete | Void pre-capture / pre-confirm |
+| **DefendDispute** | [`pattern_defend_dispute.md`](./pattern_defend_dispute.md) | ✅ Complete | Defend against disputes |
+| **AcceptDispute** | [`pattern_accept_dispute.md`](./pattern_accept_dispute.md) | ✅ Complete | Accept chargeback |
+| **SubmitEvidence** | [`pattern_submit_evidence.md`](./pattern_submit_evidence.md) | ✅ Complete | Submit dispute evidence |
+| **DSync** | [`pattern_dsync.md`](./pattern_dsync.md) | ✅ Complete | Dispute status sync |
+
+### Authentication Flows (3DS / EMV3DS)
+
+| Flow | Pattern File | Status | Description |
+|------|--------------|--------|-------------|
+| **PreAuthenticate** | [`pattern_preauthenticate.md`](./pattern_preauthenticate.md) | ✅ Complete | 3DS pre-authentication / version lookup |
+| **Authenticate** | [`pattern_authenticate.md`](./pattern_authenticate.md) | ✅ Complete | 3DS authentication / challenge |
+| **PostAuthenticate** | [`pattern_postauthenticate.md`](./pattern_postauthenticate.md) | ✅ Complete | 3DS post-authentication result retrieval |
+
+### Payout Flows
+
+| Flow | Pattern File | Status | Description |
+|------|--------------|--------|-------------|
+| **PayoutCreate** | [`pattern_payout_create.md`](./pattern_payout_create.md) | ✅ Complete | Create a payout |
+| **PayoutTransfer** | [`pattern_payout_transfer.md`](./pattern_payout_transfer.md) | ✅ Complete | Transfer / execute a payout |
+| **PayoutGet** | [`pattern_payout_get.md`](./pattern_payout_get.md) | ✅ Complete | Fetch / sync payout status |
+| **PayoutVoid** | [`pattern_payout_void.md`](./pattern_payout_void.md) | ✅ Complete | Cancel a queued / pending payout |
+| **PayoutStage** | [`pattern_payout_stage.md`](./pattern_payout_stage.md) | ✅ Complete | Stage payout prior to execution |
+| **PayoutCreateLink** | [`pattern_payout_create_link.md`](./pattern_payout_create_link.md) | ✅ Complete | Generate payout link for recipient |
+| **PayoutCreateRecipient** | [`pattern_payout_create_recipient.md`](./pattern_payout_create_recipient.md) | ✅ Complete | Create / register a payout recipient |
+| **PayoutEnrollDisburseAccount** | [`pattern_payout_enroll_disburse_account.md`](./pattern_payout_enroll_disburse_account.md) | ✅ Complete | Enroll recipient disbursement account |
 
 ### Payment Method Patterns (Authorize Flow)
 
-| Payment Method | Pattern File | Supported Flows |
-|----------------|--------------|-----------------|
-| **Card** | [`flows/authorize/card.md`](./flows/authorize/card.md) | All flows |
-| **Wallet** | [`flows/authorize/wallet.md`](./flows/authorize/wallet.md) | Authorize, Refund |
-| **Bank Transfer** | [`flows/authorize/bank_transfer.md`](./flows/authorize/bank_transfer.md) | Authorize, Refund |
-| **Bank Debit** | [`flows/authorize/bank_debit.md`](./flows/authorize/bank_debit.md) | Authorize, Refund |
-| **Bank Redirect** | [`flows/authorize/bank_redirect.md`](./flows/authorize/bank_redirect.md) | Authorize |
-| **UPI** | [`flows/authorize/upi.md`](./flows/authorize/upi.md) | Authorize, Refund |
-| **BNPL** | [`flows/authorize/bnpl.md`](./flows/authorize/bnpl.md) | Authorize, Refund |
-| **Crypto** | [`flows/authorize/crypto.md`](./flows/authorize/crypto.md) | Authorize |
-| **Gift Card** | [`flows/authorize/gift_card.md`](./flows/authorize/gift_card.md) | Authorize |
-| **Mobile Payment** | [`flows/authorize/mobile_payment.md`](./flows/authorize/mobile_payment.md) | Authorize, Refund |
-| **Reward** | [`flows/authorize/reward.md`](./flows/authorize/reward.md) | Authorize |
+Every `PaymentMethodData` variant from
+`crates/types-traits/domain_types/src/payment_method_data.rs` has a dedicated
+pattern directory. The table below lists the canonical pattern per variant.
+
+| Payment Method Variant | Pattern File | Supported Flows |
+|------------------------|--------------|-----------------|
+| **Card** | [`authorize/card/pattern_authorize_card.md`](./authorize/card/pattern_authorize_card.md) | All flows |
+| **CardDetailsForNetworkTransactionId (NTID)** | [`authorize/card/pattern_authorize_card_ntid.md`](./authorize/card/pattern_authorize_card_ntid.md) | Authorize (MIT / recurring), RepeatPayment |
+| **DecryptedWalletTokenDetailsForNetworkTransactionId (Wallet NTID)** | [`authorize/wallet/pattern_authorize_wallet_ntid.md`](./authorize/wallet/pattern_authorize_wallet_ntid.md) | Authorize (MIT / recurring), RepeatPayment |
+| **CardRedirect** | [`authorize/card_redirect/pattern_authorize_card_redirect.md`](./authorize/card_redirect/pattern_authorize_card_redirect.md) | Authorize |
+| **Wallet** | [`authorize/wallet/pattern_authorize_wallet.md`](./authorize/wallet/pattern_authorize_wallet.md) | Authorize, Refund |
+| **PayLater (BNPL)** | [`authorize/bnpl/pattern_authorize_bnpl.md`](./authorize/bnpl/pattern_authorize_bnpl.md) | Authorize, Refund |
+| **BankRedirect** | [`authorize/bank_redirect/pattern_authorize_bank_redirect.md`](./authorize/bank_redirect/pattern_authorize_bank_redirect.md) | Authorize |
+| **BankDebit** | [`authorize/bank_debit/pattern_authorize_bank_debit.md`](./authorize/bank_debit/pattern_authorize_bank_debit.md) | Authorize, Refund |
+| **BankTransfer** | [`authorize/bank_transfer/pattern_authorize_bank_transfer.md`](./authorize/bank_transfer/pattern_authorize_bank_transfer.md) | Authorize, Refund |
+| **Crypto** | [`authorize/crypto/pattern_authorize_crypto.md`](./authorize/crypto/pattern_authorize_crypto.md) | Authorize |
+| **MandatePayment** | [`authorize/mandate_payment/pattern_authorize_mandate_payment.md`](./authorize/mandate_payment/pattern_authorize_mandate_payment.md) | Authorize (MIT), RepeatPayment |
+| **Reward** | [`authorize/reward/pattern_authorize_reward.md`](./authorize/reward/pattern_authorize_reward.md) | Authorize |
+| **RealTimePayment** | [`authorize/real_time_payment/pattern_authorize_real_time_payment.md`](./authorize/real_time_payment/pattern_authorize_real_time_payment.md) | Authorize |
+| **Upi** | [`authorize/upi/pattern_authorize_upi.md`](./authorize/upi/pattern_authorize_upi.md) | Authorize, Refund |
+| **Voucher** | [`authorize/voucher/pattern_authorize_voucher.md`](./authorize/voucher/pattern_authorize_voucher.md) | Authorize |
+| **GiftCard** | [`authorize/gift_card/pattern_authorize_gift_card.md`](./authorize/gift_card/pattern_authorize_gift_card.md) | Authorize |
+| **CardToken** | [`authorize/card_token/pattern_authorize_card_token.md`](./authorize/card_token/pattern_authorize_card_token.md) | Authorize |
+| **OpenBanking** | [`authorize/open_banking/pattern_authorize_open_banking.md`](./authorize/open_banking/pattern_authorize_open_banking.md) | Authorize |
+| **NetworkToken** | [`authorize/network_token/pattern_authorize_network_token.md`](./authorize/network_token/pattern_authorize_network_token.md) | Authorize |
+| **MobilePayment** | [`authorize/mobile_payment/pattern_authorize_mobile_payment.md`](./authorize/mobile_payment/pattern_authorize_mobile_payment.md) | Authorize, Refund |
 
 ## 🎯 Workflow Controllers
 

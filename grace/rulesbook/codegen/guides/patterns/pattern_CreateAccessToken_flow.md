@@ -585,3 +585,45 @@ The key variations are:
 - **Auth transport**: HTTP Basic header vs request body
 - **Content type**: JSON vs form-urlencoded
 - **Request body**: Empty vs populated with credentials
+
+## Mapping to connector_flow.rs token markers
+
+This pattern canonically documents **CreateAccessToken** as an umbrella term. The connector-service flow registry at `crates/types-traits/domain_types/src/connector_flow.rs` (SHA `60540470cf84a350cc02b0d41565e5766437eb95`) declares THREE related token markers. This section clarifies how each maps to grace patterns.
+
+| Flow marker | Purpose | Canonical grace pattern |
+|-------------|---------|--------------------------|
+| `ServerSessionAuthenticationToken` (`crates/types-traits/domain_types/src/connector_flow.rs:38`) | Server-to-server session-token acquisition: short-lived per-transaction session token keyed on amount/currency/browser-info, not a reusable OAuth bearer. Request type `ServerSessionAuthenticationTokenRequestData` carries `amount`, `currency`, `browser_info` (`crates/types-traits/domain_types/src/connector_types.rs:1677-1681`); response type `ServerSessionAuthenticationTokenResponseData` returns a single `session_token: String` (`crates/types-traits/domain_types/src/connector_types.rs:1691-1694`). | pattern_CreateAccessToken_flow.md / pattern_session_token.md (as applicable) |
+| `ServerAuthenticationToken` (`crates/types-traits/domain_types/src/connector_flow.rs:41`) | Server-side OAuth 2.0 bearer-token acquisition. This is the LIVE umbrella marker used by OAuth bearer-token flows. Request type `ServerAuthenticationTokenRequestData` carries only a `grant_type: String` (`crates/types-traits/domain_types/src/connector_types.rs:1697-1699`); response type `ServerAuthenticationTokenResponseData` carries `access_token: Secret<String>`, `token_type: Option<String>`, `expires_in: Option<i64>` (`crates/types-traits/domain_types/src/connector_types.rs:1701-1706`). | this file |
+| `ClientAuthenticationToken` (`crates/types-traits/domain_types/src/connector_flow.rs:62`) | Client-facing session/authentication token generation (typically for wallet/SDK initialization like Stripe PaymentIntents, Adyen sessions, Braintree client tokens). Request type `ClientAuthenticationTokenRequestData` is amount/currency/order-shaped (`crates/types-traits/domain_types/src/connector_types.rs:1596-1607`); the response type bound in macro registrations is `PaymentsResponseData`, not a dedicated `ClientAuthenticationTokenResponseData` (verified: no such struct exists in `crates/types-traits/domain_types/src/connector_types.rs`). | [pattern_client_authentication_token.md](./pattern_client_authentication_token.md) |
+
+### Honesty note on naming
+
+`CreateAccessToken` is not itself a `pub struct` marker in `connector_flow.rs` at the pinned SHA — verified by grep against `crates/types-traits/domain_types/src/connector_flow.rs` (no match for `CreateAccessToken` anywhere in the file; all flow markers are enumerated at lines 2-95). The historical title on this file is an umbrella term. The live marker that backs OAuth bearer-token acquisition is `ServerAuthenticationToken` at `crates/types-traits/domain_types/src/connector_flow.rs:41`. Readers implementing a new OAuth flow should register `ServerAuthenticationToken`, not a non-existent `CreateAccessToken`.
+
+### Request/response types
+
+The three markers bind **distinct** request/response data types — they are NOT shared:
+
+- `ServerSessionAuthenticationToken` → `ServerSessionAuthenticationTokenRequestData` / `ServerSessionAuthenticationTokenResponseData` (`crates/types-traits/domain_types/src/connector_types.rs:1677`, `crates/types-traits/domain_types/src/connector_types.rs:1692`)
+- `ServerAuthenticationToken` → `ServerAuthenticationTokenRequestData` / `ServerAuthenticationTokenResponseData` (`crates/types-traits/domain_types/src/connector_types.rs:1697`, `crates/types-traits/domain_types/src/connector_types.rs:1702`)
+- `ClientAuthenticationToken` → `ClientAuthenticationTokenRequestData` / `PaymentsResponseData` (`crates/types-traits/domain_types/src/connector_types.rs:1596`; response binding verified in real registrations, e.g. `crates/integrations/connector-integration/src/connectors/braintree.rs:352`, `crates/integrations/connector-integration/src/connectors/adyen.rs:301`). There is no `ClientAuthenticationTokenResponseData` struct in `connector_types.rs`.
+
+### Worked examples from source
+
+Real connector registrations were enumerated by grepping `crates/integrations/connector-integration/src/connectors/` for each marker's `flow: <marker>,` macro line inside `create_all_prerequisites!`.
+
+- `ServerAuthenticationToken`: **11 registrations** — Jpmorgan (`crates/integrations/connector-integration/src/connectors/jpmorgan.rs:281`), Getnet (`crates/integrations/connector-integration/src/connectors/getnet.rs:256`), Truelayer (`crates/integrations/connector-integration/src/connectors/truelayer.rs:258`), Iatapay (`crates/integrations/connector-integration/src/connectors/iatapay.rs:259`), Volt (`crates/integrations/connector-integration/src/connectors/volt.rs:257`), Airwallex (`crates/integrations/connector-integration/src/connectors/airwallex.rs:258`), Fiservcommercehub (`crates/integrations/connector-integration/src/connectors/fiservcommercehub.rs:78`), Trustpay (`crates/integrations/connector-integration/src/connectors/trustpay.rs:466`), Paypal (`crates/integrations/connector-integration/src/connectors/paypal.rs:526`), Pinelabs_online (`crates/integrations/connector-integration/src/connectors/pinelabs_online.rs:263`).
+- `ServerSessionAuthenticationToken`: **2 registrations** (narrower usage) — Paytm (`crates/integrations/connector-integration/src/connectors/paytm.rs:60`) and Nuvei (`crates/integrations/connector-integration/src/connectors/nuvei.rs:216`).
+- `ClientAuthenticationToken`: **18+ registrations** (wider usage post-#1002) — including Braintree (`crates/integrations/connector-integration/src/connectors/braintree.rs:349`), Adyen (`crates/integrations/connector-integration/src/connectors/adyen.rs:298`), Stripe (`crates/integrations/connector-integration/src/connectors/stripe.rs:311`), Cybersource (`crates/integrations/connector-integration/src/connectors/cybersource.rs:297`), Paypal (`crates/integrations/connector-integration/src/connectors/paypal.rs:555`), Bluesnap (`crates/integrations/connector-integration/src/connectors/bluesnap.rs:433`), Jpmorgan (`crates/integrations/connector-integration/src/connectors/jpmorgan.rs:321`), and others (Rapyd, Globalpay, Nexinets, Payload, Mollie, Datatrans, Shift4, Billwerk, Multisafepay, Nuvei, Nexixpay).
+
+### Cross-references
+
+- [pattern_session_token.md](./pattern_session_token.md)
+- [pattern_client_authentication_token.md](./pattern_client_authentication_token.md)
+- [PATTERN_AUTHORING_SPEC.md](./PATTERN_AUTHORING_SPEC.md)
+
+## Change Log
+
+| Version | Date | Change |
+|---------|------|--------|
+| 1.2.0 | 2026-04-20 | Added "Mapping to connector_flow.rs token markers" section disambiguating `ServerAuthenticationToken`, `ServerSessionAuthenticationToken`, and `ClientAuthenticationToken` with file:line citations against SHA `60540470cf84a350cc02b0d41565e5766437eb95`; added header metadata table. |

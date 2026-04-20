@@ -13,16 +13,47 @@ What do you need to do?
 │
 ├── Add to existing connector?
 │   │
-│   ├── Add a flow (Authorize, Capture, Refund, etc.)?
-│   │   └── Use .gracerules_add_flow
-│       Command: add {flow} flow to {Connector} using grace/rulesbook/codegen/.gracerules_add_flow
+│   ├── Add a flow?
+│   │   │
+│   │   ├── Core payment flow (Authorize/PSync/Capture/Refund/RSync/Void/VoidPC)
+│   │   │   → .gracerules_add_flow
+│   │   │
+│   │   ├── Mandate / recurring (SetupMandate/RepeatPayment/MandateRevoke/
+│   │   │   IncrementalAuthorization)
+│   │   │   → .gracerules_add_flow
+│   │   │
+│   │   ├── Pre-authorization (CreateOrder/SessionToken/CreateConnectorCustomer/
+│   │   │   PaymentMethodToken/CreateAccessToken/
+│   │   │   ServerSessionAuthenticationToken/ServerAuthenticationToken/
+│   │   │   ClientAuthenticationToken)
+│   │   │   → .gracerules_add_flow  (token markers map to
+│   │   │                            pattern_CreateAccessToken_flow.md)
+│   │   │
+│   │   ├── 3DS authentication (PreAuthenticate/Authenticate/PostAuthenticate)
+│   │   │   → .gracerules_add_flow
+│   │   │
+│   │   ├── Webhook (IncomingWebhook/VerifyWebhookSource)
+│   │   │   → .gracerules_add_flow
+│   │   │
+│   │   ├── Dispute (AcceptDispute/SubmitEvidence/DefendDispute/DSync)
+│   │   │   → .gracerules_add_flow
+│   │   │
+│   │   └── Payouts (PayoutCreate/PayoutTransfer/PayoutGet/PayoutVoid/
+│   │       PayoutStage/PayoutCreateLink/PayoutCreateRecipient/
+│   │       PayoutEnrollDisburseAccount)
+│   │       → .gracerules_add_flow
 │   │
-│   └── Add a payment method (Apple Pay, Cards, etc.)?
-│       └── Use .gracerules_add_payment_method
-│           Command: add {payment_method} to {Connector} using grace/rulesbook/codegen/.gracerules_add_payment_method
+│   └── Add a payment method?
+│       (Card/CardRedirect/CardToken/NetworkToken/Wallet/PayLater/
+│        BankRedirect/OpenBanking/BankDebit/BankTransfer/Upi/Crypto/
+│        GiftCard/MobilePayment/Reward/Voucher/RealTimePayment/
+│        MandatePayment, plus Card-NTID / Wallet-NTID sub-patterns)
+│       → .gracerules_add_payment_method
+│           Command: add {Category}:{types} to {Connector} using \
+│                    grace/rulesbook/codegen/.gracerules_add_payment_method
 │
 └── Fix or improve existing connector?
-    └── Use .gracerules_flow (for flow fixes) or manual editing
+    └── Use .gracerules_add_flow (for flow fixes) or manual editing
 ```
 
 > **Note**: Always use explicit form with full path to the workflow file to avoid ambiguity.
@@ -90,27 +121,49 @@ add Capture and Void flows to Adyen using grace/rulesbook/codegen/.gracerules_ad
 
 **Supported Flows:**
 
-| Flow               | Prerequisites | Description                        |
-| ------------------ | ------------- | ---------------------------------- |
-| Authorize          | None          | Payment authorization (foundation) |
-| PSync              | Authorize     | Payment status sync                |
-| Capture            | Authorize     | Capture authorized payments        |
-| Void               | Authorize     | Cancel authorized payments         |
-| Refund             | Capture       | Refund captured payments           |
-| RSync              | Refund        | Refund status sync                 |
-| SetupMandate       | Authorize     | Set up recurring payments          |
-| RepeatPayment      | SetupMandate  | Process recurring payments         |
-| IncomingWebhook    | PSync         | Webhook handling                   |
-| CreateOrder        | -             | Multi-step payment initiation      |
-| SessionToken       | -             | Secure session management          |
-| PaymentMethodToken | -             | Tokenize payment methods           |
-| DefendDispute      | -             | Defend chargebacks                 |
-| AcceptDispute      | -             | Accept chargebacks                 |
-| DSync              | -             | Dispute status sync                |
+| Flow                             | Prerequisites | connector_flow.rs Marker              | Pattern File                                      |
+| -------------------------------- | ------------- | ------------------------------------- | ------------------------------------------------- |
+| Authorize                        | None          | `Authorize`                           | `patterns/pattern_authorize.md`                   |
+| PSync                            | Authorize     | `PSync`                               | `patterns/pattern_psync.md`                       |
+| Capture                          | Authorize     | `Capture`                             | `patterns/pattern_capture.md`                     |
+| Void                             | Authorize     | `Void`                                | `patterns/pattern_void.md`                        |
+| VoidPC                           | Authorize     | `VoidPC`                              | `patterns/pattern_void_pc.md`                     |
+| Refund                           | Capture       | `Refund`                              | `patterns/pattern_refund.md`                      |
+| RSync                            | Refund        | `RSync`                               | `patterns/pattern_rsync.md`                       |
+| SetupMandate                     | Authorize     | `SetupMandate`                        | `patterns/pattern_setup_mandate.md`               |
+| RepeatPayment                    | SetupMandate  | `RepeatPayment`                       | `patterns/pattern_repeat_payment_flow.md`         |
+| MandateRevoke                    | SetupMandate  | `MandateRevoke`                       | `patterns/pattern_mandate_revoke.md`              |
+| IncrementalAuthorization         | Authorize     | `IncrementalAuthorization`            | `patterns/pattern_IncrementalAuthorization_flow.md` |
+| IncomingWebhook                  | PSync         | _(FlowName::IncomingWebhook)_         | `patterns/pattern_IncomingWebhook_flow.md`        |
+| VerifyWebhookSource              | IncomingWebhook | `VerifyWebhookSource`               | `patterns/pattern_verify_webhook_source.md`       |
+| CreateOrder                      | -             | `CreateOrder`                         | `patterns/pattern_createorder.md`                 |
+| SessionToken                     | -             | _(FlowName-only)_                     | `patterns/pattern_session_token.md`               |
+| CreateAccessToken                | -             | _(FlowName-only; pairs with token markers below)_ | `patterns/pattern_CreateAccessToken_flow.md` |
+| ServerSessionAuthenticationToken | -             | `ServerSessionAuthenticationToken`    | `patterns/pattern_CreateAccessToken_flow.md` (see "Mapping to connector_flow.rs token markers" section) |
+| ServerAuthenticationToken        | -             | `ServerAuthenticationToken`           | `patterns/pattern_CreateAccessToken_flow.md` (see "Mapping to connector_flow.rs token markers" section) |
+| ClientAuthenticationToken        | -             | `ClientAuthenticationToken`           | `patterns/pattern_CreateAccessToken_flow.md` (canonical) + `patterns/pattern_client_authentication_token.md` (companion) |
+| CreateConnectorCustomer          | -             | `CreateConnectorCustomer`             | `patterns/pattern_create_connector_customer.md`   |
+| PaymentMethodToken               | -             | `PaymentMethodToken`                  | `patterns/pattern_payment_method_token.md`        |
+| PreAuthenticate                  | -             | `PreAuthenticate`                     | `patterns/pattern_preauthenticate.md`             |
+| Authenticate                     | PreAuthenticate | `Authenticate`                      | `patterns/pattern_authenticate.md`                |
+| PostAuthenticate                 | Authenticate  | `PostAuthenticate`                    | `patterns/pattern_postauthenticate.md`            |
+| DefendDispute                    | -             | `DefendDispute`                       | `patterns/pattern_defend_dispute.md`              |
+| AcceptDispute                    | -             | `Accept`                              | `patterns/pattern_accept_dispute.md`              |
+| SubmitEvidence                   | AcceptDispute | `SubmitEvidence`                      | `patterns/pattern_submit_evidence.md`             |
+| DSync                            | -             | _(FlowName::Dsync)_                   | `patterns/pattern_dsync.md`                       |
+| PayoutCreate                     | -             | `PayoutCreate`                        | `patterns/pattern_payout_create.md`               |
+| PayoutTransfer                   | PayoutCreate  | `PayoutTransfer`                      | `patterns/pattern_payout_transfer.md`             |
+| PayoutGet                        | PayoutCreate  | `PayoutGet`                           | `patterns/pattern_payout_get.md`                  |
+| PayoutVoid                       | PayoutCreate  | `PayoutVoid`                          | `patterns/pattern_payout_void.md`                 |
+| PayoutStage                      | PayoutCreate  | `PayoutStage`                         | `patterns/pattern_payout_stage.md`                |
+| PayoutCreateLink                 | PayoutCreate  | `PayoutCreateLink`                    | `patterns/pattern_payout_create_link.md`          |
+| PayoutCreateRecipient            | -             | `PayoutCreateRecipient`               | `patterns/pattern_payout_create_recipient.md`     |
+| PayoutEnrollDisburseAccount      | PayoutCreateRecipient | `PayoutEnrollDisburseAccount` | `patterns/pattern_payout_enroll_disburse_account.md` |
 
 **Pattern Files:**
 
-- `guides/patterns/{flow_name}/pattern_{flow_name}.md`
+- Flat flow patterns live in `guides/patterns/pattern_{flow_name}.md`
+- Payment-method patterns live in `guides/patterns/authorize/{pm}/pattern_authorize_{pm}.md`
 
 ---
 
@@ -141,19 +194,32 @@ add UPI:Collect,Intent to PhonePe using grace/rulesbook/codegen/.gracerules_add_
 
 **Supported Payment Methods:**
 
-| Category      | Types                                     | Pattern File                                                   |
-| ------------- | ----------------------------------------- | -------------------------------------------------------------- |
-| Card          | Credit, Debit                             | `authorize/card/pattern_authorize_card.md`                     |
-| Wallet        | Apple Pay, Google Pay, PayPal, WeChat Pay | `authorize/wallet/pattern_authorize_wallet.md`                 |
-| BankTransfer  | SEPA, ACH, Wire                           | `authorize/bank_transfer/pattern_authorize_bank_transfer.md`   |
-| BankDebit     | SEPA Direct Debit, ACH Debit              | `authorize/bank_debit/pattern_authorize_bank_debit.md`         |
-| BankRedirect  | iDEAL, Sofort, Giropay                    | `authorize/bank_redirect/pattern_authorize_bank_redirect.md`   |
-| UPI           | Collect, Intent                           | `authorize/upi/pattern_authorize_upi.md`                       |
-| BNPL          | Klarna, Afterpay, Affirm                  | `authorize/bnpl/pattern_authorize_bnpl.md`                     |
-| Crypto        | Bitcoin, Ethereum                         | `authorize/crypto/pattern_authorize_crypto.md`                 |
-| GiftCard      | Gift Card                                 | `authorize/gift_card/pattern_authorize_gift_card.md`           |
-| MobilePayment | Carrier Billing                           | `authorize/mobile_payment/pattern_authorize_mobile_payment.md` |
-| Reward        | Loyalty Points                            | `authorize/reward/pattern_authorize_reward.md`                 |
+Every `PaymentMethodData` variant from
+`crates/types-traits/domain_types/src/payment_method_data.rs` (20 variants) has
+a dedicated pattern directory. Coverage is 100%.
+
+| Category          | PaymentMethodData Variant | Types                                     | Pattern File                                                   |
+| ----------------- | ------------------------- | ----------------------------------------- | -------------------------------------------------------------- |
+| Card              | `Card`                    | Credit, Debit                             | `authorize/card/pattern_authorize_card.md`                     |
+| Card (NTID / MIT) | `CardDetailsForNetworkTransactionId` | Card MIT via NTID             | `authorize/card/pattern_authorize_card_ntid.md`                |
+| CardRedirect      | `CardRedirect`            | CarteBancaire, Knet, Benefit              | `authorize/card_redirect/pattern_authorize_card_redirect.md`   |
+| CardToken         | `CardToken`               | Pre-tokenized card reference              | `authorize/card_token/pattern_authorize_card_token.md`         |
+| NetworkToken      | `NetworkToken`            | VTS / MDES network tokens                 | `authorize/network_token/pattern_authorize_network_token.md`   |
+| Wallet            | `Wallet`                  | Apple Pay, Google Pay, PayPal, WeChat Pay | `authorize/wallet/pattern_authorize_wallet.md`                 |
+| Wallet (NTID / MIT) | `DecryptedWalletTokenDetailsForNetworkTransactionId` | Wallet MIT via decrypted token | `authorize/wallet/pattern_authorize_wallet_ntid.md` |
+| BankTransfer      | `BankTransfer`            | SEPA, ACH, Wire                           | `authorize/bank_transfer/pattern_authorize_bank_transfer.md`   |
+| BankDebit         | `BankDebit`               | SEPA Direct Debit, ACH Debit, BACS        | `authorize/bank_debit/pattern_authorize_bank_debit.md`         |
+| BankRedirect      | `BankRedirect`            | iDEAL, Sofort, Giropay                    | `authorize/bank_redirect/pattern_authorize_bank_redirect.md`   |
+| OpenBanking       | `OpenBanking`             | TrueLayer, Plaid OBIE PIS                 | `authorize/open_banking/pattern_authorize_open_banking.md`     |
+| UPI               | `Upi`                     | Collect, Intent, QR                       | `authorize/upi/pattern_authorize_upi.md`                       |
+| BNPL              | `PayLater`                | Klarna, Afterpay, Affirm                  | `authorize/bnpl/pattern_authorize_bnpl.md`                     |
+| Crypto            | `Crypto`                  | Bitcoin, Ethereum                         | `authorize/crypto/pattern_authorize_crypto.md`                 |
+| GiftCard          | `GiftCard`                | Gift Card                                 | `authorize/gift_card/pattern_authorize_gift_card.md`           |
+| MobilePayment     | `MobilePayment`           | Carrier Billing                           | `authorize/mobile_payment/pattern_authorize_mobile_payment.md` |
+| Reward            | `Reward`                  | Loyalty Points                            | `authorize/reward/pattern_authorize_reward.md`                 |
+| Voucher           | `Voucher`                 | Boleto, OXXO, PayCash, Efecty             | `authorize/voucher/pattern_authorize_voucher.md`               |
+| RealTimePayment   | `RealTimePayment`         | Pix, PromptPay, DuitNow, FedNow           | `authorize/real_time_payment/pattern_authorize_real_time_payment.md` |
+| MandatePayment    | `MandatePayment`          | Mandate / CIT-based recurring             | `authorize/mandate_payment/pattern_authorize_mandate_payment.md` |
 
 **Payment Method Specification Syntax:**
 
@@ -175,7 +241,7 @@ add UPI:Collect,Intent to PhonePe
 add Wallet:Apple Pay,Google Pay and Card:Credit,Debit and BankTransfer:ACH to Stripe
 ```
 
-_Category Names:_ Card, Wallet, BankTransfer, BankDebit, BankRedirect, UPI, BNPL, Crypto, GiftCard, MobilePayment, Reward
+_Category Names:_ Card, CardRedirect, CardToken, NetworkToken, Wallet, BankTransfer, BankDebit, BankRedirect, OpenBanking, UPI, BNPL, Crypto, GiftCard, MobilePayment, Reward, Voucher, RealTimePayment, MandatePayment (NTID sub-patterns: `Card:NTID`, `Wallet:NTID`)
 
 **Prerequisites:**
 
@@ -291,29 +357,47 @@ Or manually edit using patterns from `guides/flows/refund/`
 
 ## Pattern File Locations
 
-### Flow Patterns
+### Flow Patterns (flat layout)
 
 ```
-guides/flows/{flow_name}/pattern_{flow_name}.md
-```
-
-Examples:
-
-- `flows/authorize/pattern_authorize.md`
-- `flows/capture/pattern_capture.md`
-- `flows/refund/pattern_refund.md`
-
-### Payment Method Patterns
-
-```
-guides/flows/authorize/{payment_method}.md
+guides/patterns/pattern_{flow_name}.md
 ```
 
 Examples:
 
-- `flows/authorize/card.md`
-- `flows/authorize/wallet.md`
-- `flows/authorize/bank_transfer.md`
+- `patterns/pattern_authorize.md`
+- `patterns/pattern_capture.md`
+- `patterns/pattern_refund.md`
+- `patterns/pattern_payout_create.md`, `patterns/pattern_payout_transfer.md`, ...
+- `patterns/pattern_preauthenticate.md`, `patterns/pattern_authenticate.md`, `patterns/pattern_postauthenticate.md`
+- `patterns/pattern_create_connector_customer.md`
+- `patterns/pattern_verify_webhook_source.md`
+- `patterns/pattern_client_authentication_token.md`
+- `patterns/pattern_CreateAccessToken_flow.md` (canonical source for the three
+  token markers `ServerSessionAuthenticationToken`, `ServerAuthenticationToken`,
+  and `ClientAuthenticationToken` — see its "Mapping to connector_flow.rs
+  token markers" section)
+
+### Payment Method Patterns (authorize/ tree)
+
+```
+guides/patterns/authorize/{payment_method}/pattern_authorize_{payment_method}.md
+```
+
+Examples:
+
+- `patterns/authorize/card/pattern_authorize_card.md`
+- `patterns/authorize/card/pattern_authorize_card_ntid.md`
+- `patterns/authorize/wallet/pattern_authorize_wallet.md`
+- `patterns/authorize/wallet/pattern_authorize_wallet_ntid.md`
+- `patterns/authorize/bank_transfer/pattern_authorize_bank_transfer.md`
+- `patterns/authorize/voucher/pattern_authorize_voucher.md`
+- `patterns/authorize/real_time_payment/pattern_authorize_real_time_payment.md`
+- `patterns/authorize/card_redirect/pattern_authorize_card_redirect.md`
+- `patterns/authorize/open_banking/pattern_authorize_open_banking.md`
+- `patterns/authorize/network_token/pattern_authorize_network_token.md`
+- `patterns/authorize/card_token/pattern_authorize_card_token.md`
+- `patterns/authorize/mandate_payment/pattern_authorize_mandate_payment.md`
 
 ## Tips for Best Results
 
