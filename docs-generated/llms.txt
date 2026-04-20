@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 83
+# Connectors: 84
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 83
+  total_connectors: 84
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -549,6 +549,14 @@ scenarios: checkout_autocapture, checkout_card, refund, void_payment
 payment_methods: Card
 flows: authorize, capture, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
 examples_python: examples/revolv3/revolv3.py
+
+## Sanlam
+connector_id: sanlam
+doc: docs/connectors/sanlam.md
+scenarios: none
+payment_methods: none
+flows: 
+examples_python: none
 
 ## Sanlammultidata
 connector_id: sanlammultidata
