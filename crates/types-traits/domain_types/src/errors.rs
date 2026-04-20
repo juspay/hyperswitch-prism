@@ -294,6 +294,16 @@ impl IntegrationError {
         }
     }
 
+    /// Get API error representation (compatibility with PaymentAuthorizationError)
+    pub fn get_api_error(&self) -> ApiError {
+        ApiError {
+            sub_code: self.error_code().to_string(),
+            error_identifier: 500,
+            error_message: self.to_string(),
+            error_object: None,
+        }
+    }
+
     /// Machine-readable error code (SCREAMING_SNAKE_CASE from variant name, or explicit `code` for ConfigurationError).
     pub fn error_code(&self) -> &str {
         match self {

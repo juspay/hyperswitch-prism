@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 82
+# Connectors: 83
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 82
+  total_connectors: 83
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -470,6 +470,14 @@ payment_methods: UpiCollect, UpiIntent, UpiQr
 flows: authorize, get
 examples_python: none
 
+## Pinelabsonline
+connector_id: pinelabsonline
+doc: docs/connectors/pinelabsonline.md
+scenarios: none
+payment_methods: none
+flows: create_server_authentication_token
+examples_python: none
+
 ## PlacetoPay
 connector_id: placetopay
 doc: docs/connectors/placetopay.md
@@ -555,7 +563,7 @@ connector_id: shift4
 doc: docs/connectors/shift4.md
 scenarios: checkout_autocapture, checkout_card, refund, get_payment
 payment_methods: Card, Eps, Ideal
-flows: authorize, capture, create_client_authentication_token, create_customer, get, proxy_authorize, recurring_charge, refund, refund_get, token_authorize
+flows: authorize, capture, create_client_authentication_token, create_customer, get, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, token_setup_recurring
 examples_python: examples/shift4/shift4.py
 
 ## Silverflow

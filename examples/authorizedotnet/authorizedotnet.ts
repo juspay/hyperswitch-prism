@@ -124,7 +124,7 @@ function _buildProxySetupRecurringRequest(): types.IPaymentServiceProxySetupRecu
             "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
         },
         "customer": {
-            "connectorCustomerId": "cust_probe_123"  // Customer ID in the connector system.
+            "connectorCustomerId": "probe_customer_001"  // Customer ID in the connector system.
         },
         "address": {
             "billingAddress": {

@@ -241,3 +241,6 @@ pub use self::trustly::Trustly;
 
 pub mod itaubank;
 pub use self::itaubank::Itaubank;
+
+pub mod pinelabs_online;
+pub use self::pinelabs_online::PinelabsOnline;
