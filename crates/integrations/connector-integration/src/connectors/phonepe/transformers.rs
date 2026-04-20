@@ -529,6 +529,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
 
+        // Serialize the PhonePe response back to JSON and stash it on
+        // resource_common_data.raw_connector_response on every branch.
+        // generate_payment_authorize_response (domain_types/types.rs) reads
+        // this field and surfaces it to euler-api-txns as
+        // CompositePaymentServiceAuthorizeResp.rawConnectorResponse — which
+        // the Haskell-side extractPhonepeIntentUrl fallback parses to recover
+        // data.instrumentResponse.intentUrl when the structured
+        // redirectionData path is empty. Without this, the error branch (and
+        // a few success-without-instrument-response cases) leave both
+        // redirectionData and raw body empty, starving the Haskell side of
+        // anything to fall back to. Serialization is best-effort; None
+        // preserves prior behaviour on the extremely unlikely serde failure.
+        let raw_response_json: Option<Secret<String>> =
+            serde_json::to_string(response).ok().map(Secret::new);
+
         if response.success {
             if let Some(data) = &response.data {
                 if let Some(instrument_response) = &data.instrument_response {
@@ -577,6 +592,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         }),
                         resource_common_data: PaymentFlowData {
                             status: common_enums::AttemptStatus::AuthenticationPending,
+                            raw_connector_response: raw_response_json.clone(),
                             ..item.router_data.resource_common_data
                         },
                         ..item.router_data
@@ -600,6 +616,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             status_code: item.http_code,
                         }),
                         resource_common_data: PaymentFlowData {
+                            raw_connector_response: raw_response_json.clone(),
                             ..item.router_data.resource_common_data
                         },
                         ..item.router_data
@@ -657,6 +674,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     network_advice_code: None,
                     network_error_message: None,
                 }),
+                resource_common_data: PaymentFlowData {
+                    raw_connector_response: raw_response_json,
+                    ..item.router_data.resource_common_data
+                },
                 ..item.router_data
             })
         }
