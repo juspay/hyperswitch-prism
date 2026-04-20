@@ -8,268 +8,268 @@
     },
     "authorize": {
       "Ach": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankDebit(AchBankDebit { account_number: *** alloc::string::String ***, routing_number: *** alloc::string::String ***, card_holder_name: None, bank_account_holder_name: Some(*** alloc::string::String ***), bank_name: None, bank_type: None, bank_holder_type: None }) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "AchBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankTransfer(AchBankTransfer) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "Affirm": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method PayLater(AffirmRedirect) not implemented for Cashfree"
       },
       "Afterpay": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method PayLater(AfterpayClearpayRedirect) not implemented for Cashfree"
       },
       "Alfamart": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method Voucher(Alfamart(AlfamartVoucherData)) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "AliPayRedirect": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Wallet AliPayRedirect(AliPayRedirection) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer regional wallets outside its partner list."
       },
       "AmazonPayRedirect": {
         "status": "error",
         "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "ApplePay": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Wallet ApplePay(ApplePayWalletData { payment_data: Encrypted(\"eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9\"), payment_method: ApplepayPaymentMethod { display_name: \"Visa 1111\", network: \"Visa\", pm_type: \"debit\" }, transaction_identifier: \"probe_txn_id\" }) not implemented for Cashfree"
       },
       "ApplePayDecrypted": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Wallet ApplePay(ApplePayWalletData { payment_data: Decrypted(ApplePayDecryptedData { application_primary_account_number: CardNumber(411111**********), application_expiration_month: *** alloc::string::String ***, application_expiration_year: *** alloc::string::String ***, payment_data: ApplePayCryptogramData { online_payment_cryptogram: *** alloc::string::String ***, eci_indicator: Some(\"05\") } }), payment_method: ApplepayPaymentMethod { display_name: \"Visa 1111\", network: \"Visa\", pm_type: \"debit\" }, transaction_identifier: \"probe_txn_id\" }) not implemented for Cashfree"
       },
       "ApplePayThirdPartySdk": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Wallet ApplePayThirdPartySdk(ApplePayThirdPartySdkData { token: Some(*** alloc::string::String ***) }) not implemented for Cashfree"
       },
       "Bacs": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankDebit(BacsBankDebit { account_number: *** alloc::string::String ***, sort_code: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) }) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "BacsBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankTransfer(BacsBankTransfer) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "BancontactCard": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankRedirect(BancontactCard { card_number: Some(CardNumber(411111**********)), card_exp_month: Some(*** alloc::string::String ***), card_exp_year: Some(*** alloc::string::String ***), card_holder_name: Some(*** alloc::string::String ***) }) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "BcaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankTransfer(BcaBankTransfer) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "Becs": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankDebit(BecsBankDebit { account_number: *** alloc::string::String ***, bsb_number: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) }) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "Bizum": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankRedirect(Bizum) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "Blik": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankRedirect(Blik { blik_code: Some(\"777124\") }) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "Bluecode": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Wallet BluecodeRedirect is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer regional wallets outside its partner list."
       },
       "BniVaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankTransfer(BniVaBankTransfer) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "Boleto": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method Voucher(Boleto(BoletoVoucherData { social_security_number: None })) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "BriVaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankTransfer(BriVaBankTransfer) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "Card": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method Card(Card { card_number: RawCardNumber(CardNumber(411111**********)), card_exp_month: *** alloc::string::String ***, card_exp_year: *** alloc::string::String ***, card_cvc: *** alloc::string::String ***, card_issuer: None, card_network: None, card_type: None, card_issuing_country: None, bank_code: None, nick_name: None, card_holder_name: Some(*** alloc::string::String ***), co_badged_card_data: None }) not implemented for Cashfree"
       },
       "CashappQr": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Wallet CashappQr(CashappQr) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer regional wallets outside its partner list."
       },
       "CimbVaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankTransfer(CimbVaBankTransfer) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "ClassicReward": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method Reward is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "Crypto": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "DanamonVaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankTransfer(DanamonVaBankTransfer) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "DuitNow": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "EVoucher": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method Reward is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "Efecty": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method Voucher(Efecty) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "Eft": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankRedirect(Eft { provider: \"ozow\" }) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "Eps": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankRedirect(Eps { bank_name: None, country: None }) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "FamilyMart": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method Voucher(FamilyMart(JCSVoucherData)) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "Giropay": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankRedirect(Giropay { bank_account_bic: None, bank_account_iban: None, country: None }) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "Givex": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "GooglePay": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Wallet GooglePay(GooglePayWalletData { pm_type: \"CARD\", description: \"Visa 1111\", info: GooglePayPaymentMethodInfo { card_network: \"VISA\", card_details: \"1111\", assurance_details: None }, tokenization_data: Encrypted(GpayEncryptedTokenizationData { token_type: \"PAYMENT_GATEWAY\", token: \"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\" }) }) not implemented for Cashfree"
       },
       "GooglePayDecrypted": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Wallet GooglePay(GooglePayWalletData { pm_type: \"CARD\", description: \"Visa 1111\", info: GooglePayPaymentMethodInfo { card_network: \"VISA\", card_details: \"1111\", assurance_details: None }, tokenization_data: Decrypted(GooglePayDecryptedData { card_exp_month: *** alloc::string::String ***, card_exp_year: *** alloc::string::String ***, application_primary_account_number: CardNumber(411111**********), cryptogram: Some(*** alloc::string::String ***), eci_indicator: Some(\"05\") }) }) not implemented for Cashfree"
       },
       "GooglePayThirdPartySdk": {
         "status": "error",
         "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Ideal": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankRedirect(Ideal { bank_name: None }) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "Indomaret": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method Voucher(Indomaret(IndomaretVoucherData)) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "IndonesianBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankTransfer(IndonesianBankTransfer { bank_name: None }) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "InstantBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankTransfer(InstantBankTransfer) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "InstantBankTransferFinland": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankTransfer(InstantBankTransferFinland) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "InstantBankTransferPoland": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankTransfer(InstantBankTransferPoland) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "Interac": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankRedirect(Interac { country: None, email: None }) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "Klarna": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method PayLater(KlarnaRedirect) not implemented for Cashfree"
       },
       "Lawson": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method Voucher(Lawson(JCSVoucherData)) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "LocalBankRedirect": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankRedirect(LocalBankRedirect) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "LocalBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankTransfer(LocalBankTransfer { bank_code: None }) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "MandiriVaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankTransfer(MandiriVaBankTransfer) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "MbWay": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Wallet MbWay(MbWayData) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer regional wallets outside its partner list."
       },
       "Mifinity": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Wallet Mifinity(MifinityData { date_of_birth: *** time::date::Date ***, language_preference: Some(\"en\") }) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer regional wallets outside its partner list."
       },
       "MiniStop": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method Voucher(MiniStop(JCSVoucherData)) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "MultibancoBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankTransfer(MultibancoBankTransfer) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "OnlineBankingCzechRepublic": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankRedirect(OnlineBankingCzechRepublic { issuer: CeskaSporitelna }) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "OnlineBankingFinland": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankRedirect(OnlineBankingFinland { email: Some(Email(****@example.com)) }) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "OnlineBankingFpx": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankRedirect(OnlineBankingFpx { issuer: Maybank }) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "OnlineBankingPoland": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankRedirect(OnlineBankingPoland { issuer: BankPekaoSa }) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "OnlineBankingSlovakia": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankRedirect(OnlineBankingSlovakia { issuer: TatraPay }) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "OnlineBankingThailand": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankRedirect(OnlineBankingThailand { issuer: BangkokBank }) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "OpenBanking": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankRedirect(OpenBanking) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "OpenBankingPis": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "OpenBankingUk": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankRedirect(OpenBankingUk { issuer: None, country: None }) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "Oxxo": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method Voucher(Oxxo) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "PagoEfectivo": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method Voucher(PagoEfectivo) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "PayEasy": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method Voucher(PayEasy(JCSVoucherData)) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "PaySafeCard": {
         "status": "not_supported",
@@ -280,76 +280,76 @@
         "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "PaypalSdk": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Wallet PaypalSdk(PayPalWalletData { token: \"probe_paypal_sdk_token\" }) not implemented for Cashfree"
       },
       "Paze": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "PermataBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankTransfer(PermataBankTransfer) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "Pix": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankTransfer(Pix { pix_key: None, cpf: None, cnpj: None, source_bank_account_id: None, destination_bank_account_id: None, expiry_date: None }) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "Przelewy24": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankRedirect(Przelewy24 { bank_name: None }) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "Pse": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankTransfer(Pse) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "RedCompra": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method Voucher(RedCompra) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "RedPagos": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method Voucher(RedPagos) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "RevolutPay": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Wallet RevolutPay(RevolutPayData) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer regional wallets outside its partner list."
       },
       "SamsungPay": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Wallet SamsungPay(SamsungPayWalletData { payment_credential: SamsungPayWalletCredentials { method: Some(\"3DS\"), recurring_payment: Some(false), card_brand: Visa, dpan_last_four_digits: None, card_last_four_digits: \"1234\", token_data: SamsungPayTokenData { three_ds_type: Some(\"S\"), version: \"100\", data: *** alloc::string::String *** } } }) not implemented for Cashfree"
       },
       "Satispay": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Wallet Satispay(SatispayData) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer regional wallets outside its partner list."
       },
       "Seicomart": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method Voucher(Seicomart(JCSVoucherData)) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "Sepa": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankDebit(SepaBankDebit { iban: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) }) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "SepaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankTransfer(SepaBankTransfer) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "SepaGuaranteedDebit": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankDebit(SepaGuaranteedBankDebit { iban: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) }) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "SevenEleven": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method Voucher(SevenEleven(JCSVoucherData)) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "Sofort": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankRedirect(Sofort { country: None, preferred_language: None }) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "Trustly": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method BankRedirect(Trustly { country: None }) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       },
       "UpiCollect": {
         "status": "error",
@@ -364,12 +364,12 @@
         "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "WeChatPayQr": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Wallet WeChatPayQr(WeChatPayQr) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer regional wallets outside its partner list."
       },
       "Wero": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Wallet Wero(WeroData) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer regional wallets outside its partner list."
       }
     },
     "capture": {
@@ -514,8 +514,8 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method Card(Card { card_number: RawCardNumber(*** alloc::string::String ***), card_exp_month: *** alloc::string::String ***, card_exp_year: *** alloc::string::String ***, card_cvc: *** alloc::string::String ***, card_issuer: None, card_network: None, card_type: None, card_issuing_country: None, bank_code: None, nick_name: None, card_holder_name: Some(*** alloc::string::String ***), co_badged_card_data: None }) not implemented for Cashfree"
       }
     },
     "proxy_setup_recurring": {
@@ -594,8 +594,8 @@
     },
     "token_authorize": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
+        "status": "not_supported",
+        "error": "Payment Method PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String *** }) is not supported by Cashfree. Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India."
       }
     },
     "token_setup_recurring": {
