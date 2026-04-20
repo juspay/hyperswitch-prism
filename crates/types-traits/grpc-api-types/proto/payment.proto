@@ -741,6 +741,8 @@ enum Connector {
   PPRO = 113;
   FISERVCOMMERCEHUB = 114;
   TRUSTLY = 115;
+  SANLAM = 116;
+  PINELABS_ONLINE = 117;
 }
 
 // Payment method types
@@ -1616,6 +1618,8 @@ message CheckoutClientAuthenticationResponse {
 // Cybersource SDK initialization data — capture_context JWT for Flex Microform SDK
 message CybersourceClientAuthenticationResponse {
   SecretString capture_context = 1;
+  string client_library = 2;
+  string client_library_integrity = 3;
 }
 
 // Nuvei SDK initialization data — session_token for client-side SDK operations
@@ -3917,6 +3921,12 @@ message FiservcommercehubConfig {
   optional string base_url = 50;
 }
 
+message SanlamConfig {
+  SecretString api_key = 1;
+  SecretString merchant_id = 2;
+  optional string base_url = 50;
+}
+
 message ItaubankConfig {
   SecretString client_secret = 1;
   SecretString client_id = 2;
@@ -4081,6 +4091,12 @@ message TruelayerConfig {
   SecretString kid = 6;
   optional string base_url = 50;
   optional string secondary_base_url = 51;
+}
+
+message PinelabsOnlineConfig {
+  SecretString client_id = 1;
+  SecretString client_secret = 2;
+  optional string base_url = 50;
 }
 
 // ConnectorSpecificConfig message with oneof containing all connector
@@ -4324,6 +4340,12 @@ message ConnectorSpecificConfig {
 
     // TRUSTLY = 116
     TrustlyConfig trustly = 115;
+
+    // SANLAM = 116
+    SanlamConfig sanlam = 116;
+
+    // PINELABS_ONLINE = 117
+    PinelabsOnlineConfig pinelabs_online = 117;
   }
 }
 
@@ -4364,6 +4386,7 @@ message PaymentServiceTokenAuthorizeRequest {
   // Send the connector order identifier here if an order was created before
   // authorize
   optional string connector_order_id = 22;
+  optional int64 shipping_cost = 23;    // Cost of shipping for the order
 }
 
 message PaymentServiceTokenSetupRecurringRequest {
@@ -4391,7 +4414,7 @@ message PaymentServiceProxyAuthorizeRequest {
   Money amount = 2;
   // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly).
   // Real card values are substituted by the proxy before reaching the connector.
-  CardDetails card_proxy = 3;
+  ProxyCardDetails card_proxy = 3;
   optional Customer customer = 4;
   PaymentAddress address = 5;
   optional CaptureMethod capture_method = 6;
@@ -4419,13 +4442,14 @@ message PaymentServiceProxyAuthorizeRequest {
   // Send the connector order identifier here if an order was created before
   // authorize
   optional string connector_order_id = 26;
+  optional int64 shipping_cost = 27;    // Cost of shipping for the order
 }
 
 message PaymentServiceProxySetupRecurringRequest {
   string merchant_recurring_payment_id = 1;
   Money amount = 2;
   // Card proxy for vault-aliased payments.
-  CardDetails card_proxy = 3;
+  ProxyCardDetails card_proxy = 3;
   optional Customer customer = 4;
   PaymentAddress address = 5;
   optional string return_url = 6;

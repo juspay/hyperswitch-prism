@@ -12,6 +12,7 @@ members = [
   "crates/types-traits/interfaces",
   "crates/types-traits/domain_types",
   "crates/common/tracing-kafka",
+  "crates/common/connector_request_kafka",
   "crates/types-traits/cards",
   "sdk/rust",
   "sdk/rust/smoke-test",

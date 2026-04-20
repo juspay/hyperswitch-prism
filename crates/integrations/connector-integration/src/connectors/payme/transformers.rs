@@ -192,11 +192,9 @@ fn create_payment_request_from_router_data<T: PaymentMethodDataTypes>(
     let card = match &router_data.request.payment_method_data {
         PaymentMethodData::Card(card_data) => build_card_details(card_data)?,
         _ => {
-            return Err(IntegrationError::NotSupported {
-                message: "Payment method".to_string(),
-                connector: "payme",
-                context: Default::default(),
-            }
+            return Err(IntegrationError::not_implemented(
+                "Payment method not yet implemented for Payme".to_string(),
+            )
             .into())
         }
     };

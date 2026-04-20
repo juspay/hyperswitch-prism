@@ -131,6 +131,15 @@ impl Service {
         } else {
             logger::info!("EventPublisher disabled in configuration");
         }
+
+        #[cfg(feature = "connector-request-kafka")]
+        if config.connector_request_kafka.enabled {
+            connector_request_kafka::init_kafka_producer(&config.connector_request_kafka)
+                .expect("Failed to initialize Kafka producer for publishing connector requests during startup");
+        } else {
+            logger::info!("Connector request Kafka disabled in configuration");
+        }
+
         let customer_service = crate::server::payments::Customer;
         let merchant_authentication_service = crate::server::payments::MerchantAuthentication;
         let refunds_service = crate::server::refunds::Refunds;

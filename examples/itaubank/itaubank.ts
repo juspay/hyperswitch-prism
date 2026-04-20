@@ -6,20 +6,24 @@
 // Run a scenario:  npx tsx itaubank.ts checkout_autocapture
 
 import { MerchantAuthenticationClient, types } from 'hyperswitch-prism';
-const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment } = types;
+const { Environment } = types;
+export const SUPPORTED_FLOWS = ["create_server_authentication_token"];
 
-const _defaultConfig: ConnectorConfig = {
+const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
+    connectorConfig: {
+        itaubank: {
+            clientSecret: { value: 'YOUR_CLIENT_SECRET' },
+            clientId: { value: 'YOUR_CLIENT_ID' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
+    },
 };
-// Standalone credentials (field names depend on connector auth type):
-// _defaultConfig.connectorConfig = {
-//     itaubank: { apiKey: { value: 'YOUR_API_KEY' } }
-// };
 
 
-function _buildCreateServerAuthenticationTokenRequest(): MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+function _buildCreateServerAuthenticationTokenRequest(): types.IMerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
     return {
     };
 }
@@ -27,12 +31,12 @@ function _buildCreateServerAuthenticationTokenRequest(): MerchantAuthenticationS
 
 // ANCHOR: scenario_functions
 // Flow: MerchantAuthenticationService.CreateServerAuthenticationToken
-async function createServerAuthenticationToken(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse> {
+async function createServerAuthenticationToken(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const merchantAuthenticationClient = new MerchantAuthenticationClient(config);
 
     const createResponse = await merchantAuthenticationClient.createServerAuthenticationToken(_buildCreateServerAuthenticationTokenRequest());
 
-    return { status: createResponse.status };
+    return createResponse;
 }
 
 

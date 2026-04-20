@@ -1,1 +1,25 @@
-{}
+{
+  "setup_recurring": {
+    "setup_recurring": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4200000000000000"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2030"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        },
+        "return_url": "https://example.com/payment/return"
+      }
+    }
+  }
+}

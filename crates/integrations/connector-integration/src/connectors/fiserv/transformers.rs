@@ -464,11 +464,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         if item.router_data.resource_common_data.is_three_ds() {
-            Err(IntegrationError::NotSupported {
-                message: "Cards 3DS".to_string(),
-                connector: "Fiserv",
-                context: Default::default(),
-            })?
+            Err(error_stack::report!(IntegrationError::not_implemented(
+                "Cards 3DS".to_string()
+            )))?
         }
 
         let auth: FiservAuthType = FiservAuthType::try_from(&item.router_data.connector_config)?;
