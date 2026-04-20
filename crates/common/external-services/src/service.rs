@@ -228,9 +228,14 @@ where
                     }
 
                     let error_response = match body.status_code {
-                        500..=511 => connector.get_5xx_error_response(body.clone(), event)?,
-                        _ => connector.get_error_response_v2(body.clone(), event)?,
+                        500..=511 => {
+                            connector.get_5xx_error_response(body.clone(), event.as_deref_mut())?
+                        }
+                        _ => connector.get_error_response_v2(body.clone(), event.as_deref_mut())?,
                     };
+                    if let Some(evt) = event {
+                        evt.set_error_response(&error_response);
+                    }
                     tracing::Span::current().record(
                         "response.error_message",
                         tracing::field::display(&error_response.message),
@@ -569,6 +574,7 @@ where
                     let mut event = create_event(
                         &event_params,
                         Some(url.clone()),
+                        Some(method.to_string()),
                         Some(latency),
                         &masked_headers,
                         status_code,
@@ -659,6 +665,7 @@ where
                     let mut event = create_event(
                         &event_params,
                         Some(topic.clone()),
+                        None,
                         Some(latency),
                         &masked_headers,
                         status_code,
@@ -734,6 +741,7 @@ fn mask_connector_request(request_content: &Option<RequestContent>) -> serde_jso
 fn create_event(
     event_params: &EventProcessingParams<'_>,
     url: Option<String>,
+    method: Option<String>,
     latency_ms: Option<u64>,
     headers: &Headers,
     status_code: Option<i32>,
@@ -751,11 +759,13 @@ fn create_event(
         flow_type: event_params.flow_name,
         connector: event_params.connector_name.to_string(),
         url,
+        method,
         stage: EventStage::ConnectorCall,
         latency_ms,
         status_code,
         request_data: MaskedSerdeValue::from_masked_optional(masked_request, "connector_request"),
         response_data: None, // Will be set by connector via set_response_body
+        error: None,
         headers: event_headers,
         additional_fields: HashMap::new(),
         lineage_ids: event_params.lineage_ids.to_owned(),

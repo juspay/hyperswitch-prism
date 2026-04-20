@@ -136,7 +136,7 @@ generate-python: ## Regenerate Python SDK client (flows + protobuf stubs)
 generate-javascript: ## Regenerate JavaScript/TypeScript SDK client (flows)
 	@$(MAKE) -C $(MAKEFILE_DIR)javascript generate-flows
 
-generate-kotlin: ## Regenerate Kotlin SDK client (Java proto stubs + UniFFI bindings + flows)
+generate-kotlin: ## Regenerate Kotlin SDK client (proto stubs + flows + bindings)
 	@$(MAKE) -C $(MAKEFILE_DIR)java generate-proto generate-bindings generate-flows
 
 
@@ -168,6 +168,7 @@ generate-client-java:
 # Delegates to each SDK's generate-client target.
 # ---------------------------------------------------------------------------
 generate: install-deps ## Auto-discover flows and regenerate all SDK clients (parses proto once)
+	@$(MAKE) -C $(MAKEFILE_DIR)java generate-proto
 	@python3 $(REPO_ROOT)/scripts/generators/code/generate.py --lang all
 	@echo
 	@echo "Generating Python protobuf stubs (_pb2.pyi)..."

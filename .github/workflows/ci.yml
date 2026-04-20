@@ -178,7 +178,6 @@ jobs:
       github.event_name == 'pull_request' &&
       !github.event.pull_request.draft &&
       github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name &&
-      github.event.pull_request.user.login != 'hyperswitch-bot[bot]' &&
       (needs.changes.outputs.any-rs == 'true' ||
        needs.changes.outputs.docs-trigger == 'true' ||
        needs.changes.outputs.sdk == 'true' ||
@@ -203,17 +202,20 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           token: ${{ steps.generate_token.outputs.token }}
 
-      - name: Install Rust (stable)
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-
       - name: Install Rust (nightly for fmt)
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly
           components: rustfmt
-      
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Set stable as default toolchain
+        run: rustup default stable
+
       - uses: Swatinem/rust-cache@v2.7.8
         with:
           shared-key: "ci-release-fast"
@@ -225,20 +227,17 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Python
-        if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.sdk == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.ci == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Setup Java
-        if: needs.changes.outputs.sdk == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.ci == 'true'
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
       - name: Setup Node.js
-        if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.sdk == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.ci == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -246,13 +245,11 @@ jobs:
           cache-dependency-path: sdk/javascript/package-lock.json
 
       - name: Install Python dependencies
-        if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.sdk == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.ci == 'true'
         run: |
           python3 -m pip install --upgrade pip
           pip3 install jinja2 google-cloud-vision python-dotenv requests types-requests grpcio-tools mypy
 
       - name: Install SDK codegen dependencies
-        if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.sdk == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.ci == 'true'
         run: |
           pip install -r sdk/python/requirements.txt grpcio-tools protobuf
           make -C sdk install-deps
@@ -262,7 +259,6 @@ jobs:
         run: cargo +nightly fmt --all
 
       - name: Generate SDK bindings
-        if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.sdk == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.ci == 'true'
         env:
           RUSTUP_TOOLCHAIN: stable
         run: make -C sdk generate PROFILE=release-fast
