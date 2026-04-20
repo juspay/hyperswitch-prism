@@ -395,8 +395,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     "ApplePayThirdPartySdk request body: handled via build_request_v2".to_string(),
                 )
                 .into()),
-                domain_types::payment_method_data::WalletData::GooglePay(_)
-                | domain_types::payment_method_data::WalletData::ApplePay(_) => {
+                WalletData::GooglePay(_) | WalletData::ApplePay(_) => {
                     Err(IntegrationError::not_implemented("Payment method".to_string()).into())
                 }
                 _ => Err(IntegrationError::NotSupported {
