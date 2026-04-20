@@ -410,7 +410,7 @@ examples_python: examples/paybox/paybox.py
 connector_id: payload
 doc: docs/connectors/payload.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: Ach, Card
+payment_methods: Ach, ApplePayThirdPartySdk, Card
 flows: authorize, capture, create_client_authentication_token, get, handle_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, void
 examples_python: examples/payload/payload.py
 
