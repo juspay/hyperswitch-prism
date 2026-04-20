@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 81
+# Connectors: 83
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 81
+  total_connectors: 83
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -34,7 +34,7 @@ examples_python: examples/aci/aci.py
 connector_id: adyen
 doc: docs/connectors/adyen.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment
-payment_methods: Ach, Affirm, Afterpay, Alfamart, ApplePay, ApplePayDecrypted, Bacs, BancontactCard, BcaBankTransfer, Bizum, Blik, BniVaBankTransfer, Boleto, BriVaBankTransfer, Card, CimbVaBankTransfer, DanamonVaBankTransfer, Eps, FamilyMart, GooglePay, GooglePayDecrypted, Ideal, Indomaret, Klarna, Lawson, MandiriVaBankTransfer, MiniStop, OnlineBankingCzechRepublic, OnlineBankingFinland, OnlineBankingFpx, OnlineBankingSlovakia, OnlineBankingThailand, OpenBankingUk, Oxxo, PayEasy, PermataBankTransfer, Pix, Seicomart, Sepa, SevenEleven, Trustly
+payment_methods: Ach, Affirm, Afterpay, Alfamart, AliPayRedirect, ApplePay, ApplePayDecrypted, Bacs, BancontactCard, BcaBankTransfer, Bizum, Blik, BniVaBankTransfer, Boleto, BriVaBankTransfer, Card, CimbVaBankTransfer, DanamonVaBankTransfer, Eps, FamilyMart, GooglePay, GooglePayDecrypted, Ideal, Indomaret, Klarna, Lawson, MandiriVaBankTransfer, MiniStop, OnlineBankingCzechRepublic, OnlineBankingFinland, OnlineBankingFpx, OnlineBankingSlovakia, OnlineBankingThailand, OpenBankingUk, Oxxo, PayEasy, PaypalRedirect, PermataBankTransfer, Pix, Seicomart, Sepa, SevenEleven, Trustly
 flows: authorize, capture, create_client_authentication_token, create_order, dispute_accept, dispute_defend, dispute_submit_evidence, handle_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, setup_recurring, token_authorize, void
 examples_python: examples/adyen/adyen.py
 
@@ -130,8 +130,8 @@ examples_python: none
 connector_id: cashfree
 doc: docs/connectors/cashfree.md
 scenarios: none
-payment_methods: UpiCollect, UpiIntent, UpiQr
-flows: authorize
+payment_methods: none
+flows: capture, create_order, get, refund, refund_get, void
 examples_python: none
 
 ## CashtoCode
@@ -187,7 +187,7 @@ connector_id: dlocal
 doc: docs/connectors/dlocal.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, proxy_authorize, recurring_charge, refund, refund_get, void
+flows: authorize, capture, get, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
 examples_python: examples/dlocal/dlocal.py
 
 ## Elavon
@@ -203,7 +203,7 @@ connector_id: finix
 doc: docs/connectors/finix.md
 scenarios: none
 payment_methods: none
-flows: capture, create_customer, get, refund, refund_get, token_authorize, tokenize, void
+flows: capture, create_customer, get, recurring_charge, refund, refund_get, token_authorize, tokenize, void
 examples_python: none
 
 ## Fiserv
@@ -371,7 +371,7 @@ connector_id: nmi
 doc: docs/connectors/nmi.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Ach, Card, GooglePay, GooglePayDecrypted
-flows: authorize, capture, get, pre_authenticate, proxy_authorize, refund, refund_get, void
+flows: authorize, capture, get, pre_authenticate, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
 examples_python: examples/nmi/nmi.py
 
 ## Noon
@@ -470,6 +470,14 @@ payment_methods: UpiCollect, UpiIntent, UpiQr
 flows: authorize, get
 examples_python: none
 
+## Pinelabsonline
+connector_id: pinelabsonline
+doc: docs/connectors/pinelabsonline.md
+scenarios: none
+payment_methods: none
+flows: create_server_authentication_token
+examples_python: none
+
 ## PlacetoPay
 connector_id: placetopay
 doc: docs/connectors/placetopay.md
@@ -542,12 +550,20 @@ payment_methods: Card
 flows: authorize, capture, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
 examples_python: examples/revolv3/revolv3.py
 
+## Sanlammultidata
+connector_id: sanlammultidata
+doc: docs/connectors/sanlammultidata.md
+scenarios: none
+payment_methods: none
+flows: 
+examples_python: none
+
 ## Shift4
 connector_id: shift4
 doc: docs/connectors/shift4.md
 scenarios: checkout_autocapture, checkout_card, refund, get_payment
 payment_methods: Card, Eps, Ideal
-flows: authorize, capture, create_client_authentication_token, create_customer, get, proxy_authorize, recurring_charge, refund, refund_get, token_authorize
+flows: authorize, capture, create_client_authentication_token, create_customer, get, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, token_setup_recurring
 examples_python: examples/shift4/shift4.py
 
 ## Silverflow
@@ -595,7 +611,7 @@ connector_id: trustpay
 doc: docs/connectors/trustpay.md
 scenarios: checkout_autocapture, refund, get_payment
 payment_methods: Blik, Card, Eps, Giropay, Ideal, InstantBankTransfer, InstantBankTransferFinland, InstantBankTransferPoland, SepaBankTransfer, Sofort
-flows: authorize, create_order, create_server_authentication_token, get, handle_event, proxy_authorize, refund, refund_get
+flows: authorize, create_order, create_server_authentication_token, get, handle_event, proxy_authorize, recurring_charge, refund, refund_get
 examples_python: examples/trustpay/trustpay.py
 
 ## Trustpayments

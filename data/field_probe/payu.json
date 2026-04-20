@@ -8,348 +8,348 @@
     },
     "authorize": {
       "Ach": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "AchBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Affirm": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Afterpay": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Alfamart": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "AliPayRedirect": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "AmazonPayRedirect": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "ApplePay": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "ApplePayDecrypted": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Bacs": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "BacsBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "BancontactCard": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "BcaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Becs": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Bizum": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Blik": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Bluecode": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "BniVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Boleto": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "BriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Card": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "CashappQr": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "CimbVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "ClassicReward": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Crypto": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "DuitNow": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "EVoucher": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Efecty": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Eft": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Eps": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "FamilyMart": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Giropay": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Givex": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "GooglePay": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "GooglePayDecrypted": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Ideal": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Indomaret": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "IndonesianBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "InstantBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "InstantBankTransferFinland": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "InstantBankTransferPoland": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Interac": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Klarna": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Lawson": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "LocalBankRedirect": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "LocalBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "MbWay": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Mifinity": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "MiniStop": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "MultibancoBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "OnlineBankingFinland": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "OnlineBankingFpx": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "OnlineBankingPoland": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "OnlineBankingThailand": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "OpenBanking": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "OpenBankingPis": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "OpenBankingUk": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Oxxo": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "PagoEfectivo": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "PayEasy": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "PaySafeCard": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "PaypalRedirect": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "PaypalSdk": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Paze": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "PermataBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Pix": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Przelewy24": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Pse": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "RedCompra": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "RedPagos": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "RevolutPay": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "SamsungPay": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Satispay": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Seicomart": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Sepa": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "SepaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "SevenEleven": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Sofort": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Trustly": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "UpiCollect": {
         "status": "supported",
@@ -465,12 +465,12 @@
         }
       },
       "WeChatPayQr": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       },
       "Wero": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       }
     },
     "capture": {
@@ -573,8 +573,8 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       }
     },
     "proxy_setup_recurring": {
@@ -614,8 +614,8 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_supported",
-        "error": "Payment method not supported by PayU. Only UPI payments are supported is not supported by PayU"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by this PayU transformer. Only UPI is implemented"
       }
     },
     "token_setup_recurring": {

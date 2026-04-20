@@ -521,7 +521,7 @@ pub(crate) fn bizum_method() -> PaymentMethod {
 
 pub(crate) fn eft_method() -> PaymentMethod {
     PaymentMethod {
-        payment_method: Some(PmVariant::Eft(proto::Eft {
+        payment_method: Some(PmVariant::EftBankRedirect(proto::EftBankRedirect {
             provider: "ozow".to_string(),
         })),
     }

@@ -91,6 +91,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Airwallex => Box::new(connectors::Airwallex::new()),
             ConnectorEnum::Bambora => Box::new(connectors::Bambora::new()),
             ConnectorEnum::Shift4 => Box::new(connectors::Shift4::new()),
+            ConnectorEnum::Sanlammultidata => Box::new(connectors::Sanlammultidata::new()),
             ConnectorEnum::Bamboraapac => Box::new(connectors::Bamboraapac::new()),
             ConnectorEnum::Tsys => Box::new(connectors::Tsys::new()),
             ConnectorEnum::Bankofamerica => Box::new(connectors::Bankofamerica::new()),
@@ -105,6 +106,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Truelayer => Box::new(connectors::Truelayer::new()),
             ConnectorEnum::Trustly => Box::new(connectors::Trustly::new()),
             ConnectorEnum::Itaubank => Box::new(connectors::Itaubank::new()),
+            ConnectorEnum::PinelabsOnline => Box::new(connectors::PinelabsOnline::new()),
         }
     }
 }

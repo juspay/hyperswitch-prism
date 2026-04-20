@@ -168,8 +168,7 @@ fun fromMethodName(methodName: String): String {
 }
 
 fun connectorClassName(connectorName: String, mock: Boolean = false): String {
-    val packageName = if (mock) "harness" else "examples"
-    return "$packageName.$connectorName.${connectorName.replaceFirstChar { it.uppercase() }}Kt"
+    return "examples.$connectorName.${connectorName.replaceFirstChar { it.uppercase() }}Kt"
 }
 
 fun discoverAndValidate(
@@ -204,100 +203,68 @@ fun discoverAndValidate(
         }
     }
 
-    // CHECK 1: Find declared flows without implementations
-    // In mock mode, harnesses use flow-based naming (processAuthorize) not example-based (processCheckoutCard)
-    val implemented = mutableSetOf<String>()
-    val missing = mutableListOf<String>()
-    for (flow in effectiveDeclared) {
+    // Helper: find a method for a flow, trying multiple naming conventions and signatures.
+    // Order: mapped scenario fn (processCheckoutCard) → process-prefixed (processAuthorize) →
+    //        camelCase without prefix (authorize, proxyAuthorize).
+    // Each name is tried with (String, ConnectorConfig) first, then (String) only.
+    fun findFlowMethod(flow: String): java.lang.reflect.Method? {
+        fun tryGet(name: String): java.lang.reflect.Method? {
+            try { return exampleClass.getMethod(name, String::class.java, ConnectorConfig::class.java) }
+            catch (_: NoSuchMethodException) {}
+            try { return exampleClass.getMethod(name, String::class.java) }
+            catch (_: NoSuchMethodException) {}
+            return null
+        }
         val exampleFn = flowToExampleFn[flow]
-        // Try example-based naming first (normal mode)
-        val exampleBasedFound = if (exampleFn != null) {
-            try {
-                exampleClass.getMethod(scenarioToMethodName(exampleFn), String::class.java, ConnectorConfig::class.java)
-                true
-            } catch (_: NoSuchMethodException) {
-                false
-            }
-        } else false
-        
-        // Then try flow-based naming (mock mode with harnesses)
-        val flowBasedFound = if (!exampleBasedFound) {
-            try {
-                exampleClass.getMethod(scenarioToMethodName(flow), String::class.java, ConnectorConfig::class.java)
-                true
-            } catch (_: NoSuchMethodException) {
-                false
-            }
-        } else false
-        
-        if (exampleBasedFound || flowBasedFound) {
-            implemented.add(flow)
+        if (exampleFn != null) {
+            tryGet(scenarioToMethodName(exampleFn))?.let { return it }
         }
-        // In legacy mode, flows without implementations are allowed (will show as N/A)
-        // In explicit SUPPORTED_FLOWS mode, missing flows are an error
-        if (!legacyMode && !exampleBasedFound && !flowBasedFound) {
-            missing.add(flow)
-        }
+        tryGet(scenarioToMethodName(flow))?.let { return it }
+        // Fallback: examples expose flow functions under camelCase without process prefix
+        // e.g. flow "proxy_authorize" → method "proxyAuthorize"
+        val camel = flow.split("_").mapIndexed { i, w -> if (i == 0) w else w.replaceFirstChar { it.uppercase() } }.joinToString("")
+        return tryGet(camel)
     }
+
+    // CHECK 1: Find declared flows without implementations
+    val missing = effectiveDeclared.filter { findFlowMethod(it) == null }
     if (!legacyMode && missing.isNotEmpty()) {
-        return ValidationError(
-            "COVERAGE ERROR: SUPPORTED_FLOWS declares $missing but no process* method found."
-        )
+        return ValidationError("COVERAGE ERROR: SUPPORTED_FLOWS declares $missing but no implementation found.")
     }
 
     // CHECK 2 and 3 only apply when SUPPORTED_FLOWS is explicitly defined (not legacy mode)
     if (!legacyMode) {
-        // CHECK 2: find all process* methods on the class
-        // In mock mode, accept both mapped example function names and direct flow names
-        // Filter out synthetic methods like authorize$default generated for default parameters
+        // CHECK 2: process* methods for known flows must be declared in SUPPORTED_FLOWS.
+        // Scenario functions (e.g. processCheckoutAutocapture) whose base name is not in
+        // the manifest are allowed — they cover multi-step scenarios.
         val allProcessMethods = exampleClass.methods
             .filter { it.name.startsWith("process") && !it.isSynthetic && !it.name.contains("$") }
             .map { fromMethodName(it.name) }
             .toSet()
-        val validNames = flowToExampleFn.values.filterNotNull().toSet() + manifest.toSet()
-        val undeclared = allProcessMethods - validNames
+        val manifestSet = manifest.toSet()
+        val declaredSet = effectiveDeclared.toSet()
+        val undeclared = allProcessMethods.filter { it in manifestSet && it !in declaredSet }
         if (undeclared.isNotEmpty()) {
             return ValidationError(
-                "COVERAGE ERROR: process* methods exist but not mapped to any flow: $undeclared"
+                "COVERAGE ERROR: process* methods exist for flows $undeclared but they're not in SUPPORTED_FLOWS"
             )
         }
 
-        // CHECK 3
-        val manifestSet = manifest.toSet()
+        // CHECK 3: Warn about entries in SUPPORTED_FLOWS not in the flow manifest.
+        // These are typically composite scenario names (create_customer, recurring_charge)
+        // not individually listed in flows.json. Warn only — don't fail.
         val stale = effectiveDeclared.filter { it !in manifestSet }
         if (stale.isNotEmpty()) {
-            return ValidationError(
-                "COVERAGE ERROR: SUPPORTED_FLOWS contains stale flows not in flows.json: $stale"
-            )
+            println("  [warn] SUPPORTED_FLOWS contains entries not in flows.json (scenario names): $stale")
         }
     }
 
-    // Return (flow_name, method) pairs for flows with implementations
-    // In mock mode with harnesses, use flow-based naming (processAuthorize)
-    // In normal mode with examples, use example-based naming (processCheckoutCard)
-    // Flows without implementations return null method (will show as N/A)
-    val methods = effectiveDeclared.mapNotNull { flow ->
+    // Return (key, method) pairs for flows with implementations; null method = N/A
+    val methods = effectiveDeclared.map { flow ->
+        val method = findFlowMethod(flow)
         val exampleFn = flowToExampleFn[flow]
-        // Try example-based naming first, then fall back to flow-based
-        val method = when {
-            exampleFn != null -> {
-                try {
-                    exampleClass.getMethod(scenarioToMethodName(exampleFn), String::class.java, ConnectorConfig::class.java)
-                } catch (_: NoSuchMethodException) {
-                    null
-                }
-            }
-            else -> null
-        } ?: try {
-            // Try flow-based naming
-            exampleClass.getMethod(scenarioToMethodName(flow), String::class.java, ConnectorConfig::class.java)
-        } catch (_: NoSuchMethodException) {
-            null
-        }
-        
-        // Return pair if method found, null otherwise (will be filtered out)
-        if (method != null) flow to method else null
-    }
+        flow to method
+    }.filter { it.second != null }.map { it.first to it.second!! }
     return ValidScenarios(methods)
 }
 
@@ -395,9 +362,12 @@ fun testConnectorScenarios(
         System.out.flush()
 
         try {
+            // Flow functions take (String) only; scenario functions take (String, ConnectorConfig).
+            val rawResponse = if (method.parameterCount == 1) method.invoke(null, txnId)
+                              else method.invoke(null, txnId, config)
             @Suppress("UNCHECKED_CAST")
-            val response = method.invoke(null, txnId, config) as Map<String, Any?>
-            val error = response["error"]
+            val response = rawResponse as? Map<String, Any?>
+            val error = response?.get("error")
             val hasError = error != null && error.toString().let {
                 it.isNotBlank() && it != "{}" && !it.matches(Regex("""\w+\s*\{\s*\}"""))
             }
@@ -406,8 +376,9 @@ fun testConnectorScenarios(
                 println(yellow("SKIPPED (connector error)") + grey(" — $errorStr"))
                 result.scenarios[flowKey] = ScenarioResult(status = "skipped", reason = "connector_error", detail = errorStr)
             } else {
-                println(green("PASSED") + grey(" — $response"))
-                result.scenarios[flowKey] = ScenarioResult(status = "passed", result = response)
+                val display = response?.toString() ?: "ok"
+                println(green("PASSED") + grey(" — $display"))
+                result.scenarios[flowKey] = ScenarioResult(status = "passed", result = response ?: emptyMap())
             }
         } catch (e: IntegrationError) {
             val detail = "IntegrationError: ${e.message} (code=${e.errorCode}, action=${e.suggestedAction}, doc=${e.docUrl})"
@@ -592,17 +563,12 @@ fun runTests(
     val results = mutableListOf<ConnectorResult>()
     val testConnectors = connectors ?: credentials.keys.toList()
 
-    // Use generated harnesses in mock mode, examples otherwise
-    val examplesDir = if (mock) {
-        File(sdkRoot, "smoke-test/generated").absolutePath
-    } else {
-        File(sdkRoot, "../../examples").absolutePath
-    }
+    val examplesDir = File(sdkRoot, "../../examples").absolutePath
 
     println("\n${"=".repeat(60)}")
     println("Running smoke tests for ${testConnectors.size} connector(s)")
     if (mock) {
-        println("Mode: MOCK (HTTP intercepted, using generated harnesses)")
+        println("Mode: MOCK (HTTP intercepted, req_transformer verification)")
     }
     println("${"=".repeat(60)}\n")
 

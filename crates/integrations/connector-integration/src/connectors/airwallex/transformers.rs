@@ -122,8 +122,8 @@ pub struct AirwallexCardDetails {
     pub name: Option<Secret<String>>,
 }
 
-// Note: Wallet, PayLater, and BankRedirect data structures removed
-// as they are not implemented yet. Only card payments are supported.
+// Note: Wallet and PayLater data structures remain unimplemented.
+// This transformer currently supports card payments plus selected bank redirects.
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -374,21 +374,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ))
                 }
                 _ => {
-                    return Err(IntegrationError::NotSupported {
-                        message: "Bank Redirect Payment Method".to_string(),
-                        connector: "Airwallex",
-                        context: Default::default(),
-                    }
-                    .into())
+                    return Err(error_stack::report!(IntegrationError::not_implemented(
+                        "Bank Redirect Payment Method".to_string(),
+                    )))
                 }
             },
             _ => {
-                return Err(IntegrationError::NotSupported {
-                    message: "Payment Method".to_string(),
-                    connector: "Airwallex",
-                    context: Default::default(),
-                }
-                .into())
+                return Err(error_stack::report!(IntegrationError::not_implemented(
+                    "Payment Method".to_string(),
+                )))
             }
         };
 
@@ -1140,21 +1134,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ))
                 }
                 _ => {
-                    return Err(IntegrationError::NotSupported {
-                        message: "Bank Redirect Payment Method".to_string(),
-                        connector: "Airwallex",
-                        context: Default::default(),
-                    }
-                    .into())
+                    return Err(error_stack::report!(IntegrationError::not_implemented(
+                        "Bank Redirect Payment Method".to_string(),
+                    )))
                 }
             },
             _ => {
-                return Err(IntegrationError::NotSupported {
-                    message: "Payment Method".to_string(),
-                    connector: "Airwallex",
-                    context: Default::default(),
-                }
-                .into())
+                return Err(error_stack::report!(IntegrationError::not_implemented(
+                    "Payment Method".to_string(),
+                )))
             }
         };
 
