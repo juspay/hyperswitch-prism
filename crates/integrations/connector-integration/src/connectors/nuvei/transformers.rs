@@ -210,6 +210,37 @@ pub struct NuveiBillingAddress {
     pub state: Option<Secret<String>>,
 }
 
+/// Build a Nuvei `billingAddress` block from `PaymentFlowData`. Returns
+/// `None` if either of the two fields Nuvei requires (email + country)
+/// is missing, so MIT flows can treat a missing block as "skip" while
+/// CIT flows `.ok_or(...)` a specific error.
+fn get_billing_address(
+    resource_data: &PaymentFlowData,
+    fallback_email: Option<pii::Email>,
+) -> Option<NuveiBillingAddress> {
+    let email = resource_data
+        .get_optional_billing_email()
+        .or(fallback_email)?;
+    let country = resource_data.get_optional_billing_country()?;
+    let address_line3 = resource_data
+        .get_optional_billing()
+        .and_then(|billing| billing.address.as_ref())
+        .and_then(|addr| addr.line3.clone());
+    Some(NuveiBillingAddress {
+        email,
+        country: country.to_string(),
+        first_name: resource_data.get_optional_billing_first_name(),
+        last_name: resource_data.get_optional_billing_last_name(),
+        phone: resource_data.get_optional_billing_phone_number(),
+        city: resource_data.get_optional_billing_city(),
+        address: resource_data.get_optional_billing_line1(),
+        address_line2: resource_data.get_optional_billing_line2(),
+        address_line3,
+        zip: resource_data.get_optional_billing_zip(),
+        state: resource_data.get_optional_billing_state(),
+    })
+}
+
 // Payment Response
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -257,17 +288,6 @@ pub enum NuveiTransactionStatus {
     #[serde(alias = "Processing", alias = "PROCESSING")]
     #[default]
     Processing,
-}
-
-impl From<&NuveiTransactionStatus> for common_enums::AttemptStatus {
-    fn from(status: &NuveiTransactionStatus) -> Self {
-        match status {
-            NuveiTransactionStatus::Approved => Self::Charged,
-            NuveiTransactionStatus::Declined | NuveiTransactionStatus::Error => Self::Failure,
-            NuveiTransactionStatus::Redirect => Self::AuthenticationPending,
-            NuveiTransactionStatus::Pending | NuveiTransactionStatus::Processing => Self::Pending,
-        }
-    }
 }
 
 // Transaction Type for initPayment
@@ -2276,57 +2296,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         // Billing address - Nuvei requires email and country.
-        let email = router_data
-            .resource_common_data
-            .get_optional_billing_email()
-            .or_else(|| router_data.request.email.clone())
-            .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "billing_address.email",
-                context: Default::default(),
-            })?;
-
-        let country = router_data
-            .resource_common_data
-            .get_optional_billing_country()
-            .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "billing_address.country",
-                context: Default::default(),
-            })?;
-
-        let first_name = router_data
-            .resource_common_data
-            .get_optional_billing_first_name();
-        let last_name = router_data
-            .resource_common_data
-            .get_optional_billing_last_name();
-        let state = router_data
-            .resource_common_data
-            .get_optional_billing_state();
-        let address_line3 = router_data
-            .resource_common_data
-            .get_optional_billing()
-            .and_then(|billing| billing.address.as_ref())
-            .and_then(|addr| addr.line3.clone());
-
-        let billing_address = NuveiBillingAddress {
-            email,
-            first_name,
-            last_name,
-            country: country.to_string(),
-            phone: router_data
-                .resource_common_data
-                .get_optional_billing_phone_number(),
-            city: router_data.resource_common_data.get_optional_billing_city(),
-            address: router_data
-                .resource_common_data
-                .get_optional_billing_line1(),
-            address_line2: router_data
-                .resource_common_data
-                .get_optional_billing_line2(),
-            address_line3,
-            zip: router_data.resource_common_data.get_optional_billing_zip(),
-            state,
-        };
+        let billing_address = get_billing_address(
+            &router_data.resource_common_data,
+            router_data.request.email.clone(),
+        )
+        .ok_or(IntegrationError::MissingRequiredField {
+            field_name: "billing_address (email and country required)",
+            context: Default::default(),
+        })?;
 
         // Device details - ipAddress required by Nuvei.
         let ip_address = router_data
@@ -2409,7 +2386,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .as_ref()
             .map(|c| c.get_string_repr().to_string())
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "customer_id",
+                field_name: "customer_id (maps to Nuvei userTokenId)",
                 context: Default::default(),
             })?;
 
@@ -2485,9 +2462,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Transaction-level status - for SetupMandate an Approved Auth is the
         // success path (status Charged indicates the mandate was registered
         // successfully from the caller's perspective).
-        let status = match response.transaction_status.as_ref() {
-            Some(s) => common_enums::AttemptStatus::from(s),
-            None => {
+        let status = match response.transaction_status {
+            Some(NuveiTransactionStatus::Approved) => common_enums::AttemptStatus::Charged,
+            Some(NuveiTransactionStatus::Declined) | Some(NuveiTransactionStatus::Error) => {
+                common_enums::AttemptStatus::Failure
+            }
+            Some(NuveiTransactionStatus::Redirect) => {
+                common_enums::AttemptStatus::AuthenticationPending
+            }
+            Some(NuveiTransactionStatus::Pending)
+            | Some(NuveiTransactionStatus::Processing)
+            | None => {
                 if matches!(response.status, NuveiPaymentStatus::Success) {
                     common_enums::AttemptStatus::Pending
                 } else {
@@ -2596,6 +2581,11 @@ pub struct NuveiRepeatPaymentRequest {
     pub is_rebilling: String,
     pub transaction_type: TransactionType,
     pub device_details: NuveiDeviceDetails,
+    /// Optional on MIT since the stored userPaymentOptionId already carries
+    /// the billing info captured at CIT. Forwarded when the caller supplies
+    /// it so Nuvei can run AVS / risk checks if the address has changed.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_address: Option<NuveiBillingAddress>,
     pub time_stamp: common_utils::date_time::DateTime<common_utils::date_time::YYYYMMDDHHmmss>,
     pub checksum: String,
 }
@@ -2688,7 +2678,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector_customer
             .clone()
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "connector_customer_id",
+                field_name: "connector_customer_id (maps to Nuvei userTokenId)",
                 context: Default::default(),
             })?;
 
@@ -2708,6 +2698,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let device_details = NuveiDeviceDetails {
             ip_address: Secret::new(ip_address.to_string()),
         };
+
+        // Billing address is optional for MIT: Nuvei resolves AVS from the
+        // stored userPaymentOptionId by default. Forward a block only when
+        // the caller supplies enough data for a valid Nuvei payload.
+        let billing_address = get_billing_address(
+            &router_data.resource_common_data,
+            router_data.request.email.clone(),
+        );
 
         let time_stamp = NuveiAuthType::get_timestamp();
         let client_request_id = router_data
@@ -2768,6 +2766,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             is_rebilling: "1".to_string(),
             transaction_type,
             device_details,
+            billing_address,
             time_stamp,
             checksum,
         })
@@ -2816,9 +2815,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             });
         }
 
-        let status = match response.transaction_status.as_ref() {
-            Some(s) => common_enums::AttemptStatus::from(s),
-            None => {
+        let status = match response.transaction_status {
+            Some(NuveiTransactionStatus::Approved) => common_enums::AttemptStatus::Charged,
+            Some(NuveiTransactionStatus::Declined) | Some(NuveiTransactionStatus::Error) => {
+                common_enums::AttemptStatus::Failure
+            }
+            Some(NuveiTransactionStatus::Redirect) => {
+                common_enums::AttemptStatus::AuthenticationPending
+            }
+            Some(NuveiTransactionStatus::Pending)
+            | Some(NuveiTransactionStatus::Processing)
+            | None => {
                 if matches!(response.status, NuveiPaymentStatus::Success) {
                     common_enums::AttemptStatus::Pending
                 } else {
