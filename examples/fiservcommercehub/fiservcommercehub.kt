@@ -9,8 +9,8 @@ package examples.fiservcommercehub
 
 import types.Payment.*
 import types.PaymentMethods.*
-import payments.MerchantAuthenticationClient
 import payments.PaymentClient
+import payments.MerchantAuthenticationClient
 import payments.RefundClient
 import payments.Currency
 import payments.ConnectorConfig
@@ -20,7 +20,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.FiservcommercehubConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("create_server_authentication_token", "get", "refund", "refund_get", "void")
+val SUPPORTED_FLOWS = listOf<String>("capture", "create_server_authentication_token", "get", "refund", "refund_get", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -38,6 +38,24 @@ val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .build()
 
 
+
+private fun buildCaptureRequest(connectorTransactionIdStr: String): PaymentServiceCaptureRequest {
+    return PaymentServiceCaptureRequest.newBuilder().apply {
+        merchantCaptureId = "probe_capture_001"  // Identification.
+        connectorTransactionId = connectorTransactionIdStr
+        amountToCaptureBuilder.apply {  // Capture Details.
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        stateBuilder.apply {  // State Information.
+            accessTokenBuilder.apply {  // Access token obtained from connector.
+                tokenBuilder.value = "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
+                tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        }
+    }.build()
+}
 
 private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGetRequest {
     return PaymentServiceGetRequest.newBuilder().apply {
@@ -89,6 +107,16 @@ private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceV
             }
         }
     }.build()
+}
+
+// Flow: PaymentService.Capture
+fun capture(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = buildCaptureRequest("probe_connector_txn_001")
+    val response = client.capture(request)
+    if (response.status.name == "FAILED")
+        throw RuntimeException("Capture failed: ${response.error.unifiedDetails.message}")
+    println("Done: ${response.status.name}")
 }
 
 // Flow: MerchantAuthenticationService.CreateServerAuthenticationToken
@@ -151,13 +179,14 @@ fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
 
 fun main(args: Array<String>) {
     val txnId = "order_001"
-    val flow = args.firstOrNull() ?: "createServerAuthenticationToken"
+    val flow = args.firstOrNull() ?: "capture"
     when (flow) {
+        "capture" -> capture(txnId)
         "createServerAuthenticationToken" -> createServerAuthenticationToken(txnId)
         "get" -> get(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: createServerAuthenticationToken, get, refund, refundGet, void")
+        else -> System.err.println("Unknown flow: $flow. Available: capture, createServerAuthenticationToken, get, refund, refundGet, void")
     }
 }

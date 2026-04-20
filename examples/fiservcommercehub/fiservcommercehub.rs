@@ -12,6 +12,7 @@ use std::collections::HashMap;
 
 #[allow(dead_code)]
 pub const SUPPORTED_FLOWS: &[&str] = &[
+    "capture",
     "create_server_authentication_token",
     "get",
     "refund",
@@ -44,6 +45,31 @@ fn build_client() -> ConnectorClient {
         }),
     };
     ConnectorClient::new(config, None).unwrap()
+}
+
+pub fn build_capture_request(connector_transaction_id: &str) -> PaymentServiceCaptureRequest {
+    PaymentServiceCaptureRequest {
+        merchant_capture_id: Some("probe_capture_001".to_string()), // Identification.
+        connector_transaction_id: connector_transaction_id.to_string(),
+        amount_to_capture: Some(Money {
+            // Capture Details.
+            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        state: Some(ConnectorState {
+            // State Information.
+            access_token: Some(AccessToken {
+                // Access token obtained from connector.
+                token: Some(Secret::new(
+                    "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA".to_string(),
+                )), // The token string.
+                expires_in_seconds: Some(3600), // Expiration timestamp (seconds since epoch).
+                token_type: Some("Bearer".to_string()), // Token type (e.g., "Bearer", "Basic").
+            }),
+            ..Default::default()
+        }),
+        ..Default::default()
+    }
 }
 
 pub fn build_create_server_authentication_token_request(
@@ -145,6 +171,22 @@ pub fn build_void_request(connector_transaction_id: &str) -> PaymentServiceVoidR
     }
 }
 
+// Flow: PaymentService.Capture
+#[allow(dead_code)]
+pub async fn process_capture(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .capture(
+            build_capture_request("probe_connector_txn_001"),
+            &HashMap::new(),
+            None,
+        )
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: MerchantAuthenticationService.CreateServerAuthenticationToken
 #[allow(dead_code)]
 pub async fn process_create_server_authentication_token(
@@ -227,8 +269,9 @@ async fn main() {
     let client = build_client();
     let flow = std::env::args()
         .nth(1)
-        .unwrap_or_else(|| "process_create_server_authentication_token".to_string());
+        .unwrap_or_else(|| "process_capture".to_string());
     let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
+        "process_capture" => process_capture(&client, "txn_001").await,
         "process_create_server_authentication_token" => {
             process_create_server_authentication_token(&client, "txn_001").await
         }
@@ -237,7 +280,7 @@ async fn main() {
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_create_server_authentication_token, process_get, process_refund, process_refund_get, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_capture, process_create_server_authentication_token, process_get, process_refund, process_refund_get, process_void", flow);
             return;
         }
     };
