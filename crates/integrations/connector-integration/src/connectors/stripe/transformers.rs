@@ -1240,7 +1240,8 @@ impl TryFrom<&payment_method_data::BankDebitData> for StripePaymentMethodType {
             payment_method_data::BankDebitData::SepaBankDebit { .. } => Ok(Self::Sepa),
             payment_method_data::BankDebitData::BecsBankDebit { .. } => Ok(Self::Becs),
             payment_method_data::BankDebitData::BacsBankDebit { .. } => Ok(Self::Bacs),
-            payment_method_data::BankDebitData::SepaGuaranteedBankDebit { .. } => {
+            payment_method_data::BankDebitData::SepaGuaranteedBankDebit { .. }
+            | payment_method_data::BankDebitData::EftBankDebit { .. } => {
                 Err(IntegrationError::not_implemented(
                     get_unimplemented_payment_method_error_message("stripe"),
                 ))
@@ -1293,7 +1294,8 @@ fn get_bank_debit_data(
             };
             Ok((Some(StripePaymentMethodType::Bacs), Some(bacs_data)))
         }
-        payment_method_data::BankDebitData::SepaGuaranteedBankDebit { .. } => {
+        payment_method_data::BankDebitData::SepaGuaranteedBankDebit { .. }
+        | payment_method_data::BankDebitData::EftBankDebit { .. } => {
             Err(IntegrationError::not_implemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             ))
