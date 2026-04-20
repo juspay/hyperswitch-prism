@@ -22,14 +22,9 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    connector_config=payment_pb2.ConnectorSpecificConfig(
-        hyperpg=payment_pb2.HyperpgConfig(
-            username=payment_methods_pb2.SecretString(value="YOUR_USERNAME"),
-            password=payment_methods_pb2.SecretString(value="YOUR_PASSWORD"),
-            merchant_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ID"),
-            base_url="YOUR_BASE_URL",
-        ),
-    ),
+    # connector_config=payment_pb2.ConnectorSpecificConfig(
+    #     hyperpg=payment_pb2.HyperpgConfig(api_key=...),
+    # ),
 )
 
 ```
@@ -48,14 +43,7 @@ const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism')
 const config = ConnectorConfig.create({
     connector: Connector.HYPERPG,
     environment: Environment.SANDBOX,
-    auth: {
-        hyperpg: {
-            username: { value: 'YOUR_USERNAME' },
-            password: { value: 'YOUR_PASSWORD' },
-            merchantId: { value: 'YOUR_MERCHANT_ID' },
-            baseUrl: 'YOUR_BASE_URL',
-        }
-    },
+    // auth: { hyperpg: { apiKey: { value: 'YOUR_API_KEY' } } },
 });
 ```
 
@@ -69,16 +57,7 @@ const config = ConnectorConfig.create({
 ```kotlin
 val config = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    .setConnectorConfig(
-        ConnectorSpecificConfig.newBuilder()
-            .setHyperpg(HyperpgConfig.newBuilder()
-                .setUsername(SecretString.newBuilder().setValue("YOUR_USERNAME").build())
-                .setPassword(SecretString.newBuilder().setValue("YOUR_PASSWORD").build())
-                .setMerchantId(SecretString.newBuilder().setValue("YOUR_MERCHANT_ID").build())
-                .setBaseUrl("YOUR_BASE_URL")
-                .build())
-            .build()
-    )
+    // .setConnectorConfig(...) — set your Hyperpg credentials here
     .build()
 ```
 
@@ -94,15 +73,7 @@ use grpc_api_types::payments::*;
 use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector_config: Some(ConnectorSpecificConfig {
-            config: Some(connector_specific_config::Config::Hyperpg(HyperpgConfig {
-                username: Some(hyperswitch_masking::Secret::new("YOUR_USERNAME".to_string())),  // Authentication credential
-                password: Some(hyperswitch_masking::Secret::new("YOUR_PASSWORD".to_string())),  // Authentication credential
-                merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ID".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                ..Default::default()
-            })),
-        }),
+    connector_config: None,  // TODO: Add your connector config here,
     options: Some(SdkOptions {
         environment: Environment::Sandbox.into(),
     }),
@@ -131,40 +102,33 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/hyperpg/hyperpg.py#L106) · [JavaScript](../../examples/hyperpg/hyperpg.js) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L95) · [Rust](../../examples/hyperpg/hyperpg.rs#L138)
+**Examples:** [Python](../../examples/hyperpg/hyperpg.py#L23) · [JavaScript](../../examples/hyperpg/hyperpg.js) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L28) · [Rust](../../examples/hyperpg/hyperpg.rs#L30)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/hyperpg/hyperpg.py#L125) · [JavaScript](../../examples/hyperpg/hyperpg.js) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L111) · [Rust](../../examples/hyperpg/hyperpg.rs#L154)
+**Examples:** [Python](../../examples/hyperpg/hyperpg.py#L54) · [JavaScript](../../examples/hyperpg/hyperpg.js) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L56) · [Rust](../../examples/hyperpg/hyperpg.rs#L55)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/hyperpg/hyperpg.py#L150) · [JavaScript](../../examples/hyperpg/hyperpg.js) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L133) · [Rust](../../examples/hyperpg/hyperpg.rs#L177)
+**Examples:** [Python](../../examples/hyperpg/hyperpg.py#L98) · [JavaScript](../../examples/hyperpg/hyperpg.js) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L97) · [Rust](../../examples/hyperpg/hyperpg.rs#L94)
 
 ## API Reference
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
-| [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
-| [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
-| [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
+| [authorize](#authorize) | Other | `—` |
+| [get](#get) | Other | `—` |
+| [proxy_authorize](#proxy_authorize) | Other | `—` |
+| [refund](#refund) | Other | `—` |
+| [refund_get](#refund_get) | Other | `—` |
 
-### Payments
+### Other
 
-#### PaymentService.Authorize
-
-Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceAuthorizeRequest` |
-| **Response** | `PaymentServiceAuthorizeResponse` |
+#### authorize
 
 **Supported payment method types:**
 
@@ -278,50 +242,20 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/hyperpg/hyperpg.py) · [TypeScript](../../examples/hyperpg/hyperpg.ts#L180) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L151) · [Rust](../../examples/hyperpg/hyperpg.rs)
+**Examples:** [Python](../../examples/hyperpg/hyperpg.py) · [TypeScript](../../examples/hyperpg/hyperpg.ts#L135) · [Kotlin](../../examples/hyperpg/hyperpg.kt) · [Rust](../../examples/hyperpg/hyperpg.rs)
 
-#### PaymentService.Get
+#### get
 
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
+**Examples:** [Python](../../examples/hyperpg/hyperpg.py) · [TypeScript](../../examples/hyperpg/hyperpg.ts#L162) · [Kotlin](../../examples/hyperpg/hyperpg.kt) · [Rust](../../examples/hyperpg/hyperpg.rs)
 
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
+#### proxy_authorize
 
-**Examples:** [Python](../../examples/hyperpg/hyperpg.py) · [TypeScript](../../examples/hyperpg/hyperpg.ts#L189) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L163) · [Rust](../../examples/hyperpg/hyperpg.rs)
+**Examples:** [Python](../../examples/hyperpg/hyperpg.py) · [TypeScript](../../examples/hyperpg/hyperpg.ts#L176) · [Kotlin](../../examples/hyperpg/hyperpg.kt) · [Rust](../../examples/hyperpg/hyperpg.rs)
 
-#### PaymentService.ProxyAuthorize
+#### refund
 
-Authorize using vault-aliased card data. Proxy substitutes before connector.
+**Examples:** [Python](../../examples/hyperpg/hyperpg.py) · [TypeScript](../../examples/hyperpg/hyperpg.ts#L195) · [Kotlin](../../examples/hyperpg/hyperpg.kt) · [Rust](../../examples/hyperpg/hyperpg.rs)
 
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceProxyAuthorizeRequest` |
-| **Response** | `PaymentServiceAuthorizeResponse` |
+#### refund_get
 
-**Examples:** [Python](../../examples/hyperpg/hyperpg.py) · [TypeScript](../../examples/hyperpg/hyperpg.ts#L198) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L171) · [Rust](../../examples/hyperpg/hyperpg.rs)
-
-#### PaymentService.Refund
-
-Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceRefundRequest` |
-| **Response** | `RefundResponse` |
-
-**Examples:** [Python](../../examples/hyperpg/hyperpg.py) · [TypeScript](../../examples/hyperpg/hyperpg.ts#L207) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L199) · [Rust](../../examples/hyperpg/hyperpg.rs)
-
-### Refunds
-
-#### RefundService.Get
-
-Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
-
-| | Message |
-|---|---------|
-| **Request** | `RefundServiceGetRequest` |
-| **Response** | `RefundResponse` |
-
-**Examples:** [Python](../../examples/hyperpg/hyperpg.py) · [TypeScript](../../examples/hyperpg/hyperpg.ts#L216) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L209) · [Rust](../../examples/hyperpg/hyperpg.rs)
+**Examples:** [Python](../../examples/hyperpg/hyperpg.py) · [TypeScript](../../examples/hyperpg/hyperpg.ts#L214) · [Kotlin](../../examples/hyperpg/hyperpg.kt) · [Rust](../../examples/hyperpg/hyperpg.rs)

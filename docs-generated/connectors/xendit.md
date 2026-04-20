@@ -22,12 +22,9 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    connector_config=payment_pb2.ConnectorSpecificConfig(
-        xendit=payment_pb2.XenditConfig(
-            api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
-            base_url="YOUR_BASE_URL",
-        ),
-    ),
+    # connector_config=payment_pb2.ConnectorSpecificConfig(
+    #     xendit=payment_pb2.XenditConfig(api_key=...),
+    # ),
 )
 
 ```
@@ -46,12 +43,7 @@ const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism')
 const config = ConnectorConfig.create({
     connector: Connector.XENDIT,
     environment: Environment.SANDBOX,
-    auth: {
-        xendit: {
-            apiKey: { value: 'YOUR_API_KEY' },
-            baseUrl: 'YOUR_BASE_URL',
-        }
-    },
+    // auth: { xendit: { apiKey: { value: 'YOUR_API_KEY' } } },
 });
 ```
 
@@ -65,14 +57,7 @@ const config = ConnectorConfig.create({
 ```kotlin
 val config = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    .setConnectorConfig(
-        ConnectorSpecificConfig.newBuilder()
-            .setXendit(XenditConfig.newBuilder()
-                .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
-                .setBaseUrl("YOUR_BASE_URL")
-                .build())
-            .build()
-    )
+    // .setConnectorConfig(...) — set your Xendit credentials here
     .build()
 ```
 
@@ -88,13 +73,7 @@ use grpc_api_types::payments::*;
 use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector_config: Some(ConnectorSpecificConfig {
-            config: Some(connector_specific_config::Config::Xendit(XenditConfig {
-                api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                ..Default::default()
-            })),
-        }),
+    connector_config: None,  // TODO: Add your connector config here,
     options: Some(SdkOptions {
         environment: Environment::Sandbox.into(),
     }),
@@ -123,7 +102,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/xendit/xendit.py#L121) · [JavaScript](../../examples/xendit/xendit.js) · [Kotlin](../../examples/xendit/xendit.kt#L106) · [Rust](../../examples/xendit/xendit.rs#L153)
+**Examples:** [Python](../../examples/xendit/xendit.py#L23) · [JavaScript](../../examples/xendit/xendit.js) · [Kotlin](../../examples/xendit/xendit.kt#L28) · [Rust](../../examples/xendit/xendit.rs#L30)
 
 ### Card Payment (Authorize + Capture)
 
@@ -137,41 +116,34 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/xendit/xendit.py#L140) · [JavaScript](../../examples/xendit/xendit.js) · [Kotlin](../../examples/xendit/xendit.kt#L122) · [Rust](../../examples/xendit/xendit.rs#L169)
+**Examples:** [Python](../../examples/xendit/xendit.py#L57) · [JavaScript](../../examples/xendit/xendit.js) · [Kotlin](../../examples/xendit/xendit.kt#L59) · [Rust](../../examples/xendit/xendit.rs#L55)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/xendit/xendit.py#L165) · [JavaScript](../../examples/xendit/xendit.js) · [Kotlin](../../examples/xendit/xendit.kt#L144) · [Rust](../../examples/xendit/xendit.rs#L192)
+**Examples:** [Python](../../examples/xendit/xendit.py#L102) · [JavaScript](../../examples/xendit/xendit.js) · [Kotlin](../../examples/xendit/xendit.kt#L101) · [Rust](../../examples/xendit/xendit.rs#L92)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/xendit/xendit.py#L190) · [JavaScript](../../examples/xendit/xendit.js) · [Kotlin](../../examples/xendit/xendit.kt#L166) · [Rust](../../examples/xendit/xendit.rs#L215)
+**Examples:** [Python](../../examples/xendit/xendit.py#L149) · [JavaScript](../../examples/xendit/xendit.js) · [Kotlin](../../examples/xendit/xendit.kt#L145) · [Rust](../../examples/xendit/xendit.rs#L131)
 
 ## API Reference
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
-| [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
-| [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
-| [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
-| [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
+| [authorize](#authorize) | Other | `—` |
+| [capture](#capture) | Other | `—` |
+| [get](#get) | Other | `—` |
+| [proxy_authorize](#proxy_authorize) | Other | `—` |
+| [refund](#refund) | Other | `—` |
+| [refund_get](#refund_get) | Other | `—` |
 
-### Payments
+### Other
 
-#### PaymentService.Authorize
-
-Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceAuthorizeRequest` |
-| **Response** | `PaymentServiceAuthorizeResponse` |
+#### authorize
 
 **Supported payment method types:**
 
@@ -285,61 +257,24 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/xendit/xendit.py) · [TypeScript](../../examples/xendit/xendit.ts#L220) · [Kotlin](../../examples/xendit/xendit.kt#L184) · [Rust](../../examples/xendit/xendit.rs)
+**Examples:** [Python](../../examples/xendit/xendit.py) · [TypeScript](../../examples/xendit/xendit.ts#L176) · [Kotlin](../../examples/xendit/xendit.kt) · [Rust](../../examples/xendit/xendit.rs)
 
-#### PaymentService.Capture
+#### capture
 
-Finalize an authorized payment by transferring funds. Captures the authorized amount to complete the transaction and move funds to your merchant account.
+**Examples:** [Python](../../examples/xendit/xendit.py) · [TypeScript](../../examples/xendit/xendit.ts#L203) · [Kotlin](../../examples/xendit/xendit.kt) · [Rust](../../examples/xendit/xendit.rs)
 
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceCaptureRequest` |
-| **Response** | `PaymentServiceCaptureResponse` |
+#### get
 
-**Examples:** [Python](../../examples/xendit/xendit.py) · [TypeScript](../../examples/xendit/xendit.ts#L229) · [Kotlin](../../examples/xendit/xendit.kt#L196) · [Rust](../../examples/xendit/xendit.rs)
+**Examples:** [Python](../../examples/xendit/xendit.py) · [TypeScript](../../examples/xendit/xendit.ts#L220) · [Kotlin](../../examples/xendit/xendit.kt) · [Rust](../../examples/xendit/xendit.rs)
 
-#### PaymentService.Get
+#### proxy_authorize
 
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
+**Examples:** [Python](../../examples/xendit/xendit.py) · [TypeScript](../../examples/xendit/xendit.ts#L233) · [Kotlin](../../examples/xendit/xendit.kt) · [Rust](../../examples/xendit/xendit.rs)
 
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
+#### refund
 
-**Examples:** [Python](../../examples/xendit/xendit.py) · [TypeScript](../../examples/xendit/xendit.ts#L238) · [Kotlin](../../examples/xendit/xendit.kt#L206) · [Rust](../../examples/xendit/xendit.rs)
+**Examples:** [Python](../../examples/xendit/xendit.py) · [TypeScript](../../examples/xendit/xendit.ts#L252) · [Kotlin](../../examples/xendit/xendit.kt) · [Rust](../../examples/xendit/xendit.rs)
 
-#### PaymentService.ProxyAuthorize
+#### refund_get
 
-Authorize using vault-aliased card data. Proxy substitutes before connector.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceProxyAuthorizeRequest` |
-| **Response** | `PaymentServiceAuthorizeResponse` |
-
-**Examples:** [Python](../../examples/xendit/xendit.py) · [TypeScript](../../examples/xendit/xendit.ts#L247) · [Kotlin](../../examples/xendit/xendit.kt#L214) · [Rust](../../examples/xendit/xendit.rs)
-
-#### PaymentService.Refund
-
-Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceRefundRequest` |
-| **Response** | `RefundResponse` |
-
-**Examples:** [Python](../../examples/xendit/xendit.py) · [TypeScript](../../examples/xendit/xendit.ts#L256) · [Kotlin](../../examples/xendit/xendit.kt#L245) · [Rust](../../examples/xendit/xendit.rs)
-
-### Refunds
-
-#### RefundService.Get
-
-Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
-
-| | Message |
-|---|---------|
-| **Request** | `RefundServiceGetRequest` |
-| **Response** | `RefundResponse` |
-
-**Examples:** [Python](../../examples/xendit/xendit.py) · [TypeScript](../../examples/xendit/xendit.ts#L265) · [Kotlin](../../examples/xendit/xendit.kt#L255) · [Rust](../../examples/xendit/xendit.rs)
+**Examples:** [Python](../../examples/xendit/xendit.py) · [TypeScript](../../examples/xendit/xendit.ts#L271) · [Kotlin](../../examples/xendit/xendit.kt) · [Rust](../../examples/xendit/xendit.rs)

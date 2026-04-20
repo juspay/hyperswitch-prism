@@ -8,34 +8,29 @@
 package examples.trustly
 
 import types.Payment.*
-import payments.EventClient
+import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
 
+
+val SUPPORTED_FLOWS = listOf<String>("parse_event")
+
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your connector config here
+    // .setConnectorConfig(...) — set your Trustly credentials here
     .build()
 
 
-// Flow: EventService.HandleEvent
-fun handleEvent(txnId: String) {
-    val client = EventClient(_defaultConfig)
-    val request = EventServiceHandleRequest.newBuilder().apply {
 
-    }.build()
-    val response = client.handle_event(request)
-    println("Webhook: type=${response.eventType.name} verified=${response.sourceVerified}")
-}
 
 
 fun main(args: Array<String>) {
     val txnId = "order_001"
-    val flow = args.firstOrNull() ?: "handleEvent"
+    val flow = args.firstOrNull() ?: "authorize"
     when (flow) {
-        "handleEvent" -> handleEvent(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: handleEvent")
+
+        else -> System.err.println("Unknown flow: $flow. Available: ")
     }
 }

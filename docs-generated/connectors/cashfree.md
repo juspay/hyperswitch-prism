@@ -22,13 +22,9 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    connector_config=payment_pb2.ConnectorSpecificConfig(
-        cashfree=payment_pb2.CashfreeConfig(
-            app_id=payment_methods_pb2.SecretString(value="YOUR_APP_ID"),
-            secret_key=payment_methods_pb2.SecretString(value="YOUR_SECRET_KEY"),
-            base_url="YOUR_BASE_URL",
-        ),
-    ),
+    # connector_config=payment_pb2.ConnectorSpecificConfig(
+    #     cashfree=payment_pb2.CashfreeConfig(api_key=...),
+    # ),
 )
 
 ```
@@ -47,13 +43,7 @@ const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism')
 const config = ConnectorConfig.create({
     connector: Connector.CASHFREE,
     environment: Environment.SANDBOX,
-    auth: {
-        cashfree: {
-            appId: { value: 'YOUR_APP_ID' },
-            secretKey: { value: 'YOUR_SECRET_KEY' },
-            baseUrl: 'YOUR_BASE_URL',
-        }
-    },
+    // auth: { cashfree: { apiKey: { value: 'YOUR_API_KEY' } } },
 });
 ```
 
@@ -67,15 +57,7 @@ const config = ConnectorConfig.create({
 ```kotlin
 val config = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    .setConnectorConfig(
-        ConnectorSpecificConfig.newBuilder()
-            .setCashfree(CashfreeConfig.newBuilder()
-                .setAppId(SecretString.newBuilder().setValue("YOUR_APP_ID").build())
-                .setSecretKey(SecretString.newBuilder().setValue("YOUR_SECRET_KEY").build())
-                .setBaseUrl("YOUR_BASE_URL")
-                .build())
-            .build()
-    )
+    // .setConnectorConfig(...) — set your Cashfree credentials here
     .build()
 ```
 
@@ -91,14 +73,7 @@ use grpc_api_types::payments::*;
 use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector_config: Some(ConnectorSpecificConfig {
-            config: Some(connector_specific_config::Config::Cashfree(CashfreeConfig {
-                app_id: Some(hyperswitch_masking::Secret::new("YOUR_APP_ID".to_string())),  // Authentication credential
-                secret_key: Some(hyperswitch_masking::Secret::new("YOUR_SECRET_KEY".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                ..Default::default()
-            })),
-        }),
+    connector_config: None,  // TODO: Add your connector config here,
     options: Some(SdkOptions {
         environment: Environment::Sandbox.into(),
     }),
@@ -115,79 +90,35 @@ let config = ConnectorConfig {
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
-| [PaymentService.CreateOrder](#paymentservicecreateorder) | Payments | `PaymentServiceCreateOrderRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
-| [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
-| [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
-| [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
+| [capture](#capture) | Other | `—` |
+| [create_order](#create_order) | Other | `—` |
+| [get](#get) | Other | `—` |
+| [refund](#refund) | Other | `—` |
+| [refund_get](#refund_get) | Other | `—` |
+| [void](#void) | Other | `—` |
 
-### Payments
+### Other
 
-#### PaymentService.Capture
+#### capture
 
-Finalize an authorized payment by transferring funds. Captures the authorized amount to complete the transaction and move funds to your merchant account.
+**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L22) · [Kotlin](../../examples/cashfree/cashfree.kt) · [Rust](../../examples/cashfree/cashfree.rs)
 
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceCaptureRequest` |
-| **Response** | `PaymentServiceCaptureResponse` |
+#### create_order
 
-**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L91) · [Kotlin](../../examples/cashfree/cashfree.kt#L84) · [Rust](../../examples/cashfree/cashfree.rs)
+**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L40) · [Kotlin](../../examples/cashfree/cashfree.kt) · [Rust](../../examples/cashfree/cashfree.rs)
 
-#### PaymentService.CreateOrder
+#### get
 
-Create a payment order for later processing. Establishes a transaction context that can be authorized or captured in subsequent API calls.
+**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L52) · [Kotlin](../../examples/cashfree/cashfree.kt) · [Rust](../../examples/cashfree/cashfree.rs)
 
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceCreateOrderRequest` |
-| **Response** | `PaymentServiceCreateOrderResponse` |
+#### refund
 
-**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L100) · [Kotlin](../../examples/cashfree/cashfree.kt#L94) · [Rust](../../examples/cashfree/cashfree.rs)
+**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L65) · [Kotlin](../../examples/cashfree/cashfree.kt) · [Rust](../../examples/cashfree/cashfree.rs)
 
-#### PaymentService.Get
+#### refund_get
 
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
+**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L84) · [Kotlin](../../examples/cashfree/cashfree.kt) · [Rust](../../examples/cashfree/cashfree.rs)
 
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
+#### void
 
-**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L109) · [Kotlin](../../examples/cashfree/cashfree.kt#L108) · [Rust](../../examples/cashfree/cashfree.rs)
-
-#### PaymentService.Refund
-
-Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceRefundRequest` |
-| **Response** | `RefundResponse` |
-
-**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L118) · [Kotlin](../../examples/cashfree/cashfree.kt#L116) · [Rust](../../examples/cashfree/cashfree.rs)
-
-#### PaymentService.Void
-
-Cancel an authorized payment that has not been captured. Releases held funds back to the customer's payment method when a transaction cannot be completed.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceVoidRequest` |
-| **Response** | `PaymentServiceVoidResponse` |
-
-**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts) · [Kotlin](../../examples/cashfree/cashfree.kt#L138) · [Rust](../../examples/cashfree/cashfree.rs)
-
-### Refunds
-
-#### RefundService.Get
-
-Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
-
-| | Message |
-|---|---------|
-| **Request** | `RefundServiceGetRequest` |
-| **Response** | `RefundResponse` |
-
-**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L127) · [Kotlin](../../examples/cashfree/cashfree.kt#L126) · [Rust](../../examples/cashfree/cashfree.rs)
+**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts) · [Kotlin](../../examples/cashfree/cashfree.kt) · [Rust](../../examples/cashfree/cashfree.rs)

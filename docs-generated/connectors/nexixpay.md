@@ -22,12 +22,9 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    connector_config=payment_pb2.ConnectorSpecificConfig(
-        nexixpay=payment_pb2.NexixpayConfig(
-            api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
-            base_url="YOUR_BASE_URL",
-        ),
-    ),
+    # connector_config=payment_pb2.ConnectorSpecificConfig(
+    #     nexixpay=payment_pb2.NexixpayConfig(api_key=...),
+    # ),
 )
 
 ```
@@ -46,12 +43,7 @@ const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism')
 const config = ConnectorConfig.create({
     connector: Connector.NEXIXPAY,
     environment: Environment.SANDBOX,
-    auth: {
-        nexixpay: {
-            apiKey: { value: 'YOUR_API_KEY' },
-            baseUrl: 'YOUR_BASE_URL',
-        }
-    },
+    // auth: { nexixpay: { apiKey: { value: 'YOUR_API_KEY' } } },
 });
 ```
 
@@ -65,14 +57,7 @@ const config = ConnectorConfig.create({
 ```kotlin
 val config = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    .setConnectorConfig(
-        ConnectorSpecificConfig.newBuilder()
-            .setNexixpay(NexixpayConfig.newBuilder()
-                .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
-                .setBaseUrl("YOUR_BASE_URL")
-                .build())
-            .build()
-    )
+    // .setConnectorConfig(...) — set your Nexixpay credentials here
     .build()
 ```
 
@@ -88,13 +73,7 @@ use grpc_api_types::payments::*;
 use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector_config: Some(ConnectorSpecificConfig {
-            config: Some(connector_specific_config::Config::Nexixpay(NexixpayConfig {
-                api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                ..Default::default()
-            })),
-        }),
+    connector_config: None,  // TODO: Add your connector config here,
     options: Some(SdkOptions {
         environment: Environment::Sandbox.into(),
     }),
@@ -111,81 +90,35 @@ let config = ConnectorConfig {
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
-| [PaymentMethodAuthenticationService.PreAuthenticate](#paymentmethodauthenticationservicepreauthenticate) | Authentication | `PaymentMethodAuthenticationServicePreAuthenticateRequest` |
-| [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
-| [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
-| [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
+| [capture](#capture) | Other | `—` |
+| [get](#get) | Other | `—` |
+| [pre_authenticate](#pre_authenticate) | Other | `—` |
+| [refund](#refund) | Other | `—` |
+| [refund_get](#refund_get) | Other | `—` |
+| [void](#void) | Other | `—` |
 
-### Payments
+### Other
 
-#### PaymentService.Capture
+#### capture
 
-Finalize an authorized payment by transferring funds. Captures the authorized amount to complete the transaction and move funds to your merchant account.
+**Examples:** [Python](../../examples/nexixpay/nexixpay.py) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L22) · [Kotlin](../../examples/nexixpay/nexixpay.kt) · [Rust](../../examples/nexixpay/nexixpay.rs)
 
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceCaptureRequest` |
-| **Response** | `PaymentServiceCaptureResponse` |
+#### get
 
-**Examples:** [Python](../../examples/nexixpay/nexixpay.py) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L106) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L86) · [Rust](../../examples/nexixpay/nexixpay.rs)
+**Examples:** [Python](../../examples/nexixpay/nexixpay.py) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L39) · [Kotlin](../../examples/nexixpay/nexixpay.kt) · [Rust](../../examples/nexixpay/nexixpay.rs)
 
-#### PaymentService.Get
+#### pre_authenticate
 
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
+**Examples:** [Python](../../examples/nexixpay/nexixpay.py) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L52) · [Kotlin](../../examples/nexixpay/nexixpay.kt) · [Rust](../../examples/nexixpay/nexixpay.rs)
 
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
+#### refund
 
-**Examples:** [Python](../../examples/nexixpay/nexixpay.py) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L115) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L96) · [Rust](../../examples/nexixpay/nexixpay.rs)
+**Examples:** [Python](../../examples/nexixpay/nexixpay.py) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L69) · [Kotlin](../../examples/nexixpay/nexixpay.kt) · [Rust](../../examples/nexixpay/nexixpay.rs)
 
-#### PaymentService.Refund
+#### refund_get
 
-Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
+**Examples:** [Python](../../examples/nexixpay/nexixpay.py) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L88) · [Kotlin](../../examples/nexixpay/nexixpay.kt) · [Rust](../../examples/nexixpay/nexixpay.rs)
 
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceRefundRequest` |
-| **Response** | `RefundResponse` |
+#### void
 
-**Examples:** [Python](../../examples/nexixpay/nexixpay.py) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L133) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L132) · [Rust](../../examples/nexixpay/nexixpay.rs)
-
-#### PaymentService.Void
-
-Cancel an authorized payment that has not been captured. Releases held funds back to the customer's payment method when a transaction cannot be completed.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceVoidRequest` |
-| **Response** | `PaymentServiceVoidResponse` |
-
-**Examples:** [Python](../../examples/nexixpay/nexixpay.py) · [TypeScript](../../examples/nexixpay/nexixpay.ts) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L154) · [Rust](../../examples/nexixpay/nexixpay.rs)
-
-### Refunds
-
-#### RefundService.Get
-
-Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
-
-| | Message |
-|---|---------|
-| **Request** | `RefundServiceGetRequest` |
-| **Response** | `RefundResponse` |
-
-**Examples:** [Python](../../examples/nexixpay/nexixpay.py) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L142) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L142) · [Rust](../../examples/nexixpay/nexixpay.rs)
-
-### Authentication
-
-#### PaymentMethodAuthenticationService.PreAuthenticate
-
-Initiate 3DS flow before payment authorization. Collects device data and prepares authentication context for frictionless or challenge-based verification.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentMethodAuthenticationServicePreAuthenticateRequest` |
-| **Response** | `PaymentMethodAuthenticationServicePreAuthenticateResponse` |
-
-**Examples:** [Python](../../examples/nexixpay/nexixpay.py) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L124) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L104) · [Rust](../../examples/nexixpay/nexixpay.rs)
+**Examples:** [Python](../../examples/nexixpay/nexixpay.py) · [TypeScript](../../examples/nexixpay/nexixpay.ts) · [Kotlin](../../examples/nexixpay/nexixpay.kt) · [Rust](../../examples/nexixpay/nexixpay.rs)

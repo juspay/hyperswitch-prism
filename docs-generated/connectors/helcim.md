@@ -22,12 +22,9 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    connector_config=payment_pb2.ConnectorSpecificConfig(
-        helcim=payment_pb2.HelcimConfig(
-            api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
-            base_url="YOUR_BASE_URL",
-        ),
-    ),
+    # connector_config=payment_pb2.ConnectorSpecificConfig(
+    #     helcim=payment_pb2.HelcimConfig(api_key=...),
+    # ),
 )
 
 ```
@@ -46,12 +43,7 @@ const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism')
 const config = ConnectorConfig.create({
     connector: Connector.HELCIM,
     environment: Environment.SANDBOX,
-    auth: {
-        helcim: {
-            apiKey: { value: 'YOUR_API_KEY' },
-            baseUrl: 'YOUR_BASE_URL',
-        }
-    },
+    // auth: { helcim: { apiKey: { value: 'YOUR_API_KEY' } } },
 });
 ```
 
@@ -65,14 +57,7 @@ const config = ConnectorConfig.create({
 ```kotlin
 val config = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    .setConnectorConfig(
-        ConnectorSpecificConfig.newBuilder()
-            .setHelcim(HelcimConfig.newBuilder()
-                .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
-                .setBaseUrl("YOUR_BASE_URL")
-                .build())
-            .build()
-    )
+    // .setConnectorConfig(...) — set your Helcim credentials here
     .build()
 ```
 
@@ -88,13 +73,7 @@ use grpc_api_types::payments::*;
 use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector_config: Some(ConnectorSpecificConfig {
-            config: Some(connector_specific_config::Config::Helcim(HelcimConfig {
-                api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                ..Default::default()
-            })),
-        }),
+    connector_config: None,  // TODO: Add your connector config here,
     options: Some(SdkOptions {
         environment: Environment::Sandbox.into(),
     }),
@@ -123,7 +102,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/helcim/helcim.py#L162) · [JavaScript](../../examples/helcim/helcim.js) · [Kotlin](../../examples/helcim/helcim.kt#L145) · [Rust](../../examples/helcim/helcim.rs#L201)
+**Examples:** [Python](../../examples/helcim/helcim.py#L23) · [JavaScript](../../examples/helcim/helcim.js) · [Kotlin](../../examples/helcim/helcim.kt#L28) · [Rust](../../examples/helcim/helcim.rs#L30)
 
 ### Card Payment (Authorize + Capture)
 
@@ -137,48 +116,41 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/helcim/helcim.py#L181) · [JavaScript](../../examples/helcim/helcim.js) · [Kotlin](../../examples/helcim/helcim.kt#L161) · [Rust](../../examples/helcim/helcim.rs#L217)
+**Examples:** [Python](../../examples/helcim/helcim.py#L58) · [JavaScript](../../examples/helcim/helcim.js) · [Kotlin](../../examples/helcim/helcim.kt#L60) · [Rust](../../examples/helcim/helcim.rs#L56)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/helcim/helcim.py#L206) · [JavaScript](../../examples/helcim/helcim.js) · [Kotlin](../../examples/helcim/helcim.kt#L183) · [Rust](../../examples/helcim/helcim.rs#L240)
+**Examples:** [Python](../../examples/helcim/helcim.py#L115) · [JavaScript](../../examples/helcim/helcim.js) · [Kotlin](../../examples/helcim/helcim.kt#L114) · [Rust](../../examples/helcim/helcim.rs#L95)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/helcim/helcim.py#L231) · [JavaScript](../../examples/helcim/helcim.js) · [Kotlin](../../examples/helcim/helcim.kt#L205) · [Rust](../../examples/helcim/helcim.rs#L263)
+**Examples:** [Python](../../examples/helcim/helcim.py#L164) · [JavaScript](../../examples/helcim/helcim.js) · [Kotlin](../../examples/helcim/helcim.kt#L160) · [Rust](../../examples/helcim/helcim.rs#L136)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/helcim/helcim.py#L253) · [JavaScript](../../examples/helcim/helcim.js) · [Kotlin](../../examples/helcim/helcim.kt#L224) · [Rust](../../examples/helcim/helcim.rs#L282)
+**Examples:** [Python](../../examples/helcim/helcim.py#L216) · [JavaScript](../../examples/helcim/helcim.js) · [Kotlin](../../examples/helcim/helcim.kt#L209) · [Rust](../../examples/helcim/helcim.rs#L170)
 
 ## API Reference
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
-| [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
-| [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
-| [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
-| [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
-| [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
+| [authorize](#authorize) | Other | `—` |
+| [capture](#capture) | Other | `—` |
+| [get](#get) | Other | `—` |
+| [proxy_authorize](#proxy_authorize) | Other | `—` |
+| [refund](#refund) | Other | `—` |
+| [refund_get](#refund_get) | Other | `—` |
+| [void](#void) | Other | `—` |
 
-### Payments
+### Other
 
-#### PaymentService.Authorize
-
-Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceAuthorizeRequest` |
-| **Response** | `PaymentServiceAuthorizeResponse` |
+#### authorize
 
 **Supported payment method types:**
 
@@ -292,72 +264,28 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/helcim/helcim.py) · [TypeScript](../../examples/helcim/helcim.ts#L284) · [Kotlin](../../examples/helcim/helcim.kt#L242) · [Rust](../../examples/helcim/helcim.rs)
+**Examples:** [Python](../../examples/helcim/helcim.py) · [TypeScript](../../examples/helcim/helcim.ts#L228) · [Kotlin](../../examples/helcim/helcim.kt) · [Rust](../../examples/helcim/helcim.rs)
 
-#### PaymentService.Capture
+#### capture
 
-Finalize an authorized payment by transferring funds. Captures the authorized amount to complete the transaction and move funds to your merchant account.
+**Examples:** [Python](../../examples/helcim/helcim.py) · [TypeScript](../../examples/helcim/helcim.ts#L257) · [Kotlin](../../examples/helcim/helcim.kt) · [Rust](../../examples/helcim/helcim.rs)
 
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceCaptureRequest` |
-| **Response** | `PaymentServiceCaptureResponse` |
+#### get
 
-**Examples:** [Python](../../examples/helcim/helcim.py) · [TypeScript](../../examples/helcim/helcim.ts#L293) · [Kotlin](../../examples/helcim/helcim.kt#L254) · [Rust](../../examples/helcim/helcim.rs)
+**Examples:** [Python](../../examples/helcim/helcim.py) · [TypeScript](../../examples/helcim/helcim.ts#L276) · [Kotlin](../../examples/helcim/helcim.kt) · [Rust](../../examples/helcim/helcim.rs)
 
-#### PaymentService.Get
+#### proxy_authorize
 
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
+**Examples:** [Python](../../examples/helcim/helcim.py) · [TypeScript](../../examples/helcim/helcim.ts#L289) · [Kotlin](../../examples/helcim/helcim.kt) · [Rust](../../examples/helcim/helcim.rs)
 
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
+#### refund
 
-**Examples:** [Python](../../examples/helcim/helcim.py) · [TypeScript](../../examples/helcim/helcim.ts#L302) · [Kotlin](../../examples/helcim/helcim.kt#L264) · [Rust](../../examples/helcim/helcim.rs)
+**Examples:** [Python](../../examples/helcim/helcim.py) · [TypeScript](../../examples/helcim/helcim.ts#L310) · [Kotlin](../../examples/helcim/helcim.kt) · [Rust](../../examples/helcim/helcim.rs)
 
-#### PaymentService.ProxyAuthorize
+#### refund_get
 
-Authorize using vault-aliased card data. Proxy substitutes before connector.
+**Examples:** [Python](../../examples/helcim/helcim.py) · [TypeScript](../../examples/helcim/helcim.ts#L331) · [Kotlin](../../examples/helcim/helcim.kt) · [Rust](../../examples/helcim/helcim.rs)
 
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceProxyAuthorizeRequest` |
-| **Response** | `PaymentServiceAuthorizeResponse` |
+#### void
 
-**Examples:** [Python](../../examples/helcim/helcim.py) · [TypeScript](../../examples/helcim/helcim.ts#L311) · [Kotlin](../../examples/helcim/helcim.kt#L272) · [Rust](../../examples/helcim/helcim.rs)
-
-#### PaymentService.Refund
-
-Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceRefundRequest` |
-| **Response** | `RefundResponse` |
-
-**Examples:** [Python](../../examples/helcim/helcim.py) · [TypeScript](../../examples/helcim/helcim.ts#L320) · [Kotlin](../../examples/helcim/helcim.kt#L306) · [Rust](../../examples/helcim/helcim.rs)
-
-#### PaymentService.Void
-
-Cancel an authorized payment that has not been captured. Releases held funds back to the customer's payment method when a transaction cannot be completed.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceVoidRequest` |
-| **Response** | `PaymentServiceVoidResponse` |
-
-**Examples:** [Python](../../examples/helcim/helcim.py) · [TypeScript](../../examples/helcim/helcim.ts) · [Kotlin](../../examples/helcim/helcim.kt#L328) · [Rust](../../examples/helcim/helcim.rs)
-
-### Refunds
-
-#### RefundService.Get
-
-Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
-
-| | Message |
-|---|---------|
-| **Request** | `RefundServiceGetRequest` |
-| **Response** | `RefundResponse` |
-
-**Examples:** [Python](../../examples/helcim/helcim.py) · [TypeScript](../../examples/helcim/helcim.ts#L329) · [Kotlin](../../examples/helcim/helcim.kt#L316) · [Rust](../../examples/helcim/helcim.rs)
+**Examples:** [Python](../../examples/helcim/helcim.py) · [TypeScript](../../examples/helcim/helcim.ts) · [Kotlin](../../examples/helcim/helcim.kt) · [Rust](../../examples/helcim/helcim.rs)

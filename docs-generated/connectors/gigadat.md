@@ -22,15 +22,9 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    connector_config=payment_pb2.ConnectorSpecificConfig(
-        gigadat=payment_pb2.GigadatConfig(
-            campaign_id=payment_methods_pb2.SecretString(value="YOUR_CAMPAIGN_ID"),
-            access_token=payment_methods_pb2.SecretString(value="YOUR_ACCESS_TOKEN"),
-            security_token=payment_methods_pb2.SecretString(value="YOUR_SECURITY_TOKEN"),
-            base_url="YOUR_BASE_URL",
-            site="YOUR_SITE",
-        ),
-    ),
+    # connector_config=payment_pb2.ConnectorSpecificConfig(
+    #     gigadat=payment_pb2.GigadatConfig(api_key=...),
+    # ),
 )
 
 ```
@@ -49,15 +43,7 @@ const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism')
 const config = ConnectorConfig.create({
     connector: Connector.GIGADAT,
     environment: Environment.SANDBOX,
-    auth: {
-        gigadat: {
-            campaignId: { value: 'YOUR_CAMPAIGN_ID' },
-            accessToken: { value: 'YOUR_ACCESS_TOKEN' },
-            securityToken: { value: 'YOUR_SECURITY_TOKEN' },
-            baseUrl: 'YOUR_BASE_URL',
-            site: 'YOUR_SITE',
-        }
-    },
+    // auth: { gigadat: { apiKey: { value: 'YOUR_API_KEY' } } },
 });
 ```
 
@@ -71,17 +57,7 @@ const config = ConnectorConfig.create({
 ```kotlin
 val config = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    .setConnectorConfig(
-        ConnectorSpecificConfig.newBuilder()
-            .setGigadat(GigadatConfig.newBuilder()
-                .setCampaignId(SecretString.newBuilder().setValue("YOUR_CAMPAIGN_ID").build())
-                .setAccessToken(SecretString.newBuilder().setValue("YOUR_ACCESS_TOKEN").build())
-                .setSecurityToken(SecretString.newBuilder().setValue("YOUR_SECURITY_TOKEN").build())
-                .setBaseUrl("YOUR_BASE_URL")
-                .setSite("YOUR_SITE")
-                .build())
-            .build()
-    )
+    // .setConnectorConfig(...) — set your Gigadat credentials here
     .build()
 ```
 
@@ -97,16 +73,7 @@ use grpc_api_types::payments::*;
 use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector_config: Some(ConnectorSpecificConfig {
-            config: Some(connector_specific_config::Config::Gigadat(GigadatConfig {
-                campaign_id: Some(hyperswitch_masking::Secret::new("YOUR_CAMPAIGN_ID".to_string())),  // Authentication credential
-                access_token: Some(hyperswitch_masking::Secret::new("YOUR_ACCESS_TOKEN".to_string())),  // Authentication credential
-                security_token: Some(hyperswitch_masking::Secret::new("YOUR_SECURITY_TOKEN".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                site: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                ..Default::default()
-            })),
-        }),
+    connector_config: None,  // TODO: Add your connector config here,
     options: Some(SdkOptions {
         environment: Environment::Sandbox.into(),
     }),
@@ -123,20 +90,13 @@ let config = ConnectorConfig {
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
-| [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
+| [authorize](#authorize) | Other | `—` |
+| [get](#get) | Other | `—` |
+| [refund](#refund) | Other | `—` |
 
-### Payments
+### Other
 
-#### PaymentService.Authorize
-
-Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceAuthorizeRequest` |
-| **Response** | `PaymentServiceAuthorizeResponse` |
+#### authorize
 
 **Supported payment method types:**
 
@@ -236,24 +196,10 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 **Examples:** [Python](../../examples/gigadat/gigadat.py) · [TypeScript](../../examples/gigadat/gigadat.ts) · [Kotlin](../../examples/gigadat/gigadat.kt) · [Rust](../../examples/gigadat/gigadat.rs)
 
-#### PaymentService.Get
+#### get
 
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
+**Examples:** [Python](../../examples/gigadat/gigadat.py) · [TypeScript](../../examples/gigadat/gigadat.ts#L22) · [Kotlin](../../examples/gigadat/gigadat.kt) · [Rust](../../examples/gigadat/gigadat.rs)
 
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
+#### refund
 
-**Examples:** [Python](../../examples/gigadat/gigadat.py) · [TypeScript](../../examples/gigadat/gigadat.ts#L55) · [Kotlin](../../examples/gigadat/gigadat.kt#L65) · [Rust](../../examples/gigadat/gigadat.rs)
-
-#### PaymentService.Refund
-
-Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceRefundRequest` |
-| **Response** | `RefundResponse` |
-
-**Examples:** [Python](../../examples/gigadat/gigadat.py) · [TypeScript](../../examples/gigadat/gigadat.ts#L64) · [Kotlin](../../examples/gigadat/gigadat.kt#L73) · [Rust](../../examples/gigadat/gigadat.rs)
+**Examples:** [Python](../../examples/gigadat/gigadat.py) · [TypeScript](../../examples/gigadat/gigadat.ts#L35) · [Kotlin](../../examples/gigadat/gigadat.kt) · [Rust](../../examples/gigadat/gigadat.rs)

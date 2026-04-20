@@ -5,50 +5,46 @@
 // Trustly — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx trustly.ts checkout_autocapture
 
-import { EventClient, PaymentClient, types } from 'hyperswitch-prism';
-const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment } = types;
+import { PaymentClient, types } from 'hyperswitch-prism';
+const { Environment } = types;
+export const SUPPORTED_FLOWS = ["parse_event"];
 
-const _defaultConfig: ConnectorConfig = {
+const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
+    // connectorConfig: { trustly: { apiKey: { value: 'YOUR_API_KEY' } } },
 };
-// Standalone credentials (field names depend on connector auth type):
-// _defaultConfig.connectorConfig = {
-//     trustly: { apiKey: { value: 'YOUR_API_KEY' } }
-// };
-
-
-function _buildHandleEventRequest(): EventServiceHandleRequest {
-    return {
-    };
-}
 
 
 // ANCHOR: scenario_functions
-// Flow: EventService.HandleEvent
-async function handleEvent(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<EventServiceHandleResponse> {
-    const eventClient = new EventClient(config);
+// Flow: PaymentService.handle_event
+async function handleEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    // Step 1: handle_event
+    const handleResponse = await paymentClient.handleEvent({
+        "merchantEventId": "probe_event_001",
+        "requestDetails": {
+        }
+    });
 
-    const handleResponse = await eventClient.handleEvent(_buildHandleEventRequest());
-
-    return { status: handleResponse.status };
+    return handleResponse;
 }
 
 // Flow: PaymentService.parse_event
-async function parseEvent(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<any> {
+async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     // Step 1: parse_event
     const parseResponse = await paymentClient.parseEvent({
-        // No required fields
+        "requestDetails": {
+        }
     });
 
-    return { status: parseResponse.status };
+    return parseResponse;
 }
 
 
 // Export all process* functions for the smoke test
 export {
-    handleEvent, parseEvent, _buildHandleEventRequest
+    handleEvent, parseEvent
 };
 
 // CLI runner

@@ -16,20 +16,7 @@ pub const SUPPORTED_FLOWS: &[&str] = &["create_server_authentication_token"];
 fn build_client() -> ConnectorClient {
     // Configure the connector with authentication
     let config = ConnectorConfig {
-        connector_config: Some(ConnectorSpecificConfig {
-            config: Some(connector_specific_config::Config::Itaubank(
-                ItaubankConfig {
-                    client_secret: Some(hyperswitch_masking::Secret::new(
-                        "YOUR_CLIENT_SECRET".to_string(),
-                    )), // Authentication credential
-                    client_id: Some(hyperswitch_masking::Secret::new(
-                        "YOUR_CLIENT_ID".to_string(),
-                    )), // Authentication credential
-                    base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
-                    ..Default::default()
-                },
-            )),
-        }),
+        connector_config: None, // TODO: Add your connector config here,
         options: Some(SdkOptions {
             environment: Environment::Sandbox.into(),
         }),
@@ -37,14 +24,7 @@ fn build_client() -> ConnectorClient {
     ConnectorClient::new(config, None).unwrap()
 }
 
-pub fn build_create_server_authentication_token_request(
-) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
-    MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
-        ..Default::default()
-    }
-}
-
-// Flow: MerchantAuthenticationService.CreateServerAuthenticationToken
+// Flow: PaymentService.create_server_authentication_token
 #[allow(dead_code)]
 pub async fn process_create_server_authentication_token(
     client: &ConnectorClient,
@@ -52,7 +32,9 @@ pub async fn process_create_server_authentication_token(
 ) -> Result<String, Box<dyn std::error::Error>> {
     let response = client
         .create_server_authentication_token(
-            build_create_server_authentication_token_request(),
+            TODO_FIX_MISSING_TYPE_create_server_authentication_token {
+                ..Default::default()
+            },
             &HashMap::new(),
             None,
         )

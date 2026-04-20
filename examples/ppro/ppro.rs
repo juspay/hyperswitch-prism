@@ -4,16 +4,27 @@
 //
 // Ppro — all scenarios and flows in one file.
 // Run a scenario:  cargo run --example ppro -- process_checkout_card
-
+use grpc_api_types::payments::connector_specific_config;
 use grpc_api_types::payments::*;
 use hyperswitch_payments_client::ConnectorClient;
 use std::collections::HashMap;
 
 #[allow(dead_code)]
+pub const SUPPORTED_FLOWS: &[&str] = &[
+    "capture",
+    "get",
+    "parse_event",
+    "recurring_charge",
+    "refund",
+    "refund_get",
+    "void",
+];
+
+#[allow(dead_code)]
 fn build_client() -> ConnectorClient {
-    // Set connector_config to authenticate: use ConnectorSpecificConfig with your PproConfig
+    // Configure the connector with authentication
     let config = ConnectorConfig {
-        connector_config: None,  // TODO: Some(ConnectorSpecificConfig { config: Some(...) })
+        connector_config: None, // TODO: Add your connector config here,
         options: Some(SdkOptions {
             environment: Environment::Sandbox.into(),
         }),
@@ -21,149 +32,154 @@ fn build_client() -> ConnectorClient {
     ConnectorClient::new(config, None).unwrap()
 }
 
-pub fn build_capture_request(connector_transaction_id: &str) -> PaymentServiceCaptureRequest {
-    serde_json::from_value::<PaymentServiceCaptureRequest>(serde_json::json!({
-    "merchant_capture_id": "probe_capture_001",  // Identification.
-    "connector_transaction_id": connector_transaction_id,
-    "amount_to_capture": {  // Capture Details.
-        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
-    },
-    })).unwrap_or_default()
-}
-
-pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetRequest {
-    serde_json::from_value::<PaymentServiceGetRequest>(serde_json::json!({
-    "merchant_transaction_id": "probe_merchant_txn_001",  // Identification.
-    "connector_transaction_id": connector_transaction_id,
-    "amount": {  // Amount Information.
-        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
-    },
-    })).unwrap_or_default()
-}
-
-pub fn build_handle_event_request() -> EventServiceHandleRequest {
-    serde_json::from_value::<EventServiceHandleRequest>(serde_json::json!({
-
-    })).unwrap_or_default()
-}
-
-pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest {
-    serde_json::from_value::<RecurringPaymentServiceChargeRequest>(serde_json::json!({
-    "connector_recurring_payment_id": {  // Reference to existing mandate.
-        "mandate_id_type": {
-            "connector_mandate_id": {
-                "connector_mandate_id": "probe-mandate-123",
-            },
-        },
-    },
-    "amount": {  // Amount Information.
-        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
-    },
-    "payment_method": {  // Optional payment Method Information (for network transaction flows).
-        "payment_method": {
-            "token": {  // Payment tokens.
-                "token": "probe_pm_token",  // The token string representing a payment method.
-            },
-        }
-    },
-    "return_url": "https://example.com/recurring-return",
-    "connector_customer_id": "cust_probe_123",
-    "payment_method_type": "PAY_PAL",
-    "off_session": true,  // Behavioral Flags and Preferences.
-    })).unwrap_or_default()
-}
-
-pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRefundRequest {
-    serde_json::from_value::<PaymentServiceRefundRequest>(serde_json::json!({
-    "merchant_refund_id": "probe_refund_001",  // Identification.
-    "connector_transaction_id": connector_transaction_id,
-    "payment_amount": 1000,  // Amount Information.
-    "refund_amount": {
-        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
-    },
-    "reason": "customer_request",  // Reason for the refund.
-    })).unwrap_or_default()
-}
-
-pub fn build_refund_get_request() -> RefundServiceGetRequest {
-    serde_json::from_value::<RefundServiceGetRequest>(serde_json::json!({
-    "merchant_refund_id": "probe_refund_001",  // Identification.
-    "connector_transaction_id": "probe_connector_txn_001",
-    "refund_id": "probe_refund_id_001",
-    })).unwrap_or_default()
-}
-
-pub fn build_void_request(connector_transaction_id: &str) -> PaymentServiceVoidRequest {
-    serde_json::from_value::<PaymentServiceVoidRequest>(serde_json::json!({
-    "merchant_void_id": "probe_void_001",  // Identification.
-    "connector_transaction_id": connector_transaction_id,
-    "amount": {  // Amount Information.
-        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
-    },
-    })).unwrap_or_default()
-}
-
-
-// Flow: PaymentService.Capture
+// Flow: PaymentService.capture
 #[allow(dead_code)]
-pub async fn capture(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.capture(build_capture_request("probe_connector_txn_001"), &HashMap::new(), None).await?;
+pub async fn process_capture(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .capture(
+            TODO_FIX_MISSING_TYPE_capture {
+                merchant_capture_id: "probe_capture_001".to_string(),
+                connector_transaction_id: "probe_connector_txn_001".to_string(),
+                // amount_to_capture: {"minor_amount": 1000, "currency": "USD"}
+                ..Default::default()
+            },
+            &HashMap::new(),
+            None,
+        )
+        .await?;
     Ok(format!("status: {:?}", response.status()))
 }
 
-// Flow: PaymentService.Get
+// Flow: PaymentService.get
 #[allow(dead_code)]
-pub async fn get(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.get(build_get_request("probe_connector_txn_001"), &HashMap::new(), None).await?;
-    Ok(format!("status: {:?}", response.status()))
-}
-
-// Flow: EventService.HandleEvent
-#[allow(dead_code)]
-pub async fn handle_event(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.handle_event(build_handle_event_request(), &HashMap::new(), None).await?;
+pub async fn process_get(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .get(
+            TODO_FIX_MISSING_TYPE_get {
+                merchant_transaction_id: "probe_merchant_txn_001".to_string(),
+                connector_transaction_id: "probe_connector_txn_001".to_string(),
+                // amount: {"minor_amount": 1000, "currency": "USD"}
+                ..Default::default()
+            },
+            &HashMap::new(),
+            None,
+        )
+        .await?;
     Ok(format!("status: {:?}", response.status()))
 }
 
 // Flow: PaymentService.parse_event
 #[allow(dead_code)]
-pub async fn parse_event(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.parse_event(serde_json::from_value::<>(serde_json::json!({
-
-    })).unwrap_or_default(), &HashMap::new(), None).await?;
+pub async fn process_parse_event(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .parse_event(
+            TODO_FIX_MISSING_TYPE_parse_event {
+                // request_details: {"method": "HTTP_METHOD_POST", "uri": "https://example.com/webhook", "headers": {}, "body": "{\"specversion\":\"1.0\",\"type\":\"PAYMENT_CHARGE_SUCCESS\",\"source\":\"probe_source\",\"id\":\"probe_event_001\",\"time\":\"2024-01-01T00:00:00Z\",\"data\":{\"charge\":{\"id\":\"probe_txn_001\",\"status\":\"SUCCEEDED\",\"amount\":1000,\"currency\":\"EUR\"}}}"}
+                ..Default::default()
+            },
+            &HashMap::new(),
+            None,
+        )
+        .await?;
     Ok(format!("status: {:?}", response.status()))
 }
 
-// Flow: RecurringPaymentService.Charge
+// Flow: PaymentService.recurring_charge
 #[allow(dead_code)]
-pub async fn recurring_charge(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.recurring_charge(build_recurring_charge_request(), &HashMap::new(), None).await?;
+pub async fn process_recurring_charge(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .recurring_charge(
+            TODO_FIX_MISSING_TYPE_recurring_charge {
+                // connector_recurring_payment_id: {"mandate_id_type": {"connector_mandate_id": {"connector_mandate_id": "probe-mandate-123"}}}
+                // amount: {"minor_amount": 1000, "currency": "USD"}
+                // payment_method: {"token": {"token": "probe_pm_token"}}
+                return_url: "https://example.com/recurring-return".to_string(),
+                connector_customer_id: "cust_probe_123".to_string(),
+                payment_method_type: "PAY_PAL".to_string(),
+                off_session: true,
+                ..Default::default()
+            },
+            &HashMap::new(),
+            None,
+        )
+        .await?;
     Ok(format!("status: {:?}", response.status()))
 }
 
-// Flow: PaymentService.Refund
+// Flow: PaymentService.refund
 #[allow(dead_code)]
-pub async fn refund(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.refund(build_refund_request("probe_connector_txn_001"), &HashMap::new(), None).await?;
+pub async fn process_refund(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .refund(
+            TODO_FIX_MISSING_TYPE_refund {
+                merchant_refund_id: "probe_refund_001".to_string(),
+                connector_transaction_id: "probe_connector_txn_001".to_string(),
+                payment_amount: 1000,
+                // refund_amount: {"minor_amount": 1000, "currency": "USD"}
+                reason: "customer_request".to_string(),
+                ..Default::default()
+            },
+            &HashMap::new(),
+            None,
+        )
+        .await?;
     Ok(format!("status: {:?}", response.status()))
 }
 
-// Flow: RefundService.Get
+// Flow: PaymentService.refund_get
 #[allow(dead_code)]
-pub async fn refund_get(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.refund_get(build_refund_get_request(), &HashMap::new(), None).await?;
+pub async fn process_refund_get(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .refund_get(
+            TODO_FIX_MISSING_TYPE_refund_get {
+                merchant_refund_id: "probe_refund_001".to_string(),
+                connector_transaction_id: "probe_connector_txn_001".to_string(),
+                refund_id: "probe_refund_id_001".to_string(),
+                ..Default::default()
+            },
+            &HashMap::new(),
+            None,
+        )
+        .await?;
     Ok(format!("status: {:?}", response.status()))
 }
 
-// Flow: PaymentService.Void
+// Flow: PaymentService.void
 #[allow(dead_code)]
-pub async fn void(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.void(build_void_request("probe_connector_txn_001"), &HashMap::new(), None).await?;
+pub async fn process_void(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .void(
+            TODO_FIX_MISSING_TYPE_void {
+                merchant_void_id: "probe_void_001".to_string(),
+                connector_transaction_id: "probe_connector_txn_001".to_string(),
+                // amount: {"minor_amount": 1000, "currency": "USD"}
+                ..Default::default()
+            },
+            &HashMap::new(),
+            None,
+        )
+        .await?;
     Ok(format!("status: {:?}", response.status()))
 }
 
@@ -171,17 +187,21 @@ pub async fn void(client: &ConnectorClient, _merchant_transaction_id: &str) -> R
 #[tokio::main]
 async fn main() {
     let client = build_client();
-    let flow = std::env::args().nth(1).unwrap_or_else(|| "capture".to_string());
+    let flow = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "process_capture".to_string());
     let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
-        "capture" => capture(&client, "order_001").await,
-        "get" => get(&client, "order_001").await,
-        "handle_event" => handle_event(&client, "order_001").await,
-        "parse_event" => parse_event(&client, "order_001").await,
-        "recurring_charge" => recurring_charge(&client, "order_001").await,
-        "refund" => refund(&client, "order_001").await,
-        "refund_get" => refund_get(&client, "order_001").await,
-        "void" => void(&client, "order_001").await,
-        _ => { eprintln!("Unknown flow: {}. Available: capture, get, handle_event, parse_event, recurring_charge, refund, refund_get, void", flow); return; }
+        "process_capture" => process_capture(&client, "txn_001").await,
+        "process_get" => process_get(&client, "txn_001").await,
+        "process_parse_event" => process_parse_event(&client, "txn_001").await,
+        "process_recurring_charge" => process_recurring_charge(&client, "txn_001").await,
+        "process_refund" => process_refund(&client, "txn_001").await,
+        "process_refund_get" => process_refund_get(&client, "txn_001").await,
+        "process_void" => process_void(&client, "txn_001").await,
+        _ => {
+            eprintln!("Unknown flow: {}. Available: process_capture, process_get, process_parse_event, process_recurring_charge, process_refund, process_refund_get, process_void", flow);
+            return;
+        }
     };
     match result {
         Ok(msg) => println!("✓ {msg}"),

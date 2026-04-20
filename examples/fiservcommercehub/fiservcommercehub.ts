@@ -5,141 +5,88 @@
 // Fiservcommercehub — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx fiservcommercehub.ts checkout_autocapture
 
-import { MerchantAuthenticationClient, PaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, Currency } = types;
+import { PaymentClient, types } from 'hyperswitch-prism';
+const { Environment } = types;
 export const SUPPORTED_FLOWS = ["create_server_authentication_token", "get", "refund", "refund_get", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
-    connectorConfig: {
-        fiservcommercehub: {
-            apiKey: { value: 'YOUR_API_KEY' },
-            secret: { value: 'YOUR_SECRET' },
-            merchantId: { value: 'YOUR_MERCHANT_ID' },
-            terminalId: { value: 'YOUR_TERMINAL_ID' },
-            baseUrl: 'YOUR_BASE_URL',
-        }
-    },
+    // connectorConfig: { fiservcommercehub: { apiKey: { value: 'YOUR_API_KEY' } } },
 };
 
 
-function _buildCreateServerAuthenticationTokenRequest(): types.IMerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
-    return {
-    };
-}
-
-function _buildGetRequest(connectorTransactionId: string): types.IPaymentServiceGetRequest {
-    return {
-        "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
-        "connectorTransactionId": connectorTransactionId,
-        "amount": {  // Amount Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        },
-        "state": {  // State Information.
-            "accessToken": {  // Access token obtained from connector.
-                "token": {"value": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA"},  // The token string.
-                "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
-                "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
-            }
-        }
-    };
-}
-
-function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServiceRefundRequest {
-    return {
-        "merchantRefundId": "probe_refund_001",  // Identification.
-        "connectorTransactionId": connectorTransactionId,
-        "paymentAmount": 1000,  // Amount Information.
-        "refundAmount": {
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        },
-        "reason": "customer_request",  // Reason for the refund.
-        "state": {  // State data for access token storage and.
-            "accessToken": {  // Access token obtained from connector.
-                "token": {"value": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA"},  // The token string.
-                "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
-                "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
-            }
-        }
-    };
-}
-
-function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
-    return {
-        "merchantRefundId": "probe_refund_001",  // Identification.
-        "connectorTransactionId": "probe_connector_txn_001",
-        "refundId": "probe_refund_id_001",
-        "state": {  // State Information.
-            "accessToken": {  // Access token obtained from connector.
-                "token": {"value": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA"},  // The token string.
-                "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
-                "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
-            }
-        }
-    };
-}
-
-function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServiceVoidRequest {
-    return {
-        "merchantVoidId": "probe_void_001",  // Identification.
-        "connectorTransactionId": connectorTransactionId,
-        "state": {  // State Information.
-            "accessToken": {  // Access token obtained from connector.
-                "token": {"value": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA"},  // The token string.
-                "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
-                "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
-            }
-        }
-    };
-}
-
-
 // ANCHOR: scenario_functions
-// Flow: MerchantAuthenticationService.CreateServerAuthenticationToken
+// Flow: PaymentService.create_server_authentication_token
 async function createServerAuthenticationToken(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const merchantAuthenticationClient = new MerchantAuthenticationClient(config);
-
-    const createResponse = await merchantAuthenticationClient.createServerAuthenticationToken(_buildCreateServerAuthenticationTokenRequest());
+    // Step 1: create_server_authentication_token
+    const createResponse = await paymentClient.createServerAuthenticationToken({
+        // No required fields
+    });
 
     return createResponse;
 }
 
-// Flow: PaymentService.Get
+// Flow: PaymentService.get
 async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
-
-    const getResponse = await paymentClient.get(_buildGetRequest('probe_connector_txn_001'));
+    // Step 1: Get — retrieve current payment status from the connector
+    const getResponse = await paymentClient.get({
+        "merchantTransactionId": "probe_merchant_txn_001",
+        "connectorTransactionId": "probe_connector_txn_001",
+        "amount": {
+        },
+        "state": {
+        }
+    });
 
     return getResponse;
 }
 
-// Flow: PaymentService.Refund
+// Flow: PaymentService.refund
 async function refund(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
+    // Step 1: Refund — return funds to the customer
+    const refundResponse = await paymentClient.refund({
+        "merchantRefundId": "probe_refund_001",
+        "connectorTransactionId": "probe_connector_txn_001",
+        "paymentAmount": 1000,
+        "refundAmount": {
+        },
+        "reason": "customer_request",
+        "state": {
+        }
+    });
 
-    const refundResponse = await paymentClient.refund(_buildRefundRequest('probe_connector_txn_001'));
+    if (refundResponse.status === types.RefundStatus.REFUND_FAILURE) {
+        throw new Error(`Refund failed: ${JSON.stringify(refundResponse.error)}`);
+    }
 
     return refundResponse;
 }
 
-// Flow: RefundService.Get
+// Flow: PaymentService.refund_get
 async function refundGet(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const refundClient = new RefundClient(config);
-
-    const refundResponse = await refundClient.refundGet(_buildRefundGetRequest());
+    // Step 1: refund_get
+    const refundResponse = await paymentClient.refundGet({
+        "merchantRefundId": "probe_refund_001",
+        "connectorTransactionId": "probe_connector_txn_001",
+        "refundId": "probe_refund_id_001",
+        "state": {
+        }
+    });
 
     return refundResponse;
 }
 
-// Flow: PaymentService.Void
+// Flow: PaymentService.void
 async function voidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
-
-    const voidResponse = await paymentClient.void(_buildVoidRequest('probe_connector_txn_001'));
+    // Step 1: Void — release reserved funds (cancel authorization)
+    const voidResponse = await paymentClient.void({
+        "merchantVoidId": "probe_void_001",
+        "connectorTransactionId": "probe_connector_txn_001",
+        "state": {
+        }
+    });
 
     return voidResponse;
 }
@@ -147,7 +94,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    createServerAuthenticationToken, get, refund, refundGet, voidPayment, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
+    createServerAuthenticationToken, get, refund, refundGet, voidPayment
 };
 
 // CLI runner

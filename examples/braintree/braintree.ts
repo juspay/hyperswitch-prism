@@ -5,181 +5,115 @@
 // Braintree — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx braintree.ts checkout_autocapture
 
-import { PaymentClient, MerchantAuthenticationClient, RefundClient, PaymentMethodClient, types } from 'hyperswitch-prism';
-const { Environment, Currency } = types;
+import { PaymentClient, types } from 'hyperswitch-prism';
+const { Environment } = types;
 export const SUPPORTED_FLOWS = ["capture", "create_client_authentication_token", "get", "refund", "refund_get", "tokenize", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
-    connectorConfig: {
-        braintree: {
-            publicKey: { value: 'YOUR_PUBLIC_KEY' },
-            privateKey: { value: 'YOUR_PRIVATE_KEY' },
-            baseUrl: 'YOUR_BASE_URL',
-            merchantAccountId: { value: 'YOUR_MERCHANT_ACCOUNT_ID' },
-            merchantConfigCurrency: 'YOUR_MERCHANT_CONFIG_CURRENCY',
-            applePaySupportedNetworks: ['YOUR_APPLE_PAY_SUPPORTED_NETWORKS'],
-            applePayMerchantCapabilities: ['YOUR_APPLE_PAY_MERCHANT_CAPABILITIES'],
-            applePayLabel: 'YOUR_APPLE_PAY_LABEL',
-            gpayMerchantName: 'YOUR_GPAY_MERCHANT_NAME',
-            gpayMerchantId: 'YOUR_GPAY_MERCHANT_ID',
-            gpayAllowedAuthMethods: ['YOUR_GPAY_ALLOWED_AUTH_METHODS'],
-            gpayAllowedCardNetworks: ['YOUR_GPAY_ALLOWED_CARD_NETWORKS'],
-            paypalClientId: 'YOUR_PAYPAL_CLIENT_ID',
-            gpayGatewayMerchantId: 'YOUR_GPAY_GATEWAY_MERCHANT_ID',
-        }
-    },
+    // connectorConfig: { braintree: { apiKey: { value: 'YOUR_API_KEY' } } },
 };
 
 
-function _buildCaptureRequest(connectorTransactionId: string): types.IPaymentServiceCaptureRequest {
-    return {
-        "merchantCaptureId": "probe_capture_001",  // Identification.
-        "connectorTransactionId": connectorTransactionId,
-        "amountToCapture": {  // Capture Details.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-    };
-}
-
-function _buildCreateClientAuthenticationTokenRequest(): types.IMerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
-    return {
-        "merchantClientSessionId": "probe_sdk_session_001",  // Infrastructure.
-        "payment": {  // FrmClientAuthenticationContext frm = 5; // future: device fingerprinting PayoutClientAuthenticationContext payout = 6; // future: payout verification widget.
-            "amount": {
-                "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-                "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-            }
-        }
-    };
-}
-
-function _buildGetRequest(connectorTransactionId: string): types.IPaymentServiceGetRequest {
-    return {
-        "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
-        "connectorTransactionId": connectorTransactionId,
-        "amount": {  // Amount Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-    };
-}
-
-function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServiceRefundRequest {
-    return {
-        "merchantRefundId": "probe_refund_001",  // Identification.
-        "connectorTransactionId": connectorTransactionId,
-        "paymentAmount": 1000,  // Amount Information.
-        "refundAmount": {
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        },
-        "reason": "customer_request"  // Reason for the refund.
-    };
-}
-
-function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
-    return {
-        "merchantRefundId": "probe_refund_001",  // Identification.
-        "connectorTransactionId": "probe_connector_txn_001",
-        "refundId": "probe_refund_id_001",
-        "refundMetadata": {"value": "{\"currency\":\"USD\"}"}  // Metadata specific to the refund sync.
-    };
-}
-
-function _buildTokenizeRequest(): types.IPaymentMethodServiceTokenizeRequest {
-    return {
-        "amount": {  // Payment Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        },
-        "paymentMethod": {
-            "card": {  // Generic card payment.
-                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
-                "cardExpMonth": {"value": "03"},
-                "cardExpYear": {"value": "2030"},
-                "cardCvc": {"value": "737"},
-                "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
-            }
-        },
-        "address": {  // Address Information.
-            "billingAddress": {
-            }
-        }
-    };
-}
-
-function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServiceVoidRequest {
-    return {
-        "merchantVoidId": "probe_void_001",  // Identification.
-        "connectorTransactionId": connectorTransactionId
-    };
-}
-
-
 // ANCHOR: scenario_functions
-// Flow: PaymentService.Capture
+// Flow: PaymentService.capture
 async function capture(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
+    // Step 1: Capture — settle the reserved funds
+    const captureResponse = await paymentClient.capture({
+        "merchantCaptureId": "probe_capture_001",
+        "connectorTransactionId": "probe_connector_txn_001",
+        "amountToCapture": {
+        }
+    });
 
-    const captureResponse = await paymentClient.capture(_buildCaptureRequest('probe_connector_txn_001'));
+    if (captureResponse.status === types.PaymentStatus.FAILURE) {
+        throw new Error(`Capture failed: ${JSON.stringify(captureResponse.error)}`);
+    }
 
     return captureResponse;
 }
 
-// Flow: MerchantAuthenticationService.CreateClientAuthenticationToken
+// Flow: PaymentService.create_client_authentication_token
 async function createClientAuthenticationToken(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const merchantAuthenticationClient = new MerchantAuthenticationClient(config);
-
-    const createResponse = await merchantAuthenticationClient.createClientAuthenticationToken(_buildCreateClientAuthenticationTokenRequest());
+    // Step 1: create_client_authentication_token
+    const createResponse = await paymentClient.createClientAuthenticationToken({
+        "merchantClientSessionId": "probe_sdk_session_001",
+        "domainContext": {
+        }
+    });
 
     return createResponse;
 }
 
-// Flow: PaymentService.Get
+// Flow: PaymentService.get
 async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
-
-    const getResponse = await paymentClient.get(_buildGetRequest('probe_connector_txn_001'));
+    // Step 1: Get — retrieve current payment status from the connector
+    const getResponse = await paymentClient.get({
+        "merchantTransactionId": "probe_merchant_txn_001",
+        "connectorTransactionId": "probe_connector_txn_001",
+        "amount": {
+        }
+    });
 
     return getResponse;
 }
 
-// Flow: PaymentService.Refund
+// Flow: PaymentService.refund
 async function refund(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
+    // Step 1: Refund — return funds to the customer
+    const refundResponse = await paymentClient.refund({
+        "merchantRefundId": "probe_refund_001",
+        "connectorTransactionId": "probe_connector_txn_001",
+        "paymentAmount": 1000,
+        "refundAmount": {
+        },
+        "reason": "customer_request"
+    });
 
-    const refundResponse = await paymentClient.refund(_buildRefundRequest('probe_connector_txn_001'));
+    if (refundResponse.status === types.RefundStatus.REFUND_FAILURE) {
+        throw new Error(`Refund failed: ${JSON.stringify(refundResponse.error)}`);
+    }
 
     return refundResponse;
 }
 
-// Flow: RefundService.Get
+// Flow: PaymentService.refund_get
 async function refundGet(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const refundClient = new RefundClient(config);
-
-    const refundResponse = await refundClient.refundGet(_buildRefundGetRequest());
+    // Step 1: refund_get
+    const refundResponse = await paymentClient.refundGet({
+        "merchantRefundId": "probe_refund_001",
+        "connectorTransactionId": "probe_connector_txn_001",
+        "refundId": "probe_refund_id_001",
+        "refundMetadata": "{\"currency\":\"USD\"}"
+    });
 
     return refundResponse;
 }
 
-// Flow: PaymentMethodService.Tokenize
+// Flow: PaymentService.tokenize
 async function tokenize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentMethodClient = new PaymentMethodClient(config);
-
-    const tokenizeResponse = await paymentMethodClient.tokenize(_buildTokenizeRequest());
+    // Step 1: Tokenize — store card details and return a reusable token
+    const tokenizeResponse = await paymentClient.tokenize({
+        "amount": {
+        },
+        "paymentMethod": {
+        },
+        "address": {
+        }
+    });
 
     return tokenizeResponse;
 }
 
-// Flow: PaymentService.Void
+// Flow: PaymentService.void
 async function voidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
-
-    const voidResponse = await paymentClient.void(_buildVoidRequest('probe_connector_txn_001'));
+    // Step 1: Void — release reserved funds (cancel authorization)
+    const voidResponse = await paymentClient.void({
+        "merchantVoidId": "probe_void_001",
+        "connectorTransactionId": "probe_connector_txn_001"
+    });
 
     return voidResponse;
 }
@@ -187,7 +121,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    capture, createClientAuthenticationToken, get, refund, refundGet, tokenize, voidPayment, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildGetRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenizeRequest, _buildVoidRequest
+    capture, createClientAuthenticationToken, get, refund, refundGet, tokenize, voidPayment
 };
 
 // CLI runner

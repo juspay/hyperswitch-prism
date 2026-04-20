@@ -22,11 +22,10 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    # connector_config=payment_pb2.ConnectorSpecificConfig(
+    #     revolut=payment_pb2.RevolutConfig(api_key=...),
+    # ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     revolut=payment_pb2.RevolutConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,15 +37,13 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Revolut',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
-    },
+const config = ConnectorConfig.create({
+    connector: Connector.REVOLUT,
+    environment: Environment.SANDBOX,
+    // auth: { revolut: { apiKey: { value: 'YOUR_API_KEY' } } },
 });
 ```
 
@@ -59,12 +56,8 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Revolut")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
-    )
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    // .setConnectorConfig(...) — set your Revolut credentials here
     .build()
 ```
 
@@ -76,13 +69,14 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Revolut".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: None,  // TODO: Add your connector config here,
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -108,7 +102,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/revolut/revolut.py#L164) · [JavaScript](../../examples/revolut/revolut.js) · [Kotlin](../../examples/revolut/revolut.kt#L99) · [Rust](../../examples/revolut/revolut.rs#L153)
+**Examples:** [Python](../../examples/revolut/revolut.py#L23) · [JavaScript](../../examples/revolut/revolut.js) · [Kotlin](../../examples/revolut/revolut.kt#L28) · [Rust](../../examples/revolut/revolut.rs#L30)
 
 ### Card Payment (Authorize + Capture)
 
@@ -122,45 +116,38 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/revolut/revolut.py#L183) · [JavaScript](../../examples/revolut/revolut.js) · [Kotlin](../../examples/revolut/revolut.kt#L115) · [Rust](../../examples/revolut/revolut.rs#L169)
+**Examples:** [Python](../../examples/revolut/revolut.py#L54) · [JavaScript](../../examples/revolut/revolut.js) · [Kotlin](../../examples/revolut/revolut.kt#L56) · [Rust](../../examples/revolut/revolut.rs#L55)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/revolut/revolut.py#L208) · [JavaScript](../../examples/revolut/revolut.js) · [Kotlin](../../examples/revolut/revolut.kt#L137) · [Rust](../../examples/revolut/revolut.rs#L192)
+**Examples:** [Python](../../examples/revolut/revolut.py#L96) · [JavaScript](../../examples/revolut/revolut.js) · [Kotlin](../../examples/revolut/revolut.kt#L95) · [Rust](../../examples/revolut/revolut.rs#L92)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/revolut/revolut.py#L233) · [JavaScript](../../examples/revolut/revolut.js) · [Kotlin](../../examples/revolut/revolut.kt#L159) · [Rust](../../examples/revolut/revolut.rs#L215)
+**Examples:** [Python](../../examples/revolut/revolut.py#L140) · [JavaScript](../../examples/revolut/revolut.js) · [Kotlin](../../examples/revolut/revolut.kt#L136) · [Rust](../../examples/revolut/revolut.rs#L131)
 
 ## API Reference
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
-| [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
-| [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
+| [authorize](#authorize) | Other | `—` |
+| [capture](#capture) | Other | `—` |
+| [get](#get) | Other | `—` |
+| [handle_event](#handle_event) | Other | `—` |
 | [parse_event](#parse_event) | Other | `—` |
-| [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
-| [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
-| [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
-| [PaymentService.TokenAuthorize](#paymentservicetokenauthorize) | Payments | `PaymentServiceTokenAuthorizeRequest` |
-| [PaymentService.VerifyRedirectResponse](#paymentserviceverifyredirectresponse) | Payments | `PaymentServiceVerifyRedirectResponseRequest` |
+| [proxy_authorize](#proxy_authorize) | Other | `—` |
+| [refund](#refund) | Other | `—` |
+| [refund_get](#refund_get) | Other | `—` |
+| [token_authorize](#token_authorize) | Other | `—` |
+| [verify_redirect](#verify_redirect) | Other | `—` |
 
-### Payments
+### Other
 
-#### PaymentService.Authorize
-
-Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceAuthorizeRequest` |
-| **Response** | `PaymentServiceAuthorizeResponse` |
+#### authorize
 
 **Supported payment method types:**
 
@@ -264,13 +251,13 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "card": {  # Generic card payment.
-        "card_number": {"value": "4111111111111111"},  # Card Identification.
-        "card_exp_month": {"value": "03"},
-        "card_exp_year": {"value": "2030"},
-        "card_cvc": {"value": "737"},
-        "card_holder_name": {"value": "John Doe"}  # Cardholder Information.
-    }
+  "card": {
+    "card_number": "4111111111111111",
+    "card_exp_month": "03",
+    "card_exp_year": "2030",
+    "card_cvc": "737",
+    "card_holder_name": "John Doe"
+  }
 }
 ```
 
@@ -278,20 +265,20 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "google_pay": {  # Google Pay.
-        "type": "CARD",  # Type of payment method.
-        "description": "Visa 1111",  # User-facing description of the payment method.
-        "info": {
-            "card_network": "VISA",  # Card network name.
-            "card_details": "1111"  # Card details (usually last 4 digits).
-        },
-        "tokenization_data": {
-            "encrypted_data": {  # Encrypted Google Pay payment data.
-                "token_type": "PAYMENT_GATEWAY",  # The type of the token.
-                "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"  # Token generated for the wallet.
-            }
-        }
+  "google_pay": {
+    "type": "CARD",
+    "description": "Visa 1111",
+    "info": {
+      "card_network": "VISA",
+      "card_details": "1111"
+    },
+    "tokenization_data": {
+      "encrypted_data": {
+        "token_type": "PAYMENT_GATEWAY",
+        "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
+      }
     }
+  }
 }
 ```
 
@@ -299,17 +286,17 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "apple_pay": {  # Apple Pay.
-        "payment_data": {
-            "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"  # Encrypted Apple Pay payment data as string.
-        },
-        "payment_method": {
-            "display_name": "Visa 1111",
-            "network": "Visa",
-            "type": "debit"
-        },
-        "transaction_identifier": "probe_txn_id"  # Transaction identifier.
-    }
+  "apple_pay": {
+    "payment_data": {
+      "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
+    },
+    "payment_method": {
+      "display_name": "Visa 1111",
+      "network": "Visa",
+      "type": "debit"
+    },
+    "transaction_identifier": "probe_txn_id"
+  }
 }
 ```
 
@@ -317,10 +304,10 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "sepa": {  # Sepa - Single Euro Payments Area direct debit.
-        "iban": {"value": "DE89370400440532013000"},  # International bank account number (iban) for SEPA.
-        "bank_account_holder_name": {"value": "John Doe"}  # Owner name for bank debit.
-    }
+  "sepa": {
+    "iban": "DE89370400440532013000",
+    "bank_account_holder_name": "John Doe"
+  }
 }
 ```
 
@@ -328,11 +315,11 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "bacs": {  # Bacs - Bankers' Automated Clearing Services.
-        "account_number": {"value": "55779911"},  # Account number for Bacs payment method.
-        "sort_code": {"value": "200000"},  # Sort code for Bacs payment method.
-        "bank_account_holder_name": {"value": "John Doe"}  # Holder name for bank debit.
-    }
+  "bacs": {
+    "account_number": "55779911",
+    "sort_code": "200000",
+    "bank_account_holder_name": "John Doe"
+  }
 }
 ```
 
@@ -340,11 +327,11 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "ach": {  # Ach - Automated Clearing House.
-        "account_number": {"value": "000123456789"},  # Account number for ach bank debit payment.
-        "routing_number": {"value": "110000000"},  # Routing number for ach bank debit payment.
-        "bank_account_holder_name": {"value": "John Doe"}  # Bank account holder name.
-    }
+  "ach": {
+    "account_number": "000123456789",
+    "routing_number": "110000000",
+    "bank_account_holder_name": "John Doe"
+  }
 }
 ```
 
@@ -352,11 +339,11 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "becs": {  # Becs - Bulk Electronic Clearing System - Australian direct debit.
-        "account_number": {"value": "000123456"},  # Account number for Becs payment method.
-        "bsb_number": {"value": "000000"},  # Bank-State-Branch (bsb) number.
-        "bank_account_holder_name": {"value": "John Doe"}  # Owner name for bank debit.
-    }
+  "becs": {
+    "account_number": "000123456",
+    "bsb_number": "000000",
+    "bank_account_holder_name": "John Doe"
+  }
 }
 ```
 
@@ -364,8 +351,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "ideal": {
-    }
+  "ideal": {}
 }
 ```
 
@@ -373,9 +359,9 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "paypal_redirect": {  # PayPal.
-        "email": {"value": "test@example.com"}  # PayPal's email address.
-    }
+  "paypal_redirect": {
+    "email": "test@example.com"
+  }
 }
 ```
 
@@ -383,9 +369,9 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "blik": {
-        "blik_code": "777124"
-    }
+  "blik": {
+    "blik_code": "777124"
+  }
 }
 ```
 
@@ -393,8 +379,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "klarna": {  # Klarna - Swedish BNPL service.
-    }
+  "klarna": {}
 }
 ```
 
@@ -402,8 +387,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "afterpay_clearpay": {  # Afterpay/Clearpay - BNPL service.
-    }
+  "afterpay_clearpay": {}
 }
 ```
 
@@ -411,9 +395,9 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "upi_collect": {  # UPI Collect.
-        "vpa_id": {"value": "test@upi"}  # Virtual Payment Address.
-    }
+  "upi_collect": {
+    "vpa_id": "test@upi"
+  }
 }
 ```
 
@@ -421,8 +405,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "affirm": {  # Affirm - US BNPL service.
-    }
+  "affirm": {}
 }
 ```
 
@@ -430,105 +413,56 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "samsung_pay": {  # Samsung.
-        "payment_credential": {
-            "method": "3DS",  # Method type.
-            "recurring_payment": False,  # Whether this is a recurring payment.
-            "card_brand": "VISA",
-            "card_last_four_digits": "1234",  # Last four digits of card.
-            "token_data": {
-                "type": "S",  # 3DS type.
-                "version": "100",  # 3DS version.
-                "data": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNhbXN1bmdfcHJvYmVfa2V5XzEyMyJ9.eyJwYXltZW50TWV0aG9kVG9rZW4iOiJwcm9iZV9zYW1zdW5nX3Rva2VuIn0.ZHVtbXlfc2lnbmF0dXJl"  # Token data.
-            }
-        }
+  "samsung_pay": {
+    "payment_credential": {
+      "method": "3DS",
+      "recurring_payment": false,
+      "card_brand": "VISA",
+      "card_last_four_digits": "1234",
+      "token_data": {
+        "type": "S",
+        "version": "100",
+        "data": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNhbXN1bmdfcHJvYmVfa2V5XzEyMyJ9.eyJwYXltZW50TWV0aG9kVG9rZW4iOiJwcm9iZV9zYW1zdW5nX3Rva2VuIn0.ZHVtbXlfc2lnbmF0dXJl"
+      }
     }
+  }
 }
 ```
 
-**Examples:** [Python](../../examples/revolut/revolut.py#L255) · [TypeScript](../../examples/revolut/revolut.ts#L238) · [Kotlin](../../examples/revolut/revolut.kt#L177) · [Rust](../../examples/revolut/revolut.rs#L233)
+**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L176) · [Kotlin](../../examples/revolut/revolut.kt) · [Rust](../../examples/revolut/revolut.rs)
 
-#### PaymentService.Capture
+#### capture
 
-Finalize an authorized payment by transferring funds. Captures the authorized amount to complete the transaction and move funds to your merchant account.
+**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L203) · [Kotlin](../../examples/revolut/revolut.kt) · [Rust](../../examples/revolut/revolut.rs)
 
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceCaptureRequest` |
-| **Response** | `PaymentServiceCaptureResponse` |
+#### get
 
-**Examples:** [Python](../../examples/revolut/revolut.py#L264) · [TypeScript](../../examples/revolut/revolut.ts#L247) · [Kotlin](../../examples/revolut/revolut.kt#L189) · [Rust](../../examples/revolut/revolut.rs#L245)
+**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L220) · [Kotlin](../../examples/revolut/revolut.kt) · [Rust](../../examples/revolut/revolut.rs)
 
-#### PaymentService.Get
+#### handle_event
 
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
-
-**Examples:** [Python](../../examples/revolut/revolut.py#L273) · [TypeScript](../../examples/revolut/revolut.ts#L256) · [Kotlin](../../examples/revolut/revolut.kt#L199) · [Rust](../../examples/revolut/revolut.rs#L252)
-
-#### PaymentService.ProxyAuthorize
-
-Authorize using vault-aliased card data. Proxy substitutes before connector.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceProxyAuthorizeRequest` |
-| **Response** | `PaymentServiceAuthorizeResponse` |
-
-**Examples:** [Python](../../examples/revolut/revolut.py#L305) · [TypeScript](../../examples/revolut/revolut.ts#L284) · [Kotlin](../../examples/revolut/revolut.kt#L217) · [Rust](../../examples/revolut/revolut.rs#L275)
-
-#### PaymentService.Refund
-
-Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceRefundRequest` |
-| **Response** | `RefundResponse` |
-
-**Examples:** [Python](../../examples/revolut/revolut.py#L314) · [TypeScript](../../examples/revolut/revolut.ts#L293) · [Kotlin](../../examples/revolut/revolut.kt#L245) · [Rust](../../examples/revolut/revolut.rs#L282)
-
-#### PaymentService.TokenAuthorize
-
-Authorize using a connector-issued payment method token.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceTokenAuthorizeRequest` |
-| **Response** | `PaymentServiceAuthorizeResponse` |
-
-**Examples:** [Python](../../examples/revolut/revolut.py#L332) · [TypeScript](../../examples/revolut/revolut.ts#L311) · [Kotlin](../../examples/revolut/revolut.kt#L267) · [Rust](../../examples/revolut/revolut.rs#L296)
-
-#### PaymentService.VerifyRedirectResponse
-
-Verify and process redirect responses from 3D Secure or other external flows. Validates authentication results and updates payment state accordingly.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceVerifyRedirectResponseRequest` |
-| **Response** | `PaymentServiceVerifyRedirectResponseResponse` |
-
-**Examples:** [Python](../../examples/revolut/revolut.py#L341) · [TypeScript](../../examples/revolut/revolut.ts#L320) · [Kotlin](../../examples/revolut/revolut.kt#L288) · [Rust](../../examples/revolut/revolut.rs#L303)
-
-### Refunds
-
-#### RefundService.Get
-
-Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
-
-| | Message |
-|---|---------|
-| **Request** | `RefundServiceGetRequest` |
-| **Response** | `RefundResponse` |
-
-**Examples:** [Python](../../examples/revolut/revolut.py#L323) · [TypeScript](../../examples/revolut/revolut.ts#L302) · [Kotlin](../../examples/revolut/revolut.kt#L255) · [Rust](../../examples/revolut/revolut.rs#L289)
-
-### Other
+**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L233) · [Kotlin](../../examples/revolut/revolut.kt) · [Rust](../../examples/revolut/revolut.rs)
 
 #### parse_event
 
-**Examples:** [Python](../../examples/revolut/revolut.py#L291) · [TypeScript](../../examples/revolut/revolut.ts#L274) · [Kotlin](../../examples/revolut/revolut.kt) · [Rust](../../examples/revolut/revolut.rs#L266)
+**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L245) · [Kotlin](../../examples/revolut/revolut.kt) · [Rust](../../examples/revolut/revolut.rs)
+
+#### proxy_authorize
+
+**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L256) · [Kotlin](../../examples/revolut/revolut.kt) · [Rust](../../examples/revolut/revolut.rs)
+
+#### refund
+
+**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L275) · [Kotlin](../../examples/revolut/revolut.kt) · [Rust](../../examples/revolut/revolut.rs)
+
+#### refund_get
+
+**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L294) · [Kotlin](../../examples/revolut/revolut.kt) · [Rust](../../examples/revolut/revolut.rs)
+
+#### token_authorize
+
+**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L306) · [Kotlin](../../examples/revolut/revolut.kt) · [Rust](../../examples/revolut/revolut.rs)
+
+#### verify_redirect
+
+**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L323) · [Kotlin](../../examples/revolut/revolut.kt) · [Rust](../../examples/revolut/revolut.rs)

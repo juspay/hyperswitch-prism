@@ -22,11 +22,10 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    # connector_config=payment_pb2.ConnectorSpecificConfig(
+    #     ppro=payment_pb2.PproConfig(api_key=...),
+    # ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     ppro=payment_pb2.PproConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,15 +37,13 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Ppro',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
-    },
+const config = ConnectorConfig.create({
+    connector: Connector.PPRO,
+    environment: Environment.SANDBOX,
+    // auth: { ppro: { apiKey: { value: 'YOUR_API_KEY' } } },
 });
 ```
 
@@ -59,12 +56,8 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Ppro")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
-    )
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    // .setConnectorConfig(...) — set your Ppro credentials here
     .build()
 ```
 
@@ -76,13 +69,14 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Ppro".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: None,  // TODO: Add your connector config here,
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -96,89 +90,45 @@ let config = ConnectorConfig {
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
-| [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
+| [capture](#capture) | Other | `—` |
+| [get](#get) | Other | `—` |
+| [handle_event](#handle_event) | Other | `—` |
 | [parse_event](#parse_event) | Other | `—` |
-| [RecurringPaymentService.Charge](#recurringpaymentservicecharge) | Mandates | `RecurringPaymentServiceChargeRequest` |
-| [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
-| [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
-| [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
-
-### Payments
-
-#### PaymentService.Capture
-
-Finalize an authorized payment by transferring funds. Captures the authorized amount to complete the transaction and move funds to your merchant account.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceCaptureRequest` |
-| **Response** | `PaymentServiceCaptureResponse` |
-
-**Examples:** [Python](../../examples/ppro/ppro.py#L123) · [TypeScript](../../examples/ppro/ppro.ts#L107) · [Kotlin](../../examples/ppro/ppro.kt#L81) · [Rust](../../examples/ppro/ppro.rs#L114)
-
-#### PaymentService.Get
-
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
-
-**Examples:** [Python](../../examples/ppro/ppro.py#L132) · [TypeScript](../../examples/ppro/ppro.ts#L116) · [Kotlin](../../examples/ppro/ppro.kt#L91) · [Rust](../../examples/ppro/ppro.rs#L121)
-
-#### PaymentService.Refund
-
-Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceRefundRequest` |
-| **Response** | `RefundResponse` |
-
-**Examples:** [Python](../../examples/ppro/ppro.py#L173) · [TypeScript](../../examples/ppro/ppro.ts#L153) · [Kotlin](../../examples/ppro/ppro.kt#L140) · [Rust](../../examples/ppro/ppro.rs#L151)
-
-#### PaymentService.Void
-
-Cancel an authorized payment that has not been captured. Releases held funds back to the customer's payment method when a transaction cannot be completed.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceVoidRequest` |
-| **Response** | `PaymentServiceVoidResponse` |
-
-**Examples:** [Python](../../examples/ppro/ppro.py#L191) · [TypeScript](../../examples/ppro/ppro.ts) · [Kotlin](../../examples/ppro/ppro.kt#L162) · [Rust](../../examples/ppro/ppro.rs#L165)
-
-### Refunds
-
-#### RefundService.Get
-
-Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
-
-| | Message |
-|---|---------|
-| **Request** | `RefundServiceGetRequest` |
-| **Response** | `RefundResponse` |
-
-**Examples:** [Python](../../examples/ppro/ppro.py#L182) · [TypeScript](../../examples/ppro/ppro.ts#L162) · [Kotlin](../../examples/ppro/ppro.kt#L150) · [Rust](../../examples/ppro/ppro.rs#L158)
-
-### Mandates
-
-#### RecurringPaymentService.Charge
-
-Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details.
-
-| | Message |
-|---|---------|
-| **Request** | `RecurringPaymentServiceChargeRequest` |
-| **Response** | `RecurringPaymentServiceChargeResponse` |
-
-**Examples:** [Python](../../examples/ppro/ppro.py#L164) · [TypeScript](../../examples/ppro/ppro.ts#L144) · [Kotlin](../../examples/ppro/ppro.kt#L109) · [Rust](../../examples/ppro/ppro.rs#L144)
+| [recurring_charge](#recurring_charge) | Other | `—` |
+| [refund](#refund) | Other | `—` |
+| [refund_get](#refund_get) | Other | `—` |
+| [void](#void) | Other | `—` |
 
 ### Other
 
+#### capture
+
+**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts#L22) · [Kotlin](../../examples/ppro/ppro.kt) · [Rust](../../examples/ppro/ppro.rs)
+
+#### get
+
+**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts#L39) · [Kotlin](../../examples/ppro/ppro.kt) · [Rust](../../examples/ppro/ppro.rs)
+
+#### handle_event
+
+**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts#L52) · [Kotlin](../../examples/ppro/ppro.kt) · [Rust](../../examples/ppro/ppro.rs)
+
 #### parse_event
 
-**Examples:** [Python](../../examples/ppro/ppro.py#L150) · [TypeScript](../../examples/ppro/ppro.ts#L134) · [Kotlin](../../examples/ppro/ppro.kt) · [Rust](../../examples/ppro/ppro.rs#L135)
+**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts#L64) · [Kotlin](../../examples/ppro/ppro.kt) · [Rust](../../examples/ppro/ppro.rs)
+
+#### recurring_charge
+
+**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts#L75) · [Kotlin](../../examples/ppro/ppro.kt) · [Rust](../../examples/ppro/ppro.rs)
+
+#### refund
+
+**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts#L98) · [Kotlin](../../examples/ppro/ppro.kt) · [Rust](../../examples/ppro/ppro.rs)
+
+#### refund_get
+
+**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts#L117) · [Kotlin](../../examples/ppro/ppro.kt) · [Rust](../../examples/ppro/ppro.rs)
+
+#### void
+
+**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts) · [Kotlin](../../examples/ppro/ppro.kt) · [Rust](../../examples/ppro/ppro.rs)

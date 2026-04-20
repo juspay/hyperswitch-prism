@@ -22,15 +22,9 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    connector_config=payment_pb2.ConnectorSpecificConfig(
-        worldpay=payment_pb2.WorldpayConfig(
-            username=payment_methods_pb2.SecretString(value="YOUR_USERNAME"),
-            password=payment_methods_pb2.SecretString(value="YOUR_PASSWORD"),
-            entity_id=payment_methods_pb2.SecretString(value="YOUR_ENTITY_ID"),
-            base_url="YOUR_BASE_URL",
-            merchant_name=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_NAME"),
-        ),
-    ),
+    # connector_config=payment_pb2.ConnectorSpecificConfig(
+    #     worldpay=payment_pb2.WorldpayConfig(api_key=...),
+    # ),
 )
 
 ```
@@ -49,15 +43,7 @@ const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism')
 const config = ConnectorConfig.create({
     connector: Connector.WORLDPAY,
     environment: Environment.SANDBOX,
-    auth: {
-        worldpay: {
-            username: { value: 'YOUR_USERNAME' },
-            password: { value: 'YOUR_PASSWORD' },
-            entityId: { value: 'YOUR_ENTITY_ID' },
-            baseUrl: 'YOUR_BASE_URL',
-            merchantName: { value: 'YOUR_MERCHANT_NAME' },
-        }
-    },
+    // auth: { worldpay: { apiKey: { value: 'YOUR_API_KEY' } } },
 });
 ```
 
@@ -71,17 +57,7 @@ const config = ConnectorConfig.create({
 ```kotlin
 val config = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    .setConnectorConfig(
-        ConnectorSpecificConfig.newBuilder()
-            .setWorldpay(WorldpayConfig.newBuilder()
-                .setUsername(SecretString.newBuilder().setValue("YOUR_USERNAME").build())
-                .setPassword(SecretString.newBuilder().setValue("YOUR_PASSWORD").build())
-                .setEntityId(SecretString.newBuilder().setValue("YOUR_ENTITY_ID").build())
-                .setBaseUrl("YOUR_BASE_URL")
-                .setMerchantName(SecretString.newBuilder().setValue("YOUR_MERCHANT_NAME").build())
-                .build())
-            .build()
-    )
+    // .setConnectorConfig(...) — set your Worldpay credentials here
     .build()
 ```
 
@@ -97,16 +73,7 @@ use grpc_api_types::payments::*;
 use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector_config: Some(ConnectorSpecificConfig {
-            config: Some(connector_specific_config::Config::Worldpay(WorldpayConfig {
-                username: Some(hyperswitch_masking::Secret::new("YOUR_USERNAME".to_string())),  // Authentication credential
-                password: Some(hyperswitch_masking::Secret::new("YOUR_PASSWORD".to_string())),  // Authentication credential
-                entity_id: Some(hyperswitch_masking::Secret::new("YOUR_ENTITY_ID".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                merchant_name: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_NAME".to_string())),  // Authentication credential
-                ..Default::default()
-            })),
-        }),
+    connector_config: None,  // TODO: Add your connector config here,
     options: Some(SdkOptions {
         environment: Environment::Sandbox.into(),
     }),
@@ -135,7 +102,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/worldpay/worldpay.py#L145) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L115) · [Rust](../../examples/worldpay/worldpay.rs#L182)
+**Examples:** [Python](../../examples/worldpay/worldpay.py#L23) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L28) · [Rust](../../examples/worldpay/worldpay.rs#L30)
 
 ### Card Payment (Authorize + Capture)
 
@@ -149,49 +116,42 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/worldpay/worldpay.py#L164) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L131) · [Rust](../../examples/worldpay/worldpay.rs#L198)
+**Examples:** [Python](../../examples/worldpay/worldpay.py#L54) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L56) · [Rust](../../examples/worldpay/worldpay.rs#L55)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/worldpay/worldpay.py#L189) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L153) · [Rust](../../examples/worldpay/worldpay.rs#L221)
+**Examples:** [Python](../../examples/worldpay/worldpay.py#L96) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L95) · [Rust](../../examples/worldpay/worldpay.rs#L92)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/worldpay/worldpay.py#L214) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L175) · [Rust](../../examples/worldpay/worldpay.rs#L244)
+**Examples:** [Python](../../examples/worldpay/worldpay.py#L140) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L136) · [Rust](../../examples/worldpay/worldpay.rs#L131)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/worldpay/worldpay.py#L236) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L194) · [Rust](../../examples/worldpay/worldpay.rs#L263)
+**Examples:** [Python](../../examples/worldpay/worldpay.py#L177) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L170) · [Rust](../../examples/worldpay/worldpay.rs#L163)
 
 ## API Reference
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
-| [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
-| [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
-| [RecurringPaymentService.Charge](#recurringpaymentservicecharge) | Mandates | `RecurringPaymentServiceChargeRequest` |
-| [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
-| [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
-| [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
+| [authorize](#authorize) | Other | `—` |
+| [capture](#capture) | Other | `—` |
+| [get](#get) | Other | `—` |
+| [proxy_authorize](#proxy_authorize) | Other | `—` |
+| [recurring_charge](#recurring_charge) | Other | `—` |
+| [refund](#refund) | Other | `—` |
+| [refund_get](#refund_get) | Other | `—` |
+| [void](#void) | Other | `—` |
 
-### Payments
+### Other
 
-#### PaymentService.Authorize
-
-Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceAuthorizeRequest` |
-| **Response** | `PaymentServiceAuthorizeResponse` |
+#### authorize
 
 **Supported payment method types:**
 
@@ -344,85 +304,32 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/worldpay/worldpay.py) · [TypeScript](../../examples/worldpay/worldpay.ts#L266) · [Kotlin](../../examples/worldpay/worldpay.kt#L212) · [Rust](../../examples/worldpay/worldpay.rs)
+**Examples:** [Python](../../examples/worldpay/worldpay.py) · [TypeScript](../../examples/worldpay/worldpay.ts#L212) · [Kotlin](../../examples/worldpay/worldpay.kt) · [Rust](../../examples/worldpay/worldpay.rs)
 
-#### PaymentService.Capture
+#### capture
 
-Finalize an authorized payment by transferring funds. Captures the authorized amount to complete the transaction and move funds to your merchant account.
+**Examples:** [Python](../../examples/worldpay/worldpay.py) · [TypeScript](../../examples/worldpay/worldpay.ts#L239) · [Kotlin](../../examples/worldpay/worldpay.kt) · [Rust](../../examples/worldpay/worldpay.rs)
 
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceCaptureRequest` |
-| **Response** | `PaymentServiceCaptureResponse` |
+#### get
 
-**Examples:** [Python](../../examples/worldpay/worldpay.py) · [TypeScript](../../examples/worldpay/worldpay.ts#L275) · [Kotlin](../../examples/worldpay/worldpay.kt#L224) · [Rust](../../examples/worldpay/worldpay.rs)
+**Examples:** [Python](../../examples/worldpay/worldpay.py) · [TypeScript](../../examples/worldpay/worldpay.ts#L256) · [Kotlin](../../examples/worldpay/worldpay.kt) · [Rust](../../examples/worldpay/worldpay.rs)
 
-#### PaymentService.Get
+#### proxy_authorize
 
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
+**Examples:** [Python](../../examples/worldpay/worldpay.py) · [TypeScript](../../examples/worldpay/worldpay.ts#L269) · [Kotlin](../../examples/worldpay/worldpay.kt) · [Rust](../../examples/worldpay/worldpay.rs)
 
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
+#### recurring_charge
 
-**Examples:** [Python](../../examples/worldpay/worldpay.py) · [TypeScript](../../examples/worldpay/worldpay.ts#L284) · [Kotlin](../../examples/worldpay/worldpay.kt#L234) · [Rust](../../examples/worldpay/worldpay.rs)
+**Examples:** [Python](../../examples/worldpay/worldpay.py) · [TypeScript](../../examples/worldpay/worldpay.ts#L288) · [Kotlin](../../examples/worldpay/worldpay.kt) · [Rust](../../examples/worldpay/worldpay.rs)
 
-#### PaymentService.ProxyAuthorize
+#### refund
 
-Authorize using vault-aliased card data. Proxy substitutes before connector.
+**Examples:** [Python](../../examples/worldpay/worldpay.py) · [TypeScript](../../examples/worldpay/worldpay.ts#L311) · [Kotlin](../../examples/worldpay/worldpay.kt) · [Rust](../../examples/worldpay/worldpay.rs)
 
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceProxyAuthorizeRequest` |
-| **Response** | `PaymentServiceAuthorizeResponse` |
+#### refund_get
 
-**Examples:** [Python](../../examples/worldpay/worldpay.py) · [TypeScript](../../examples/worldpay/worldpay.ts#L293) · [Kotlin](../../examples/worldpay/worldpay.kt#L242) · [Rust](../../examples/worldpay/worldpay.rs)
+**Examples:** [Python](../../examples/worldpay/worldpay.py) · [TypeScript](../../examples/worldpay/worldpay.ts#L330) · [Kotlin](../../examples/worldpay/worldpay.kt) · [Rust](../../examples/worldpay/worldpay.rs)
 
-#### PaymentService.Refund
+#### void
 
-Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceRefundRequest` |
-| **Response** | `RefundResponse` |
-
-**Examples:** [Python](../../examples/worldpay/worldpay.py) · [TypeScript](../../examples/worldpay/worldpay.ts#L311) · [Kotlin](../../examples/worldpay/worldpay.kt#L301) · [Rust](../../examples/worldpay/worldpay.rs)
-
-#### PaymentService.Void
-
-Cancel an authorized payment that has not been captured. Releases held funds back to the customer's payment method when a transaction cannot be completed.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceVoidRequest` |
-| **Response** | `PaymentServiceVoidResponse` |
-
-**Examples:** [Python](../../examples/worldpay/worldpay.py) · [TypeScript](../../examples/worldpay/worldpay.ts) · [Kotlin](../../examples/worldpay/worldpay.kt#L323) · [Rust](../../examples/worldpay/worldpay.rs)
-
-### Refunds
-
-#### RefundService.Get
-
-Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
-
-| | Message |
-|---|---------|
-| **Request** | `RefundServiceGetRequest` |
-| **Response** | `RefundResponse` |
-
-**Examples:** [Python](../../examples/worldpay/worldpay.py) · [TypeScript](../../examples/worldpay/worldpay.ts#L320) · [Kotlin](../../examples/worldpay/worldpay.kt#L311) · [Rust](../../examples/worldpay/worldpay.rs)
-
-### Mandates
-
-#### RecurringPaymentService.Charge
-
-Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details.
-
-| | Message |
-|---|---------|
-| **Request** | `RecurringPaymentServiceChargeRequest` |
-| **Response** | `RecurringPaymentServiceChargeResponse` |
-
-**Examples:** [Python](../../examples/worldpay/worldpay.py) · [TypeScript](../../examples/worldpay/worldpay.ts#L302) · [Kotlin](../../examples/worldpay/worldpay.kt#L270) · [Rust](../../examples/worldpay/worldpay.rs)
+**Examples:** [Python](../../examples/worldpay/worldpay.py) · [TypeScript](../../examples/worldpay/worldpay.ts) · [Kotlin](../../examples/worldpay/worldpay.kt) · [Rust](../../examples/worldpay/worldpay.rs)

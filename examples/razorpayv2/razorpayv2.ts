@@ -5,8 +5,8 @@
 // Razorpayv2 — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx razorpayv2.ts checkout_autocapture
 
-import { PaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AuthenticationType, CaptureMethod, Currency } = types;
+import { PaymentClient, types } from 'hyperswitch-prism';
+const { Environment } = types;
 export const SUPPORTED_FLOWS = ["authorize", "create_order", "get", "proxy_authorize", "refund", "refund_get", "token_authorize"];
 
 const _defaultConfig: types.IConnectorConfig = {
@@ -17,119 +17,6 @@ const _defaultConfig: types.IConnectorConfig = {
 };
 
 
-function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaymentServiceAuthorizeRequest {
-    return {
-        "merchantTransactionId": "probe_txn_001",  // Identification.
-        "amount": {  // The amount for the payment.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        },
-        "paymentMethod": {  // Payment method to be used.
-            "card": {  // Generic card payment.
-                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
-                "cardExpMonth": {"value": "03"},
-                "cardExpYear": {"value": "2030"},
-                "cardCvc": {"value": "737"},
-                "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
-            }
-        },
-        "captureMethod": captureMethod,  // Method for capturing the payment.
-        "address": {  // Address Information.
-            "billingAddress": {
-            }
-        },
-        "authType": AuthenticationType.NO_THREE_DS,  // Authentication Details.
-        "returnUrl": "https://example.com/return",  // URLs for Redirection and Webhooks.
-        "connectorOrderId": "connector_order_id"  // Send the connector order identifier here if an order was created before authorize.
-    };
-}
-
-function _buildCreateOrderRequest(): types.IPaymentServiceCreateOrderRequest {
-    return {
-        "merchantOrderId": "probe_order_001",  // Identification.
-        "amount": {  // Amount Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-    };
-}
-
-function _buildGetRequest(connectorTransactionId: string): types.IPaymentServiceGetRequest {
-    return {
-        "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
-        "connectorTransactionId": connectorTransactionId,
-        "amount": {  // Amount Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-    };
-}
-
-function _buildProxyAuthorizeRequest(): types.IPaymentServiceProxyAuthorizeRequest {
-    return {
-        "merchantTransactionId": "probe_proxy_txn_001",
-        "amount": {
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        },
-        "cardProxy": {  // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
-            "cardNumber": {"value": "4111111111111111"},  // Card Identification.
-            "cardExpMonth": {"value": "03"},
-            "cardExpYear": {"value": "2030"},
-            "cardCvc": {"value": "123"},
-            "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
-        },
-        "address": {
-            "billingAddress": {
-            }
-        },
-        "captureMethod": CaptureMethod.AUTOMATIC,
-        "authType": AuthenticationType.NO_THREE_DS,
-        "returnUrl": "https://example.com/return",
-        "connectorOrderId": "connector_order_id"  // Send the connector order identifier here if an order was created before authorize.
-    };
-}
-
-function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServiceRefundRequest {
-    return {
-        "merchantRefundId": "probe_refund_001",  // Identification.
-        "connectorTransactionId": connectorTransactionId,
-        "paymentAmount": 1000,  // Amount Information.
-        "refundAmount": {
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        },
-        "reason": "customer_request"  // Reason for the refund.
-    };
-}
-
-function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
-    return {
-        "merchantRefundId": "probe_refund_001",  // Identification.
-        "connectorTransactionId": "probe_connector_txn_001",
-        "refundId": "probe_refund_id_001"
-    };
-}
-
-function _buildTokenAuthorizeRequest(): types.IPaymentServiceTokenAuthorizeRequest {
-    return {
-        "merchantTransactionId": "probe_tokenized_txn_001",
-        "amount": {
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        },
-        "connectorToken": {"value": "pm_1AbcXyzStripeTestToken"},  // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
-        "address": {
-            "billingAddress": {
-            }
-        },
-        "captureMethod": CaptureMethod.AUTOMATIC,
-        "returnUrl": "https://example.com/return",
-        "connectorOrderId": "connector_order_id"  // Send the connector order identifier here if an order was created before authorize.
-    };
-}
-
-
 // ANCHOR: scenario_functions
 // One-step Payment (Authorize + Capture)
 // Simple payment that authorizes and captures in one call. Use for immediate charges.
@@ -137,14 +24,26 @@ async function processCheckoutAutocapture(merchantTransactionId: string, config:
     const paymentClient = new PaymentClient(config);
 
     // Step 1: Authorize — reserve funds on the payment method
-    const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest(CaptureMethod.AUTOMATIC));
+    const authorizeResponse = await paymentClient.authorize({
+        "merchantTransactionId": "probe_txn_001",
+        "amount": {
+        },
+        "paymentMethod": {
+        },
+        "captureMethod": "AUTOMATIC",
+        "address": {
+        },
+        "authType": "NO_THREE_DS",
+        "returnUrl": "https://example.com/return",
+        "connectorOrderId": "connector_order_id"
+    });
 
     if (authorizeResponse.status === types.PaymentStatus.FAILURE) {
         throw new Error(`Payment failed: ${JSON.stringify(authorizeResponse.error)}`);
     }
     if (authorizeResponse.status === types.PaymentStatus.PENDING) {
         // Awaiting async confirmation — handle via webhook
-        return { status: 'pending', connectorTransactionId: authorizeResponse.connectorTransactionId };
+        return { status: 'pending', transactionId: authorizeResponse.connectorTransactionId } as any;
     }
 
     return { status: authorizeResponse.status, transactionId: authorizeResponse.connectorTransactionId!, error: authorizeResponse.error } as any;
@@ -156,18 +55,37 @@ async function processRefund(merchantTransactionId: string, config: types.IConne
     const paymentClient = new PaymentClient(config);
 
     // Step 1: Authorize — reserve funds on the payment method
-    const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest(CaptureMethod.AUTOMATIC));
+    const authorizeResponse = await paymentClient.authorize({
+        "merchantTransactionId": "probe_txn_001",
+        "amount": {
+        },
+        "paymentMethod": {
+        },
+        "captureMethod": "AUTOMATIC",
+        "address": {
+        },
+        "authType": "NO_THREE_DS",
+        "returnUrl": "https://example.com/return",
+        "connectorOrderId": "connector_order_id"
+    });
 
     if (authorizeResponse.status === types.PaymentStatus.FAILURE) {
         throw new Error(`Payment failed: ${JSON.stringify(authorizeResponse.error)}`);
     }
     if (authorizeResponse.status === types.PaymentStatus.PENDING) {
         // Awaiting async confirmation — handle via webhook
-        return { status: 'pending', connectorTransactionId: authorizeResponse.connectorTransactionId };
+        return { status: 'pending', transactionId: authorizeResponse.connectorTransactionId } as any;
     }
 
     // Step 2: Refund — return funds to the customer
-    const refundResponse = await paymentClient.refund(_buildRefundRequest(authorizeResponse.connectorTransactionId!));
+    const refundResponse = await paymentClient.refund({
+        "merchantRefundId": "probe_refund_001",
+        "connectorTransactionId": authorizeResponse.connectorTransactionId,  // from authorize response
+        "paymentAmount": 1000,
+        "refundAmount": {
+        },
+        "reason": "customer_request"
+    });
 
     if (refundResponse.status === types.RefundStatus.REFUND_FAILURE) {
         throw new Error(`Refund failed: ${JSON.stringify(refundResponse.error)}`);
@@ -182,81 +100,157 @@ async function processGetPayment(merchantTransactionId: string, config: types.IC
     const paymentClient = new PaymentClient(config);
 
     // Step 1: Authorize — reserve funds on the payment method
-    const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest(CaptureMethod.MANUAL));
+    const authorizeResponse = await paymentClient.authorize({
+        "merchantTransactionId": "probe_txn_001",
+        "amount": {
+        },
+        "paymentMethod": {
+        },
+        "captureMethod": "MANUAL",
+        "address": {
+        },
+        "authType": "NO_THREE_DS",
+        "returnUrl": "https://example.com/return",
+        "connectorOrderId": "connector_order_id"
+    });
 
     if (authorizeResponse.status === types.PaymentStatus.FAILURE) {
         throw new Error(`Payment failed: ${JSON.stringify(authorizeResponse.error)}`);
     }
     if (authorizeResponse.status === types.PaymentStatus.PENDING) {
         // Awaiting async confirmation — handle via webhook
-        return { status: 'pending', connectorTransactionId: authorizeResponse.connectorTransactionId };
+        return { status: 'pending', transactionId: authorizeResponse.connectorTransactionId } as any;
     }
 
     // Step 2: Get — retrieve current payment status from the connector
-    const getResponse = await paymentClient.get(_buildGetRequest(authorizeResponse.connectorTransactionId!));
+    const getResponse = await paymentClient.get({
+        "merchantTransactionId": "probe_merchant_txn_001",
+        "connectorTransactionId": authorizeResponse.connectorTransactionId,  // from authorize response
+        "amount": {
+        }
+    });
 
     return { status: getResponse.status, transactionId: getResponse.connectorTransactionId!, error: getResponse.error } as any;
 }
 
-// Flow: PaymentService.Authorize (Card)
+// Flow: PaymentService.authorize (Card)
 async function authorize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
+    // Step 1: Authorize — reserve funds on the payment method
+    const authorizeResponse = await paymentClient.authorize({
+        "merchantTransactionId": "probe_txn_001",
+        "amount": {
+        },
+        "paymentMethod": {
+        },
+        "captureMethod": "AUTOMATIC",
+        "address": {
+        },
+        "authType": "NO_THREE_DS",
+        "returnUrl": "https://example.com/return",
+        "connectorOrderId": "connector_order_id"
+    });
 
-    const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest(CaptureMethod.AUTOMATIC));
+    if (authorizeResponse.status === types.PaymentStatus.FAILURE) {
+        throw new Error(`Payment failed: ${JSON.stringify(authorizeResponse.error)}`);
+    }
+    if (authorizeResponse.status === types.PaymentStatus.PENDING) {
+        // Awaiting async confirmation — handle via webhook
+        return { status: 'pending', transactionId: authorizeResponse.connectorTransactionId } as any;
+    }
 
     return authorizeResponse;
 }
 
-// Flow: PaymentService.CreateOrder
+// Flow: PaymentService.create_order
 async function createOrder(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
-
-    const createResponse = await paymentClient.createOrder(_buildCreateOrderRequest());
+    // Step 1: create_order
+    const createResponse = await paymentClient.createOrder({
+        "merchantOrderId": "probe_order_001",
+        "amount": {
+        }
+    });
 
     return createResponse;
 }
 
-// Flow: PaymentService.Get
+// Flow: PaymentService.get
 async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
-
-    const getResponse = await paymentClient.get(_buildGetRequest('probe_connector_txn_001'));
+    // Step 1: Get — retrieve current payment status from the connector
+    const getResponse = await paymentClient.get({
+        "merchantTransactionId": "probe_merchant_txn_001",
+        "connectorTransactionId": "probe_connector_txn_001",
+        "amount": {
+        }
+    });
 
     return getResponse;
 }
 
-// Flow: PaymentService.ProxyAuthorize
+// Flow: PaymentService.proxy_authorize
 async function proxyAuthorize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
-
-    const proxyResponse = await paymentClient.proxyAuthorize(_buildProxyAuthorizeRequest());
+    // Step 1: proxy_authorize
+    const proxyResponse = await paymentClient.proxyAuthorize({
+        "merchantTransactionId": "probe_proxy_txn_001",
+        "amount": {
+        },
+        "cardProxy": {
+        },
+        "address": {
+        },
+        "captureMethod": "AUTOMATIC",
+        "authType": "NO_THREE_DS",
+        "returnUrl": "https://example.com/return",
+        "connectorOrderId": "connector_order_id"
+    });
 
     return proxyResponse;
 }
 
-// Flow: PaymentService.Refund
+// Flow: PaymentService.refund
 async function refund(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
+    // Step 1: Refund — return funds to the customer
+    const refundResponse = await paymentClient.refund({
+        "merchantRefundId": "probe_refund_001",
+        "connectorTransactionId": "probe_connector_txn_001",
+        "paymentAmount": 1000,
+        "refundAmount": {
+        },
+        "reason": "customer_request"
+    });
 
-    const refundResponse = await paymentClient.refund(_buildRefundRequest('probe_connector_txn_001'));
+    if (refundResponse.status === types.RefundStatus.REFUND_FAILURE) {
+        throw new Error(`Refund failed: ${JSON.stringify(refundResponse.error)}`);
+    }
 
     return refundResponse;
 }
 
-// Flow: RefundService.Get
+// Flow: PaymentService.refund_get
 async function refundGet(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const refundClient = new RefundClient(config);
-
-    const refundResponse = await refundClient.refundGet(_buildRefundGetRequest());
+    // Step 1: refund_get
+    const refundResponse = await paymentClient.refundGet({
+        "merchantRefundId": "probe_refund_001",
+        "connectorTransactionId": "probe_connector_txn_001",
+        "refundId": "probe_refund_id_001"
+    });
 
     return refundResponse;
 }
 
-// Flow: PaymentService.TokenAuthorize
+// Flow: PaymentService.token_authorize
 async function tokenAuthorize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
-
-    const tokenResponse = await paymentClient.tokenAuthorize(_buildTokenAuthorizeRequest());
+    // Step 1: token_authorize
+    const tokenResponse = await paymentClient.tokenAuthorize({
+        "merchantTransactionId": "probe_tokenized_txn_001",
+        "amount": {
+        },
+        "connectorToken": "pm_1AbcXyzStripeTestToken",
+        "address": {
+        },
+        "captureMethod": "AUTOMATIC",
+        "returnUrl": "https://example.com/return",
+        "connectorOrderId": "connector_order_id"
+    });
 
     return tokenResponse;
 }
@@ -264,7 +258,7 @@ async function tokenAuthorize(merchantTransactionId: string, config: types.IConn
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processRefund, processGetPayment, authorize, createOrder, get, proxyAuthorize, refund, refundGet, tokenAuthorize, _buildAuthorizeRequest, _buildCreateOrderRequest, _buildGetRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest
+    processCheckoutAutocapture, processRefund, processGetPayment, authorize, createOrder, get, proxyAuthorize, refund, refundGet, tokenAuthorize
 };
 
 // CLI runner

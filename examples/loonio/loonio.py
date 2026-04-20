@@ -14,32 +14,23 @@ SUPPORTED_FLOWS = ["get"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    connector_config=payment_pb2.ConnectorSpecificConfig(
-        loonio=payment_pb2.LoonioConfig(
-            merchant_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ID"),
-            merchant_token=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_TOKEN"),
-            base_url="YOUR_BASE_URL",
-        ),
-    ),
+    # connector_config=payment_pb2.ConnectorSpecificConfig(
+    #     loonio=payment_pb2.LoonioConfig(api_key=...),
+    # ),
 )
 
 
-
-
-def _build_get_request(connector_transaction_id: str):
-    return payment_pb2.PaymentServiceGetRequest(
-        merchant_transaction_id="probe_merchant_txn_001",  # Identification.
-        connector_transaction_id=connector_transaction_id,
-        amount=payment_pb2.Money(  # Amount Information.
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
-        ),
-    )
 async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.Get"""
+    """Flow: PaymentService.get"""
     payment_client = PaymentClient(config)
 
-    get_response = await payment_client.get(_build_get_request("probe_connector_txn_001"))
+    # Step 1: Get — retrieve current payment status from the connector
+    get_response = await payment_client.get(payment_pb2.TODO_FIX_MISSING_TYPE_get(
+        merchant_transaction_id="probe_merchant_txn_001",
+        connector_transaction_id="probe_connector_txn_001",
+        minor_amount=1000,
+        currency="USD",
+    ))
 
     return {"status": get_response.status}
 

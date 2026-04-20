@@ -5,9 +5,7 @@
 // Phonepe — all scenarios and flows in one file.
 // Run a scenario:  cargo run --example phonepe -- process_checkout_card
 use grpc_api_types::payments::connector_specific_config;
-use grpc_api_types::payments::payment_method;
 use grpc_api_types::payments::*;
-use hyperswitch_masking::Secret;
 use hyperswitch_payments_client::ConnectorClient;
 use std::collections::HashMap;
 
@@ -18,21 +16,7 @@ pub const SUPPORTED_FLOWS: &[&str] = &["authorize", "get"];
 fn build_client() -> ConnectorClient {
     // Configure the connector with authentication
     let config = ConnectorConfig {
-        connector_config: Some(ConnectorSpecificConfig {
-            config: Some(connector_specific_config::Config::Phonepe(PhonepeConfig {
-                merchant_id: Some(hyperswitch_masking::Secret::new(
-                    "YOUR_MERCHANT_ID".to_string(),
-                )), // Authentication credential
-                salt_key: Some(hyperswitch_masking::Secret::new(
-                    "YOUR_SALT_KEY".to_string(),
-                )), // Authentication credential
-                salt_index: Some(hyperswitch_masking::Secret::new(
-                    "YOUR_SALT_INDEX".to_string(),
-                )), // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
-                ..Default::default()
-            })),
-        }),
+        connector_config: None, // TODO: Add your connector config here,
         options: Some(SdkOptions {
             environment: Environment::Sandbox.into(),
         }),
@@ -40,63 +24,28 @@ fn build_client() -> ConnectorClient {
     ConnectorClient::new(config, None).unwrap()
 }
 
-pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeRequest {
-    PaymentServiceAuthorizeRequest {
-        merchant_transaction_id: Some("probe_txn_001".to_string()), // Identification.
-        amount: Some(Money {
-            // The amount for the payment.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
-        }),
-        payment_method: Some(PaymentMethod {
-            // Payment method to be used.
-            payment_method: Some(payment_method::PaymentMethod::UpiCollect(UpiCollect {
-                vpa_id: Some(Secret::new("test@upi".to_string())), // Virtual Payment Address.
-                ..Default::default()
-            })),
-            ..Default::default()
-        }),
-        capture_method: Some(
-            CaptureMethod::from_str_name(capture_method)
-                .unwrap_or_default()
-                .into(),
-        ), // Method for capturing the payment.
-        address: Some(PaymentAddress {
-            // Address Information.
-            billing_address: Some(Address {
-                ..Default::default()
-            }),
-            ..Default::default()
-        }),
-        auth_type: AuthenticationType::NoThreeDs.into(), // Authentication Details.
-        return_url: Some("https://example.com/return".to_string()), // URLs for Redirection and Webhooks.
-        webhook_url: Some("https://example.com/webhook".to_string()),
-        ..Default::default()
-    }
-}
-
-pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetRequest {
-    PaymentServiceGetRequest {
-        merchant_transaction_id: Some("probe_merchant_txn_001".to_string()), // Identification.
-        connector_transaction_id: connector_transaction_id.to_string(),
-        amount: Some(Money {
-            // Amount Information.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
-        }),
-        connector_order_reference_id: Some("probe_order_ref_001".to_string()), // Connector Reference Id.
-        ..Default::default()
-    }
-}
-
-// Flow: PaymentService.Authorize (UpiCollect)
+// Flow: PaymentService.authorize (UpiCollect)
 #[allow(dead_code)]
 pub async fn process_authorize(
     client: &ConnectorClient,
     _merchant_transaction_id: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let response = client
-        .authorize(build_authorize_request("AUTOMATIC"), &HashMap::new(), None)
+        .authorize(
+            TODO_FIX_MISSING_TYPE_authorize {
+                merchant_transaction_id: "probe_txn_001".to_string(),
+                // amount: {"minor_amount": 1000, "currency": "USD"}
+                // payment_method: {"upi_collect": {"vpa_id": "test@upi"}}
+                capture_method: "AUTOMATIC".to_string(),
+                // address: {"billing_address": {}}
+                auth_type: "NO_THREE_DS".to_string(),
+                return_url: "https://example.com/return".to_string(),
+                webhook_url: "https://example.com/webhook".to_string(),
+                ..Default::default()
+            },
+            &HashMap::new(),
+            None,
+        )
         .await?;
     match response.status() {
         PaymentStatus::Failure | PaymentStatus::AuthorizationFailed => {
@@ -110,7 +59,7 @@ pub async fn process_authorize(
     }
 }
 
-// Flow: PaymentService.Get
+// Flow: PaymentService.get
 #[allow(dead_code)]
 pub async fn process_get(
     client: &ConnectorClient,
@@ -118,7 +67,13 @@ pub async fn process_get(
 ) -> Result<String, Box<dyn std::error::Error>> {
     let response = client
         .get(
-            build_get_request("probe_connector_txn_001"),
+            TODO_FIX_MISSING_TYPE_get {
+                merchant_transaction_id: "probe_merchant_txn_001".to_string(),
+                connector_transaction_id: "probe_connector_txn_001".to_string(),
+                // amount: {"minor_amount": 1000, "currency": "USD"}
+                connector_order_reference_id: "probe_order_ref_001".to_string(),
+                ..Default::default()
+            },
             &HashMap::new(),
             None,
         )

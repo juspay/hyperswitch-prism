@@ -22,11 +22,9 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    connector_config=payment_pb2.ConnectorSpecificConfig(
-        cashtocode=payment_pb2.CashtocodeConfig(
-            base_url="YOUR_BASE_URL",
-        ),
-    ),
+    # connector_config=payment_pb2.ConnectorSpecificConfig(
+    #     cashtocode=payment_pb2.CashtocodeConfig(api_key=...),
+    # ),
 )
 
 ```
@@ -45,11 +43,7 @@ const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism')
 const config = ConnectorConfig.create({
     connector: Connector.CASHTOCODE,
     environment: Environment.SANDBOX,
-    auth: {
-        cashtocode: {
-            baseUrl: 'YOUR_BASE_URL',
-        }
-    },
+    // auth: { cashtocode: { apiKey: { value: 'YOUR_API_KEY' } } },
 });
 ```
 
@@ -63,13 +57,7 @@ const config = ConnectorConfig.create({
 ```kotlin
 val config = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    .setConnectorConfig(
-        ConnectorSpecificConfig.newBuilder()
-            .setCashtocode(CashtocodeConfig.newBuilder()
-                .setBaseUrl("YOUR_BASE_URL")
-                .build())
-            .build()
-    )
+    // .setConnectorConfig(...) — set your Cashtocode credentials here
     .build()
 ```
 
@@ -85,12 +73,7 @@ use grpc_api_types::payments::*;
 use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector_config: Some(ConnectorSpecificConfig {
-            config: Some(connector_specific_config::Config::Cashtocode(CashtocodeConfig {
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                ..Default::default()
-            })),
-        }),
+    connector_config: None,  // TODO: Add your connector config here,
     options: Some(SdkOptions {
         environment: Environment::Sandbox.into(),
     }),
@@ -107,11 +90,15 @@ let config = ConnectorConfig {
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
+| [handle_event](#handle_event) | Other | `—` |
 | [parse_event](#parse_event) | Other | `—` |
 
 ### Other
 
+#### handle_event
+
+**Examples:** [Python](../../examples/cashtocode/cashtocode.py) · [TypeScript](../../examples/cashtocode/cashtocode.ts#L22) · [Kotlin](../../examples/cashtocode/cashtocode.kt) · [Rust](../../examples/cashtocode/cashtocode.rs)
+
 #### parse_event
 
-**Examples:** [Python](../../examples/cashtocode/cashtocode.py#L41) · [TypeScript](../../examples/cashtocode/cashtocode.ts#L39) · [Kotlin](../../examples/cashtocode/cashtocode.kt) · [Rust](../../examples/cashtocode/cashtocode.rs#L40)
+**Examples:** [Python](../../examples/cashtocode/cashtocode.py) · [TypeScript](../../examples/cashtocode/cashtocode.ts#L34) · [Kotlin](../../examples/cashtocode/cashtocode.kt) · [Rust](../../examples/cashtocode/cashtocode.rs)

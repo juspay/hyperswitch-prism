@@ -5,74 +5,59 @@
 // Cryptopay — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx cryptopay.ts checkout_autocapture
 
-import { PaymentClient, EventClient, types } from 'hyperswitch-prism';
-const { Environment, Currency } = types;
-export const SUPPORTED_FLOWS = ["get"];
+import { PaymentClient, types } from 'hyperswitch-prism';
+const { Environment } = types;
+export const SUPPORTED_FLOWS = ["get", "parse_event"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
-    connectorConfig: {
-        cryptopay: {
-            apiKey: { value: 'YOUR_API_KEY' },
-            apiSecret: { value: 'YOUR_API_SECRET' },
-            baseUrl: 'YOUR_BASE_URL',
-        }
-    },
+    // connectorConfig: { cryptopay: { apiKey: { value: 'YOUR_API_KEY' } } },
 };
 
 
-function _buildGetRequest(connectorTransactionId: string): types.IPaymentServiceGetRequest {
-    return {
-        "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
-        "connectorTransactionId": connectorTransactionId,
-        "amount": {  // Amount Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-    };
-}
-
-function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
-    return {
-    };
-}
-
-
 // ANCHOR: scenario_functions
-// Flow: PaymentService.Get
+// Flow: PaymentService.get
 async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
-
-    const getResponse = await paymentClient.get(_buildGetRequest('probe_connector_txn_001'));
+    // Step 1: Get — retrieve current payment status from the connector
+    const getResponse = await paymentClient.get({
+        "merchantTransactionId": "probe_merchant_txn_001",
+        "connectorTransactionId": "probe_connector_txn_001",
+        "amount": {
+        }
+    });
 
     return getResponse;
 }
 
-// Flow: EventService.HandleEvent
+// Flow: PaymentService.handle_event
 async function handleEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const eventClient = new EventClient(config);
-
-    const handleResponse = await eventClient.handleEvent(_buildHandleEventRequest());
+    // Step 1: handle_event
+    const handleResponse = await paymentClient.handleEvent({
+        "merchantEventId": "probe_event_001",
+        "requestDetails": {
+        }
+    });
 
     return handleResponse;
 }
 
 // Flow: PaymentService.parse_event
-async function parseEvent(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<any> {
+async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     // Step 1: parse_event
     const parseResponse = await paymentClient.parseEvent({
-        // No required fields
+        "requestDetails": {
+        }
     });
 
-    return { status: parseResponse.status };
+    return parseResponse;
 }
 
 
 // Export all process* functions for the smoke test
 export {
-    get, handleEvent, parseEvent, _buildGetRequest, _buildHandleEventRequest
+    get, handleEvent, parseEvent
 };
 
 // CLI runner

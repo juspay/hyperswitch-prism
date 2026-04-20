@@ -22,11 +22,10 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    # connector_config=payment_pb2.ConnectorSpecificConfig(
+    #     calida=payment_pb2.CalidaConfig(api_key=...),
+    # ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     calida=payment_pb2.CalidaConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,15 +37,13 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Calida',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
-    },
+const config = ConnectorConfig.create({
+    connector: Connector.CALIDA,
+    environment: Environment.SANDBOX,
+    // auth: { calida: { apiKey: { value: 'YOUR_API_KEY' } } },
 });
 ```
 
@@ -59,12 +56,8 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Calida")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
-    )
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    // .setConnectorConfig(...) — set your Calida credentials here
     .build()
 ```
 
@@ -76,13 +69,14 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Calida".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: None,  // TODO: Add your connector config here,
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -96,25 +90,20 @@ let config = ConnectorConfig {
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
-| [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
+| [get](#get) | Other | `—` |
+| [handle_event](#handle_event) | Other | `—` |
 | [parse_event](#parse_event) | Other | `—` |
-
-### Payments
-
-#### PaymentService.Get
-
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
-
-**Examples:** [Python](../../examples/calida/calida.py#L45) · [TypeScript](../../examples/calida/calida.ts#L41) · [Kotlin](../../examples/calida/calida.kt#L38) · [Rust](../../examples/calida/calida.rs#L44)
 
 ### Other
 
+#### get
+
+**Examples:** [Python](../../examples/calida/calida.py) · [TypeScript](../../examples/calida/calida.ts#L22) · [Kotlin](../../examples/calida/calida.kt) · [Rust](../../examples/calida/calida.rs)
+
+#### handle_event
+
+**Examples:** [Python](../../examples/calida/calida.py) · [TypeScript](../../examples/calida/calida.ts#L35) · [Kotlin](../../examples/calida/calida.kt) · [Rust](../../examples/calida/calida.rs)
+
 #### parse_event
 
-**Examples:** [Python](../../examples/calida/calida.py#L63) · [TypeScript](../../examples/calida/calida.ts#L59) · [Kotlin](../../examples/calida/calida.kt) · [Rust](../../examples/calida/calida.rs#L58)
+**Examples:** [Python](../../examples/calida/calida.py) · [TypeScript](../../examples/calida/calida.ts#L47) · [Kotlin](../../examples/calida/calida.kt) · [Rust](../../examples/calida/calida.rs)

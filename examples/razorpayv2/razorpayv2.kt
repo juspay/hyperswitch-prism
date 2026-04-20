@@ -10,10 +10,6 @@ package examples.razorpayv2
 import types.Payment.*
 import types.PaymentMethods.*
 import payments.PaymentClient
-import payments.RefundClient
-import payments.AuthenticationType
-import payments.CaptureMethod
-import payments.Currency
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
@@ -27,65 +23,26 @@ val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .build()
 
 
-
-private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAuthorizeRequest {
-    return PaymentServiceAuthorizeRequest.newBuilder().apply {
-        merchantTransactionId = "probe_txn_001"  // Identification.
-        amountBuilder.apply {  // The amount for the payment.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-        paymentMethodBuilder.apply {  // Payment method to be used.
-            cardBuilder.apply {  // Generic card payment.
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
-            }
-        }
-        captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment.
-        addressBuilder.apply {  // Address Information.
-            billingAddressBuilder.apply {
-            }
-        }
-        authType = AuthenticationType.NO_THREE_DS  // Authentication Details.
-        returnUrl = "https://example.com/return"  // URLs for Redirection and Webhooks.
-        connectorOrderId = "connector_order_id"  // Send the connector order identifier here if an order was created before authorize.
-    }.build()
-}
-
-private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGetRequest {
-    return PaymentServiceGetRequest.newBuilder().apply {
-        merchantTransactionId = "probe_merchant_txn_001"  // Identification.
-        connectorTransactionId = connectorTransactionIdStr
-        amountBuilder.apply {  // Amount Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-    }.build()
-}
-
-private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServiceRefundRequest {
-    return PaymentServiceRefundRequest.newBuilder().apply {
-        merchantRefundId = "probe_refund_001"  // Identification.
-        connectorTransactionId = connectorTransactionIdStr
-        paymentAmount = 1000L  // Amount Information.
-        refundAmountBuilder.apply {
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-        reason = "customer_request"  // Reason for the refund.
-    }.build()
-}
-
 // Scenario: One-step Payment (Authorize + Capture)
 // Simple payment that authorizes and captures in one call. Use for immediate charges.
 fun processCheckoutAutocapture(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
     val paymentClient = PaymentClient(config)
 
     // Step 1: Authorize — reserve funds on the payment method
-    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("AUTOMATIC"))
+    val authorizeResponse = paymentClient.authorize(.newBuilder().apply {
+        merchantTransactionId = "probe_txn_001"
+        minorAmount = 1000L
+        currency = "USD"
+        cardNumber = "4111111111111111"
+        cardExpMonth = "03"
+        cardExpYear = "2030"
+        cardCvc = "737"
+        cardHolderName = "John Doe"
+        captureMethod = "AUTOMATIC"
+        authType = "NO_THREE_DS"
+        returnUrl = "https://example.com/return"
+        connectorOrderId = "connector_order_id"
+    }.build())
 
     when (authorizeResponse.status.name) {
         "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
@@ -101,7 +58,20 @@ fun processRefund(txnId: String, config: ConnectorConfig = _defaultConfig): Map<
     val paymentClient = PaymentClient(config)
 
     // Step 1: Authorize — reserve funds on the payment method
-    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("AUTOMATIC"))
+    val authorizeResponse = paymentClient.authorize(.newBuilder().apply {
+        merchantTransactionId = "probe_txn_001"
+        minorAmount = 1000L
+        currency = "USD"
+        cardNumber = "4111111111111111"
+        cardExpMonth = "03"
+        cardExpYear = "2030"
+        cardCvc = "737"
+        cardHolderName = "John Doe"
+        captureMethod = "AUTOMATIC"
+        authType = "NO_THREE_DS"
+        returnUrl = "https://example.com/return"
+        connectorOrderId = "connector_order_id"
+    }.build())
 
     when (authorizeResponse.status.name) {
         "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
@@ -109,7 +79,14 @@ fun processRefund(txnId: String, config: ConnectorConfig = _defaultConfig): Map<
     }
 
     // Step 2: Refund — return funds to the customer
-    val refundResponse = paymentClient.refund(buildRefundRequest(authorizeResponse.connectorTransactionId ?: ""))
+    val refundResponse = paymentClient.refund(.newBuilder().apply {
+        merchantRefundId = "probe_refund_001"
+        paymentAmount = 1000L
+        minorAmount = 1000L
+        currency = "USD"
+        reason = "customer_request"
+        connectorTransactionId = authorizeResponse.connectorTransactionId  // from Authorize
+    }.build())
 
     if (refundResponse.status.name == "FAILED")
         throw RuntimeException("Refund failed: ${refundResponse.error.unifiedDetails.message}")
@@ -123,7 +100,20 @@ fun processGetPayment(txnId: String, config: ConnectorConfig = _defaultConfig): 
     val paymentClient = PaymentClient(config)
 
     // Step 1: Authorize — reserve funds on the payment method
-    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("MANUAL"))
+    val authorizeResponse = paymentClient.authorize(.newBuilder().apply {
+        merchantTransactionId = "probe_txn_001"
+        minorAmount = 1000L
+        currency = "USD"
+        cardNumber = "4111111111111111"
+        cardExpMonth = "03"
+        cardExpYear = "2030"
+        cardCvc = "737"
+        cardHolderName = "John Doe"
+        captureMethod = "MANUAL"
+        authType = "NO_THREE_DS"
+        returnUrl = "https://example.com/return"
+        connectorOrderId = "connector_order_id"
+    }.build())
 
     when (authorizeResponse.status.name) {
         "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
@@ -131,116 +121,14 @@ fun processGetPayment(txnId: String, config: ConnectorConfig = _defaultConfig): 
     }
 
     // Step 2: Get — retrieve current payment status from the connector
-    val getResponse = paymentClient.get(buildGetRequest(authorizeResponse.connectorTransactionId ?: ""))
+    val getResponse = paymentClient.get(.newBuilder().apply {
+        merchantTransactionId = "probe_merchant_txn_001"
+        minorAmount = 1000L
+        currency = "USD"
+        connectorTransactionId = authorizeResponse.connectorTransactionId  // from Authorize
+    }.build())
 
     return mapOf("status" to getResponse.status.name, "transactionId" to getResponse.connectorTransactionId, "error" to getResponse.error)
-}
-
-// Flow: PaymentService.Authorize (Card)
-fun authorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentClient(config)
-    val request = buildAuthorizeRequest("AUTOMATIC")
-    val response = client.authorize(request)
-    when (response.status.name) {
-        "FAILED"  -> throw RuntimeException("Authorize failed: ${response.error.unifiedDetails.message}")
-        "PENDING" -> println("Pending — await webhook before proceeding")
-        else      -> println("Authorized: ${response.connectorTransactionId}")
-    }
-}
-
-// Flow: PaymentService.CreateOrder
-fun createOrder(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentClient(config)
-    val request = PaymentServiceCreateOrderRequest.newBuilder().apply {
-        merchantOrderId = "probe_order_001"  // Identification.
-        amountBuilder.apply {  // Amount Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-    }.build()
-    val response = client.create_order(request)
-    println("Order: ${response.connectorOrderId}")
-}
-
-// Flow: PaymentService.Get
-fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentClient(config)
-    val request = buildGetRequest("probe_connector_txn_001")
-    val response = client.get(request)
-    println("Status: ${response.status.name}")
-}
-
-// Flow: PaymentService.ProxyAuthorize
-fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentClient(config)
-    val request = PaymentServiceProxyAuthorizeRequest.newBuilder().apply {
-        merchantTransactionId = "probe_proxy_txn_001"
-        amountBuilder.apply {
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-        cardProxyBuilder.apply {  // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
-            cardNumberBuilder.value = "4111111111111111"  // Card Identification.
-            cardExpMonthBuilder.value = "03"
-            cardExpYearBuilder.value = "2030"
-            cardCvcBuilder.value = "123"
-            cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
-        }
-        addressBuilder.apply {
-            billingAddressBuilder.apply {
-            }
-        }
-        captureMethod = CaptureMethod.AUTOMATIC
-        authType = AuthenticationType.NO_THREE_DS
-        returnUrl = "https://example.com/return"
-        connectorOrderId = "connector_order_id"  // Send the connector order identifier here if an order was created before authorize.
-    }.build()
-    val response = client.proxy_authorize(request)
-    println("Status: ${response.status.name}")
-}
-
-// Flow: PaymentService.Refund
-fun refund(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentClient(config)
-    val request = buildRefundRequest("probe_connector_txn_001")
-    val response = client.refund(request)
-    if (response.status.name == "FAILED")
-        throw RuntimeException("Refund failed: ${response.error.unifiedDetails.message}")
-    println("Done: ${response.status.name}")
-}
-
-// Flow: RefundService.Get
-fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = RefundClient(config)
-    val request = RefundServiceGetRequest.newBuilder().apply {
-        merchantRefundId = "probe_refund_001"  // Identification.
-        connectorTransactionId = "probe_connector_txn_001"
-        refundId = "probe_refund_id_001"
-    }.build()
-    val response = client.refund_get(request)
-    println("Status: ${response.status.name}")
-}
-
-// Flow: PaymentService.TokenAuthorize
-fun tokenAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentClient(config)
-    val request = PaymentServiceTokenAuthorizeRequest.newBuilder().apply {
-        merchantTransactionId = "probe_tokenized_txn_001"
-        amountBuilder.apply {
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-        connectorTokenBuilder.value = "pm_1AbcXyzStripeTestToken"  // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
-        addressBuilder.apply {
-            billingAddressBuilder.apply {
-            }
-        }
-        captureMethod = CaptureMethod.AUTOMATIC
-        returnUrl = "https://example.com/return"
-        connectorOrderId = "connector_order_id"  // Send the connector order identifier here if an order was created before authorize.
-    }.build()
-    val response = client.token_authorize(request)
-    println("Status: ${response.status.name}")
 }
 
 
@@ -251,13 +139,6 @@ fun main(args: Array<String>) {
         "processCheckoutAutocapture" -> processCheckoutAutocapture(txnId)
         "processRefund" -> processRefund(txnId)
         "processGetPayment" -> processGetPayment(txnId)
-        "authorize" -> authorize(txnId)
-        "createOrder" -> createOrder(txnId)
-        "get" -> get(txnId)
-        "proxyAuthorize" -> proxyAuthorize(txnId)
-        "refund" -> refund(txnId)
-        "refundGet" -> refundGet(txnId)
-        "tokenAuthorize" -> tokenAuthorize(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processRefund, processGetPayment, authorize, createOrder, get, proxyAuthorize, refund, refundGet, tokenAuthorize")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processRefund, processGetPayment")
     }
 }

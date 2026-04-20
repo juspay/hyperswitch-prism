@@ -7,33 +7,27 @@
 
 import asyncio
 import sys
-from payments import MerchantAuthenticationClient
+from payments import PaymentClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 SUPPORTED_FLOWS = ["create_server_authentication_token"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    connector_config=payment_pb2.ConnectorSpecificConfig(
-        itaubank=payment_pb2.ItaubankConfig(
-            client_secret=payment_methods_pb2.SecretString(value="YOUR_CLIENT_SECRET"),
-            client_id=payment_methods_pb2.SecretString(value="YOUR_CLIENT_ID"),
-            base_url="YOUR_BASE_URL",
-        ),
-    ),
+    # connector_config=payment_pb2.ConnectorSpecificConfig(
+    #     itaubank=payment_pb2.ItaubankConfig(api_key=...),
+    # ),
 )
 
 
-
-
-def _build_create_server_authentication_token_request():
-    return payment_pb2.MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest(
-    )
 async def process_create_server_authentication_token(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: MerchantAuthenticationService.CreateServerAuthenticationToken"""
-    merchantauthentication_client = MerchantAuthenticationClient(config)
+    """Flow: PaymentService.create_server_authentication_token"""
+    payment_client = PaymentClient(config)
 
-    create_response = await merchantauthentication_client.create_server_authentication_token(_build_create_server_authentication_token_request())
+    # Step 1: create_server_authentication_token
+    create_response = await payment_client.create_server_authentication_token(payment_pb2.TODO_FIX_MISSING_TYPE_create_server_authentication_token(
+        # No required fields
+    ))
 
     return {"status": create_response.status}
 

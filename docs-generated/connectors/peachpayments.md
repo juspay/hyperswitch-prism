@@ -22,11 +22,10 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    # connector_config=payment_pb2.ConnectorSpecificConfig(
+    #     peachpayments=payment_pb2.PeachpaymentsConfig(api_key=...),
+    # ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     peachpayments=payment_pb2.PeachpaymentsConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,15 +37,13 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Peachpayments',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
-    },
+const config = ConnectorConfig.create({
+    connector: Connector.PEACHPAYMENTS,
+    environment: Environment.SANDBOX,
+    // auth: { peachpayments: { apiKey: { value: 'YOUR_API_KEY' } } },
 });
 ```
 
@@ -59,12 +56,8 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Peachpayments")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
-    )
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    // .setConnectorConfig(...) — set your Peachpayments credentials here
     .build()
 ```
 
@@ -76,13 +69,14 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Peachpayments".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: None,  // TODO: Add your connector config here,
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -108,7 +102,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/peachpayments/peachpayments.py#L151) · [JavaScript](../../examples/peachpayments/peachpayments.js) · [Kotlin](../../examples/peachpayments/peachpayments.kt#L109) · [Rust](../../examples/peachpayments/peachpayments.rs#L141)
+**Examples:** [Python](../../examples/peachpayments/peachpayments.py#L23) · [JavaScript](../../examples/peachpayments/peachpayments.js) · [Kotlin](../../examples/peachpayments/peachpayments.kt#L28) · [Rust](../../examples/peachpayments/peachpayments.rs#L30)
 
 ### Card Payment (Authorize + Capture)
 
@@ -122,50 +116,43 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/peachpayments/peachpayments.py#L170) · [JavaScript](../../examples/peachpayments/peachpayments.js) · [Kotlin](../../examples/peachpayments/peachpayments.kt#L125) · [Rust](../../examples/peachpayments/peachpayments.rs#L157)
+**Examples:** [Python](../../examples/peachpayments/peachpayments.py#L54) · [JavaScript](../../examples/peachpayments/peachpayments.js) · [Kotlin](../../examples/peachpayments/peachpayments.kt#L56) · [Rust](../../examples/peachpayments/peachpayments.rs#L55)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/peachpayments/peachpayments.py#L195) · [JavaScript](../../examples/peachpayments/peachpayments.js) · [Kotlin](../../examples/peachpayments/peachpayments.kt#L147) · [Rust](../../examples/peachpayments/peachpayments.rs#L180)
+**Examples:** [Python](../../examples/peachpayments/peachpayments.py#L96) · [JavaScript](../../examples/peachpayments/peachpayments.js) · [Kotlin](../../examples/peachpayments/peachpayments.kt#L95) · [Rust](../../examples/peachpayments/peachpayments.rs#L92)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/peachpayments/peachpayments.py#L220) · [JavaScript](../../examples/peachpayments/peachpayments.js) · [Kotlin](../../examples/peachpayments/peachpayments.kt#L169) · [Rust](../../examples/peachpayments/peachpayments.rs#L203)
+**Examples:** [Python](../../examples/peachpayments/peachpayments.py#L140) · [JavaScript](../../examples/peachpayments/peachpayments.js) · [Kotlin](../../examples/peachpayments/peachpayments.kt#L136) · [Rust](../../examples/peachpayments/peachpayments.rs#L131)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/peachpayments/peachpayments.py#L242) · [JavaScript](../../examples/peachpayments/peachpayments.js) · [Kotlin](../../examples/peachpayments/peachpayments.kt#L188) · [Rust](../../examples/peachpayments/peachpayments.rs#L222)
+**Examples:** [Python](../../examples/peachpayments/peachpayments.py#L179) · [JavaScript](../../examples/peachpayments/peachpayments.js) · [Kotlin](../../examples/peachpayments/peachpayments.kt#L172) · [Rust](../../examples/peachpayments/peachpayments.rs#L164)
 
 ## API Reference
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
-| [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
-| [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
+| [authorize](#authorize) | Other | `—` |
+| [capture](#capture) | Other | `—` |
+| [get](#get) | Other | `—` |
+| [handle_event](#handle_event) | Other | `—` |
 | [parse_event](#parse_event) | Other | `—` |
-| [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
-| [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
-| [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
-| [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
+| [proxy_authorize](#proxy_authorize) | Other | `—` |
+| [refund](#refund) | Other | `—` |
+| [refund_get](#refund_get) | Other | `—` |
+| [void](#void) | Other | `—` |
 
-### Payments
+### Other
 
-#### PaymentService.Authorize
-
-Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceAuthorizeRequest` |
-| **Response** | `PaymentServiceAuthorizeResponse` |
+#### authorize
 
 **Supported payment method types:**
 
@@ -269,88 +256,46 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "card": {  # Generic card payment.
-        "card_number": {"value": "4111111111111111"},  # Card Identification.
-        "card_exp_month": {"value": "03"},
-        "card_exp_year": {"value": "2030"},
-        "card_cvc": {"value": "737"},
-        "card_holder_name": {"value": "John Doe"}  # Cardholder Information.
-    }
+  "card": {
+    "card_number": "4111111111111111",
+    "card_exp_month": "03",
+    "card_exp_year": "2030",
+    "card_cvc": "737",
+    "card_holder_name": "John Doe"
+  }
 }
 ```
 
-**Examples:** [Python](../../examples/peachpayments/peachpayments.py#L264) · [TypeScript](../../examples/peachpayments/peachpayments.ts#L249) · [Kotlin](../../examples/peachpayments/peachpayments.kt#L206) · [Rust](../../examples/peachpayments/peachpayments.rs#L240)
+**Examples:** [Python](../../examples/peachpayments/peachpayments.py) · [TypeScript](../../examples/peachpayments/peachpayments.ts#L214) · [Kotlin](../../examples/peachpayments/peachpayments.kt) · [Rust](../../examples/peachpayments/peachpayments.rs)
 
-#### PaymentService.Capture
+#### capture
 
-Finalize an authorized payment by transferring funds. Captures the authorized amount to complete the transaction and move funds to your merchant account.
+**Examples:** [Python](../../examples/peachpayments/peachpayments.py) · [TypeScript](../../examples/peachpayments/peachpayments.ts#L241) · [Kotlin](../../examples/peachpayments/peachpayments.kt) · [Rust](../../examples/peachpayments/peachpayments.rs)
 
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceCaptureRequest` |
-| **Response** | `PaymentServiceCaptureResponse` |
+#### get
 
-**Examples:** [Python](../../examples/peachpayments/peachpayments.py#L273) · [TypeScript](../../examples/peachpayments/peachpayments.ts#L258) · [Kotlin](../../examples/peachpayments/peachpayments.kt#L218) · [Rust](../../examples/peachpayments/peachpayments.rs#L252)
+**Examples:** [Python](../../examples/peachpayments/peachpayments.py) · [TypeScript](../../examples/peachpayments/peachpayments.ts#L258) · [Kotlin](../../examples/peachpayments/peachpayments.kt) · [Rust](../../examples/peachpayments/peachpayments.rs)
 
-#### PaymentService.Get
+#### handle_event
 
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
-
-**Examples:** [Python](../../examples/peachpayments/peachpayments.py#L282) · [TypeScript](../../examples/peachpayments/peachpayments.ts#L267) · [Kotlin](../../examples/peachpayments/peachpayments.kt#L228) · [Rust](../../examples/peachpayments/peachpayments.rs#L259)
-
-#### PaymentService.ProxyAuthorize
-
-Authorize using vault-aliased card data. Proxy substitutes before connector.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceProxyAuthorizeRequest` |
-| **Response** | `PaymentServiceAuthorizeResponse` |
-
-**Examples:** [Python](../../examples/peachpayments/peachpayments.py#L314) · [TypeScript](../../examples/peachpayments/peachpayments.ts#L295) · [Kotlin](../../examples/peachpayments/peachpayments.kt#L246) · [Rust](../../examples/peachpayments/peachpayments.rs#L282)
-
-#### PaymentService.Refund
-
-Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceRefundRequest` |
-| **Response** | `RefundResponse` |
-
-**Examples:** [Python](../../examples/peachpayments/peachpayments.py#L323) · [TypeScript](../../examples/peachpayments/peachpayments.ts#L304) · [Kotlin](../../examples/peachpayments/peachpayments.kt#L274) · [Rust](../../examples/peachpayments/peachpayments.rs#L289)
-
-#### PaymentService.Void
-
-Cancel an authorized payment that has not been captured. Releases held funds back to the customer's payment method when a transaction cannot be completed.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceVoidRequest` |
-| **Response** | `PaymentServiceVoidResponse` |
-
-**Examples:** [Python](../../examples/peachpayments/peachpayments.py#L341) · [TypeScript](../../examples/peachpayments/peachpayments.ts) · [Kotlin](../../examples/peachpayments/peachpayments.kt#L296) · [Rust](../../examples/peachpayments/peachpayments.rs#L303)
-
-### Refunds
-
-#### RefundService.Get
-
-Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
-
-| | Message |
-|---|---------|
-| **Request** | `RefundServiceGetRequest` |
-| **Response** | `RefundResponse` |
-
-**Examples:** [Python](../../examples/peachpayments/peachpayments.py#L332) · [TypeScript](../../examples/peachpayments/peachpayments.ts#L313) · [Kotlin](../../examples/peachpayments/peachpayments.kt#L284) · [Rust](../../examples/peachpayments/peachpayments.rs#L296)
-
-### Other
+**Examples:** [Python](../../examples/peachpayments/peachpayments.py) · [TypeScript](../../examples/peachpayments/peachpayments.ts#L271) · [Kotlin](../../examples/peachpayments/peachpayments.kt) · [Rust](../../examples/peachpayments/peachpayments.rs)
 
 #### parse_event
 
-**Examples:** [Python](../../examples/peachpayments/peachpayments.py#L300) · [TypeScript](../../examples/peachpayments/peachpayments.ts#L285) · [Kotlin](../../examples/peachpayments/peachpayments.kt) · [Rust](../../examples/peachpayments/peachpayments.rs#L273)
+**Examples:** [Python](../../examples/peachpayments/peachpayments.py) · [TypeScript](../../examples/peachpayments/peachpayments.ts#L283) · [Kotlin](../../examples/peachpayments/peachpayments.kt) · [Rust](../../examples/peachpayments/peachpayments.rs)
+
+#### proxy_authorize
+
+**Examples:** [Python](../../examples/peachpayments/peachpayments.py) · [TypeScript](../../examples/peachpayments/peachpayments.ts#L294) · [Kotlin](../../examples/peachpayments/peachpayments.kt) · [Rust](../../examples/peachpayments/peachpayments.rs)
+
+#### refund
+
+**Examples:** [Python](../../examples/peachpayments/peachpayments.py) · [TypeScript](../../examples/peachpayments/peachpayments.ts#L313) · [Kotlin](../../examples/peachpayments/peachpayments.kt) · [Rust](../../examples/peachpayments/peachpayments.rs)
+
+#### refund_get
+
+**Examples:** [Python](../../examples/peachpayments/peachpayments.py) · [TypeScript](../../examples/peachpayments/peachpayments.ts#L332) · [Kotlin](../../examples/peachpayments/peachpayments.kt) · [Rust](../../examples/peachpayments/peachpayments.rs)
+
+#### void
+
+**Examples:** [Python](../../examples/peachpayments/peachpayments.py) · [TypeScript](../../examples/peachpayments/peachpayments.ts) · [Kotlin](../../examples/peachpayments/peachpayments.kt) · [Rust](../../examples/peachpayments/peachpayments.rs)

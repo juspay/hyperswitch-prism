@@ -16,22 +16,7 @@ pub const SUPPORTED_FLOWS: &[&str] = &["get", "refund"];
 fn build_client() -> ConnectorClient {
     // Configure the connector with authentication
     let config = ConnectorConfig {
-        connector_config: Some(ConnectorSpecificConfig {
-            config: Some(connector_specific_config::Config::Gigadat(GigadatConfig {
-                campaign_id: Some(hyperswitch_masking::Secret::new(
-                    "YOUR_CAMPAIGN_ID".to_string(),
-                )), // Authentication credential
-                access_token: Some(hyperswitch_masking::Secret::new(
-                    "YOUR_ACCESS_TOKEN".to_string(),
-                )), // Authentication credential
-                security_token: Some(hyperswitch_masking::Secret::new(
-                    "YOUR_SECURITY_TOKEN".to_string(),
-                )), // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
-                site: Some("https://sandbox.example.com".to_string()),     // Base URL for API calls
-                ..Default::default()
-            })),
-        }),
+        connector_config: None, // TODO: Add your connector config here,
         options: Some(SdkOptions {
             environment: Environment::Sandbox.into(),
         }),
@@ -39,34 +24,7 @@ fn build_client() -> ConnectorClient {
     ConnectorClient::new(config, None).unwrap()
 }
 
-pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetRequest {
-    PaymentServiceGetRequest {
-        merchant_transaction_id: Some("probe_merchant_txn_001".to_string()), // Identification.
-        connector_transaction_id: connector_transaction_id.to_string(),
-        amount: Some(Money {
-            // Amount Information.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
-        }),
-        ..Default::default()
-    }
-}
-
-pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRefundRequest {
-    PaymentServiceRefundRequest {
-        merchant_refund_id: Some("probe_refund_001".to_string()), // Identification.
-        connector_transaction_id: connector_transaction_id.to_string(),
-        payment_amount: 1000, // Amount Information.
-        refund_amount: Some(Money {
-            minor_amount: 1000,             // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
-        }),
-        reason: Some("customer_request".to_string()), // Reason for the refund.
-        ..Default::default()
-    }
-}
-
-// Flow: PaymentService.Get
+// Flow: PaymentService.get
 #[allow(dead_code)]
 pub async fn process_get(
     client: &ConnectorClient,
@@ -74,7 +32,12 @@ pub async fn process_get(
 ) -> Result<String, Box<dyn std::error::Error>> {
     let response = client
         .get(
-            build_get_request("probe_connector_txn_001"),
+            TODO_FIX_MISSING_TYPE_get {
+                merchant_transaction_id: "probe_merchant_txn_001".to_string(),
+                connector_transaction_id: "probe_connector_txn_001".to_string(),
+                // amount: {"minor_amount": 1000, "currency": "USD"}
+                ..Default::default()
+            },
             &HashMap::new(),
             None,
         )
@@ -82,7 +45,7 @@ pub async fn process_get(
     Ok(format!("status: {:?}", response.status()))
 }
 
-// Flow: PaymentService.Refund
+// Flow: PaymentService.refund
 #[allow(dead_code)]
 pub async fn process_refund(
     client: &ConnectorClient,
@@ -90,7 +53,14 @@ pub async fn process_refund(
 ) -> Result<String, Box<dyn std::error::Error>> {
     let response = client
         .refund(
-            build_refund_request("probe_connector_txn_001"),
+            TODO_FIX_MISSING_TYPE_refund {
+                merchant_refund_id: "probe_refund_001".to_string(),
+                connector_transaction_id: "probe_connector_txn_001".to_string(),
+                payment_amount: 1000,
+                // refund_amount: {"minor_amount": 1000, "currency": "USD"}
+                reason: "customer_request".to_string(),
+                ..Default::default()
+            },
             &HashMap::new(),
             None,
         )

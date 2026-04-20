@@ -22,11 +22,10 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    # connector_config=payment_pb2.ConnectorSpecificConfig(
+    #     truelayer=payment_pb2.TruelayerConfig(api_key=...),
+    # ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     truelayer=payment_pb2.TruelayerConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,15 +37,13 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Truelayer',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
-    },
+const config = ConnectorConfig.create({
+    connector: Connector.TRUELAYER,
+    environment: Environment.SANDBOX,
+    // auth: { truelayer: { apiKey: { value: 'YOUR_API_KEY' } } },
 });
 ```
 
@@ -59,12 +56,8 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Truelayer")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
-    )
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    // .setConnectorConfig(...) — set your Truelayer credentials here
     .build()
 ```
 
@@ -76,13 +69,14 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Truelayer".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: None,  // TODO: Add your connector config here,
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -96,53 +90,30 @@ let config = ConnectorConfig {
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [MerchantAuthenticationService.CreateServerAuthenticationToken](#merchantauthenticationservicecreateserverauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
-| [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
+| [create_server_authentication_token](#create_server_authentication_token) | Other | `—` |
+| [get](#get) | Other | `—` |
+| [handle_event](#handle_event) | Other | `—` |
 | [parse_event](#parse_event) | Other | `—` |
-| [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
-
-### Payments
-
-#### PaymentService.Get
-
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
-
-**Examples:** [Python](../../examples/truelayer/truelayer.py#L87) · [TypeScript](../../examples/truelayer/truelayer.ts#L77) · [Kotlin](../../examples/truelayer/truelayer.kt#L59) · [Rust](../../examples/truelayer/truelayer.rs#L79)
-
-### Refunds
-
-#### RefundService.Get
-
-Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
-
-| | Message |
-|---|---------|
-| **Request** | `RefundServiceGetRequest` |
-| **Response** | `RefundResponse` |
-
-**Examples:** [Python](../../examples/truelayer/truelayer.py#L119) · [TypeScript](../../examples/truelayer/truelayer.ts#L105) · [Kotlin](../../examples/truelayer/truelayer.kt#L77) · [Rust](../../examples/truelayer/truelayer.rs#L102)
-
-### Authentication
-
-#### MerchantAuthenticationService.CreateServerAuthenticationToken
-
-Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side.
-
-| | Message |
-|---|---------|
-| **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
-| **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
-
-**Examples:** [Python](../../examples/truelayer/truelayer.py#L78) · [TypeScript](../../examples/truelayer/truelayer.ts#L68) · [Kotlin](../../examples/truelayer/truelayer.kt#L49) · [Rust](../../examples/truelayer/truelayer.rs#L72)
+| [refund_get](#refund_get) | Other | `—` |
 
 ### Other
 
+#### create_server_authentication_token
+
+**Examples:** [Python](../../examples/truelayer/truelayer.py) · [TypeScript](../../examples/truelayer/truelayer.ts#L22) · [Kotlin](../../examples/truelayer/truelayer.kt) · [Rust](../../examples/truelayer/truelayer.rs)
+
+#### get
+
+**Examples:** [Python](../../examples/truelayer/truelayer.py) · [TypeScript](../../examples/truelayer/truelayer.ts#L32) · [Kotlin](../../examples/truelayer/truelayer.kt) · [Rust](../../examples/truelayer/truelayer.rs)
+
+#### handle_event
+
+**Examples:** [Python](../../examples/truelayer/truelayer.py) · [TypeScript](../../examples/truelayer/truelayer.ts#L47) · [Kotlin](../../examples/truelayer/truelayer.kt) · [Rust](../../examples/truelayer/truelayer.rs)
+
 #### parse_event
 
-**Examples:** [Python](../../examples/truelayer/truelayer.py#L105) · [TypeScript](../../examples/truelayer/truelayer.ts#L95) · [Kotlin](../../examples/truelayer/truelayer.kt) · [Rust](../../examples/truelayer/truelayer.rs#L93)
+**Examples:** [Python](../../examples/truelayer/truelayer.py) · [TypeScript](../../examples/truelayer/truelayer.ts#L59) · [Kotlin](../../examples/truelayer/truelayer.kt) · [Rust](../../examples/truelayer/truelayer.rs)
+
+#### refund_get
+
+**Examples:** [Python](../../examples/truelayer/truelayer.py) · [TypeScript](../../examples/truelayer/truelayer.ts#L70) · [Kotlin](../../examples/truelayer/truelayer.kt) · [Rust](../../examples/truelayer/truelayer.rs)

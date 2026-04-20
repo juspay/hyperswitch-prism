@@ -22,11 +22,10 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    # connector_config=payment_pb2.ConnectorSpecificConfig(
+    #     cryptopay=payment_pb2.CryptopayConfig(api_key=...),
+    # ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     cryptopay=payment_pb2.CryptopayConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,15 +37,13 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Cryptopay',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
-    },
+const config = ConnectorConfig.create({
+    connector: Connector.CRYPTOPAY,
+    environment: Environment.SANDBOX,
+    // auth: { cryptopay: { apiKey: { value: 'YOUR_API_KEY' } } },
 });
 ```
 
@@ -59,12 +56,8 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Cryptopay")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
-    )
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    // .setConnectorConfig(...) — set your Cryptopay credentials here
     .build()
 ```
 
@@ -76,13 +69,14 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Cryptopay".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: None,  // TODO: Add your connector config here,
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -96,25 +90,20 @@ let config = ConnectorConfig {
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
-| [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
+| [get](#get) | Other | `—` |
+| [handle_event](#handle_event) | Other | `—` |
 | [parse_event](#parse_event) | Other | `—` |
-
-### Payments
-
-#### PaymentService.Get
-
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
-
-**Examples:** [Python](../../examples/cryptopay/cryptopay.py#L45) · [TypeScript](../../examples/cryptopay/cryptopay.ts#L41) · [Kotlin](../../examples/cryptopay/cryptopay.kt#L38) · [Rust](../../examples/cryptopay/cryptopay.rs#L44)
 
 ### Other
 
+#### get
+
+**Examples:** [Python](../../examples/cryptopay/cryptopay.py) · [TypeScript](../../examples/cryptopay/cryptopay.ts#L22) · [Kotlin](../../examples/cryptopay/cryptopay.kt) · [Rust](../../examples/cryptopay/cryptopay.rs)
+
+#### handle_event
+
+**Examples:** [Python](../../examples/cryptopay/cryptopay.py) · [TypeScript](../../examples/cryptopay/cryptopay.ts#L35) · [Kotlin](../../examples/cryptopay/cryptopay.kt) · [Rust](../../examples/cryptopay/cryptopay.rs)
+
 #### parse_event
 
-**Examples:** [Python](../../examples/cryptopay/cryptopay.py#L63) · [TypeScript](../../examples/cryptopay/cryptopay.ts#L59) · [Kotlin](../../examples/cryptopay/cryptopay.kt) · [Rust](../../examples/cryptopay/cryptopay.rs#L58)
+**Examples:** [Python](../../examples/cryptopay/cryptopay.py) · [TypeScript](../../examples/cryptopay/cryptopay.ts#L47) · [Kotlin](../../examples/cryptopay/cryptopay.kt) · [Rust](../../examples/cryptopay/cryptopay.rs)

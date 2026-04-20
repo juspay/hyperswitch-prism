@@ -22,14 +22,9 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    connector_config=payment_pb2.ConnectorSpecificConfig(
-        mifinity=payment_pb2.MifinityConfig(
-            key=payment_methods_pb2.SecretString(value="YOUR_KEY"),
-            base_url="YOUR_BASE_URL",
-            brand_id=payment_methods_pb2.SecretString(value="YOUR_BRAND_ID"),
-            destination_account_number=payment_methods_pb2.SecretString(value="YOUR_DESTINATION_ACCOUNT_NUMBER"),
-        ),
-    ),
+    # connector_config=payment_pb2.ConnectorSpecificConfig(
+    #     mifinity=payment_pb2.MifinityConfig(api_key=...),
+    # ),
 )
 
 ```
@@ -48,14 +43,7 @@ const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism')
 const config = ConnectorConfig.create({
     connector: Connector.MIFINITY,
     environment: Environment.SANDBOX,
-    auth: {
-        mifinity: {
-            key: { value: 'YOUR_KEY' },
-            baseUrl: 'YOUR_BASE_URL',
-            brandId: { value: 'YOUR_BRAND_ID' },
-            destinationAccountNumber: { value: 'YOUR_DESTINATION_ACCOUNT_NUMBER' },
-        }
-    },
+    // auth: { mifinity: { apiKey: { value: 'YOUR_API_KEY' } } },
 });
 ```
 
@@ -69,16 +57,7 @@ const config = ConnectorConfig.create({
 ```kotlin
 val config = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    .setConnectorConfig(
-        ConnectorSpecificConfig.newBuilder()
-            .setMifinity(MifinityConfig.newBuilder()
-                .setKey(SecretString.newBuilder().setValue("YOUR_KEY").build())
-                .setBaseUrl("YOUR_BASE_URL")
-                .setBrandId(SecretString.newBuilder().setValue("YOUR_BRAND_ID").build())
-                .setDestinationAccountNumber(SecretString.newBuilder().setValue("YOUR_DESTINATION_ACCOUNT_NUMBER").build())
-                .build())
-            .build()
-    )
+    // .setConnectorConfig(...) — set your Mifinity credentials here
     .build()
 ```
 
@@ -94,15 +73,7 @@ use grpc_api_types::payments::*;
 use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector_config: Some(ConnectorSpecificConfig {
-            config: Some(connector_specific_config::Config::Mifinity(MifinityConfig {
-                key: Some(hyperswitch_masking::Secret::new("YOUR_KEY".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                brand_id: Some(hyperswitch_masking::Secret::new("YOUR_BRAND_ID".to_string())),  // Authentication credential
-                destination_account_number: Some(hyperswitch_masking::Secret::new("YOUR_DESTINATION_ACCOUNT_NUMBER".to_string())),  // Authentication credential
-                ..Default::default()
-            })),
-        }),
+    connector_config: None,  // TODO: Add your connector config here,
     options: Some(SdkOptions {
         environment: Environment::Sandbox.into(),
     }),
@@ -119,19 +90,12 @@ let config = ConnectorConfig {
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [authorize](#authorize) | Other | `—` |
+| [get](#get) | Other | `—` |
 
-### Payments
+### Other
 
-#### PaymentService.Authorize
-
-Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceAuthorizeRequest` |
-| **Response** | `PaymentServiceAuthorizeResponse` |
+#### authorize
 
 **Supported payment method types:**
 
@@ -231,13 +195,6 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 **Examples:** [Python](../../examples/mifinity/mifinity.py) · [TypeScript](../../examples/mifinity/mifinity.ts) · [Kotlin](../../examples/mifinity/mifinity.kt) · [Rust](../../examples/mifinity/mifinity.rs)
 
-#### PaymentService.Get
+#### get
 
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
-
-**Examples:** [Python](../../examples/mifinity/mifinity.py) · [TypeScript](../../examples/mifinity/mifinity.ts#L41) · [Kotlin](../../examples/mifinity/mifinity.kt#L51) · [Rust](../../examples/mifinity/mifinity.rs)
+**Examples:** [Python](../../examples/mifinity/mifinity.py) · [TypeScript](../../examples/mifinity/mifinity.ts#L22) · [Kotlin](../../examples/mifinity/mifinity.kt) · [Rust](../../examples/mifinity/mifinity.rs)

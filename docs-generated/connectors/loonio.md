@@ -22,13 +22,9 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    connector_config=payment_pb2.ConnectorSpecificConfig(
-        loonio=payment_pb2.LoonioConfig(
-            merchant_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ID"),
-            merchant_token=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_TOKEN"),
-            base_url="YOUR_BASE_URL",
-        ),
-    ),
+    # connector_config=payment_pb2.ConnectorSpecificConfig(
+    #     loonio=payment_pb2.LoonioConfig(api_key=...),
+    # ),
 )
 
 ```
@@ -47,13 +43,7 @@ const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism')
 const config = ConnectorConfig.create({
     connector: Connector.LOONIO,
     environment: Environment.SANDBOX,
-    auth: {
-        loonio: {
-            merchantId: { value: 'YOUR_MERCHANT_ID' },
-            merchantToken: { value: 'YOUR_MERCHANT_TOKEN' },
-            baseUrl: 'YOUR_BASE_URL',
-        }
-    },
+    // auth: { loonio: { apiKey: { value: 'YOUR_API_KEY' } } },
 });
 ```
 
@@ -67,15 +57,7 @@ const config = ConnectorConfig.create({
 ```kotlin
 val config = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    .setConnectorConfig(
-        ConnectorSpecificConfig.newBuilder()
-            .setLoonio(LoonioConfig.newBuilder()
-                .setMerchantId(SecretString.newBuilder().setValue("YOUR_MERCHANT_ID").build())
-                .setMerchantToken(SecretString.newBuilder().setValue("YOUR_MERCHANT_TOKEN").build())
-                .setBaseUrl("YOUR_BASE_URL")
-                .build())
-            .build()
-    )
+    // .setConnectorConfig(...) — set your Loonio credentials here
     .build()
 ```
 
@@ -91,14 +73,7 @@ use grpc_api_types::payments::*;
 use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector_config: Some(ConnectorSpecificConfig {
-            config: Some(connector_specific_config::Config::Loonio(LoonioConfig {
-                merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ID".to_string())),  // Authentication credential
-                merchant_token: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_TOKEN".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                ..Default::default()
-            })),
-        }),
+    connector_config: None,  // TODO: Add your connector config here,
     options: Some(SdkOptions {
         environment: Environment::Sandbox.into(),
     }),
@@ -115,19 +90,12 @@ let config = ConnectorConfig {
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [authorize](#authorize) | Other | `—` |
+| [get](#get) | Other | `—` |
 
-### Payments
+### Other
 
-#### PaymentService.Authorize
-
-Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceAuthorizeRequest` |
-| **Response** | `PaymentServiceAuthorizeResponse` |
+#### authorize
 
 **Supported payment method types:**
 
@@ -227,13 +195,6 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 **Examples:** [Python](../../examples/loonio/loonio.py) · [TypeScript](../../examples/loonio/loonio.ts) · [Kotlin](../../examples/loonio/loonio.kt) · [Rust](../../examples/loonio/loonio.rs)
 
-#### PaymentService.Get
+#### get
 
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
-
-**Examples:** [Python](../../examples/loonio/loonio.py) · [TypeScript](../../examples/loonio/loonio.ts#L40) · [Kotlin](../../examples/loonio/loonio.kt#L50) · [Rust](../../examples/loonio/loonio.rs)
+**Examples:** [Python](../../examples/loonio/loonio.py) · [TypeScript](../../examples/loonio/loonio.ts#L22) · [Kotlin](../../examples/loonio/loonio.kt) · [Rust](../../examples/loonio/loonio.rs)
