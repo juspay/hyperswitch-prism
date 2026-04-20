@@ -741,7 +741,7 @@ enum Connector {
   PPRO = 113;
   FISERVCOMMERCEHUB = 114;
   TRUSTLY = 115;
-  SANLAMMULTIDATA = 116;
+  SANLAM = 116;
   PINELABS_ONLINE = 117;
 }
 
@@ -3885,7 +3885,7 @@ message FiservcommercehubConfig {
   optional string base_url = 50;
 }
 
-message SanlamMultiDataConfig {
+message SanlamConfig {
   SecretString api_key = 1;
   SecretString merchant_id = 2;
   optional string base_url = 50;
@@ -4305,8 +4305,8 @@ message ConnectorSpecificConfig {
     // TRUSTLY = 116
     TrustlyConfig trustly = 115;
 
-    // SANLAMMULTIDATA = 116
-    SanlamMultiDataConfig sanlammultidata = 116;
+    // SANLAM = 116
+    SanlamConfig sanlam = 116;
 
     // PINELABS_ONLINE = 117
     PinelabsOnlineConfig pinelabs_online = 117;
