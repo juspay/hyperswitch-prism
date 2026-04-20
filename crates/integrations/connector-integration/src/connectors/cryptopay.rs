@@ -1,3 +1,161 @@
+//! # Unsupported features
+//!
+//! The following Prism flows / payment methods are intentionally NOT supported
+//! by this connector because CryptoPay does not offer them (or Prism's abstraction
+//! does not cleanly map to what CryptoPay does offer). Each entry is derived from
+//! `grace/workflow-v2/runs/cryptopay/2026-04-21/capability_matrix.json`.
+//!
+//! Prism's trait system returns `ConnectorError::NotSupported` for these paths
+//! by default; this block exists purely for discoverability.
+//!
+//! ## Flows
+//!
+//! - `Accept` — Crypto payments cannot be charged back; no dispute API. Evidence: https://developers.cryptopay.me/
+//! - `Authenticate` — No 3DS (crypto, not card). Evidence: https://developers.cryptopay.me/
+//! - `Capture` — Crypto invoices are auto-captured on transaction confirmation; no manual capture endpoint. Evidence: https://developers.cryptopay.me/guides/invoices
+//! - `ClientAuthenticationToken` — HMAC per-request auth only. Evidence: https://developers.cryptopay.me/guides/api-basics/authentication
+//! - `CreateConnectorCustomer` — No customer-object endpoint; a customer is identified by custom_id on the invoice. Evidence: https://developers.cryptopay.me/
+//! - `CreateOrder` — CryptoPay invoices don't require a separate CreateOrder — the Authorize (POST /api/invoices) creates the invoice dire... Evidence: https://developers.cryptopay.me/guides/invoices
+//! - `DefendDispute` — No dispute management endpoints. Evidence: https://developers.cryptopay.me/
+//! - `IncrementalAuthorization` — Invoice amount cannot be incrementally increased. Evidence: https://developers.cryptopay.me/guides/invoices
+//! - `MandateRevoke` — No mandate primitive to revoke. Evidence: https://developers.cryptopay.me/
+//! - `PaymentMethodToken` — No tokenization primitive. Evidence: https://developers.cryptopay.me/
+//! - `PayoutCreate` — CryptoPay offers Coin Withdrawal (on-chain) but not the Hyperswitch Payout primitive (card/bank-transfer beneficiary). Evidence: https://developers.cryptopay.me/guides/payouts
+//! - `PayoutCreateLink` — Not supported. Evidence: https://developers.cryptopay.me/guides/payouts
+//! - `PayoutCreateRecipient` — Not supported. Evidence: https://developers.cryptopay.me/guides/payouts
+//! - `PayoutEnrollDisburseAccount` — Not supported. Evidence: https://developers.cryptopay.me/guides/payouts
+//! - `PayoutGet` — Payout primitive not aligned; out of scope. Evidence: https://developers.cryptopay.me/guides/payouts
+//! - `PayoutStage` — Not supported. Evidence: https://developers.cryptopay.me/guides/payouts
+//! - `PayoutTransfer` — Not part of CryptoPay's API surface. Evidence: https://developers.cryptopay.me/guides/payouts
+//! - `PayoutVoid` — Not supported. Evidence: https://developers.cryptopay.me/guides/payouts
+//! - `PostAuthenticate` — No 3DS. Evidence: https://developers.cryptopay.me/
+//! - `PreAuthenticate` — No 3DS (crypto, not card). Evidence: https://developers.cryptopay.me/
+//! - `RSync` — No refund API endpoint; refunds are on-chain returns handled automatically by CryptoPay for unresolved invoices. Evidence: https://developers.cryptopay.me/guides/invoices/how-to-handle-unresolved-invoices/invoice-refunds
+//! - `Refund` — No merchant-initiated refund API. Refunds occur automatically (underpaid/paid late/overpaid) or via dashboard. Evidence: https://developers.cryptopay.me/guides/invoices/how-to-handle-unresolved-invoices/invoice-refunds
+//! - `RepeatPayment` — No recurring / stored-payment mechanism. Evidence: https://developers.cryptopay.me/
+//! - `ServerAuthenticationToken` — HMAC per-request auth only. Evidence: https://developers.cryptopay.me/guides/api-basics/authentication
+//! - `ServerSessionAuthenticationToken` — HMAC per-request auth; no session-token endpoint. Evidence: https://developers.cryptopay.me/guides/api-basics/authentication
+//! - `SetupMandate` — No mandate primitives exist in CryptoPay API. Evidence: https://developers.cryptopay.me/
+//! - `SubmitEvidence` — No dispute management endpoints. Evidence: https://developers.cryptopay.me/
+//! - `Void` — No void endpoint: invoices cannot be cancelled via API once created; they expire or are paid. Evidence: https://developers.cryptopay.me/guides/invoices
+//! - `VoidPC` — No pre-capture void endpoint. Evidence: https://developers.cryptopay.me/guides/invoices
+//!
+//! ## Payment methods
+//!
+//! - `AFFIRM` (BNPL) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `AFTERPAY_CLEARPAY` (BNPL) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `ALMA` (BNPL) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `ATOME` (BNPL) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `LAZY_PAY` (BNPL) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `PAY_BRIGHT` (BNPL) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `WALLEY` (BNPL) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `ACH` (BankDebit) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `BACS` (BankDebit) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `BECS` (BankDebit) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `EFT` (BankDebit) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `SEPA` (BankDebit) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `BANCONTACT_CARD` (BankRedirect) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `BLIK` (BankRedirect) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `EPS` (BankRedirect) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `GIROPAY` (BankRedirect) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `IDEAL` (BankRedirect) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `LOCAL_BANK_REDIRECT` (BankRedirect) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `NETBANKING` (BankRedirect) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `ONLINE_BANKING_CZECH_REPUBLIC` (BankRedirect) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `ONLINE_BANKING_FINLAND` (BankRedirect) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `ONLINE_BANKING_FPX` (BankRedirect) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `ONLINE_BANKING_POLAND` (BankRedirect) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `ONLINE_BANKING_SLOVAKIA` (BankRedirect) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `ONLINE_BANKING_THAILAND` (BankRedirect) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `OPEN_BANKING_UK` (BankRedirect) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `PRZELEWY24` (BankRedirect) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `PSE` (BankRedirect) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `SOFORT` (BankRedirect) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `TRUSTLY_BANK_REDIRECT` (BankRedirect) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `BCA_BANK_TRANSFER` (BankTransfer) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `BNI_VA` (BankTransfer) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `BRI_VA` (BankTransfer) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `CIMB_VA` (BankTransfer) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `DANAMON_VA` (BankTransfer) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `INSTANT_BANK_TRANSFER` (BankTransfer) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `INSTANT_BANK_TRANSFER_FINLAND` (BankTransfer) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `INSTANT_BANK_TRANSFER_POLAND` (BankTransfer) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `LOCAL_BANK_TRANSFER` (BankTransfer) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `MANDIRI_VA` (BankTransfer) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `MULTIBANCO` (BankTransfer) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `PERMATA_BANK_TRANSFER` (BankTransfer) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `PIX` (BankTransfer) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `SEPA_BANK_TRANSFER` (BankTransfer) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `CARD_REDIRECT` (Card) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `CREDIT` (Card) — Crypto-only processor; no card acceptance API. Evidence: https://developers.cryptopay.me/
+//! - `DEBIT` (Card) — Crypto-only processor; no card acceptance API. Evidence: https://developers.cryptopay.me/
+//! - `NETWORK_TOKEN` (Card) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `GIVEX` (GiftCard) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `PAY_SAFE_CARD` (GiftCard) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `OPEN_BANKING` (OpenBanking) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `OPEN_BANKING_PIS` (OpenBanking) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `BENEFIT` (Other) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `BILL_DESK` (Other) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `BIZUM` (Other) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `CASH_FREE` (Other) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `DIRECT_CARRIER_BILLING` (Other) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `DUIT_NOW` (Other) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `EASE_BUZZ` (Other) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `FPS` (Other) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `INTERAC` (Other) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `KNET` (Other) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `PAY_U` (Other) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `PROMPT_PAY` (Other) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `VIET_QR` (Other) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `CLASSIC_REWARD` (Reward) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `UPI_COLLECT` (Upi) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `UPI_INTENT` (Upi) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `UPI_QR` (Upi) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `ALFAMART` (Voucher) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `BOLETO` (Voucher) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `EFECTY` (Voucher) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `EVOUCHER` (Voucher) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `FAMILY_MART` (Voucher) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `INDOMARET` (Voucher) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `LAWSON` (Voucher) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `MINI_STOP` (Voucher) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `OXXO` (Voucher) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `PAGO_EFECTIVO` (Voucher) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `PAY_EASY` (Voucher) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `RED_COMPRA` (Voucher) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `RED_PAGOS` (Voucher) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `SEICOMART` (Voucher) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `SEVEN_ELEVEN` (Voucher) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `ALI_PAY` (Wallet) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `ALI_PAY_HK` (Wallet) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `AMAZON_PAY` (Wallet) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `APPLE_PAY` (Wallet) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `CASHAPP` (Wallet) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `DANA` (Wallet) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `GCASH` (Wallet) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `GOOGLE_PAY` (Wallet) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `GO_PAY` (Wallet) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `KAKAO_PAY` (Wallet) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `MB_WAY` (Wallet) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `MOBILE_PAY` (Wallet) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `MOMO` (Wallet) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `MOMO_ATM` (Wallet) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `PAY_PAL` (Wallet) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `PAZE` (Wallet) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `PHONE_PE` (Wallet) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `REVOLUT_PAY` (Wallet) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `SAMSUNG_PAY` (Wallet) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `SATISPAY` (Wallet) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `SWISH` (Wallet) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `TOUCH_N_GO` (Wallet) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `TWINT` (Wallet) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `VENMO` (Wallet) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `VIPPS` (Wallet) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `WERO` (Wallet) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//! - `WE_CHAT_PAY` (Wallet) — Crypto-only processor. Evidence: https://developers.cryptopay.me/
+//!
+//! _Last generated: 2026-04-21T00:00:00Z from capability_matrix.json_
+
 pub mod transformers;
 
 use std::fmt::Debug;
