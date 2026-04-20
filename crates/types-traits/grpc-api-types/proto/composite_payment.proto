@@ -119,8 +119,7 @@ message CompositeGetRequest {
   // State Information
   optional ConnectorState state = 2; // State data for access token storage and other connector-specific state
 
-  // Body of the response
-  optional bytes handle_response = 3;
+  reserved 3; // was: handle_response (bytes)
 
   // Amount Information
   optional Money amount = 4; // The amount for the payment in minor currency units
