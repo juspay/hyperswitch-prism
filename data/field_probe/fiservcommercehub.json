@@ -542,8 +542,32 @@
     },
     "recurring_charge": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_id — Missing required field: payment_method_id"
+        "status": "supported",
+        "proto_request": {
+          "merchant_reference_id": "probe_recurring_charge_001",
+          "payment_method_id": "probe_payment_method_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "additional_payment_data": {
+            "initiator": "merchant",
+            "off_session": true,
+            "recurring_model": "subscription",
+            "mandate_id": "probe_mandate_001",
+            "original_authorized_amount": {
+              "minor_amount": 1000,
+              "currency": "USD"
+            }
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        }
       }
     },
     "recurring_revoke": {
