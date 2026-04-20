@@ -78,18 +78,14 @@ class ConnectorError(Exception):
 
 def check_req(result_bytes: bytes) -> Any:
     """
-    Parse FFI req_transformer bytes using FfiResult proto with enum-based type checking.
-
-    Args:
-        result_bytes: Raw bytes returned by the req_transformer FFI call.
+    Parse raw bytes from req_transformer FFI call.
 
     Returns:
-        FfiConnectorHttpRequest on success (HTTP_REQUEST type).
+        FfiConnectorHttpRequest on success.
 
     Raises:
-        IntegrationError: If the result type is INTEGRATION_ERROR.
-        ConnectorError: If the result type is CONNECTOR_ERROR.
-        ValueError: If the result type is unknown or invalid.
+        IntegrationError: On integration-level failure.
+        ConnectorError: On connector-level failure.
     """
     result = FfiResult()
     result.ParseFromString(result_bytes)
@@ -105,23 +101,19 @@ def check_req(result_bytes: bytes) -> Any:
     elif result_type == FfiResult.CONNECTOR_ERROR:
         raise ConnectorError(result.connector_error)
     else:
-        raise ValueError(f"Unknown result type: {result_type}")
+        raise RuntimeError(f"Internal error: unhandled result type {result_type}")
 
 
 def check_res(result_bytes: bytes) -> Any:
     """
-    Parse FFI res_transformer bytes using FfiResult proto with enum-based type checking.
-
-    Args:
-        result_bytes: Raw bytes returned by the res_transformer FFI call.
+    Parse raw bytes from res_transformer FFI call.
 
     Returns:
-        FfiConnectorHttpResponse on success (HTTP_RESPONSE type).
+        FfiConnectorHttpResponse on success.
 
     Raises:
-        ConnectorError: If the result type is CONNECTOR_ERROR.
-        IntegrationError: If the result type is INTEGRATION_ERROR.
-        ValueError: If the result type is unknown or invalid.
+        ConnectorError: On connector-level failure.
+        IntegrationError: On integration-level failure.
     """
     result = FfiResult()
     result.ParseFromString(result_bytes)
@@ -137,7 +129,7 @@ def check_res(result_bytes: bytes) -> Any:
     elif result_type == FfiResult.INTEGRATION_ERROR:
         raise IntegrationError(result.integration_error)
     else:
-        raise ValueError(f"Unknown result type: {result_type}")
+        raise RuntimeError(f"Internal error: unhandled result type {result_type}")
 
 class _ConnectorClientBase:
     """Base class for per-service connector clients. Do not instantiate directly."""
@@ -330,7 +322,7 @@ class _ConnectorClientBase:
         elif result.type == FfiResult.INTEGRATION_ERROR:
             raise IntegrationError(result.integration_error)
         else:
-            raise ValueError(f"Unexpected FfiResult type for direct flow '{flow}': {result.type}")
+            raise RuntimeError(f"Internal error: unhandled result type {result.type} for flow '{flow}'")
 
     async def close(self):
         """Close all underlying asynchronous connection pools."""
