@@ -1,6 +1,10 @@
 use base64::Engine;
 use common_enums::{enums, AttemptStatus};
-use common_utils::{errors::CustomResult, request::Method};
+use common_utils::{
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    errors::CustomResult,
+    request::Method,
+};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, RepeatPayment, SetupMandate, Void,
@@ -18,7 +22,7 @@ use domain_types::{
         ApplePayWalletData, BankRedirectData, Card, PaymentMethodData, PaymentMethodDataTypes,
         RawCardNumber, WalletData,
     },
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
     utils,
@@ -308,6 +312,16 @@ fn get_status(status: NexinetsPaymentStatus, method: NexinetsTransactionType) ->
     }
 }
 
+fn is_nexinets_failure_status(status: &NexinetsPaymentStatus) -> bool {
+    matches!(
+        status,
+        NexinetsPaymentStatus::Declined
+            | NexinetsPaymentStatus::Failure
+            | NexinetsPaymentStatus::Expired
+            | NexinetsPaymentStatus::Aborted
+    )
+}
+
 impl TryFrom<&enums::BankNames> for NexinetsBIC {
     type Error = error_stack::Report<IntegrationError>;
     fn try_from(bank: &enums::BankNames) -> Result<Self, Self::Error> {
@@ -350,6 +364,10 @@ pub struct NexinetsTransaction {
     pub transaction_type: NexinetsTransactionType,
     pub currency: enums::Currency,
     pub status: NexinetsPaymentStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason_code: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -1210,12 +1228,26 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             status = AttemptStatus::Charged;
         }
 
-        Ok(Self {
-            resource_common_data: PaymentFlowData {
-                status,
-                ..router_data.resource_common_data
-            },
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        let response_result = if is_nexinets_failure_status(&transaction.status) {
+            Err(ErrorResponse {
+                code: transaction
+                    .reason_code
+                    .clone()
+                    .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                message: transaction
+                    .reason
+                    .clone()
+                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                reason: transaction.reason.clone(),
+                status_code: http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: Some(transaction.transaction_id.clone()),
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(transaction.transaction_id.clone()),
                 redirection_data: redirection_data.map(Box::new),
                 mandate_reference: mandate_reference.map(Box::new),
@@ -1224,7 +1256,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 connector_response_reference_id: Some(response.order_id),
                 incremental_authorization_allowed: None,
                 status_code: http_code,
-            }),
+            })
+        };
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                ..router_data.resource_common_data
+            },
+            response: response_result,
             ..router_data
         })
     }
@@ -1389,12 +1429,26 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             response.transaction_type.clone(),
         );
 
-        Ok(Self {
-            resource_common_data: PaymentFlowData {
-                status,
-                ..router_data.resource_common_data
-            },
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        let response_result = if is_nexinets_failure_status(&transaction.status) {
+            Err(ErrorResponse {
+                code: transaction
+                    .reason_code
+                    .clone()
+                    .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                message: transaction
+                    .reason
+                    .clone()
+                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                reason: transaction.reason.clone(),
+                status_code: http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: Some(transaction.transaction_id.clone()),
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(transaction.transaction_id.clone()),
                 redirection_data: None,
                 mandate_reference: mandate_reference.map(Box::new),
@@ -1403,7 +1457,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 connector_response_reference_id: Some(response.order_id),
                 incremental_authorization_allowed: None,
                 status_code: http_code,
-            }),
+            })
+        };
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                ..router_data.resource_common_data
+            },
+            response: response_result,
             ..router_data
         })
     }
