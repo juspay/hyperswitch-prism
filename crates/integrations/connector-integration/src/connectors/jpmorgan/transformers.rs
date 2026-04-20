@@ -238,12 +238,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 if router_data.resource_common_data.auth_type
                     == common_enums::AuthenticationType::ThreeDs
                 {
-                    return Err(IntegrationError::NotSupported {
-                        message: "3DS payments".to_string(),
-                        connector: "JPMorgan",
-                        context: Default::default(),
-                    }
-                    .into());
+                    return Err(
+                        IntegrationError::not_implemented("3DS payments".to_string()).into(),
+                    );
                 }
                 let capture_method = map_capture_method(router_data.request.capture_method)?;
 

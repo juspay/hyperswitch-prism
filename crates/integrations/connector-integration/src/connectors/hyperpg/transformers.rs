@@ -210,11 +210,9 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 )
             }
             PaymentMethodData::Wallet(_wallet) => {
-                return Err(error_stack::report!(IntegrationError::NotSupported {
-                    message: "Wallet payment method is not supported".to_string(),
-                    connector: "hyperpg",
-                    context: Default::default()
-                }));
+                return Err(error_stack::report!(IntegrationError::not_implemented(
+                    "Wallet payment method support is not yet implemented".to_string(),
+                )));
             }
             PaymentMethodData::PayLater(_paylater) => {
                 return Err(error_stack::report!(IntegrationError::NotSupported {
@@ -224,11 +222,9 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 }));
             }
             PaymentMethodData::Voucher(_voucher) => {
-                return Err(error_stack::report!(IntegrationError::NotSupported {
-                    message: "Voucher payment method is not supported".to_string(),
-                    connector: "hyperpg",
-                    context: Default::default()
-                }));
+                return Err(error_stack::report!(IntegrationError::not_implemented(
+                    "Voucher payment method support is not yet implemented".to_string(),
+                )));
             }
             _ => {
                 return Err(error_stack::report!(IntegrationError::not_implemented(
