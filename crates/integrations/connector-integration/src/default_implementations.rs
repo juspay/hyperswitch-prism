@@ -125,6 +125,7 @@ default_impl_verify_webhook_source_v2!(
     Xendit,
     Zift,
     Sanlammultidata,
-    Ppro
+    Ppro,
+    PinelabsOnline
 );
 // PayPal has its own implementation in paypal.rs
