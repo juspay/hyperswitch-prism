@@ -5,67 +5,96 @@
 // Paytm — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx paytm.ts checkout_autocapture
 
-import { PaymentClient, types } from 'hyperswitch-prism';
-const { Environment } = types;
+import { PaymentClient, MerchantAuthenticationClient, types } from 'hyperswitch-prism';
+const { Environment, AuthenticationType, CaptureMethod, Currency } = types;
 export const SUPPORTED_FLOWS = ["authorize", "create_server_session_authentication_token", "get"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
-    // connectorConfig: { paytm: { apiKey: { value: 'YOUR_API_KEY' } } },
+    connectorConfig: {
+        paytm: {
+            merchantId: { value: 'YOUR_MERCHANT_ID' },
+            merchantKey: { value: 'YOUR_MERCHANT_KEY' },
+            website: { value: 'YOUR_WEBSITE' },
+            clientId: { value: 'YOUR_CLIENT_ID' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
+    },
 };
 
 
-// ANCHOR: scenario_functions
-// Flow: PaymentService.authorize (UpiCollect)
-async function authorize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    // Step 1: Authorize — reserve funds on the payment method
-    const authorizeResponse = await paymentClient.authorize({
-        "merchantTransactionId": "probe_txn_001",
-        "amount": {
+function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaymentServiceAuthorizeRequest {
+    return {
+        "merchantTransactionId": "probe_txn_001",  // Identification.
+        "amount": {  // The amount for the payment.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         },
-        "paymentMethod": {
+        "paymentMethod": {  // Payment method to be used.
+            "upiCollect": {  // UPI Collect.
+                "vpaId": {"value": "test@upi"}  // Virtual Payment Address.
+            }
         },
-        "captureMethod": "AUTOMATIC",
-        "address": {
+        "captureMethod": captureMethod,  // Method for capturing the payment.
+        "address": {  // Address Information.
+            "billingAddress": {
+            }
         },
-        "authType": "NO_THREE_DS",
-        "returnUrl": "https://example.com/return",
-        "sessionToken": "probe_session_token"
-    });
+        "authType": AuthenticationType.NO_THREE_DS,  // Authentication Details.
+        "returnUrl": "https://example.com/return",  // URLs for Redirection and Webhooks.
+        "sessionToken": "probe_session_token"  // Session and Token Information.
+    };
+}
 
-    if (authorizeResponse.status === types.PaymentStatus.FAILURE) {
-        throw new Error(`Payment failed: ${JSON.stringify(authorizeResponse.error)}`);
-    }
-    if (authorizeResponse.status === types.PaymentStatus.PENDING) {
-        // Awaiting async confirmation — handle via webhook
-        return { status: 'pending', transactionId: authorizeResponse.connectorTransactionId } as any;
-    }
+function _buildCreateServerSessionAuthenticationTokenRequest(): types.IMerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest {
+    return {
+        "payment": {  // PayoutSessionContext payout = 6; // future FrmSessionContext frm = 7; // future.
+            "amount": {
+                "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+                "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            }
+        }
+    };
+}
+
+function _buildGetRequest(connectorTransactionId: string): types.IPaymentServiceGetRequest {
+    return {
+        "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId,
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+    };
+}
+
+
+// ANCHOR: scenario_functions
+// Flow: PaymentService.Authorize (UpiCollect)
+async function authorize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest(CaptureMethod.AUTOMATIC));
 
     return authorizeResponse;
 }
 
-// Flow: PaymentService.create_server_session_authentication_token
+// Flow: MerchantAuthenticationService.CreateServerSessionAuthenticationToken
 async function createServerSessionAuthenticationToken(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    // Step 1: create_server_session_authentication_token
-    const createResponse = await paymentClient.createServerSessionAuthenticationToken({
-        "domainContext": {
-        }
-    });
+    const merchantAuthenticationClient = new MerchantAuthenticationClient(config);
+
+    const createResponse = await merchantAuthenticationClient.createServerSessionAuthenticationToken(_buildCreateServerSessionAuthenticationTokenRequest());
 
     return createResponse;
 }
 
-// Flow: PaymentService.get
+// Flow: PaymentService.Get
 async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    // Step 1: Get — retrieve current payment status from the connector
-    const getResponse = await paymentClient.get({
-        "merchantTransactionId": "probe_merchant_txn_001",
-        "connectorTransactionId": "probe_connector_txn_001",
-        "amount": {
-        }
-    });
+    const paymentClient = new PaymentClient(config);
+
+    const getResponse = await paymentClient.get(_buildGetRequest('probe_connector_txn_001'));
 
     return getResponse;
 }
@@ -73,7 +102,7 @@ async function get(merchantTransactionId: string, config: types.IConnectorConfig
 
 // Export all process* functions for the smoke test
 export {
-    authorize, createServerSessionAuthenticationToken, get
+    authorize, createServerSessionAuthenticationToken, get, _buildAuthorizeRequest, _buildCreateServerSessionAuthenticationTokenRequest, _buildGetRequest
 };
 
 // CLI runner

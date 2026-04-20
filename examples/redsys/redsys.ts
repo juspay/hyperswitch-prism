@@ -5,127 +5,208 @@
 // Redsys — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx redsys.ts checkout_autocapture
 
-import { PaymentClient, types } from 'hyperswitch-prism';
-const { Environment } = types;
+import { PaymentMethodAuthenticationClient, PaymentClient, RefundClient, types } from 'hyperswitch-prism';
+const { Environment, Currency } = types;
 export const SUPPORTED_FLOWS = ["authenticate", "capture", "get", "pre_authenticate", "refund", "refund_get", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
-    // connectorConfig: { redsys: { apiKey: { value: 'YOUR_API_KEY' } } },
+    connectorConfig: {
+        redsys: {
+            merchantId: { value: 'YOUR_MERCHANT_ID' },
+            terminalId: { value: 'YOUR_TERMINAL_ID' },
+            sha256Pwd: { value: 'YOUR_SHA256_PWD' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
+    },
 };
 
 
-// ANCHOR: scenario_functions
-// Flow: PaymentService.authenticate
-async function authenticate(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    // Step 1: Authenticate — execute 3DS challenge or frictionless verification
-    const authenticateResponse = await paymentClient.authenticate({
-        "amount": {
+function _buildAuthenticateRequest(): types.IPaymentMethodAuthenticationServiceAuthenticateRequest {
+    return {
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         },
-        "paymentMethod": {
+        "paymentMethod": {  // Payment Method.
+            "card": {  // Generic card payment.
+                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
+                "cardExpMonth": {"value": "03"},
+                "cardExpYear": {"value": "2030"},
+                "cardCvc": {"value": "737"},
+                "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
+            }
         },
-        "address": {
+        "address": {  // Address Information.
+            "billingAddress": {
+            }
         },
-        "authenticationData": {
+        "authenticationData": {  // Authentication Details.
+            "eci": "05",  // Electronic Commerce Indicator (ECI) from 3DS.
+            "cavv": "AAAAAAAAAA==",  // Cardholder Authentication Verification Value (CAVV).
+            "threedsServerTransactionId": "probe-3ds-txn-001",  // 3DS Server Transaction ID.
+            "messageVersion": "2.1.0",  // 3DS Message Version (e.g., "2.1.0", "2.2.0").
+            "dsTransactionId": "probe-ds-txn-001"  // Directory Server Transaction ID (DS Trans ID).
         },
-        "returnUrl": "https://example.com/3ds-return",
+        "returnUrl": "https://example.com/3ds-return",  // URLs for Redirection.
         "continueRedirectionUrl": "https://example.com/3ds-continue",
-        "browserInfo": {
+        "browserInfo": {  // Contextual Information.
+            "colorDepth": 24,  // Display Information.
+            "screenHeight": 900,
+            "screenWidth": 1440,
+            "javaEnabled": false,  // Browser Settings.
+            "javaScriptEnabled": true,
+            "language": "en-US",
+            "timeZoneOffsetMinutes": -480,
+            "acceptHeader": "application/json",  // Browser Headers.
+            "userAgent": "Mozilla/5.0 (probe-bot)",
+            "acceptLanguage": "en-US,en;q=0.9",
+            "ipAddress": "1.2.3.4"  // Device Information.
         }
-    });
+    };
+}
+
+function _buildCaptureRequest(connectorTransactionId: string): types.IPaymentServiceCaptureRequest {
+    return {
+        "merchantCaptureId": "probe_capture_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId,
+        "amountToCapture": {  // Capture Details.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+    };
+}
+
+function _buildGetRequest(connectorTransactionId: string): types.IPaymentServiceGetRequest {
+    return {
+        "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId,
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+    };
+}
+
+function _buildPreAuthenticateRequest(): types.IPaymentMethodAuthenticationServicePreAuthenticateRequest {
+    return {
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "paymentMethod": {  // Payment Method.
+            "card": {  // Generic card payment.
+                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
+                "cardExpMonth": {"value": "03"},
+                "cardExpYear": {"value": "2030"},
+                "cardCvc": {"value": "737"},
+                "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
+            }
+        },
+        "address": {  // Address Information.
+            "billingAddress": {
+            }
+        },
+        "enrolledFor_3ds": false,  // Authentication Details.
+        "returnUrl": "https://example.com/3ds-return"  // URLs for Redirection.
+    };
+}
+
+function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServiceRefundRequest {
+    return {
+        "merchantRefundId": "probe_refund_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId,
+        "paymentAmount": 1000,  // Amount Information.
+        "refundAmount": {
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "reason": "customer_request"  // Reason for the refund.
+    };
+}
+
+function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
+    return {
+        "merchantRefundId": "probe_refund_001",  // Identification.
+        "connectorTransactionId": "probe_connector_txn_001",
+        "refundId": "probe_refund_id_001"
+    };
+}
+
+function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServiceVoidRequest {
+    return {
+        "merchantVoidId": "probe_void_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId,
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+    };
+}
+
+
+// ANCHOR: scenario_functions
+// Flow: PaymentMethodAuthenticationService.Authenticate
+async function authenticate(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentMethodAuthenticationClient = new PaymentMethodAuthenticationClient(config);
+
+    const authenticateResponse = await paymentMethodAuthenticationClient.authenticate(_buildAuthenticateRequest());
 
     return authenticateResponse;
 }
 
-// Flow: PaymentService.capture
+// Flow: PaymentService.Capture
 async function capture(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    // Step 1: Capture — settle the reserved funds
-    const captureResponse = await paymentClient.capture({
-        "merchantCaptureId": "probe_capture_001",
-        "connectorTransactionId": "probe_connector_txn_001",
-        "amountToCapture": {
-        }
-    });
+    const paymentClient = new PaymentClient(config);
 
-    if (captureResponse.status === types.PaymentStatus.FAILURE) {
-        throw new Error(`Capture failed: ${JSON.stringify(captureResponse.error)}`);
-    }
+    const captureResponse = await paymentClient.capture(_buildCaptureRequest('probe_connector_txn_001'));
 
     return captureResponse;
 }
 
-// Flow: PaymentService.get
+// Flow: PaymentService.Get
 async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    // Step 1: Get — retrieve current payment status from the connector
-    const getResponse = await paymentClient.get({
-        "merchantTransactionId": "probe_merchant_txn_001",
-        "connectorTransactionId": "probe_connector_txn_001",
-        "amount": {
-        }
-    });
+    const paymentClient = new PaymentClient(config);
+
+    const getResponse = await paymentClient.get(_buildGetRequest('probe_connector_txn_001'));
 
     return getResponse;
 }
 
-// Flow: PaymentService.pre_authenticate
+// Flow: PaymentMethodAuthenticationService.PreAuthenticate
 async function preAuthenticate(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    // Step 1: Pre-Authenticate — initiate 3DS flow (collect device/browser data)
-    const preAuthenticateresponse = await paymentClient.preAuthenticate({
-        "amount": {
-        },
-        "paymentMethod": {
-        },
-        "address": {
-        },
-        "enrolledFor_3ds": false,
-        "returnUrl": "https://example.com/3ds-return"
-    });
+    const paymentMethodAuthenticationClient = new PaymentMethodAuthenticationClient(config);
+
+    const preResponse = await paymentMethodAuthenticationClient.preAuthenticate(_buildPreAuthenticateRequest());
 
     return preResponse;
 }
 
-// Flow: PaymentService.refund
+// Flow: PaymentService.Refund
 async function refund(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    // Step 1: Refund — return funds to the customer
-    const refundResponse = await paymentClient.refund({
-        "merchantRefundId": "probe_refund_001",
-        "connectorTransactionId": "probe_connector_txn_001",
-        "paymentAmount": 1000,
-        "refundAmount": {
-        },
-        "reason": "customer_request"
-    });
+    const paymentClient = new PaymentClient(config);
 
-    if (refundResponse.status === types.RefundStatus.REFUND_FAILURE) {
-        throw new Error(`Refund failed: ${JSON.stringify(refundResponse.error)}`);
-    }
+    const refundResponse = await paymentClient.refund(_buildRefundRequest('probe_connector_txn_001'));
 
     return refundResponse;
 }
 
-// Flow: PaymentService.refund_get
+// Flow: RefundService.Get
 async function refundGet(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    // Step 1: refund_get
-    const refundResponse = await paymentClient.refundGet({
-        "merchantRefundId": "probe_refund_001",
-        "connectorTransactionId": "probe_connector_txn_001",
-        "refundId": "probe_refund_id_001"
-    });
+    const refundClient = new RefundClient(config);
+
+    const refundResponse = await refundClient.refundGet(_buildRefundGetRequest());
 
     return refundResponse;
 }
 
-// Flow: PaymentService.void
+// Flow: PaymentService.Void
 async function voidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    // Step 1: Void — release reserved funds (cancel authorization)
-    const voidResponse = await paymentClient.void({
-        "merchantVoidId": "probe_void_001",
-        "connectorTransactionId": "probe_connector_txn_001",
-        "amount": {
-        }
-    });
+    const paymentClient = new PaymentClient(config);
+
+    const voidResponse = await paymentClient.void(_buildVoidRequest('probe_connector_txn_001'));
 
     return voidResponse;
 }
@@ -133,7 +214,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    authenticate, capture, get, preAuthenticate, refund, refundGet, voidPayment
+    authenticate, capture, get, preAuthenticate, refund, refundGet, voidPayment, _buildAuthenticateRequest, _buildCaptureRequest, _buildGetRequest, _buildPreAuthenticateRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
 };
 
 // CLI runner

@@ -8,45 +8,41 @@
 import asyncio
 import sys
 from payments import PaymentClient
+from payments import EventClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["get", "parse_event"]
+SUPPORTED_FLOWS = ["get"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    # connector_config=payment_pb2.ConnectorSpecificConfig(
-    #     cryptopay=payment_pb2.CryptopayConfig(api_key=...),
-    # ),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        cryptopay=payment_pb2.CryptopayConfig(
+            api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
+            api_secret=payment_methods_pb2.SecretString(value="YOUR_API_SECRET"),
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
 
 
+
+
+def _build_get_request(connector_transaction_id: str):
+    return payment_pb2.PaymentServiceGetRequest(
+        merchant_transaction_id="probe_merchant_txn_001",  # Identification.
+        connector_transaction_id=connector_transaction_id,
+        amount=payment_pb2.Money(  # Amount Information.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+    )
 async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.get"""
+    """Flow: PaymentService.Get"""
     payment_client = PaymentClient(config)
 
-    # Step 1: Get — retrieve current payment status from the connector
-    get_response = await payment_client.get(payment_pb2.TODO_FIX_MISSING_TYPE_get(
-        merchant_transaction_id="probe_merchant_txn_001",
-        connector_transaction_id="probe_connector_txn_001",
-        minor_amount=1000,
-        currency="USD",
-    ))
+    get_response = await payment_client.get(_build_get_request("probe_connector_txn_001"))
 
     return {"status": get_response.status}
-
-
-async def process_parse_event(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.parse_event"""
-    payment_client = PaymentClient(config)
-
-    # Step 1: parse_event
-    parse_response = await payment_client.parse_event(payment_pb2.TODO_FIX_MISSING_TYPE_parse_event(
-        method="HTTP_METHOD_POST",
-        uri="https://example.com/webhook",
-        body="{\"type\":\"Invoice\",\"event\":\"status_changed\",\"data\":{\"id\":\"probe_invoice_001\",\"status\":\"completed\",\"price_amount\":\"10.00\",\"price_currency\":\"USD\",\"name\":\"probe_charge\"}}",
-    ))
-
-    return {"status": parse_response.status}
 
 if __name__ == "__main__":
     scenario = sys.argv[1] if len(sys.argv) > 1 else "get"

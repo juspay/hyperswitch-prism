@@ -8,67 +8,90 @@
 import asyncio
 import sys
 from payments import PaymentClient
+from payments import MerchantAuthenticationClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 SUPPORTED_FLOWS = ["authorize", "create_server_session_authentication_token", "get"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    # connector_config=payment_pb2.ConnectorSpecificConfig(
-    #     paytm=payment_pb2.PaytmConfig(api_key=...),
-    # ),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        paytm=payment_pb2.PaytmConfig(
+            merchant_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ID"),
+            merchant_key=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_KEY"),
+            website=payment_methods_pb2.SecretString(value="YOUR_WEBSITE"),
+            client_id=payment_methods_pb2.SecretString(value="YOUR_CLIENT_ID"),
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
 
 
+
+
+def _build_authorize_request(capture_method: str):
+    return payment_pb2.PaymentServiceAuthorizeRequest(
+        merchant_transaction_id="probe_txn_001",  # Identification.
+        amount=payment_pb2.Money(  # The amount for the payment.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+        payment_method=payment_methods_pb2.PaymentMethod(  # Payment method to be used.
+            upi_collect=payment_methods_pb2.UpiCollect(
+                vpa_id=payment_methods_pb2.SecretString(value="test@upi"),  # Virtual Payment Address.
+            ),
+        ),
+        capture_method=payment_pb2.CaptureMethod.Value(capture_method),  # Method for capturing the payment.
+        address=payment_pb2.PaymentAddress(  # Address Information.
+            billing_address=payment_pb2.Address(),
+        ),
+        auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),  # Authentication Details.
+        return_url="https://example.com/return",  # URLs for Redirection and Webhooks.
+        session_token="probe_session_token",  # Session and Token Information.
+    )
+
+def _build_create_server_session_authentication_token_request():
+    return payment_pb2.MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest(
+        payment=payment_pb2.PaymentSessionContext(  # PayoutSessionContext payout = 6; // future FrmSessionContext frm = 7; // future.
+            amount=payment_pb2.Money(
+                minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+                currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+            ),
+        ),
+    )
+
+def _build_get_request(connector_transaction_id: str):
+    return payment_pb2.PaymentServiceGetRequest(
+        merchant_transaction_id="probe_merchant_txn_001",  # Identification.
+        connector_transaction_id=connector_transaction_id,
+        amount=payment_pb2.Money(  # Amount Information.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+    )
 async def process_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.authorize (UpiCollect)"""
+    """Flow: PaymentService.Authorize (UpiCollect)"""
     payment_client = PaymentClient(config)
 
-    # Step 1: Authorize — reserve funds on the payment method
-    authorize_response = await payment_client.authorize(payment_pb2.TODO_FIX_MISSING_TYPE_authorize(
-        merchant_transaction_id="probe_txn_001",
-        minor_amount=1000,
-        currency="USD",
-        vpa_id="test@upi",
-        capture_method="AUTOMATIC",
-        auth_type="NO_THREE_DS",
-        return_url="https://example.com/return",
-        session_token="probe_session_token",
-    ))
-
-    if authorize_response.status == "FAILED":
-        raise RuntimeError(f"Payment failed: {authorize_response.error}")
-    if authorize_response.status == "PENDING":
-        # Awaiting async confirmation — handle via webhook
-        return {"status": "pending", "transaction_id": authorize_response.connector_transaction_id}
+    authorize_response = await payment_client.authorize(_build_authorize_request("AUTOMATIC"))
 
     return {"status": authorize_response.status, "transaction_id": authorize_response.connector_transaction_id}
 
 
 async def process_create_server_session_authentication_token(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.create_server_session_authentication_token"""
-    payment_client = PaymentClient(config)
+    """Flow: MerchantAuthenticationService.CreateServerSessionAuthenticationToken"""
+    merchantauthentication_client = MerchantAuthenticationClient(config)
 
-    # Step 1: create_server_session_authentication_token
-    create_response = await payment_client.create_server_session_authentication_token(payment_pb2.TODO_FIX_MISSING_TYPE_create_server_session_authentication_token(
-        minor_amount=1000,
-        currency="USD",
-    ))
+    create_response = await merchantauthentication_client.create_server_session_authentication_token(_build_create_server_session_authentication_token_request())
 
     return {"status": create_response.status}
 
 
 async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.get"""
+    """Flow: PaymentService.Get"""
     payment_client = PaymentClient(config)
 
-    # Step 1: Get — retrieve current payment status from the connector
-    get_response = await payment_client.get(payment_pb2.TODO_FIX_MISSING_TYPE_get(
-        merchant_transaction_id="probe_merchant_txn_001",
-        connector_transaction_id="probe_connector_txn_001",
-        minor_amount=1000,
-        currency="USD",
-    ))
+    get_response = await payment_client.get(_build_get_request("probe_connector_txn_001"))
 
     return {"status": get_response.status}
 

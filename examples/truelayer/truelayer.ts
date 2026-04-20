@@ -5,77 +5,106 @@
 // Truelayer — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx truelayer.ts checkout_autocapture
 
-import { PaymentClient, types } from 'hyperswitch-prism';
-const { Environment } = types;
-export const SUPPORTED_FLOWS = ["create_server_authentication_token", "get", "parse_event", "refund_get"];
+import { MerchantAuthenticationClient, PaymentClient, EventClient, RefundClient, types } from 'hyperswitch-prism';
+const { Environment, Currency } = types;
+export const SUPPORTED_FLOWS = ["create_server_authentication_token", "get", "refund_get"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
-    // connectorConfig: { truelayer: { apiKey: { value: 'YOUR_API_KEY' } } },
+    connectorConfig: {
+        truelayer: {
+            clientId: { value: 'YOUR_CLIENT_ID' },
+            clientSecret: { value: 'YOUR_CLIENT_SECRET' },
+            merchantAccountId: { value: 'YOUR_MERCHANT_ACCOUNT_ID' },
+            accountHolderName: { value: 'YOUR_ACCOUNT_HOLDER_NAME' },
+            privateKey: { value: 'YOUR_PRIVATE_KEY' },
+            kid: { value: 'YOUR_KID' },
+            baseUrl: 'YOUR_BASE_URL',
+            secondaryBaseUrl: 'YOUR_SECONDARY_BASE_URL',
+        }
+    },
 };
 
 
+function _buildCreateServerAuthenticationTokenRequest(): types.IMerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+    return {
+    };
+}
+
+function _buildGetRequest(connectorTransactionId: string): types.IPaymentServiceGetRequest {
+    return {
+        "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId,
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "state": {  // State Information.
+            "accessToken": {  // Access token obtained from connector.
+                "token": {"value": "probe_access_token"},  // The token string.
+                "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
+                "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        }
+    };
+}
+
+function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
+    return {
+    };
+}
+
+function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
+    return {
+        "merchantRefundId": "probe_refund_001",  // Identification.
+        "connectorTransactionId": "probe_connector_txn_001",
+        "refundId": "probe_refund_id_001",
+        "state": {  // State Information.
+            "accessToken": {  // Access token obtained from connector.
+                "token": {"value": "probe_access_token"},  // The token string.
+                "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
+                "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        }
+    };
+}
+
+
 // ANCHOR: scenario_functions
-// Flow: PaymentService.create_server_authentication_token
+// Flow: MerchantAuthenticationService.CreateServerAuthenticationToken
 async function createServerAuthenticationToken(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    // Step 1: create_server_authentication_token
-    const createResponse = await paymentClient.createServerAuthenticationToken({
-        // No required fields
-    });
+    const merchantAuthenticationClient = new MerchantAuthenticationClient(config);
+
+    const createResponse = await merchantAuthenticationClient.createServerAuthenticationToken(_buildCreateServerAuthenticationTokenRequest());
 
     return createResponse;
 }
 
-// Flow: PaymentService.get
+// Flow: PaymentService.Get
 async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    // Step 1: Get — retrieve current payment status from the connector
-    const getResponse = await paymentClient.get({
-        "merchantTransactionId": "probe_merchant_txn_001",
-        "connectorTransactionId": "probe_connector_txn_001",
-        "amount": {
-        },
-        "state": {
-        }
-    });
+    const paymentClient = new PaymentClient(config);
+
+    const getResponse = await paymentClient.get(_buildGetRequest('probe_connector_txn_001'));
 
     return getResponse;
 }
 
-// Flow: PaymentService.handle_event
+// Flow: EventService.HandleEvent
 async function handleEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    // Step 1: handle_event
-    const handleResponse = await paymentClient.handleEvent({
-        "merchantEventId": "probe_event_001",
-        "requestDetails": {
-        }
-    });
+    const eventClient = new EventClient(config);
+
+    const handleResponse = await eventClient.handleEvent(_buildHandleEventRequest());
 
     return handleResponse;
 }
 
-// Flow: PaymentService.parse_event
-async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    // Step 1: parse_event
-    const parseResponse = await paymentClient.parseEvent({
-        "requestDetails": {
-        }
-    });
-
-    return parseResponse;
-}
-
-// Flow: PaymentService.refund_get
+// Flow: RefundService.Get
 async function refundGet(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    // Step 1: refund_get
-    const refundResponse = await paymentClient.refundGet({
-        "merchantRefundId": "probe_refund_001",
-        "connectorTransactionId": "probe_connector_txn_001",
-        "refundId": "probe_refund_id_001",
-        "state": {
-        }
-    });
+    const refundClient = new RefundClient(config);
+
+    const refundResponse = await refundClient.refundGet(_buildRefundGetRequest());
 
     return refundResponse;
 }
@@ -83,7 +112,7 @@ async function refundGet(merchantTransactionId: string, config: types.IConnector
 
 // Export all process* functions for the smoke test
 export {
-    createServerAuthenticationToken, get, handleEvent, parseEvent, refundGet
+    createServerAuthenticationToken, get, handleEvent, refundGet, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildHandleEventRequest, _buildRefundGetRequest
 };
 
 // CLI runner

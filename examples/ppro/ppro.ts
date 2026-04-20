@@ -5,135 +5,164 @@
 // Ppro — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx ppro.ts checkout_autocapture
 
-import { PaymentClient, types } from 'hyperswitch-prism';
-const { Environment } = types;
-export const SUPPORTED_FLOWS = ["capture", "get", "parse_event", "recurring_charge", "refund", "refund_get", "void"];
+import { PaymentClient, EventClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
+const { Environment, Currency, PaymentMethodType } = types;
+export const SUPPORTED_FLOWS = ["capture", "get", "recurring_charge", "refund", "refund_get", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
-    // connectorConfig: { ppro: { apiKey: { value: 'YOUR_API_KEY' } } },
+    connectorConfig: {
+        ppro: {
+            apiKey: { value: 'YOUR_API_KEY' },
+            merchantId: { value: 'YOUR_MERCHANT_ID' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
+    },
 };
 
 
-// ANCHOR: scenario_functions
-// Flow: PaymentService.capture
-async function capture(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    // Step 1: Capture — settle the reserved funds
-    const captureResponse = await paymentClient.capture({
-        "merchantCaptureId": "probe_capture_001",
-        "connectorTransactionId": "probe_connector_txn_001",
-        "amountToCapture": {
+function _buildCaptureRequest(connectorTransactionId: string): types.IPaymentServiceCaptureRequest {
+    return {
+        "merchantCaptureId": "probe_capture_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId,
+        "amountToCapture": {  // Capture Details.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
-    });
+    };
+}
 
-    if (captureResponse.status === types.PaymentStatus.FAILURE) {
-        throw new Error(`Capture failed: ${JSON.stringify(captureResponse.error)}`);
-    }
+function _buildGetRequest(connectorTransactionId: string): types.IPaymentServiceGetRequest {
+    return {
+        "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId,
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+    };
+}
+
+function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
+    return {
+    };
+}
+
+function _buildRecurringChargeRequest(): types.IRecurringPaymentServiceChargeRequest {
+    return {
+        "connectorRecurringPaymentId": {  // Reference to existing mandate.
+        },
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "paymentMethod": {  // Optional payment Method Information (for network transaction flows).
+            "token": {  // Payment tokens.
+                "token": {"value": "probe_pm_token"}  // The token string representing a payment method.
+            }
+        },
+        "returnUrl": "https://example.com/recurring-return",
+        "connectorCustomerId": "cust_probe_123",
+        "paymentMethodType": PaymentMethodType.PAY_PAL,
+        "offSession": true  // Behavioral Flags and Preferences.
+    };
+}
+
+function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServiceRefundRequest {
+    return {
+        "merchantRefundId": "probe_refund_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId,
+        "paymentAmount": 1000,  // Amount Information.
+        "refundAmount": {
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "reason": "customer_request"  // Reason for the refund.
+    };
+}
+
+function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
+    return {
+        "merchantRefundId": "probe_refund_001",  // Identification.
+        "connectorTransactionId": "probe_connector_txn_001",
+        "refundId": "probe_refund_id_001"
+    };
+}
+
+function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServiceVoidRequest {
+    return {
+        "merchantVoidId": "probe_void_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId,
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+    };
+}
+
+
+// ANCHOR: scenario_functions
+// Flow: PaymentService.Capture
+async function capture(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const captureResponse = await paymentClient.capture(_buildCaptureRequest('probe_connector_txn_001'));
 
     return captureResponse;
 }
 
-// Flow: PaymentService.get
+// Flow: PaymentService.Get
 async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    // Step 1: Get — retrieve current payment status from the connector
-    const getResponse = await paymentClient.get({
-        "merchantTransactionId": "probe_merchant_txn_001",
-        "connectorTransactionId": "probe_connector_txn_001",
-        "amount": {
-        }
-    });
+    const paymentClient = new PaymentClient(config);
+
+    const getResponse = await paymentClient.get(_buildGetRequest('probe_connector_txn_001'));
 
     return getResponse;
 }
 
-// Flow: PaymentService.handle_event
+// Flow: EventService.HandleEvent
 async function handleEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    // Step 1: handle_event
-    const handleResponse = await paymentClient.handleEvent({
-        "merchantEventId": "probe_event_001",
-        "requestDetails": {
-        }
-    });
+    const eventClient = new EventClient(config);
+
+    const handleResponse = await eventClient.handleEvent(_buildHandleEventRequest());
 
     return handleResponse;
 }
 
-// Flow: PaymentService.parse_event
-async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    // Step 1: parse_event
-    const parseResponse = await paymentClient.parseEvent({
-        "requestDetails": {
-        }
-    });
-
-    return parseResponse;
-}
-
-// Flow: PaymentService.recurring_charge
+// Flow: RecurringPaymentService.Charge
 async function recurringCharge(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    // Step 1: Recurring Charge — charge against the stored mandate
-    const recurringResponse = await paymentClient.charge({
-        "connectorRecurringPaymentId": {
-        },
-        "amount": {
-        },
-        "paymentMethod": {
-        },
-        "returnUrl": "https://example.com/recurring-return",
-        "connectorCustomerId": "cust_probe_123",
-        "paymentMethodType": "PAY_PAL",
-        "offSession": true
-    });
+    const recurringPaymentClient = new RecurringPaymentClient(config);
 
-    if (recurringResponse.status === types.PaymentStatus.FAILURE) {
-        throw new Error(`Recurring Charge failed: ${JSON.stringify(recurringResponse.error)}`);
-    }
+    const recurringResponse = await recurringPaymentClient.charge(_buildRecurringChargeRequest());
 
     return recurringResponse;
 }
 
-// Flow: PaymentService.refund
+// Flow: PaymentService.Refund
 async function refund(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    // Step 1: Refund — return funds to the customer
-    const refundResponse = await paymentClient.refund({
-        "merchantRefundId": "probe_refund_001",
-        "connectorTransactionId": "probe_connector_txn_001",
-        "paymentAmount": 1000,
-        "refundAmount": {
-        },
-        "reason": "customer_request"
-    });
+    const paymentClient = new PaymentClient(config);
 
-    if (refundResponse.status === types.RefundStatus.REFUND_FAILURE) {
-        throw new Error(`Refund failed: ${JSON.stringify(refundResponse.error)}`);
-    }
+    const refundResponse = await paymentClient.refund(_buildRefundRequest('probe_connector_txn_001'));
 
     return refundResponse;
 }
 
-// Flow: PaymentService.refund_get
+// Flow: RefundService.Get
 async function refundGet(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    // Step 1: refund_get
-    const refundResponse = await paymentClient.refundGet({
-        "merchantRefundId": "probe_refund_001",
-        "connectorTransactionId": "probe_connector_txn_001",
-        "refundId": "probe_refund_id_001"
-    });
+    const refundClient = new RefundClient(config);
+
+    const refundResponse = await refundClient.refundGet(_buildRefundGetRequest());
 
     return refundResponse;
 }
 
-// Flow: PaymentService.void
+// Flow: PaymentService.Void
 async function voidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    // Step 1: Void — release reserved funds (cancel authorization)
-    const voidResponse = await paymentClient.void({
-        "merchantVoidId": "probe_void_001",
-        "connectorTransactionId": "probe_connector_txn_001",
-        "amount": {
-        }
-    });
+    const paymentClient = new PaymentClient(config);
+
+    const voidResponse = await paymentClient.void(_buildVoidRequest('probe_connector_txn_001'));
 
     return voidResponse;
 }
@@ -141,7 +170,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    capture, get, handleEvent, parseEvent, recurringCharge, refund, refundGet, voidPayment
+    capture, get, handleEvent, recurringCharge, refund, refundGet, voidPayment, _buildCaptureRequest, _buildGetRequest, _buildHandleEventRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
 };
 
 // CLI runner

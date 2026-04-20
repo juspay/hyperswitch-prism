@@ -8,18 +8,214 @@
 import asyncio
 import sys
 from payments import PaymentClient
+from payments import MerchantAuthenticationClient
+from payments import EventClient
+from payments import RecurringPaymentClient
+from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["authorize", "create_order", "create_server_authentication_token", "get", "parse_event", "proxy_authorize", "recurring_charge", "refund", "refund_get"]
+SUPPORTED_FLOWS = ["authorize", "create_order", "create_server_authentication_token", "get", "proxy_authorize", "recurring_charge", "refund", "refund_get"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    # connector_config=payment_pb2.ConnectorSpecificConfig(
-    #     trustpay=payment_pb2.TrustpayConfig(api_key=...),
-    # ),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        trustpay=payment_pb2.TrustpayConfig(
+            api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
+            project_id=payment_methods_pb2.SecretString(value="YOUR_PROJECT_ID"),
+            secret_key=payment_methods_pb2.SecretString(value="YOUR_SECRET_KEY"),
+            base_url="YOUR_BASE_URL",
+            base_url_bank_redirects="YOUR_BASE_URL_BANK_REDIRECTS",
+        ),
+    ),
 )
 
 
+
+
+def _build_authorize_request(capture_method: str):
+    return payment_pb2.PaymentServiceAuthorizeRequest(
+        merchant_transaction_id="probe_txn_001",  # Identification.
+        amount=payment_pb2.Money(  # The amount for the payment.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+        payment_method=payment_methods_pb2.PaymentMethod(  # Payment method to be used.
+            card=payment_methods_pb2.CardDetails(
+                card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
+                card_exp_month=payment_methods_pb2.SecretString(value="03"),
+                card_exp_year=payment_methods_pb2.SecretString(value="2030"),
+                card_cvc=payment_methods_pb2.SecretString(value="737"),
+                card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
+            ),
+        ),
+        capture_method=payment_pb2.CaptureMethod.Value(capture_method),  # Method for capturing the payment.
+        customer=payment_pb2.Customer(  # Customer Information.
+            email=payment_methods_pb2.SecretString(value="test@example.com"),  # Customer's email address.
+        ),
+        address=payment_pb2.PaymentAddress(  # Address Information.
+            billing_address=payment_pb2.Address(
+                first_name=payment_methods_pb2.SecretString(value="John"),  # Personal Information.
+                line1=payment_methods_pb2.SecretString(value="123 Main St"),  # Address Details.
+                city=payment_methods_pb2.SecretString(value="Seattle"),
+                zip_code=payment_methods_pb2.SecretString(value="98101"),
+                country_alpha2_code=payment_methods_pb2.CountryAlpha2.Value("US"),
+            ),
+        ),
+        auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),  # Authentication Details.
+        return_url="https://example.com/return",  # URLs for Redirection and Webhooks.
+        browser_info=payment_pb2.BrowserInformation(
+            user_agent="Mozilla/5.0 (probe-bot)",
+            ip_address="1.2.3.4",  # Device Information.
+        ),
+        state=payment_pb2.ConnectorState(  # State Information.
+            access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
+                token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
+                expires_in_seconds=3600,  # Expiration timestamp (seconds since epoch).
+                token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
+            ),
+        ),
+    )
+
+def _build_create_order_request():
+    return payment_pb2.PaymentServiceCreateOrderRequest(
+        merchant_order_id="probe_order_001",  # Identification.
+        amount=payment_pb2.Money(  # Amount Information.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+        state=payment_pb2.ConnectorState(  # State Information.
+            access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
+                token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
+                expires_in_seconds=3600,  # Expiration timestamp (seconds since epoch).
+                token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
+            ),
+        ),
+    )
+
+def _build_create_server_authentication_token_request():
+    return payment_pb2.MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest(
+    )
+
+def _build_get_request(connector_transaction_id: str):
+    return payment_pb2.PaymentServiceGetRequest(
+        merchant_transaction_id="probe_merchant_txn_001",  # Identification.
+        connector_transaction_id=connector_transaction_id,
+        amount=payment_pb2.Money(  # Amount Information.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+        state=payment_pb2.ConnectorState(  # State Information.
+            access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
+                token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
+                expires_in_seconds=3600,  # Expiration timestamp (seconds since epoch).
+                token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
+            ),
+        ),
+    )
+
+def _build_proxy_authorize_request():
+    return payment_pb2.PaymentServiceProxyAuthorizeRequest(
+        merchant_transaction_id="probe_proxy_txn_001",
+        amount=payment_pb2.Money(
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+        card_proxy=payment_methods_pb2.CardDetails(  # Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
+            card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
+            card_exp_month=payment_methods_pb2.SecretString(value="03"),
+            card_exp_year=payment_methods_pb2.SecretString(value="2030"),
+            card_cvc=payment_methods_pb2.SecretString(value="123"),
+            card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
+        ),
+        customer=payment_pb2.Customer(
+            email=payment_methods_pb2.SecretString(value="test@example.com"),  # Customer's email address.
+        ),
+        address=payment_pb2.PaymentAddress(
+            billing_address=payment_pb2.Address(
+                first_name=payment_methods_pb2.SecretString(value="John"),  # Personal Information.
+                line1=payment_methods_pb2.SecretString(value="123 Main St"),  # Address Details.
+                city=payment_methods_pb2.SecretString(value="Seattle"),
+                zip_code=payment_methods_pb2.SecretString(value="98101"),
+                country_alpha2_code=payment_methods_pb2.CountryAlpha2.Value("US"),
+            ),
+        ),
+        capture_method=payment_pb2.CaptureMethod.Value("AUTOMATIC"),
+        auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),
+        return_url="https://example.com/return",
+        browser_info=payment_pb2.BrowserInformation(
+            user_agent="Mozilla/5.0 (probe-bot)",
+            ip_address="1.2.3.4",  # Device Information.
+        ),
+        state=payment_pb2.ConnectorState(
+            access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
+                token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
+                expires_in_seconds=3600,  # Expiration timestamp (seconds since epoch).
+                token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
+            ),
+        ),
+    )
+
+def _build_recurring_charge_request():
+    return payment_pb2.RecurringPaymentServiceChargeRequest(
+        connector_recurring_payment_id=payment_pb2.MandateReference(  # Reference to existing mandate.
+            connector_mandate_id=payment_pb2.ConnectorMandateReferenceId(  # mandate_id sent by the connector.
+                connector_mandate_id="probe-mandate-123",
+            ),
+        ),
+        amount=payment_pb2.Money(  # Amount Information.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+        payment_method=payment_methods_pb2.PaymentMethod(  # Optional payment Method Information (for network transaction flows).
+            token=payment_methods_pb2.TokenPaymentMethodType(
+                token=payment_methods_pb2.SecretString(value="probe_pm_token"),  # The token string representing a payment method.
+            ),
+        ),
+        return_url="https://example.com/recurring-return",
+        connector_customer_id="cust_probe_123",
+        payment_method_type=payment_pb2.PaymentMethodType.Value("PAY_PAL"),
+        off_session=True,  # Behavioral Flags and Preferences.
+        state=payment_pb2.ConnectorState(  # State Information.
+            access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
+                token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
+                expires_in_seconds=3600,  # Expiration timestamp (seconds since epoch).
+                token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
+            ),
+        ),
+    )
+
+def _build_refund_request(connector_transaction_id: str):
+    return payment_pb2.PaymentServiceRefundRequest(
+        merchant_refund_id="probe_refund_001",  # Identification.
+        connector_transaction_id=connector_transaction_id,
+        payment_amount=1000,  # Amount Information.
+        refund_amount=payment_pb2.Money(
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+        reason="customer_request",  # Reason for the refund.
+        state=payment_pb2.ConnectorState(  # State data for access token storage and.
+            access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
+                token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
+                expires_in_seconds=3600,  # Expiration timestamp (seconds since epoch).
+                token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
+            ),
+        ),
+    )
+
+def _build_refund_get_request():
+    return payment_pb2.RefundServiceGetRequest(
+        merchant_refund_id="probe_refund_001",  # Identification.
+        connector_transaction_id="probe_connector_txn_001",
+        refund_id="probe_refund_id_001",
+        state=payment_pb2.ConnectorState(  # State Information.
+            access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
+                token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
+                expires_in_seconds=3600,  # Expiration timestamp (seconds since epoch).
+                token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
+            ),
+        ),
+    )
 async def process_checkout_autocapture(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """One-step Payment (Authorize + Capture)
 
@@ -28,30 +224,7 @@ async def process_checkout_autocapture(merchant_transaction_id: str, config: sdk
     payment_client = PaymentClient(config)
 
     # Step 1: Authorize — reserve funds on the payment method
-    authorize_response = await payment_client.authorize(payment_pb2.TODO_FIX_MISSING_TYPE_authorize(
-        merchant_transaction_id="probe_txn_001",
-        minor_amount=1000,
-        currency="USD",
-        card_number="4111111111111111",
-        card_exp_month="03",
-        card_exp_year="2030",
-        card_cvc="737",
-        card_holder_name="John Doe",
-        capture_method="AUTOMATIC",
-        email="test@example.com",
-        first_name="John",
-        line1="123 Main St",
-        city="Seattle",
-        zip_code="98101",
-        country_alpha2_code="US",
-        auth_type="NO_THREE_DS",
-        return_url="https://example.com/return",
-        user_agent="Mozilla/5.0 (probe-bot)",
-        ip_address="1.2.3.4",
-        token="probe_access_token",
-        expires_in_seconds=3600,
-        token_type="Bearer",
-    ))
+    authorize_response = await payment_client.authorize(_build_authorize_request("AUTOMATIC"))
 
     if authorize_response.status == "FAILED":
         raise RuntimeError(f"Payment failed: {authorize_response.error}")
@@ -70,30 +243,7 @@ async def process_refund(merchant_transaction_id: str, config: sdk_config_pb2.Co
     payment_client = PaymentClient(config)
 
     # Step 1: Authorize — reserve funds on the payment method
-    authorize_response = await payment_client.authorize(payment_pb2.TODO_FIX_MISSING_TYPE_authorize(
-        merchant_transaction_id="probe_txn_001",
-        minor_amount=1000,
-        currency="USD",
-        card_number="4111111111111111",
-        card_exp_month="03",
-        card_exp_year="2030",
-        card_cvc="737",
-        card_holder_name="John Doe",
-        capture_method="AUTOMATIC",
-        email="test@example.com",
-        first_name="John",
-        line1="123 Main St",
-        city="Seattle",
-        zip_code="98101",
-        country_alpha2_code="US",
-        auth_type="NO_THREE_DS",
-        return_url="https://example.com/return",
-        user_agent="Mozilla/5.0 (probe-bot)",
-        ip_address="1.2.3.4",
-        token="probe_access_token",
-        expires_in_seconds=3600,
-        token_type="Bearer",
-    ))
+    authorize_response = await payment_client.authorize(_build_authorize_request("AUTOMATIC"))
 
     if authorize_response.status == "FAILED":
         raise RuntimeError(f"Payment failed: {authorize_response.error}")
@@ -102,17 +252,7 @@ async def process_refund(merchant_transaction_id: str, config: sdk_config_pb2.Co
         return {"status": "pending", "transaction_id": authorize_response.connector_transaction_id}
 
     # Step 2: Refund — return funds to the customer
-    refund_response = await payment_client.refund(payment_pb2.TODO_FIX_MISSING_TYPE_refund(
-        merchant_refund_id="probe_refund_001",
-        connector_transaction_id=authorize_response.connector_transaction_id,  # from Authorize response
-        payment_amount=1000,
-        minor_amount=1000,
-        currency="USD",
-        reason="customer_request",
-        token="probe_access_token",
-        expires_in_seconds=3600,
-        token_type="Bearer",
-    ))
+    refund_response = await payment_client.refund(_build_refund_request(authorize_response.connector_transaction_id))
 
     if refund_response.status == "FAILED":
         raise RuntimeError(f"Refund failed: {refund_response.error}")
@@ -128,30 +268,7 @@ async def process_get_payment(merchant_transaction_id: str, config: sdk_config_p
     payment_client = PaymentClient(config)
 
     # Step 1: Authorize — reserve funds on the payment method
-    authorize_response = await payment_client.authorize(payment_pb2.TODO_FIX_MISSING_TYPE_authorize(
-        merchant_transaction_id="probe_txn_001",
-        minor_amount=1000,
-        currency="USD",
-        card_number="4111111111111111",
-        card_exp_month="03",
-        card_exp_year="2030",
-        card_cvc="737",
-        card_holder_name="John Doe",
-        capture_method="MANUAL",
-        email="test@example.com",
-        first_name="John",
-        line1="123 Main St",
-        city="Seattle",
-        zip_code="98101",
-        country_alpha2_code="US",
-        auth_type="NO_THREE_DS",
-        return_url="https://example.com/return",
-        user_agent="Mozilla/5.0 (probe-bot)",
-        ip_address="1.2.3.4",
-        token="probe_access_token",
-        expires_in_seconds=3600,
-        token_type="Bearer",
-    ))
+    authorize_response = await payment_client.authorize(_build_authorize_request("MANUAL"))
 
     if authorize_response.status == "FAILED":
         raise RuntimeError(f"Payment failed: {authorize_response.error}")
@@ -160,190 +277,70 @@ async def process_get_payment(merchant_transaction_id: str, config: sdk_config_p
         return {"status": "pending", "transaction_id": authorize_response.connector_transaction_id}
 
     # Step 2: Get — retrieve current payment status from the connector
-    get_response = await payment_client.get(payment_pb2.TODO_FIX_MISSING_TYPE_get(
-        merchant_transaction_id="probe_merchant_txn_001",
-        connector_transaction_id=authorize_response.connector_transaction_id,  # from Authorize response
-        minor_amount=1000,
-        currency="USD",
-        token="probe_access_token",
-        expires_in_seconds=3600,
-        token_type="Bearer",
-    ))
+    get_response = await payment_client.get(_build_get_request(authorize_response.connector_transaction_id))
 
     return {"status": getattr(get_response, "status", ""), "transaction_id": getattr(get_response, "connector_transaction_id", ""), "error": getattr(get_response, "error", None)}
 
 
 async def process_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.authorize (Card)"""
+    """Flow: PaymentService.Authorize (Card)"""
     payment_client = PaymentClient(config)
 
-    # Step 1: Authorize — reserve funds on the payment method
-    authorize_response = await payment_client.authorize(payment_pb2.TODO_FIX_MISSING_TYPE_authorize(
-        merchant_transaction_id="probe_txn_001",
-        minor_amount=1000,
-        currency="USD",
-        card_number="4111111111111111",
-        card_exp_month="03",
-        card_exp_year="2030",
-        card_cvc="737",
-        card_holder_name="John Doe",
-        capture_method="AUTOMATIC",
-        email="test@example.com",
-        first_name="John",
-        line1="123 Main St",
-        city="Seattle",
-        zip_code="98101",
-        country_alpha2_code="US",
-        auth_type="NO_THREE_DS",
-        return_url="https://example.com/return",
-        user_agent="Mozilla/5.0 (probe-bot)",
-        ip_address="1.2.3.4",
-        token="probe_access_token",
-        expires_in_seconds=3600,
-        token_type="Bearer",
-    ))
-
-    if authorize_response.status == "FAILED":
-        raise RuntimeError(f"Payment failed: {authorize_response.error}")
-    if authorize_response.status == "PENDING":
-        # Awaiting async confirmation — handle via webhook
-        return {"status": "pending", "transaction_id": authorize_response.connector_transaction_id}
+    authorize_response = await payment_client.authorize(_build_authorize_request("AUTOMATIC"))
 
     return {"status": authorize_response.status, "transaction_id": authorize_response.connector_transaction_id}
 
 
 async def process_create_order(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.create_order"""
+    """Flow: PaymentService.CreateOrder"""
     payment_client = PaymentClient(config)
 
-    # Step 1: create_order
-    create_response = await payment_client.create_order(payment_pb2.TODO_FIX_MISSING_TYPE_create_order(
-        merchant_order_id="probe_order_001",
-        minor_amount=1000,
-        currency="USD",
-        token="probe_access_token",
-        expires_in_seconds=3600,
-        token_type="Bearer",
-    ))
+    create_response = await payment_client.create_order(_build_create_order_request())
 
     return {"status": create_response.status}
 
 
 async def process_create_server_authentication_token(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.create_server_authentication_token"""
-    payment_client = PaymentClient(config)
+    """Flow: MerchantAuthenticationService.CreateServerAuthenticationToken"""
+    merchantauthentication_client = MerchantAuthenticationClient(config)
 
-    # Step 1: create_server_authentication_token
-    create_response = await payment_client.create_server_authentication_token(payment_pb2.TODO_FIX_MISSING_TYPE_create_server_authentication_token(
-        # No required fields
-    ))
+    create_response = await merchantauthentication_client.create_server_authentication_token(_build_create_server_authentication_token_request())
 
     return {"status": create_response.status}
 
 
 async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.get"""
+    """Flow: PaymentService.Get"""
     payment_client = PaymentClient(config)
 
-    # Step 1: Get — retrieve current payment status from the connector
-    get_response = await payment_client.get(payment_pb2.TODO_FIX_MISSING_TYPE_get(
-        merchant_transaction_id="probe_merchant_txn_001",
-        connector_transaction_id="probe_connector_txn_001",
-        minor_amount=1000,
-        currency="USD",
-        token="probe_access_token",
-        expires_in_seconds=3600,
-        token_type="Bearer",
-    ))
+    get_response = await payment_client.get(_build_get_request("probe_connector_txn_001"))
 
     return {"status": get_response.status}
 
 
-async def process_parse_event(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.parse_event"""
-    payment_client = PaymentClient(config)
-
-    # Step 1: parse_event
-    parse_response = await payment_client.parse_event(payment_pb2.TODO_FIX_MISSING_TYPE_parse_event(
-        method="HTTP_METHOD_POST",
-        uri="https://example.com/webhook",
-        body="{\"PaymentInformation\":{\"CreditDebitIndicator\":\"CRDT\",\"References\":{\"EndToEndId\":\"probe_txn_001\"},\"Status\":\"Paid\",\"Amount\":{\"InstructedAmount\":10.00,\"Currency\":\"EUR\"}},\"Signature\":\"probe_sig\"}",
-    ))
-
-    return {"status": parse_response.status}
-
-
 async def process_proxy_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.proxy_authorize"""
+    """Flow: PaymentService.ProxyAuthorize"""
     payment_client = PaymentClient(config)
 
-    # Step 1: proxy_authorize
-    proxy_response = await payment_client.proxy_authorize(payment_pb2.TODO_FIX_MISSING_TYPE_proxy_authorize(
-        merchant_transaction_id="probe_proxy_txn_001",
-        minor_amount=1000,
-        currency="USD",
-        card_number="4111111111111111",
-        card_exp_month="03",
-        card_exp_year="2030",
-        card_cvc="123",
-        card_holder_name="John Doe",
-        email="test@example.com",
-        first_name="John",
-        line1="123 Main St",
-        city="Seattle",
-        zip_code="98101",
-        country_alpha2_code="US",
-        capture_method="AUTOMATIC",
-        auth_type="NO_THREE_DS",
-        return_url="https://example.com/return",
-        user_agent="Mozilla/5.0 (probe-bot)",
-        ip_address="1.2.3.4",
-        token="probe_access_token",
-        expires_in_seconds=3600,
-        token_type="Bearer",
-    ))
+    proxy_response = await payment_client.proxy_authorize(_build_proxy_authorize_request())
 
     return {"status": proxy_response.status}
 
 
 async def process_recurring_charge(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.recurring_charge"""
-    payment_client = PaymentClient(config)
+    """Flow: RecurringPaymentService.Charge"""
+    recurringpayment_client = RecurringPaymentClient(config)
 
-    # Step 1: Recurring Charge — charge against the stored mandate
-    recurring_response = await payment_client.charge(payment_pb2.TODO_FIX_MISSING_TYPE_recurring_charge(
-        connector_mandate_id="probe-mandate-123",
-        minor_amount=1000,
-        currency="USD",
-        token="probe_pm_token",
-        return_url="https://example.com/recurring-return",
-        connector_customer_id="cust_probe_123",
-        payment_method_type="PAY_PAL",
-        off_session=True,
-        token="probe_access_token",
-        expires_in_seconds=3600,
-        token_type="Bearer",
-    ))
-
-    if recurring_response.status == "FAILED":
-        raise RuntimeError(f"Recurring_Charge failed: {recurring_response.error}")
+    recurring_response = await recurringpayment_client.charge(_build_recurring_charge_request())
 
     return {"status": recurring_response.status}
 
 
 async def process_refund_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.refund_get"""
-    payment_client = PaymentClient(config)
+    """Flow: RefundService.Get"""
+    refund_client = RefundClient(config)
 
-    # Step 1: refund_get
-    refund_response = await payment_client.refund_get(payment_pb2.TODO_FIX_MISSING_TYPE_refund_get(
-        merchant_refund_id="probe_refund_001",
-        connector_transaction_id="probe_connector_txn_001",
-        refund_id="probe_refund_id_001",
-        token="probe_access_token",
-        expires_in_seconds=3600,
-        token_type="Bearer",
-    ))
+    refund_response = await refund_client.refund_get(_build_refund_get_request())
 
     return {"status": refund_response.status}
 

@@ -4,10 +4,14 @@
 //
 // Billwerk — all scenarios and flows in one file.
 // Run a scenario:  cargo run --example billwerk -- process_checkout_card
+use cards::CardNumber;
 use grpc_api_types::payments::connector_specific_config;
+use grpc_api_types::payments::payment_method;
 use grpc_api_types::payments::*;
+use hyperswitch_masking::Secret;
 use hyperswitch_payments_client::ConnectorClient;
 use std::collections::HashMap;
+use std::str::FromStr;
 
 #[allow(dead_code)]
 pub const SUPPORTED_FLOWS: &[&str] = &[
@@ -26,7 +30,19 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
 fn build_client() -> ConnectorClient {
     // Configure the connector with authentication
     let config = ConnectorConfig {
-        connector_config: None, // TODO: Add your connector config here,
+        connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Billwerk(
+                BillwerkConfig {
+                    api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())), // Authentication credential
+                    public_api_key: Some(hyperswitch_masking::Secret::new(
+                        "YOUR_PUBLIC_API_KEY".to_string(),
+                    )), // Authentication credential
+                    base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
+                    secondary_base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
+                    ..Default::default()
+                },
+            )),
+        }),
         options: Some(SdkOptions {
             environment: Environment::Sandbox.into(),
         }),
@@ -34,7 +50,183 @@ fn build_client() -> ConnectorClient {
     ConnectorClient::new(config, None).unwrap()
 }
 
-// Flow: PaymentService.capture
+pub fn build_capture_request(connector_transaction_id: &str) -> PaymentServiceCaptureRequest {
+    PaymentServiceCaptureRequest {
+        merchant_capture_id: Some("probe_capture_001".to_string()), // Identification.
+        connector_transaction_id: connector_transaction_id.to_string(),
+        amount_to_capture: Some(Money {
+            // Capture Details.
+            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        ..Default::default()
+    }
+}
+
+pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetRequest {
+    PaymentServiceGetRequest {
+        merchant_transaction_id: Some("probe_merchant_txn_001".to_string()), // Identification.
+        connector_transaction_id: connector_transaction_id.to_string(),
+        amount: Some(Money {
+            // Amount Information.
+            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        connector_order_reference_id: Some("probe_order_ref_001".to_string()), // Connector Reference Id.
+        ..Default::default()
+    }
+}
+
+pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest {
+    RecurringPaymentServiceChargeRequest {
+        connector_recurring_payment_id: Some(MandateReference {
+            // Reference to existing mandate.
+            // mandate_id_type: {"connector_mandate_id": {"connector_mandate_id": "probe-mandate-123"}}
+            ..Default::default()
+        }),
+        amount: Some(Money {
+            // Amount Information.
+            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        payment_method: Some(PaymentMethod {
+            // Optional payment Method Information (for network transaction flows).
+            payment_method: Some(payment_method::PaymentMethod::Token(
+                TokenPaymentMethodType {
+                    token: Some(Secret::new("probe_pm_token".to_string())), // The token string representing a payment method.
+                },
+            )),
+            ..Default::default()
+        }),
+        return_url: Some("https://example.com/recurring-return".to_string()),
+        connector_customer_id: Some("cust_probe_123".to_string()),
+        payment_method_type: Some(PaymentMethodType::PayPal.into()),
+        off_session: Some(true), // Behavioral Flags and Preferences.
+        ..Default::default()
+    }
+}
+
+pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRefundRequest {
+    PaymentServiceRefundRequest {
+        merchant_refund_id: Some("probe_refund_001".to_string()), // Identification.
+        connector_transaction_id: connector_transaction_id.to_string(),
+        payment_amount: 1000, // Amount Information.
+        refund_amount: Some(Money {
+            minor_amount: 1000,             // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        reason: Some("customer_request".to_string()), // Reason for the refund.
+        ..Default::default()
+    }
+}
+
+pub fn build_refund_get_request() -> RefundServiceGetRequest {
+    RefundServiceGetRequest {
+        merchant_refund_id: Some("probe_refund_001".to_string()), // Identification.
+        connector_transaction_id: "probe_connector_txn_001".to_string(),
+        refund_id: "probe_refund_id_001".to_string(),
+        ..Default::default()
+    }
+}
+
+pub fn build_token_authorize_request() -> PaymentServiceTokenAuthorizeRequest {
+    PaymentServiceTokenAuthorizeRequest {
+        merchant_transaction_id: Some("probe_tokenized_txn_001".to_string()),
+        amount: Some(Money {
+            minor_amount: 1000,             // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        connector_token: Some(Secret::new("pm_1AbcXyzStripeTestToken".to_string())), // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
+        address: Some(PaymentAddress {
+            billing_address: Some(Address {
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        capture_method: Some(CaptureMethod::Automatic.into()),
+        return_url: Some("https://example.com/return".to_string()),
+        ..Default::default()
+    }
+}
+
+pub fn build_token_setup_recurring_request() -> PaymentServiceTokenSetupRecurringRequest {
+    PaymentServiceTokenSetupRecurringRequest {
+        merchant_recurring_payment_id: "probe_tokenized_mandate_001".to_string(),
+        amount: Some(Money {
+            minor_amount: 0,                // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        connector_token: Some(Secret::new("pm_1AbcXyzStripeTestToken".to_string())),
+        address: Some(PaymentAddress {
+            billing_address: Some(Address {
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        customer_acceptance: Some(CustomerAcceptance {
+            acceptance_type: AcceptanceType::Online.into(), // Type of acceptance (e.g., online, offline).
+            accepted_at: 0, // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+            online_mandate_details: Some(OnlineMandate {
+                // Details if the acceptance was an online mandate.
+                ip_address: Some("127.0.0.1".to_string()), // IP address from which the mandate was accepted.
+                user_agent: "Mozilla/5.0".to_string(), // User agent string of the browser used for mandate acceptance.
+            }),
+        }),
+        setup_mandate_details: Some(SetupMandateDetails {
+            mandate_type: Some(MandateType {
+                // Type of mandate (single_use or multi_use) with amount details.
+                mandate_type: Some(mandate_type::MandateType::MultiUse(MandateAmountData {
+                    amount: 0,                      // Amount.
+                    currency: Currency::Usd.into(), // Currency code (ISO 4217).
+                    ..Default::default()
+                })),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        setup_future_usage: Some(FutureUsage::OffSession.into()),
+        ..Default::default()
+    }
+}
+
+pub fn build_tokenize_request() -> PaymentMethodServiceTokenizeRequest {
+    PaymentMethodServiceTokenizeRequest {
+        amount: Some(Money {
+            // Payment Information.
+            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        payment_method: Some(PaymentMethod {
+            payment_method: Some(payment_method::PaymentMethod::Card(CardDetails {
+                card_number: Some(CardNumber::from_str("4111111111111111").unwrap()), // Card Identification.
+                card_exp_month: Some(Secret::new("03".to_string())),
+                card_exp_year: Some(Secret::new("2030".to_string())),
+                card_cvc: Some(Secret::new("737".to_string())),
+                card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
+                ..Default::default()
+            })),
+            ..Default::default()
+        }),
+        address: Some(PaymentAddress {
+            // Address Information.
+            billing_address: Some(Address {
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        ..Default::default()
+    }
+}
+
+pub fn build_void_request(connector_transaction_id: &str) -> PaymentServiceVoidRequest {
+    PaymentServiceVoidRequest {
+        merchant_void_id: Some("probe_void_001".to_string()), // Identification.
+        connector_transaction_id: connector_transaction_id.to_string(),
+        ..Default::default()
+    }
+}
+
+// Flow: PaymentService.Capture
 #[allow(dead_code)]
 pub async fn process_capture(
     client: &ConnectorClient,
@@ -42,12 +234,7 @@ pub async fn process_capture(
 ) -> Result<String, Box<dyn std::error::Error>> {
     let response = client
         .capture(
-            TODO_FIX_MISSING_TYPE_capture {
-                merchant_capture_id: "probe_capture_001".to_string(),
-                connector_transaction_id: "probe_connector_txn_001".to_string(),
-                // amount_to_capture: {"minor_amount": 1000, "currency": "USD"}
-                ..Default::default()
-            },
+            build_capture_request("probe_connector_txn_001"),
             &HashMap::new(),
             None,
         )
@@ -55,7 +242,7 @@ pub async fn process_capture(
     Ok(format!("status: {:?}", response.status()))
 }
 
-// Flow: PaymentService.get
+// Flow: PaymentService.Get
 #[allow(dead_code)]
 pub async fn process_get(
     client: &ConnectorClient,
@@ -63,13 +250,7 @@ pub async fn process_get(
 ) -> Result<String, Box<dyn std::error::Error>> {
     let response = client
         .get(
-            TODO_FIX_MISSING_TYPE_get {
-                merchant_transaction_id: "probe_merchant_txn_001".to_string(),
-                connector_transaction_id: "probe_connector_txn_001".to_string(),
-                // amount: {"minor_amount": 1000, "currency": "USD"}
-                connector_order_reference_id: "probe_order_ref_001".to_string(),
-                ..Default::default()
-            },
+            build_get_request("probe_connector_txn_001"),
             &HashMap::new(),
             None,
         )
@@ -77,32 +258,19 @@ pub async fn process_get(
     Ok(format!("status: {:?}", response.status()))
 }
 
-// Flow: PaymentService.recurring_charge
+// Flow: RecurringPaymentService.Charge
 #[allow(dead_code)]
 pub async fn process_recurring_charge(
     client: &ConnectorClient,
     _merchant_transaction_id: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let response = client
-        .recurring_charge(
-            TODO_FIX_MISSING_TYPE_recurring_charge {
-                // connector_recurring_payment_id: {"mandate_id_type": {"connector_mandate_id": {"connector_mandate_id": "probe-mandate-123"}}}
-                // amount: {"minor_amount": 1000, "currency": "USD"}
-                // payment_method: {"token": {"token": "probe_pm_token"}}
-                return_url: "https://example.com/recurring-return".to_string(),
-                connector_customer_id: "cust_probe_123".to_string(),
-                payment_method_type: "PAY_PAL".to_string(),
-                off_session: true,
-                ..Default::default()
-            },
-            &HashMap::new(),
-            None,
-        )
+        .recurring_charge(build_recurring_charge_request(), &HashMap::new(), None)
         .await?;
     Ok(format!("status: {:?}", response.status()))
 }
 
-// Flow: PaymentService.refund
+// Flow: PaymentService.Refund
 #[allow(dead_code)]
 pub async fn process_refund(
     client: &ConnectorClient,
@@ -110,14 +278,7 @@ pub async fn process_refund(
 ) -> Result<String, Box<dyn std::error::Error>> {
     let response = client
         .refund(
-            TODO_FIX_MISSING_TYPE_refund {
-                merchant_refund_id: "probe_refund_001".to_string(),
-                connector_transaction_id: "probe_connector_txn_001".to_string(),
-                payment_amount: 1000,
-                // refund_amount: {"minor_amount": 1000, "currency": "USD"}
-                reason: "customer_request".to_string(),
-                ..Default::default()
-            },
+            build_refund_request("probe_connector_txn_001"),
             &HashMap::new(),
             None,
         )
@@ -125,98 +286,55 @@ pub async fn process_refund(
     Ok(format!("status: {:?}", response.status()))
 }
 
-// Flow: PaymentService.refund_get
+// Flow: RefundService.Get
 #[allow(dead_code)]
 pub async fn process_refund_get(
     client: &ConnectorClient,
     _merchant_transaction_id: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let response = client
-        .refund_get(
-            TODO_FIX_MISSING_TYPE_refund_get {
-                merchant_refund_id: "probe_refund_001".to_string(),
-                connector_transaction_id: "probe_connector_txn_001".to_string(),
-                refund_id: "probe_refund_id_001".to_string(),
-                ..Default::default()
-            },
-            &HashMap::new(),
-            None,
-        )
+        .refund_get(build_refund_get_request(), &HashMap::new(), None)
         .await?;
     Ok(format!("status: {:?}", response.status()))
 }
 
-// Flow: PaymentService.token_authorize
+// Flow: PaymentService.TokenAuthorize
 #[allow(dead_code)]
 pub async fn process_token_authorize(
     client: &ConnectorClient,
     _merchant_transaction_id: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let response = client
-        .token_authorize(
-            TODO_FIX_MISSING_TYPE_token_authorize {
-                merchant_transaction_id: "probe_tokenized_txn_001".to_string(),
-                // amount: {"minor_amount": 1000, "currency": "USD"}
-                connector_token: "pm_1AbcXyzStripeTestToken".to_string(),
-                // address: {"billing_address": {}}
-                capture_method: "AUTOMATIC".to_string(),
-                return_url: "https://example.com/return".to_string(),
-                ..Default::default()
-            },
-            &HashMap::new(),
-            None,
-        )
+        .token_authorize(build_token_authorize_request(), &HashMap::new(), None)
         .await?;
     Ok(format!("status: {:?}", response.status()))
 }
 
-// Flow: PaymentService.token_setup_recurring
+// Flow: PaymentService.TokenSetupRecurring
 #[allow(dead_code)]
 pub async fn process_token_setup_recurring(
     client: &ConnectorClient,
     _merchant_transaction_id: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let response = client
-        .token_setup_recurring(
-            TODO_FIX_MISSING_TYPE_token_setup_recurring {
-                merchant_recurring_payment_id: "probe_tokenized_mandate_001".to_string(),
-                // amount: {"minor_amount": 0, "currency": "USD"}
-                connector_token: "pm_1AbcXyzStripeTestToken".to_string(),
-                // address: {"billing_address": {}}
-                // customer_acceptance: {"acceptance_type": "ONLINE", "accepted_at": 0, "online_mandate_details": {"ip_address": "127.0.0.1", "user_agent": "Mozilla/5.0"}}
-                // setup_mandate_details: {"mandate_type": {"multi_use": {"amount": 0, "currency": "USD"}}}
-                setup_future_usage: "OFF_SESSION".to_string(),
-                ..Default::default()
-            },
-            &HashMap::new(),
-            None,
-        )
+        .token_setup_recurring(build_token_setup_recurring_request(), &HashMap::new(), None)
         .await?;
     Ok(format!("status: {:?}", response.status()))
 }
 
-// Flow: PaymentService.tokenize
+// Flow: PaymentMethodService.Tokenize
 #[allow(dead_code)]
 pub async fn process_tokenize(
     client: &ConnectorClient,
     _merchant_transaction_id: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let response = client
-        .tokenize(
-            TODO_FIX_MISSING_TYPE_tokenize {
-                // amount: {"minor_amount": 1000, "currency": "USD"}
-                // payment_method: {"card": {"card_number": "4111111111111111", "card_exp_month": "03", "card_exp_year": "2030", "card_cvc": "737", "card_holder_name": "John Doe"}}
-                // address: {"billing_address": {}}
-                ..Default::default()
-            },
-            &HashMap::new(),
-            None,
-        )
+        .tokenize(build_tokenize_request(), &HashMap::new(), None)
         .await?;
     Ok(format!("token: {}", response.payment_method_token))
 }
 
-// Flow: PaymentService.void
+// Flow: PaymentService.Void
 #[allow(dead_code)]
 pub async fn process_void(
     client: &ConnectorClient,
@@ -224,11 +342,7 @@ pub async fn process_void(
 ) -> Result<String, Box<dyn std::error::Error>> {
     let response = client
         .void(
-            TODO_FIX_MISSING_TYPE_void {
-                merchant_void_id: "probe_void_001".to_string(),
-                connector_transaction_id: "probe_connector_txn_001".to_string(),
-                ..Default::default()
-            },
+            build_void_request("probe_connector_txn_001"),
             &HashMap::new(),
             None,
         )

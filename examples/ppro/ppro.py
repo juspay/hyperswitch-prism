@@ -8,132 +8,147 @@
 import asyncio
 import sys
 from payments import PaymentClient
+from payments import EventClient
+from payments import RecurringPaymentClient
+from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["capture", "get", "parse_event", "recurring_charge", "refund", "refund_get", "void"]
+SUPPORTED_FLOWS = ["capture", "get", "recurring_charge", "refund", "refund_get", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    # connector_config=payment_pb2.ConnectorSpecificConfig(
-    #     ppro=payment_pb2.PproConfig(api_key=...),
-    # ),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        ppro=payment_pb2.PproConfig(
+            api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
+            merchant_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ID"),
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
 
 
+
+
+def _build_capture_request(connector_transaction_id: str):
+    return payment_pb2.PaymentServiceCaptureRequest(
+        merchant_capture_id="probe_capture_001",  # Identification.
+        connector_transaction_id=connector_transaction_id,
+        amount_to_capture=payment_pb2.Money(  # Capture Details.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+    )
+
+def _build_get_request(connector_transaction_id: str):
+    return payment_pb2.PaymentServiceGetRequest(
+        merchant_transaction_id="probe_merchant_txn_001",  # Identification.
+        connector_transaction_id=connector_transaction_id,
+        amount=payment_pb2.Money(  # Amount Information.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+    )
+
+def _build_recurring_charge_request():
+    return payment_pb2.RecurringPaymentServiceChargeRequest(
+        connector_recurring_payment_id=payment_pb2.MandateReference(  # Reference to existing mandate.
+            connector_mandate_id=payment_pb2.ConnectorMandateReferenceId(  # mandate_id sent by the connector.
+                connector_mandate_id="probe-mandate-123",
+            ),
+        ),
+        amount=payment_pb2.Money(  # Amount Information.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+        payment_method=payment_methods_pb2.PaymentMethod(  # Optional payment Method Information (for network transaction flows).
+            token=payment_methods_pb2.TokenPaymentMethodType(
+                token=payment_methods_pb2.SecretString(value="probe_pm_token"),  # The token string representing a payment method.
+            ),
+        ),
+        return_url="https://example.com/recurring-return",
+        connector_customer_id="cust_probe_123",
+        payment_method_type=payment_pb2.PaymentMethodType.Value("PAY_PAL"),
+        off_session=True,  # Behavioral Flags and Preferences.
+    )
+
+def _build_refund_request(connector_transaction_id: str):
+    return payment_pb2.PaymentServiceRefundRequest(
+        merchant_refund_id="probe_refund_001",  # Identification.
+        connector_transaction_id=connector_transaction_id,
+        payment_amount=1000,  # Amount Information.
+        refund_amount=payment_pb2.Money(
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+        reason="customer_request",  # Reason for the refund.
+    )
+
+def _build_refund_get_request():
+    return payment_pb2.RefundServiceGetRequest(
+        merchant_refund_id="probe_refund_001",  # Identification.
+        connector_transaction_id="probe_connector_txn_001",
+        refund_id="probe_refund_id_001",
+    )
+
+def _build_void_request(connector_transaction_id: str):
+    return payment_pb2.PaymentServiceVoidRequest(
+        merchant_void_id="probe_void_001",  # Identification.
+        connector_transaction_id=connector_transaction_id,
+        amount=payment_pb2.Money(  # Amount Information.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+    )
 async def process_capture(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.capture"""
+    """Flow: PaymentService.Capture"""
     payment_client = PaymentClient(config)
 
-    # Step 1: Capture — settle the reserved funds
-    capture_response = await payment_client.capture(payment_pb2.TODO_FIX_MISSING_TYPE_capture(
-        merchant_capture_id="probe_capture_001",
-        connector_transaction_id="probe_connector_txn_001",
-        minor_amount=1000,
-        currency="USD",
-    ))
-
-    if capture_response.status == "FAILED":
-        raise RuntimeError(f"Capture failed: {capture_response.error}")
+    capture_response = await payment_client.capture(_build_capture_request("probe_connector_txn_001"))
 
     return {"status": capture_response.status}
 
 
 async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.get"""
+    """Flow: PaymentService.Get"""
     payment_client = PaymentClient(config)
 
-    # Step 1: Get — retrieve current payment status from the connector
-    get_response = await payment_client.get(payment_pb2.TODO_FIX_MISSING_TYPE_get(
-        merchant_transaction_id="probe_merchant_txn_001",
-        connector_transaction_id="probe_connector_txn_001",
-        minor_amount=1000,
-        currency="USD",
-    ))
+    get_response = await payment_client.get(_build_get_request("probe_connector_txn_001"))
 
     return {"status": get_response.status}
 
 
-async def process_parse_event(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.parse_event"""
-    payment_client = PaymentClient(config)
-
-    # Step 1: parse_event
-    parse_response = await payment_client.parse_event(payment_pb2.TODO_FIX_MISSING_TYPE_parse_event(
-        method="HTTP_METHOD_POST",
-        uri="https://example.com/webhook",
-        body="{\"specversion\":\"1.0\",\"type\":\"PAYMENT_CHARGE_SUCCESS\",\"source\":\"probe_source\",\"id\":\"probe_event_001\",\"time\":\"2024-01-01T00:00:00Z\",\"data\":{\"charge\":{\"id\":\"probe_txn_001\",\"status\":\"SUCCEEDED\",\"amount\":1000,\"currency\":\"EUR\"}}}",
-    ))
-
-    return {"status": parse_response.status}
-
-
 async def process_recurring_charge(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.recurring_charge"""
-    payment_client = PaymentClient(config)
+    """Flow: RecurringPaymentService.Charge"""
+    recurringpayment_client = RecurringPaymentClient(config)
 
-    # Step 1: Recurring Charge — charge against the stored mandate
-    recurring_response = await payment_client.charge(payment_pb2.TODO_FIX_MISSING_TYPE_recurring_charge(
-        connector_mandate_id="probe-mandate-123",
-        minor_amount=1000,
-        currency="USD",
-        token="probe_pm_token",
-        return_url="https://example.com/recurring-return",
-        connector_customer_id="cust_probe_123",
-        payment_method_type="PAY_PAL",
-        off_session=True,
-    ))
-
-    if recurring_response.status == "FAILED":
-        raise RuntimeError(f"Recurring_Charge failed: {recurring_response.error}")
+    recurring_response = await recurringpayment_client.charge(_build_recurring_charge_request())
 
     return {"status": recurring_response.status}
 
 
 async def process_refund(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.refund"""
+    """Flow: PaymentService.Refund"""
     payment_client = PaymentClient(config)
 
-    # Step 1: Refund — return funds to the customer
-    refund_response = await payment_client.refund(payment_pb2.TODO_FIX_MISSING_TYPE_refund(
-        merchant_refund_id="probe_refund_001",
-        connector_transaction_id="probe_connector_txn_001",
-        payment_amount=1000,
-        minor_amount=1000,
-        currency="USD",
-        reason="customer_request",
-    ))
-
-    if refund_response.status == "FAILED":
-        raise RuntimeError(f"Refund failed: {refund_response.error}")
+    refund_response = await payment_client.refund(_build_refund_request("probe_connector_txn_001"))
 
     return {"status": refund_response.status}
 
 
 async def process_refund_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.refund_get"""
-    payment_client = PaymentClient(config)
+    """Flow: RefundService.Get"""
+    refund_client = RefundClient(config)
 
-    # Step 1: refund_get
-    refund_response = await payment_client.refund_get(payment_pb2.TODO_FIX_MISSING_TYPE_refund_get(
-        merchant_refund_id="probe_refund_001",
-        connector_transaction_id="probe_connector_txn_001",
-        refund_id="probe_refund_id_001",
-    ))
+    refund_response = await refund_client.refund_get(_build_refund_get_request())
 
     return {"status": refund_response.status}
 
 
 async def process_void(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.void"""
+    """Flow: PaymentService.Void"""
     payment_client = PaymentClient(config)
 
-    # Step 1: Void — release reserved funds (cancel authorization)
-    void_response = await payment_client.void(payment_pb2.TODO_FIX_MISSING_TYPE_void(
-        merchant_void_id="probe_void_001",
-        connector_transaction_id="probe_connector_txn_001",
-        minor_amount=1000,
-        currency="USD",
-    ))
+    void_response = await payment_client.void(_build_void_request("probe_connector_txn_001"))
 
     return {"status": void_response.status}
 

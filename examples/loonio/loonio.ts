@@ -6,27 +6,41 @@
 // Run a scenario:  npx tsx loonio.ts checkout_autocapture
 
 import { PaymentClient, types } from 'hyperswitch-prism';
-const { Environment } = types;
+const { Environment, Currency } = types;
 export const SUPPORTED_FLOWS = ["get"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
-    // connectorConfig: { loonio: { apiKey: { value: 'YOUR_API_KEY' } } },
+    connectorConfig: {
+        loonio: {
+            merchantId: { value: 'YOUR_MERCHANT_ID' },
+            merchantToken: { value: 'YOUR_MERCHANT_TOKEN' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
+    },
 };
 
 
-// ANCHOR: scenario_functions
-// Flow: PaymentService.get
-async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    // Step 1: Get — retrieve current payment status from the connector
-    const getResponse = await paymentClient.get({
-        "merchantTransactionId": "probe_merchant_txn_001",
-        "connectorTransactionId": "probe_connector_txn_001",
-        "amount": {
+function _buildGetRequest(connectorTransactionId: string): types.IPaymentServiceGetRequest {
+    return {
+        "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId,
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
-    });
+    };
+}
+
+
+// ANCHOR: scenario_functions
+// Flow: PaymentService.Get
+async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const getResponse = await paymentClient.get(_buildGetRequest('probe_connector_txn_001'));
 
     return getResponse;
 }
@@ -34,7 +48,7 @@ async function get(merchantTransactionId: string, config: types.IConnectorConfig
 
 // Export all process* functions for the smoke test
 export {
-    get
+    get, _buildGetRequest
 };
 
 // CLI runner

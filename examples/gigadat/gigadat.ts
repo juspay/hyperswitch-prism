@@ -6,46 +6,65 @@
 // Run a scenario:  npx tsx gigadat.ts checkout_autocapture
 
 import { PaymentClient, types } from 'hyperswitch-prism';
-const { Environment } = types;
+const { Environment, Currency } = types;
 export const SUPPORTED_FLOWS = ["get", "refund"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
-    // connectorConfig: { gigadat: { apiKey: { value: 'YOUR_API_KEY' } } },
+    connectorConfig: {
+        gigadat: {
+            campaignId: { value: 'YOUR_CAMPAIGN_ID' },
+            accessToken: { value: 'YOUR_ACCESS_TOKEN' },
+            securityToken: { value: 'YOUR_SECURITY_TOKEN' },
+            baseUrl: 'YOUR_BASE_URL',
+            site: 'YOUR_SITE',
+        }
+    },
 };
 
 
-// ANCHOR: scenario_functions
-// Flow: PaymentService.get
-async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    // Step 1: Get — retrieve current payment status from the connector
-    const getResponse = await paymentClient.get({
-        "merchantTransactionId": "probe_merchant_txn_001",
-        "connectorTransactionId": "probe_connector_txn_001",
-        "amount": {
+function _buildGetRequest(connectorTransactionId: string): types.IPaymentServiceGetRequest {
+    return {
+        "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId,
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
-    });
+    };
+}
+
+function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServiceRefundRequest {
+    return {
+        "merchantRefundId": "probe_refund_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId,
+        "paymentAmount": 1000,  // Amount Information.
+        "refundAmount": {
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "reason": "customer_request"  // Reason for the refund.
+    };
+}
+
+
+// ANCHOR: scenario_functions
+// Flow: PaymentService.Get
+async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const getResponse = await paymentClient.get(_buildGetRequest('probe_connector_txn_001'));
 
     return getResponse;
 }
 
-// Flow: PaymentService.refund
+// Flow: PaymentService.Refund
 async function refund(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    // Step 1: Refund — return funds to the customer
-    const refundResponse = await paymentClient.refund({
-        "merchantRefundId": "probe_refund_001",
-        "connectorTransactionId": "probe_connector_txn_001",
-        "paymentAmount": 1000,
-        "refundAmount": {
-        },
-        "reason": "customer_request"
-    });
+    const paymentClient = new PaymentClient(config);
 
-    if (refundResponse.status === types.RefundStatus.REFUND_FAILURE) {
-        throw new Error(`Refund failed: ${JSON.stringify(refundResponse.error)}`);
-    }
+    const refundResponse = await paymentClient.refund(_buildRefundRequest('probe_connector_txn_001'));
 
     return refundResponse;
 }
@@ -53,7 +72,7 @@ async function refund(merchantTransactionId: string, config: types.IConnectorCon
 
 // Export all process* functions for the smoke test
 export {
-    get, refund
+    get, refund, _buildGetRequest, _buildRefundRequest
 };
 
 // CLI runner
