@@ -21,6 +21,7 @@ use domain_types::{
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
+    utils::split_full_name,
 };
 use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -516,10 +517,19 @@ pub struct AirwallexCardInfo {
     pub fingerprint: Option<String>,
 }
 
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum AirwallexNextActionType {
+    Redirect,
+    DeviceDataCollection,
+    #[serde(other)]
+    Other,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct AirwallexNextAction {
     #[serde(rename = "type")]
-    pub action_type: String,
+    pub action_type: AirwallexNextActionType,
     pub method: Option<String>,
     pub url: Option<String>,
 }
@@ -543,16 +553,19 @@ fn get_payment_status(
         AirwallexPaymentStatus::Processing => AttemptStatus::Pending,
         AirwallexPaymentStatus::RequiresPaymentMethod => AttemptStatus::PaymentMethodAwaited,
         AirwallexPaymentStatus::RequiresCustomerAction => {
-            // Check next_action to determine specific pending state based on action_type
             next_action
                 .as_ref()
-                .map_or(AttemptStatus::AuthenticationPending, |action| match action
-                    .action_type
-                    .as_str()
-                {
-                    "device_data_collection" => AttemptStatus::DeviceDataCollectionPending,
-                    _ => AttemptStatus::AuthenticationPending,
-                })
+                .map_or(
+                    AttemptStatus::AuthenticationPending,
+                    |action| match action.action_type {
+                        AirwallexNextActionType::DeviceDataCollection => {
+                            AttemptStatus::DeviceDataCollectionPending
+                        }
+                        AirwallexNextActionType::Redirect | AirwallexNextActionType::Other => {
+                            AttemptStatus::AuthenticationPending
+                        }
+                    },
+                )
         }
         AirwallexPaymentStatus::RequiresCapture => AttemptStatus::Authorized,
         AirwallexPaymentStatus::Authorized => AttemptStatus::Authorized,
@@ -576,7 +589,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexPaymentsResp
 
         // Handle redirection for bank redirects and 3DS
         let redirection_data = item.response.next_action.as_ref().and_then(|next_action| {
-            if next_action.action_type == "redirect" {
+            if next_action.action_type == AirwallexNextActionType::Redirect {
                 next_action.url.as_ref().and_then(|url_str| {
                     Url::parse(url_str)
                         .ok()
@@ -1495,9 +1508,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         expiry_month: card_data.card_exp_month.clone(),
                         expiry_year: card_data.get_expiry_year_4_digit(),
                         cvc: card_data.card_cvc.clone(),
-                        name: card_data
-                            .card_holder_name
-                            .map(|name| Secret::new(name.expose())),
+                        name: card_data.card_holder_name,
                     },
                     payment_method_type: AirwallexPaymentType::Card,
                 })
@@ -1518,23 +1529,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }),
         });
 
-        // Airwallex requires a connector-level customer_id for PaymentConsent.
-        // Prefer resource_common_data.connector_customer if present, fall back to
-        // request.customer_id (merchant-side id).
+        // Airwallex requires a connector-level customer_id (`cus_*`) at PaymentConsent
+        // creation. SetupMandate is the CIT step — fail if it isn't populated rather
+        // than silently falling back to a merchant-side id the connector would reject.
         let customer_id = item
             .router_data
             .resource_common_data
             .connector_customer
             .clone()
-            .or_else(|| {
-                item.router_data
-                    .request
-                    .customer_id
-                    .as_ref()
-                    .map(|c| c.get_string_repr().to_string())
-            })
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "customer_id",
+                field_name: "connector_customer",
                 context: Default::default(),
             })?;
 
@@ -1575,7 +1579,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexSetupMandate
         let status = get_payment_status(&item.response.status, &item.response.next_action);
 
         let redirection_data = item.response.next_action.as_ref().and_then(|next_action| {
-            if next_action.action_type == "redirect" {
+            if next_action.action_type == AirwallexNextActionType::Redirect {
                 next_action.url.as_ref().and_then(|url_str| {
                     Url::parse(url_str)
                         .ok()
@@ -1754,7 +1758,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexRepeatPaymen
         let status = get_payment_status(&item.response.status, &item.response.next_action);
 
         let redirection_data = item.response.next_action.as_ref().and_then(|next_action| {
-            if next_action.action_type == "redirect" {
+            if next_action.action_type == AirwallexNextActionType::Redirect {
                 next_action.url.as_ref().and_then(|url_str| {
                     Url::parse(url_str)
                         .ok()
@@ -1847,26 +1851,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let email = data.email.clone().map(|e| e.expose());
 
-        // Split name on the last whitespace so "First Last" maps to first_name / last_name.
-        // Single-token names go to first_name only (mirrors Finix's convention).
-        let (first_name, last_name) = data
-            .name
-            .as_ref()
-            .map(|name| {
-                let raw = name.clone().expose();
-                let trimmed = raw.trim();
-                match trimmed.rsplit_once(' ') {
-                    Some((first, last)) => (
-                        Some(Secret::new(first.to_string())),
-                        Some(Secret::new(last.to_string())),
-                    ),
-                    None => (Some(Secret::new(trimmed.to_string())), None),
-                }
-            })
-            .unwrap_or((None, None));
+        let (first_name, last_name) = split_full_name(data.name.clone());
+
+        let request_id = format!(
+            "customer_{}",
+            item.router_data
+                .resource_common_data
+                .connector_request_reference_id
+        );
 
         Ok(Self {
-            request_id: uuid::Uuid::new_v4().to_string(),
+            request_id,
             merchant_customer_id,
             email,
             phone_number: data.phone.clone(),
