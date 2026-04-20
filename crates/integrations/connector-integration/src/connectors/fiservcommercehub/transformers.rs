@@ -329,11 +329,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
             }
             _ => {
-                return Err(error_stack::report!(errors::IntegrationError::NotSupported {
-                    message: "This payment method is not supported".to_string(),
-                    connector: "Fiservcommercehub",
-                    context: Default::default(),
-                }))
+                return Err(error_stack::report!(
+                    errors::IntegrationError::not_implemented(
+                        "This payment method is not implemented".to_string(),
+                    )
+                ))
             }
         };
 

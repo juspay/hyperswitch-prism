@@ -422,11 +422,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let ccard = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card) => Ok(card),
-            _ => Err(error_stack::report!(IntegrationError::NotSupported {
-                message: "Only card payments are supported".to_string(),
-                connector: "Barclaycard",
-                context: Default::default(),
-            })),
+            _ => Err(IntegrationError::not_implemented(
+                "Only card payments are supported".to_string(),
+            )),
         }?;
 
         let card_network = ccard.card_network.clone();

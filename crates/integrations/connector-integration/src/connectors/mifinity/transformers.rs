@@ -231,13 +231,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::BillDeskRedirect(_)
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
-                | WalletData::EaseBuzzRedirect(_) => {
-                    Err(error_stack::report!(IntegrationError::NotSupported {
-                        message: utils::get_unimplemented_payment_method_error_message("Mifinity"),
-                        connector: "Mifinity",
-                        context: Default::default(),
-                    }))
-                }
+                | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::not_implemented(
+                    utils::get_unimplemented_payment_method_error_message("Mifinity"),
+                )
+                .into()),
             },
             PaymentMethodData::Card(_)
             | PaymentMethodData::CardRedirect(_)
@@ -258,11 +255,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(error_stack::report!(IntegrationError::NotSupported {
-                    message: utils::get_unimplemented_payment_method_error_message("Mifinity"),
-                    connector: "Mifinity",
-                    context: Default::default(),
-                }))
+                Err(IntegrationError::not_implemented(
+                    utils::get_unimplemented_payment_method_error_message("Mifinity"),
+                )
+                .into())
             }
         }
     }

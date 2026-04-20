@@ -331,13 +331,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     card_data.clone(),
                 )?
             }
-            _ => Err(error_stack::report!(IntegrationError::NotSupported {
-                message: domain_types::utils::get_unimplemented_payment_method_error_message(
-                    "revolv3"
-                ),
-                connector: "Revolv3",
-                context: Default::default(),
-            }))?,
+            _ => Err(IntegrationError::not_implemented(
+                domain_types::utils::get_unimplemented_payment_method_error_message("revolv3"),
+            ))?,
         };
 
         let three_ds = item
@@ -1133,13 +1129,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )?
             }
             PaymentMethodData::MandatePayment => Revolv3PaymentMethodData::set_mandate_data()?,
-            _ => Err(error_stack::report!(IntegrationError::NotSupported {
-                message: domain_types::utils::get_unimplemented_payment_method_error_message(
-                    "revolv3"
-                ),
-                connector: "Revolv3",
-                context: Default::default(),
-            }))?,
+            _ => Err(IntegrationError::not_implemented(
+                domain_types::utils::get_unimplemented_payment_method_error_message("revolv3"),
+            ))?,
         };
 
         let amount = Revolv3AmountData {
@@ -1277,13 +1269,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     },
                 })
             }
-            _ => Err(error_stack::report!(IntegrationError::NotSupported {
-                message: domain_types::utils::get_unimplemented_payment_method_error_message(
-                    "revolv3"
-                ),
-                connector: "Revolv3",
-                context: Default::default(),
-            }))?,
+            _ => Err(IntegrationError::not_implemented(
+                domain_types::utils::get_unimplemented_payment_method_error_message("revolv3"),
+            ))?,
         };
 
         let network_processing = NetworkProcessingData {

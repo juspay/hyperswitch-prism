@@ -3119,11 +3119,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(error_stack::report!(IntegrationError::NotSupported {
-                    message: utils::get_unimplemented_payment_method_error_message("Cybersource"),
-                    connector: "Cybersource",
-                    context: Default::default(),
-                }))
+                Err(IntegrationError::not_implemented(
+                    utils::get_unimplemented_payment_method_error_message("Cybersource"),
+                ))
             }
         }?;
 
@@ -3398,11 +3396,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(error_stack::report!(IntegrationError::NotSupported {
-                    message: utils::get_unimplemented_payment_method_error_message("Cybersource"),
-                    connector: "Cybersource",
-                    context: Default::default(),
-                }))
+                Err(IntegrationError::not_implemented(
+                    utils::get_unimplemented_payment_method_error_message("Cybersource"),
+                ))
             }
         }?;
 
@@ -4419,13 +4415,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | PaymentMethodData::OpenBanking(_)
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::PaymentMethodToken(_) => {
-                    Err(error_stack::report!(IntegrationError::NotSupported {
-                        message: utils::get_unimplemented_payment_method_error_message(
-                            "Cybersource"
-                        ),
-                        connector: "Cybersource",
-                        context: Default::default(),
-                    }))?
+                    Err(IntegrationError::not_implemented(
+                        utils::get_unimplemented_payment_method_error_message("Cybersource"),
+                    ))?
                 }
             },
         }

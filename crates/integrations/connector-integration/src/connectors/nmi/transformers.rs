@@ -621,11 +621,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<&PaymentMethodData<T>> for NmiPaymentMet
                 connector: "NMI",
                 context: Default::default(),
             })),
-            _ => Err(error_stack::report!(IntegrationError::NotSupported {
-                message: "Payment method not supported".to_string(),
-                connector: "NMI",
-                context: Default::default(),
-            })),
+            _ => Err(error_stack::report!(IntegrationError::NotImplemented(
+                "Payment method not supported".to_string(),
+                Default::default()
+            ))),
         }
     }
 }
@@ -1374,11 +1373,11 @@ fn get_card_details<T: PaymentMethodDataTypes>(
             card_details.get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
             card_details.card_cvc.clone(),
         )),
-        _ => Err(error_stack::report!(IntegrationError::NotSupported {
-            message: get_unimplemented_payment_method_error_message("NMI"),
-            connector: "NMI",
-            context: Default::default(),
-        })),
+        _ => Err(IntegrationError::NotImplemented(
+            get_unimplemented_payment_method_error_message("NMI"),
+            Default::default(),
+        )
+        .into()),
     }
 }
 

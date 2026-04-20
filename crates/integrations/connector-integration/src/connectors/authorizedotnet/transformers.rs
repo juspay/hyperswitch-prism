@@ -2731,11 +2731,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let ccard = match &item.router_data.request.payment_method_data {
             PaymentMethodData::Card(card) => card,
             pm => {
-                return Err(error_stack::report!(IntegrationError::NotSupported {
-                    message: format!("Payment method {:?}", pm),
-                    connector: "authorizedotnet",
-                    context: Default::default(),
-                }))
+                return Err(error_stack::report!(IntegrationError::not_implemented(
+                    format!("Payment method {:?}", pm)
+                )))
             }
         };
 

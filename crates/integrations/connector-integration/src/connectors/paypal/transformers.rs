@@ -1171,13 +1171,9 @@ fn get_payment_source<
         | BankRedirectData::OnlineBankingThailand { .. }
         | BankRedirectData::LocalBankRedirect {}
         | BankRedirectData::OpenBanking {}
-        | BankRedirectData::Netbanking { .. } => {
-            Err(error_stack::report!(IntegrationError::NotSupported {
-                message: utils::get_unimplemented_payment_method_error_message("Paypal"),
-                connector: "Paypal",
-                context: Default::default(),
-            }))?
-        }
+        | BankRedirectData::Netbanking { .. } => Err(IntegrationError::not_implemented(
+            utils::get_unimplemented_payment_method_error_message("Paypal"),
+        ))?,
     }
 }
 
@@ -1611,13 +1607,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | BankTransferData::InstantBankTransferFinland {}
             | BankTransferData::InstantBankTransferPoland {}
             | BankTransferData::IndonesianBankTransfer { .. }
-            | BankTransferData::LocalBankTransfer { .. } => {
-                Err(error_stack::report!(IntegrationError::NotSupported {
-                    message: utils::get_unimplemented_payment_method_error_message("Paypal"),
-                    connector: "Paypal",
-                    context: Default::default(),
-                }))
-            }
+            | BankTransferData::LocalBankTransfer { .. } => Err(IntegrationError::not_implemented(
+                utils::get_unimplemented_payment_method_error_message("Paypal"),
+            )
+            .into()),
         }
     }
 }
@@ -1641,13 +1634,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | VoucherData::MiniStop(_)
             | VoucherData::FamilyMart(_)
             | VoucherData::Seicomart(_)
-            | VoucherData::PayEasy(_) => {
-                Err(error_stack::report!(IntegrationError::NotSupported {
-                    message: utils::get_unimplemented_payment_method_error_message("Paypal"),
-                    connector: "Paypal",
-                    context: Default::default(),
-                }))
-            }
+            | VoucherData::PayEasy(_) => Err(IntegrationError::not_implemented(
+                utils::get_unimplemented_payment_method_error_message("Paypal"),
+            )
+            .into()),
         }
     }
 }

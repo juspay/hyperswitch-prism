@@ -573,13 +573,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }
                     RealTimePaymentData::Fps {}
                     | RealTimePaymentData::PromptPay {}
-                    | RealTimePaymentData::VietQr {} => {
-                        Err(error_stack::report!(IntegrationError::NotSupported {
-                            message: utils::get_unimplemented_payment_method_error_message("fiuu"),
-                            connector: "Fiuu",
-                            context: Default::default(),
-                        }))
-                    }
+                    | RealTimePaymentData::VietQr {} => Err(IntegrationError::not_implemented(
+                        utils::get_unimplemented_payment_method_error_message("fiuu"),
+                    )
+                    .into()),
                 }
             }
             PaymentMethodData::BankRedirect(ref bank_redirect_data) => match bank_redirect_data {
@@ -666,13 +663,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::BillDeskRedirect(_)
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
-                | WalletData::EaseBuzzRedirect(_) => {
-                    Err(error_stack::report!(IntegrationError::NotSupported {
-                        message: utils::get_unimplemented_payment_method_error_message("fiuu"),
-                        connector: "Fiuu",
-                        context: Default::default(),
-                    }))
-                }
+                | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::not_implemented(
+                    utils::get_unimplemented_payment_method_error_message("fiuu"),
+                )
+                .into()),
             },
             PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::PayLater(_)

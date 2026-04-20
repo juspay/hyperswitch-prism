@@ -596,15 +596,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::BillDeskRedirect(_)
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
-                | WalletData::EaseBuzzRedirect(_) => {
-                    Err(error_stack::report!(IntegrationError::NotSupported {
-                        message: domain_types::utils::get_unimplemented_payment_method_error_message(
-                            "Bank of America",
-                        ),
-                        connector: "Bankofamerica",
-                        context: Default::default(),
-                    }))
-                }
+                | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::not_implemented(
+                    domain_types::utils::get_unimplemented_payment_method_error_message(
+                        "Bank of America",
+                    ),
+                )
+                .into()),
             },
             PaymentMethodData::MandatePayment
             | PaymentMethodData::CardRedirect(_)
@@ -624,13 +621,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(error_stack::report!(IntegrationError::NotSupported {
-                    message: domain_types::utils::get_unimplemented_payment_method_error_message(
+                Err(IntegrationError::not_implemented(
+                    domain_types::utils::get_unimplemented_payment_method_error_message(
                         "Bank of America",
                     ),
-                    connector: "Bankofamerica",
-                    context: Default::default(),
-                }))
+                )
+                .into())
             }
         }
     }
@@ -1773,15 +1769,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::BillDeskRedirect(_)
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
-                | WalletData::EaseBuzzRedirect(_) => {
-                    Err(error_stack::report!(IntegrationError::NotSupported {
-                        message: utils::get_unimplemented_payment_method_error_message(
-                            "BankOfAmerica"
-                        ),
-                        connector: "Bankofamerica",
-                        context: Default::default(),
-                    }))?
-                }
+                | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::not_implemented(
+                    utils::get_unimplemented_payment_method_error_message("BankOfAmerica"),
+                ))?,
             },
             PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::PayLater(_)
@@ -1801,11 +1791,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(error_stack::report!(IntegrationError::NotSupported {
-                    message: utils::get_unimplemented_payment_method_error_message("BankOfAmerica"),
-                    connector: "Bankofamerica",
-                    context: Default::default(),
-                }))?
+                Err(IntegrationError::not_implemented(
+                    utils::get_unimplemented_payment_method_error_message("BankOfAmerica"),
+                ))?
             }
         }
     }
@@ -1842,11 +1830,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         ),
     ) -> Result<Self, Self::Error> {
         if item.router_data.resource_common_data.is_three_ds() {
-            return Err(error_stack::report!(IntegrationError::NotSupported {
-                message: "Card 3DS".to_string(),
-                connector: "Bankofamerica",
-                context: Default::default(),
-            }));
+            return Err(error_stack::report!(IntegrationError::not_implemented(
+                "Card 3DS".to_string(),
+            )));
         };
 
         let order_information = OrderInformationWithBill::try_from(item)?;

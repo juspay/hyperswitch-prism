@@ -1041,18 +1041,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             account_type: None,
                         })
                     }
-                    _ => Err(error_stack::report!(IntegrationError::NotSupported {
-                        message: "Only Google Pay wallet tokenization is supported".into(),
-                        connector: "Finix",
-                        context: Default::default(),
-                    })),
+                    _ => Err(IntegrationError::NotImplemented(
+                        "Only Google Pay wallet tokenization is supported".into(),
+                        Default::default(),
+                    )
+                    .into()),
                 }
             }
-            _ => Err(error_stack::report!(IntegrationError::NotSupported {
-                message: "Only card, bank debit, and Google Pay tokenization are supported".into(),
-                connector: "Finix",
-                context: Default::default(),
-            })),
+            _ => Err(IntegrationError::NotImplemented(
+                "Only card, bank debit, and Google Pay tokenization are supported".into(),
+                Default::default(),
+            )
+            .into()),
         }
     }
 }
@@ -1277,18 +1277,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             account_type: None,
                         })
                     }
-                    _ => Err(error_stack::report!(IntegrationError::NotSupported {
-                        message: "Only Google Pay wallet is supported for SetupMandate".into(),
-                        connector: "Finix",
-                        context: Default::default(),
-                    })),
+                    _ => Err(IntegrationError::NotImplemented(
+                        "Only Google Pay wallet is supported for SetupMandate".into(),
+                        Default::default(),
+                    )
+                    .into()),
                 }
             }
-            _ => Err(error_stack::report!(IntegrationError::NotSupported {
-                message: "Only card, bank debit (ACH), and Google Pay are supported for SetupMandate".into(),
-                connector: "Finix",
-                context: Default::default(),
-            })),
+            _ => Err(IntegrationError::NotImplemented(
+                "Only card, bank debit (ACH), and Google Pay are supported for SetupMandate".into(),
+                Default::default(),
+            )
+            .into()),
         }
     }
 }

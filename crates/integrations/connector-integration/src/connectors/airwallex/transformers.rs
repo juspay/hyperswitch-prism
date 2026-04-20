@@ -368,11 +368,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ))
                 }
                 _ => {
-                    return Err(error_stack::report!(IntegrationError::NotSupported {
-                        message: "Bank Redirect Payment Method".to_string(),
-                        connector: "Airwallex",
-                        context: Default::default(),
-                    }))
+                    return Err(error_stack::report!(IntegrationError::not_implemented(
+                        "Bank Redirect Payment Method".to_string(),
+                    )))
                 }
             },
             _ => {
@@ -1114,11 +1112,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ))
                 }
                 _ => {
-                    return Err(error_stack::report!(IntegrationError::NotSupported {
-                        message: "Bank Redirect Payment Method".to_string(),
-                        connector: "Airwallex",
-                        context: Default::default(),
-                    }))
+                    return Err(error_stack::report!(IntegrationError::not_implemented(
+                        "Bank Redirect Payment Method".to_string(),
+                    )))
                 }
             },
             _ => {

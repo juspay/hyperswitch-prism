@@ -286,13 +286,10 @@ where
             | Some(PaymentMethodData::NetworkToken(..))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_))
-            | None => Err(error_stack::report!(IntegrationError::NotSupported {
-                message: domain_types::utils::get_unimplemented_payment_method_error_message(
-                    "redsys"
-                ),
-                connector: "Redsys",
-                context: Default::default(),
-            })),
+            | None => Err(IntegrationError::not_implemented(
+                domain_types::utils::get_unimplemented_payment_method_error_message("redsys"),
+            )
+            .into()),
         }
     }
 }

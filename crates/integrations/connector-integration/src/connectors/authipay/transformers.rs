@@ -233,11 +233,9 @@ impl<T: PaymentMethodDataTypes>
                 PaymentMethod { payment_card }
             }
             _ => {
-                return Err(error_stack::report!(IntegrationError::NotSupported {
-                    message: "Only card payments are supported".to_string(),
-                    connector: "Authipay",
-                    context: Default::default(),
-                }))
+                return Err(error_stack::report!(IntegrationError::not_implemented(
+                    "Only card payments are supported".to_string()
+                )))
             }
         };
 
