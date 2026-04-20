@@ -141,8 +141,8 @@
         "error": "This feature is not implemented: Payment method"
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",

@@ -109,7 +109,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "The given currency is not configured with the given connector"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",

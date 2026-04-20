@@ -108,8 +108,8 @@
         "error": "Failed to obtain authentication type"
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "status": "error",
+        "error": "Failed to obtain authentication type"
       },
       "DanamonVaBankTransfer": {
         "status": "error",

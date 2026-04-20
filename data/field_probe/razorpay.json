@@ -146,8 +146,8 @@
         "error": "This feature is not implemented: Payment Method Reward not supported for Razorpay"
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method Crypto(CryptoData { pay_currency: None, network: None }) not supported for Razorpay"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",

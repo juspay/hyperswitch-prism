@@ -108,8 +108,8 @@
         "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
