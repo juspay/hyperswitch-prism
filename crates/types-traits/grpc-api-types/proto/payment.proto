@@ -1443,6 +1443,38 @@ message CardConnectorResponse {
       5; // Unique authorisation code generated for the payment
 }
 
+// Additional card information for payment processing
+message AdditionalCardInfo {
+  // The name of issuer of the card
+  optional string card_issuer = 1;
+
+  // Last 4 digits of the card number
+  optional string last4 = 7;
+
+  // The ISIN of the card
+  optional string card_isin = 8;
+
+  // Extended bin of card, contains the first 8 digits of card number
+  optional string card_extended_bin = 9;
+
+  // Card expiry month (sensitive)
+  optional SecretString card_exp_month = 10;
+
+  // Card expiry year (sensitive)
+  optional SecretString card_exp_year = 11;
+
+  // Card holder name (sensitive)
+  optional SecretString card_holder_name = 12;
+
+}
+
+// Additional payment data for various payment methods
+message AdditionalPaymentData {
+  oneof payment_method_data {
+    AdditionalCardInfo card = 1;
+  }
+}
+
 // Additional payment method data for Google Pay
 message GooglePayConnectorResponse {
   optional string auth_code =
@@ -2782,6 +2814,10 @@ message RecurringPaymentServiceChargeRequest {
 
   // Level 2 / Level 3 data for enhanced payment processing
   optional L2L3Data l2_l3_data = 31;
+
+  // Additional payment data for various payment methods
+  optional AdditionalPaymentData additional_payment_data = 32;
+
 }
 
 // Response message for repeat payment operation

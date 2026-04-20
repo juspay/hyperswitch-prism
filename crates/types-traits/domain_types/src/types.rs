@@ -8666,6 +8666,53 @@ pub struct ConnectorInfo {
     pub connector_type: PaymentConnectorCategory,
 }
 
+/// Additional payment data for various payment methods
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum AdditionalPaymentData {
+    /// Card-specific additional payment data
+    Card(AdditionalCardInfo),
+}
+
+/// Additional card information for payment processing
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdditionalCardInfo {
+    /// The name of issuer of the card
+    pub card_issuer: Option<String>,
+    /// Last 4 digits of the card number
+    pub last4: Option<String>,
+    /// The ISIN of the card
+    pub card_isin: Option<String>,
+    /// Extended bin of card, contains the first 8 digits of card number
+    pub card_extended_bin: Option<String>,
+    /// Card expiry month (sensitive)
+    pub card_exp_month: Option<Secret<String>>,
+    /// Card expiry year (sensitive)
+    pub card_exp_year: Option<Secret<String>>,
+    /// Card holder name (sensitive)
+    pub card_holder_name: Option<Secret<String>>,
+}
+
+impl ForeignFrom<grpc_payment_types::AdditionalPaymentData> for Option<AdditionalPaymentData> {
+    fn foreign_from(data: grpc_payment_types::AdditionalPaymentData) -> Self {
+        match data.payment_method_data {
+            Some(grpc_payment_types::additional_payment_data::PaymentMethodData::Card(card)) => {
+                Some(AdditionalPaymentData::Card(AdditionalCardInfo {
+                    card_issuer: card.card_issuer,
+                    last4: card.last4,
+                    card_isin: card.card_isin,
+                    card_extended_bin: card.card_extended_bin,
+                    card_exp_month: card.card_exp_month,
+                    card_exp_year: card.card_exp_year,
+                    card_holder_name: card.card_holder_name,
+                }))
+            }
+
+            None => None,
+        }
+    }
+}
+
 /// Connector Access Method
 #[derive(
     Clone,
@@ -9665,6 +9712,9 @@ impl<
             }),
             merchant_account_id: value.merchant_account_id,
             merchant_configured_currency,
+            additional_payment_data: value
+                .additional_payment_data
+                .and_then(Option::<AdditionalPaymentData>::foreign_from),
         })
     }
 }
