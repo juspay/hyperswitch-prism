@@ -1301,8 +1301,10 @@ def check_example_syntax(examples_dir: Path, connectors: Optional[list[str]] = N
             kt_ok = True
             print(f"  Checking Kotlin ({len(kt_files)} files) via Gradle ...", end=" ", flush=True)
             # Ensure the SDK JAR is in Maven local so smoke-test can resolve it.
+            # Use --rerun-tasks so proto changes (new messages) are always picked up,
+            # even when the JAR version hasn't changed.
             subprocess.run(
-                [str(gradlew), "publishToMavenLocal", "-q"],
+                [str(gradlew), "publishToMavenLocal", "--rerun-tasks", "-q"],
                 capture_output=True, text=True,
                 cwd=str(sdk_java_dir),
             )
