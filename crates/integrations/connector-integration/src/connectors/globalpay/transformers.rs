@@ -276,41 +276,24 @@ pub struct GlobalpayNotifications {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum InitiatorType {
+pub enum Initiator {
     Merchant,
     Payer,
 }
 
 #[derive(Debug, Serialize)]
-pub struct Initiator {
-    #[serde(rename = "type")]
-    pub initiator_type: Option<InitiatorType>,
-    pub id: Option<String>,
-    pub stored_credential: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum StoredCredentialType {
+pub enum Model {
     Installment,
     Recurring,
-    Unscheduled,
     Subscription,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum StoredCredentialSequence {
-    First,
-    Subsequent,
+    Unscheduled,
 }
 
 #[derive(Debug, Serialize)]
 pub struct StoredCredential {
-    #[serde(rename = "type")]
-    pub credential_type: Option<StoredCredentialType>,
-    pub sequence: Option<StoredCredentialSequence>,
-    pub initiator: Option<InitiatorType>,
+    pub model: Option<Model>,
+    pub sequence: Option<Sequence>,
 }
 
 // ===== APM / BANK REDIRECT STRUCTURES =====
@@ -344,11 +327,9 @@ pub struct GlobalpayPaymentsRequest<T: PaymentMethodDataTypes> {
     pub country: common_enums::CountryAlpha2,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub capture_mode: Option<GlobalpayCaptureMode>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub initiator: Option<Initiator>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub notifications: Option<GlobalpayNotifications>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub stored_credential: Option<StoredCredential>,
     pub payment_method: GlobalpayPaymentMethod<T>,
 }
@@ -402,6 +383,34 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let item = &wrapper.router_data;
+
+        let (initiator, stored_credential, connector_mandate_id) =
+            if item.request.is_mandate_payment() {
+                let connector_mandate_id = item.request.connector_mandate_id();
+
+                let initiator = Some(match item.request.off_session {
+                    Some(true) => Initiator::Merchant,
+                    _ => Initiator::Payer,
+                });
+
+                let stored_credential = Some(StoredCredential {
+                    model: Some(if connector_mandate_id.is_some() {
+                        Model::Recurring
+                    } else {
+                        Model::Unscheduled
+                    }),
+                    sequence: Some(if connector_mandate_id.is_some() {
+                        Sequence::Subsequent
+                    } else {
+                        Sequence::First
+                    }),
+                });
+
+                (initiator, stored_credential, connector_mandate_id)
+            } else {
+                (None, None, None)
+            };
+
         let payment_method = match &item.request.payment_method_data {
             PaymentMethodData::Card(card_data) => {
                 // Convert to 2-digit year using built-in helper method
@@ -454,6 +463,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     id: Some(token),
                 }
             }
+            PaymentMethodData::MandatePayment => GlobalpayPaymentMethod {
+                entry_mode: constants::ENTRY_MODE_ECOM.to_string(),
+                card: None,
+                apm: None,
+                id: connector_mandate_id.map(Secret::new),
+            },
             _ => {
                 return Err(error_stack::report!(IntegrationError::not_implemented(
                     "Payment method not supported".to_string()
@@ -504,9 +519,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone(),
             country,
             capture_mode,
-            initiator: None,
+            initiator,
             notifications,
-            stored_credential: None,
+            stored_credential,
             payment_method,
         })
     }
