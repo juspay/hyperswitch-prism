@@ -467,7 +467,7 @@ The three card-family variants differ along five axes: credential location, cryp
 | ECI indicator | No (arrives via `AuthenticationData`) | No | Yes — `eci: Option<String>` |
 | Card network | `card_network: Option<CardNetwork>` | No | `card_network: Option<CardNetwork>` |
 | Cardholder name | `nick_name: Option<Secret<String>>` (display) | `card_holder_name: Option<Secret<String>>` | `nick_name: Option<Secret<String>>` |
-| Credential source | Raw customer input | Out-of-band via `PaymentFlowData::payment_method_token` | Network-token service (Apple Pay, Google Pay, NTO) |
+| Credential source | Raw customer input | Out-of-band via `PaymentFlowData::payment_method_token` | Network-token service (Apple Pay, Google Pay, scheme network-tokens) |
 | Generic over `T: PaymentMethodDataTypes` | Yes | No | No |
 | Struct citation | `crates/types-traits/domain_types/src/payment_method_data.rs:53-64` in gold pattern (`authorize/card/pattern_authorize_card.md:53`) | `crates/types-traits/domain_types/src/payment_method_data.rs:381-389` | `crates/types-traits/domain_types/src/payment_method_data.rs:305-318` |
 | PMT tag | `PaymentMethodDataType::Card` (`crates/types-traits/domain_types/src/types.rs:8626`) | `PaymentMethodDataType::CardToken` (`crates/types-traits/domain_types/src/types.rs:8725`) | `PaymentMethodDataType::NetworkToken` (`crates/types-traits/domain_types/src/types.rs:8732`) |
@@ -491,7 +491,7 @@ The three card-family variants differ along five axes: credential location, cryp
 
 ## Best Practices
 
-- **Fall through to `not_implemented` until your connector's tokenization contract is defined.** Every observed connector does this — see any row of [Stub Implementations](#stub-implementations-guardrail-not_implemented-arms). Do not silently accept `CardToken(_)` and dispatch to a PAN-based flow; that would produce mis-routed PCI data.
+- **Fall through to `not_implemented` until your connector's tokenization contract is defined.** Every observed connector does this — see any row of [Stub Implementations](#stub-implementations-guardrail-not_implemented-arms). Do not silently accept `CardToken(_)` and dispatch to a PAN-based flow; that would produce misrouted PCI data.
 - **Prefer `get_unimplemented_payment_method_error_message(connector_name, _)`** from `domain_types::utils` over a bare string so the reviewer and the end-user see a uniform error surface (redsys pattern: `crates/integrations/connector-integration/src/connectors/redsys/transformers.rs:253`).
 - **Never read the credential from `card_token` itself.** The variant has no credential. Read `payment_method_token` from `PaymentFlowData` (`crates/types-traits/domain_types/src/connector_types.rs:443`) and unwrap `PaymentMethodToken::Token(Secret<String>)` (`crates/types-traits/domain_types/src/router_data.rs:3003-3005`).
 - **Treat `card_token.card_cvc` as strictly optional step-up.** Do not return an error if it is `None`; instead, consult your connector's token-reuse contract to decide whether CVC is required and return `MissingRequiredField { field_name: "card_cvc" }` only when the gateway mandates it.

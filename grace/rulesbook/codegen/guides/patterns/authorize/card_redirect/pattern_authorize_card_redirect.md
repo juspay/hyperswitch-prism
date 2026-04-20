@@ -20,7 +20,7 @@ Key Characteristics:
 >
 > CardRedirect is distinct from BankRedirect — the payment rail is card-based but uses a redirect flow instead of CSE (client-side encryption). In a BankRedirect flow (`BankRedirectData::Ideal`, `Sofort`, `Giropay`, `OpenBanking`, etc.) the shopper authenticates at their retail **bank** and funds move over a bank-transfer rail. In a CardRedirect flow (`CardRedirectData::Knet`, `Benefit`, `MomoAtm`, `CardRedirect`) the shopper authenticates at an **issuer or card-scheme portal** and settlement flows over a card rail (Knet in Kuwait, Benefit in Bahrain/Saudi, Meeza/Momo in Egypt).
 >
-> Historically, CardRedirect content was mis-located inside `authorize/bank_redirect/pattern_authorize_bank_redirect.md`. That document remains the authoritative home for `BankRedirectData`; **this** document is the authoritative home for `CardRedirectData`. Content covering `CardRedirectData` in the bank-redirect pattern will be removed in Wave 6 and redirected here; see `authorize/bank_redirect/pattern_authorize_bank_redirect.md` (not edited by Wave-3C).
+> Historically, CardRedirect content was misplaced inside `authorize/bank_redirect/pattern_authorize_bank_redirect.md`. That document remains the authoritative home for `BankRedirectData`; **this** document is the authoritative home for `CardRedirectData`. Content covering `CardRedirectData` in the bank-redirect pattern will be removed in Wave 6 and redirected here; see `authorize/bank_redirect/pattern_authorize_bank_redirect.md` (not edited by Wave-3C).
 
 ### Why it exists as its own PM
 
@@ -377,7 +377,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 ## Common Errors
 
-### 1. Mis-classifying CardRedirect as BankRedirect
+### 1. Misclassifying CardRedirect as BankRedirect
 
 - **Problem:** Developer places Knet/Benefit/MomoAtm logic inside the `PaymentMethodData::BankRedirect(_)` arm. This compiles (because `BankRedirectData` is a separate enum) but the `payment_method_data` never actually hits it for card-redirect flows, so the code is unreachable and the real CardRedirect arm falls through to the not-implemented case.
 - **Solution:** Unwrap via `PaymentMethodData::CardRedirect(ref card_redirect_data)` specifically; see the Adyen dispatcher at `crates/integrations/connector-integration/src/connectors/adyen/transformers.rs:3635`.
