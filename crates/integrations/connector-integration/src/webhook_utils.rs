@@ -1,7 +1,7 @@
 use common_enums::WebhookTransformationStatus;
 use domain_types::{
     errors::WebhookError, payment_method_data::PaymentMethodDataTypes,
-    router_data::ConnectorSpecificConfig, types::CardConversionHelper, utils::ForeignTryFrom,
+    router_data::ConnectorSpecificConfig, utils::ForeignTryFrom,
 };
 use error_stack::ResultExt;
 use grpc_api_types::payments::{
@@ -30,7 +30,6 @@ pub fn process_webhook_event<
         + serde::de::DeserializeOwned
         + Clone
         + Sync
-        + CardConversionHelper<T>
         + 'static,
 >(
     connector_data: ConnectorData<T>,
@@ -151,7 +150,6 @@ pub fn get_refunds_webhook_content<
         + serde::de::DeserializeOwned
         + Clone
         + Sync
-        + CardConversionHelper<T>
         + 'static,
 >(
     connector_data: ConnectorData<T>,
@@ -182,7 +180,6 @@ pub fn get_disputes_webhook_content<
         + serde::de::DeserializeOwned
         + Clone
         + Sync
-        + CardConversionHelper<T>
         + 'static,
 >(
     connector_data: ConnectorData<T>,

@@ -1038,9 +1038,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             };
 
         // Decode JWT payload to extract client library info
-        let mut parts = capture_context_jwt.split('.');
-        let _header = parts.next();
-        let payload = parts.next().ok_or_else(|| {
+        let parts: Vec<&str> = capture_context_jwt.split('.').collect();
+        if parts.len() < 2 {
+            return Err(Report::new(ConnectorError::response_handling_failed(
+                res.status_code,
+            )));
+        }
+
+        let payload = parts.get(1).ok_or_else(|| {
             Report::new(ConnectorError::response_handling_failed(res.status_code))
         })?;
         let decoded_bytes = Engine::decode(&BASE64_ENGINE, payload)
@@ -1052,18 +1057,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let client_library = decoded
             .get("ctx")
-            .and_then(|ctx| ctx.get(0))
-            .and_then(|entry| entry.get("data"))
+            .and_then(|ctx| ctx.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|item| item.get("data"))
             .and_then(|data| data.get("clientLibrary"))
-            .and_then(|v| v.as_str())
+            .and_then(|val| val.as_str())
             .unwrap_or_default()
             .to_string();
         let client_library_integrity = decoded
             .get("ctx")
-            .and_then(|ctx| ctx.get(0))
-            .and_then(|entry| entry.get("data"))
+            .and_then(|ctx| ctx.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|item| item.get("data"))
             .and_then(|data| data.get("clientLibraryIntegrity"))
-            .and_then(|v| v.as_str())
+            .and_then(|val| val.as_str())
             .unwrap_or_default()
             .to_string();
 

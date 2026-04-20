@@ -136,8 +136,8 @@ generate-python: ## Regenerate Python SDK client (flows + protobuf stubs)
 generate-javascript: ## Regenerate JavaScript/TypeScript SDK client (flows)
 	@$(MAKE) -C $(MAKEFILE_DIR)javascript generate-flows
 
-generate-kotlin: ## Regenerate Kotlin SDK client (flows + bindings)
-	@$(MAKE) -C $(MAKEFILE_DIR)java generate-bindings generate-flows
+generate-kotlin: ## Regenerate Kotlin SDK client (proto stubs + flows + bindings)
+	@$(MAKE) -C $(MAKEFILE_DIR)java generate-proto generate-bindings generate-flows
 
 
 
@@ -167,7 +167,9 @@ generate-client-java:
 # Main entry point for regenerating all SDK clients.
 # Delegates to each SDK's generate-client target.
 # ---------------------------------------------------------------------------
-generate: install-deps generate-rust generate-grpc-client generate-python generate-javascript generate-kotlin ## Auto-discover flows and regenerate all SDK clients
+generate: install-deps ## Auto-discover flows and regenerate all SDK clients (parses proto once)
+	@$(MAKE) -C $(MAKEFILE_DIR)java generate-proto
+	@python3 $(REPO_ROOT)/scripts/generators/code/generate.py --lang all
 	@echo
 	@echo "Generating Python protobuf stubs (_pb2.pyi)..."
 	@mkdir -p $(REPO_ROOT)/sdk/python/src/payments/generated
@@ -180,24 +182,22 @@ generate: install-deps generate-rust generate-grpc-client generate-python genera
 		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/payouts.proto \
 		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/payment_methods.proto \
 		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/sdk_config.proto
+	@echo "Generating JavaScript protobuf stubs (proto.js / proto.d.ts)..."
+	@$(MAKE) -C $(MAKEFILE_DIR)javascript generate-proto
 	@echo "All SDK clients regenerated successfully!"
 
 # ---------------------------------------------------------------------------
 # Test targets - delegate to SDK-specific test-package
 # ---------------------------------------------------------------------------
 
-# Optimized test target: build FFI once, then run all SDK tests sequentially.
-# The FFI library build is now idempotent (skips if already exists), and each
-# SDK's generate-bindings step also checks if outputs exist before regenerating.
-# Set QUIET=0 to show full compilation output (default: QUIET=1 shows only test results)
-test: build-ffi-lib ## Run all SDK smoke tests (builds FFI, runs sequentially). Use QUIET=0 for verbose output.
+test: build-ffi-lib ## Run all SDK smoke tests (builds FFI, runs sequentially)
 	@if [ ! -f $(REPO_ROOT)/sdk/generated/flows.json ]; then \
 		echo "Generating flows.json..."; \
 		python3 $(REPO_ROOT)/scripts/generators/code/generate.py --lang rust; \
 	fi
 	@echo "Running FFI smoke tests for all SDKs..."
 	@echo; echo "═══ Rust FFI ═══"; echo
-	@$(MAKE) -C $(REPO_ROOT)/sdk/rust test-package CONNECTORS=$(CONNECTORS) 2>&1 
+	@$(MAKE) -C $(REPO_ROOT)/sdk/rust test-package CONNECTORS=$(CONNECTORS) GITHUB_ACTIONS=$(GITHUB_ACTIONS) 2>&1 
 	@echo; echo "═══ Python FFI ═══"; echo
 	@$(MAKE) -C $(REPO_ROOT)/sdk/python test-package CONNECTORS=$(CONNECTORS) 2>&1 
 	@echo; echo "═══ JavaScript FFI ═══"; echo
@@ -207,21 +207,10 @@ test: build-ffi-lib ## Run all SDK smoke tests (builds FFI, runs sequentially). 
 	@echo; echo "All SDK smoke tests passed."
 
 test-rust: build-ffi-lib ## Run Rust FFI smoke test
-	@$(MAKE) -C $(REPO_ROOT)/sdk/rust test-package CONNECTORS=$(CONNECTORS)
+	@$(MAKE) -C $(REPO_ROOT)/sdk/rust test-package CONNECTORS=$(CONNECTORS) GITHUB_ACTIONS=$(GITHUB_ACTIONS)
 
 GRPC_CONNECTOR ?= $(CONNECTORS)
 GRPC_PROFILE   ?= release-fast
-QUIET          ?= 1
-
-# Filter output if QUIET=1 (suppress build logs, show only test results)
-# Use script to preserve exit codes while filtering (cross-platform compatible)
-ifeq ($(QUIET),1)
-  OUTPUT_FILTER = 2>&1 | grep -v "^\[INFO\]\|^\[WARNING\]\|^Building\|^Running\|^Checking\|^Compiling\|^Finished\|^Build\|^Running\|cargo check\|Compiling\|^   Compiling\|^   Finished\|^     Running\|^     Finished\|^cargo\|^\s*-->\|^\s*::\|^Note:\|^warning:" || true
-  BUILD_FLAGS = --quiet 2>/dev/null || true
-else
-  OUTPUT_FILTER = 
-  BUILD_FLAGS = 
-endif
 
 # grpc-server doesn't use --target, so it's in the default target directory
 GRPC_SERVER_BIN := $(REPO_ROOT)/target/$(PLATFORM)/$(GRPC_PROFILE)/grpc-server
@@ -246,7 +235,7 @@ _cleanup-grpc:
 	@sleep 2
 	@echo "Cleanup complete"
 
-test-grpc: _cleanup-grpc ## Run gRPC smoke tests for all SDKs (Rust + JS + Python + Kotlin) with a combined summary. Use QUIET=0 for verbose output. Use GRPC_SKIP_BUILD=1 to skip grpc-server build.
+test-grpc: _cleanup-grpc ## Run gRPC smoke tests for all SDKs (Rust + JS + Python + Kotlin) with a combined summary. Use GRPC_SKIP_BUILD=1 to skip grpc-server build.
 	@{ \
 		set -o pipefail; \
 		RUST_EXIT=0; JS_EXIT=0; PY_EXIT=0; KT_EXIT=0; \
@@ -261,8 +250,8 @@ test-grpc: _cleanup-grpc ## Run gRPC smoke tests for all SDKs (Rust + JS + Pytho
 				exit 1; \
 			fi; \
 		else \
-			printf "Building grpc-server and gRPC FFI library ($(GRPC_PROFILE))...\n"; \
-			cd $(REPO_ROOT) && cargo build -p grpc-server -p hyperswitch-grpc-ffi \
+			printf "Building grpc-server, gRPC FFI library, connector FFI library, smoke-test, and uniffi-bindgen ($(GRPC_PROFILE))...\n"; \
+			cd $(REPO_ROOT) && cargo build -p grpc-server -p hyperswitch-grpc-ffi -p ffi -p hyperswitch-smoke-test -p uniffi-bindgen \
 				--profile $(GRPC_PROFILE) --target $(PLATFORM); \
 		fi; \
 		\
@@ -336,7 +325,7 @@ test-java: build-ffi-lib ## Build FFI → Run Java smoke test
 test-mock: build-ffi-lib ## Run all SDK smoke tests in MOCK mode (verifies req_transformer only)
 	@echo "Running FFI smoke tests in MOCK mode for all SDKs..."
 	@echo; echo "═══ Rust FFI (MOCK) ═══"; echo
-	@$(MAKE) -C $(REPO_ROOT)/sdk/rust test-package-mock CONNECTORS=$(CONNECTORS) 2>&1
+	@$(MAKE) -C $(REPO_ROOT)/sdk/rust test-package-mock CONNECTORS=$(CONNECTORS) GITHUB_ACTIONS=$(GITHUB_ACTIONS) 2>&1
 	@echo; echo "═══ Python FFI (MOCK) ═══"; echo
 	@$(MAKE) -C $(REPO_ROOT)/sdk/python test-package-mock CONNECTORS=$(CONNECTORS) 2>&1
 	@echo; echo "═══ JavaScript FFI (MOCK) ═══"; echo
