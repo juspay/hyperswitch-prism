@@ -116,6 +116,7 @@ truelayer.base_url = "https://api.truelayer.com"
 truelayer.secondary_base_url = "https://auth.truelayer.com"
 trustly.base_url = "https://api.trustly.com/1"
 itaubank.base_url = "https://api.itau.com.br"
+pinelabs_online.base_url = "https://api.pluralpay.in/api/pay/v1"
 
 # Generic Events Configuration
 [events]
