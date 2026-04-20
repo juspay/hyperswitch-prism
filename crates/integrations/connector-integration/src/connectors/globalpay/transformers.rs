@@ -1253,8 +1253,7 @@ pub struct GlobalpaySetupMandateCard<T: PaymentMethodDataTypes> {
     pub number: RawCardNumber<T>,
     pub expiry_month: Secret<String>,
     pub expiry_year: Secret<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cvv: Option<Secret<String>>,
+    pub cvv: Secret<String>,
 }
 
 /// Tokenization request sent to `/payment-methods`. `usage_mode: MULTIPLE`
@@ -1301,16 +1300,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         context: Default::default(),
                     },
                 )?;
-                let cvv = if card_data.card_cvc.peek().is_empty() {
-                    None
-                } else {
-                    Some(card_data.card_cvc.clone())
-                };
+                // GlobalPay's /payment-methods endpoint requires CVV for card
+                // tokenization; unlike the Authorize flow there is no
+                // `cvv_indicator` fallback, so an empty CVV would surface as an
+                // opaque connector-side rejection. Fail fast instead.
+                if card_data.card_cvc.peek().is_empty() {
+                    return Err(error_stack::report!(
+                        IntegrationError::MissingRequiredField {
+                            field_name: "card_cvc",
+                            context: Default::default(),
+                        }
+                    ));
+                }
                 GlobalpaySetupMandateCard {
                     number: card_data.card_number.clone(),
                     expiry_month: card_data.card_exp_month.clone(),
                     expiry_year: expiry_year_2digit,
-                    cvv,
+                    cvv: card_data.card_cvc.clone(),
                 }
             }
             _ => {
