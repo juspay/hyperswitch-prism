@@ -914,16 +914,32 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PowertranzSetupMandat
             status = enums::AttemptStatus::Charged;
         }
 
-        // The PowerTranz transaction_identifier IS the connector_mandate_id
-        // used for subsequent RepeatPayment (MIT) calls.
-        let mandate_reference = Some(Box::new(MandateReference {
-            connector_mandate_id: Some(response.transaction_identifier.clone()),
-            payment_method_id: None,
-            connector_mandate_request_reference_id: None,
-        }));
+        // Surface connector-side failures (approved=false or non-success ISO
+        // code) as an ErrorResponse carrying the connector's code/message so
+        // downstream consumers see the actual decline reason instead of a
+        // silent "successful" TransactionResponse with a Failure status.
+        let response_result = if matches!(status, enums::AttemptStatus::Failure) {
+            let err = build_powertranz_error_response(
+                &response.errors,
+                &response.iso_response_code,
+                &response.response_message,
+                http_code,
+            );
+            Err(domain_types::router_data::ErrorResponse {
+                attempt_status: Some(status),
+                connector_transaction_id: Some(response.transaction_identifier.clone()),
+                ..err
+            })
+        } else {
+            // The PowerTranz transaction_identifier IS the connector_mandate_id
+            // used for subsequent RepeatPayment (MIT) calls.
+            let mandate_reference = Some(Box::new(MandateReference {
+                connector_mandate_id: Some(response.transaction_identifier.clone()),
+                payment_method_id: None,
+                connector_mandate_request_reference_id: None,
+            }));
 
-        Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     response.transaction_identifier.clone(),
                 ),
@@ -934,7 +950,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PowertranzSetupMandat
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
-            }),
+            })
+        };
+
+        Ok(Self {
+            response: response_result,
             resource_common_data: PaymentFlowData {
                 status,
                 ..router_data.resource_common_data
@@ -1003,7 +1023,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // identifier, so MIT calls re-send the full card data against a
         // fresh OrderIdentifier/TransactionIdentifier.
         match &request_data.mandate_reference {
-            MandateReferenceId::ConnectorMandateId(m) => m.get_connector_mandate_id(),
+            MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => {
+                connector_mandate_ids.get_connector_mandate_id()
+            }
             _ => None,
         }
         .ok_or(IntegrationError::MissingRequiredField {
@@ -1083,8 +1105,23 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PowertranzRepeatPayme
             &response.iso_response_code,
         );
 
-        Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        // Surface connector-side failures (approved=false or non-success ISO
+        // code) as an ErrorResponse so downstream consumers see the decline
+        // reason instead of a "successful" TransactionResponse.
+        let response_result = if matches!(status, enums::AttemptStatus::Failure) {
+            let err = build_powertranz_error_response(
+                &response.errors,
+                &response.iso_response_code,
+                &response.response_message,
+                http_code,
+            );
+            Err(domain_types::router_data::ErrorResponse {
+                attempt_status: Some(status),
+                connector_transaction_id: Some(response.transaction_identifier.clone()),
+                ..err
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
                     response.transaction_identifier.clone(),
                 ),
@@ -1095,7 +1132,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PowertranzRepeatPayme
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
-            }),
+            })
+        };
+
+        Ok(Self {
+            response: response_result,
             resource_common_data: PaymentFlowData {
                 status,
                 ..router_data.resource_common_data
