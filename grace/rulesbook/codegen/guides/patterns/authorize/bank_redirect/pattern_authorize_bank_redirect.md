@@ -1093,6 +1093,5 @@ When implementing a new connector with Bank Redirect support:
 
 | Version | Date | Pinned SHA | Summary |
 |---------|------|------------|---------|
-| 1.1.1 | 2026-04-20 | `60540470cf84a350cc02b0d41565e5766437eb95` | Absorb PR #855 auth-token rename (commit `c9e1025e3`): `AccessTokenResponseData` → `ServerAuthenticationTokenResponseData` in the OAuth token-refresh example. |
 | 1.1.0 | 2026-04-20 | `60540470cf84a350cc02b0d41565e5766437eb95` | Document the 21st `BankRedirectData` variant — `Netbanking { issuer: BankNames }` — at `crates/types-traits/domain_types/src/payment_method_data.rs:674`. Add Cashfree (PR #1092) as the first Netbanking implementer with citation to `crates/integrations/connector-integration/src/connectors/cashfree/transformers.rs:388-402` and the supporting `map_to_cashfree_bank_code` helper at `cashfree/transformers.rs:210-240`. Update Supported Connectors matrix and Sub-type Variations table. |
 | 1.0   | 2026-02-19 | (prior)     | Initial revision — documented 20 bank redirect variants. |

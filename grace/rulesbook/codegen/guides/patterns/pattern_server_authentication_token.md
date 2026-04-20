@@ -626,5 +626,4 @@ Real connector registrations were enumerated by grepping `crates/integrations/co
 
 | Version | Date | Change |
 |---------|------|--------|
-| 1.2.1 | 2026-04-20 | Absorbed PR #855 auth-token rename (commit `c9e1025e3`): file renamed from `pattern_CreateAccessToken_flow.md` → `pattern_server_authentication_token.md`; `CreateAccessToken` → `ServerAuthenticationToken`, `PaymentAccessToken` → `ServerAuthentication`, `AccessTokenRequestData` → `ServerAuthenticationTokenRequestData`, `AccessTokenResponseData` → `ServerAuthenticationTokenResponseData` throughout. |
 | 1.2.0 | 2026-04-20 | Added "Mapping to connector_flow.rs token markers" section disambiguating `ServerAuthenticationToken`, `ServerSessionAuthenticationToken`, and `ClientAuthenticationToken` with file:line citations against SHA `60540470cf84a350cc02b0d41565e5766437eb95`; added header metadata table. |

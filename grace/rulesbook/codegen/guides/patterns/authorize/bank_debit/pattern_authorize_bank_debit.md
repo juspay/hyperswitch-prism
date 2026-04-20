@@ -1336,6 +1336,5 @@ async fn test_bank_debit_mandate_creation() {
 
 | Version | Date | Pinned SHA | Summary |
 |---------|------|------------|---------|
-| 1.4.1 | 2026-04-20 | `60540470cf84a350cc02b0d41565e5766437eb95` | Absorb PR #855 auth-token rename (commit `c9e1025e3`): `CreateSessionToken` → `ServerSessionAuthenticationToken`, `SessionTokenRequestData` → `ServerSessionAuthenticationTokenRequestData`, `SessionTokenResponseData` → `ServerSessionAuthenticationTokenResponseData` in the connector import block. |
 | 1.4.0 | 2026-04-20 | `60540470cf84a350cc02b0d41565e5766437eb95` | Document new `EftBankDebit` and `SepaGuaranteedBankDebit` variants (enum now has 6 variants, was 4). Add Sanlammultidata (PR #1027) as first EFT implementer and first bank-debit connector using a Kafka-based request-publish transport. Update Supported Connectors matrix and Sub-type Variations to reflect all six variants. |
 | 1.3.0 | 2026-02-19 | (prior)  | Prior revision — documented 4 bank debit variants (ACH, SEPA, BECS, BACS). |
