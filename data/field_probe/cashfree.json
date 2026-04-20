@@ -8,459 +8,394 @@
     },
     "authorize": {
       "Ach": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "AchBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Affirm": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Pay later and cardless EMI payments are supported by Cashfree, but are not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Afterpay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Pay later and cardless EMI payments are supported by Cashfree, but are not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Alfamart": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "AliPayRedirect": {
-        "status": "not_supported",
-        "error": "Selected wallet payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "AmazonPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: This wallet payment method is supported by Cashfree, but is not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: This wallet payment method is supported by Cashfree, but is not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: This wallet payment method is supported by Cashfree, but is not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: This wallet payment method is supported by Cashfree, but is not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Bacs": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "BacsBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "BancontactCard": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "BcaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Becs": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Bizum": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Blik": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Bluecode": {
-        "status": "not_supported",
-        "error": "Selected wallet payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "BniVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Boleto": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "BriVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Card": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Card payments are supported by Cashfree, but are not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "CashappQr": {
-        "status": "not_supported",
-        "error": "Selected wallet payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "CimbVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "ClassicReward": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Crypto": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "DuitNow": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "EVoucher": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Efecty": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Eft": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Eps": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "FamilyMart": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Giropay": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Givex": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "GooglePay": {
-        "status": "not_supported",
-        "error": "Selected wallet payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "GooglePayDecrypted": {
-        "status": "not_supported",
-        "error": "Selected wallet payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Selected wallet payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Ideal": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Indomaret": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "IndonesianBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "InstantBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "InstantBankTransferFinland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "InstantBankTransferPoland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Interac": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Klarna": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Pay later and cardless EMI payments are supported by Cashfree, but are not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Lawson": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "LocalBankRedirect": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "LocalBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "MbWay": {
-        "status": "not_supported",
-        "error": "Selected wallet payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Mifinity": {
-        "status": "not_supported",
-        "error": "Selected wallet payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "MiniStop": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "MultibancoBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "OnlineBankingFinland": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "OnlineBankingFpx": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "OnlineBankingPoland": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "OnlineBankingThailand": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "OpenBanking": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "OpenBankingPis": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "OpenBankingUk": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Oxxo": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "PagoEfectivo": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "PayEasy": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "PaySafeCard": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "PaypalRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: This wallet payment method is supported by Cashfree, but is not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "PaypalSdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: This wallet payment method is supported by Cashfree, but is not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Paze": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "PermataBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Pix": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Przelewy24": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Pse": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "RedCompra": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "RedPagos": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "RevolutPay": {
-        "status": "not_supported",
-        "error": "Selected wallet payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "SamsungPay": {
-        "status": "not_supported",
-        "error": "Selected wallet payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Satispay": {
-        "status": "not_supported",
-        "error": "Selected wallet payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Seicomart": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Sepa": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "SepaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "SevenEleven": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Sofort": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Trustly": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "UpiCollect": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "upi_collect": {
-              "vpa_id": "test@upi"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://sandbox.cashfree.com/pg/orders/sessions",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-api-version": "2022-09-01",
-            "x-client-id": "probe_id",
-            "x-client-secret": "probe_key"
-          },
-          "body": "{\"payment_session_id\":\"connector_order_id\",\"payment_method\":{\"upi\":{\"channel\":\"collect\",\"upi_id\":\"test@upi\"}},\"payment_surcharge\":null}"
-        }
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "UpiIntent": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "upi_intent": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://sandbox.cashfree.com/pg/orders/sessions",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-api-version": "2022-09-01",
-            "x-client-id": "probe_id",
-            "x-client-secret": "probe_key"
-          },
-          "body": "{\"payment_session_id\":\"connector_order_id\",\"payment_method\":{\"upi\":{\"channel\":\"link\"}},\"payment_surcharge\":null}"
-        }
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "UpiQr": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "upi_qr": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://sandbox.cashfree.com/pg/orders/sessions",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-api-version": "2022-09-01",
-            "x-client-id": "probe_id",
-            "x-client-secret": "probe_key"
-          },
-          "body": "{\"payment_session_id\":\"connector_order_id\",\"payment_method\":{\"upi\":{\"channel\":\"link\"}},\"payment_surcharge\":null}"
-        }
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "WeChatPayQr": {
-        "status": "not_supported",
-        "error": "Selected wallet payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Wero": {
-        "status": "not_supported",
-        "error": "Selected wallet payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       }
     },
     "capture": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "merchant_order_id": "probe_order_001"
+        },
+        "sample": {
+          "url": "https://sandbox.cashfree.com/pg/orders/probe_order_001/authorization",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-version": "2022-09-01",
+            "x-client-id": "probe_id",
+            "x-client-secret": "probe_key"
+          },
+          "body": "{\"action\":\"CAPTURE\",\"amount\":10.0}"
+        }
       }
     },
     "create_client_authentication_token": {
@@ -475,8 +410,26 @@
     },
     "create_order": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: billing_address — Missing required field: billing_address"
+        "status": "supported",
+        "proto_request": {
+          "merchant_order_id": "probe_order_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://sandbox.cashfree.com/pg/orders",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-version": "2022-09-01",
+            "x-client-id": "probe_id",
+            "x-client-secret": "probe_key"
+          },
+          "body": "{\"order_id\":\"probe_order_001\",\"order_amount\":10.0,\"order_currency\":\"USD\",\"customer_details\":{\"customer_id\":\"guest\",\"customer_email\":null,\"customer_phone\":\"9999999999\",\"customer_name\":null},\"order_meta\":{\"return_url\":\"https://example.com/return\",\"notify_url\":\"https://example.com/webhook\",\"payment_methods\":null},\"order_note\":null,\"order_expiry_time\":null}"
+        }
       }
     },
     "create_server_authentication_token": {
@@ -516,7 +469,27 @@
     },
     "get": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://sandbox.cashfree.com/pg/orders/probe_merchant_txn_001/payments",
+          "method": "Get",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-version": "2022-09-01",
+            "x-client-id": "probe_id",
+            "x-client-secret": "probe_key"
+          },
+          "body": null
+        }
       }
     },
     "handle_event": {
@@ -541,8 +514,8 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Card payments are supported by Cashfree, but are not yet implemented for this connector"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       }
     },
     "proxy_setup_recurring": {
@@ -562,12 +535,51 @@
     },
     "refund": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://sandbox.cashfree.com/pg/orders/probe_connector_txn_001/refunds",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-version": "2022-09-01",
+            "x-client-id": "probe_id",
+            "x-client-secret": "probe_key"
+          },
+          "body": "{\"refund_id\":\"probe_refund_001\",\"refund_amount\":\"10.00\",\"refund_note\":\"customer_request\"}"
+        }
       }
     },
     "refund_get": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://sandbox.cashfree.com/pg/orders/probe_connector_txn_001/refunds/probe_refund_id_001",
+          "method": "Get",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-version": "2022-09-01",
+            "x-client-id": "probe_id",
+            "x-client-secret": "probe_key"
+          },
+          "body": null
+        }
       }
     },
     "reverse": {
@@ -582,8 +594,8 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by Cashfree"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       }
     },
     "token_setup_recurring": {
@@ -603,7 +615,24 @@
     },
     "void": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "merchant_order_id": "probe_order_001"
+        },
+        "sample": {
+          "url": "https://sandbox.cashfree.com/pg/orders/probe_order_001/authorization",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-version": "2022-09-01",
+            "x-client-id": "probe_id",
+            "x-client-secret": "probe_key"
+          },
+          "body": "{\"action\":\"VOID\"}"
+        }
       }
     }
   }
