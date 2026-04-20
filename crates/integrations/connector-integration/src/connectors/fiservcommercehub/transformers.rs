@@ -506,22 +506,6 @@ pub struct FiservcommercehubAdditionalData3DS {
     pub mpi_data: FiservcommercehubMpiData,
 }
 
-/// Trait to abstract authentication data access across different request types.
-/// This allows reusing the 3DS data building logic.
-pub trait AuthenticationDataAccess {
-    fn get_authentication_data(
-        &self,
-    ) -> Option<&domain_types::router_request_types::AuthenticationData>;
-}
-
-impl<T: PaymentMethodDataTypes> AuthenticationDataAccess for PaymentsAuthorizeData<T> {
-    fn get_authentication_data(
-        &self,
-    ) -> Option<&domain_types::router_request_types::AuthenticationData> {
-        self.authentication_data.as_ref()
-    }
-}
-
 /// Builds the additional_data_3ds structure from authentication data.
 /// This is reusable across Authorize flow.
 pub fn build_additional_data_3ds(
