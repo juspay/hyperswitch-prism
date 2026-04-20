@@ -558,14 +558,6 @@ payment_methods: none
 flows: 
 examples_python: none
 
-## Sanlammultidata
-connector_id: sanlammultidata
-doc: docs/connectors/sanlammultidata.md
-scenarios: none
-payment_methods: none
-flows: 
-examples_python: none
-
 ## Shift4
 connector_id: shift4
 doc: docs/connectors/shift4.md
