@@ -222,6 +222,8 @@ _FLOW_KEY_OVERRIDES: dict[tuple[str, str], str] = {
     ("PaymentMethodService", "Tokenize"): "tokenize",
     # EventService.HandleEvent should just be "handle_event" not "event_handle_event"
     ("EventService", "HandleEvent"): "handle_event",
+    # EventService.ParseEvent should just be "parse_event" not "event_parse_event"
+    ("EventService", "ParseEvent"): "parse_event",
     # VerifyRedirectResponse -> verify_redirect (truncated in probe data)
     ("PaymentService", "VerifyRedirectResponse"): "verify_redirect",
     # MerchantAuthenticationService flows (probe data doesn't use merchant_auth_ prefix)
