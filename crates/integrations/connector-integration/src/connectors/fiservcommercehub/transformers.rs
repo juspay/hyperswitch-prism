@@ -281,7 +281,7 @@ pub enum FiservcommercehubSourceData {
     #[serde(rename = "PaymentToken")]
     PaymentToken {
         #[serde(rename = "tokenData")]
-        token_data: String,
+        token_data: Secret<String>,
         #[serde(rename = "tokenSource")]
         token_source: String,
         #[serde(rename = "declineDuplicates")]
@@ -1581,7 +1581,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 total,
             },
             source: FiservcommercehubSourceData::PaymentToken {
-                token_data: connector_mandate_id,
+                token_data: Secret::new(connector_mandate_id),
                 token_source,
                 decline_duplicates: Some(false),
                 card: card_info,
