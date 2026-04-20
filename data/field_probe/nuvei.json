@@ -603,12 +603,14 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: billing_address.first_name and billing_address.last_name — Missing required field: billing_address.first_name and billing_address.last_name"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: state.access_token — Missing required field: state.access_token"
       }
     },
     "recurring_revoke": {
@@ -666,7 +668,8 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: billing_address.first_name and billing_address.last_name — Missing required field: billing_address.first_name and billing_address.last_name"
       }
     },
     "token_authorize": {
@@ -677,7 +680,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "Payment method not supported for SetupMandate is not supported by nuvei"
       }
     },
     "tokenize": {

@@ -138,7 +138,7 @@ pub enum ConnectorEnum {
     Finix,
     Trustly,
     Itaubank,
-    Sanlammultidata,
+    Sanlam,
     PinelabsOnline,
 }
 
@@ -4116,7 +4116,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Elavon(_) => Ok(Self::Elavon),
             AuthType::Fiserv(_) => Ok(Self::Fiserv),
             AuthType::Fiservemea(_) => Ok(Self::Fiservemea),
-            AuthType::Sanlammultidata(_) => Ok(Self::Sanlammultidata),
+            AuthType::Sanlam(_) => Ok(Self::Sanlam),
             AuthType::Forte(_) => Ok(Self::Forte),
             AuthType::Getnet(_) => Ok(Self::Getnet),
             AuthType::Globalpay(_) => Ok(Self::Globalpay),
