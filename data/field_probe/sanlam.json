@@ -1,5 +1,5 @@
 {
-  "connector": "sanlammultidata",
+  "connector": "sanlam",
   "flows": {
     "authenticate": {
       "default": {
@@ -9,103 +9,103 @@
     "authorize": {
       "Ach": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "AchBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Affirm": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Afterpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Alfamart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "AliPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "AmazonPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "ApplePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "ApplePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "BancontactCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Bizum": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Bluecode": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Boleto": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "BriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Card": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "CashappQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "ClassicReward": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Crypto": {
         "status": "not_supported",
@@ -113,7 +113,7 @@
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "DuitNow": {
         "status": "not_supported",
@@ -121,27 +121,27 @@
       },
       "EVoucher": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Efecty": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Eft": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Eps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "FamilyMart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Giropay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Givex": {
         "status": "not_supported",
@@ -149,107 +149,107 @@
       },
       "GooglePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "GooglePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Ideal": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Indomaret": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "IndonesianBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "InstantBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "InstantBankTransferFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "InstantBankTransferPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Interac": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Klarna": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Lawson": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "MandiriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "MbWay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Mifinity": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "MiniStop": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "OnlineBankingFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "OnlineBankingFpx": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "OnlineBankingPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "OnlineBankingSlovakia": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "OnlineBankingThailand": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "OpenBankingPis": {
         "status": "not_supported",
@@ -257,19 +257,19 @@
       },
       "OpenBankingUk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Oxxo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "PagoEfectivo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "PayEasy": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "PaySafeCard": {
         "status": "not_supported",
@@ -277,11 +277,11 @@
       },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Paze": {
         "status": "not_supported",
@@ -289,87 +289,87 @@
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Pix": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Przelewy24": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Pse": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "RedCompra": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "RedPagos": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "RevolutPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Satispay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Seicomart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Sepa": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "SepaGuaranteedDebit": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "SevenEleven": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Sofort": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Trustly": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "UpiCollect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "UpiIntent": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "UpiQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "WeChatPayQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       },
       "Wero": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       }
     },
     "capture": {
@@ -455,7 +455,7 @@
     "proxy_authorize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       }
     },
     "proxy_setup_recurring": {
@@ -496,7 +496,7 @@
     "token_authorize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Sanlammultidata"
+        "error": "This feature is not implemented: Selected payment method through Sanlam"
       }
     },
     "token_setup_recurring": {
