@@ -3487,6 +3487,12 @@ message StripeConfig {
   optional string base_url = 50;
 }
 
+message AciConfig {
+  SecretString api_key = 1;
+  SecretString entity_id = 2;
+  optional string base_url = 50;
+}
+
 message BamboraConfig {
   SecretString merchant_id = 1;
   SecretString api_key = 2;
@@ -4061,6 +4067,9 @@ message TruelayerConfig {
 // Connector enum value from this file;
 message ConnectorSpecificConfig {
   oneof config {
+    // ACI = 2
+    AciConfig aci = 116;
+
     // ADYEN = 3
     AdyenConfig adyen = 1;
 
