@@ -11,6 +11,14 @@ permissions:
   pull-requests: write
   issues: write
 
+concurrency:
+  group: prism-review-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
 env:
   # Team configuration — change these to reuse this workflow for another team.
   TEAM_NAME: prism
@@ -22,33 +30,42 @@ env:
 jobs:
   agent:
     runs-on: self-hosted
+    timeout-minutes: 30
     if: |
       (github.event_name == 'pull_request_review_comment' || github.event.issue.pull_request) &&
-      contains(github.event.comment.body, '@prism-review-bot')
+      contains(github.event.comment.body, '@prism-review-bot') &&
+      contains(fromJSON('["COLLABORATOR", "MEMBER", "OWNER"]'), github.event.comment.author_association)
 
     steps:
       - name: Resolve context
         id: context
         run: |
+          set -euo pipefail
           EVENT_NAME="${{ github.event_name }}"
           if [ "$EVENT_NAME" == "pull_request_review_comment" ]; then
             PR_NUMBER="${{ github.event.pull_request.number }}"
           else
             PR_NUMBER="${{ github.event.issue.number }}"
           fi
-          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
           echo "Resolved — PR: #$PR_NUMBER"
 
       - name: Sync review skill from spec repo
         run: |
+          set -euo pipefail
           echo "Syncing $SKILL_NAME skill from juspay/hyperswitch-specs..."
           cd /home/phoenix/repos/hyperswitch-specs
           git checkout main
           git pull origin main
 
+          SKILL_SRC="/home/phoenix/repos/hyperswitch-specs/.opencode/skills/$SKILL_NAME"
+          if [ ! -d "$SKILL_SRC" ]; then
+            echo "ERROR: Skill source directory not found: $SKILL_SRC"
+            exit 1
+          fi
+
           mkdir -p "$HOME/.config/opencode/skills/$SKILL_NAME"
-          cp -r "/home/phoenix/repos/hyperswitch-specs/.opencode/skills/$SKILL_NAME/." \
-                "$HOME/.config/opencode/skills/$SKILL_NAME/"
+          cp -r "$SKILL_SRC/." "$HOME/.config/opencode/skills/$SKILL_NAME/"
 
           echo "Skill $SKILL_NAME synced successfully"
 
@@ -56,17 +73,25 @@ jobs:
         env:
           PR_NUMBER: ${{ steps.context.outputs.pr_number }}
         run: |
+          set -euo pipefail
           cd "$SOURCE_REPO_LOCAL"
           git fetch origin
-          BRANCH=$(gh pr view $PR_NUMBER --repo $SOURCE_REPO --json headRefName --jq '.headRefName')
-          git checkout "$BRANCH" && git pull origin "$BRANCH"
+          BRANCH=$(gh pr view "$PR_NUMBER" --repo "$SOURCE_REPO" --json headRefName --jq '.headRefName')
+          if [ -z "$BRANCH" ]; then
+            echo "ERROR: Could not resolve branch for PR #$PR_NUMBER"
+            exit 1
+          fi
+          git checkout "$BRANCH"
+          git pull origin "$BRANCH"
           echo "Checked out PR branch: $BRANCH"
 
       - name: Run OpenCode Review Agent
+        timeout-minutes: 30
         env:
           PR_NUMBER: ${{ steps.context.outputs.pr_number }}
           EVENT_NAME: ${{ github.event_name }}
         run: |
+          set -euo pipefail
           COMMENT_BODY=$(jq -r '.comment.body // empty' "$GITHUB_EVENT_PATH")
           IN_REPLY_TO=$(jq -r '.comment.in_reply_to_id // empty' "$GITHUB_EVENT_PATH")
           SESSION_DIR="/home/phoenix/.opencode-sessions"
@@ -77,6 +102,10 @@ jobs:
           echo "Event: $EVENT_NAME"
           echo "Source repo: $SOURCE_REPO"
           echo "Skill: $SKILL_NAME"
+
+          # Post acknowledgement comment so users know the review is in progress
+          gh pr comment "$PR_NUMBER" --repo "$SOURCE_REPO" \
+            --body "🔍 Prism review in progress..." || true
 
           PROMPT="You MUST operate exclusively as the agent defined in:
           $AGENT_FILE
@@ -100,27 +129,38 @@ jobs:
           Comment      : $COMMENT_BODY
           In reply to  : $IN_REPLY_TO"
 
+          SESSION_CREATED=false
+
           if [ -f "$SESSION_FILE" ]; then
             SAVED_ID=$(cat "$SESSION_FILE")
             echo "Resuming session $SAVED_ID for review #$PR_NUMBER"
-            opencode run \
+            if opencode run \
               --session "$SAVED_ID" \
               --dir "$SOURCE_REPO_LOCAL" \
-              "$PROMPT"
-          else
-            echo "Creating new session for review #$PR_NUMBER"
-            opencode run \
-              --title "review-$TEAM_NAME-$PR_NUMBER" \
-              --dir "$SOURCE_REPO_LOCAL" \
-              "$PROMPT"
-            SESSION_ID=$(opencode session list --format json | \
-              jq -r --arg title "review-$TEAM_NAME-$PR_NUMBER" \
-              '.[] | select(.title == $title) | .id' | head -1)
-            echo "Captured session ID: $SESSION_ID"
-            if [ -n "$SESSION_ID" ]; then
-              echo "$SESSION_ID" > "$SESSION_FILE"
-              echo "Saved session $SESSION_ID for review #$PR_NUMBER"
+              "$PROMPT"; then
+              echo "Resumed session $SAVED_ID successfully"
+              exit 0
             else
-              echo "Could not capture session ID"
+              echo "Session $SAVED_ID failed, creating new session"
+              rm -f "$SESSION_FILE"
             fi
+          fi
+
+          # Create a new session with a unique title to avoid race conditions
+          UNIQUE_TITLE="review-$TEAM_NAME-$PR_NUMBER-$GITHUB_RUN_ID"
+          echo "Creating new session for review #$PR_NUMBER"
+          opencode run \
+            --title "$UNIQUE_TITLE" \
+            --dir "$SOURCE_REPO_LOCAL" \
+            "$PROMPT"
+
+          SESSION_ID=$(opencode session list --format json | \
+            jq -r --arg title "$UNIQUE_TITLE" \
+            '.[] | select(.title == $title) | .id' | head -1)
+          echo "Captured session ID: $SESSION_ID"
+          if [ -n "$SESSION_ID" ]; then
+            echo "$SESSION_ID" > "$SESSION_FILE"
+            echo "Saved session $SESSION_ID for review #$PR_NUMBER"
+          else
+            echo "WARNING: Could not capture session ID"
           fi
