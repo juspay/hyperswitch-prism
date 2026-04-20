@@ -404,6 +404,15 @@ pub struct Shift4PaymentsResponse {
     /// or created during the charge. Required alongside a stored card
     /// id for MIT charges.
     pub customer: Option<Shift4ResponseCustomer>,
+    /// Populated by Shift4 on declined / failed charges (e.g.,
+    /// `"card_declined"`). Surfaced as the ErrorResponse `code`.
+    #[serde(rename = "failureCode")]
+    pub failure_code: Option<String>,
+    /// Populated by Shift4 on declined / failed charges (e.g.,
+    /// `"Your card was declined."`). Surfaced as the ErrorResponse
+    /// `message` and `reason`.
+    #[serde(rename = "failureMessage")]
+    pub failure_message: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -421,8 +430,8 @@ pub enum Shift4ResponseCustomer {
 impl Shift4ResponseCustomer {
     pub fn id(&self) -> &str {
         match self {
-            Shift4ResponseCustomer::Id(s) => s.as_str(),
-            Shift4ResponseCustomer::Object { id } => id.as_str(),
+            Self::Id(s) => s.as_str(),
+            Self::Object { id } => id.as_str(),
         }
     }
 }
@@ -1414,9 +1423,21 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4SetupMandateRes
         let response = match status {
             AttemptStatus::Failure => Err(domain_types::router_data::ErrorResponse {
                 status_code: item.http_code,
-                code: "SHIFT4_MANDATE_SETUP_FAILED".to_string(),
-                message: "Setup mandate failed".to_string(),
-                reason: None,
+                // Shift4 sets `failureCode` / `failureMessage` on declined
+                // charges (e.g. `card_declined`). Prefer those over a
+                // static "SHIFT4_MANDATE_SETUP_FAILED" so the merchant
+                // sees the actual decline reason.
+                code: item
+                    .response
+                    .failure_code
+                    .clone()
+                    .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
+                message: item
+                    .response
+                    .failure_message
+                    .clone()
+                    .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
+                reason: item.response.failure_message.clone(),
                 attempt_status: Some(status),
                 connector_transaction_id: Some(item.response.id.clone()),
                 network_decline_code: None,
