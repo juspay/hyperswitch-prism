@@ -374,7 +374,37 @@
     },
     "capture": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://connect-cert.fiservapis.com/ch/payments/v1/charges",
+          "method": "Post",
+          "headers": {
+            "accept-language": "en",
+            "api-key": "probe_key",
+            "auth-token-type": "HMAC",
+            "authorization": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "client-request-id": "00000000-0000-0000-0000-000000000000",
+            "content-type": "application/json",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"total\":10.0},\"transactionDetails\":{\"captureFlag\":true,\"merchantTransactionId\":\"probe_capture_001\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":\"probe_id\"},\"referenceTransactionDetails\":{\"referenceTransactionId\":\"probe_connector_txn_001\"}}"
+        }
       }
     },
     "create_client_authentication_token": {
@@ -506,12 +536,14 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Failed to encode connector request"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: payment_method_id — Missing required field: payment_method_id"
       }
     },
     "recurring_revoke": {
@@ -552,7 +584,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":{\"currency\":\"USD\",\"total\":10.0},\"transactionDetails\":{\"captureFlag\":true,\"merchantTransactionId\":\"probe_refund_001\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":\"probe_id\"},\"referenceTransactionDetails\":{\"referenceTransactionId\":\"probe_connector_txn_001\"}}"
+          "body": "{\"amount\":{\"currency\":\"USD\",\"total\":10.0},\"transactionDetails\":{\"merchantTransactionId\":\"probe_refund_001\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":\"probe_id\"},\"referenceTransactionDetails\":{\"referenceTransactionId\":\"probe_connector_txn_001\"}}"
         }
       }
     },
@@ -595,7 +627,8 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Failed to encode connector request"
       }
     },
     "token_authorize": {
@@ -606,7 +639,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
       }
     },
     "tokenize": {
@@ -646,7 +680,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"transactionDetails\":{\"captureFlag\":true,\"merchantTransactionId\":\"probe_void_001\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":\"probe_id\"},\"referenceTransactionDetails\":{\"referenceTransactionId\":\"probe_connector_txn_001\"}}"
+          "body": "{\"transactionDetails\":{\"merchantTransactionId\":\"probe_void_001\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":\"probe_id\"},\"referenceTransactionDetails\":{\"referenceTransactionId\":\"probe_connector_txn_001\"}}"
         }
       }
     }
