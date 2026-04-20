@@ -142,7 +142,7 @@ Variables:
 Store the codegen result:
 - `{CODEGEN_STATUS}` = `SUCCESS` or `FAILED`
 - `{CODEGEN_FAILURE_REASON}` = reason string (empty if SUCCESS)
-- `{CODEGEN_GRPCURL_OUTPUT}` = full grpcurl output (may be partial/error output for FAILED)
+- `{CODEGEN_GRPCURL_OUTPUT}` = the full `GRPCURL_OUTPUT` section from the codegen agent's output — this MUST include the complete grpcurl command(s) with headers and payload, plus the complete response JSON. This is passed to the PR Agent for the PR description. If the codegen agent did not return `GRPCURL_OUTPUT`, extract whatever grpcurl output is visible in the agent's response.
 
 ---
 
@@ -215,4 +215,4 @@ REASON: <if not SUCCESS, explain why>
 | Links Agent | `2.1_links.md` | Find and verify backend API documentation links |
 | Tech Spec Agent | `2.2_techspec.md` | Generate tech spec via grace CLI |
 | Code Generation Agent | `2.3_codegen.md` | Read, analyze, implement, build, and grpcurl test |
-| PR Agent | `2.4_pr.md` | Commit on dev branch, cherry-pick to clean branch, scrub creds, create PR in juspay/connector-service |
+| PR Agent | `2.4_pr.md` | Commit on dev branch, cherry-pick to clean branch, scrub creds, create PR in juspay/hyperswitch-prism |

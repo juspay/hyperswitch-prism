@@ -2,7 +2,9 @@
 
 **🎯 GENERIC PATTERN FILE FOR ANY NEW CONNECTOR**
 
-This document provides comprehensive, reusable patterns for implementing the SetupMandate flow in **ANY** payment connector within the UCS (Universal Connector Service) system. These patterns are extracted from successful connector implementations across 8 connectors (Adyen, Stripe, Cybersource, ACI, Authorizedotnet, Noon, Novalnet, Payload) and can be consumed by AI to generate consistent, production-ready SetupMandate flow code for any payment gateway.
+This document provides comprehensive, reusable patterns for implementing the SetupMandate flow in **ANY** payment connector within the UCS (Universal Connector Service) system. These patterns are extracted from successful connector implementations across 13 connectors (Adyen, Stripe, Cybersource, ACI, Authorizedotnet, Noon, Novalnet, Payload, plus the April 2026 additions: shift4, NMI, TrustPay, dlocal, Finix) and can be consumed by AI to generate consistent, production-ready SetupMandate flow code for any payment gateway.
+
+> **Terminology callout — "SetupRecurring" vs "SetupMandate":** The April 2026 batch of PRs (#1060 NMI, #1063 TrustPay, #1064 dlocal, #1069 Finix, #1079 shift4) uses the phrase **"SetupRecurring"** in commit titles and module comments, but the canonical flow marker in the registry is `SetupMandate` (`crates/types-traits/domain_types/src/connector_flow.rs:23`). The two names refer to the same flow — when auditing or generating new code, always use `SetupMandate` as the type parameter and `SetupMandateRequestData<T>` as the request-data type. The "SetupRecurring" label is harmless but potentially confusing for reviewers skimming macro invocations.
 
 > **🏗️ UCS-Specific:** This pattern is tailored for UCS architecture using RouterDataV2, ConnectorIntegrationV2, and domain_types. This pattern focuses on recurring payment setup and mandate creation.
 
@@ -66,9 +68,23 @@ The SetupMandate flow is a specialized payment processing flow for setting up re
 - **Customer Binding**: Often requires customer_id to bind mandate to customer
 - **No Capture**: Mandate setup doesn't involve actual payment capture
 
+## Connectors with Full Implementation
+
+The following connectors implement `ConnectorIntegrationV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>` at the pinned SHA. Columns follow PATTERN_AUTHORING_SPEC §10.
+
+| Connector | HTTP Method | Content Type | URL Pattern | Request Type Reuse | Notes |
+| --- | --- | --- | --- | --- | --- |
+| dlocal | POST | application/json | `{base_url}secure_payments` | `DlocalSetupMandateRequest<T>` — distinct struct carrying `card.save: true`; response reuses payment shape | dLocal requires non-zero verify amount (>1.00); code 5016 "Amount too low" if too small. See `crates/integrations/connector-integration/src/connectors/dlocal.rs:630` and `crates/integrations/connector-integration/src/connectors/dlocal/transformers.rs:447` |
+| Finix | POST | application/json | `{base_url}/payment_instruments` | `FinixSetupMandateRequest = FinixCreatePaymentInstrumentRequest` (type alias; reused by PaymentMethodToken flow) | Creates Payment Instrument under an identity; returned id becomes `connector_mandate_id`. See `crates/integrations/connector-integration/src/connectors/finix.rs:800` and `crates/integrations/connector-integration/src/connectors/finix/transformers.rs:310` |
+| NMI | POST | application/x-www-form-urlencoded | `{base_url}/api/transact.php` | `NmiSetupMandateRequest<T>` — distinct struct using `customer_vault: AddCustomer`; response shape is aliased as `NmiRepeatPaymentResponse` for MIT flow | Zero-amount only ("Validate"); non-zero rejected with "Setup Mandate with non zero amount". Endpoint is shared with Authorize/Capture/Void/Refund via `endpoints::TRANSACT`. See `crates/integrations/connector-integration/src/connectors/nmi.rs:643` and `crates/integrations/connector-integration/src/connectors/nmi/transformers.rs:1543` |
+| shift4 | POST | application/json | `{base_url}/charges` | `Shift4SetupMandateRequest<T>` — distinct struct with `captured: false`; response reuses `Shift4PaymentsResponse` via `pub type Shift4SetupMandateResponse = Shift4PaymentsResponse` | Same `/charges` endpoint as Authorize; differentiated by `captured=false` (auth-only) + caller-supplied amount (0 allowed for zero-dollar CoF). See `crates/integrations/connector-integration/src/connectors/shift4.rs:677` and `crates/integrations/connector-integration/src/connectors/shift4/transformers.rs:1221` |
+| TrustPay | POST | application/x-www-form-urlencoded | `{base_url}api/v1/purchase` | `TrustpaySetupMandateRequest<T>` — distinct struct with `PaymentType=RecurringInitial`; response reuses `PaymentsResponseCards` via `pub type TrustpaySetupMandateResponse = PaymentsResponseCards` | Same card API endpoint as Authorize; RepeatPayment (MIT) targets the same URL and carries `InstanceId` + `PaymentType=Recurring`. See `crates/integrations/connector-integration/src/connectors/trustpay.rs:1078` and `crates/integrations/connector-integration/src/connectors/trustpay/transformers.rs:1230` |
+
+> Older reference connectors (Adyen, Stripe, Cybersource, ACI, Authorizedotnet, Noon, Novalnet, Payload) are documented by their request shapes under "SetupMandate Flow Implementation Analysis" below; they predate this pinned SHA's table format and are preserved for comparison.
+
 ## SetupMandate Flow Implementation Analysis
 
-Analysis of 8 connectors reveals distinct implementation patterns:
+Analysis of 13 connectors (8 legacy + 5 added April 2026) reveals distinct implementation patterns:
 
 ### Implementation Statistics
 
@@ -82,6 +98,11 @@ Analysis of 8 connectors reveals distinct implementation patterns:
 | **Noon** | JSON | StringMajorUnit (1 unit) | Subscription | `subscription` object with max_amount, tokenize_c_c flag |
 | **Novalnet** | JSON | StringMinorUnit | Token Request | Standard payment with tokenization |
 | **Payload** | JSON | MinorUnit | Mandate Setup | Standard mandate endpoint |
+| **shift4** (2026-04) | JSON | MinorUnit (caller-supplied; 0 allowed) | Card-on-File via `/charges` | `captured: false` auth-only, optional embedded customer; charge.id becomes `connector_mandate_id` |
+| **NMI** (2026-04) | FormUrlEncoded | None (validate; non-zero rejected) | Customer Vault tokenization | `customer_vault=AddCustomer`, supports Card + ACH BankDebit; vault id = `customer_vault_id` |
+| **TrustPay** (2026-04) | FormUrlEncoded | StringMajorUnit | Recurring Initial (card/3DS) | `PaymentType=RecurringInitial` + browser fields; InstanceId from response acts as mandate id |
+| **dlocal** (2026-04) | JSON | FloatMajorUnit (>1.00) | Card Save / CIT verification | `card.save=true`, `capture=false`, LatAm markets require payer document |
+| **Finix** (2026-04) | JSON | None (PaymentInstrument create) | Payment Instrument | Requires identity (connector customer) beforehand; instrument id becomes `connector_mandate_id` |
 
 ### Common Patterns Identified
 
@@ -1121,6 +1142,64 @@ match item.router_data.request.connector_mandate_id() {
 }
 ```
 
+## Connector-Specific Patterns (April 2026 Additions)
+
+These five connectors were added between commits `846fc79da` and `92ebf92a0`. Each entry cites `file:line` at the pinned SHA `60540470cf84a350cc02b0d41565e5766437eb95`.
+
+### shift4 (PR #1079, commit `846fc79da`)
+
+- **Trait impl**: `connector_types::SetupMandateV2<T>` for `Shift4<T>` — `crates/integrations/connector-integration/src/connectors/shift4.rs:683`.
+- **Prerequisites registration**: flow added via `create_all_prerequisites!` — `crates/integrations/connector-integration/src/connectors/shift4.rs:256`.
+- **Macro invocation**: `macros::macro_connector_implementation!` with `flow_name: SetupMandate`, `curl_request: Json(Shift4SetupMandateRequest<T>)`, `http_method: Post` — `crates/integrations/connector-integration/src/connectors/shift4.rs:652`.
+- **URL**: `format!("{base_url}/charges")` — same endpoint as Authorize — `crates/integrations/connector-integration/src/connectors/shift4.rs:677`.
+- **Request struct**: `pub struct Shift4SetupMandateRequest<T: PaymentMethodDataTypes>` with `captured: bool` (always `false`), optional embedded `customer` payload — `crates/integrations/connector-integration/src/connectors/shift4/transformers.rs:1221`.
+- **Response alias**: `pub type Shift4SetupMandateResponse = Shift4PaymentsResponse` — `crates/integrations/connector-integration/src/connectors/shift4/transformers.rs:1254`.
+- **Mandate id extraction**: uses `response.id` (charge id) as `connector_mandate_id`; see response-transformation block starting at `crates/integrations/connector-integration/src/connectors/shift4/transformers.rs:1363`.
+- **Amount handling**: caller-supplied `minor_amount` — 0 permitted for zero-dollar CoF, but missing is rejected as `MissingRequiredField { field_name: "amount" }` — `crates/integrations/connector-integration/src/connectors/shift4/transformers.rs:1330`.
+
+### NMI (PR #1060, commit `48437cd7a`)
+
+- **Trait impl**: `connector_types::SetupMandateV2<T>` for `Nmi<T>` — `crates/integrations/connector-integration/src/connectors/nmi.rs:126`.
+- **Prerequisites registration**: `create_all_prerequisites!` entry — `crates/integrations/connector-integration/src/connectors/nmi.rs:253`.
+- **Macro invocation**: `curl_request: FormUrlEncoded(NmiSetupMandateRequest)`, `preprocess_response: true`, `http_method: Post` — `crates/integrations/connector-integration/src/connectors/nmi.rs:616`.
+- **URL**: `format!("{}{}", self.connector_base_url_payments(req), endpoints::TRANSACT)` where `TRANSACT = "/api/transact.php"` — `crates/integrations/connector-integration/src/connectors/nmi.rs:643` + constant at `crates/integrations/connector-integration/src/connectors/nmi.rs:66`.
+- **Request struct**: `NmiSetupMandateRequest<T>` with `customer_vault: CustomerAction` set to AddCustomer, payment method enum supporting `Card` + `Ach` variants — `crates/integrations/connector-integration/src/connectors/nmi/transformers.rs:1543`.
+- **Response struct**: `NmiSetupMandateResponse` returns `customer_vault_id: Option<Secret<String>>` — `crates/integrations/connector-integration/src/connectors/nmi/transformers.rs:1606`.
+- **Mandate id extraction**: `customer_vault_id.expose()` becomes `connector_mandate_id` — `crates/integrations/connector-integration/src/connectors/nmi/transformers.rs:1738`.
+- **Amount constraint**: zero-amount only; non-zero rejected with `IntegrationError::NotSupported { message: "Setup Mandate with non zero amount" }` — `crates/integrations/connector-integration/src/connectors/nmi/transformers.rs:1647`.
+- **MIT coupling**: `pub type NmiRepeatPaymentResponse = NmiSetupMandateResponse` — `crates/integrations/connector-integration/src/connectors/nmi/transformers.rs:1807`.
+
+### TrustPay (PR #1063, commit `a7959c3ac`)
+
+- **Trait impl**: `connector_types::SetupMandateV2<T>` for `Trustpay<T>` — `crates/integrations/connector-integration/src/connectors/trustpay.rs:144`.
+- **Prerequisites registration**: `create_all_prerequisites!` entry — `crates/integrations/connector-integration/src/connectors/trustpay.rs:495`.
+- **Macro invocation**: `curl_request: FormUrlEncoded(TrustpaySetupMandateRequest<T>)`, `http_method: Post` — `crates/integrations/connector-integration/src/connectors/trustpay.rs:1054`.
+- **URL**: `format!("{}{}", self.connector_base_url_payments(req), "api/v1/purchase")` — same card API endpoint as Authorize (zero-auth validation) — `crates/integrations/connector-integration/src/connectors/trustpay.rs:1078`.
+- **Request struct**: `TrustpaySetupMandateRequest<T>` carrying full browser fingerprint fields and `PaymentType: "RecurringInitial"` — `crates/integrations/connector-integration/src/connectors/trustpay/transformers.rs:1230`.
+- **Response alias**: `pub type TrustpaySetupMandateResponse = PaymentsResponseCards` — `crates/integrations/connector-integration/src/connectors/trustpay/transformers.rs:1313`.
+- **MIT coupling**: `TrustpayRepeatPaymentRequest` targets the same `api/v1/purchase` URL and references the stored `InstanceId` with `PaymentType=Recurring` — `crates/integrations/connector-integration/src/connectors/trustpay.rs:1112`.
+
+### dlocal (PR #1064, commit `92ebf92a0`)
+
+- **Trait impl**: `connector_types::SetupMandateV2<T>` for `Dlocal<T>` — `crates/integrations/connector-integration/src/connectors/dlocal.rs:142`.
+- **Prerequisites registration**: `create_all_prerequisites!` entry — `crates/integrations/connector-integration/src/connectors/dlocal.rs:266`.
+- **Macro invocation**: `curl_request: Json(DlocalSetupMandateRequest)`, `http_method: Post` — `crates/integrations/connector-integration/src/connectors/dlocal.rs:604`.
+- **URL**: `format!("{}secure_payments", self.connector_base_url_payments(req))` — reuses the card-authorize endpoint — `crates/integrations/connector-integration/src/connectors/dlocal.rs:630`.
+- **Request struct**: `DlocalSetupMandateRequest<T>` with `Card { save: Some(true), capture: "false" }` and required `payer.document` — `crates/integrations/connector-integration/src/connectors/dlocal/transformers.rs:447`.
+- **Response struct**: `DlocalSetupMandateResponse` exposes `card: Option<DlocalSetupMandateCardData { card_id }>` — `crates/integrations/connector-integration/src/connectors/dlocal/transformers.rs:577`.
+- **Amount constraint**: dLocal rejects amounts ≤ 1.00 with code 5016 "Amount too low"; caller must supply a real verify amount (docstring at `crates/integrations/connector-integration/src/connectors/dlocal/transformers.rs:500`).
+
+### Finix (PR #1069, commit `618842a65`)
+
+- **Trait impl**: `connector_types::SetupMandateV2<T>` for `Finix<T>` — `crates/integrations/connector-integration/src/connectors/finix.rs:274`.
+- **Prerequisites registration**: `create_all_prerequisites!` entry — `crates/integrations/connector-integration/src/connectors/finix.rs:475`.
+- **Macro invocation**: `curl_request: Json(FinixSetupMandateRequest)`, `http_method: Post` — `crates/integrations/connector-integration/src/connectors/finix.rs:776`.
+- **URL**: `format!("{}/payment_instruments", self.connector_base_url_payments(req))` — dedicated instrument endpoint, not the `/transfers` path used by Authorize — `crates/integrations/connector-integration/src/connectors/finix.rs:800`.
+- **Request alias**: `pub type FinixSetupMandateRequest = FinixCreatePaymentInstrumentRequest` — reuses the PaymentMethodToken flow's request body — `crates/integrations/connector-integration/src/connectors/finix/transformers.rs:310`.
+- **Response alias**: `pub type FinixSetupMandateResponse = FinixInstrumentResponse` — `crates/integrations/connector-integration/src/connectors/finix/transformers.rs:311`.
+- **Identity requirement**: Finix requires an identity (connector customer) to be present before creating the payment instrument; the instrument id returned is surfaced as `connector_mandate_id` for RepeatPayment (docstring at `crates/integrations/connector-integration/src/connectors/finix.rs:774`).
+- **MIT coupling**: `pub type FinixRepeatPaymentRequest = FinixAuthorizeRequest` — RepeatPayment posts to `/transfers` (auto-capture) or `/authorizations` (manual) with `source` set to the stored instrument id — `crates/integrations/connector-integration/src/connectors/finix/transformers.rs:343`.
+
 ## Error Handling Patterns
 
 ### Mandate-Specific Error Handling
@@ -1443,3 +1522,10 @@ This pattern document provides comprehensive templates for implementing SetupMan
 - **Comprehensive Checklists**: Pre-implementation through validation
 
 By following these patterns, you can implement a production-ready SetupMandate flow for any payment connector in 30-45 minutes.
+
+## Change Log
+
+| Date | Pinned SHA | Version | Changes |
+|------|------------|---------|---------|
+| 2026-04-20 | `60540470cf84a350cc02b0d41565e5766437eb95` | 1.1.0 | Added "Connectors with Full Implementation" table per PATTERN_AUTHORING_SPEC §10 covering April 2026 additions: shift4 (PR #1079, `846fc79da`), NMI (PR #1060, `48437cd7a`), TrustPay (PR #1063, `a7959c3ac`), dlocal (PR #1064, `92ebf92a0`), Finix (PR #1069, `618842a65`). Added per-connector implementation subsections with `file:line` citations. Added "SetupRecurring vs SetupMandate" terminology callout noting that commit messages for the five April 2026 PRs call the flow "SetupRecurring" but the registry marker at `crates/types-traits/domain_types/src/connector_flow.rs:23` is `SetupMandate`. Updated `Implementation Statistics` to include the 5 new connectors (now 13 total). |
+| (prior) | (pre-1.1.0) | 1.0.x | Original pattern covering Adyen, Stripe, Cybersource, ACI, Authorizedotnet, Noon, Novalnet, Payload. |

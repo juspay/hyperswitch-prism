@@ -388,7 +388,7 @@ pub struct Connectors {
     pub finix: ConnectorParams,
     pub trustly: ConnectorParams,
     pub itaubank: ConnectorParams,
-    pub sanlammultidata: ConnectorParams,
+    pub sanlam: ConnectorParams,
     pub pinelabs_online: ConnectorParams,
 }
 
@@ -8177,7 +8177,10 @@ impl
             status: common_enums::AttemptStatus::Pending,
             payment_method: PaymentMethod::Card, //TODO
             address,
-            auth_type: common_enums::AuthenticationType::default(),
+            auth_type: common_enums::AuthenticationType::foreign_try_from(
+                grpc_api_types::payments::AuthenticationType::try_from(value.auth_type)
+                    .unwrap_or_default(),
+            )?,
             connector_request_reference_id: value.merchant_recurring_payment_id,
             customer_id: value
                 .customer
@@ -8205,8 +8208,8 @@ impl
             amount: None,
             access_token,
             session_token: value.session_token,
-            reference_id: None,
-            connector_order_id: None,
+            reference_id: value.order_id.clone(),
+            connector_order_id: value.order_id,
             preprocessing_id: None,
             connector_api_version: None,
             test_mode,
@@ -8311,8 +8314,8 @@ impl
             amount: None,
             access_token,
             session_token: value.session_token,
-            reference_id: None,
-            connector_order_id: None,
+            reference_id: value.order_id.clone(),
+            connector_order_id: value.order_id,
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: None,

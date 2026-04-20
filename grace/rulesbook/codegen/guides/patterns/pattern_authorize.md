@@ -77,7 +77,7 @@ pub mod transformers;
 use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{
-        Accept, Authorize, Capture, CreateOrder, CreateSessionToken, DefendDispute, PSync, RSync,
+        Accept, Authorize, Capture, CreateOrder, ServerSessionAuthenticationToken, DefendDispute, PSync, RSync,
         Refund, RepeatPayment, SetupMandate, SubmitEvidence, Void,
     },
     connector_types::{
@@ -85,7 +85,7 @@ use domain_types::{
         PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData,
         PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId, SessionTokenRequestData, SessionTokenResponseData, SetupMandateRequestData,
+        ResponseId, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData,
         SubmitEvidenceData,
     },
     errors::{self, IntegrationError},

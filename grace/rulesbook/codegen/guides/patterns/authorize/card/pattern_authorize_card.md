@@ -4,6 +4,18 @@
 
 This document provides comprehensive patterns for implementing Card payment authorization flows in Grace-UCS connectors. Card payments are the most common payment method and involve handling sensitive card data (PCI DSS compliance), 3D Secure authentication, and various authorization flows.
 
+### Vault Proxy Card Details (Non-PCI Merchants)
+
+In addition to the standard PCI-compliant card path, the UCS codebase exposes a parallel **proxy-card** code path for non-PCI merchants whose card data is aliased through an external vault (VGS, Basis Theory, Spreedly) before reaching the connector. This path is surfaced as a dedicated `ProxyCardDetails` proto message and consumed via the `VaultTokenHolder` PCI-holder marker type.
+
+- **Proto message**: `ProxyCardDetails` at `crates/types-traits/grpc-api-types/proto/payment_methods.proto:240`. It has the same shape as `CardDetails` (number, expiry, CVC, holder name, metadata) but flows through the proxy endpoints rather than the raw-card authorize endpoints.
+- **Domain dispatch**: `PaymentMethodDataAction::CardProxy(grpc_api_types::payments::ProxyCardDetails)` at `crates/types-traits/domain_types/src/types.rs:2392`. The `From` impl at `crates/types-traits/domain_types/src/types.rs:2400` converts the gRPC `PaymentMethod::CardProxy` arm into this variant. The `into_default_pci_payment_method_data` helper at `crates/types-traits/domain_types/src/types.rs:2449` explicitly rejects `CardProxy` with `"CardProxy not supported in this flow; use the proxy endpoint"`, enforcing that proxy-card payloads must be routed through the `PaymentServiceProxyAuthorizeRequest` flow (proto at `crates/types-traits/grpc-api-types/proto/payment.proto:4376-4410`) rather than the standard authorize flow.
+- **Vault token holder**: `VaultTokenHolder` marker struct at `crates/types-traits/domain_types/src/payment_method_data.rs:50` implements `PaymentMethodDataTypes` with `type Inner = Secret<String>` at `crates/types-traits/domain_types/src/payment_method_data.rs:85-96`. A `ForeignTryFrom<ProxyCardDetails> for Card<VaultTokenHolder>` conversion at `crates/types-traits/domain_types/src/types.rs:2876` materialises the proxy card into the domain `Card` type parameterised by the vault token holder.
+
+**How this differs from `Card<DefaultPCIHolder>`**: `Card<DefaultPCIHolder>` carries a validated `cards::CardNumber` (type alias at `crates/types-traits/domain_types/src/payment_method_data.rs:66`) representing a raw PAN handled by PCI-compliant infrastructure. `Card<VaultTokenHolder>` carries a `Secret<String>` token alias (`crates/types-traits/domain_types/src/payment_method_data.rs:86`) that the external vault substitutes with the real card before the request reaches the processor; the UCS merchant therefore never sees the raw PAN.
+
+**Consuming connectors at this SHA**: the `VaultTokenHolder` branch is wired into `authorizedotnet` (see `AuthorizedotnetRawCardNumber<VaultTokenHolder>` at `crates/integrations/connector-integration/src/connectors/authorizedotnet/transformers.rs:234`) and referenced by `multisafepay` (`crates/integrations/connector-integration/src/connectors/multisafepay/transformers.rs:376`). No dedicated `Card<ProxyPCIHolder>` type exists at the pinned SHA.
+
 ### What is Card Payment
 
 Card payments involve processing transactions using credit/debit card details including:
@@ -113,6 +125,9 @@ let expiry_date = Secret::new(format!("{year}{month}"));
 | **HiPay** | JSON | MinorUnit | Yes | Yes |
 | **Trustpayments** | JSON | MinorUnit | No | No |
 | **Loonio** | JSON | MinorUnit | Yes | No |
+| **PineLabs Online** | JSON | MinorUnit | No | No |
+
+**PineLabs Online** card authorization (PR #795): `PaymentMethodData::Card(_)` is mapped to the connector wire string `"CARD"` in `get_pinelabs_payment_method_string` at `crates/integrations/connector-integration/src/connectors/pinelabs_online/transformers.rs:622`, and the card data is materialised into `PinelabsOnlineCardDetails` via `build_card_details` at `crates/integrations/connector-integration/src/connectors/pinelabs_online/transformers.rs:662` (card branch of `build_payment_option` beginning at `crates/integrations/connector-integration/src/connectors/pinelabs_online/transformers.rs:662`).
 
 ---
 
@@ -520,6 +535,23 @@ pub struct ThreeDS2RequestData {
     // ... browser info fields
 }
 ```
+
+#### Connector Note: NMI — 3DS Completion Embedded in Authorize
+
+Unlike the Adyen/Redsys pattern that routes 3DS through dedicated `PreAuthenticate`/`Authenticate`/`PostAuthenticate` flow-marker implementations, **NMI** handles 3DS **completion** inside its Card **Authorize** flow. The separate `Authenticate` and `PostAuthenticate` `ConnectorIntegrationV2` impls in `crates/integrations/connector-integration/src/connectors/nmi.rs:732` and `crates/integrations/connector-integration/src/connectors/nmi.rs:742` are empty stubs (pass-through) — they do not register request/response bodies via `macro_connector_implementation!`. NMI's `PreAuthenticate` impl at `crates/integrations/connector-integration/src/connectors/nmi.rs:583` is a Customer-Vault registration (`NmiVaultRequest`), not a 3DS enrolment check.
+
+Instead, the 3DS CRes data arrives with the Authorize call via `PaymentsAuthorizeData.redirect_response` and is deserialised by `NmiRedirectResponseData` inside the Authorize `TryFrom` branch at `crates/integrations/connector-integration/src/connectors/nmi/transformers.rs:373` (3DS completion flow), which extracts and forwards the following 3DS fields into `NmiPaymentsRequest`:
+
+| Field | NmiPaymentsRequest line | Source on redirect_response |
+|-------|-------------------------|-----------------------------|
+| `cardholder_auth` | `crates/integrations/connector-integration/src/connectors/nmi/transformers.rs:304` | `three_ds_data.card_holder_auth` at `nmi/transformers.rs:439` |
+| `cavv` | `crates/integrations/connector-integration/src/connectors/nmi/transformers.rs:306` | `three_ds_data.cavv` at `nmi/transformers.rs:440` |
+| `xid` | `crates/integrations/connector-integration/src/connectors/nmi/transformers.rs:308` | `three_ds_data.xid` at `nmi/transformers.rs:441` |
+| `eci` | `crates/integrations/connector-integration/src/connectors/nmi/transformers.rs:310` | `three_ds_data.eci` at `nmi/transformers.rs:442` |
+| `three_ds_version` | `crates/integrations/connector-integration/src/connectors/nmi/transformers.rs:314` | `three_ds_data.three_ds_version` at `nmi/transformers.rs:444` |
+| `directory_server_id` | `crates/integrations/connector-integration/src/connectors/nmi/transformers.rs:316` | `three_ds_data.directory_server_id` at `nmi/transformers.rs:445` |
+
+For non-3DS (or 3DS-not-yet-started) Authorize calls, those six fields are emitted as `None` at `crates/integrations/connector-integration/src/connectors/nmi/transformers.rs:584-590`, so the same `NmiPaymentsRequest` schema covers both single-message and 3DS-completion paths. The corresponding response-side 3DS echo fields (`cavv`, `xid`, `eci`, `three_ds_version`, `directory_server_id`) are declared on the response struct at `crates/integrations/connector-integration/src/connectors/nmi/transformers.rs:1350-1356`. Implementation PR: #760.
 
 ---
 
@@ -986,3 +1018,13 @@ When implementing Card payments for a new connector:
 - [ ] Add comprehensive unit tests
 - [ ] Test with real card numbers in sandbox
 - [ ] Document any connector-specific quirks
+
+---
+
+## Change Log
+
+| Date | Version | Pinned SHA | Change |
+|------|---------|------------|--------|
+| 2026-04-20 | 1.2.0 | `60540470cf84a350cc02b0d41565e5766437eb95` | Final-polish citation pass. Added **Connector Note: NMI — 3DS Completion Embedded in Authorize** subsection to the 3DS pattern category, documenting that NMI's `Authenticate`/`PostAuthenticate` `ConnectorIntegrationV2` impls at `crates/integrations/connector-integration/src/connectors/nmi.rs:732` and `crates/integrations/connector-integration/src/connectors/nmi.rs:742` are empty stubs, and that 3DS completion fields (`cardholder_auth`, `cavv`, `xid`, `eci`, `three_ds_version`, `directory_server_id`) are instead driven into `NmiPaymentsRequest` inside the Authorize `TryFrom` branch spanning `crates/integrations/connector-integration/src/connectors/nmi/transformers.rs:298-445` (per-field citations included; response-echo fields at `nmi/transformers.rs:1350-1356`) -- PR #760. |
+| 2026-04-20 | 1.1.0 | `60540470cf84a350cc02b0d41565e5766437eb95` | Added document header metadata block. Added **Vault Proxy Card Details** subsection to Overview, documenting the `ProxyCardDetails` proto message (`crates/types-traits/grpc-api-types/proto/payment_methods.proto:240`), the `PaymentMethodDataAction::CardProxy` dispatch arm (`crates/types-traits/domain_types/src/types.rs:2392`), the proxy-only rejection at `crates/types-traits/domain_types/src/types.rs:2449`, and the `Card<VaultTokenHolder>` conversion path (`crates/types-traits/domain_types/src/types.rs:2876`) -- PR #801, commit `2dcbcf76f`. Added **PineLabs Online** row to the Supported Connectors table with `file:line` citation of `pinelabs_online/transformers.rs:622` (Card→"CARD" mapping) and `pinelabs_online/transformers.rs:662` (card-details builder) -- PR #795. |
+| (prior) | 1.0.0 | (initial) | Initial authoring covering Standard JSON, Form-Encoded, XML/SOAP, Redirect, and 3DS patterns across the card-payment connector set. |
