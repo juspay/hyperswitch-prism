@@ -4,6 +4,10 @@
 
 This document provides comprehensive, reusable patterns for implementing the Psync (Payment Sync) flow in **ANY** payment connector within the UCS (Universal Connector Service) system. These patterns are extracted from successful connector implementations across all 22 connectors in the connector service and can be consumed by AI to generate consistent, production-ready Psync flow code for any payment gateway.
 
+<!-- PR #855 rename absorbed (commit c9e1025e3, 2026-04-02): `CreateSessionToken` →
+`ServerSessionAuthenticationToken` in the connector import block.
+See pattern_client_authentication_token.md for the full map. -->
+
 > **🏗️ UCS-Specific:** This pattern is tailored for UCS architecture using RouterDataV2, ConnectorIntegrationV2, and domain_types. For traditional Hyperswitch patterns, refer to legacy documentation.
 
 ## 🚀 Quick Start Guide
@@ -116,7 +120,7 @@ This is the current recommended approach using the macro framework for maximum c
 // In the imports section, ensure PSync flow is included:
 use domain_types::{
     connector_flow::{
-        Accept, Authorize, Capture, CreateOrder, CreateSessionToken, DefendDispute, PSync, RSync,
+        Accept, Authorize, Capture, CreateOrder, ServerSessionAuthenticationToken, DefendDispute, PSync, RSync,
         Refund, RepeatPayment, SetupMandate, SubmitEvidence, Void,
     },
     connector_types::{

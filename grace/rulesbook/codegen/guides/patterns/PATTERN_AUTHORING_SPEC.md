@@ -148,7 +148,12 @@ The following names MUST NOT appear in any new pattern at this pinned SHA. Occur
 - `ConnectorError` (monolithic, pre-PR-#765). Replace with `IntegrationError` (request-time) or `ConnectorResponseTransformationError` (response-parse-time).
 - `RouterData` (V1). Replace with `RouterDataV2<...>`.
 - `ApiErrorResponse` legacy shape, if referenced. Use `ErrorResponse` from `domain_types::router_data`.
-- Any pre-rename auth-token type from before PR #855 (check `domain_types::router_data::ConnectorAuthType` for the current variant set and use those names exactly).
+- Any pre-rename auth-token type from before PR #855 (commit `c9e1025e3`, 2026-04-02). The full rename map is:
+  - flow-marker structs in `connector_flow.rs`: `CreateSessionToken` → `ServerSessionAuthenticationToken`; `CreateAccessToken` → `ServerAuthenticationToken`; `SdkSessionToken` → `ClientAuthenticationToken`.
+  - traits in `interfaces/src/connector_types.rs`: `PaymentSessionToken` → `ServerSessionAuthentication`; `PaymentAccessToken` → `ServerAuthentication`; `SdkSessionTokenV2` → `ClientAuthentication`.
+  - request/response data types in `connector_types.rs`: `PaymentsSdkSessionTokenData` → `ClientAuthenticationTokenRequestData`; `SessionTokenRequestData` → `ServerSessionAuthenticationTokenRequestData`; `SessionTokenResponseData` → `ServerSessionAuthenticationTokenResponseData`; `AccessTokenRequestData` → `ServerAuthenticationTokenRequestData`; `AccessTokenResponseData` → `ServerAuthenticationTokenResponseData`.
+  - top-level response enum in `connector_types.rs`: `SessionToken` (the sdk-data payload enum, NOT `FlowName::SessionToken`) → `ClientAuthenticationTokenData`.
+  Also check `domain_types::router_data::ConnectorAuthType` for the current variant set and use those names exactly.
 - `api::ConnectorIntegration` (V1 trait). Replace with `interfaces::connector_integration_v2::ConnectorIntegrationV2`.
 - Hand-rolled amount conversion helpers. Use the macro-generated amount converter (`macros::create_amount_converter_wrapper!`) and types from `common_utils::types`: `MinorUnit`, `StringMinorUnit`, `StringMajorUnit`, `FloatMajorUnit`.
 

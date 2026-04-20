@@ -65,8 +65,8 @@ The flat pattern files in this directory are being migrated to the new `flows/` 
 | **MandateRevoke** | [`pattern_mandate_revoke.md`](./pattern_mandate_revoke.md) | ✅ Complete | Cancel stored mandates |
 | **PaymentMethodToken** | [`pattern_payment_method_token.md`](./pattern_payment_method_token.md) | ✅ Complete | Payment method tokenization |
 | **CreateOrder** | [`pattern_createorder.md`](./pattern_createorder.md) | ✅ Complete | Multi-step payment initiation |
-| **SessionToken** | [`pattern_session_token.md`](./pattern_session_token.md) | ✅ Complete | Secure session management |
-| **CreateAccessToken** | [`pattern_CreateAccessToken_flow.md`](./pattern_CreateAccessToken_flow.md) | ✅ Complete | OAuth / access-token acquisition. Canonical source for the `ServerSessionAuthenticationToken`, `ServerAuthenticationToken`, and `ClientAuthenticationToken` flow markers (see the "Mapping to connector_flow.rs token markers" section). |
+| **SessionToken** (FlowName-only) / **ServerSessionAuthenticationToken** | [`pattern_server_session_authentication_token.md`](./pattern_server_session_authentication_token.md) | ✅ Complete | Wallet-session bootstrap (Apple Pay / Google Pay / PayPal) |
+| **ServerAuthenticationToken** | [`pattern_server_authentication_token.md`](./pattern_server_authentication_token.md) | ✅ Complete | OAuth / access-token acquisition. Canonical source for the `ServerSessionAuthenticationToken`, `ServerAuthenticationToken`, and `ClientAuthenticationToken` flow markers (see the "Mapping to connector_flow.rs token markers" section). |
 | **ClientAuthenticationToken** | [`pattern_client_authentication_token.md`](./pattern_client_authentication_token.md) | ✅ Complete | Client-side auth-token flow marker companion pattern |
 | **CreateConnectorCustomer** | [`pattern_create_connector_customer.md`](./pattern_create_connector_customer.md) | ✅ Complete | Create customer on connector side before payment |
 | **IncrementalAuthorization** | [`pattern_IncrementalAuthorization_flow.md`](./pattern_IncrementalAuthorization_flow.md) | ✅ Complete | Incremental authorization on existing auth |

@@ -4,6 +4,11 @@ This guide provides a complete, resumable process for integrating payment connec
 
 > **Important:** This guide is UCS-specific. The architecture differs significantly from traditional Hyperswitch implementations.
 
+<!-- PR #855 rename absorbed (commit c9e1025e3, 2026-04-02): CreateAccessToken →
+ServerAuthenticationToken, CreateSessionToken → ServerSessionAuthenticationToken,
+SdkSessionToken → ClientAuthenticationToken (plus matching traits and request/
+response data types). See pattern_client_authentication_token.md for the full map. -->
+
 ## 🏗️ UCS Architecture Overview
 
 ### Key Components
@@ -64,7 +69,7 @@ Before starting, determine your current implementation state:
 
 ### Advanced Flows (Priority 2)
 - **CreateOrder**: Multi-step payment initiation
-- **CreateSessionToken**: Secure session management
+- **ServerSessionAuthenticationToken**: Secure session management
 - **SetupMandate**: Recurring payment setup
 - **RepeatPayment**: Process recurring payments using stored mandates
 - **DefendDispute**: Handle chargeback disputes

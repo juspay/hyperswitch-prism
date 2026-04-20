@@ -23,6 +23,11 @@
 #
 # This file defines the workflow for adding SPECIFIC FLOWS to EXISTING connectors.
 # Use this when a connector already exists and you need to add one or more missing flows.
+#
+# PR #855 rename absorbed (commit c9e1025e3, 2026-04-02): CreateAccessToken →
+# ServerAuthenticationToken, CreateSessionToken → ServerSessionAuthenticationToken,
+# SdkSessionToken → ClientAuthenticationToken (plus matching traits and request/
+# response data types). See pattern_client_authentication_token.md for the full map.
 
 # ============================================================================
 # MAIN WORKFLOW CONTROLLER
@@ -151,10 +156,9 @@ Some flows have dependencies that must be implemented first:
 | VerifyWebhookSource | IncomingWebhook |
 | CreateOrder | - |
 | SessionToken | - |
-| CreateAccessToken | - |
-| ServerSessionAuthenticationToken | CreateAccessToken |
-| ServerAuthenticationToken | CreateAccessToken |
-| ClientAuthenticationToken | CreateAccessToken |
+| ServerAuthenticationToken | - |
+| ServerSessionAuthenticationToken | ServerAuthenticationToken |
+| ClientAuthenticationToken | ServerAuthenticationToken |
 | CreateConnectorCustomer | - |
 | PaymentMethodToken | - |
 | PreAuthenticate | - |
@@ -196,11 +200,10 @@ implementing the flow.
 | `CreateOrder`                         | `guides/patterns/pattern_createorder.md`                        |
 | `CreateConnectorCustomer`             | `guides/patterns/pattern_create_connector_customer.md`          |
 | `PaymentMethodToken`                  | `guides/patterns/pattern_payment_method_token.md`               |
-| _(SessionToken; FlowName-only)_       | `guides/patterns/pattern_session_token.md`                      |
-| _(CreateAccessToken; FlowName-only)_  | `guides/patterns/pattern_CreateAccessToken_flow.md`             |
-| `ServerSessionAuthenticationToken`    | `guides/patterns/pattern_CreateAccessToken_flow.md` — canonical source (see "Mapping to connector_flow.rs token markers" section) |
-| `ServerAuthenticationToken`           | `guides/patterns/pattern_CreateAccessToken_flow.md` — canonical source (see "Mapping to connector_flow.rs token markers" section) |
-| `ClientAuthenticationToken`           | `guides/patterns/pattern_CreateAccessToken_flow.md` — canonical source (see "Mapping to connector_flow.rs token markers" section); companion: `guides/patterns/pattern_client_authentication_token.md` |
+| _(SessionToken; FlowName-only)_       | `guides/patterns/pattern_server_session_authentication_token.md` |
+| `ServerSessionAuthenticationToken`    | `guides/patterns/pattern_server_session_authentication_token.md` — canonical source (see "Mapping to connector_flow.rs token markers" section in `pattern_server_authentication_token.md`) |
+| `ServerAuthenticationToken`           | `guides/patterns/pattern_server_authentication_token.md` — canonical source (see "Mapping to connector_flow.rs token markers" section) |
+| `ClientAuthenticationToken`           | `guides/patterns/pattern_server_authentication_token.md` — canonical source (see "Mapping to connector_flow.rs token markers" section); companion: `guides/patterns/pattern_client_authentication_token.md` |
 | `PreAuthenticate`                     | `guides/patterns/pattern_preauthenticate.md`                    |
 | `Authenticate`                        | `guides/patterns/pattern_authenticate.md`                       |
 | `PostAuthenticate`                    | `guides/patterns/pattern_postauthenticate.md`                   |
@@ -269,10 +272,9 @@ FLOW_DEPENDENCIES = {
     "VerifyWebhookSource": ["IncomingWebhook"],
     "CreateOrder": [],
     "SessionToken": [],
-    "CreateAccessToken": [],
-    "ServerSessionAuthenticationToken": ["CreateAccessToken"],
-    "ServerAuthenticationToken": ["CreateAccessToken"],
-    "ClientAuthenticationToken": ["CreateAccessToken"],
+    "ServerAuthenticationToken": [],
+    "ServerSessionAuthenticationToken": ["ServerAuthenticationToken"],
+    "ClientAuthenticationToken": ["ServerAuthenticationToken"],
     "CreateConnectorCustomer": [],
     "PaymentMethodToken": [],
     "PreAuthenticate": [],

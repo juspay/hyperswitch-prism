@@ -1,10 +1,17 @@
-# CreateAccessToken Flow Implementation Patterns
+# ServerAuthenticationToken Flow Implementation Patterns
+
+<!-- PR #855 rename absorbed (commit c9e1025e3, 2026-04-02): `CreateAccessToken` →
+`ServerAuthenticationToken`, `PaymentAccessToken` → `ServerAuthentication`,
+`AccessTokenRequestData` → `ServerAuthenticationTokenRequestData`,
+`AccessTokenResponseData` → `ServerAuthenticationTokenResponseData`. File
+renamed from `pattern_CreateAccessToken_flow.md` → `pattern_server_authentication_token.md`.
+See pattern_client_authentication_token.md for the full map. -->
 
 ## Overview
 
-The `CreateAccessToken` flow is a crucial authentication flow in the Grace-UCS connector ecosystem. It handles OAuth 2.0 token acquisition for connectors that require bearer tokens to authenticate API requests. This pattern is typically invoked before payment flows when `should_do_access_token()` returns `true`.
+The `ServerAuthenticationToken` flow is a crucial authentication flow in the Grace-UCS connector ecosystem. It handles OAuth 2.0 token acquisition for connectors that require bearer tokens to authenticate API requests. This pattern is typically invoked before payment flows when `should_do_access_token()` returns `true`.
 
-### When to Use CreateAccessToken
+### When to Use ServerAuthenticationToken
 
 - **OAuth-based connectors**: When the connector API uses OAuth 2.0 for authentication
 - **Token expiration**: When stored access tokens have expired and need refresh
@@ -14,9 +21,9 @@ The `CreateAccessToken` flow is a crucial authentication flow in the Grace-UCS c
 
 ```mermaid
 flowchart TB
-    subgraph "CreateAccessToken Flow"
+    subgraph "ServerAuthenticationToken Flow"
         A[Payment Flow Triggered] --> B{should_do_access_token?}
-        B -->|Yes| C[CreateAccessToken Request]
+        B -->|Yes| C[ServerAuthenticationToken Request]
         B -->|No| D[Skip to Payment Flow]
         C --> E[Build Token Request]
         E --> F[Send to Connector]
@@ -30,14 +37,14 @@ flowchart TB
 
 ### 1. Flow Definition
 
-The CreateAccessToken flow is defined in `domain_types::connector_flow::CreateAccessToken`:
+The ServerAuthenticationToken flow is defined in `domain_types::connector_flow::ServerAuthenticationToken`:
 
 ```rust
-pub struct CreateAccessToken;
+pub struct ServerAuthenticationToken;
 
-impl ConnectorFlow for CreateAccessToken {
-    type Request = AccessTokenRequestData;
-    type Response = AccessTokenResponseData;
+impl ConnectorFlow for ServerAuthenticationToken {
+    type Request = ServerAuthenticationTokenRequestData;
+    type Response = ServerAuthenticationTokenResponseData;
 }
 ```
 
@@ -45,13 +52,13 @@ impl ConnectorFlow for CreateAccessToken {
 
 #### Request Data
 ```rust
-// AccessTokenRequestData - Empty struct, auth details come from connector_auth_type
-pub struct AccessTokenRequestData;
+// ServerAuthenticationTokenRequestData - Empty struct, auth details come from connector_auth_type
+pub struct ServerAuthenticationTokenRequestData;
 ```
 
 #### Response Data
 ```rust
-pub struct AccessTokenResponseData {
+pub struct ServerAuthenticationTokenResponseData {
     pub access_token: Secret<String>,
     pub expires_in: Option<i64>,      // Token expiration in seconds
     pub token_type: Option<String>,   // e.g., "Bearer"
@@ -60,11 +67,11 @@ pub struct AccessTokenResponseData {
 
 ### 3. Trait Implementation
 
-Connectors implement `PaymentAccessToken` trait to enable this flow:
+Connectors implement `ServerAuthentication` trait to enable this flow:
 
 ```rust
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAccessToken for ConnectorName<T>
+    connector_types::ServerAuthentication for ConnectorName<T>
 {
 }
 ```
@@ -183,10 +190,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<
         VoltRouterData<
             RouterDataV2<
-                CreateAccessToken,
+                ServerAuthenticationToken,
                 PaymentFlowData,
-                AccessTokenRequestData,
-                AccessTokenResponseData,
+                ServerAuthenticationTokenRequestData,
+                ServerAuthenticationTokenResponseData,
             >,
             T,
         >,
@@ -213,7 +220,7 @@ pub struct VoltAuthUpdateResponse {
 
 // Response conversion to domain type
 impl<F, T> TryFrom<ResponseRouterData<VoltAuthUpdateResponse, Self>>
-    for RouterDataV2<F, PaymentFlowData, T, AccessTokenResponseData>
+    for RouterDataV2<F, PaymentFlowData, T, ServerAuthenticationTokenResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -221,7 +228,7 @@ impl<F, T> TryFrom<ResponseRouterData<VoltAuthUpdateResponse, Self>>
         item: ResponseRouterData<VoltAuthUpdateResponse, Self>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(AccessTokenResponseData {
+            response: Ok(ServerAuthenticationTokenResponseData {
                 access_token: item.response.access_token,
                 expires_in: Some(item.response.expires_in),
                 token_type: Some(item.response.token_type),
@@ -239,10 +246,10 @@ macros::create_all_prerequisites!(
     generic_type: T,
     api: [
         (
-            flow: CreateAccessToken,
+            flow: ServerAuthenticationToken,
             request_body: VoltAuthUpdateRequest,
             response_body: VoltAuthUpdateResponse,
-            router_data: RouterDataV2<CreateAccessToken, PaymentFlowData, AccessTokenRequestData, AccessTokenResponseData>,
+            router_data: RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ),
         // ... other flows
     ]
@@ -254,7 +261,7 @@ macros::create_all_prerequisites!(
 Some connectors like **Airwallex** require an empty request body for token generation:
 
 ```rust
-// Empty request body for CreateAccessToken - Airwallex requires empty JSON object {}
+// Empty request body for ServerAuthenticationToken - Airwallex requires empty JSON object {}
 #[derive(Debug, Serialize)]
 pub struct AirwallexAccessTokenRequest {
     // Empty struct that serializes to {} - Airwallex API requirement
@@ -319,7 +326,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAccessToken for ConnectorName<T>
+    connector_types::ServerAuthentication for ConnectorName<T>
 {
 }
 ```
@@ -364,7 +371,7 @@ pub struct ConnectorTokenErrorResponse {
 
 // Convert to domain error response
 impl<F, T> TryFrom<ResponseRouterData<ConnectorTokenErrorResponse, Self>>
-    for RouterDataV2<F, PaymentFlowData, T, AccessTokenResponseData>
+    for RouterDataV2<F, PaymentFlowData, T, ServerAuthenticationTokenResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -390,7 +397,7 @@ impl<F, T> TryFrom<ResponseRouterData<ConnectorTokenErrorResponse, Self>>
 ```rust
 fn get_url(
     &self,
-    _req: &RouterDataV2<CreateAccessToken, PaymentFlowData, AccessTokenRequestData, AccessTokenResponseData>,
+    _req: &RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
     _connectors: &Connectors,
 ) -> CustomResult<String, errors::IntegrationError> {
     let base_url = self.base_url(_connectors);
@@ -421,7 +428,7 @@ Common token endpoint patterns:
 // Basic Auth pattern
 pub fn get_headers(
     &self,
-    req: &RouterDataV2<CreateAccessToken, PaymentFlowData, AccessTokenRequestData, AccessTokenResponseData>,
+    req: &RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
     _connectors: &Connectors,
 ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
     let auth = ConnectorAuthType::try_from(&req.connector_auth_type)?;
@@ -474,8 +481,8 @@ mod tests {
             expires_in: 3600,
         };
 
-        // Verify conversion to AccessTokenResponseData
-        let domain_response: AccessTokenResponseData = response.into();
+        // Verify conversion to ServerAuthenticationTokenResponseData
+        let domain_response: ServerAuthenticationTokenResponseData = response.into();
         assert_eq!(domain_response.token_type, Some("Bearer".to_string()));
         assert_eq!(domain_response.expires_in, Some(3600));
     }
@@ -514,7 +521,7 @@ mod tests {
 
 7. **Enable Validation**: Implement `ValidationTrait::should_do_access_token`
 
-8. **Implement PaymentAccessToken**: Add empty trait impl
+8. **Implement ServerAuthentication**: Add empty trait impl
 
 ## Common Pitfalls
 
@@ -573,7 +580,7 @@ See: `connectors/paypal/transformers.rs` lines 1274+
 
 ## Summary
 
-The CreateAccessToken flow follows a consistent pattern across all connectors:
+The ServerAuthenticationToken flow follows a consistent pattern across all connectors:
 
 1. **Define types** for authentication credentials
 2. **Implement conversions** from domain types to connector-specific types
@@ -588,17 +595,17 @@ The key variations are:
 
 ## Mapping to connector_flow.rs token markers
 
-This pattern canonically documents **CreateAccessToken** as an umbrella term. The connector-service flow registry at `crates/types-traits/domain_types/src/connector_flow.rs` (SHA `60540470cf84a350cc02b0d41565e5766437eb95`) declares THREE related token markers. This section clarifies how each maps to grace patterns.
+This pattern canonically documents **ServerAuthenticationToken** as an umbrella term. The connector-service flow registry at `crates/types-traits/domain_types/src/connector_flow.rs` (SHA `60540470cf84a350cc02b0d41565e5766437eb95`) declares THREE related token markers. This section clarifies how each maps to grace patterns.
 
 | Flow marker | Purpose | Canonical grace pattern |
 |-------------|---------|--------------------------|
-| `ServerSessionAuthenticationToken` (`crates/types-traits/domain_types/src/connector_flow.rs:38`) | Server-to-server session-token acquisition: short-lived per-transaction session token keyed on amount/currency/browser-info, not a reusable OAuth bearer. Request type `ServerSessionAuthenticationTokenRequestData` carries `amount`, `currency`, `browser_info` (`crates/types-traits/domain_types/src/connector_types.rs:1677-1681`); response type `ServerSessionAuthenticationTokenResponseData` returns a single `session_token: String` (`crates/types-traits/domain_types/src/connector_types.rs:1691-1694`). | pattern_CreateAccessToken_flow.md / pattern_session_token.md (as applicable) |
+| `ServerSessionAuthenticationToken` (`crates/types-traits/domain_types/src/connector_flow.rs:38`) | Server-to-server session-token acquisition: short-lived per-transaction session token keyed on amount/currency/browser-info, not a reusable OAuth bearer. Request type `ServerSessionAuthenticationTokenRequestData` carries `amount`, `currency`, `browser_info` (`crates/types-traits/domain_types/src/connector_types.rs:1677-1681`); response type `ServerSessionAuthenticationTokenResponseData` returns a single `session_token: String` (`crates/types-traits/domain_types/src/connector_types.rs:1691-1694`). | [pattern_server_session_authentication_token.md](./pattern_server_session_authentication_token.md) |
 | `ServerAuthenticationToken` (`crates/types-traits/domain_types/src/connector_flow.rs:41`) | Server-side OAuth 2.0 bearer-token acquisition. This is the LIVE umbrella marker used by OAuth bearer-token flows. Request type `ServerAuthenticationTokenRequestData` carries only a `grant_type: String` (`crates/types-traits/domain_types/src/connector_types.rs:1697-1699`); response type `ServerAuthenticationTokenResponseData` carries `access_token: Secret<String>`, `token_type: Option<String>`, `expires_in: Option<i64>` (`crates/types-traits/domain_types/src/connector_types.rs:1701-1706`). | this file |
 | `ClientAuthenticationToken` (`crates/types-traits/domain_types/src/connector_flow.rs:62`) | Client-facing session/authentication token generation (typically for wallet/SDK initialization like Stripe PaymentIntents, Adyen sessions, Braintree client tokens). Request type `ClientAuthenticationTokenRequestData` is amount/currency/order-shaped (`crates/types-traits/domain_types/src/connector_types.rs:1596-1607`); the response type bound in macro registrations is `PaymentsResponseData`, not a dedicated `ClientAuthenticationTokenResponseData` (verified: no such struct exists in `crates/types-traits/domain_types/src/connector_types.rs`). | [pattern_client_authentication_token.md](./pattern_client_authentication_token.md) |
 
 ### Honesty note on naming
 
-`CreateAccessToken` is not itself a `pub struct` marker in `connector_flow.rs` at the pinned SHA — verified by grep against `crates/types-traits/domain_types/src/connector_flow.rs` (no match for `CreateAccessToken` anywhere in the file; all flow markers are enumerated at lines 2-95). The historical title on this file is an umbrella term. The live marker that backs OAuth bearer-token acquisition is `ServerAuthenticationToken` at `crates/types-traits/domain_types/src/connector_flow.rs:41`. Readers implementing a new OAuth flow should register `ServerAuthenticationToken`, not a non-existent `CreateAccessToken`.
+`ServerAuthenticationToken` is not itself a `pub struct` marker in `connector_flow.rs` at the pinned SHA — verified by grep against `crates/types-traits/domain_types/src/connector_flow.rs` (no match for `ServerAuthenticationToken` anywhere in the file; all flow markers are enumerated at lines 2-95). The historical title on this file is an umbrella term. The live marker that backs OAuth bearer-token acquisition is `ServerAuthenticationToken` at `crates/types-traits/domain_types/src/connector_flow.rs:41`. Readers implementing a new OAuth flow should register `ServerAuthenticationToken`, not a non-existent `ServerAuthenticationToken`.
 
 ### Request/response types
 
@@ -618,7 +625,7 @@ Real connector registrations were enumerated by grepping `crates/integrations/co
 
 ### Cross-references
 
-- [pattern_session_token.md](./pattern_session_token.md)
+- [pattern_server_session_authentication_token.md](./pattern_server_session_authentication_token.md)
 - [pattern_client_authentication_token.md](./pattern_client_authentication_token.md)
 - [PATTERN_AUTHORING_SPEC.md](./PATTERN_AUTHORING_SPEC.md)
 
@@ -626,4 +633,5 @@ Real connector registrations were enumerated by grepping `crates/integrations/co
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.2.1 | 2026-04-20 | Absorbed PR #855 auth-token rename (commit `c9e1025e3`): file renamed from `pattern_CreateAccessToken_flow.md` → `pattern_server_authentication_token.md`; `CreateAccessToken` → `ServerAuthenticationToken`, `PaymentAccessToken` → `ServerAuthentication`, `AccessTokenRequestData` → `ServerAuthenticationTokenRequestData`, `AccessTokenResponseData` → `ServerAuthenticationTokenResponseData` throughout. |
 | 1.2.0 | 2026-04-20 | Added "Mapping to connector_flow.rs token markers" section disambiguating `ServerAuthenticationToken`, `ServerSessionAuthenticationToken`, and `ClientAuthenticationToken` with file:line citations against SHA `60540470cf84a350cc02b0d41565e5766437eb95`; added header metadata table. |

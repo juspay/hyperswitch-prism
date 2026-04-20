@@ -2,6 +2,11 @@
 
 This guide helps you choose the right Grace workflow controller for your UCS connector task.
 
+<!-- PR #855 rename absorbed (commit c9e1025e3, 2026-04-02): CreateAccessToken →
+ServerAuthenticationToken, CreateSessionToken → ServerSessionAuthenticationToken,
+SdkSessionToken → ClientAuthenticationToken (plus matching traits and request/
+response data types). See pattern_client_authentication_token.md for the full map. -->
+
 ## Quick Decision Tree
 
 ```
@@ -23,11 +28,11 @@ What do you need to do?
 │   │   │   → .gracerules_add_flow
 │   │   │
 │   │   ├── Pre-authorization (CreateOrder/SessionToken/CreateConnectorCustomer/
-│   │   │   PaymentMethodToken/CreateAccessToken/
+│   │   │   PaymentMethodToken/
 │   │   │   ServerSessionAuthenticationToken/ServerAuthenticationToken/
 │   │   │   ClientAuthenticationToken)
 │   │   │   → .gracerules_add_flow  (token markers map to
-│   │   │                            pattern_CreateAccessToken_flow.md)
+│   │   │                            pattern_server_authentication_token.md)
 │   │   │
 │   │   ├── 3DS authentication (PreAuthenticate/Authenticate/PostAuthenticate)
 │   │   │   → .gracerules_add_flow
@@ -137,11 +142,10 @@ add Capture and Void flows to Adyen using grace/rulesbook/codegen/.gracerules_ad
 | IncomingWebhook                  | PSync         | _(FlowName::IncomingWebhook)_         | `patterns/pattern_IncomingWebhook_flow.md`        |
 | VerifyWebhookSource              | IncomingWebhook | `VerifyWebhookSource`               | `patterns/pattern_verify_webhook_source.md`       |
 | CreateOrder                      | -             | `CreateOrder`                         | `patterns/pattern_createorder.md`                 |
-| SessionToken                     | -             | _(FlowName-only)_                     | `patterns/pattern_session_token.md`               |
-| CreateAccessToken                | -             | _(FlowName-only; pairs with token markers below)_ | `patterns/pattern_CreateAccessToken_flow.md` |
-| ServerSessionAuthenticationToken | -             | `ServerSessionAuthenticationToken`    | `patterns/pattern_CreateAccessToken_flow.md` (see "Mapping to connector_flow.rs token markers" section) |
-| ServerAuthenticationToken        | -             | `ServerAuthenticationToken`           | `patterns/pattern_CreateAccessToken_flow.md` (see "Mapping to connector_flow.rs token markers" section) |
-| ClientAuthenticationToken        | -             | `ClientAuthenticationToken`           | `patterns/pattern_CreateAccessToken_flow.md` (canonical) + `patterns/pattern_client_authentication_token.md` (companion) |
+| SessionToken                     | -             | _(FlowName-only)_                     | `patterns/pattern_server_session_authentication_token.md` |
+| ServerSessionAuthenticationToken | -             | `ServerSessionAuthenticationToken`    | `patterns/pattern_server_session_authentication_token.md` |
+| ServerAuthenticationToken        | -             | `ServerAuthenticationToken`           | `patterns/pattern_server_authentication_token.md` (see "Mapping to connector_flow.rs token markers" section) |
+| ClientAuthenticationToken        | -             | `ClientAuthenticationToken`           | `patterns/pattern_server_authentication_token.md` (canonical) + `patterns/pattern_client_authentication_token.md` (companion) |
 | CreateConnectorCustomer          | -             | `CreateConnectorCustomer`             | `patterns/pattern_create_connector_customer.md`   |
 | PaymentMethodToken               | -             | `PaymentMethodToken`                  | `patterns/pattern_payment_method_token.md`        |
 | PreAuthenticate                  | -             | `PreAuthenticate`                     | `patterns/pattern_preauthenticate.md`             |
@@ -373,10 +377,11 @@ Examples:
 - `patterns/pattern_create_connector_customer.md`
 - `patterns/pattern_verify_webhook_source.md`
 - `patterns/pattern_client_authentication_token.md`
-- `patterns/pattern_CreateAccessToken_flow.md` (canonical source for the three
+- `patterns/pattern_server_authentication_token.md` (canonical source for the three
   token markers `ServerSessionAuthenticationToken`, `ServerAuthenticationToken`,
   and `ClientAuthenticationToken` — see its "Mapping to connector_flow.rs
   token markers" section)
+- `patterns/pattern_server_session_authentication_token.md` (wallet-session bootstrap flow)
 
 ### Payment Method Patterns (authorize/ tree)
 

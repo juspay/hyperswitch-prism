@@ -485,8 +485,8 @@ pub mod transformers;
 
 use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt};
 use domain_types::{
-    connector_flow::{Accept, Authorize, Capture, CreateOrder, CreateSessionToken, DefendDispute, PSync, RSync, Refund, RepeatPayment, SetupMandate, SubmitEvidence, Void},
-    connector_types::{AcceptDisputeData, DisputeDefendData, DisputeFlowData, DisputeResponseData, PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId, SessionTokenRequestData, SessionTokenResponseData, SetupMandateRequestData, SubmitEvidenceData},
+    connector_flow::{Accept, Authorize, Capture, CreateOrder, ServerSessionAuthenticationToken, DefendDispute, PSync, RSync, Refund, RepeatPayment, SetupMandate, SubmitEvidence, Void},
+    connector_types::{AcceptDisputeData, DisputeDefendData, DisputeFlowData, DisputeResponseData, PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData, SubmitEvidenceData},
     errors::{self, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorAuthType, ErrorResponse},
@@ -1336,5 +1336,6 @@ async fn test_bank_debit_mandate_creation() {
 
 | Version | Date | Pinned SHA | Summary |
 |---------|------|------------|---------|
+| 1.4.1 | 2026-04-20 | `60540470cf84a350cc02b0d41565e5766437eb95` | Absorb PR #855 auth-token rename (commit `c9e1025e3`): `CreateSessionToken` → `ServerSessionAuthenticationToken`, `SessionTokenRequestData` → `ServerSessionAuthenticationTokenRequestData`, `SessionTokenResponseData` → `ServerSessionAuthenticationTokenResponseData` in the connector import block. |
 | 1.4.0 | 2026-04-20 | `60540470cf84a350cc02b0d41565e5766437eb95` | Document new `EftBankDebit` and `SepaGuaranteedBankDebit` variants (enum now has 6 variants, was 4). Add Sanlammultidata (PR #1027) as first EFT implementer and first bank-debit connector using a Kafka-based request-publish transport. Update Supported Connectors matrix and Sub-type Variations to reflect all six variants. |
 | 1.3.0 | 2026-02-19 | (prior)  | Prior revision — documented 4 bank debit variants (ACH, SEPA, BECS, BACS). |

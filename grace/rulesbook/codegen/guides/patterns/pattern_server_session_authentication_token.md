@@ -1,14 +1,21 @@
-# CreateSessionToken Flow Pattern for Connector Implementation
+# ServerSessionAuthenticationToken Flow Pattern for Connector Implementation
 
 **🎯 GENERIC PATTERN FILE FOR ANY NEW CONNECTOR**
 
-This document provides comprehensive, reusable patterns for implementing the CreateSessionToken flow in **ANY** payment connector within the UCS (Universal Connector Service) system. These patterns are extracted from successful connector implementations (Paytm, Nuvei) and can be consumed by AI to generate consistent, production-ready CreateSessionToken flow code for any payment gateway.
+This document provides comprehensive, reusable patterns for implementing the ServerSessionAuthenticationToken flow in **ANY** payment connector within the UCS (Universal Connector Service) system. These patterns are extracted from successful connector implementations (Paytm, Nuvei) and can be consumed by AI to generate consistent, production-ready ServerSessionAuthenticationToken flow code for any payment gateway.
 
-> **🏗️ UCS-Specific:** This pattern is tailored for UCS architecture using RouterDataV2, ConnectorIntegrationV2, and domain_types. The CreateSessionToken flow is used to initiate a payment session and obtain a session token that can be used in subsequent authorization calls.
+<!-- PR #855 rename absorbed (commit c9e1025e3, 2026-04-02): `CreateSessionToken` →
+`ServerSessionAuthenticationToken`, `PaymentSessionToken` → `ServerSessionAuthentication`,
+`SessionTokenRequestData` → `ServerSessionAuthenticationTokenRequestData`,
+`SessionTokenResponseData` → `ServerSessionAuthenticationTokenResponseData`. File
+renamed from `pattern_session_token.md` → `pattern_server_session_authentication_token.md`.
+See pattern_client_authentication_token.md for the full map. -->
+
+> **🏗️ UCS-Specific:** This pattern is tailored for UCS architecture using RouterDataV2, ConnectorIntegrationV2, and domain_types. The ServerSessionAuthenticationToken flow is used to initiate a payment session and obtain a session token that can be used in subsequent authorization calls.
 
 ## 🚀 Quick Start Guide
 
-To implement a new connector CreateSessionToken flow using these patterns:
+To implement a new connector ServerSessionAuthenticationToken flow using these patterns:
 
 1. **Choose Your Pattern**: Use [Modern Macro-Based Pattern](#modern-macro-based-pattern-recommended) for 95% of connectors
 2. **Enable Session Token Flow**: Implement `ValidationTrait` with `should_do_session_token()` returning `true`
@@ -16,7 +23,7 @@ To implement a new connector CreateSessionToken flow using these patterns:
 4. **Select Components**: Choose auth type, request format, and amount converter based on your connector's API
 5. **Follow Checklist**: Use the [Integration Checklist](#integration-checklist) to ensure completeness
 
-### Example: Implementing "NewPayment" Connector CreateSessionToken Flow
+### Example: Implementing "NewPayment" Connector ServerSessionAuthenticationToken Flow
 
 ```bash
 # Replace placeholders:
@@ -27,12 +34,12 @@ To implement a new connector CreateSessionToken flow using these patterns:
 {session_token_endpoint} → "v1/session-token" (your API endpoint)
 ```
 
-**✅ Result**: Complete, production-ready connector CreateSessionToken flow implementation in ~20 minutes
+**✅ Result**: Complete, production-ready connector ServerSessionAuthenticationToken flow implementation in ~20 minutes
 
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [CreateSessionToken Flow Implementation Analysis](#createsessiontoken-flow-implementation-analysis)
+2. [ServerSessionAuthenticationToken Flow Implementation Analysis](#serversessionauthenticationtoken-flow-implementation-analysis)
 3. [Modern Macro-Based Pattern (Recommended)](#modern-macro-based-pattern-recommended)
 4. [ValidationTrait Implementation](#validationtrait-implementation)
 5. [Request/Response Format Variations](#requestresponse-format-variations)
@@ -43,7 +50,7 @@ To implement a new connector CreateSessionToken flow using these patterns:
 
 ## Overview
 
-The CreateSessionToken flow is a pre-authorization step that:
+The ServerSessionAuthenticationToken flow is a pre-authorization step that:
 1. Receives session token creation requests from the router
 2. Transforms them to connector-specific format
 3. Sends requests to the payment gateway to initiate a session
@@ -53,7 +60,7 @@ The CreateSessionToken flow is a pre-authorization step that:
 ### Key Components:
 - **Main Connector File**: Implements traits and flow logic
 - **Transformers File**: Handles request/response data transformations
-- **ValidationTrait**: Enables the CreateSessionToken flow
+- **ValidationTrait**: Enables the ServerSessionAuthenticationToken flow
 - **Authentication**: Manages API credentials and headers
 - **Error Handling**: Processes and maps error responses
 - **Session Token Storage**: Stores token in PaymentFlowData for later use
@@ -61,7 +68,7 @@ The CreateSessionToken flow is a pre-authorization step that:
 ### Flow Sequence:
 ```
 ┌─────────────┐     ┌──────────────────┐     ┌─────────────┐
-│   Router    │────▶│ CreateSessionToken│────▶│  Connector  │
+│   Router    │────▶│ ServerSessionAuthenticationToken│────▶│  Connector  │
 │             │     │     Flow         │     │   Session   │
 └─────────────┘     └──────────────────┘     │   Endpoint  │
                                               └──────┬──────┘
@@ -77,12 +84,12 @@ The CreateSessionToken flow is a pre-authorization step that:
 └─────────────┘     └──────────────────┘     └─────────────┘
 ```
 
-## CreateSessionToken Flow Implementation Analysis
+## ServerSessionAuthenticationToken Flow Implementation Analysis
 
 Based on comprehensive analysis of all 77 connectors in the connector service, here's the implementation status:
 
-### ✅ Full CreateSessionToken Implementation (2 connectors)
-These connectors have complete CreateSessionToken flow implementations:
+### ✅ Full ServerSessionAuthenticationToken Implementation (2 connectors)
+These connectors have complete ServerSessionAuthenticationToken flow implementations:
 
 1. **Paytm** - Multi-step payment flow with AES signature encryption
    - Initiates transaction before authorization
@@ -97,7 +104,7 @@ These connectors have complete CreateSessionToken flow implementations:
    - Supports Auth and Sale transaction types
 
 ### 🔧 Stub/Trait Implementation Only (75 connectors)
-These connectors implement the CreateSessionToken trait but have empty/stub implementations:
+These connectors implement the ServerSessionAuthenticationToken trait but have empty/stub implementations:
 - ACI, Adyen, Airwallex, Authipay, AuthorizeDotNet, Bambora, BamboraAPAC, BankOfAmerica, Barclaycard, Billwerk, Bluesnap, Braintree, Calida, Cashfree, CashtoCode, Celero, Checkout, Cryptopay, Cybersource, Datatrans, Dlocal, Elavon, Fiserv, FiservMEA, Fiuu, Forte, Getnet, Gigadat, GlobalPay, Helcim, Hipay, HyperPG, IataPay, JPMorgan, Loonio, Mifinity, Mollie, Multisafepay, Nexinets, Nexixpay, NMI, Noon, Novalnet, Paybox, Payload, Payme, Paypal, Paysafe, PayU, PhonePe, Placetopay, Powertranz, Rapyd, Razorpay, RazorpayV2, Redsys, Revolut, Shift4, Silverflow, Stax, Stripe, Trustpay, Trustpayments, Tsys, Volt, WellsFargo, Worldpay, WorldpayVantiv, WorldpayXML, Xendit, Zift
 
 ### 📊 Implementation Statistics
@@ -130,7 +137,7 @@ pub mod transformers;
 use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{
-        Accept, Authorize, Capture, CreateOrder, CreateSessionToken, DefendDispute, PSync, RSync,
+        Accept, Authorize, Capture, CreateOrder, ServerSessionAuthenticationToken, DefendDispute, PSync, RSync,
         Refund, RepeatPayment, SetupMandate, SubmitEvidence, Void,
     },
     connector_types::{
@@ -138,7 +145,7 @@ use domain_types::{
         PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData,
         PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId, SessionTokenRequestData, SessionTokenResponseData, SetupMandateRequestData,
+        ResponseId, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData,
         SubmitEvidenceData,
     },
     errors::{self, IntegrationError},
@@ -170,10 +177,10 @@ macros::create_all_prerequisites!(
     generic_type: T,
     api: [
         (
-            flow: CreateSessionToken,
+            flow: ServerSessionAuthenticationToken,
             request_body: {ConnectorName}SessionTokenRequest,
             response_body: {ConnectorName}SessionTokenResponse,
-            router_data: RouterDataV2<CreateSessionToken, PaymentFlowData, SessionTokenRequestData, SessionTokenResponseData>,
+            router_data: RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
         ),
         (
             flow: Authorize,
@@ -210,12 +217,12 @@ macros::create_all_prerequisites!(
     }
 );
 
-// CRITICAL: Implement ValidationTrait to enable CreateSessionToken flow
+// CRITICAL: Implement ValidationTrait to enable ServerSessionAuthenticationToken flow
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for {ConnectorName}<T>
 {
     fn should_do_session_token(&self) -> bool {
-        true // Enable CreateSessionToken flow
+        true // Enable ServerSessionAuthenticationToken flow
     }
 
     fn should_do_order_create(&self) -> bool {
@@ -283,30 +290,30 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-// Implement CreateSessionToken flow using macro framework
+// Implement ServerSessionAuthenticationToken flow using macro framework
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: {ConnectorName},
     curl_request: Json({ConnectorName}SessionTokenRequest),
     curl_response: {ConnectorName}SessionTokenResponse,
-    flow_name: CreateSessionToken,
+    flow_name: ServerSessionAuthenticationToken,
     resource_common_data: PaymentFlowData,
-    flow_request: SessionTokenRequestData,
-    flow_response: SessionTokenResponseData,
+    flow_request: ServerSessionAuthenticationTokenRequestData,
+    flow_response: ServerSessionAuthenticationTokenResponseData,
     http_method: Post,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
         fn get_headers(
             &self,
-            req: &RouterDataV2<CreateSessionToken, PaymentFlowData, SessionTokenRequestData, SessionTokenResponseData>,
+            req: &RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
-            req: &RouterDataV2<CreateSessionToken, PaymentFlowData, SessionTokenRequestData, SessionTokenResponseData>,
+            req: &RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
             Ok(format!("{base_url}/{session_token_endpoint}"))
@@ -353,10 +360,10 @@ macros::macro_connector_implementation!(
 
 use common_utils::types::{MinorUnit, StringMinorUnit};
 use domain_types::{
-    connector_flow::{Authorize, CreateSessionToken},
+    connector_flow::{Authorize, ServerSessionAuthenticationToken},
     connector_types::{
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
-        SessionTokenRequestData, SessionTokenResponseData, ResponseId,
+        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData, ResponseId,
     },
     errors::{self, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -444,7 +451,7 @@ pub enum {ConnectorName}SessionStatus {
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         {ConnectorName}RouterData<
-            RouterDataV2<CreateSessionToken, PaymentFlowData, SessionTokenRequestData, SessionTokenResponseData>,
+            RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
             T,
         >,
     > for {ConnectorName}SessionTokenRequest
@@ -453,7 +460,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn try_from(
         item: {ConnectorName}RouterData<
-            RouterDataV2<CreateSessionToken, PaymentFlowData, SessionTokenRequestData, SessionTokenResponseData>,
+            RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
             T,
         >,
     ) -> Result<Self, Self::Error> {
@@ -479,7 +486,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // Session Token Response Transformation
 impl TryFrom<ResponseRouterData<{ConnectorName}SessionTokenResponse, Self>>
-    for RouterDataV2<CreateSessionToken, PaymentFlowData, SessionTokenRequestData, SessionTokenResponseData>
+    for RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
@@ -526,7 +533,7 @@ impl TryFrom<ResponseRouterData<{ConnectorName}SessionTokenResponse, Self>>
                 session_token: Some(session_token.clone()),
                 ..router_data.resource_common_data.clone()
             },
-            response: Ok(SessionTokenResponseData {
+            response: Ok(ServerSessionAuthenticationTokenResponseData {
                 session_token,
             }),
             ..router_data.clone()
@@ -659,14 +666,14 @@ pub struct {ConnectorName}ErrorResponse {
 
 ## ValidationTrait Implementation
 
-**CRITICAL**: To enable the CreateSessionToken flow, you MUST implement the `ValidationTrait` with `should_do_session_token()` returning `true`:
+**CRITICAL**: To enable the ServerSessionAuthenticationToken flow, you MUST implement the `ValidationTrait` with `should_do_session_token()` returning `true`:
 
 ```rust
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for {ConnectorName}<T>
 {
     fn should_do_session_token(&self) -> bool {
-        true // Enable CreateSessionToken flow
+        true // Enable ServerSessionAuthenticationToken flow
     }
 
     fn should_do_order_create(&self) -> bool {
@@ -675,7 +682,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 ```
 
-This trait tells the router to execute the CreateSessionToken flow before the Authorize flow.
+This trait tells the router to execute the ServerSessionAuthenticationToken flow before the Authorize flow.
 
 ## Request/Response Format Variations
 
@@ -805,7 +812,7 @@ fn get_url(
 
 ```rust
 impl TryFrom<ResponseRouterData<{ConnectorName}SessionTokenResponse, Self>>
-    for RouterDataV2<CreateSessionToken, PaymentFlowData, SessionTokenRequestData, SessionTokenResponseData>
+    for RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>
 {
     type Error = error_stack::Report<IntegrationError>;
 
@@ -851,7 +858,7 @@ impl TryFrom<ResponseRouterData<{ConnectorName}SessionTokenResponse, Self>>
 
 ## Testing Patterns
 
-### Unit Test Structure for CreateSessionToken Flow
+### Unit Test Structure for ServerSessionAuthenticationToken Flow
 
 ```rust
 #[cfg(test)]
@@ -918,19 +925,19 @@ mod session_token_tests {
         assert!(router_data_result.response.is_err());
     }
 
-    fn create_test_session_token_router_data() -> RouterDataV2<CreateSessionToken, PaymentFlowData, SessionTokenRequestData, SessionTokenResponseData> {
+    fn create_test_session_token_router_data() -> RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData> {
         // Create test router data structure
         RouterDataV2 {
             resource_common_data: PaymentFlowData {
                 connector_request_reference_id: "test_order_123".to_string(),
                 ..Default::default()
             },
-            request: SessionTokenRequestData {
+            request: ServerSessionAuthenticationTokenRequestData {
                 amount: MinorUnit::new(1000),
                 currency: common_enums::Currency::USD,
                 ..Default::default()
             },
-            response: Ok(SessionTokenResponseData {
+            response: Ok(ServerSessionAuthenticationTokenResponseData {
                 session_token: "".to_string(),
             }),
             ..Default::default()
@@ -951,7 +958,7 @@ mod session_token_tests {
   - [ ] Review how session token is used in authorization
 
 - [ ] **Flow Requirements**
-  - [ ] Determine if connector requires CreateSessionToken flow
+  - [ ] Determine if connector requires ServerSessionAuthenticationToken flow
   - [ ] Understand sequence: Session Token → Authorize
   - [ ] Check if session token can be reused across multiple requests
   - [ ] Identify session token expiration time
@@ -959,17 +966,17 @@ mod session_token_tests {
 ### Implementation Checklist
 
 - [ ] **Main Connector Implementation**
-  - [ ] Add `CreateSessionToken` to connector_flow imports
-  - [ ] Add `SessionTokenRequestData` and `SessionTokenResponseData` to connector_types imports
+  - [ ] Add `ServerSessionAuthenticationToken` to connector_flow imports
+  - [ ] Add `ServerSessionAuthenticationTokenRequestData` and `ServerSessionAuthenticationTokenResponseData` to connector_types imports
   - [ ] Import session token request/response types from transformers
   - [ ] Implement `ValidationTrait` with `should_do_session_token()` returning `true`
-  - [ ] Add CreateSessionToken flow to `macros::create_all_prerequisites!`
-  - [ ] Implement CreateSessionToken flow with `macros::macro_connector_implementation!`
-  - [ ] Add Source Verification stub for CreateSessionToken flow
+  - [ ] Add ServerSessionAuthenticationToken flow to `macros::create_all_prerequisites!`
+  - [ ] Implement ServerSessionAuthenticationToken flow with `macros::macro_connector_implementation!`
+  - [ ] Add Source Verification stub for ServerSessionAuthenticationToken flow
 
 - [ ] **Transformers Implementation**
-  - [ ] Add `CreateSessionToken` to connector_flow imports
-  - [ ] Add `SessionTokenRequestData` and `SessionTokenResponseData` to connector_types imports
+  - [ ] Add `ServerSessionAuthenticationToken` to connector_flow imports
+  - [ ] Add `ServerSessionAuthenticationTokenRequestData` and `ServerSessionAuthenticationTokenResponseData` to connector_types imports
   - [ ] Create session token request structure
   - [ ] Create session token response structure
   - [ ] Create session status enumeration
@@ -989,7 +996,7 @@ mod session_token_tests {
   - [ ] Test error response handling
 
 - [ ] **Integration Tests**
-  - [ ] Test complete flow: CreateSessionToken → Authorize
+  - [ ] Test complete flow: ServerSessionAuthenticationToken → Authorize
   - [ ] Test session token expiration handling
   - [ ] Test error scenarios
 
@@ -1008,7 +1015,7 @@ mod session_token_tests {
 
 ## Placeholder Reference Guide
 
-**🔄 UNIVERSAL REPLACEMENT SYSTEM FOR CREATESESSIONTOKEN FLOWS**
+**🔄 UNIVERSAL REPLACEMENT SYSTEM FOR SERVERSESSIONAUTHENTICATIONTOKEN FLOWS**
 
 | Placeholder | Description | Example Values | When to Use |
 |-------------|-------------|----------------|-------------|
@@ -1056,7 +1063,7 @@ mod session_token_tests {
 
 5. **Error Handling**: Implement specific error handling for session token failures vs authorization failures
 
-6. **Testing**: Test the complete flow end-to-end: CreateSessionToken → Authorize
+6. **Testing**: Test the complete flow end-to-end: ServerSessionAuthenticationToken → Authorize
 
 ### Common Pitfalls to Avoid
 
@@ -1066,4 +1073,4 @@ mod session_token_tests {
 - **Wrong Status Mapping**: Session token responses should typically map to `Pending` status, not `Charged`
 - **Error Propagation**: Not properly propagating session token errors to prevent authorization attempts
 
-This pattern document provides a comprehensive template for implementing CreateSessionToken flows in payment connectors, ensuring consistency and completeness across all implementations.
+This pattern document provides a comprehensive template for implementing ServerSessionAuthenticationToken flows in payment connectors, ensuring consistency and completeness across all implementations.
