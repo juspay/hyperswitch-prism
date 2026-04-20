@@ -14,7 +14,7 @@ from payments import RecurringPaymentClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["authorize", "create_order", "create_server_authentication_token", "get", "proxy_authorize", "recurring_charge", "refund", "refund_get"]
+SUPPORTED_FLOWS = ["authorize", "create_order", "create_server_authentication_token", "get", "parse_event", "proxy_authorize", "recurring_charge", "refund", "refund_get"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -110,6 +110,16 @@ def _build_get_request(connector_transaction_id: str):
                 expires_in_seconds=3600,  # Expiration timestamp (seconds since epoch).
                 token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
             ),
+        ),
+    )
+
+def _build_parse_event_request():
+    return payment_pb2.EventServiceParseRequest(
+        request_details=payment_pb2.RequestDetails(
+            method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
+            uri="https://example.com/webhook",  # URI of the request.
+            headers=payment_pb2.HeadersEntry(),  # Headers of the HTTP request.
+            body="{\"PaymentInformation\":{\"CreditDebitIndicator\":\"CRDT\",\"References\":{\"EndToEndId\":\"probe_txn_001\"},\"Status\":\"Paid\",\"Amount\":{\"InstructedAmount\":10.00,\"Currency\":\"EUR\"}},\"Signature\":\"probe_sig\"}",  # Body of the HTTP request.
         ),
     )
 
@@ -316,6 +326,15 @@ async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.Conne
     get_response = await payment_client.get(_build_get_request("probe_connector_txn_001"))
 
     return {"status": get_response.status}
+
+
+async def process_parse_event(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: EventService.ParseEvent"""
+    event_client = EventClient(config)
+
+    parse_response = await event_client.parse_event(_build_parse_event_request())
+
+    return {"status": parse_response.status}
 
 
 async def process_proxy_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
