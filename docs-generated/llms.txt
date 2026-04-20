@@ -355,7 +355,7 @@ connector_id: nexinets
 doc: docs/connectors/nexinets.md
 scenarios: checkout_autocapture, refund, get_payment
 payment_methods: ApplePay, Card, Eps, Giropay, Ideal, PaypalRedirect, Sofort
-flows: authorize, create_client_authentication_token, get, proxy_authorize, refund
+flows: authorize, create_client_authentication_token, get, proxy_authorize, recurring_charge, refund
 examples_python: examples/nexinets/nexinets.py
 
 ## Nexixpay
