@@ -2,11 +2,6 @@
 
 This guide helps you choose the right Grace workflow controller for your UCS connector task.
 
-<!-- PR #855 rename absorbed (commit c9e1025e3, 2026-04-02): CreateAccessToken →
-ServerAuthenticationToken, CreateSessionToken → ServerSessionAuthenticationToken,
-SdkSessionToken → ClientAuthenticationToken (plus matching traits and request/
-response data types). See pattern_client_authentication_token.md for the full map. -->
-
 ## Quick Decision Tree
 
 ```

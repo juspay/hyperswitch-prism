@@ -1,12 +1,5 @@
 # ServerAuthenticationToken Flow Implementation Patterns
 
-<!-- PR #855 rename absorbed (commit c9e1025e3, 2026-04-02): `CreateAccessToken` →
-`ServerAuthenticationToken`, `PaymentAccessToken` → `ServerAuthentication`,
-`AccessTokenRequestData` → `ServerAuthenticationTokenRequestData`,
-`AccessTokenResponseData` → `ServerAuthenticationTokenResponseData`. File
-renamed from `pattern_CreateAccessToken_flow.md` → `pattern_server_authentication_token.md`.
-See pattern_client_authentication_token.md for the full map. -->
-
 ## Overview
 
 The `ServerAuthenticationToken` flow is a crucial authentication flow in the Grace-UCS connector ecosystem. It handles OAuth 2.0 token acquisition for connectors that require bearer tokens to authenticate API requests. This pattern is typically invoked before payment flows when `should_do_access_token()` returns `true`.

@@ -4,12 +4,6 @@
 
 This document provides comprehensive, reusable patterns for implementing the authorize flow in **ANY** payment connector. These patterns are extracted from successful connector implementations (Adyen, Checkout, PayU, Razorpay) and can be consumed by AI to generate consistent, production-ready authorize flow code for any payment gateway.
 
-<!-- PR #855 rename absorbed (commit c9e1025e3, 2026-04-02): `CreateSessionToken` →
-`ServerSessionAuthenticationToken`, `SessionTokenRequestData` →
-`ServerSessionAuthenticationTokenRequestData`, `SessionTokenResponseData` →
-`ServerSessionAuthenticationTokenResponseData` in the connector import block.
-See pattern_client_authentication_token.md for the full map. -->
-
 ## 🚀 Quick Start Guide
 
 To implement a new connector using these patterns:

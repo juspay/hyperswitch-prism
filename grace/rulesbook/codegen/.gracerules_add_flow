@@ -23,12 +23,6 @@
 #
 # This file defines the workflow for adding SPECIFIC FLOWS to EXISTING connectors.
 # Use this when a connector already exists and you need to add one or more missing flows.
-#
-# PR #855 rename absorbed (commit c9e1025e3, 2026-04-02): CreateAccessToken →
-# ServerAuthenticationToken, CreateSessionToken → ServerSessionAuthenticationToken,
-# SdkSessionToken → ClientAuthenticationToken (plus matching traits and request/
-# response data types). See pattern_client_authentication_token.md for the full map.
-
 # ============================================================================
 # MAIN WORKFLOW CONTROLLER
 # ============================================================================

@@ -24,12 +24,6 @@
 # This file defines the deterministic, step-by-step workflow for new UCS connector integrations
 # Each phase MUST complete successfully before proceeding to the next phase
 # ALL steps are mandatory and must be executed in the exact sequence specified
-#
-# PR #855 rename absorbed (commit c9e1025e3, 2026-04-02): CreateAccessToken →
-# ServerAuthenticationToken, CreateSessionToken → ServerSessionAuthenticationToken,
-# SdkSessionToken → ClientAuthenticationToken (plus matching traits and request/
-# response data types). See pattern_client_authentication_token.md for the full map.
-
 # ============================================================================
 # MAIN WORKFLOW CONTROLLER
 # ============================================================================

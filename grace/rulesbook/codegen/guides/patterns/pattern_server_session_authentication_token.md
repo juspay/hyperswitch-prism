@@ -4,13 +4,6 @@
 
 This document provides comprehensive, reusable patterns for implementing the ServerSessionAuthenticationToken flow in **ANY** payment connector within the UCS (Universal Connector Service) system. These patterns are extracted from successful connector implementations (Paytm, Nuvei) and can be consumed by AI to generate consistent, production-ready ServerSessionAuthenticationToken flow code for any payment gateway.
 
-<!-- PR #855 rename absorbed (commit c9e1025e3, 2026-04-02): `CreateSessionToken` →
-`ServerSessionAuthenticationToken`, `PaymentSessionToken` → `ServerSessionAuthentication`,
-`SessionTokenRequestData` → `ServerSessionAuthenticationTokenRequestData`,
-`SessionTokenResponseData` → `ServerSessionAuthenticationTokenResponseData`. File
-renamed from `pattern_session_token.md` → `pattern_server_session_authentication_token.md`.
-See pattern_client_authentication_token.md for the full map. -->
-
 > **🏗️ UCS-Specific:** This pattern is tailored for UCS architecture using RouterDataV2, ConnectorIntegrationV2, and domain_types. The ServerSessionAuthenticationToken flow is used to initiate a payment session and obtain a session token that can be used in subsequent authorization calls.
 
 ## 🚀 Quick Start Guide

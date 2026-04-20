@@ -2,12 +2,6 @@ You are an expert payment systems architect tasked with creating detailed techni
 
 Your specifications will be used as direct input for code generation AI systems, so they must be precise, structured, and comprehensive for the UCS architecture.
 
-<!-- PR #855 rename absorbed (commit c9e1025e3, 2026-04-02): CreateAccessToken →
-ServerAuthenticationToken, CreateSessionToken → ServerSessionAuthenticationToken,
-SdkSessionToken → ClientAuthenticationToken (plus matching traits and request/
-response data types). See pattern_client_authentication_token.md for the full map. -->
-
-
 First, carefully review the project request:
 
 <project_request>
