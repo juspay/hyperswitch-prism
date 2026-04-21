@@ -115,129 +115,24 @@ let config = ConnectorConfig {
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
+| [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
+| [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
+| [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
 
 ### Payments
 
-#### PaymentService.Authorize
+#### PaymentService.Capture
 
-Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing.
+Finalize an authorized payment by transferring funds. Captures the authorized amount to complete the transaction and move funds to your merchant account.
 
 | | Message |
 |---|---------|
-| **Request** | `PaymentServiceAuthorizeRequest` |
-| **Response** | `PaymentServiceAuthorizeResponse` |
+| **Request** | `PaymentServiceCaptureRequest` |
+| **Response** | `PaymentServiceCaptureResponse` |
 
-**Supported payment method types:**
-
-| Payment Method | Supported |
-|----------------|:---------:|
-| Card | ⚠ |
-| Bancontact | ⚠ |
-| Apple Pay | ⚠ |
-| Apple Pay Dec | ⚠ |
-| Apple Pay SDK | ⚠ |
-| Google Pay | ⚠ |
-| Google Pay Dec | ⚠ |
-| Google Pay SDK | ⚠ |
-| PayPal SDK | ⚠ |
-| Amazon Pay | ⚠ |
-| Cash App | ⚠ |
-| PayPal | ⚠ |
-| WeChat Pay | ⚠ |
-| Alipay | ⚠ |
-| Revolut Pay | ⚠ |
-| MiFinity | ⚠ |
-| Bluecode | ⚠ |
-| Paze | x |
-| Samsung Pay | ⚠ |
-| MB Way | ⚠ |
-| Satispay | ⚠ |
-| Wero | ⚠ |
-| Affirm | ⚠ |
-| Afterpay | ⚠ |
-| Klarna | ⚠ |
-| UPI Collect | ✓ |
-| UPI Intent | ✓ |
-| UPI QR | ✓ |
-| Thailand | ⚠ |
-| Czech | ⚠ |
-| Finland | ⚠ |
-| FPX | ⚠ |
-| Poland | ⚠ |
-| Slovakia | ⚠ |
-| UK | ⚠ |
-| PIS | x |
-| Generic | ⚠ |
-| Local | ⚠ |
-| iDEAL | ⚠ |
-| Sofort | ⚠ |
-| Trustly | ⚠ |
-| Giropay | ⚠ |
-| EPS | ⚠ |
-| Przelewy24 | ⚠ |
-| PSE | ⚠ |
-| BLIK | ⚠ |
-| Interac | ⚠ |
-| Bizum | ⚠ |
-| EFT | ⚠ |
-| DuitNow | x |
-| ACH | ⚠ |
-| SEPA | ⚠ |
-| BACS | ⚠ |
-| Multibanco | ⚠ |
-| Instant | ⚠ |
-| Instant FI | ⚠ |
-| Instant PL | ⚠ |
-| Pix | ⚠ |
-| Permata | ⚠ |
-| BCA | ⚠ |
-| BNI VA | ⚠ |
-| BRI VA | ⚠ |
-| CIMB VA | ⚠ |
-| Danamon VA | ⚠ |
-| Mandiri VA | ⚠ |
-| Local | ⚠ |
-| Indonesian | ⚠ |
-| ACH | ⚠ |
-| SEPA | ⚠ |
-| BACS | ⚠ |
-| BECS | ⚠ |
-| SEPA Guaranteed | ⚠ |
-| Crypto | x |
-| Reward | ⚠ |
-| Givex | x |
-| PaySafeCard | x |
-| E-Voucher | ⚠ |
-| Boleto | ⚠ |
-| Efecty | ⚠ |
-| Pago Efectivo | ⚠ |
-| Red Compra | ⚠ |
-| Red Pagos | ⚠ |
-| Alfamart | ⚠ |
-| Indomaret | ⚠ |
-| Oxxo | ⚠ |
-| 7-Eleven | ⚠ |
-| Lawson | ⚠ |
-| Mini Stop | ⚠ |
-| Family Mart | ⚠ |
-| Seicomart | ⚠ |
-| Pay Easy | ⚠ |
-
-**Payment method objects** — use these in the `payment_method` field of the Authorize request.
-
-##### UPI Collect
-
-```python
-"payment_method": {
-  "upi_collect": {
-    "vpa_id": "test@upi"
-  }
-}
-```
-
-**Examples:** [Python](../../examples/payu/payu.py) · [TypeScript](../../examples/payu/payu.ts#L69) · [Kotlin](../../examples/payu/payu.kt#L81) · [Rust](../../examples/payu/payu.rs)
+**Examples:** [Python](../../examples/payu/payu.py) · [TypeScript](../../examples/payu/payu.ts#L79) · [Kotlin](../../examples/payu/payu.kt#L82) · [Rust](../../examples/payu/payu.rs)
 
 #### PaymentService.Get
 
@@ -248,4 +143,39 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/payu/payu.py) · [TypeScript](../../examples/payu/payu.ts#L78) · [Kotlin](../../examples/payu/payu.kt#L93) · [Rust](../../examples/payu/payu.rs)
+**Examples:** [Python](../../examples/payu/payu.py) · [TypeScript](../../examples/payu/payu.ts#L88) · [Kotlin](../../examples/payu/payu.kt#L92) · [Rust](../../examples/payu/payu.rs)
+
+#### PaymentService.Refund
+
+Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceRefundRequest` |
+| **Response** | `RefundResponse` |
+
+**Examples:** [Python](../../examples/payu/payu.py) · [TypeScript](../../examples/payu/payu.ts#L97) · [Kotlin](../../examples/payu/payu.kt#L100) · [Rust](../../examples/payu/payu.rs)
+
+#### PaymentService.Void
+
+Cancel an authorized payment that has not been captured. Releases held funds back to the customer's payment method when a transaction cannot be completed.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceVoidRequest` |
+| **Response** | `PaymentServiceVoidResponse` |
+
+**Examples:** [Python](../../examples/payu/payu.py) · [TypeScript](../../examples/payu/payu.ts) · [Kotlin](../../examples/payu/payu.kt#L122) · [Rust](../../examples/payu/payu.rs)
+
+### Refunds
+
+#### RefundService.Get
+
+Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
+
+| | Message |
+|---|---------|
+| **Request** | `RefundServiceGetRequest` |
+| **Response** | `RefundResponse` |
+
+**Examples:** [Python](../../examples/payu/payu.py) · [TypeScript](../../examples/payu/payu.ts#L106) · [Kotlin](../../examples/payu/payu.kt#L110) · [Rust](../../examples/payu/payu.rs)
