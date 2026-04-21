@@ -655,7 +655,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .change_context(errors::IntegrationError::MissingConnectorTransactionID {
                 context: errors::IntegrationErrorContext {
                     suggested_action: None,
-                    doc_url: Some("https://imerchantsolutions.com/docs/api#post--payments-capture".to_string()),
+                    doc_url: Some(
+                        "https://imerchantsolutions.com/docs/api#post--payments-capture"
+                            .to_string(),
+                    ),
                     additional_context: Some(
                         "Expected connector transaction ID not found".to_string(),
                     ),

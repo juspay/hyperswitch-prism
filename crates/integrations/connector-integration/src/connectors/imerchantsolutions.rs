@@ -322,7 +322,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                 errors::IntegrationError::FailedToObtainAuthType {
                     context: errors::IntegrationErrorContext {
                         suggested_action: Some("Provide AuthType as HeaderKey".to_string()),
-                        doc_url: Some("https://imerchantsolutions.com/docs#authentication".to_string()),
+                        doc_url: Some(
+                            "https://imerchantsolutions.com/docs#authentication".to_string(),
+                        ),
                         additional_context: Some(
                             "Provided AuthType is incorrect. AuthType should be HeaderKey."
                                 .to_string(),

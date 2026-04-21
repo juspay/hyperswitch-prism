@@ -389,13 +389,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     )
                 }
                 _ => {
-                    return Err(IntegrationError::NotSupported {
-                        message:
-                            "Only card, ACH, and GooglePay payment methods are supported for PaymentMethodToken"
-                                .to_string(),
-                        connector: "Paysafe",
-                        context: Default::default(),
-                    }
+                    return Err(IntegrationError::not_implemented(
+                        "Only card, ACH, and GooglePay payment methods are supported for PaymentMethodToken"
+                            .to_string(),
+                    )
                     .into())
                 }
             };

@@ -24,7 +24,7 @@ mitm_proxy_enabled = false
 peachpayments.base_url = "https://api.bankint.peachpayments.com/v/1"
 finix.base_url = "https://finix.live-payments-api.com"
 fiservcommercehub.base_url = "https://connect.fiservapis.com/ch/"
-sanlammultidata.base_url = "live"
+sanlam.base_url = "live"
 revolv3.base_url = "https://api.revolv3.com"
 ppro.base_url = "https://api.eu.ppro.com"
 mollie.base_url = "https://api.mollie.com/v2"
@@ -117,6 +117,7 @@ truelayer.base_url = "https://api.truelayer.com"
 truelayer.secondary_base_url = "https://auth.truelayer.com"
 trustly.base_url = "https://api.trustly.com/1"
 itaubank.base_url = "https://api.itau.com.br"
+pinelabs_online.base_url = "https://api.pluralpay.in/api/pay/v1"
 
 # Generic Events Configuration
 [events]

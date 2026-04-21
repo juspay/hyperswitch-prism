@@ -56,8 +56,8 @@
         "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "BancontactCard": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Loonio"
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
@@ -68,12 +68,12 @@
         "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "Bizum": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Loonio"
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
       },
       "Blik": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Loonio"
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
       },
       "Bluecode": {
         "status": "not_implemented",
@@ -128,20 +128,20 @@
         "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "Eft": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Loonio"
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
       },
       "Eps": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Loonio"
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
       },
       "FamilyMart": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "Giropay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Loonio"
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
       },
       "Givex": {
         "status": "not_supported",
@@ -160,8 +160,8 @@
         "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "Ideal": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Loonio"
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
       },
       "Indomaret": {
         "status": "not_implemented",
@@ -230,8 +230,8 @@
         "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "LocalBankRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Loonio"
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
@@ -258,40 +258,40 @@
         "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Loonio"
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
       },
       "OnlineBankingFinland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Loonio"
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
       },
       "OnlineBankingFpx": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Loonio"
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
       },
       "OnlineBankingPoland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Loonio"
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Loonio"
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
       },
       "OnlineBankingThailand": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Loonio"
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
       },
       "OpenBanking": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Loonio"
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
       },
       "OpenBankingPis": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "OpenBankingUk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Loonio"
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
       },
       "Oxxo": {
         "status": "not_implemented",
@@ -330,8 +330,8 @@
         "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "Przelewy24": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Loonio"
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
       },
       "Pse": {
         "status": "not_implemented",
@@ -378,12 +378,12 @@
         "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "Sofort": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Loonio"
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
       },
       "Trustly": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Loonio"
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
       },
       "UpiCollect": {
         "status": "not_implemented",

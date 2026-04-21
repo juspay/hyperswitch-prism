@@ -1,4 +1,4 @@
-use crate::{connectors::sanlammultidata::SanlammultidataRouterData, types::ResponseRouterData};
+use crate::{connectors::sanlam::SanlamRouterData, types::ResponseRouterData};
 use common_enums::{AttemptStatus, BankNames, BankType, Currency};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
@@ -19,26 +19,26 @@ use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
-pub struct SanlammultidataAuthType {
+pub struct SanlamAuthType {
     pub(super) api_key: Secret<String>,
     pub(super) merchant_id: Secret<String>,
 }
 
-impl TryFrom<&ConnectorSpecificConfig> for SanlammultidataAuthType {
+impl TryFrom<&ConnectorSpecificConfig> for SanlamAuthType {
     type Error = error_stack::Report<IntegrationError>;
     fn try_from(item: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match item {
-            ConnectorSpecificConfig::Sanlammultidata { api_key, merchant_id, .. } => Ok(Self {
+            ConnectorSpecificConfig::Sanlam { api_key, merchant_id, .. } => Ok(Self {
                 api_key: api_key.to_owned(),
                 merchant_id: merchant_id.to_owned(),
             }),
             _ => Err(IntegrationError::FailedToObtainAuthType {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
-                        "Ensure the connector is configured with a Sanlammultidata-specific config containing a valid api_key.".to_string(),
+                        "Ensure the connector is configured with a Sanlam-specific config containing a valid api_key.".to_string(),
                     ),
                     additional_context: Some(
-                        "ConnectorSpecificConfig did not match the Sanlammultidata variant; received an unexpected config variant.".to_string(),
+                        "ConnectorSpecificConfig did not match the Sanlam variant; received an unexpected config variant.".to_string(),
                     ),
                     doc_url: None,
                 },
@@ -49,21 +49,21 @@ impl TryFrom<&ConnectorSpecificConfig> for SanlammultidataAuthType {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct SanlammultidataMetaData {
+pub struct SanlamMetaData {
     pub batch_user_reference: Option<String>,
 }
 
-impl TryFrom<SecretSerdeValue> for SanlammultidataMetaData {
+impl TryFrom<SecretSerdeValue> for SanlamMetaData {
     type Error = error_stack::Report<IntegrationError>;
     fn try_from(metadata: SecretSerdeValue) -> Result<Self, Self::Error> {
         let metadata = metadata
             .expose()
-            .parse_value::<Self>("SanlammultidataMetaData")
+            .parse_value::<Self>("SanlamMetaData")
             .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "metadata",
                 context: IntegrationErrorContext {
                     additional_context: Some(
-                        "Failed to deserialize connector metadata into SanlammultidataMetaData; ensure 'batch_user_reference' is a valid optional string.".to_string(),
+                        "Failed to deserialize connector metadata into SanlamMetaData; ensure 'batch_user_reference' is a valid optional string.".to_string(),
                     ),
                     suggested_action: Some(
                         "Verify the connector metadata is valid JSON with an optional 'batch_user_reference' string field.".to_string(),
@@ -76,12 +76,12 @@ impl TryFrom<SecretSerdeValue> for SanlammultidataMetaData {
 }
 
 #[derive(Debug, Serialize)]
-pub struct SanlammultidataPaymentsRequest {
+pub struct SanlamPaymentsRequest {
     pub user_reference: String,
     pub amount: MinorUnit,
     pub currency: Currency,
     #[serde(rename = "payment_method")]
-    pub payment_method: SanlammultidataPaymentMethod,
+    pub payment_method: SanlamPaymentMethod,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub statement_descriptor: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -90,7 +90,7 @@ pub struct SanlammultidataPaymentsRequest {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum SanlammultidataPaymentMethod {
+pub enum SanlamPaymentMethod {
     EftDebitOrder(EftDebitOrder),
 }
 
@@ -99,13 +99,13 @@ pub struct EftDebitOrder {
     pub homing_account: Secret<String>,
     pub homing_branch: Secret<String>,
     pub homing_account_name: Secret<String>,
-    pub bank_name: SanlammultidataBankNames,
-    pub bank_type: SanlammultidataBankType,
+    pub bank_name: SanlamBankNames,
+    pub bank_type: SanlamBankType,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum SanlammultidataBankNames {
+pub enum SanlamBankNames {
     Absa,
     Capitec,
     Fnb,
@@ -115,7 +115,7 @@ pub enum SanlammultidataBankNames {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum SanlammultidataBankType {
+pub enum SanlamBankType {
     Savings,
     Cheque,
     Transmission,
@@ -126,7 +126,7 @@ pub enum SanlammultidataBankType {
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
-        SanlammultidataRouterData<
+        SanlamRouterData<
             RouterDataV2<
                 Authorize,
                 PaymentFlowData,
@@ -135,11 +135,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             >,
             T,
         >,
-    > for SanlammultidataPaymentsRequest
+    > for SanlamPaymentsRequest
 {
     type Error = error_stack::Report<IntegrationError>;
     fn try_from(
-        item: SanlammultidataRouterData<
+        item: SanlamRouterData<
             RouterDataV2<
                 Authorize,
                 PaymentFlowData,
@@ -163,7 +163,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             field_name: "bank_account_holder_name",
                             context: IntegrationErrorContext {
                                 additional_context: Some(
-                                    "EFT debit order requires 'bank_account_holder_name' to populate the homing_account_name field in the Sanlammultidata payments request.".to_string(),
+                                    "EFT debit order requires 'bank_account_holder_name' to populate the homing_account_name field in the Sanlam payments request.".to_string(),
                                 ),
                                 suggested_action: Some(
                                     "Provide the bank account holder name in the EFT bank debit payment method data.".to_string(),
@@ -174,13 +174,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     )?;
 
                     let bank_name = bank_name
-                        .map(SanlammultidataBankNames::try_from)
+                        .map(SanlamBankNames::try_from)
                         .transpose()?
                         .ok_or(IntegrationError::MissingRequiredField {
                             field_name: "bank_name",
                             context: IntegrationErrorContext {
                                 additional_context: Some(
-                                    "EFT debit order requires 'bank_name' to be provided and mapped to a supported Sanlammultidata bank (e.g., Absa).".to_string(),
+                                    "EFT debit order requires 'bank_name' to be provided and mapped to a supported Sanlam bank (e.g., Absa).".to_string(),
                                 ),
                                 suggested_action: Some(
                                     "Provide a supported bank name in the EFT bank debit payment method data.".to_string(),
@@ -189,7 +189,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             },
                         })?;
 
-                    let bank_type = bank_type.map(SanlammultidataBankType::from).ok_or(
+                    let bank_type = bank_type.map(SanlamBankType::from).ok_or(
                         IntegrationError::MissingRequiredField {
                             field_name: "bank_type",
                             context: IntegrationErrorContext {
@@ -204,7 +204,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         },
                     )?;
 
-                    Ok(SanlammultidataPaymentMethod::EftDebitOrder(EftDebitOrder {
+                    Ok(SanlamPaymentMethod::EftDebitOrder(EftDebitOrder {
                         homing_account: account_number.clone(),
                         homing_branch: branch_code.clone(),
                         homing_account_name: homing_account_name.clone(),
@@ -212,9 +212,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         bank_type,
                     }))
                 }
-                _ => Err(IntegrationError::not_implemented(
-                    get_unimplemented_payment_method_error_message("Sanlammultidata"),
-                ))?,
+                _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: get_unimplemented_payment_method_error_message("Sanlam"),
+                    connector: "Sanlam",
+                    context: Default::default(),
+                }))?,
             },
             PaymentMethodData::Card(_)
             | PaymentMethodData::CardRedirect(_)
@@ -235,9 +237,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
-                    get_unimplemented_payment_method_error_message("Sanlammultidata"),
-                ))
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: get_unimplemented_payment_method_error_message("Sanlam"),
+                    connector: "Sanlam",
+                    context: Default::default(),
+                }))
             }
         }?;
 
@@ -245,7 +249,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .router_data
             .request
             .metadata
-            .map(SanlammultidataMetaData::try_from)
+            .map(SanlamMetaData::try_from)
             .transpose()?
             .and_then(|m| m.batch_user_reference);
 
@@ -268,21 +272,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-impl TryFrom<BankNames> for SanlammultidataBankNames {
+impl TryFrom<BankNames> for SanlamBankNames {
     type Error = error_stack::Report<IntegrationError>;
     fn try_from(bank: BankNames) -> Result<Self, Self::Error> {
         match bank {
             BankNames::Absa => Ok(Self::Absa),
             bank => Err(IntegrationError::NotSupported {
                 message: format!("Invalid BankName for EFT Debit order payment: {bank:?}"),
-                connector: "Sanlammultidata",
+                connector: "Sanlam",
                 context: Default::default(),
             })?,
         }
     }
 }
 
-impl From<BankType> for SanlammultidataBankType {
+impl From<BankType> for SanlamBankType {
     fn from(value: BankType) -> Self {
         match value {
             BankType::Checking => Self::Cheque,
@@ -296,8 +300,8 @@ impl From<BankType> for SanlammultidataBankType {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct SanlammultidataPaymentsResponse {
-    pub status: SanlammultidataPaymentStatus,
+pub struct SanlamPaymentsResponse {
+    pub status: SanlamPaymentStatus,
     pub topic: String,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
@@ -305,19 +309,19 @@ pub struct SanlammultidataPaymentsResponse {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum SanlammultidataPaymentStatus {
+pub enum SanlamPaymentStatus {
     Queued,
     Rejected,
     Unknown,
 }
 
 impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<ResponseRouterData<SanlammultidataPaymentsResponse, Self>>
+    TryFrom<ResponseRouterData<SanlamPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<SanlammultidataPaymentsResponse, Self>,
+        item: ResponseRouterData<SanlamPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let status = AttemptStatus::from(item.response.status);
         let response = if is_payment_failure(status) {
@@ -364,13 +368,11 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     }
 }
 
-impl From<SanlammultidataPaymentStatus> for AttemptStatus {
-    fn from(status: SanlammultidataPaymentStatus) -> Self {
+impl From<SanlamPaymentStatus> for AttemptStatus {
+    fn from(status: SanlamPaymentStatus) -> Self {
         match status {
-            SanlammultidataPaymentStatus::Queued | SanlammultidataPaymentStatus::Unknown => {
-                Self::Pending
-            }
-            SanlammultidataPaymentStatus::Rejected => Self::Failure,
+            SanlamPaymentStatus::Queued | SanlamPaymentStatus::Unknown => Self::Pending,
+            SanlamPaymentStatus::Rejected => Self::Failure,
         }
     }
 }
