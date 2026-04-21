@@ -468,8 +468,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     BankRedirectData::Eps { .. } => Some(ApmProvider::Eps),
                     BankRedirectData::Ideal { .. } => Some(ApmProvider::Ideal),
                     _ => {
-                        return Err(error_stack::report!(IntegrationError::not_implemented(
-                            "Bank redirect payment method not supported".to_string()
+                        return Err(error_stack::report!(IntegrationError::NotImplemented(
+                            ("Bank redirect payment method not supported".to_string()).into(),
+                            Default::default()
                         )))
                     }
                 };
@@ -497,8 +498,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
             }
             _ => {
-                return Err(error_stack::report!(IntegrationError::not_implemented(
-                    "Payment method not supported".to_string()
+                return Err(error_stack::report!(IntegrationError::NotImplemented(
+                    ("Payment method not supported".to_string()).into(),
+                    Default::default()
                 )))
             }
         };
@@ -1320,8 +1322,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
             }
             _ => {
-                return Err(error_stack::report!(IntegrationError::not_implemented(
-                    "Payment method not supported for SetupMandate".to_string()
+                return Err(error_stack::report!(IntegrationError::NotImplemented(
+                    ("Payment method not supported for SetupMandate".to_string()).into(),
+                    Default::default()
                 )))
             }
         };
@@ -1457,8 +1460,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 })?,
             MandateReferenceId::NetworkMandateId(_)
             | MandateReferenceId::NetworkTokenWithNTI(_) => {
-                return Err(error_stack::report!(IntegrationError::not_implemented(
-                    "Network mandate id not supported for GlobalPay RepeatPayment".to_string()
+                return Err(error_stack::report!(IntegrationError::NotImplemented(
+                    ("Network mandate id not supported for GlobalPay RepeatPayment".to_string())
+                        .into(),
+                    Default::default()
                 )));
             }
         };

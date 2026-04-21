@@ -239,8 +239,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("billwerk"),
+                Err(IntegrationError::NotImplemented(
+                    (utils::get_unimplemented_payment_method_error_message("billwerk")).into(),
+                    Default::default(),
                 )
                 .into())
             }
@@ -275,8 +276,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         if item.router_data.resource_common_data.is_three_ds() {
-            return Err(IntegrationError::not_implemented(
-                "Three_ds payments through Billwerk".to_string(),
+            return Err(IntegrationError::NotImplemented(
+                ("Three_ds payments through Billwerk".to_string()).into(),
+                Default::default(),
             )
             .into());
         };
@@ -676,8 +678,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             MandateReferenceId::NetworkMandateId(_)
             | MandateReferenceId::NetworkTokenWithNTI(_) => {
-                return Err(IntegrationError::not_implemented(
-                    "Network mandate ID is not supported for Billwerk",
+                return Err(IntegrationError::NotImplemented(
+                    ("Network mandate ID is not supported for Billwerk").into(),
+                    Default::default(),
                 )
                 .into())
             }

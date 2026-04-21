@@ -464,8 +464,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         if item.router_data.resource_common_data.is_three_ds() {
-            Err(error_stack::report!(IntegrationError::not_implemented(
-                "Cards 3DS".to_string()
+            Err(error_stack::report!(IntegrationError::NotImplemented(
+                ("Cards 3DS".to_string()).into(),
+                Default::default()
             )))?
         }
 
@@ -548,8 +549,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(error_stack::report!(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("fiserv"),
+                Err(error_stack::report!(IntegrationError::NotImplemented(
+                    (utils::get_unimplemented_payment_method_error_message("fiserv")).into(),
+                    Default::default()
                 )))
             }
         }?;

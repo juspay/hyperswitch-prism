@@ -365,8 +365,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             },
                         }
                     }
-                    _ => Err(IntegrationError::not_implemented(
-                        "Selected wallet type is not supported".to_string(),
+                    _ => Err(IntegrationError::NotImplemented(
+                        ("Selected wallet type is not supported".to_string()).into(),
+                        Default::default(),
                     ))?,
                 };
 
@@ -507,8 +508,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         transaction_fraud_info,
                     }))
                 }
-                _ => Err(IntegrationError::not_implemented(
-                    "Only ACH and SEPA Bank Debit are supported".to_string(),
+                _ => Err(IntegrationError::NotImplemented(
+                    ("Only ACH and SEPA Bank Debit are supported".to_string()).into(),
+                    Default::default(),
                 ))?,
             },
             PaymentMethodData::PaymentMethodToken(token_data) => {
@@ -566,8 +568,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     transaction_meta_data,
                 }))
             }
-            _ => Err(IntegrationError::not_implemented(
-                "Selected payment method is not supported".to_string(),
+            _ => Err(IntegrationError::NotImplemented(
+                ("Selected payment method is not supported".to_string()).into(),
+                Default::default(),
             ))?,
         }
     }

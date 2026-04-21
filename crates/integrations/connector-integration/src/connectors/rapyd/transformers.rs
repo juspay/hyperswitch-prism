@@ -353,8 +353,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             _ => None,
         }
         .get_required_value("payment_method not implemented")
-        .change_context(IntegrationError::not_implemented(
-            "payment_method".to_owned(),
+        .change_context(IntegrationError::NotImplemented(
+            ("payment_method".to_owned()).into(),
+            Default::default(),
         ))?;
         Ok(Self {
             amount,

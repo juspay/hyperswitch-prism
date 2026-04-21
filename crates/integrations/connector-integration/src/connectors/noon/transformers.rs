@@ -1547,8 +1547,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             MandateReferenceId::NetworkMandateId(_)
             | MandateReferenceId::NetworkTokenWithNTI(_) => {
-                return Err(IntegrationError::not_implemented(
-                    "Only connector mandate ID is supported for Noon repeat payments".to_string(),
+                return Err(IntegrationError::NotImplemented(
+                    ("Only connector mandate ID is supported for Noon repeat payments".to_string())
+                        .into(),
+                    Default::default(),
                 )
                 .into())
             }

@@ -375,8 +375,9 @@ impl<T: PaymentMethodDataTypes>
                 PaymentMethod { payment_card }
             }
             _ => {
-                return Err(error_stack::report!(IntegrationError::not_implemented(
-                    "Only card payments are supported".to_string()
+                return Err(error_stack::report!(IntegrationError::NotImplemented(
+                    ("Only card payments are supported".to_string()).into(),
+                    Default::default()
                 )))
             }
         };

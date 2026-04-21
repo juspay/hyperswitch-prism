@@ -1405,8 +1405,9 @@ impl<
                 )?
             }
             _ => {
-                return Err(error_stack::report!(IntegrationError::not_implemented(
-                    "Only ConnectorMandateId is supported for RepeatPayment".to_string()
+                return Err(error_stack::report!(IntegrationError::NotImplemented(
+                    ("Only ConnectorMandateId is supported for RepeatPayment".to_string()).into(),
+                    Default::default()
                 )))
             }
         };

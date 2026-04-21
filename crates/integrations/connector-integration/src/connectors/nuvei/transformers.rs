@@ -774,8 +774,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 user_payment_option_id: Some(token_data.token.clone()),
             },
             _ => {
-                return Err(IntegrationError::not_implemented(
-                    "Payment method not supported by Nuvei in this transformer".to_string(),
+                return Err(IntegrationError::NotImplemented(
+                    ("Payment method not supported by Nuvei in this transformer".to_string())
+                        .into(),
+                    Default::default(),
                 )
                 .into())
             }

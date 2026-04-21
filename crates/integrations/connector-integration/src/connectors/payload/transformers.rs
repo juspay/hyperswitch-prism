@@ -391,7 +391,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 domain_types::payment_method_data::WalletData::GooglePay(_)
                 | domain_types::payment_method_data::WalletData::ApplePay(_) => {
-                    Err(IntegrationError::not_implemented("Payment method".to_string()).into())
+                    Err(IntegrationError::NotImplemented(
+                        ("Payment method".to_string()).into(),
+                        Default::default(),
+                    )
+                    .into())
                 }
                 _ => Err(IntegrationError::NotSupported {
                     message: "Wallet".to_string(),
@@ -855,7 +859,10 @@ pub fn parse_webhook_event(
     body: &[u8],
 ) -> Result<PayloadWebhookEvent, error_stack::Report<IntegrationError>> {
     serde_json::from_slice::<PayloadWebhookEvent>(body).change_context(
-        IntegrationError::not_implemented("webhook body decoding failed".to_string()),
+        IntegrationError::NotImplemented(
+            ("webhook body decoding failed".to_string()).into(),
+            Default::default(),
+        ),
     )
 }
 

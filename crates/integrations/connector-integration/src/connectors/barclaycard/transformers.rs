@@ -422,8 +422,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let ccard = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card) => Ok(card),
-            _ => Err(IntegrationError::not_implemented(
-                "Only card payments are supported".to_string(),
+            _ => Err(IntegrationError::NotImplemented(
+                ("Only card payments are supported".to_string()).into(),
+                Default::default(),
             )),
         }?;
 

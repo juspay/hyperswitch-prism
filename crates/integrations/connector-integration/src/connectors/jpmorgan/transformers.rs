@@ -242,9 +242,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 if router_data.resource_common_data.auth_type
                     == common_enums::AuthenticationType::ThreeDs
                 {
-                    return Err(
-                        IntegrationError::not_implemented("3DS payments".to_string()).into(),
-                    );
+                    return Err(IntegrationError::NotImplemented(
+                        ("3DS payments".to_string()).into(),
+                        Default::default(),
+                    )
+                    .into());
                 }
                 let capture_method = map_capture_method(router_data.request.capture_method)?;
 
@@ -610,9 +612,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         }
                     }
                 }
-                _ => Err(
-                    IntegrationError::not_implemented("Wallet not supported".to_string()).into(),
-                ),
+                _ => Err(IntegrationError::NotImplemented(
+                    ("Wallet not supported".to_string()).into(),
+                    Default::default(),
+                )
+                .into()),
             },
             _ => Err(error_stack::report!(IntegrationError::NotSupported {
                 message: "Payment method not supported".to_string(),

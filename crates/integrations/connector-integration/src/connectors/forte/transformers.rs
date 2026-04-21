@@ -350,9 +350,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("Forte"),
-                ))?
+                Err(IntegrationError::NotImplemented((utils::get_unimplemented_payment_method_error_message("Forte")).into(), Default::default()))?
             }
         }
     }

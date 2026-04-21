@@ -772,9 +772,11 @@ impl WalletData {
                 let encoded_token = base64::engine::general_purpose::STANDARD.encode(token_as_vec);
                 Ok(encoded_token)
             }
-            _ => {
-                Err(IntegrationError::not_implemented("SELECTED PAYMENT METHOD".to_owned()).into())
-            }
+            _ => Err(IntegrationError::NotImplemented(
+                ("SELECTED PAYMENT METHOD".to_owned()).into(),
+                Default::default(),
+            )
+            .into()),
         }
     }
 }

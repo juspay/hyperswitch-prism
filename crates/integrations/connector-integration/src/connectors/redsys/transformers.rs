@@ -286,8 +286,10 @@ where
             | Some(PaymentMethodData::NetworkToken(..))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_))
-            | None => Err(IntegrationError::not_implemented(
-                domain_types::utils::get_unimplemented_payment_method_error_message("redsys"),
+            | None => Err(IntegrationError::NotImplemented(
+                (domain_types::utils::get_unimplemented_payment_method_error_message("redsys"))
+                    .into(),
+                Default::default(),
             )
             .into()),
         }

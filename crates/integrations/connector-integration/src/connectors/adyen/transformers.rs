@@ -608,8 +608,9 @@ impl TryFrom<&common_enums::BankNames> for AdyenTestBankNames {
             common_enums::BankNames::VolkskreditbankAg => {
                 Ok(Self("4a0a975b-0594-4b40-9068-39f77b3a91f9".to_string()))
             }
-            _ => Err(IntegrationError::not_implemented(
-                utils::get_unimplemented_payment_method_error_message("Adyen"),
+            _ => Err(IntegrationError::NotImplemented(
+                (utils::get_unimplemented_payment_method_error_message("Adyen")).into(),
+                Default::default(),
             )
             .into()),
         }
@@ -622,7 +623,11 @@ impl TryFrom<&common_enums::BankNames> for OnlineBankingCzechRepublicBanks {
         match bank_name {
             common_enums::BankNames::KomercniBanka => Ok(Self::KB),
             common_enums::BankNames::CeskaSporitelna => Ok(Self::CS),
-            _ => Err(IntegrationError::not_implemented("payment method").into()),
+            _ => Err(IntegrationError::NotImplemented(
+                ("payment method").into(),
+                Default::default(),
+            )
+            .into()),
         }
     }
 }
@@ -650,7 +655,11 @@ impl TryFrom<&common_enums::BankNames> for OnlineBankingPolandBanks {
             common_enums::BankNames::ToyotaBank => Ok(Self::ToyotaBank),
             common_enums::BankNames::VeloBank => Ok(Self::VeloBank),
             common_enums::BankNames::ETransferPocztowy24 => Ok(Self::ETransferPocztowy24),
-            _ => Err(IntegrationError::not_implemented("payment method").into()),
+            _ => Err(IntegrationError::NotImplemented(
+                ("payment method").into(),
+                Default::default(),
+            )
+            .into()),
         }
     }
 }
@@ -664,7 +673,11 @@ impl TryFrom<&common_enums::BankNames> for OnlineBankingSlovakiaBanks {
             common_enums::BankNames::SporoPay => Ok(Self::Sporo),
             common_enums::BankNames::TatraPay => Ok(Self::Tatra),
             common_enums::BankNames::Viamo => Ok(Self::Viamo),
-            _ => Err(IntegrationError::not_implemented("payment method").into()),
+            _ => Err(IntegrationError::NotImplemented(
+                ("payment method").into(),
+                Default::default(),
+            )
+            .into()),
         }
     }
 }
@@ -691,7 +704,11 @@ impl TryFrom<&common_enums::BankNames> for OnlineBankingFpxIssuer {
             common_enums::BankNames::RhbBank => Ok(Self::FpxRhb),
             common_enums::BankNames::StandardCharteredBank => Ok(Self::FpxScb),
             common_enums::BankNames::UobBank => Ok(Self::FpxUob),
-            _ => Err(IntegrationError::not_implemented("payment method").into()),
+            _ => Err(IntegrationError::NotImplemented(
+                ("payment method").into(),
+                Default::default(),
+            )
+            .into()),
         }
     }
 }
@@ -705,7 +722,11 @@ impl TryFrom<&common_enums::BankNames> for OnlineBankingThailandIssuer {
             common_enums::BankNames::KrungThaiBank => Ok(Self::Krungthaibank),
             common_enums::BankNames::TheSiamCommercialBank => Ok(Self::Siamcommercialbank),
             common_enums::BankNames::KasikornBank => Ok(Self::Kbank),
-            _ => Err(IntegrationError::not_implemented("payment method").into()),
+            _ => Err(IntegrationError::NotImplemented(
+                ("payment method").into(),
+                Default::default(),
+            )
+            .into()),
         }
     }
 }
@@ -736,7 +757,11 @@ impl TryFrom<&common_enums::BankNames> for OpenBankingUKIssuer {
             common_enums::BankNames::TsbBank => Ok(Self::TsbBank),
             common_enums::BankNames::TescoBank => Ok(Self::TescoBank),
             common_enums::BankNames::UlsterBank => Ok(Self::UlsterBank),
-            _ => Err(IntegrationError::not_implemented("payment method").into()),
+            _ => Err(IntegrationError::NotImplemented(
+                ("payment method").into(),
+                Default::default(),
+            )
+            .into()),
         }
     }
 }
@@ -1177,8 +1202,9 @@ impl TryFrom<&common_enums::PaymentMethodType> for PaymentType {
             common_enums::PaymentMethodType::Pix => Ok(Self::Pix),
             common_enums::PaymentMethodType::Givex => Ok(Self::Giftcard),
             common_enums::PaymentMethodType::PaySafeCard => Ok(Self::PaySafeCard),
-            _ => Err(IntegrationError::not_implemented(
-                utils::get_unimplemented_payment_method_error_message("Adyen"),
+            _ => Err(IntegrationError::NotImplemented(
+                (utils::get_unimplemented_payment_method_error_message("Adyen")).into(),
+                Default::default(),
             )
             .into()),
         }
@@ -1561,9 +1587,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | WalletData::BillDeskRedirect(_)
             | WalletData::CashfreeRedirect(_)
             | WalletData::PayURedirect(_)
-            | WalletData::EaseBuzzRedirect(_) => {
-                Err(IntegrationError::not_implemented("payment_method").into())
-            }
+            | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotImplemented(
+                ("payment_method").into(),
+                Default::default(),
+            )
+            .into()),
         }
     }
 }
@@ -1610,8 +1638,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             VoucherData::Efecty
             | VoucherData::PagoEfectivo
             | VoucherData::RedCompra
-            | VoucherData::RedPagos => Err(IntegrationError::not_implemented(
-                utils::get_unimplemented_payment_method_error_message("Adyen"),
+            | VoucherData::RedPagos => Err(IntegrationError::NotImplemented(
+                (utils::get_unimplemented_payment_method_error_message("Adyen")).into(),
+                Default::default(),
             )
             .into()),
         }
@@ -1781,8 +1810,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | BankRedirectData::Przelewy24 { .. }
             | BankRedirectData::Sofort { .. }
             | BankRedirectData::OpenBanking { .. }
-            | BankRedirectData::Netbanking { .. } => Err(IntegrationError::not_implemented(
-                utils::get_unimplemented_payment_method_error_message("Adyen"),
+            | BankRedirectData::Netbanking { .. } => Err(IntegrationError::NotImplemented(
+                (utils::get_unimplemented_payment_method_error_message("Adyen")).into(),
+                Default::default(),
             )
             .into()),
         }
@@ -1867,8 +1897,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | BankTransferData::IndonesianBankTransfer { .. }
             | BankTransferData::InstantBankTransferFinland {}
             | BankTransferData::InstantBankTransferPoland {} => {
-                Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("Adyen"),
+                Err(IntegrationError::NotImplemented(
+                    (utils::get_unimplemented_payment_method_error_message("Adyen")).into(),
+                    Default::default(),
                 )
                 .into())
             }
@@ -1886,9 +1917,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             CardRedirectData::Knet {} => Ok(Self::Knet),
             CardRedirectData::Benefit {} => Ok(Self::Benefit),
             CardRedirectData::MomoAtm {} => Ok(Self::MomoAtm),
-            CardRedirectData::CardRedirect {} => {
-                Err(IntegrationError::not_implemented("payment_method").into())
-            }
+            CardRedirectData::CardRedirect {} => Err(IntegrationError::NotImplemented(
+                ("payment_method").into(),
+                Default::default(),
+            )
+            .into()),
         }
     }
 }
@@ -1947,8 +1980,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             BankDebitData::BecsBankDebit { .. }
             | BankDebitData::SepaGuaranteedBankDebit { .. }
-            | BankDebitData::EftBankDebit { .. } => Err(IntegrationError::not_implemented(
-                utils::get_unimplemented_payment_method_error_message("Adyen"),
+            | BankDebitData::EftBankDebit { .. } => Err(IntegrationError::NotImplemented(
+                (utils::get_unimplemented_payment_method_error_message("Adyen")).into(),
+                Default::default(),
             )
             .into()),
         }
@@ -3671,7 +3705,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .to_owned()
             .and_then(|mandate_ids| mandate_ids.mandate_reference_id)
         {
-            Some(_mandate_ref) => Err(IntegrationError::not_implemented("payment_method").into()),
+            Some(_mandate_ref) => Err(IntegrationError::NotImplemented(
+                ("payment_method").into(),
+                Default::default(),
+            )
+            .into()),
             None => match item.router_data.request.payment_method_data.clone() {
                 PaymentMethodData::Card(ref card) => Self::try_from((item, card)),
                 PaymentMethodData::CardRedirect(ref card_redirect_data) => {
@@ -3797,9 +3835,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | PaymentMethodData::OpenBanking(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-                | PaymentMethodData::MobilePayment(_) => {
-                    Err(IntegrationError::not_implemented("payment method").into())
-                }
+                | PaymentMethodData::MobilePayment(_) => Err(IntegrationError::NotImplemented(
+                    ("payment method").into(),
+                    Default::default(),
+                )
+                .into()),
             },
         }
     }
@@ -5396,18 +5436,21 @@ pub struct AdyenIncomingWebhook {
 pub fn get_webhook_object_from_body(
     body: Vec<u8>,
 ) -> Result<AdyenNotificationRequestItemWH, error_stack::Report<IntegrationError>> {
-    let mut webhook: AdyenIncomingWebhook =
-        body.parse_struct("AdyenIncomingWebhook").change_context(
-            IntegrationError::not_implemented("webhook body decoding failed".to_string()),
-        )?;
+    let mut webhook: AdyenIncomingWebhook = body
+        .parse_struct("AdyenIncomingWebhook")
+        .change_context(IntegrationError::NotImplemented(
+            ("webhook body decoding failed".to_string()).into(),
+            Default::default(),
+        ))?;
 
     let item_object =
         webhook
             .notification_items
             .drain(..)
             .next()
-            .ok_or(IntegrationError::not_implemented(
-                "webhook body decoding failed".to_string(),
+            .ok_or(IntegrationError::NotImplemented(
+                ("webhook body decoding failed".to_string()).into(),
+                Default::default(),
             ))?;
 
     Ok(item_object.notification_request_item)
@@ -6111,7 +6154,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .to_owned()
             .and_then(|mandate_ids| mandate_ids.mandate_reference_id)
         {
-            Some(_mandate_ref) => Err(IntegrationError::not_implemented("payment_method").into()),
+            Some(_mandate_ref) => Err(IntegrationError::NotImplemented(
+                ("payment_method").into(),
+                Default::default(),
+            )
+            .into()),
             None => match item.router_data.request.payment_method_data.clone() {
                 PaymentMethodData::Card(ref card) => Self::try_from((item, card)),
                 PaymentMethodData::Wallet(_)
@@ -6132,9 +6179,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::NetworkToken(_)
                 | PaymentMethodData::MobilePayment(_)
-                | PaymentMethodData::PaymentMethodToken(_) => {
-                    Err(IntegrationError::not_implemented("payment method").into())
-                }
+                | PaymentMethodData::PaymentMethodToken(_) => Err(
+                    IntegrationError::NotImplemented(("payment method").into(), Default::default())
+                        .into(),
+                ),
             },
         }
     }

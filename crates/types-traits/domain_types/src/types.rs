@@ -936,9 +936,7 @@ impl<
                 // ============================================================================
                 grpc_api_types::payments::payment_method::PaymentMethod::Card(_) |
                 grpc_api_types::payments::payment_method::PaymentMethod::CardProxy(_) => {
-                    Err(report!(IntegrationError::not_implemented(
-                        "UNSUPPORTED_PAYMENT_METHOD: This flow should never be hit for card or cardproxy types. Please check payment method dispatch/branching logic."
-                    )))
+                    Err(report!(IntegrationError::NotImplemented(("UNSUPPORTED_PAYMENT_METHOD: This flow should never be hit for card or cardproxy types. Please check payment method dispatch/branching logic.").into(), Default::default())))
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::CardRedirect(
                     card_redirect,
@@ -2447,8 +2445,9 @@ impl PaymentMethodDataAction {
                 payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(pm)
             }
             PaymentMethodDataAction::CardProxy(_) => {
-                Err(report!(IntegrationError::not_implemented(
-                    "CardProxy not supported in this flow; use the proxy endpoint"
+                Err(report!(IntegrationError::NotImplemented(
+                    ("CardProxy not supported in this flow; use the proxy endpoint").into(),
+                    Default::default()
                 )))
             }
         }

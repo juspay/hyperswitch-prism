@@ -221,8 +221,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
-                    crate::utils::get_unimplemented_payment_method_error_message("Dlocal"),
+                Err(IntegrationError::NotImplemented(
+                    (crate::utils::get_unimplemented_payment_method_error_message("Dlocal")).into(),
+                    Default::default(),
                 ))?
             }
         }

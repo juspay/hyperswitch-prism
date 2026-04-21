@@ -996,8 +996,9 @@ fn map_webhook_event_to_attempt_status(
         RevolutWebhookEvent::OrderAuthorised => Ok(AttemptStatus::Authorized),
         RevolutWebhookEvent::OrderCancelled => Ok(AttemptStatus::Voided),
         RevolutWebhookEvent::OrderFailed => Ok(AttemptStatus::Failure),
-        _ => Err(IntegrationError::not_implemented(
-            "webhook event type not found".to_string(),
+        _ => Err(IntegrationError::NotImplemented(
+            ("webhook event type not found".to_string()).into(),
+            Default::default(),
         )),
     }
 }
