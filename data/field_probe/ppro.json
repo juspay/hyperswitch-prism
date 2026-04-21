@@ -28,8 +28,36 @@
         "error": "payment method alfamart is not supported by PPRO is not supported by ppro"
       },
       "AliPayRedirect": {
-        "status": "error",
-        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ali_pay_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"ALIPAY\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
+        }
       },
       "AmazonPayRedirect": {
         "status": "not_supported",
@@ -56,8 +84,41 @@
         "error": "payment method bacs is not supported by PPRO is not supported by ppro"
       },
       "BancontactCard": {
-        "status": "error",
-        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bancontact_card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"BANCONTACT\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
+        }
       },
       "BcaBankTransfer": {
         "status": "not_supported",
@@ -72,8 +133,38 @@
         "error": "payment method bizum is not supported by PPRO is not supported by ppro"
       },
       "Blik": {
-        "status": "error",
-        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "blik": {
+              "blik_code": "777124"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"BLIK\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
+        }
       },
       "Bluecode": {
         "status": "not_supported",
@@ -160,8 +251,36 @@
         "error": "payment method google_pay is not supported by PPRO is not supported by ppro"
       },
       "Ideal": {
-        "status": "error",
-        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ideal": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"IDEAL\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
+        }
       },
       "Indomaret": {
         "status": "not_supported",
@@ -208,8 +327,36 @@
         "error": "payment method mandiri_va is not supported by PPRO is not supported by ppro"
       },
       "MbWay": {
-        "status": "error",
-        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "mb_way": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"MBWAY\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
+        }
       },
       "Mifinity": {
         "status": "not_supported",
@@ -320,8 +467,36 @@
         "error": "payment method samsung_pay is not supported by PPRO is not supported by ppro"
       },
       "Satispay": {
-        "status": "error",
-        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "satispay": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"SATISPAY\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
+        }
       },
       "Seicomart": {
         "status": "not_supported",
@@ -356,20 +531,132 @@
         "error": "payment method upi_collect is not supported by PPRO is not supported by ppro"
       },
       "UpiIntent": {
-        "status": "error",
-        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_intent": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"UPI\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
+        }
       },
       "UpiQr": {
-        "status": "error",
-        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_qr": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"UPI\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
+        }
       },
       "WeChatPayQr": {
-        "status": "error",
-        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "we_chat_pay_qr": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"WECHATPAY\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
+        }
       },
       "Wero": {
-        "status": "error",
-        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "wero": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"WERO\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
+        }
       }
     },
     "capture": {

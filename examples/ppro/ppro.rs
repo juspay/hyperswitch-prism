@@ -13,6 +13,7 @@ use std::collections::HashMap;
 
 #[allow(dead_code)]
 pub const SUPPORTED_FLOWS: &[&str] = &[
+    "authorize",
     "capture",
     "get",
     "parse_event",
@@ -41,6 +42,40 @@ fn build_client() -> ConnectorClient {
         }),
     };
     ConnectorClient::new(config, None).unwrap()
+}
+
+pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeRequest {
+    PaymentServiceAuthorizeRequest {
+        merchant_transaction_id: Some("probe_txn_001".to_string()), // Identification.
+        amount: Some(Money {
+            // The amount for the payment.
+            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        payment_method: Some(PaymentMethod {
+            // Payment method to be used.
+            payment_method: Some(payment_method::PaymentMethod::Ideal(Ideal {
+                ..Default::default()
+            })),
+            ..Default::default()
+        }),
+        capture_method: Some(
+            CaptureMethod::from_str_name(capture_method)
+                .unwrap_or_default()
+                .into(),
+        ), // Method for capturing the payment.
+        address: Some(PaymentAddress {
+            // Address Information.
+            billing_address: Some(Address {
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        auth_type: AuthenticationType::NoThreeDs.into(), // Authentication Details.
+        return_url: Some("https://example.com/return".to_string()), // URLs for Redirection and Webhooks.
+        webhook_url: Some("https://example.com/webhook".to_string()),
+        ..Default::default()
+    }
 }
 
 pub fn build_capture_request(connector_transaction_id: &str) -> PaymentServiceCaptureRequest {
@@ -166,6 +201,27 @@ pub fn build_void_request(connector_transaction_id: &str) -> PaymentServiceVoidR
     }
 }
 
+// Flow: PaymentService.Authorize (Ideal)
+#[allow(dead_code)]
+pub async fn process_authorize(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .authorize(build_authorize_request("AUTOMATIC"), &HashMap::new(), None)
+        .await?;
+    match response.status() {
+        PaymentStatus::Failure | PaymentStatus::AuthorizationFailed => {
+            Err(format!("Authorize failed: {:?}", response.error).into())
+        }
+        PaymentStatus::Pending => Ok("pending — await webhook".to_string()),
+        _ => Ok(format!(
+            "Authorized: {}",
+            response.connector_transaction_id.as_deref().unwrap_or("")
+        )),
+    }
+}
+
 // Flow: PaymentService.Capture
 #[allow(dead_code)]
 pub async fn process_capture(
@@ -272,8 +328,9 @@ async fn main() {
     let client = build_client();
     let flow = std::env::args()
         .nth(1)
-        .unwrap_or_else(|| "process_capture".to_string());
+        .unwrap_or_else(|| "process_authorize".to_string());
     let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
+        "process_authorize" => process_authorize(&client, "txn_001").await,
         "process_capture" => process_capture(&client, "txn_001").await,
         "process_get" => process_get(&client, "txn_001").await,
         "process_parse_event" => process_parse_event(&client, "txn_001").await,
@@ -282,7 +339,7 @@ async fn main() {
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_capture, process_get, process_parse_event, process_recurring_charge, process_refund, process_refund_get, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_authorize, process_capture, process_get, process_parse_event, process_recurring_charge, process_refund, process_refund_get, process_void", flow);
             return;
         }
     };
