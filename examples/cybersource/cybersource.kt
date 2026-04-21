@@ -24,7 +24,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.CybersourceConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authenticate", "authorize", "capture", "get", "post_authenticate", "pre_authenticate", "proxy_authorize", "recurring_charge", "recurring_revoke", "refund", "refund_get", "token_authorize", "void")
+val SUPPORTED_FLOWS = listOf<String>("authenticate", "authorize", "capture", "get", "incremental_authorization", "post_authenticate", "pre_authenticate", "proxy_authorize", "recurring_charge", "recurring_revoke", "refund", "refund_get", "token_authorize", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -284,8 +284,8 @@ fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
 }
 
 // Flow: PaymentService.IncrementalAuthorization
-fun incrementalAuthorization(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun incrementalAuthorization(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = PaymentServiceIncrementalAuthorizationRequest.newBuilder().apply {
         merchantAuthorizationId = "probe_auth_001"  // Identification.
         connectorTransactionId = "probe_connector_txn_001"
