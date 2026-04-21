@@ -2593,13 +2593,13 @@ impl TryFrom<NovalnetWebhookNotificationResponseRefunds> for RefundWebhookDetail
 // capture/void — we reuse the shared `ResultData` type here.
 // =============================================================================
 
-#[derive(Default, Debug, Serialize)]
+#[derive(Debug, Serialize)]
 pub struct NovalnetIncrementalAuthTransaction {
     pub tid: String,
     pub amount: StringMinorUnit,
 }
 
-#[derive(Default, Debug, Serialize)]
+#[derive(Debug, Serialize)]
 pub struct NovalnetIncrementalAuthRequest {
     pub transaction: NovalnetIncrementalAuthTransaction,
     pub custom: NovalnetCustom,
@@ -2700,16 +2700,46 @@ impl TryFrom<ResponseRouterData<NovalnetIncrementalAuthResponse, Self>>
             .as_ref()
             .and_then(|data| data.tid.map(|tid| tid.to_string()));
 
+        let transaction_status = item
+            .response
+            .transaction
+            .as_ref()
+            .and_then(|data| data.status);
+
         match item.response.result.status {
             NovalnetAPIStatus::Success => {
-                // The amount update succeeded; the original transaction remains
-                // AUTHORIZED (on-hold) until a subsequent capture. Map to
-                // AuthorizationStatus::Success so callers know the increment
-                // was applied.
-                let authorization_status = common_enums::AuthorizationStatus::Success;
+                // Novalnet can return a SUCCESS envelope with a transaction-level
+                // status that still indicates the increment was not honoured
+                // (Failure/Deactivated). Route those back through the error path
+                // rather than falsely reporting AuthorizationStatus::Success.
+                if matches!(
+                    transaction_status,
+                    Some(NovalnetTransactionStatus::Failure)
+                        | Some(NovalnetTransactionStatus::Deactivated)
+                ) {
+                    let response = Err(get_error_response(
+                        item.response.result,
+                        item.http_code,
+                        transaction_id,
+                    ));
+                    return Ok(Self {
+                        resource_common_data: PaymentFlowData {
+                            status: common_enums::AttemptStatus::Failure,
+                            ..item.router_data.resource_common_data
+                        },
+                        response,
+                        ..item.router_data
+                    });
+                }
 
-                // Preserve the existing flow-data status — the original
-                // transaction is still Authorized after an incremental auth.
+                let authorization_status = match transaction_status {
+                    Some(NovalnetTransactionStatus::Pending)
+                    | Some(NovalnetTransactionStatus::Progress) => {
+                        common_enums::AuthorizationStatus::Processing
+                    }
+                    _ => common_enums::AuthorizationStatus::Success,
+                };
+
                 Ok(Self {
                     response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
                         status: authorization_status,
@@ -2726,6 +2756,10 @@ impl TryFrom<ResponseRouterData<NovalnetIncrementalAuthResponse, Self>>
                     transaction_id,
                 ));
                 Ok(Self {
+                    resource_common_data: PaymentFlowData {
+                        status: common_enums::AttemptStatus::Failure,
+                        ..item.router_data.resource_common_data
+                    },
                     response,
                     ..item.router_data
                 })
