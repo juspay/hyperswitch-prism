@@ -1,0 +1,40 @@
+{
+  "create_order": {
+    "create_order_basic": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 60000,
+          "currency": "INR"
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": ["INITIATED", "REQUIRES_CUSTOMER_ACTION", "PENDING"]
+        }
+      }
+    }
+  },
+  "authorize": {
+    "no3ds_auto_capture_upi_collect": {
+      "grpc_req": {
+        "connector_order_id": ""
+      }
+    },
+    "no3ds_auto_capture_upi_intent": {
+      "grpc_req": {
+        "connector_order_id": ""
+      },
+      "assert": {
+        "connector_transaction_id": null
+      }
+    },
+    "no3ds_auto_capture_upi_qr": {
+      "grpc_req": {
+        "connector_order_id": ""
+      },
+      "assert": {
+        "connector_transaction_id": null
+      }
+    }
+  }
+}

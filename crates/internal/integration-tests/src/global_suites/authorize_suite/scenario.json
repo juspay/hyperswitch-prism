@@ -2850,5 +2850,441 @@
       }
     },
     "display_name": "BACS Bank Transfer | No 3DS | Automatic Capture"
+  },
+  "no3ds_auto_capture_upi_collect": {
+    "grpc_req": {
+      "merchant_transaction_id": "auto_generate",
+      "amount": {
+        "minor_amount": 60000,
+        "currency": "INR"
+      },
+      "order_tax_amount": 0,
+      "shipping_cost": 0,
+      "payment_method": {
+        "upi_collect": {
+          "vpa_id": {
+            "value": "success@upi"
+          }
+        }
+      },
+      "capture_method": "AUTOMATIC",
+      "customer": {
+        "name": "auto_generate",
+        "email": {
+          "value": "auto_generate"
+        },
+        "id": "auto_generate",
+        "phone_number": "auto_generate",
+        "connector_customer_id": ""
+      },
+      "state": {
+        "access_token": {
+          "token": {
+            "value": ""
+          },
+          "token_type": "",
+          "expires_in_seconds": 0
+        }
+      },
+      "address": {
+        "shipping_address": {
+          "first_name": {
+            "value": "auto_generate"
+          },
+          "last_name": {
+            "value": "auto_generate"
+          },
+          "line1": {
+            "value": "auto_generate"
+          },
+          "line2": {
+            "value": "auto_generate"
+          },
+          "line3": {
+            "value": "auto_generate"
+          },
+          "city": {
+            "value": "auto_generate"
+          },
+          "state": {
+            "value": "MH"
+          },
+          "zip_code": {
+            "value": "auto_generate"
+          },
+          "country_alpha2_code": "IN",
+          "email": {
+            "value": "auto_generate"
+          },
+          "phone_number": {
+            "value": "auto_generate"
+          },
+          "phone_country_code": "+91"
+        },
+        "billing_address": {
+          "first_name": {
+            "value": "auto_generate"
+          },
+          "last_name": {
+            "value": "auto_generate"
+          },
+          "line1": {
+            "value": "auto_generate"
+          },
+          "line2": {
+            "value": "auto_generate"
+          },
+          "line3": {
+            "value": "auto_generate"
+          },
+          "city": {
+            "value": "auto_generate"
+          },
+          "state": {
+            "value": "MH"
+          },
+          "zip_code": {
+            "value": "auto_generate"
+          },
+          "country_alpha2_code": "IN",
+          "email": {
+            "value": "auto_generate"
+          },
+          "phone_number": {
+            "value": "auto_generate"
+          },
+          "phone_country_code": "+91"
+        }
+      },
+      "auth_type": "NO_THREE_DS",
+      "enrolled_for_3ds": false,
+      "return_url": "https://example.com/payment/return",
+      "webhook_url": "https://example.com/payment/webhook",
+      "complete_authorize_url": "https://example.com/payment/complete",
+      "order_category": "physical",
+      "setup_future_usage": "ON_SESSION",
+      "off_session": false,
+      "description": "No3DS auto capture UPI Collect payment",
+      "payment_channel": "ECOMMERCE",
+      "test_mode": true,
+      "locale": "en-IN",
+      "browser_info": {
+        "ip_address": "127.0.0.1",
+        "accept_header": "application/json",
+        "user_agent": "Mozilla/5.0 (integration-tests)",
+        "accept_language": "en-IN",
+        "color_depth": 24,
+        "screen_height": 1080,
+        "screen_width": 1920,
+        "java_enabled": false,
+        "java_script_enabled": true,
+        "time_zone_offset_minutes": -330
+      }
+    },
+    "assert": {
+      "status": {
+        "one_of": [
+          "AUTHENTICATION_PENDING",
+          "PENDING",
+          "CHARGED",
+          "AUTHORIZED"
+        ]
+      },
+      "connector_transaction_id": {
+        "must_exist": true
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    },
+    "display_name": "UPI Collect | No 3DS | Automatic Capture"
+  },
+  "no3ds_auto_capture_upi_intent": {
+    "grpc_req": {
+      "merchant_transaction_id": "auto_generate",
+      "amount": {
+        "minor_amount": 60000,
+        "currency": "INR"
+      },
+      "order_tax_amount": 0,
+      "shipping_cost": 0,
+      "payment_method": {
+        "upi_intent": {}
+      },
+      "capture_method": "AUTOMATIC",
+      "customer": {
+        "name": "auto_generate",
+        "email": {
+          "value": "auto_generate"
+        },
+        "id": "auto_generate",
+        "phone_number": "auto_generate",
+        "connector_customer_id": ""
+      },
+      "state": {
+        "access_token": {
+          "token": {
+            "value": ""
+          },
+          "token_type": "",
+          "expires_in_seconds": 0
+        }
+      },
+      "address": {
+        "shipping_address": {
+          "first_name": {
+            "value": "auto_generate"
+          },
+          "last_name": {
+            "value": "auto_generate"
+          },
+          "line1": {
+            "value": "auto_generate"
+          },
+          "line2": {
+            "value": "auto_generate"
+          },
+          "line3": {
+            "value": "auto_generate"
+          },
+          "city": {
+            "value": "auto_generate"
+          },
+          "state": {
+            "value": "MH"
+          },
+          "zip_code": {
+            "value": "auto_generate"
+          },
+          "country_alpha2_code": "IN",
+          "email": {
+            "value": "auto_generate"
+          },
+          "phone_number": {
+            "value": "auto_generate"
+          },
+          "phone_country_code": "+91"
+        },
+        "billing_address": {
+          "first_name": {
+            "value": "auto_generate"
+          },
+          "last_name": {
+            "value": "auto_generate"
+          },
+          "line1": {
+            "value": "auto_generate"
+          },
+          "line2": {
+            "value": "auto_generate"
+          },
+          "line3": {
+            "value": "auto_generate"
+          },
+          "city": {
+            "value": "auto_generate"
+          },
+          "state": {
+            "value": "MH"
+          },
+          "zip_code": {
+            "value": "auto_generate"
+          },
+          "country_alpha2_code": "IN",
+          "email": {
+            "value": "auto_generate"
+          },
+          "phone_number": {
+            "value": "auto_generate"
+          },
+          "phone_country_code": "+91"
+        }
+      },
+      "auth_type": "NO_THREE_DS",
+      "enrolled_for_3ds": false,
+      "return_url": "https://example.com/payment/return",
+      "webhook_url": "https://example.com/payment/webhook",
+      "complete_authorize_url": "https://example.com/payment/complete",
+      "order_category": "physical",
+      "setup_future_usage": "ON_SESSION",
+      "off_session": false,
+      "description": "No3DS auto capture UPI Intent payment",
+      "payment_channel": "ECOMMERCE",
+      "test_mode": true,
+      "locale": "en-IN",
+      "browser_info": {
+        "ip_address": "127.0.0.1",
+        "accept_header": "application/json",
+        "user_agent": "Mozilla/5.0 (integration-tests)",
+        "accept_language": "en-IN",
+        "color_depth": 24,
+        "screen_height": 1080,
+        "screen_width": 1920,
+        "java_enabled": false,
+        "java_script_enabled": true,
+        "time_zone_offset_minutes": -330
+      }
+    },
+    "assert": {
+      "status": {
+        "one_of": [
+          "AUTHENTICATION_PENDING",
+          "PENDING",
+          "CHARGED",
+          "AUTHORIZED"
+        ]
+      },
+      "connector_transaction_id": {
+        "must_exist": true
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    },
+    "display_name": "UPI Intent | No 3DS | Automatic Capture"
+  },
+  "no3ds_auto_capture_upi_qr": {
+    "grpc_req": {
+      "merchant_transaction_id": "auto_generate",
+      "amount": {
+        "minor_amount": 60000,
+        "currency": "INR"
+      },
+      "order_tax_amount": 0,
+      "shipping_cost": 0,
+      "payment_method": {
+        "upi_qr": {}
+      },
+      "capture_method": "AUTOMATIC",
+      "customer": {
+        "name": "auto_generate",
+        "email": {
+          "value": "auto_generate"
+        },
+        "id": "auto_generate",
+        "phone_number": "auto_generate",
+        "connector_customer_id": ""
+      },
+      "state": {
+        "access_token": {
+          "token": {
+            "value": ""
+          },
+          "token_type": "",
+          "expires_in_seconds": 0
+        }
+      },
+      "address": {
+        "shipping_address": {
+          "first_name": {
+            "value": "auto_generate"
+          },
+          "last_name": {
+            "value": "auto_generate"
+          },
+          "line1": {
+            "value": "auto_generate"
+          },
+          "line2": {
+            "value": "auto_generate"
+          },
+          "line3": {
+            "value": "auto_generate"
+          },
+          "city": {
+            "value": "auto_generate"
+          },
+          "state": {
+            "value": "MH"
+          },
+          "zip_code": {
+            "value": "auto_generate"
+          },
+          "country_alpha2_code": "IN",
+          "email": {
+            "value": "auto_generate"
+          },
+          "phone_number": {
+            "value": "auto_generate"
+          },
+          "phone_country_code": "+91"
+        },
+        "billing_address": {
+          "first_name": {
+            "value": "auto_generate"
+          },
+          "last_name": {
+            "value": "auto_generate"
+          },
+          "line1": {
+            "value": "auto_generate"
+          },
+          "line2": {
+            "value": "auto_generate"
+          },
+          "line3": {
+            "value": "auto_generate"
+          },
+          "city": {
+            "value": "auto_generate"
+          },
+          "state": {
+            "value": "MH"
+          },
+          "zip_code": {
+            "value": "auto_generate"
+          },
+          "country_alpha2_code": "IN",
+          "email": {
+            "value": "auto_generate"
+          },
+          "phone_number": {
+            "value": "auto_generate"
+          },
+          "phone_country_code": "+91"
+        }
+      },
+      "auth_type": "NO_THREE_DS",
+      "enrolled_for_3ds": false,
+      "return_url": "https://example.com/payment/return",
+      "webhook_url": "https://example.com/payment/webhook",
+      "complete_authorize_url": "https://example.com/payment/complete",
+      "order_category": "physical",
+      "setup_future_usage": "ON_SESSION",
+      "off_session": false,
+      "description": "No3DS auto capture UPI QR payment",
+      "payment_channel": "ECOMMERCE",
+      "test_mode": true,
+      "locale": "en-IN",
+      "browser_info": {
+        "ip_address": "127.0.0.1",
+        "accept_header": "application/json",
+        "user_agent": "Mozilla/5.0 (integration-tests)",
+        "accept_language": "en-IN",
+        "color_depth": 24,
+        "screen_height": 1080,
+        "screen_width": 1920,
+        "java_enabled": false,
+        "java_script_enabled": true,
+        "time_zone_offset_minutes": -330
+      }
+    },
+    "assert": {
+      "status": {
+        "one_of": [
+          "AUTHENTICATION_PENDING",
+          "PENDING",
+          "CHARGED",
+          "AUTHORIZED"
+        ]
+      },
+      "connector_transaction_id": {
+        "must_exist": true
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    },
+    "display_name": "UPI QR | No 3DS | Automatic Capture"
   }
 }

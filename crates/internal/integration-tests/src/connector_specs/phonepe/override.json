@@ -1,0 +1,32 @@
+{
+  "authorize": {
+    "no3ds_auto_capture_upi_collect": {
+      "grpc_req": {
+        "payment_method": {
+          "upi_collect": {
+            "vpa_id": {
+              "value": "success@ybl"
+            }
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_upi_intent": {
+      "assert": {
+        "connector_transaction_id": null
+      }
+    },
+    "no3ds_auto_capture_upi_qr": {
+      "assert": {
+        "connector_transaction_id": null
+      }
+    }
+  },
+  "get": {
+    "sync_upi_collect": {
+      "assert": {
+        "error": null
+      }
+    }
+  }
+}

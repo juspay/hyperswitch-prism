@@ -68,5 +68,104 @@
       }
     },
     "display_name": "Get | Sync Payment With Handle Response"
+  },
+  "sync_upi_collect": {
+    "grpc_req": {
+      "connector_transaction_id": "auto_generate",
+      "amount": {
+        "minor_amount": 60000,
+        "currency": "INR"
+      },
+      "state": {
+        "connector_customer_id": "",
+        "access_token": {
+          "token": {
+            "value": ""
+          },
+          "token_type": "",
+          "expires_in_seconds": 0
+        }
+      }
+    },
+    "assert": {
+      "status": {
+        "one_of": [
+          "CHARGED",
+          "AUTHORIZED",
+          "PENDING",
+          "AUTHENTICATION_PENDING"
+        ]
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    },
+    "display_name": "Get | Sync UPI Collect"
+  },
+  "sync_upi_intent": {
+    "grpc_req": {
+      "connector_transaction_id": "auto_generate",
+      "amount": {
+        "minor_amount": 60000,
+        "currency": "INR"
+      },
+      "state": {
+        "connector_customer_id": "",
+        "access_token": {
+          "token": {
+            "value": ""
+          },
+          "token_type": "",
+          "expires_in_seconds": 0
+        }
+      }
+    },
+    "assert": {
+      "status": {
+        "one_of": [
+          "CHARGED",
+          "AUTHORIZED",
+          "PENDING",
+          "AUTHENTICATION_PENDING"
+        ]
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    },
+    "display_name": "Get | Sync UPI Intent"
+  },
+  "sync_upi_qr": {
+    "grpc_req": {
+      "connector_transaction_id": "auto_generate",
+      "amount": {
+        "minor_amount": 60000,
+        "currency": "INR"
+      },
+      "state": {
+        "connector_customer_id": "",
+        "access_token": {
+          "token": {
+            "value": ""
+          },
+          "token_type": "",
+          "expires_in_seconds": 0
+        }
+      }
+    },
+    "assert": {
+      "status": {
+        "one_of": [
+          "CHARGED",
+          "AUTHORIZED",
+          "PENDING",
+          "AUTHENTICATION_PENDING"
+        ]
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    },
+    "display_name": "Get | Sync UPI QR"
   }
 }

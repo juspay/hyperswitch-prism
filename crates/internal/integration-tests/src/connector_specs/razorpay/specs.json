@@ -1,4 +1,8 @@
 {
   "connector": "razorpay",
-  "supported_suites": []
+  "supported_suites": [
+    "authorize",
+    "create_order",
+    "get"
+  ]
 }

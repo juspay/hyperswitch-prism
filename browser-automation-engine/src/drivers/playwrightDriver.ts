@@ -254,6 +254,12 @@ export class PlaywrightDriverFactory implements BrowserDriverFactory {
       slowMo: options.slowMoMs
     });
     const context = await browser.newContext({ viewport: options.viewport });
+    // Hide the `navigator.webdriver` flag so pages with casual bot checks
+    // (e.g. Cashfree's UPI simulator) don't refuse to enable their own
+    // submit buttons when driven by Playwright.
+    await context.addInitScript(() => {
+      Object.defineProperty(navigator, "webdriver", { get: () => undefined });
+    });
     const page = await context.newPage();
 
     page.setDefaultTimeout(options.defaultTimeoutMs);

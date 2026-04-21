@@ -1,4 +1,6 @@
 {
   "connector": "razorpayv2",
-  "supported_suites": []
+  "supported_suites": [
+    "authorize"
+  ]
 }
