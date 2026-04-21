@@ -1318,38 +1318,22 @@ static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             );
         }
 
-        razorpay_supported_payment_methods.add(
-            PaymentMethod::Upi,
+        for upi_type in [
             PaymentMethodType::UpiCollect,
-            PaymentMethodDetails {
-                mandates: FeatureStatus::NotSupported,
-                refunds: FeatureStatus::NotSupported,
-                supported_capture_methods: vec![CaptureMethod::Automatic],
-                specific_features: None,
-            },
-        );
-
-        razorpay_supported_payment_methods.add(
-            PaymentMethod::Upi,
             PaymentMethodType::UpiIntent,
-            PaymentMethodDetails {
-                mandates: FeatureStatus::NotSupported,
-                refunds: FeatureStatus::NotSupported,
-                supported_capture_methods: vec![CaptureMethod::Automatic],
-                specific_features: None,
-            },
-        );
-
-        razorpay_supported_payment_methods.add(
-            PaymentMethod::Upi,
             PaymentMethodType::UpiQr,
-            PaymentMethodDetails {
-                mandates: FeatureStatus::NotSupported,
-                refunds: FeatureStatus::NotSupported,
-                supported_capture_methods: vec![CaptureMethod::Automatic],
-                specific_features: None,
-            },
-        );
+        ] {
+            razorpay_supported_payment_methods.add(
+                PaymentMethod::Upi,
+                upi_type,
+                PaymentMethodDetails {
+                    mandates: FeatureStatus::NotSupported,
+                    refunds: FeatureStatus::NotSupported,
+                    supported_capture_methods: vec![CaptureMethod::Automatic],
+                    specific_features: None,
+                },
+            );
+        }
 
         razorpay_supported_payment_methods.add(
             PaymentMethod::BankRedirect,

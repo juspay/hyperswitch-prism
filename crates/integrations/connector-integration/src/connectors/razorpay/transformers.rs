@@ -177,7 +177,6 @@ pub enum RazorpayCardSpecificData<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
     Card(CardDetails<T>),
-    Wallet(RazorpayWalletType),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
