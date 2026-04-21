@@ -2762,22 +2762,6 @@ pub struct CybersourcePaymentsIncrementalAuthorizationResponse {
     pub error_information: Option<CybersourceErrorInformation>,
 }
 
-// Build CybersourcePaymentsIncrementalAuthorizationRequest from RouterDataV2.
-// Request body mirrors the CyberSource REST API shape:
-//   {
-//     "processingInformation": {
-//       "commerceIndicator": "internet",
-//       "authorizationOptions": {
-//         "initiator": { "storedCredentialUsed": true }
-//       }
-//     },
-//     "orderInformation": {
-//       "amountDetails": {
-//         "additionalAmount": "<major_amount>",
-//         "currency": "USD"
-//       }
-//     }
-//   }
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         CybersourceRouterData<
