@@ -426,6 +426,7 @@ pub enum StripeBankRedirectData {
     StripeEps(Box<StripeEps>),
     StripeBlik(Box<StripeBlik>),
     StripeOnlineBankingFpx(Box<StripeOnlineBankingFpx>),
+    StripeSofort(Box<StripeSofort>),
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -476,6 +477,14 @@ pub struct StripeBlik {
 pub struct StripeOnlineBankingFpx {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct StripeSofort {
+    #[serde(rename = "payment_method_data[type]")]
+    pub payment_method_data_type: StripePaymentMethodType,
+    #[serde(rename = "payment_method_data[sofort][country]")]
+    pub country: Option<common_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1767,6 +1776,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     })),
                 ))
             }
+            BankRedirectData::Sofort { country, .. } => Ok(Self::BankRedirect(
+                StripeBankRedirectData::StripeSofort(Box::new(StripeSofort {
+                    payment_method_data_type,
+                    country: *country,
+                })),
+            )),
             BankRedirectData::OnlineBankingFpx { .. } => Err(IntegrationError::not_implemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )
@@ -1780,7 +1795,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | BankRedirectData::OnlineBankingSlovakia { .. }
             | BankRedirectData::OnlineBankingThailand { .. }
             | BankRedirectData::OpenBankingUk { .. }
-            | BankRedirectData::Sofort { .. }
             | BankRedirectData::Trustly { .. }
             | BankRedirectData::LocalBankRedirect {}
             | BankRedirectData::OpenBanking {}
