@@ -108,8 +108,37 @@
         "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "crypto": {
+              "pay_currency": "LTC",
+              "network": "litecoin"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://business-sandbox.cryptopay.me/api/invoices",
+          "method": "Post",
+          "headers": {
+            "authorization": "HMAC probe_key:cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"price_amount\":\"10.00\",\"price_currency\":\"USD\",\"pay_currency\":\"LTC\",\"network\":\"litecoin\",\"success_redirect_url\":\"https://example.com/return\",\"unsuccess_redirect_url\":\"https://example.com/return\",\"custom_id\":\"probe_txn_001\"}"
+        }
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",

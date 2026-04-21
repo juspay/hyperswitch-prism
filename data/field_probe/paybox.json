@@ -139,7 +139,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Only card payments are supported is not supported by Paybox"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",

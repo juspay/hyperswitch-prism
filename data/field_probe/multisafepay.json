@@ -170,8 +170,8 @@
         "error": "This feature is not implemented: Selected payment method through multisafepay"
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",

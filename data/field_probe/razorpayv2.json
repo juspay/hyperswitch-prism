@@ -813,8 +813,37 @@
         }
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "crypto": {
+              "pay_currency": "LTC",
+              "network": "litecoin"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api.razorpay.com/v1/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+        }
       },
       "DanamonVaBankTransfer": {
         "status": "supported",

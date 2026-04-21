@@ -108,8 +108,8 @@
         "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "status": "error",
+        "error": "Stuck on field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment — Missing required field: payment_session_id. Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment"
       },
       "DanamonVaBankTransfer": {
         "status": "error",

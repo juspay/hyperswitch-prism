@@ -167,7 +167,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Payment method Crypto(CryptoData { pay_currency: Some(\"LTC\"), network: Some(\"litecoin\") }) is not supported by authorizedotnet"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",

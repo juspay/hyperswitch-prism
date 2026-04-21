@@ -203,7 +203,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",

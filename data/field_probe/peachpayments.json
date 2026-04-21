@@ -142,7 +142,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Payment method not supported is not supported by peachpayments"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",

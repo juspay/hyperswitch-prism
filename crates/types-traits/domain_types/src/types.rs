@@ -5039,6 +5039,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             } => Ok(Self::Reward),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::Crypto(_)),
+            } => Ok(Self::Crypto),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::ApplePay(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {

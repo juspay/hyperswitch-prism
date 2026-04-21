@@ -109,7 +109,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",

@@ -205,7 +205,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",

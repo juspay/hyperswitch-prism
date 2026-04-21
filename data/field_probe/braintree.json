@@ -137,7 +137,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Selected payment method through braintree is not supported by Braintree"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
