@@ -1640,7 +1640,10 @@ impl TryFrom<ResponseRouterData<WorldpayIncrementalAuthResponse, Self>>
         });
         let connector_authorization_id = match href {
             Some(href) => {
-                let encoded = href.rsplit_once('/').map(|(_, h)| h).unwrap_or(href.as_str());
+                let encoded = href
+                    .rsplit_once('/')
+                    .map(|(_, h)| h)
+                    .unwrap_or(href.as_str());
                 Some(
                     urlencoding::decode(encoded)
                         .map(|s| s.into_owned())

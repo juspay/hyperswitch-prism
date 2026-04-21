@@ -7,7 +7,7 @@
 
 import { PaymentClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
 const { Environment, AuthenticationType, CaptureMethod, Currency, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "get", "proxy_authorize", "recurring_charge", "refund", "refund_get", "void"];
+export const SUPPORTED_FLOWS = ["authorize", "capture", "get", "incremental_authorization", "proxy_authorize", "recurring_charge", "refund", "refund_get", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -70,6 +70,18 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
             "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
+    };
+}
+
+function _buildIncrementalAuthorizationRequest(): types.IPaymentServiceIncrementalAuthorizationRequest {
+    return {
+        "merchantAuthorizationId": "probe_auth_001",  // Identification.
+        "connectorTransactionId": "probe_connector_txn_001",
+        "amount": {  // new amount to be authorized (in minor currency units).
+            "minorAmount": 1100,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "reason": "incremental_auth_probe"  // Optional Fields.
     };
 }
 
@@ -287,6 +299,15 @@ async function get(merchantTransactionId: string, config: types.IConnectorConfig
     const getResponse = await paymentClient.get(_buildGetRequest('probe_connector_txn_001'));
 
     return getResponse;
+}
+
+// Flow: PaymentService.IncrementalAuthorization
+async function incrementalAuthorization(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const incrementalResponse = await paymentClient.incrementalAuthorization(_buildIncrementalAuthorizationRequest());
+
+    return incrementalResponse;
 }
 
 // Flow: PaymentService.ProxyAuthorize

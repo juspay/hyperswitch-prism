@@ -23,7 +23,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.WorldpayConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "proxy_authorize", "recurring_charge", "refund", "refund_get", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "incremental_authorization", "proxy_authorize", "recurring_charge", "refund", "refund_get", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -235,6 +235,22 @@ fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
     val request = buildGetRequest("probe_connector_txn_001")
     val response = client.get(request)
+    println("Status: ${response.status.name}")
+}
+
+// Flow: PaymentService.IncrementalAuthorization
+fun incrementalAuthorization(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = PaymentServiceIncrementalAuthorizationRequest.newBuilder().apply {
+        merchantAuthorizationId = "probe_auth_001"  // Identification.
+        connectorTransactionId = "probe_connector_txn_001"
+        amountBuilder.apply {  // new amount to be authorized (in minor currency units).
+            minorAmount = 1100L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        reason = "incremental_auth_probe"  // Optional Fields.
+    }.build()
+    val response = client.incremental_authorization(request)
     println("Status: ${response.status.name}")
 }
 
