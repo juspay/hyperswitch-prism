@@ -168,7 +168,6 @@ fn create_payment_sync_request(transaction_id: &str, amount: i64) -> PaymentServ
             id_type: Some(IdType::Id(generate_unique_id("bluesnap_sync"))),
         }),
         capture_method: None,
-        handle_response: None,
         amount,
         currency: i32::from(Currency::Usd),
         state: None,

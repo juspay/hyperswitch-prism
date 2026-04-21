@@ -829,6 +829,11 @@
         }
       }
     },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "post_authenticate": {
       "default": {
         "status": "supported",

@@ -6,8 +6,8 @@
 // Run a scenario:  npx tsx payload.ts checkout_autocapture
 
 import { PaymentClient, MerchantAuthenticationClient, EventClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CountryAlpha2, Currency, FutureUsage, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "get", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "void"];
+const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CountryAlpha2, Currency, FutureUsage, HttpMethod, PaymentMethodType } = types;
+export const SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -107,8 +107,15 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
     };
 }
 
-function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
+function _buildParseEventRequest(): types.IEventServiceParseRequest {
     return {
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{\"object\":\"transaction\",\"trigger\":\"payment\",\"webhook_id\":\"probe_wh_001\",\"triggered_at\":\"2024-01-01T00:00:00Z\",\"triggered_on\":{\"id\":\"probe_txn_001\",\"object\":\"transaction\"},\"url\":\"https://example.com/webhook\"}", "utf-8"))  // Body of the HTTP request.
+        }
     };
 }
 
@@ -484,13 +491,13 @@ async function get(merchantTransactionId: string, config: types.IConnectorConfig
     return getResponse;
 }
 
-// Flow: EventService.HandleEvent
-async function handleEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+// Flow: EventService.ParseEvent
+async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const eventClient = new EventClient(config);
 
-    const handleResponse = await eventClient.handleEvent(_buildHandleEventRequest());
+    const parseResponse = await eventClient.parseEvent(_buildParseEventRequest());
 
-    return handleResponse;
+    return parseResponse;
 }
 
 // Flow: PaymentService.ProxyAuthorize
@@ -568,7 +575,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, get, handleEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildGetRequest, _buildHandleEventRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, get, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildGetRequest, _buildParseEventRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
 };
 
 // CLI runner
