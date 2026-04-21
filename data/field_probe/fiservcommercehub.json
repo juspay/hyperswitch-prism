@@ -542,8 +542,40 @@
     },
     "recurring_charge": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_id — Missing required field: payment_method_id"
+        "status": "supported",
+        "proto_request": {
+          "merchant_reference_id": "probe_recurring_charge_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "additional_payment_data": {
+            "initiator": "merchant",
+            "off_session": true,
+            "recurring_model": "subscription",
+            "mandate_id": "probe_mandate_001",
+            "original_authorized_amount": {
+              "minor_amount": 1000,
+              "currency": "USD"
+            }
+          },
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "ConnectorMandateId": {
+                "connector_mandate_id": "probe-mandate-123",
+                "payment_method_id": "TRANSARMOR",
+                "connector_mandate_request_reference_id": null
+              }
+            }
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        }
       }
     },
     "recurring_revoke": {
@@ -627,8 +659,42 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "error",
-        "error": "Failed to encode connector request"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "payment_method": {
+              "Card": {
+                "card_number": "4111111111111111",
+                "card_exp_month": "03",
+                "card_exp_year": "2030",
+                "card_cvc": "123",
+                "card_holder_name": "John Doe"
+              }
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": 0,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": 1,
+          "customer_acceptance": {
+            "acceptance_type": 0,
+            "accepted_at": 0
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        }
       }
     },
     "token_authorize": {

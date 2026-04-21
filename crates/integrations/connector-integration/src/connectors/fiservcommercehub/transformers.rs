@@ -475,9 +475,8 @@ impl FiservcommercehubPaymentTokens {
                     .token_response_code
                     .as_ref()
                     .map(|code| {
-                        code == "000"
-                            || code.eq_ignore_ascii_case("SUCCESS")
-                                && token.token_source == Some("TRANSARMOR".to_string())
+                        (code == "000" || code.eq_ignore_ascii_case("SUCCESS"))
+                            && token.token_source == Some("TRANSARMOR".to_string())
                     })
                     .unwrap_or(false)
             })

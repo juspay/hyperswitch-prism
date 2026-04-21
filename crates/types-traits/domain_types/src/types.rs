@@ -9455,7 +9455,7 @@ pub struct ConnectorInfo {
     pub connector_type: PaymentConnectorCategory,
 }
 
-/// Additional payment data for various payment methods
+/// Required for passing additional details for Recurring payments from initial payments
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum AdditionalPaymentData {
