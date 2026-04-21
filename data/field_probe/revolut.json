@@ -279,7 +279,8 @@
                   "payment_data": {
                     "online_payment_cryptogram": "AAAAAA==",
                     "eci_indicator": "05"
-                  }
+                  },
+                  "device_manufacturer_identifier": "040010030273"
                 }
               },
               "payment_method": {
