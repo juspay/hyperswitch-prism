@@ -15,9 +15,10 @@ use domain_types::{
         IncrementalAuthorization, PaymentMethodToken, RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
-        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
-        ConnectorCustomerResponse, ConnectorSpecificClientAuthenticationResponse, MandateReference,
-        MandateReferenceId, PaymentFlowData, PaymentMethodTokenResponse,
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        ConnectorCustomerData, ConnectorCustomerResponse,
+        ConnectorSpecificClientAuthenticationResponse, DisputeFlowData, DisputeResponseData,
+        MandateReference, MandateReferenceId, PaymentFlowData, PaymentMethodTokenResponse,
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
@@ -3855,6 +3856,45 @@ pub struct DisputeObj {
     #[serde(rename = "id")]
     pub dispute_id: String,
     pub status: String,
+}
+
+impl<F, Req> TryFrom<ResponseRouterData<DisputeObj, Self>>
+    for RouterDataV2<F, DisputeFlowData, Req, DisputeResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        value: ResponseRouterData<DisputeObj, Self>,
+    ) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response,
+            router_data,
+            http_code,
+        } = value;
+
+        let dispute_status = match response.status.as_str() {
+            "lost" => common_enums::DisputeStatus::DisputeAccepted,
+            "won" => common_enums::DisputeStatus::DisputeWon,
+            "needs_response" | "warning_needs_response" => {
+                common_enums::DisputeStatus::DisputeOpened
+            }
+            "under_review" | "warning_under_review" => {
+                common_enums::DisputeStatus::DisputeChallenged
+            }
+            "warning_closed" | "prevented" => common_enums::DisputeStatus::DisputeWon,
+            _ => common_enums::DisputeStatus::DisputeOpened,
+        };
+
+        Ok(Self {
+            response: Ok(DisputeResponseData {
+                dispute_status,
+                connector_dispute_id: response.dispute_id,
+                connector_dispute_status: Some(response.status),
+                status_code: http_code,
+            }),
+            ..router_data
+        })
+    }
 }
 
 fn get_transaction_metadata(

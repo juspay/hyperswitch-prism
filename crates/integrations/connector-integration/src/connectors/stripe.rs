@@ -54,8 +54,8 @@ use interfaces::{
 use serde::Serialize;
 use transformers::{
     self as stripe, CancelRequest, CaptureRequest, CreateConnectorCustomerRequest,
-    CreateConnectorCustomerResponse, PaymentIncrementalAuthRequest, PaymentIntentRequest,
-    PaymentIntentRequest as RepeatPaymentRequest,
+    CreateConnectorCustomerResponse, DisputeObj, PaymentIncrementalAuthRequest,
+    PaymentIntentRequest, PaymentIntentRequest as RepeatPaymentRequest,
     PaymentIntentResponse as PaymentIncrementalAuthResponse, PaymentSyncResponse,
     PaymentsAuthorizeResponse, PaymentsAuthorizeResponse as RepeatPaymentResponse,
     PaymentsCaptureResponse, PaymentsVoidResponse, RefundResponse,
@@ -802,6 +802,11 @@ macros::create_all_prerequisites!(
             request_body: StripeClientAuthRequest,
             response_body: StripeClientAuthResponse,
             router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ),
+        (
+            flow: Accept,
+            response_body: DisputeObj,
+            router_data: RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
         )
     ],
     amount_converters: [],
@@ -829,6 +834,13 @@ macros::create_all_prerequisites!(
         pub fn connector_base_url_refunds<'a, F, Req, Res>(
             &self,
             req: &'a RouterDataV2<F, RefundFlowData, Req, Res>,
+        ) -> &'a str {
+            &req.resource_common_data.connectors.stripe.base_url
+        }
+
+        pub fn connector_base_url_disputes<'a, F, Req, Res>(
+            &self,
+            req: &'a RouterDataV2<F, DisputeFlowData, Req, Res>,
         ) -> &'a str {
             &req.resource_common_data.connectors.stripe.base_url
         }
@@ -1514,11 +1526,37 @@ macros::macro_connector_implementation!(
     }
 );
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
-    for Stripe<T>
-{
-}
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Stripe,
+    curl_response: DisputeObj,
+    flow_name: Accept,
+    resource_common_data: DisputeFlowData,
+    flow_request: AcceptDisputeData,
+    flow_response: DisputeResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let dispute_id = &req.request.connector_dispute_id;
+            Ok(format!(
+                "{}v1/disputes/{}/close",
+                self.connector_base_url_disputes(req),
+                dispute_id
+            ))
+        }
+    }
+);
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>
     for Stripe<T>
