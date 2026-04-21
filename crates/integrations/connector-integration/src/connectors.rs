@@ -238,3 +238,8 @@ pub use self::trustly::Trustly;
 
 pub mod itaubank;
 pub use self::itaubank::Itaubank;
+
+pub mod juspay_upi_stack;
+
+pub mod axisbank;
+pub use self::axisbank::Axisbank;

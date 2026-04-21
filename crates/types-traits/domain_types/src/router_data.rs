@@ -711,6 +711,15 @@ pub enum ConnectorSpecificConfig {
         client_secret: Secret<String>,
         base_url: Option<String>,
     },
+    Axisbank {
+        merchant_id: Secret<String>,
+        merchant_channel_id: Secret<String>,
+        merchant_kid: Secret<String>,
+        juspay_kid: Secret<String>,
+        merchant_private_key: Secret<String>,
+        juspay_public_key: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -1010,6 +1019,14 @@ impl ConnectorSpecificConfig {
             Itaubank {
                 client_id,
                 client_secret
+            },
+            Axisbank {
+                merchant_id,
+                merchant_channel_id,
+                merchant_kid,
+                juspay_kid,
+                merchant_private_key,
+                juspay_public_key
             }
         )
     }
@@ -1398,6 +1415,15 @@ impl ConnectorSpecificConfig {
                 Itaubank {
                     client_id,
                     client_secret
+                },
+                Axisbank {
+                    merchant_id,
+                    merchant_channel_id,
+                    merchant_kid,
+                    juspay_kid,
+                    merchant_private_key,
+                    juspay_public_key,
+                    base_url
                 }
             ),
             serde_json::Value::Object(connector_patch),
@@ -1874,6 +1900,15 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 password: trustly.password.ok_or_else(err)?,
                 private_key: trustly.private_key.ok_or_else(err)?,
                 base_url: trustly.base_url,
+            }),
+            AuthType::Axisbank(axisbank) => Ok(Self::Axisbank {
+                merchant_id: axisbank.merchant_id.ok_or_else(err)?,
+                merchant_channel_id: axisbank.merchant_channel_id.ok_or_else(err)?,
+                merchant_kid: axisbank.merchant_kid.ok_or_else(err)?,
+                juspay_kid: axisbank.juspay_kid.ok_or_else(err)?,
+                merchant_private_key: axisbank.merchant_private_key.ok_or_else(err)?,
+                juspay_public_key: axisbank.juspay_public_key.ok_or_else(err)?,
+                base_url: axisbank.base_url,
             }),
             AuthType::Truelayer(truelayer) => Ok(Self::Truelayer {
                 client_id: truelayer.client_id.ok_or_else(err)?,
@@ -2892,6 +2927,18 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Itaubank {
                     client_id: api_key.clone(),
                     client_secret: key1.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err().into()),
+            },
+            ConnectorEnum::Axisbank => match auth {
+                ConnectorAuthType::MultiAuthKey { api_key, key1, api_secret, key2 } => Ok(Self::Axisbank {
+                    merchant_id: api_key.clone(),
+                    merchant_channel_id: key1.clone(),
+                    merchant_kid: api_secret.clone(),
+                    juspay_kid: key2.clone(),
+                    merchant_private_key: Secret::new(String::new()),
+                    juspay_public_key: Secret::new(String::new()),
                     base_url: None,
                 }),
                 _ => Err(err().into()),

@@ -635,5 +635,14 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             client_secret: s(),
             base_url: None,
         },
+        ConnectorEnum::Axisbank => ConnectorSpecificConfig::Axisbank {
+            merchant_id: m(),
+            merchant_channel_id: id(),
+            merchant_kid: k(),
+            juspay_kid: k(),
+            merchant_private_key: s(),
+            juspay_public_key: s(),
+            base_url: None,
+        },
     }
 }
