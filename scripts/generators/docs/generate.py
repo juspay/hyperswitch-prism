@@ -222,6 +222,8 @@ _FLOW_KEY_OVERRIDES: dict[tuple[str, str], str] = {
     ("PaymentMethodService", "Tokenize"): "tokenize",
     # EventService.HandleEvent should just be "handle_event" not "event_handle_event"
     ("EventService", "HandleEvent"): "handle_event",
+    # EventService.ParseEvent should just be "parse_event" not "event_parse_event"
+    ("EventService", "ParseEvent"): "parse_event",
     # VerifyRedirectResponse -> verify_redirect (truncated in probe data)
     ("PaymentService", "VerifyRedirectResponse"): "verify_redirect",
     # MerchantAuthenticationService flows (probe data doesn't use merchant_auth_ prefix)
@@ -1299,8 +1301,10 @@ def check_example_syntax(examples_dir: Path, connectors: Optional[list[str]] = N
             kt_ok = True
             print(f"  Checking Kotlin ({len(kt_files)} files) via Gradle ...", end=" ", flush=True)
             # Ensure the SDK JAR is in Maven local so smoke-test can resolve it.
+            # Clean first so new proto-generated classes (e.g. EventServiceParseRequest)
+            # are always compiled from the regenerated Payment.java, not a stale cache.
             subprocess.run(
-                [str(gradlew), "publishToMavenLocal", "-q"],
+                [str(gradlew), "clean", "publishToMavenLocal", "-q"],
                 capture_output=True, text=True,
                 cwd=str(sdk_java_dir),
             )

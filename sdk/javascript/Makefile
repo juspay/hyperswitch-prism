@@ -195,6 +195,17 @@ test-package: build-ffi-lib generate-all build-ts pack-archive
 		NODE_PATH=/tmp/test-hyperswitch-js-composite/node_modules node test_smoke_composite.js \
 		--connectors $(CONNECTORS) --examples-dir $(REPO_ROOT)/examples
 	@rm -rf /tmp/test-hyperswitch-js-composite
+	@echo "Running webhook smoke test..."
+	@rm -rf /tmp/test-hyperswitch-js-webhook
+	@mkdir -p /tmp/test-hyperswitch-js-webhook
+	@test -f $(JS_TARBALL) || (echo "Error: Tarball not found: $(JS_TARBALL)" && exit 1)
+	@cd /tmp/test-hyperswitch-js-webhook && npm init -y --silent && \
+		npm install $(JS_TARBALL) typescript @types/node --silent
+	@cp $(SDK_ROOT)/smoke-test/test_smoke_webhook.ts /tmp/test-hyperswitch-js-webhook/
+	@cp $(SDK_ROOT)/smoke-test/tsconfig.json /tmp/test-hyperswitch-js-webhook/
+	@cd /tmp/test-hyperswitch-js-webhook && \
+		NODE_PATH=/tmp/test-hyperswitch-js-webhook/node_modules npx tsx test_smoke_webhook.ts
+	@rm -rf /tmp/test-hyperswitch-js-webhook
 
 # ---------------------------------------------------------------------------
 # test-composite
