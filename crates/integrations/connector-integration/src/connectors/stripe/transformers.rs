@@ -3868,8 +3868,10 @@ fn mandatory_parameters_for_sepa_bank_debit_mandates(
 #[derive(Debug, Deserialize, Serialize)]
 pub struct DisputeObj {
     #[serde(rename = "id")]
-    pub dispute_id: String,
-    pub status: String,
+    #[serde(default)]
+    pub dispute_id: Option<String>,
+    #[serde(default)]
+    pub status: Option<String>,
 }
 
 impl<F, Req> TryFrom<ResponseRouterData<DisputeObj, Self>>
@@ -3886,7 +3888,8 @@ impl<F, Req> TryFrom<ResponseRouterData<DisputeObj, Self>>
             http_code,
         } = value;
 
-        let dispute_status = match response.status.as_str() {
+        let status_str = response.status.as_deref().unwrap_or_default();
+        let dispute_status = match status_str {
             "lost" => common_enums::DisputeStatus::DisputeAccepted,
             "won" => common_enums::DisputeStatus::DisputeWon,
             "needs_response" | "warning_needs_response" => {
@@ -3902,8 +3905,8 @@ impl<F, Req> TryFrom<ResponseRouterData<DisputeObj, Self>>
         Ok(Self {
             response: Ok(DisputeResponseData {
                 dispute_status,
-                connector_dispute_id: response.dispute_id,
-                connector_dispute_status: Some(response.status),
+                connector_dispute_id: response.dispute_id.unwrap_or_default(),
+                connector_dispute_status: response.status,
                 status_code: http_code,
             }),
             ..router_data
