@@ -13,7 +13,7 @@ from payments import RecurringPaymentClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "get", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "void"]
+SUPPORTED_FLOWS = ["authorize", "capture", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -80,6 +80,16 @@ def _build_get_request(connector_transaction_id: str):
         ),
     )
 
+def _build_parse_event_request():
+    return payment_pb2.EventServiceParseRequest(
+        request_details=payment_pb2.RequestDetails(
+            method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
+            uri="https://example.com/webhook",  # URI of the request.
+            headers=payment_pb2.HeadersEntry(),  # Headers of the HTTP request.
+            body="{\"event\":{\"checksum\":\"probe_checksum\",\"tid\":12345678901234,\"type\":\"PAYMENT\"},\"result\":{\"status\":\"SUCCESS\",\"status_code\":100,\"status_text\":\"Success\"},\"transaction\":{\"tid\":12345678901234,\"payment_type\":\"CREDITCARD\",\"status\":\"CONFIRMED\",\"status_code\":100,\"order_no\":\"probe_order_001\",\"amount\":1000,\"currency\":\"EUR\"}}",  # Body of the HTTP request.
+        ),
+    )
+
 def _build_proxy_authorize_request():
     return payment_pb2.PaymentServiceProxyAuthorizeRequest(
         merchant_transaction_id="probe_proxy_txn_001",
@@ -87,8 +97,8 @@ def _build_proxy_authorize_request():
             minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
             currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
         ),
-        card_proxy=payment_methods_pb2.CardDetails(  # Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
-            card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
+        card_proxy=payment_methods_pb2.ProxyCardDetails(  # Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
+            card_number=payment_methods_pb2.SecretString(value="4111111111111111"),  # Card Identification.
             card_exp_month=payment_methods_pb2.SecretString(value="03"),
             card_exp_year=payment_methods_pb2.SecretString(value="2030"),
             card_cvc=payment_methods_pb2.SecretString(value="123"),
@@ -115,8 +125,8 @@ def _build_proxy_setup_recurring_request():
             minor_amount=0,  # Amount in minor units (e.g., 1000 = $10.00).
             currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
         ),
-        card_proxy=payment_methods_pb2.CardDetails(  # Card proxy for vault-aliased payments.
-            card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
+        card_proxy=payment_methods_pb2.ProxyCardDetails(  # Card proxy for vault-aliased payments.
+            card_number=payment_methods_pb2.SecretString(value="4111111111111111"),  # Card Identification.
             card_exp_month=payment_methods_pb2.SecretString(value="03"),
             card_exp_year=payment_methods_pb2.SecretString(value="2030"),
             card_cvc=payment_methods_pb2.SecretString(value="123"),
@@ -362,6 +372,15 @@ async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.Conne
     get_response = await payment_client.get(_build_get_request("probe_connector_txn_001"))
 
     return {"status": get_response.status}
+
+
+async def process_parse_event(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: EventService.ParseEvent"""
+    event_client = EventClient(config)
+
+    parse_response = await event_client.parse_event(_build_parse_event_request())
+
+    return {"status": parse_response.status}
 
 
 async def process_proxy_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

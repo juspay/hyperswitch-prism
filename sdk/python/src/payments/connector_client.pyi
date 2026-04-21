@@ -15,6 +15,8 @@ from payments.generated.payment_pb2 import (
     DisputeServiceSubmitEvidenceResponse,
     EventServiceHandleRequest,
     EventServiceHandleResponse,
+    EventServiceParseRequest,
+    EventServiceParseResponse,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
@@ -101,7 +103,11 @@ class DisputeClient(_ConnectorClientBase):
 
 class EventClient(_ConnectorClientBase):
     def handle_event(self, request: EventServiceHandleRequest, options: RequestConfig | None = ...) -> EventServiceHandleResponse:
-        """EventService.HandleEvent — Process webhook notifications from connectors. Translates connector events into standardized responses for asynchronous payment state updates."""
+        """EventService.HandleEvent — Verify webhook source and return a unified typed response. Response mirrors PaymentService.Get / RefundService.Get / DisputeService.Get."""
+        ...
+
+    def parse_event(self, request: EventServiceParseRequest, options: RequestConfig | None = ...) -> EventServiceParseResponse:
+        """EventService.ParseEvent — Parse a raw webhook payload without credentials. Returns resource reference and event type — sufficient to resolve secrets or early-exit."""
         ...
 
 

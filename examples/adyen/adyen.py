@@ -14,7 +14,7 @@ from payments import EventClient
 from payments import RecurringPaymentClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "create_order", "dispute_accept", "dispute_defend", "dispute_submit_evidence", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "setup_recurring", "token_authorize", "void"]
+SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "create_order", "dispute_accept", "dispute_defend", "dispute_submit_evidence", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "setup_recurring", "token_authorize", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -120,7 +120,17 @@ def _build_dispute_submit_evidence_request():
         merchant_dispute_id="probe_dispute_001",  # Identification.
         connector_transaction_id="probe_txn_001",
         dispute_id="probe_dispute_id_001",
-        # evidence_documents: [{"evidence_type": "SERVICE_DOCUMENTATION", "file_content": [112, 114, 111, 98, 101, 32, 101, 118, 105, 100, 101, 110, 99, 101, 32, 99, 111, 110, 116, 101, 110, 116], "file_mime_type": "application/pdf"}]  # Collection of evidence documents.
+        # evidence_documents: [{"evidence_type": "SERVICE_DOCUMENTATION", "file_content": "probe evidence content", "file_mime_type": "application/pdf"}]  # Collection of evidence documents.
+    )
+
+def _build_parse_event_request():
+    return payment_pb2.EventServiceParseRequest(
+        request_details=payment_pb2.RequestDetails(
+            method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
+            uri="https://example.com/webhook",  # URI of the request.
+            headers=payment_pb2.HeadersEntry(),  # Headers of the HTTP request.
+            body="{\"notificationItems\":[{\"NotificationRequestItem\":{\"pspReference\":\"probe_ref_001\",\"merchantReference\":\"probe_order_001\",\"merchantAccountCode\":\"ProbeAccount\",\"eventCode\":\"AUTHORISATION\",\"success\":\"true\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"additionalData\":{}}}]}",  # Body of the HTTP request.
+        ),
     )
 
 def _build_proxy_authorize_request():
@@ -130,8 +140,8 @@ def _build_proxy_authorize_request():
             minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
             currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
         ),
-        card_proxy=payment_methods_pb2.CardDetails(  # Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
-            card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
+        card_proxy=payment_methods_pb2.ProxyCardDetails(  # Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
+            card_number=payment_methods_pb2.SecretString(value="4111111111111111"),  # Card Identification.
             card_exp_month=payment_methods_pb2.SecretString(value="03"),
             card_exp_year=payment_methods_pb2.SecretString(value="2030"),
             card_cvc=payment_methods_pb2.SecretString(value="123"),
@@ -165,15 +175,15 @@ def _build_proxy_setup_recurring_request():
             minor_amount=0,  # Amount in minor units (e.g., 1000 = $10.00).
             currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
         ),
-        card_proxy=payment_methods_pb2.CardDetails(  # Card proxy for vault-aliased payments.
-            card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
+        card_proxy=payment_methods_pb2.ProxyCardDetails(  # Card proxy for vault-aliased payments.
+            card_number=payment_methods_pb2.SecretString(value="4111111111111111"),  # Card Identification.
             card_exp_month=payment_methods_pb2.SecretString(value="03"),
             card_exp_year=payment_methods_pb2.SecretString(value="2030"),
             card_cvc=payment_methods_pb2.SecretString(value="123"),
             card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
         ),
         customer=payment_pb2.Customer(
-            id="probe_customer_001",  # Internal customer ID.
+            connector_customer_id="probe_customer_001",  # Customer ID in the connector system.
         ),
         address=payment_pb2.PaymentAddress(
             billing_address=payment_pb2.Address(),
@@ -452,6 +462,15 @@ async def process_dispute_submit_evidence(merchant_transaction_id: str, config: 
     dispute_response = await dispute_client.submit_evidence(_build_dispute_submit_evidence_request())
 
     return {"status": dispute_response.status}
+
+
+async def process_parse_event(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: EventService.ParseEvent"""
+    event_client = EventClient(config)
+
+    parse_response = await event_client.parse_event(_build_parse_event_request())
+
+    return {"status": parse_response.status}
 
 
 async def process_proxy_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

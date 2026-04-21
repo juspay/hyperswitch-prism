@@ -21,6 +21,7 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "create_order",
     "create_server_authentication_token",
     "get",
+    "parse_event",
     "proxy_authorize",
     "proxy_setup_recurring",
     "recurring_charge",
@@ -64,6 +65,7 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
             minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
         }),
+        shipping_cost: Some(0), // Cost of shipping for the order.
         payment_method: Some(PaymentMethod {
             // Payment method to be used.
             payment_method: Some(payment_method::PaymentMethod::Card(CardDetails {
@@ -190,7 +192,27 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
 
 pub fn build_handle_event_request() -> EventServiceHandleRequest {
     EventServiceHandleRequest {
+        merchant_event_id: Some("probe_event_001".to_string()),  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        request_details: Some(RequestDetails {
+            method: HttpMethod::HttpMethodPost.into(),  // HTTP method of the request (e.g., GET, POST).
+            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
+            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
+            body: "{\"event_type\":\"PAYMENT.CAPTURE.COMPLETED\",\"resource\":{\"id\":\"probe_capture_001\",\"status\":\"COMPLETED\",\"amount\":{\"value\":\"10.00\",\"currency_code\":\"USD\"}}}".to_string(),  // Body of the HTTP request.
+            ..Default::default()
+        }),
         ..Default::default()
+    }
+}
+
+pub fn build_parse_event_request() -> EventServiceParseRequest {
+    EventServiceParseRequest {
+        request_details: Some(RequestDetails {
+            method: HttpMethod::HttpMethodPost.into(),  // HTTP method of the request (e.g., GET, POST).
+            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
+            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
+            body: "{\"event_type\":\"PAYMENT.CAPTURE.COMPLETED\",\"resource\":{\"id\":\"probe_capture_001\",\"status\":\"COMPLETED\",\"amount\":{\"value\":\"10.00\",\"currency_code\":\"USD\"}}}".to_string(),  // Body of the HTTP request.
+            ..Default::default()
+        }),
     }
 }
 
@@ -201,9 +223,9 @@ pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
             minor_amount: 1000,             // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
         }),
-        card_proxy: Some(CardDetails {
+        card_proxy: Some(ProxyCardDetails {
             // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
-            card_number: Some(CardNumber::from_str("4111111111111111").unwrap()), // Card Identification.
+            card_number: Some(Secret::new("4111111111111111".to_string())), // Card Identification.
             card_exp_month: Some(Secret::new("03".to_string())),
             card_exp_year: Some(Secret::new("2030".to_string())),
             card_cvc: Some(Secret::new("123".to_string())),
@@ -228,6 +250,7 @@ pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
             }),
             ..Default::default()
         }),
+        shipping_cost: Some(0), // Cost of shipping for the order.
         ..Default::default()
     }
 }
@@ -239,9 +262,9 @@ pub fn build_proxy_setup_recurring_request() -> PaymentServiceProxySetupRecurrin
             minor_amount: 0,                // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
         }),
-        card_proxy: Some(CardDetails {
+        card_proxy: Some(ProxyCardDetails {
             // Card proxy for vault-aliased payments.
-            card_number: Some(CardNumber::from_str("4111111111111111").unwrap()), // Card Identification.
+            card_number: Some(Secret::new("4111111111111111".to_string())), // Card Identification.
             card_exp_month: Some(Secret::new("03".to_string())),
             card_exp_year: Some(Secret::new("2030".to_string())),
             card_cvc: Some(Secret::new("123".to_string())),
@@ -714,6 +737,18 @@ pub async fn process_get(
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: EventService.ParseEvent
+#[allow(dead_code)]
+pub async fn process_parse_event(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .parse_event(build_parse_event_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: PaymentService.ProxyAuthorize
 #[allow(dead_code)]
 pub async fn process_proxy_authorize(
@@ -822,6 +857,7 @@ async fn main() {
             process_create_server_authentication_token(&client, "txn_001").await
         }
         "process_get" => process_get(&client, "txn_001").await,
+        "process_parse_event" => process_parse_event(&client, "txn_001").await,
         "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
         "process_proxy_setup_recurring" => process_proxy_setup_recurring(&client, "txn_001").await,
         "process_recurring_charge" => process_recurring_charge(&client, "txn_001").await,
@@ -829,7 +865,7 @@ async fn main() {
         "process_setup_recurring" => process_setup_recurring(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_client_authentication_token, process_create_order, process_create_server_authentication_token, process_get, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_refund_get, process_setup_recurring, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_client_authentication_token, process_create_order, process_create_server_authentication_token, process_get, process_parse_event, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_refund_get, process_setup_recurring, process_void", flow);
             return;
         }
     };

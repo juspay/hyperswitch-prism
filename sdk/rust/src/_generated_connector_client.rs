@@ -20,7 +20,8 @@ use grpc_api_types::payments::{
     CustomerServiceCreateRequest, CustomerServiceCreateResponse, DisputeServiceAcceptRequest,
     DisputeServiceAcceptResponse, DisputeServiceDefendRequest, DisputeServiceDefendResponse,
     DisputeServiceSubmitEvidenceRequest, DisputeServiceSubmitEvidenceResponse,
-    MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
+    EventServiceHandleRequest, EventServiceHandleResponse, EventServiceParseRequest,
+    EventServiceParseResponse, MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
@@ -297,7 +298,62 @@ impl ConnectorClient {
         submit_evidence_res_handler
     );
     // ── EventService flows ───────────────────────────────────────────────────
-    // TODO: Single-step flow handle_event needs different macro/implementation
+    // ── handle_event — inbound only, no outgoing HTTP call ───────────────────
+    // Connector identity is extracted from the config variant; auth fields are not required.
+    pub fn handle_event(
+        &self,
+        request: EventServiceHandleRequest,
+    ) -> Result<EventServiceHandleResponse, SdkError> {
+        use connector_service_ffi::bindings::utils::parse_webhook_metadata;
+        use connector_service_ffi::handlers::payments::handle_event_handler;
+        use connector_service_ffi::types::FfiRequestData;
+        let ffi_options = self.resolve_ffi_options(&None);
+        let environment = Some(
+            grpc_api_types::payments::Environment::try_from(ffi_options.environment).map_err(
+                |e| SdkError::IntegrationError {
+                    error_code: "INVALID_ENVIRONMENT".to_string(),
+                    error_message: format!("{:?}", e),
+                    suggested_action: None,
+                    doc_url: None,
+                },
+            )?,
+        );
+        let ffi_metadata = parse_webhook_metadata(&ffi_options).map_err(SdkError::from)?;
+        let ffi_request = FfiRequestData {
+            payload: request,
+            extracted_metadata: ffi_metadata,
+            masked_metadata: None,
+        };
+        handle_event_handler(ffi_request, environment).map_err(SdkError::from)
+    }
+    // ── parse_event — inbound only, no outgoing HTTP call ───────────────────
+    // Connector identity is extracted from the config variant; auth fields are not required.
+    pub fn parse_event(
+        &self,
+        request: EventServiceParseRequest,
+    ) -> Result<EventServiceParseResponse, SdkError> {
+        use connector_service_ffi::bindings::utils::parse_webhook_metadata;
+        use connector_service_ffi::handlers::payments::parse_event_handler;
+        use connector_service_ffi::types::FfiRequestData;
+        let ffi_options = self.resolve_ffi_options(&None);
+        let environment = Some(
+            grpc_api_types::payments::Environment::try_from(ffi_options.environment).map_err(
+                |e| SdkError::IntegrationError {
+                    error_code: "INVALID_ENVIRONMENT".to_string(),
+                    error_message: format!("{:?}", e),
+                    suggested_action: None,
+                    doc_url: None,
+                },
+            )?,
+        );
+        let ffi_metadata = parse_webhook_metadata(&ffi_options).map_err(SdkError::from)?;
+        let ffi_request = FfiRequestData {
+            payload: request,
+            extracted_metadata: ffi_metadata,
+            masked_metadata: None,
+        };
+        parse_event_handler(ffi_request, environment).map_err(SdkError::from)
+    }
     // ── MerchantAuthenticationService flows ───────────────────────────────────────────────────
     impl_flow_method!(
         create_client_authentication_token,
@@ -586,7 +642,7 @@ pub fn build_ffi_request<T>(
         payload,
         extracted_metadata: FfiMetadataPayload {
             connector,
-            connector_config,
+            connector_config: Some(connector_config),
         },
         masked_metadata: Some(masked_metadata),
     })

@@ -56,8 +56,9 @@ use transformers::{
     CybersourceAuthSetupResponse, CybersourceAuthValidateRequest, CybersourceAuthenticateResponse,
     CybersourceAuthenticateResponse as CybersourcePostAuthenticateResponse,
     CybersourceClientAuthRequest, CybersourceClientAuthResponse, CybersourcePaymentsCaptureRequest,
-    CybersourcePaymentsRequest, CybersourcePaymentsResponse,
-    CybersourcePaymentsResponse as CybersourceCaptureResponse,
+    CybersourcePaymentsIncrementalAuthorizationRequest,
+    CybersourcePaymentsIncrementalAuthorizationResponse, CybersourcePaymentsRequest,
+    CybersourcePaymentsResponse, CybersourcePaymentsResponse as CybersourceCaptureResponse,
     CybersourcePaymentsResponse as CybersourceVoidResponse,
     CybersourcePaymentsResponse as CybersourceSetupMandateResponse,
     CybersourcePaymentsResponse as CybersourceRepeatPaymentResponse, CybersourceRefundRequest,
@@ -77,16 +78,6 @@ pub(crate) mod headers {
 }
 
 // Trait implementations with generic type parameters
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Cybersource<T>
-{
-}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ClientAuthentication for Cybersource<T>
@@ -298,6 +289,12 @@ macros::create_all_prerequisites!(
             request_body: CybersourceClientAuthRequest,
             response_body: CybersourceClientAuthResponse,
             router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ),
+        (
+            flow: IncrementalAuthorization,
+            request_body: CybersourcePaymentsIncrementalAuthorizationRequest,
+            response_body: CybersourcePaymentsIncrementalAuthorizationResponse,
+            router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -1105,6 +1102,48 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         self.build_error_response(res, event_builder)
     }
 }
+
+// IncrementalAuthorization implementation — PATCH to
+// /pts/v2/payments/{connector_transaction_id}.
+// CyberSource's native incremental authorization uses PATCH on the original
+// payment resource (not a sub-resource) with an `additionalAmount` delta.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Cybersource,
+    curl_request: Json(CybersourcePaymentsIncrementalAuthorizationRequest),
+    curl_response: CybersourcePaymentsIncrementalAuthorizationResponse,
+    flow_name: IncrementalAuthorization,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsIncrementalAuthorizationData,
+    flow_response: PaymentsResponseData,
+    http_method: Patch,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let connector_payment_id = req
+                .request
+                .connector_transaction_id
+                .get_connector_transaction_id()
+                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })
+                .attach_printable("Missing connector_transaction_id for incremental authorization")?;
+            Ok(format!(
+                "{}pts/v2/payments/{}",
+                self.connector_base_url_payments(req),
+                connector_payment_id
+            ))
+        }
+    }
+);
 
 // Manual implementation for MandateRevoke with correct event builder
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

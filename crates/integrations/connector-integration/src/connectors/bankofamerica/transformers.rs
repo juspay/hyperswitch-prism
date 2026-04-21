@@ -1830,11 +1830,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         ),
     ) -> Result<Self, Self::Error> {
         if item.router_data.resource_common_data.is_three_ds() {
-            Err(IntegrationError::NotSupported {
-                message: "Card 3DS".to_string(),
-                connector: "BankOfAmerica",
-                context: Default::default(),
-            })?
+            return Err(error_stack::report!(IntegrationError::not_implemented(
+                "Card 3DS".to_string(),
+            )));
         };
 
         let order_information = OrderInformationWithBill::try_from(item)?;

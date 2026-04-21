@@ -224,6 +224,9 @@ pub use self::ppro::Ppro;
 pub mod fiservcommercehub;
 pub use self::fiservcommercehub::Fiservcommercehub;
 
+pub mod sanlam;
+pub use self::sanlam::Sanlam;
+
 pub mod truelayer;
 pub use self::truelayer::Truelayer;
 
@@ -238,3 +241,6 @@ pub use self::trustly::Trustly;
 
 pub mod itaubank;
 pub use self::itaubank::Itaubank;
+
+pub mod pinelabs_online;
+pub use self::pinelabs_online::PinelabsOnline;

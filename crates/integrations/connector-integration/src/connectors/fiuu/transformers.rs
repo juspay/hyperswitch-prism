@@ -605,10 +605,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | BankRedirectData::OnlineBankingThailand { .. }
                 | BankRedirectData::LocalBankRedirect {}
                 | BankRedirectData::OpenBanking {}
-                | BankRedirectData::Netbanking { .. } => Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("fiuu"),
-                )
-                .into()),
+                | BankRedirectData::Netbanking { .. } => {
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: utils::get_unimplemented_payment_method_error_message("fiuu"),
+                        connector: "Fiuu",
+                        context: Default::default(),
+                    }))
+                }
             },
             PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                 WalletData::GooglePay(google_pay_data) => {
@@ -2349,7 +2352,7 @@ pub struct FiuWebhookEvent {
     pub status: FiuuPaymentWebhookStatus,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, strum::Display)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, strum::Display)]
 pub enum FiuuPaymentWebhookStatus {
     #[strum(serialize = "00")]
     #[serde(rename = "00")]

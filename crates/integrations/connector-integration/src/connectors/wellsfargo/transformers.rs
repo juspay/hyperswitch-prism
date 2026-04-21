@@ -1109,10 +1109,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 }))
             }
             _ => {
-                return Err(IntegrationError::not_implemented(
-                    "Payment method not supported for SetupMandate".to_string(),
-                )
-                .into());
+                return Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "Payment method not supported for SetupMandate".to_string(),
+                    connector: "Wellsfargo",
+                    context: Default::default(),
+                }));
             }
         };
 
