@@ -470,15 +470,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let order_id = item
             .router_data
             .resource_common_data
-            .reference_id
+            .connector_order_id
             .as_ref()
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "order_id (reference_id)",
+                field_name: "order_id (connector_order_id)",
                 context: IntegrationErrorContext {
                     suggested_action: Some(
-                        "Call `PaymentService.CreateOrder` first and pass the returned order id \
-                         as `merchant_order_id` (which becomes `reference_id` internally) on the \
-                         Authorize request."
+                        "Call `PaymentService.CreateOrder` first; the returned id is stored in \
+                         `connector_order_id` on the Authorize request."
                             .to_owned(),
                     ),
                     doc_url: Some(
@@ -1570,19 +1569,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             _ => (None, None), // Default fallback
         };
 
-        // Get order_id from the CreateOrder response (stored in reference_id)
+        // Get order_id from the CreateOrder response (stored in connector_order_id)
         let order_id = item
             .router_data
             .resource_common_data
-            .reference_id
+            .connector_order_id
             .as_ref()
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "order_id (reference_id)",
+                field_name: "order_id (connector_order_id)",
                 context: IntegrationErrorContext {
                     suggested_action: Some(
-                        "Call `PaymentService.CreateOrder` first and pass the returned order id \
-                         as `merchant_order_id` (which becomes `reference_id` internally) on the \
-                         Authorize request."
+                        "Call `PaymentService.CreateOrder` first; the returned id is stored in \
+                         `connector_order_id` on the Authorize request."
                             .to_owned(),
                     ),
                     doc_url: Some(
@@ -1835,15 +1833,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let order_id = item
             .router_data
             .resource_common_data
-            .reference_id
+            .connector_order_id
             .as_ref()
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "order_id (reference_id)",
+                field_name: "order_id (connector_order_id)",
                 context: IntegrationErrorContext {
                     suggested_action: Some(
-                        "Call `PaymentService.CreateOrder` first and pass the returned order id \
-                         as `merchant_order_id` (which becomes `reference_id` internally) on the \
-                         Authorize request."
+                        "Call `PaymentService.CreateOrder` first; the returned id is stored in \
+                         `connector_order_id` on the Authorize request."
                             .to_owned(),
                     ),
                     doc_url: Some(
