@@ -317,6 +317,9 @@ message ApplePayDecryptedData {
   
   // Cryptogram data for Apple Pay transactions
   ApplePayCryptogramData payment_data = 4;
+
+  // Device manufacturer identifier from the decrypted Apple Pay token
+  optional string device_manufacturer_identifier = 5;
 }
 
 // Apple Pay cryptogram data structure

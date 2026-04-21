@@ -1197,13 +1197,20 @@ fn build_paypal_apple_pay_source<
                 currency_code: currency,
                 value: amount_value,
             },
-            // TODO(#1149): Hardcoded fallback — `deviceManufacturerIdentifier` from Apple's
-            // decrypted token is not currently propagated through the UCS proto / domain_types.
-            // This works in sandbox but will cause failures in production where PayPal validates
-            // the field. Fix requires adding the field to `ApplePayDecryptedData` in
-            // payment_methods.proto, domain_types, and the HS decryption path.
-            // See: https://github.com/juspay/hyperswitch-prism/issues/1149
-            device_manufacturer_id: "040010030273".to_string(),
+            // PayPal requires device_manufacturer_id for Apple Pay — omitting it returns
+            // REQUIRED_PARAMETER_FOR_CUSTOMER_INITIATED_PAYMENT (HTTP 422).
+            // "040010030273" is Apple's standard device manufacturer identifier and is used
+            // as a fallback when the field is absent from the decrypted token.
+            device_manufacturer_id: apple_pay_decrypted_data
+                .device_manufacturer_identifier
+                .clone()
+                .unwrap_or_else(|| {
+                    tracing::warn!(
+                        "device_manufacturer_identifier missing from Apple Pay decrypted token; \
+                        falling back to Apple standard identifier '040010030273'"
+                    );
+                    "040010030273".to_string()
+                }),
         },
     }))
 }
