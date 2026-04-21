@@ -19,6 +19,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.04.21.0
+
+### Features
+
+- **airwallex:** Implement SetupRecurring via PaymentConsent ([#1091](https://github.com/juspay/connector-service/pull/1091)) ([`c258486`](https://github.com/juspay/connector-service/commit/c258486bf97723e1bec5175b8e54171a32116d83))
+- **connector:**
+  - Implement SetupRecurring for shift4 ([#1079](https://github.com/juspay/connector-service/pull/1079)) ([`846fc79`](https://github.com/juspay/connector-service/commit/846fc79da155198e8e7d9668be26b0aebd4cb024))
+  - Implement SetupRecurring for globalpay ([#1078](https://github.com/juspay/connector-service/pull/1078)) ([`5ebcaa0`](https://github.com/juspay/connector-service/commit/5ebcaa084a025ea98726dc027529386c8a4c21d4))
+  - Implement SetupRecurring for nexinets ([#1084](https://github.com/juspay/connector-service/pull/1084)) ([`190d88b`](https://github.com/juspay/connector-service/commit/190d88bc5d6c9c5415c17455c8f35cf7f8750a59))
+  - Implement SetupRecurring for Nuvei ([#1077](https://github.com/juspay/connector-service/pull/1077)) ([`834f904`](https://github.com/juspay/connector-service/commit/834f9045b8784a277fee441e73a61b7533430199))
+  - Implement SetupRecurring for powertranz ([#1083](https://github.com/juspay/connector-service/pull/1083)) ([`e23e940`](https://github.com/juspay/connector-service/commit/e23e94031678b16dcac5729332e4f503ab7d5937))
+  - Implement INCREMENTAL_AUTH for worldpayvantiv ([#1117](https://github.com/juspay/connector-service/pull/1117)) ([`edbd222`](https://github.com/juspay/connector-service/commit/edbd2226c41529050958c65a85e48b5dd81bc6fb))
+- **payu:** Implement Authorize, PSync, Capture, Void, Refund, RSync flows with UPI, Wallet, and Netbanking support ([#1067](https://github.com/juspay/connector-service/pull/1067)) ([`6b03fd2`](https://github.com/juspay/connector-service/commit/6b03fd2a4fcd3fa2268d72966a6fbcffef29b86a))
+- Add PINELABS_ONLINE payment gateway connector with Card and UPI support ([#795](https://github.com/juspay/connector-service/pull/795)) ([`313dedb`](https://github.com/juspay/connector-service/commit/313dedb96f5964776e1e1110028b298a8e259c65))
+- Pattern updation ([#1150](https://github.com/juspay/connector-service/pull/1150)) ([`e441ed7`](https://github.com/juspay/connector-service/commit/e441ed7180f0586827fb5471cd366c3b63b95d47))
+
+### Bug Fixes
+
+- Add vault proxy card details object to fix external vault proxy flow ([#801](https://github.com/juspay/connector-service/pull/801)) ([`2dcbcf7`](https://github.com/juspay/connector-service/commit/2dcbcf76ff0411d8718172ab9e30c5be9688349e))
+- Reclassify documented connector support gaps ([#1039](https://github.com/juspay/connector-service/pull/1039)) ([`8894b8f`](https://github.com/juspay/connector-service/commit/8894b8fec6cf9f2e19e2c7d426ed101384735026))
+
+### Miscellaneous Tasks
+
+- Change Sanlammultidata connector name to Sanlam ([#1146](https://github.com/juspay/connector-service/pull/1146)) ([`e98cdb4`](https://github.com/juspay/connector-service/commit/e98cdb48efb8080e098891e2fdd92167a3b5d0a9))
+
+**Full Changelog:** [`2026.04.20.0...2026.04.21.0`](https://github.com/juspay/connector-service/compare/2026.04.20.0...2026.04.21.0)
+
+- - -
+
 ## 2026.04.20.0
 
 ### Features
