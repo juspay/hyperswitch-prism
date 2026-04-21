@@ -202,10 +202,6 @@ pub struct TrustpaymentsApplePayData {
     pub tavv: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub eci: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tokenisedpayment: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tokentype: Option<String>,
     pub walletdisplayname: String,
     pub walletsource: String,
 }
@@ -232,6 +228,8 @@ pub struct TrustpaymentsAuthResponse {
     pub requesttypedescription: String,
     pub paymenttypedescription: Option<String>,
     pub maskedpan: Option<Secret<String>>,
+    pub tokenisedpayment: Option<String>,
+    pub tokentype: Option<String>,
 }
 
 // ===== REQUEST TRANSFORMER =====
@@ -363,8 +361,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 const WALLET_SOURCE: &str = "APPLEPAY";
                 // ECI "07" = Apple Pay non-3DS (no 3DS challenge, liability shift via TAVV).
                 const DEFAULT_ECI: &str = "07";
-                // tokenisedpayment "1" = Trust Payments flag indicating a tokenised/wallet payment.
-                const TOKENISED_PAYMENT_ENABLED: &str = "1";
 
                 let apple_pay_decrypted_data = apple_pay_data
                     .payment_data
@@ -407,16 +403,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     // For non-cryptogram flows, Trust Payments requires an ECI value;
                     // default to DEFAULT_ECI (Apple Pay non-3DS) if absent.
                     eci: Some(eci.unwrap_or_else(|| DEFAULT_ECI.to_string())),
-                    tokenisedpayment: if is_cryptogram_3ds {
-                        Some(TOKENISED_PAYMENT_ENABLED.to_string())
-                    } else {
-                        None
-                    },
-                    tokentype: if is_cryptogram_3ds {
-                        Some(WALLET_SOURCE.to_string())
-                    } else {
-                        None
-                    },
                     walletdisplayname: apple_pay_data.payment_method.display_name.clone(),
                     walletsource: WALLET_SOURCE.to_string(),
                 }))
