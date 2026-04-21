@@ -78,6 +78,7 @@ import uniffi.connector_service_ffi.tokenizeResTransformer
 import uniffi.connector_service_ffi.voidReqTransformer
 import uniffi.connector_service_ffi.voidResTransformer
 import uniffi.connector_service_ffi.handleEventTransformer
+import uniffi.connector_service_ffi.parseEventTransformer
 import uniffi.connector_service_ffi.verifyRedirectResponseTransformer
 
 object FlowRegistry {
@@ -160,6 +161,7 @@ object FlowRegistry {
     // Single-step flows: direct transformer, no HTTP round-trip.
     val directTransformers: Map<String, (ByteArray, ByteArray) -> ByteArray> = mapOf(
         "handle_event" to ::handleEventTransformer,
+        "parse_event" to ::parseEventTransformer,
         "verify_redirect_response" to ::verifyRedirectResponseTransformer,
     )
 
@@ -200,9 +202,13 @@ class EventClient(
     defaults: RequestConfig = RequestConfig.getDefaultInstance(),
     libPath: String? = null
 ) : ConnectorClient(config, defaults, libPath) {
-    // handle_event: EventService.HandleEvent — Process webhook notifications from connectors. Translates connector events into standardized responses for asynchronous payment state updates.
+    // handle_event: EventService.HandleEvent — Verify webhook source and return a unified typed response. Response mirrors PaymentService.Get / RefundService.Get / DisputeService.Get.
     fun handle_event(request: EventServiceHandleRequest, options: RequestConfig? = null): EventServiceHandleResponse =
         executeDirect("handle_event", request.toByteArray(), EventServiceHandleResponse.parser(), options)
+
+    // parse_event: EventService.ParseEvent — Parse a raw webhook payload without credentials. Returns resource reference and event type — sufficient to resolve secrets or early-exit.
+    fun parse_event(request: EventServiceParseRequest, options: RequestConfig? = null): EventServiceParseResponse =
+        executeDirect("parse_event", request.toByteArray(), EventServiceParseResponse.parser(), options)
 
 }
 

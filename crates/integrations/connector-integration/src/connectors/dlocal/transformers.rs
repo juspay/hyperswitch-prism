@@ -1,14 +1,15 @@
 use common_utils::{pii, request::Method, FloatMajorUnit};
 use domain_types::{
-    connector_flow::{self, Authorize, RepeatPayment},
+    connector_flow::{self, Authorize, RepeatPayment, SetupMandate},
     connector_types::{
-        MandateReferenceId, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
+        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ResponseId, SetupMandateRequestData,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, ResponseTransformationErrorContext},
     payment_method_data::{self, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
     utils,
@@ -34,6 +35,8 @@ pub struct Card<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'sta
     pub expiration_month: Secret<String>,
     pub expiration_year: Secret<String>,
     pub capture: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub save: Option<bool>,
 }
 
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
@@ -143,7 +146,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     payer: Payer {
                         name,
                         email,
-                        // [#589]: Allow securely collecting PII from customer in payments request
+                        // dLocal requires a payer document (tax ID) for Latin American markets.
+                        // The hyperswitch reference uses `get_customer_document_details()` to pull
+                        // the real customer document; UCS does not yet surface this PII on the
+                        // Authorize request, so a country-specific sandbox-valid placeholder is
+                        // used here. Production flows should pass the real customer document.
                         document: get_doc_from_currency(country.to_string()),
                     },
                     card: Some(Card {
@@ -153,6 +160,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         expiration_month: ccard.card_exp_month.clone(),
                         expiration_year: ccard.card_exp_year.clone(),
                         capture: should_capture.to_string(),
+                        // `save` is None for regular Authorize flow — card tokenization
+                        // is handled separately via SetupMandate with `save: Some(true)`.
+                        save: None,
                     }),
                     order_id,
                     three_dsecure: match item.router_data.resource_common_data.auth_type {
@@ -180,6 +190,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     payer: Payer {
                         name,
                         email,
+                        // Same placeholder rationale as the card Authorize branch above —
+                        // UCS has not yet plumbed the real customer document through.
                         document: get_doc_from_currency(country.to_string()),
                     },
                     card: None,
@@ -367,9 +379,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 })?,
             MandateReferenceId::NetworkMandateId(_)
             | MandateReferenceId::NetworkTokenWithNTI(_) => {
-                Err(IntegrationError::not_implemented(
-                    "Network mandate ID not supported for repeat payments in dlocal".to_string(),
-                ))?
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "Network mandate ID not supported for repeat payments in dlocal"
+                        .to_string(),
+                    connector: "Dlocal",
+                    context: Default::default(),
+                }))?
             }
         };
 
@@ -426,6 +441,260 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 // RepeatPayment response - reuses DlocalPaymentsResponse (generic TryFrom covers this)
 pub type DlocalRepeatPaymentResponse = DlocalPaymentsResponse;
+
+// SetupMandate (CIT) flow: tokenize a card by sending a zero-amount payment with
+// `card.save=true`. dLocal's response includes a `card` object containing the
+// saved `card_id` which is later used in RepeatPayment (MIT) flow.
+
+#[derive(Debug, Serialize)]
+pub struct DlocalSetupMandateRequest<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
+    pub amount: FloatMajorUnit,
+    pub currency: common_enums::Currency,
+    pub country: common_enums::CountryAlpha2,
+    pub payment_method_id: PaymentMethodId,
+    pub payment_method_flow: PaymentMethodFlow,
+    pub payer: Payer,
+    pub card: Card<T>,
+    pub order_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub three_dsecure: Option<ThreeDSecureReqData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub callback_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notification_url: Option<String>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        DlocalRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for DlocalSetupMandateRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: DlocalRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        let email = router_data.request.get_email()?;
+        let address = router_data.resource_common_data.get_billing_address()?;
+        let country = *address.get_country()?;
+        let name = address.get_full_name()?;
+
+        // For SetupMandate (CIT), dLocal requires a non-zero authorization amount
+        // alongside `card.save = true` to tokenize the card. dLocal rejects
+        // amounts <= 1.00 with code 5016 "Amount too low", so callers must
+        // provide an appropriate verify amount (e.g. 5.00 BRL). The request
+        // runs with `capture: false` so funds are released immediately after
+        // the authorization.
+        let minor_amount =
+            router_data
+                .request
+                .minor_amount
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "minor_amount",
+                    context: Default::default(),
+                })?;
+        let amount = utils::convert_amount(
+            item.connector.amount_converter,
+            minor_amount,
+            router_data.request.currency,
+        )?;
+
+        let order_id = router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+        let callback_url = router_data.request.router_return_url.clone();
+        let description = router_data.resource_common_data.description.clone();
+
+        match &router_data.request.payment_method_data {
+            PaymentMethodData::Card(ccard) => Ok(Self {
+                amount,
+                currency: router_data.request.currency,
+                payment_method_id: PaymentMethodId::Card,
+                payment_method_flow: PaymentMethodFlow::Direct,
+                country,
+                payer: Payer {
+                    name,
+                    email,
+                    // dLocal requires a payer document (tax ID) for Latin American markets.
+                    // The hyperswitch reference uses `get_customer_document_details()` to pull
+                    // the real customer document; UCS does not yet surface this PII on the
+                    // SetupMandate request, so a country-specific sandbox-valid placeholder is
+                    // used here. Production flows should pass the real customer document.
+                    document: get_doc_from_currency(country.to_string()),
+                },
+                card: Card {
+                    holder_name: ccard.card_holder_name.clone(),
+                    number: ccard.card_number.clone(),
+                    cvv: ccard.card_cvc.clone(),
+                    expiration_month: ccard.card_exp_month.clone(),
+                    expiration_year: ccard.card_exp_year.clone(),
+                    // Setup mandate is always a verify/no-capture operation
+                    capture: "false".to_string(),
+                    save: Some(true),
+                },
+                order_id,
+                three_dsecure: None,
+                callback_url,
+                description,
+                notification_url: router_data.request.webhook_url.clone(),
+            }),
+            _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: crate::utils::get_unimplemented_payment_method_error_message("Dlocal"),
+                connector: "Dlocal",
+                context: Default::default(),
+            }))?,
+        }
+    }
+}
+
+// SetupMandate response — adds a `card` object with the saved `card_id` on top of
+// the standard payment response fields. Per dLocal's Save-Card API the saved token
+// is returned as `card.card_id` (same field consumed by the RepeatPayment/MIT flow
+// above, see `DlocalRepeatPaymentCard`).
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct DlocalSetupMandateCardData {
+    pub card_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct DlocalSetupMandateResponse {
+    pub status: DlocalPaymentStatus,
+    pub id: String,
+    pub three_dsecure: Option<ThreeDSecureResData>,
+    pub order_id: Option<String>,
+    pub redirect_url: Option<url::Url>,
+    pub card: Option<DlocalSetupMandateCardData>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<DlocalSetupMandateResponse, Self>>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<DlocalSetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        // For failed payments (Rejected/Cancelled), return ErrorResponse instead
+        // of TransactionResponse to capture the failure details.
+        if matches!(
+            item.response.status,
+            DlocalPaymentStatus::Rejected | DlocalPaymentStatus::Cancelled
+        ) {
+            return Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status: common_enums::AttemptStatus::from(item.response.status.clone()),
+                    ..item.router_data.resource_common_data
+                },
+                response: Err(ErrorResponse {
+                    code: format!("{:?}", item.response.status),
+                    message: format!(
+                        "SetupMandate failed with status: {:?}",
+                        item.response.status
+                    ),
+                    reason: Some(format!(
+                        "dLocal returned {:?} status for SetupMandate request",
+                        item.response.status
+                    )),
+                    status_code: item.http_code,
+                    attempt_status: Some(common_enums::AttemptStatus::from(
+                        item.response.status.clone(),
+                    )),
+                    connector_transaction_id: Some(item.response.id.clone()),
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }),
+                ..item.router_data
+            });
+        }
+
+        let redirection_data = item
+            .response
+            .three_dsecure
+            .and_then(|three_secure_data| three_secure_data.redirect_url)
+            .or(item.response.redirect_url)
+            .map(|redirect_url| RedirectForm::from((redirect_url, Method::Get)));
+
+        // Extract the saved card identifier from the response. Per dLocal's
+        // Save-Card API contract the token is returned on `card.card_id`.
+        let saved_card_id = item.response.card.as_ref().and_then(|c| c.card_id.clone());
+
+        // SetupMandate only succeeds if dLocal hands us a tokenised card_id —
+        // otherwise the downstream RepeatPayment (MIT) flow has nothing to
+        // reference. Fail fast on AUTHORIZED / PAID responses that are missing
+        // the token rather than silently completing with `mandate_reference = None`.
+        let is_successful = matches!(
+            item.response.status,
+            DlocalPaymentStatus::Authorized | DlocalPaymentStatus::Paid
+        );
+        if is_successful && saved_card_id.is_none() {
+            return Err(ConnectorError::UnexpectedResponseError {
+                context: ResponseTransformationErrorContext {
+                    http_status_code: Some(item.http_code),
+                    additional_context: Some(
+                        "dLocal SetupMandate succeeded but response is missing `card.card_id` — \
+                         cannot build MandateReference for downstream RepeatPayment (MIT) flow."
+                            .to_string(),
+                    ),
+                },
+            }
+            .into());
+        }
+
+        let mandate_reference = saved_card_id.map(|card_id| MandateReference {
+            connector_mandate_id: Some(card_id),
+            payment_method_id: None,
+            connector_mandate_request_reference_id: None,
+        });
+
+        let response = PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+            redirection_data: redirection_data.map(Box::new),
+            mandate_reference: mandate_reference.map(Box::new),
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: item.response.order_id.clone(),
+            incremental_authorization_allowed: None,
+            status_code: item.http_code,
+        };
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status: common_enums::AttemptStatus::from(item.response.status),
+                ..item.router_data.resource_common_data
+            },
+            response: Ok(response),
+            ..item.router_data
+        })
+    }
+}
 
 // Auth Struct
 pub struct DlocalAuthType {
@@ -759,9 +1028,11 @@ fn get_bank_debit_payment_method_id(
         payment_method_data::BankDebitData::BecsBankDebit { .. }
         | payment_method_data::BankDebitData::EftBankDebit { .. }
         | payment_method_data::BankDebitData::BacsBankDebit { .. } => {
-            Err(IntegrationError::not_implemented(
-                crate::utils::get_unimplemented_payment_method_error_message("Dlocal"),
-            ))?
+            Err(error_stack::report!(IntegrationError::NotSupported {
+                message: crate::utils::get_unimplemented_payment_method_error_message("Dlocal"),
+                connector: "Dlocal",
+                context: Default::default(),
+            }))?
         }
     }
 }
@@ -786,6 +1057,18 @@ fn get_bank_transfer_method_id_for_country(
     }
 }
 
+/// Returns a placeholder payer document (tax ID) for the given country.
+///
+/// dLocal requires a payer document for Latin American markets. These hardcoded
+/// values are test/placeholder documents used when the actual customer document
+/// is not provided in the request. In production, merchants should pass the real
+/// customer document via the billing address or payer information.
+///
+/// The format varies by country:
+/// - BR: CPF (11 digits) — Brazilian individual tax ID
+/// - MX: CURP (18 chars) — Mexican unique population registry code
+/// - AR: DNI (7-9 digits) — Argentine national identity document
+/// - etc.
 fn get_doc_from_currency(country: String) -> Secret<String> {
     let doc = match country.as_str() {
         "BR" => "91483309223",        // CPF (11 digits)

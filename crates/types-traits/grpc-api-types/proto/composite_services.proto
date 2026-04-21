@@ -29,3 +29,9 @@ service CompositeRefundService {
   rpc Get(CompositeRefundGetRequest) returns (CompositeRefundGetResponse);
 }
 
+// Single-call webhook processing for callers that have secrets resolved upfront.
+// Use EventService (ParseEvent → HandleEvent) when secrets must be looked up first.
+service CompositeEventService {
+  rpc HandleEvent(CompositeEventHandleRequest) returns (CompositeEventHandleResponse);
+}
+

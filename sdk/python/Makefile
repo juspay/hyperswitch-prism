@@ -162,6 +162,9 @@ test-package: generate-all pack-archive
 	@echo "Running composite flow test..."
 	@cp $(SDK_ROOT)/smoke-test/test_smoke_composite.py /tmp/test-hyperswitch-py/
 	@cd /tmp/test-hyperswitch-py && python3 test_smoke_composite.py --creds-file creds.json
+	@echo "Running webhook smoke test..."
+	@cp $(SDK_ROOT)/smoke-test/test_smoke_webhook.py /tmp/test-hyperswitch-py/
+	@cd /tmp/test-hyperswitch-py && python3 test_smoke_webhook.py
 	@rm -rf /tmp/test-hyperswitch-py
 	@echo "Package test passed."
 

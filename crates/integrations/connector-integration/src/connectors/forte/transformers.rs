@@ -149,10 +149,11 @@ impl TryFrom<utils::CardIssuer> for ForteCardType {
             utils::CardIssuer::Visa => Ok(Self::Visa),
             utils::CardIssuer::DinersClub => Ok(Self::DinersClub),
             utils::CardIssuer::JCB => Ok(Self::Jcb),
-            _ => Err(IntegrationError::not_implemented(
-                utils::get_unimplemented_payment_method_error_message("Forte"),
-            )
-            .into()),
+            _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: utils::get_unimplemented_payment_method_error_message("Forte"),
+                connector: "forte",
+                context: Default::default(),
+            })),
         }
     }
 }
@@ -296,29 +297,39 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 })
                 }
                 BankDebitData::SepaBankDebit { .. } => {
-                    Err(IntegrationError::not_implemented(
-                        "SEPA bank debit is not supported by Forte. Only ACH (US) bank debits are supported.".to_string(),
-                    ))?
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: "SEPA bank debit is not supported by Forte. Only ACH (US) bank debits are supported.".to_string(),
+                        connector: "forte",
+                        context: Default::default(),
+                    }))?
                 }
                 BankDebitData::BecsBankDebit { .. } => {
-                    Err(IntegrationError::not_implemented(
-                        "BECS bank debit is not supported by Forte. Only ACH (US) bank debits are supported.".to_string(),
-                    ))?
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: "BECS bank debit is not supported by Forte. Only ACH (US) bank debits are supported.".to_string(),
+                        connector: "forte",
+                        context: Default::default(),
+                    }))?
                 }
                 BankDebitData::BacsBankDebit { .. } => {
-                    Err(IntegrationError::not_implemented(
-                        "BACS bank debit is not supported by Forte. Only ACH (US) bank debits are supported.".to_string(),
-                    ))?
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: "BACS bank debit is not supported by Forte. Only ACH (US) bank debits are supported.".to_string(),
+                        connector: "forte",
+                        context: Default::default(),
+                    }))?
                 }
                 BankDebitData::EftBankDebit { .. } => {
-                    Err(IntegrationError::not_implemented(
-                        "EFT bank debit is not supported by Forte. Only ACH (US) bank debits are supported.".to_string(),
-                    ))?
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: "EFT bank debit is not supported by Forte. Only ACH (US) bank debits are supported.".to_string(),
+                        connector: "forte",
+                        context: Default::default(),
+                    }))?
                 }
                 BankDebitData::SepaGuaranteedBankDebit { .. } => {
-                    Err(IntegrationError::not_implemented(
-                        "SEPA Guaranteed bank debit is not supported by Forte. Only ACH (US) bank debits are supported.".to_string(),
-                    ))?
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: "SEPA Guaranteed bank debit is not supported by Forte. Only ACH (US) bank debits are supported.".to_string(),
+                        connector: "forte",
+                        context: Default::default(),
+                    }))?
                 }
             },
             PaymentMethodData::CardRedirect(_)

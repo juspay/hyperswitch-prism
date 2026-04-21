@@ -19,6 +19,7 @@ import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.Currency
 import payments.FutureUsage
+import payments.HttpMethod
 import payments.PaymentMethodType
 import payments.ConnectorConfig
 import payments.SdkOptions
@@ -27,7 +28,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.PaypalConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_client_authentication_token", "create_order", "create_server_authentication_token", "get", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_client_authentication_token", "create_order", "create_server_authentication_token", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -52,6 +53,7 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
             minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
+        shippingCost = 0L  // Cost of shipping for the order.
         paymentMethodBuilder.apply {  // Payment method to be used.
             cardBuilder.apply {  // Generic card payment.
                 cardNumberBuilder.value = "4111111111111111"  // Card Identification.
@@ -327,10 +329,31 @@ fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
 fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = EventClient(config)
     val request = EventServiceHandleRequest.newBuilder().apply {
-
+        merchantEventId = "probe_event_001"  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        requestDetailsBuilder.apply {
+            method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
+            uri = "https://example.com/webhook"  // URI of the request.
+            putAllHeaders(mapOf())  // Headers of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("{\"event_type\":\"PAYMENT.CAPTURE.COMPLETED\",\"resource\":{\"id\":\"probe_capture_001\",\"status\":\"COMPLETED\",\"amount\":{\"value\":\"10.00\",\"currency_code\":\"USD\"}}}")  // Body of the HTTP request.
+        }
     }.build()
     val response = client.handle_event(request)
-    println("Event status: ${response.eventStatus.name}")
+    println("Webhook: type=${response.eventType.name} verified=${response.sourceVerified}")
+}
+
+// Flow: EventService.ParseEvent
+fun parseEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = EventClient(config)
+    val request = EventServiceParseRequest.newBuilder().apply {
+        requestDetailsBuilder.apply {
+            method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
+            uri = "https://example.com/webhook"  // URI of the request.
+            putAllHeaders(mapOf())  // Headers of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("{\"event_type\":\"PAYMENT.CAPTURE.COMPLETED\",\"resource\":{\"id\":\"probe_capture_001\",\"status\":\"COMPLETED\",\"amount\":{\"value\":\"10.00\",\"currency_code\":\"USD\"}}}")  // Body of the HTTP request.
+        }
+    }.build()
+    val response = client.parse_event(request)
+    println("Webhook parsed: type=${response.eventType.name}")
 }
 
 // Flow: PaymentService.ProxyAuthorize
@@ -363,6 +386,7 @@ fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
         }
+        shippingCost = 0L  // Cost of shipping for the order.
     }.build()
     val response = client.proxy_authorize(request)
     println("Status: ${response.status.name}")
@@ -546,6 +570,7 @@ fun main(args: Array<String>) {
         "createServerAuthenticationToken" -> createServerAuthenticationToken(txnId)
         "get" -> get(txnId)
         "handleEvent" -> handleEvent(txnId)
+        "parseEvent" -> parseEvent(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
         "proxySetupRecurring" -> proxySetupRecurring(txnId)
         "recurringCharge" -> recurringCharge(txnId)
@@ -553,6 +578,6 @@ fun main(args: Array<String>) {
         "refundGet" -> refundGet(txnId)
         "setupRecurring" -> setupRecurring(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createOrder, createServerAuthenticationToken, get, handleEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createOrder, createServerAuthenticationToken, get, handleEvent, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, void")
     }
 }

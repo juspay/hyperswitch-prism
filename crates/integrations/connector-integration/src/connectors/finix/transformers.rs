@@ -1001,11 +1001,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             account_type,
                         })
                     }
-                    _ => Err(IntegrationError::NotImplemented(
-                        "Only ACH Bank Debit is supported".to_string(),
-                        Default::default(),
-                    )
-                    .into()),
+                    _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: "Only ACH Bank Debit is supported".to_string(),
+                        connector: "Finix",
+                        context: Default::default(),
+                    })),
                 }
             }
             PaymentMethodData::Wallet(wallet_data) => {
@@ -1237,11 +1237,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             account_type,
                         })
                     }
-                    _ => Err(IntegrationError::NotImplemented(
-                        "Only ACH Bank Debit is supported for SetupMandate".to_string(),
-                        Default::default(),
-                    )
-                    .into()),
+                    _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: "Only ACH Bank Debit is supported for SetupMandate".to_string(),
+                        connector: "Finix",
+                        context: Default::default(),
+                    })),
                 }
             }
             PaymentMethodData::Wallet(wallet_data) => {

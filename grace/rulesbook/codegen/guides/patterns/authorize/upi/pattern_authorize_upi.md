@@ -99,6 +99,18 @@ pub enum UpiSource {
 | **Paytm** | Yes | Yes | No | Session Token | AES Encryption |
 | **Stripe** | Yes | No | No | Standard JSON | Bearer Token |
 | **Adyen** | Yes | No | No | Standard JSON | API Key |
+| **PineLabs Online** | Yes | Yes | Yes | Two-Phase Flow | API Key |
+| **PayU** | Yes (generic) | Yes | Yes (generic) | Standard JSON (S2S Flow) | SHA-512 Signature |
+
+**PineLabs Online** UPI authorization (PR #795): `PaymentMethodData::Upi(_)` is mapped to the connector wire string `"UPI"` in `get_pinelabs_payment_method_string` at `crates/integrations/connector-integration/src/connectors/pinelabs_online/transformers.rs:621`. The UPI branch of `build_payment_option` at `crates/integrations/connector-integration/src/connectors/pinelabs_online/transformers.rs:638` discriminates `UpiData::UpiCollect` (txn_mode `"COLLECT"`, VPA extracted from `collect_data.vpa_id` at `pinelabs_online/transformers.rs:641`) from `UpiData::UpiIntent | UpiData::UpiQr` (txn_mode `"INTENT"` at `pinelabs_online/transformers.rs:650`) and emits a `PinelabsOnlineUpiDetails { txn_mode, payer }` at `pinelabs_online/transformers.rs:653`.
+
+**PhonePe** UPI authorization: the `PaymentMethodData::Upi(upi_data)` match arm that drives `PhonepePaymentInstrument` construction is at `crates/integrations/connector-integration/src/connectors/phonepe/transformers.rs:259`, with three sub-branches — `UpiData::UpiIntent` (builds `UPI_INTENT` with `target_app` from browser context) at `phonepe/transformers.rs:260`, `UpiData::UpiQr` emitting `UPI_QR` at `phonepe/transformers.rs:269`, and `UpiData::UpiCollect` mapping `collect_data.vpa_id` into the `vpa` field at `phonepe/transformers.rs:274`. The device-context dispatch for Intent is at `phonepe/transformers.rs:293`; all four branches are real (non-Intent/Collect/QR variants fall through to a `not_implemented` guard at `phonepe/transformers.rs:283`).
+
+**Paytm** UPI authorization: `determine_upi_flow` branches on `PaymentMethodData::Upi(upi_data)` at `crates/integrations/connector-integration/src/connectors/paytm/transformers.rs:810`, returning `UpiFlowType::Collect` when `UpiData::UpiCollect.vpa_id` is present (`paytm/transformers.rs:812`) and `UpiFlowType::Intent` for `UpiData::UpiIntent | UpiData::UpiQr` at `paytm/transformers.rs:824`. The parallel `extract_upi_vpa` helper reads `PaymentMethodData::Upi(UpiData::UpiCollect(collect_data))` at `paytm/transformers.rs:839` to produce a validated VPA string.
+
+**PayU** UPI authorization: `determine_upi_flow` matches `PaymentMethodData::Upi(upi_data)` at `crates/integrations/connector-integration/src/connectors/payu/transformers.rs:665` and selects wire fields `(pg="UPI", bankcode="UPI", VPA, S2S flow "2")` for `UpiData::UpiCollect` at `payu/transformers.rs:668` versus a generic-intent branch (falls through with empty bankcode) for `UpiData::UpiIntent | UpiData::UpiQr` at `payu/transformers.rs:639`. Bank-code/target-app lookup for UPI Intent/QR is the `_ => Ok(None)` at `payu/transformers.rs:650` after matching `UpiData::UpiIntent | UpiData::UpiQr` at `payu/transformers.rs:639`, and VPA extraction for Collect is at `payu/transformers.rs:644`.
+
+**RazorpayV2** UPI authorization: the Authorize `TryFrom` builder matches `PaymentMethodData::Upi(upi_data)` at `crates/integrations/connector-integration/src/connectors/razorpayv2/transformers.rs:366`, producing `(UpiFlow::Collect, Some(vpa))` from `UpiData::UpiCollect.vpa_id` at `razorpayv2/transformers.rs:367` and `(UpiFlow::Intent, None)` for `UpiData::UpiIntent | UpiData::UpiQr` at `razorpayv2/transformers.rs:379`. The resulting `RazorpayV2UpiDetails { flow, vpa, expiry_time, upi_type, end_date }` is assembled at `razorpayv2/transformers.rs:388`.
 
 ## Pattern Categories
 
@@ -1237,6 +1249,17 @@ mod tests {
 - AES-CBC encryption for signatures
 - Different request structures for Intent vs Collect
 - Fixed IV for encryption: `@@@@&&&&####$$$$`
+
+---
+
+## Change Log
+
+| Date | Version | Pinned SHA | Change |
+|------|---------|------------|--------|
+| 2026-04-20 | 1.3.0 | `60540470cf84a350cc02b0d41565e5766437eb95` | Final-polish citation pass. Added **PayU** row to the Supported Connectors table. Added per-connector `file:line` citation paragraphs for **PhonePe** (`phonepe/transformers.rs:259`, `:260`, `:269`, `:274`, `:283`, `:293`), **Paytm** (`paytm/transformers.rs:810`, `:812`, `:824`, `:839`), **PayU** (`payu/transformers.rs:639`, `:644`, `:650`, `:665`, `:668`), and **RazorpayV2** (`razorpayv2/transformers.rs:366`, `:367`, `:379`, `:388`) documenting the real `PaymentMethodData::Upi(_)` match arms in each connector's Authorize transformer. |
+| 2026-04-20 | 1.2.0 | `60540470cf84a350cc02b0d41565e5766437eb95` | Bumped Version field in header metadata table (verification agent confirmed all 9 variants present: 3 `UpiData` + 6 `UpiSource`; canonical header table already in place). No substantive content changes this revision. |
+| 2026-04-20 | 1.1.0 | `60540470cf84a350cc02b0d41565e5766437eb95` | Added document header metadata block. Added **PineLabs Online** row to the Supported Connectors table with `file:line` citations for `PaymentMethodData::Upi(_)` -> `"UPI"` mapping at `crates/integrations/connector-integration/src/connectors/pinelabs_online/transformers.rs:621` and the collect/intent dispatch in `build_payment_option` at `pinelabs_online/transformers.rs:638-653` -- PR #795. |
+| (prior) | 1.0.0 | (initial) | Initial authoring covering Standard JSON, Two-Phase, Encrypted Payload, and Session Token patterns across Razorpay, PhonePe, Cashfree, Paytm, Stripe, and Adyen. |
 
 ---
 

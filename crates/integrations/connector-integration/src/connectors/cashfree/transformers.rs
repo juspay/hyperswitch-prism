@@ -337,6 +337,15 @@ fn get_cashfree_payment_method_data<
                 }
             }
         }
+        PaymentMethodData::Card(_) => Err(IntegrationError::not_implemented(
+            "Card payments are supported by Cashfree, but are not yet implemented for this connector",
+        )),
+        PaymentMethodData::PayLater(_) => Err(IntegrationError::not_implemented(
+            "Pay later and cardless EMI payments are supported by Cashfree, but are not yet implemented for this connector",
+        )),
+        PaymentMethodData::BankTransfer(_) => Err(IntegrationError::not_implemented(
+            "Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector",
+        )),
         PaymentMethodData::Wallet(wallet_data) => {
             // Map wallet variants to Cashfree APP type (channel: "link", provider: <name>)
             let provider = match wallet_data {

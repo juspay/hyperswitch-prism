@@ -196,9 +196,11 @@ impl TryFrom<&common_enums::PaymentMethodType> for NovalNetPaymentTypes {
             common_enums::PaymentMethodType::Paypal => Ok(Self::PAYPAL),
             common_enums::PaymentMethodType::Sepa => Ok(Self::DirectDebitSepa),
             common_enums::PaymentMethodType::Ach => Ok(Self::DirectDebitAch),
-            _ => Err(IntegrationError::not_implemented(
-                utils::get_unimplemented_payment_method_error_message("Novalnet"),
-            ))?,
+            _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: utils::get_unimplemented_payment_method_error_message("Novalnet"),
+                connector: "Novalnet",
+                context: Default::default(),
+            }))?,
         }
     }
 }
@@ -2503,8 +2505,6 @@ impl TryFrom<NovalnetWebhookNotificationResponse> for WebhookDetailsResponse {
                                 }
                             }),
                             payment_method_update: None,
-                            transformation_status:
-                                common_enums::WebhookTransformationStatus::Complete,
                         })
                     }
                     NovalnetAPIStatus::Failure => Ok(Self {
@@ -2527,7 +2527,6 @@ impl TryFrom<NovalnetWebhookNotificationResponse> for WebhookDetailsResponse {
                         error_reason: None,
                         network_txn_id: None,
                         payment_method_update: None,
-                        transformation_status: common_enums::WebhookTransformationStatus::Complete,
                     }),
                 }
             }

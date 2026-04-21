@@ -8,368 +8,368 @@
     },
     "authorize": {
       "Ach": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "AchBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Affirm": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Afterpay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Alfamart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "AliPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "AmazonPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Bacs": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "BacsBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "BancontactCard": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "BcaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Becs": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Bizum": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Blik": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Bluecode": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "BniVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Boleto": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "BriVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Card": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "CashappQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "CimbVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "ClassicReward": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Crypto": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "DuitNow": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "EVoucher": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Efecty": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Eft": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Eps": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "FamilyMart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Giropay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Givex": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "GooglePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Ideal": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Indomaret": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "IndonesianBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "InstantBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "InstantBankTransferFinland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "InstantBankTransferPoland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Interac": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Klarna": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Lawson": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "LocalBankRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "LocalBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "MbWay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Mifinity": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "MiniStop": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "MultibancoBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "OnlineBankingFinland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "OnlineBankingFpx": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "OnlineBankingPoland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "OnlineBankingThailand": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "OpenBanking": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "OpenBankingPis": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "OpenBankingUk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Oxxo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "PagoEfectivo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "PayEasy": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "PaySafeCard": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "PaypalRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "PaypalSdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Paze": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "PermataBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Pix": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Przelewy24": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Pse": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "RedCompra": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "RedPagos": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "RevolutPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "SamsungPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Satispay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Seicomart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Sepa": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "SepaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "SevenEleven": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Sofort": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Trustly": {
         "status": "error",
         "error": "Stuck on field: country — Missing required field: country"
       },
       "UpiCollect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "UpiIntent": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "UpiQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "WeChatPayQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Wero": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       }
     },
     "capture": {
@@ -434,12 +434,46 @@
     },
     "handle_event": {
       "default": {
-        "status": "supported"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"method\":\"charge\",\"params\":{\"data\":{\"orderid\":\"probe_order_001\",\"amount\":\"10.00\",\"currency\":\"EUR\",\"enduserid\":\"probe_user\"}}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"method\":\"charge\",\"params\":{\"data\":{\"orderid\":\"probe_order_001\",\"amount\":\"10.00\",\"currency\":\"EUR\",\"enduserid\":\"probe_user\"}}}"
+        }
       }
     },
     "incremental_authorization": {
       "default": {
         "status": "not_implemented"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"method\":\"charge\",\"params\":{\"data\":{\"orderid\":\"probe_order_001\",\"amount\":\"10.00\",\"currency\":\"EUR\",\"enduserid\":\"probe_user\"}}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"method\":\"charge\",\"params\":{\"data\":{\"orderid\":\"probe_order_001\",\"amount\":\"10.00\",\"currency\":\"EUR\",\"enduserid\":\"probe_user\"}}}"
+        }
       }
     },
     "post_authenticate": {
@@ -454,8 +488,8 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       }
     },
     "proxy_setup_recurring": {
@@ -496,8 +530,8 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Trustly"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       }
     },
     "token_setup_recurring": {

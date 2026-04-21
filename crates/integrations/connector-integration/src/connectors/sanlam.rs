@@ -45,9 +45,7 @@ use interfaces::{
 };
 use serde::Serialize;
 use std::fmt::Debug;
-use transformers::{
-    self as sanlammultidata, SanlammultidataPaymentsRequest, SanlammultidataPaymentsResponse,
-};
+use transformers::{self as sanlam, SanlamPaymentsRequest, SanlamPaymentsResponse};
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -56,136 +54,136 @@ pub(crate) mod headers {
 }
 
 macros::macro_connector_payout_implementation!(
-    connector: Sanlammultidata,
+    connector: Sanlam,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
 );
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ClientAuthentication for Sanlammultidata<T>
+    connector_types::ClientAuthentication for Sanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ConnectorServiceTrait<T> for Sanlammultidata<T>
+    connector_types::ConnectorServiceTrait<T> for Sanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAuthorizeV2<T> for Sanlammultidata<T>
+    connector_types::PaymentAuthorizeV2<T> for Sanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentSyncV2 for Sanlammultidata<T>
+    connector_types::PaymentSyncV2 for Sanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerSessionAuthentication for Sanlammultidata<T>
+    connector_types::ServerSessionAuthentication for Sanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerAuthentication for Sanlammultidata<T>
+    connector_types::ServerAuthentication for Sanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::CreateConnectorCustomer for Sanlammultidata<T>
+    connector_types::CreateConnectorCustomer for Sanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentVoidV2 for Sanlammultidata<T>
+    connector_types::PaymentVoidV2 for Sanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::RefundSyncV2 for Sanlammultidata<T>
+    connector_types::RefundSyncV2 for Sanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::RefundV2 for Sanlammultidata<T>
+    connector_types::RefundV2 for Sanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentCapture for Sanlammultidata<T>
+    connector_types::PaymentCapture for Sanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SetupMandateV2<T> for Sanlammultidata<T>
+    connector_types::SetupMandateV2<T> for Sanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::AcceptDispute for Sanlammultidata<T>
+    connector_types::AcceptDispute for Sanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SubmitEvidenceV2 for Sanlammultidata<T>
+    connector_types::SubmitEvidenceV2 for Sanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::DisputeDefend for Sanlammultidata<T>
+    connector_types::DisputeDefend for Sanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::VerifyRedirectResponse for Sanlammultidata<T>
+    connector_types::VerifyRedirectResponse for Sanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> SourceVerification
-    for Sanlammultidata<T>
+    for Sanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> BodyDecoding
-    for Sanlammultidata<T>
+    for Sanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentOrderCreate for Sanlammultidata<T>
+    connector_types::PaymentOrderCreate for Sanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ValidationTrait for Sanlammultidata<T>
+    connector_types::ValidationTrait for Sanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::RepeatPaymentV2<T> for Sanlammultidata<T>
+    connector_types::RepeatPaymentV2<T> for Sanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentTokenV2<T> for Sanlammultidata<T>
+    connector_types::PaymentTokenV2<T> for Sanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::MandateRevokeV2 for Sanlammultidata<T>
+    connector_types::MandateRevokeV2 for Sanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentPreAuthenticateV2<T> for Sanlammultidata<T>
+    connector_types::PaymentPreAuthenticateV2<T> for Sanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAuthenticateV2<T> for Sanlammultidata<T>
+    connector_types::PaymentAuthenticateV2<T> for Sanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentPostAuthenticateV2<T> for Sanlammultidata<T>
+    connector_types::PaymentPostAuthenticateV2<T> for Sanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentVoidPostCaptureV2 for Sanlammultidata<T>
+    connector_types::PaymentVoidPostCaptureV2 for Sanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentIncrementalAuthorization for Sanlammultidata<T>
+    connector_types::PaymentIncrementalAuthorization for Sanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Sanlammultidata<T>
+    connector_types::IncomingWebhook for Sanlam<T>
 {
 }
 
 macros::create_all_prerequisites!(
-    connector_name: Sanlammultidata,
+    connector_name: Sanlam,
     generic_type: T,
     api: [
         (
             flow: Authorize,
-            request_body: SanlammultidataPaymentsRequest,
-            response_body: SanlammultidataPaymentsResponse,
+            request_body: SanlamPaymentsRequest,
+            response_body: SanlamPaymentsResponse,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         )
     ],
@@ -213,16 +211,16 @@ macros::create_all_prerequisites!(
             &self,
             req: &'a RouterDataV2<F, PaymentFlowData, Req, Res>,
         ) -> &'a str {
-            &req.resource_common_data.connectors.sanlammultidata.base_url
+            &req.resource_common_data.connectors.sanlam.base_url
         }
     }
 );
 
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: Sanlammultidata,
-    curl_request: Json(SanlammultidataPaymentsRequest),
-    curl_response: SanlammultidataPaymentsResponse,
+    connector: Sanlam,
+    curl_request: Json(SanlamPaymentsRequest),
+    curl_response: SanlamPaymentsResponse,
     flow_name: Authorize,
     resource_common_data: PaymentFlowData,
     flow_request: PaymentsAuthorizeData<T>,
@@ -273,10 +271,10 @@ macros::macro_connector_implementation!(
 );
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
-    for Sanlammultidata<T>
+    for Sanlam<T>
 {
     fn id(&self) -> &'static str {
-        "sanlammultidata"
+        "sanlam"
     }
 
     fn get_currency_unit(&self) -> CurrencyUnit {
@@ -288,14 +286,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        connectors.sanlammultidata.base_url.as_ref()
+        connectors.sanlam.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
         auth_type: &ConnectorSpecificConfig,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-        let auth = sanlammultidata::SanlammultidataAuthType::try_from(auth_type).change_context(
+        let auth = sanlam::SanlamAuthType::try_from(auth_type).change_context(
             IntegrationError::FailedToObtainAuthType {
                 context: Default::default(),
             },
@@ -316,31 +314,30 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 // Stub implementations for unsupported flows
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
-    for Sanlammultidata<T>
+    for Sanlam<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
-    for Sanlammultidata<T>
+    for Sanlam<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
-    for Sanlammultidata<T>
+    for Sanlam<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
-    for Sanlammultidata<T>
+    ConnectorIntegrationV2<Refund, RefundFlowData, RefundsData, RefundsResponseData> for Sanlam<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
-    for Sanlammultidata<T>
+    for Sanlam<T>
 {
 }
 
@@ -350,7 +347,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentFlowData,
         PaymentsPreAuthenticateData<T>,
         PaymentsResponseData,
-    > for Sanlammultidata<T>
+    > for Sanlam<T>
 {
 }
 
@@ -360,7 +357,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentFlowData,
         PaymentsAuthenticateData<T>,
         PaymentsResponseData,
-    > for Sanlammultidata<T>
+    > for Sanlam<T>
 {
 }
 
@@ -370,7 +367,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentFlowData,
         PaymentsPostAuthenticateData<T>,
         PaymentsResponseData,
-    > for Sanlammultidata<T>
+    > for Sanlam<T>
 {
 }
 
@@ -380,7 +377,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentFlowData,
         MandateRevokeRequestData,
         MandateRevokeResponseData,
-    > for Sanlammultidata<T>
+    > for Sanlam<T>
 {
 }
 
@@ -390,25 +387,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentFlowData,
         PaymentCreateOrderData,
         PaymentCreateOrderResponse,
-    > for Sanlammultidata<T>
+    > for Sanlam<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>
-    for Sanlammultidata<T>
+    for Sanlam<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
-    for Sanlammultidata<T>
+    for Sanlam<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
-    for Sanlammultidata<T>
+    for Sanlam<T>
 {
 }
 
@@ -418,7 +415,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentFlowData,
         SetupMandateRequestData<T>,
         PaymentsResponseData,
-    > for Sanlammultidata<T>
+    > for Sanlam<T>
 {
 }
 
@@ -428,7 +425,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentFlowData,
         RepeatPaymentData<T>,
         PaymentsResponseData,
-    > for Sanlammultidata<T>
+    > for Sanlam<T>
 {
 }
 
@@ -438,7 +435,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentFlowData,
         ServerSessionAuthenticationTokenRequestData,
         ServerSessionAuthenticationTokenResponseData,
-    > for Sanlammultidata<T>
+    > for Sanlam<T>
 {
 }
 
@@ -448,7 +445,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentFlowData,
         ServerAuthenticationTokenRequestData,
         ServerAuthenticationTokenResponseData,
-    > for Sanlammultidata<T>
+    > for Sanlam<T>
 {
 }
 
@@ -458,7 +455,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentFlowData,
         PaymentsCancelPostCaptureData,
         PaymentsResponseData,
-    > for Sanlammultidata<T>
+    > for Sanlam<T>
 {
 }
 
@@ -468,7 +465,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentFlowData,
         ClientAuthenticationTokenRequestData,
         PaymentsResponseData,
-    > for Sanlammultidata<T>
+    > for Sanlam<T>
 {
 }
 
@@ -478,7 +475,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentFlowData,
         ConnectorCustomerData,
         ConnectorCustomerResponse,
-    > for Sanlammultidata<T>
+    > for Sanlam<T>
 {
 }
 
@@ -488,7 +485,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentFlowData,
         PaymentMethodTokenizationData<T>,
         PaymentMethodTokenResponse,
-    > for Sanlammultidata<T>
+    > for Sanlam<T>
 {
 }
 
@@ -498,6 +495,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentFlowData,
         PaymentsIncrementalAuthorizationData,
         PaymentsResponseData,
-    > for Sanlammultidata<T>
+    > for Sanlam<T>
 {
 }

@@ -207,10 +207,11 @@ impl TryFrom<&BankTransferData> for TrustpayBankTransferPaymentMethod {
             BankTransferData::InstantBankTransfer {} => Ok(Self::InstantBankTransfer),
             BankTransferData::InstantBankTransferFinland {} => Ok(Self::InstantBankTransferFI),
             BankTransferData::InstantBankTransferPoland {} => Ok(Self::InstantBankTransferPL),
-            _ => Err(IntegrationError::not_implemented(
-                utils::get_unimplemented_payment_method_error_message("trustpay"),
-            )
-            .into()),
+            _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: utils::get_unimplemented_payment_method_error_message("trustpay"),
+                connector: "trustpay",
+                context: Default::default(),
+            })),
         }
     }
 }
@@ -1801,10 +1802,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("trustpay"),
-                )
-                .into())
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("trustpay"),
+                    connector: "trustpay",
+                    context: Default::default(),
+                }))
             }
         }
     }
@@ -2595,11 +2597,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let card_data = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card) => card,
             _ => {
-                return Err(IntegrationError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("trustpay SetupMandate"),
-                    Default::default(),
-                )
-                .into())
+                return Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message(
+                        "trustpay SetupMandate"
+                    ),
+                    connector: "trustpay",
+                    context: Default::default(),
+                }))
             }
         };
 
@@ -2829,10 +2833,12 @@ fn extract_trustpay_mandate_id(mandate_reference: &MandateReferenceId) -> Result
                 })
             }),
         MandateReferenceId::NetworkMandateId(_) | MandateReferenceId::NetworkTokenWithNTI(_) => {
-            Err(report!(IntegrationError::NotImplemented(
-                "Network mandate / NTI not supported for trustpay RepeatPayment".to_string(),
-                Default::default(),
-            )))
+            Err(report!(IntegrationError::NotSupported {
+                message: "Network mandate / NTI not supported for trustpay RepeatPayment"
+                    .to_string(),
+                connector: "trustpay",
+                context: Default::default(),
+            }))
         }
     }
 }

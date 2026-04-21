@@ -242,10 +242,10 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Local | ⚠ |
 | Indonesian | ⚠ |
 | ACH | ✓ |
-| SEPA | ⚠ |
-| BACS | ⚠ |
-| BECS | ⚠ |
-| SEPA Guaranteed | ⚠ |
+| SEPA | x |
+| BACS | x |
+| BECS | x |
+| SEPA Guaranteed | x |
 | Crypto | x |
 | Reward | ⚠ |
 | Givex | x |
