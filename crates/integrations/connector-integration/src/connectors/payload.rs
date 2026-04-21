@@ -435,8 +435,11 @@ macros::macro_connector_implementation!(
                     } else {
                         // Automatic capture: PUT with status=processed to capture inline,
                         // mirroring how Google Pay connectors fully charge in the Authorize step.
-                        // Payload.js already authorized the transaction on the frontend;
-                        // we capture it here so /confirm returns `succeeded` in one shot.
+                        // Payload.js already authorized the transaction on the frontend for the
+                        // exact amount the user approved via Apple Pay — the amount is locked by
+                        // the SDK at session creation time and cannot differ here. We do not
+                        // re-send the amount; we only flip the transaction status to `processed`
+                        // so /confirm returns `succeeded` in one shot.
                         let body = RequestContent::FormUrlEncoded(Box::new(
                             PayloadCaptureRequest {
                                 status: responses::PayloadPaymentStatus::Processed,
