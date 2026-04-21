@@ -33,8 +33,8 @@ use crate::{
     },
     router_response_types::RedirectForm,
     types::{
-        ConnectorInfo, Connectors, PaymentMethodDataType, PaymentMethodDetails,
-        PaymentMethodTypeMetadata, SupportedPaymentMethods,
+        AdditionalPaymentData, ConnectorInfo, Connectors, PaymentMethodDataType,
+        PaymentMethodDetails, PaymentMethodTypeMetadata, SupportedPaymentMethods,
     },
     utils::{missing_field_err, Error, ForeignTryFrom},
 };
@@ -2545,6 +2545,7 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub connector_testing_data: Option<SecretSerdeValue>,
     pub merchant_account_id: Option<Secret<String>>,
     pub merchant_configured_currency: Option<Currency>,
+    pub additional_payment_data: Option<AdditionalPaymentData>,
 }
 
 impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
