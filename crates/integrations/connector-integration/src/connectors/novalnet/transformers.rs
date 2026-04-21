@@ -2739,17 +2739,16 @@ impl TryFrom<ResponseRouterData<NovalnetIncrementalAuthResponse, Self>>
                     authorization_status,
                     common_enums::AuthorizationStatus::Failure
                 ) {
-                    let response = Err(get_error_response(
-                        item.response.result,
-                        item.http_code,
-                        transaction_id,
-                    ));
+                    // Incremental-auth failure does not invalidate the
+                    // original authorization — leave the attempt status
+                    // untouched so the initial auth remains capturable at
+                    // its existing amount.
                     return Ok(Self {
-                        resource_common_data: PaymentFlowData {
-                            status: common_enums::AttemptStatus::Failure,
-                            ..item.router_data.resource_common_data
-                        },
-                        response,
+                        response: Err(get_error_response(
+                            item.response.result,
+                            item.http_code,
+                            transaction_id,
+                        )),
                         ..item.router_data
                     });
                 }
@@ -2764,17 +2763,15 @@ impl TryFrom<ResponseRouterData<NovalnetIncrementalAuthResponse, Self>>
                 })
             }
             NovalnetAPIStatus::Failure => {
-                let response = Err(get_error_response(
-                    item.response.result,
-                    item.http_code,
-                    transaction_id,
-                ));
+                // Incremental-auth failure does not invalidate the original
+                // authorization — surface the error but keep the attempt
+                // status so the initial auth remains valid.
                 Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status: common_enums::AttemptStatus::Failure,
-                        ..item.router_data.resource_common_data
-                    },
-                    response,
+                    response: Err(get_error_response(
+                        item.response.result,
+                        item.http_code,
+                        transaction_id,
+                    )),
                     ..item.router_data
                 })
             }
