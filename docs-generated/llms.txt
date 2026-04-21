@@ -619,7 +619,7 @@ connector_id: trustpayments
 doc: docs/connectors/trustpayments.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: ApplePayDecrypted, Card, GooglePayDecrypted
-flows: authorize, capture, get, proxy_authorize, refund, refund_get, void
+flows: authorize, capture, get, incremental_authorization, proxy_authorize, refund, refund_get, void
 examples_python: examples/trustpayments/trustpayments.py
 
 ## Tsys
