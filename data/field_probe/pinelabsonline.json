@@ -109,7 +109,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "DanamonVaBankTransfer": {
         "status": "error",
@@ -117,7 +117,7 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
         "status": "error",
@@ -145,7 +145,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GooglePay": {
         "status": "error",
@@ -253,7 +253,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
         "status": "error",
@@ -273,7 +273,7 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PaypalRedirect": {
         "status": "error",
@@ -285,7 +285,7 @@
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
         "status": "error",
