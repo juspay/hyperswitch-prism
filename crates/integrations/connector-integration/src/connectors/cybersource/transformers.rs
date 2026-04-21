@@ -871,6 +871,12 @@ pub struct AdditionalAmount {
     currency: String,
 }
 
+#[derive(Debug, Clone, Copy, strum::Display)]
+#[strum(serialize_all = "lowercase")]
+pub enum CybersourceCommerceIndicator {
+    Internet,
+}
+
 #[derive(Debug, Serialize)]
 pub enum PaymentSolution {
     ApplePay,
@@ -2387,6 +2393,10 @@ pub struct CybersourcePaymentsCaptureRequest {
     merchant_defined_information: Option<Vec<utils::MerchantDefinedInformation>>,
 }
 
+// CyberSource's PATCH /pts/v2/payments/{id} endpoint rejects requests that include
+// `clientReferenceInformation` at the top level (400: "One or more fields in the
+// request contains invalid data"). The merchant reference from the parent payment
+// is preserved by CyberSource and echoed back in the incremental auth response.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourcePaymentsIncrementalAuthorizationRequest {
@@ -2732,10 +2742,8 @@ pub enum CybersourceAuthSetupResponse {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourcePaymentsIncrementalAuthorizationResponse {
-    #[serde(default)]
-    pub id: Option<String>,
+    pub id: String,
     pub status: CybersourceIncrementalAuthorizationStatus,
-    #[serde(default)]
     pub client_reference_information: Option<ClientReferenceInformation>,
     pub error_information: Option<CybersourceErrorInformation>,
 }
@@ -2798,9 +2806,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 "Failed to convert additional_amount for CyberSource incremental authorization",
             )?;
 
-        // CyberSource sandbox accepts the incremental authorization only when
-        // authorizationOptions.initiator.storedCredentialUsed is explicitly
-        // true — even though the REST docs say it is optional.
+        // storedCredentialUsed=true is set unconditionally for both sandbox and production:
+        // incremental authorization only applies to an already-authorized (stored-credential)
+        // payment, so the flag is always true here. This mirrors the hyperswitch reference
+        // implementation, which has been production-validated.
         let processing_information = ProcessingInformation {
             action_list: None,
             action_token_types: None,
@@ -2814,7 +2823,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 ignore_avs_result: None,
                 ignore_cv_result: None,
             }),
-            commerce_indicator: String::from("internet"),
+            commerce_indicator: CybersourceCommerceIndicator::Internet.to_string(),
             capture: None,
             capture_options: None,
             payment_solution: None,
@@ -2866,12 +2875,6 @@ impl TryFrom<ResponseRouterData<CybersourcePaymentsIncrementalAuthorizationRespo
             });
             let reason = get_error_reason(error_info.message.clone(), detailed_error_info, None);
             return Ok(Self {
-                resource_common_data: PaymentFlowData {
-                    // Keep the parent payment status unchanged (Authorized) —
-                    // an incremental auth failure does not corrupt the parent.
-                    status: common_enums::AttemptStatus::Authorized,
-                    ..item.router_data.resource_common_data
-                },
                 response: Err(ErrorResponse {
                     status_code: http_code,
                     code: error_info
@@ -2884,7 +2887,7 @@ impl TryFrom<ResponseRouterData<CybersourcePaymentsIncrementalAuthorizationRespo
                         .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
                     reason,
                     attempt_status: None,
-                    connector_transaction_id: response.id.clone(),
+                    connector_transaction_id: Some(response.id.clone()),
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -2893,7 +2896,9 @@ impl TryFrom<ResponseRouterData<CybersourcePaymentsIncrementalAuthorizationRespo
             });
         }
 
-        // Convert the CyberSource-specific status into common_enums::AuthorizationStatus.
+        // Map CyberSource's incremental-authorization status to common_enums::AuthorizationStatus.
+        // Match is exhaustive on purpose — any new status variant added upstream will fail to
+        // compile here so it cannot be silently ignored.
         let authorization_status: common_enums::AuthorizationStatus = match response.status {
             CybersourceIncrementalAuthorizationStatus::Authorized => {
                 common_enums::AuthorizationStatus::Success
@@ -2907,13 +2912,9 @@ impl TryFrom<ResponseRouterData<CybersourcePaymentsIncrementalAuthorizationRespo
         };
 
         Ok(Self {
-            resource_common_data: PaymentFlowData {
-                status: common_enums::AttemptStatus::Authorized,
-                ..item.router_data.resource_common_data
-            },
             response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
                 status: authorization_status,
-                connector_authorization_id: response.id,
+                connector_authorization_id: Some(response.id),
                 status_code: http_code,
             }),
             ..item.router_data
