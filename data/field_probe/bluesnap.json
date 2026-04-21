@@ -177,6 +177,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only ACH and SEPA Bank Debit are supported"
       },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected wallet type is not supported"
+      },
       "Bizum": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method is not supported"
@@ -240,6 +244,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected wallet type is not supported"
       },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected wallet type is not supported"
+      },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method is not supported"
@@ -263,6 +271,10 @@
       "EVoucher": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method is not supported"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected wallet type is not supported"
       },
       "Efecty": {
         "status": "not_implemented",
@@ -415,6 +427,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method is not supported"
       },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected wallet type is not supported"
+      },
       "LocalBankRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method is not supported"
@@ -440,6 +456,10 @@
         "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method is not supported"
+      },
+      "Netbanking": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method is not supported"
       },
@@ -495,6 +515,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected wallet type is not supported"
+      },
       "PaypalRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected wallet type is not supported"
@@ -510,6 +534,10 @@
       "PermataBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method is not supported"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected wallet type is not supported"
       },
       "Pix": {
         "status": "not_implemented",

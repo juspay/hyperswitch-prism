@@ -67,6 +67,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Loonio"
       },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
       "Bizum": {
         "status": "not_supported",
         "error": "Selected payment method through Loonio is not supported by Loonio"
@@ -99,6 +103,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Loonio"
       },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Loonio"
@@ -120,6 +128,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Loonio"
       },
@@ -229,6 +241,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Loonio"
       },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
       "LocalBankRedirect": {
         "status": "not_supported",
         "error": "Selected payment method through Loonio is not supported by Loonio"
@@ -256,6 +272,10 @@
       "MultibancoBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_supported",
@@ -309,6 +329,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
       "PaypalRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Loonio"
@@ -322,6 +346,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "PhonePeRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Loonio"
       },

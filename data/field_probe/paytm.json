@@ -67,6 +67,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
+      },
       "Bizum": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
@@ -99,6 +103,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
+      },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
@@ -120,6 +128,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
@@ -195,6 +207,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
+      },
       "LocalBankRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
@@ -220,6 +236,10 @@
         "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
+      },
+      "Netbanking": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
@@ -275,6 +295,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
+      },
       "PaypalRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
@@ -288,6 +312,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
+      },
+      "PhonePeRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },

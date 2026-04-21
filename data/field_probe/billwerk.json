@@ -67,6 +67,10 @@
         "status": "not_supported",
         "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
       "Bizum": {
         "status": "not_supported",
         "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
@@ -99,6 +103,10 @@
         "status": "not_supported",
         "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
       "CimbVaBankTransfer": {
         "status": "not_supported",
         "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
@@ -120,6 +128,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "EaseBuzzRedirect": {
         "status": "not_supported",
         "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
@@ -195,6 +207,10 @@
         "status": "not_supported",
         "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
       "LocalBankRedirect": {
         "status": "not_supported",
         "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
@@ -220,6 +236,10 @@
         "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "Netbanking": {
         "status": "not_supported",
         "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
@@ -275,6 +295,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
       "PaypalRedirect": {
         "status": "not_supported",
         "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
@@ -288,6 +312,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "PhonePeRedirect": {
         "status": "not_supported",
         "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },

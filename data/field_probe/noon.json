@@ -67,6 +67,10 @@
         "status": "not_supported",
         "error": "Selected payment method through Noon is not supported by Noon"
       },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Noon is not supported by Noon"
+      },
       "Bizum": {
         "status": "not_supported",
         "error": "Selected payment method through Noon is not supported by Noon"
@@ -132,6 +136,10 @@
         "status": "not_supported",
         "error": "Selected payment method through Noon is not supported by Noon"
       },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Noon is not supported by Noon"
+      },
       "CimbVaBankTransfer": {
         "status": "not_supported",
         "error": "Selected payment method through Noon is not supported by Noon"
@@ -153,6 +161,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_supported",
+        "error": "Selected payment method through Noon is not supported by Noon"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_supported",
         "error": "Selected payment method through Noon is not supported by Noon"
       },
@@ -311,6 +323,10 @@
         "status": "not_supported",
         "error": "Selected payment method through Noon is not supported by Noon"
       },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Noon is not supported by Noon"
+      },
       "LocalBankRedirect": {
         "status": "not_supported",
         "error": "Selected payment method through Noon is not supported by Noon"
@@ -336,6 +352,10 @@
         "error": "Selected payment method through Noon is not supported by Noon"
       },
       "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Noon is not supported by Noon"
+      },
+      "Netbanking": {
         "status": "not_supported",
         "error": "Selected payment method through Noon is not supported by Noon"
       },
@@ -391,6 +411,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Noon is not supported by Noon"
+      },
       "PaypalRedirect": {
         "status": "supported",
         "proto_request": {
@@ -433,6 +457,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Noon is not supported by Noon"
+      },
+      "PhonePeRedirect": {
         "status": "not_supported",
         "error": "Selected payment method through Noon is not supported by Noon"
       },

@@ -67,6 +67,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Placetopay"
       },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Placetopay"
+      },
       "Bizum": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Placetopay"
@@ -143,6 +147,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Placetopay"
       },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Placetopay"
+      },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Placetopay"
@@ -164,6 +172,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Placetopay"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Placetopay"
       },
@@ -239,6 +251,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Placetopay"
       },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Placetopay"
+      },
       "LocalBankRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Placetopay"
@@ -264,6 +280,10 @@
         "error": "This feature is not implemented: Selected payment method through Placetopay"
       },
       "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Placetopay"
+      },
+      "Netbanking": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Placetopay"
       },
@@ -319,6 +339,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Placetopay"
+      },
       "PaypalRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Placetopay"
@@ -332,6 +356,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Placetopay"
+      },
+      "PhonePeRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Placetopay"
       },

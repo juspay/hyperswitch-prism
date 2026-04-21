@@ -67,6 +67,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported"
       },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
       "Bizum": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Bank redirect payment method not supported"
@@ -140,6 +144,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported"
       },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported"
@@ -161,6 +169,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported"
       },
@@ -306,6 +318,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported"
       },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
       "LocalBankRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Bank redirect payment method not supported"
@@ -333,6 +349,10 @@
       "MultibancoBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank redirect payment method not supported"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
@@ -386,6 +406,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
       "PaypalRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported"
@@ -399,6 +423,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "PhonePeRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported"
       },

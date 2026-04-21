@@ -67,6 +67,10 @@
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"
       },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
       "Bizum": {
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"
@@ -129,6 +133,10 @@
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"
       },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
       "CimbVaBankTransfer": {
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"
@@ -150,6 +158,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"
       },
@@ -225,6 +237,10 @@
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"
       },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
       "LocalBankRedirect": {
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"
@@ -250,6 +266,10 @@
         "error": "Only card payments are supported is not supported by Paybox"
       },
       "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "Netbanking": {
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"
       },
@@ -305,6 +325,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
       "PaypalRedirect": {
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"
@@ -318,6 +342,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "PhonePeRedirect": {
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"
       },

@@ -411,9 +411,7 @@ pub(crate) fn cashfree_redirect_method() -> PaymentMethod {
 
 pub(crate) fn payu_redirect_method() -> PaymentMethod {
     PaymentMethod {
-        payment_method: Some(PmVariant::PayuRedirect(
-            proto::PayURedirectWallet::default(),
-        )),
+        payment_method: Some(PmVariant::PayuRedirect(proto::PayURedirectWallet::default())),
     }
 }
 

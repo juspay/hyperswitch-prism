@@ -504,6 +504,36 @@
           "body": "{\"amount\":1000,\"currency\":\"USD\",\"capture_mode\":\"automatic\",\"merchant_order_data\":{\"url\":\"https://example.com/return\",\"reference\":\"probe_txn_001\"},\"redirect_url\":\"https://example.com/return\"}"
         }
       },
+      "BillDeskRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "billdesk_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox-merchant.revolut.com//api/orders",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "revolut-api-version": "2024-09-01",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"capture_mode\":\"automatic\",\"merchant_order_data\":{\"url\":\"https://example.com/return\",\"reference\":\"probe_txn_001\"},\"redirect_url\":\"https://example.com/return\"}"
+        }
+      },
       "Bizum": {
         "status": "supported",
         "proto_request": {
@@ -752,6 +782,36 @@
           "body": "{\"amount\":1000,\"currency\":\"USD\",\"capture_mode\":\"automatic\",\"merchant_order_data\":{\"url\":\"https://example.com/return\",\"reference\":\"probe_txn_001\"},\"redirect_url\":\"https://example.com/return\"}"
         }
       },
+      "CashfreeRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "cashfree_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox-merchant.revolut.com//api/orders",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "revolut-api-version": "2024-09-01",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"capture_mode\":\"automatic\",\"merchant_order_data\":{\"url\":\"https://example.com/return\",\"reference\":\"probe_txn_001\"},\"redirect_url\":\"https://example.com/return\"}"
+        }
+      },
       "CimbVaBankTransfer": {
         "status": "supported",
         "proto_request": {
@@ -860,6 +920,36 @@
           },
           "payment_method": {
             "e_voucher": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox-merchant.revolut.com//api/orders",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "revolut-api-version": "2024-09-01",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"capture_mode\":\"automatic\",\"merchant_order_data\":{\"url\":\"https://example.com/return\",\"reference\":\"probe_txn_001\"},\"redirect_url\":\"https://example.com/return\"}"
+        }
+      },
+      "EaseBuzzRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "easebuzz_redirect": {}
           },
           "capture_method": "AUTOMATIC",
           "address": {
@@ -1427,6 +1517,36 @@
           "body": "{\"amount\":1000,\"currency\":\"USD\",\"capture_mode\":\"automatic\",\"merchant_order_data\":{\"url\":\"https://example.com/return\",\"reference\":\"probe_txn_001\"},\"redirect_url\":\"https://example.com/return\"}"
         }
       },
+      "LazyPayRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "lazypay_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox-merchant.revolut.com//api/orders",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "revolut-api-version": "2024-09-01",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"capture_mode\":\"automatic\",\"merchant_order_data\":{\"url\":\"https://example.com/return\",\"reference\":\"probe_txn_001\"},\"redirect_url\":\"https://example.com/return\"}"
+        }
+      },
       "LocalBankRedirect": {
         "status": "supported",
         "proto_request": {
@@ -1620,6 +1740,38 @@
           },
           "payment_method": {
             "multibanco_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox-merchant.revolut.com//api/orders",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "revolut-api-version": "2024-09-01",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"capture_mode\":\"automatic\",\"merchant_order_data\":{\"url\":\"https://example.com/return\",\"reference\":\"probe_txn_001\"},\"redirect_url\":\"https://example.com/return\"}"
+        }
+      },
+      "Netbanking": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "netbanking": {
+              "issuer": "HdfcBank"
+            }
           },
           "capture_method": "AUTOMATIC",
           "address": {
@@ -1990,6 +2142,36 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "PayURedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "payu_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox-merchant.revolut.com//api/orders",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "revolut-api-version": "2024-09-01",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"capture_mode\":\"automatic\",\"merchant_order_data\":{\"url\":\"https://example.com/return\",\"reference\":\"probe_txn_001\"},\"redirect_url\":\"https://example.com/return\"}"
+        }
+      },
       "PaypalRedirect": {
         "status": "supported",
         "proto_request": {
@@ -2068,6 +2250,36 @@
           },
           "payment_method": {
             "permata_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox-merchant.revolut.com//api/orders",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "revolut-api-version": "2024-09-01",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"capture_mode\":\"automatic\",\"merchant_order_data\":{\"url\":\"https://example.com/return\",\"reference\":\"probe_txn_001\"},\"redirect_url\":\"https://example.com/return\"}"
+        }
+      },
+      "PhonePeRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "phonepe_redirect": {}
           },
           "capture_method": "AUTOMATIC",
           "address": {

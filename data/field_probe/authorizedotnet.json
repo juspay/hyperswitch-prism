@@ -95,6 +95,10 @@
         "status": "not_supported",
         "error": "SEPA, SEPA Guaranteed, BECS, EFT, and BACS bank debits are not supported for authorizedotnet is not supported by authorizedotnet"
       },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Payment method Wallet(BillDeskRedirect(BillDeskRedirection)) is not supported by authorizedotnet"
+      },
       "Bizum": {
         "status": "not_supported",
         "error": "Payment method BankRedirect(Bizum) is not supported by authorizedotnet"
@@ -157,6 +161,10 @@
         "status": "not_supported",
         "error": "Payment method Wallet(CashappQr(CashappQr)) is not supported by authorizedotnet"
       },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Payment method Wallet(CashfreeRedirect(CashfreeRedirection)) is not supported by authorizedotnet"
+      },
       "CimbVaBankTransfer": {
         "status": "not_supported",
         "error": "Payment method BankTransfer(CimbVaBankTransfer) is not supported by authorizedotnet"
@@ -180,6 +188,10 @@
       "EVoucher": {
         "status": "not_supported",
         "error": "Payment method Reward is not supported by authorizedotnet"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_supported",
+        "error": "Payment method Wallet(EaseBuzzRedirect(EaseBuzzRedirection)) is not supported by authorizedotnet"
       },
       "Efecty": {
         "status": "not_supported",
@@ -253,6 +265,10 @@
         "status": "not_supported",
         "error": "Payment method Voucher(Lawson(JCSVoucherData)) is not supported by authorizedotnet"
       },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Payment method Wallet(LazyPayRedirect(LazyPayRedirection)) is not supported by authorizedotnet"
+      },
       "LocalBankRedirect": {
         "status": "not_supported",
         "error": "Payment method BankRedirect(LocalBankRedirect) is not supported by authorizedotnet"
@@ -280,6 +296,10 @@
       "MultibancoBankTransfer": {
         "status": "not_supported",
         "error": "Payment method BankTransfer(MultibancoBankTransfer) is not supported by authorizedotnet"
+      },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "Payment method BankRedirect(Netbanking { issuer: HdfcBank }) is not supported by authorizedotnet"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_supported",
@@ -333,6 +353,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Payment method Wallet(PayURedirect(PayURedirection)) is not supported by authorizedotnet"
+      },
       "PaypalRedirect": {
         "status": "not_supported",
         "error": "Payment method Wallet(PaypalRedirect(PaypalRedirection { email: Some(Email(****@example.com)) })) is not supported by authorizedotnet"
@@ -348,6 +372,10 @@
       "PermataBankTransfer": {
         "status": "not_supported",
         "error": "Payment method BankTransfer(PermataBankTransfer) is not supported by authorizedotnet"
+      },
+      "PhonePeRedirect": {
+        "status": "not_supported",
+        "error": "Payment method Wallet(PhonePeRedirect(PhonePeRedirection)) is not supported by authorizedotnet"
       },
       "Pix": {
         "status": "not_supported",

@@ -67,6 +67,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+      },
       "Bizum": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
@@ -131,6 +135,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+      },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
@@ -152,6 +160,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
@@ -227,6 +239,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+      },
       "LocalBankRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
@@ -252,6 +268,10 @@
         "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+      },
+      "Netbanking": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
@@ -307,6 +327,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+      },
       "PaypalRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
@@ -320,6 +344,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+      },
+      "PhonePeRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },

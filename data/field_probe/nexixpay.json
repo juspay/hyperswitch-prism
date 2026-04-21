@@ -67,6 +67,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method BankDebit(BecsBankDebit { account_number: *** alloc::string::String ***, bsb_number: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) })"
       },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(BillDeskRedirect(BillDeskRedirection))"
+      },
       "Bizum": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method BankRedirect(Bizum)"
@@ -99,6 +103,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method Wallet(CashappQr(CashappQr))"
       },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(CashfreeRedirect(CashfreeRedirection))"
+      },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method BankTransfer(CimbVaBankTransfer)"
@@ -122,6 +130,10 @@
       "EVoucher": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method Reward"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(EaseBuzzRedirect(EaseBuzzRedirection))"
       },
       "Efecty": {
         "status": "not_implemented",
@@ -195,6 +207,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method Voucher(Lawson(JCSVoucherData))"
       },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(LazyPayRedirect(LazyPayRedirection))"
+      },
       "LocalBankRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method BankRedirect(LocalBankRedirect)"
@@ -222,6 +238,10 @@
       "MultibancoBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method BankTransfer(MultibancoBankTransfer)"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankRedirect(Netbanking { issuer: HdfcBank })"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
@@ -275,6 +295,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(PayURedirect(PayURedirection))"
+      },
       "PaypalRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method Wallet(PaypalRedirect(PaypalRedirection { email: Some(Email(****@example.com)) }))"
@@ -290,6 +314,10 @@
       "PermataBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method BankTransfer(PermataBankTransfer)"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(PhonePeRedirect(PhonePeRedirection))"
       },
       "Pix": {
         "status": "not_implemented",

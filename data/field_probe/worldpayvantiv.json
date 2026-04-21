@@ -67,6 +67,10 @@
         "status": "not_supported",
         "error": "Payment method is not supported by worldpayvantiv"
       },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by worldpayvantiv"
+      },
       "Bizum": {
         "status": "not_supported",
         "error": "Payment method is not supported by worldpayvantiv"
@@ -128,6 +132,10 @@
         "status": "not_supported",
         "error": "Payment method is not supported by worldpayvantiv"
       },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by worldpayvantiv"
+      },
       "CimbVaBankTransfer": {
         "status": "not_supported",
         "error": "Payment method is not supported by worldpayvantiv"
@@ -149,6 +157,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by worldpayvantiv"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_supported",
         "error": "Payment method is not supported by worldpayvantiv"
       },
@@ -224,6 +236,10 @@
         "status": "not_supported",
         "error": "Payment method is not supported by worldpayvantiv"
       },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by worldpayvantiv"
+      },
       "LocalBankRedirect": {
         "status": "not_supported",
         "error": "Payment method is not supported by worldpayvantiv"
@@ -249,6 +265,10 @@
         "error": "Payment method is not supported by worldpayvantiv"
       },
       "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by worldpayvantiv"
+      },
+      "Netbanking": {
         "status": "not_supported",
         "error": "Payment method is not supported by worldpayvantiv"
       },
@@ -304,6 +324,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by worldpayvantiv"
+      },
       "PaypalRedirect": {
         "status": "not_supported",
         "error": "Payment method is not supported by worldpayvantiv"
@@ -317,6 +341,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by worldpayvantiv"
+      },
+      "PhonePeRedirect": {
         "status": "not_supported",
         "error": "Payment method is not supported by worldpayvantiv"
       },

@@ -67,6 +67,10 @@
         "status": "not_supported",
         "error": "Payment method not supported is not supported by Bamboraapac"
       },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
       "Bizum": {
         "status": "not_supported",
         "error": "Payment method not supported is not supported by Bamboraapac"
@@ -129,6 +133,10 @@
         "status": "not_supported",
         "error": "Payment method not supported is not supported by Bamboraapac"
       },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
       "CimbVaBankTransfer": {
         "status": "not_supported",
         "error": "Payment method not supported is not supported by Bamboraapac"
@@ -150,6 +158,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_supported",
         "error": "Payment method not supported is not supported by Bamboraapac"
       },
@@ -225,6 +237,10 @@
         "status": "not_supported",
         "error": "Payment method not supported is not supported by Bamboraapac"
       },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
       "LocalBankRedirect": {
         "status": "not_supported",
         "error": "Payment method not supported is not supported by Bamboraapac"
@@ -250,6 +266,10 @@
         "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Netbanking": {
         "status": "not_supported",
         "error": "Payment method not supported is not supported by Bamboraapac"
       },
@@ -305,6 +325,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
       "PaypalRedirect": {
         "status": "not_supported",
         "error": "Payment method not supported is not supported by Bamboraapac"
@@ -318,6 +342,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "PhonePeRedirect": {
         "status": "not_supported",
         "error": "Payment method not supported is not supported by Bamboraapac"
       },

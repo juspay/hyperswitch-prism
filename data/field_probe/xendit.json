@@ -67,6 +67,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through xendit"
       },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through xendit"
+      },
       "Bizum": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through xendit"
@@ -134,6 +138,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through xendit"
       },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through xendit"
+      },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through xendit"
@@ -155,6 +163,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through xendit"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through xendit"
       },
@@ -230,6 +242,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through xendit"
       },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through xendit"
+      },
       "LocalBankRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through xendit"
@@ -255,6 +271,10 @@
         "error": "This feature is not implemented: Selected payment method through xendit"
       },
       "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through xendit"
+      },
+      "Netbanking": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through xendit"
       },
@@ -310,6 +330,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through xendit"
+      },
       "PaypalRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through xendit"
@@ -323,6 +347,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through xendit"
+      },
+      "PhonePeRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through xendit"
       },
