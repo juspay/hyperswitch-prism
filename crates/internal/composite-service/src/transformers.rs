@@ -189,7 +189,7 @@ impl
             merchant_transaction_id: item.merchant_transaction_id.clone(),
             encoded_data: item.encoded_data.clone(),
             capture_method: item.capture_method,
-            handle_response: item.handle_response.clone(),
+            // handle_response: item.handle_response.clone(), // field removed from proto (field 5 reserved)
             amount: item.amount,
             setup_future_usage: item.setup_future_usage,
             state: resolved_state,

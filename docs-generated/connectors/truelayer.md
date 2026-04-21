@@ -138,6 +138,7 @@ let config = ConnectorConfig {
 | [MerchantAuthenticationService.CreateServerAuthenticationToken](#merchantauthenticationservicecreateserverauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
 
 ### Payments
@@ -151,7 +152,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/truelayer/truelayer.py) · [TypeScript](../../examples/truelayer/truelayer.ts#L86) · [Kotlin](../../examples/truelayer/truelayer.kt#L75) · [Rust](../../examples/truelayer/truelayer.rs)
+**Examples:** [Python](../../examples/truelayer/truelayer.py) · [TypeScript](../../examples/truelayer/truelayer.ts#L106) · [Kotlin](../../examples/truelayer/truelayer.kt#L76) · [Rust](../../examples/truelayer/truelayer.rs)
 
 ### Refunds
 
@@ -164,7 +165,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/truelayer/truelayer.py) · [TypeScript](../../examples/truelayer/truelayer.ts#L104) · [Kotlin](../../examples/truelayer/truelayer.kt#L93) · [Rust](../../examples/truelayer/truelayer.rs)
+**Examples:** [Python](../../examples/truelayer/truelayer.py) · [TypeScript](../../examples/truelayer/truelayer.ts#L133) · [Kotlin](../../examples/truelayer/truelayer.kt#L115) · [Rust](../../examples/truelayer/truelayer.rs)
 
 ### Authentication
 
@@ -177,4 +178,4 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/truelayer/truelayer.py) · [TypeScript](../../examples/truelayer/truelayer.ts#L77) · [Kotlin](../../examples/truelayer/truelayer.kt#L65) · [Rust](../../examples/truelayer/truelayer.rs)
+**Examples:** [Python](../../examples/truelayer/truelayer.py) · [TypeScript](../../examples/truelayer/truelayer.ts#L97) · [Kotlin](../../examples/truelayer/truelayer.kt#L66) · [Rust](../../examples/truelayer/truelayer.rs)
