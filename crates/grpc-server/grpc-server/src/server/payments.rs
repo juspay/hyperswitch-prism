@@ -102,6 +102,7 @@ struct EventParams<'a> {
     reference_id: &'a Option<String>,
     resource_id: &'a Option<String>,
     shadow_mode: bool,
+    tenant_id: &'a str,
 }
 
 /// Helper function for converting CardDetails to TokenData with structured types
@@ -417,6 +418,7 @@ impl CustomerService for Customer {
                         reference_id: &metadata_payload.reference_id,
                         resource_id: &metadata_payload.resource_id,
                         shadow_mode: metadata_payload.shadow_mode,
+                        tenant_id: &metadata_payload.tenant_id,
                     };
 
                     let response = Box::pin(
@@ -543,6 +545,7 @@ impl Payments {
             reference_id: &metadata_payload.reference_id,
             resource_id: &metadata_payload.resource_id,
             shadow_mode: metadata_payload.shadow_mode,
+            tenant_id: &metadata_payload.tenant_id,
         };
 
         // Execute connector processing - ONLY the authorize call
@@ -661,6 +664,7 @@ impl Payments {
             reference_id: &metadata_payload.reference_id,
             resource_id: &metadata_payload.resource_id,
             shadow_mode: metadata_payload.shadow_mode,
+            tenant_id: &metadata_payload.tenant_id,
         };
 
         let response = Box::pin(
@@ -1044,6 +1048,7 @@ impl PaymentService for Payments {
                         reference_id: &metadata_payload.reference_id,
                         resource_id: &metadata_payload.resource_id,
                         shadow_mode: metadata_payload.shadow_mode,
+                        tenant_id: &metadata_payload.tenant_id,
                     };
 
                     let consume_or_trigger_flow = match payload.handle_response {
@@ -2174,6 +2179,7 @@ impl PaymentMethod {
             reference_id: &metadata_payload.reference_id,
             resource_id: &metadata_payload.resource_id,
             shadow_mode: metadata_payload.shadow_mode,
+            tenant_id: &metadata_payload.tenant_id,
         };
 
         let response = Box::pin(
@@ -2280,6 +2286,7 @@ impl MerchantAuthentication {
             reference_id: event_params.reference_id,
             resource_id: event_params.resource_id,
             shadow_mode: event_params.shadow_mode,
+            tenant_id: event_params.tenant_id,
         };
 
         // Execute connector processing
@@ -2392,6 +2399,7 @@ impl MerchantAuthentication {
             reference_id: event_params.reference_id,
             resource_id: event_params.resource_id,
             shadow_mode: event_params.shadow_mode,
+            tenant_id: event_params.tenant_id,
         };
 
         let response = Box::pin(
@@ -2564,6 +2572,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         reference_id: &metadata_payload.reference_id,
                         resource_id: &metadata_payload.resource_id,
                         shadow_mode: metadata_payload.shadow_mode,
+                        tenant_id: &metadata_payload.tenant_id,
                     };
 
                     let session_response = Box::pin(self.handle_session_token(
@@ -2679,6 +2688,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         reference_id: &metadata_payload.reference_id,
                         resource_id: &metadata_payload.resource_id,
                         shadow_mode: metadata_payload.shadow_mode,
+                        tenant_id: &metadata_payload.tenant_id,
                     };
 
                     // Reuse the existing handle_access_token function which now uses
@@ -2864,6 +2874,7 @@ impl RecurringPaymentService for RecurringPayments {
                         reference_id: &metadata_payload.reference_id,
                         resource_id: &metadata_payload.resource_id,
                         shadow_mode: metadata_payload.shadow_mode,
+                        tenant_id: &metadata_payload.tenant_id,
                     };
 
                     let response = Box::pin(

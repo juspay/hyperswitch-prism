@@ -221,6 +221,7 @@ async fn verify_webhook_source_external(
         reference_id: &metadata_payload.reference_id,
         resource_id: &metadata_payload.resource_id,
         shadow_mode: metadata_payload.shadow_mode,
+        tenant_id: &metadata_payload.tenant_id,
     };
 
     match Box::pin(

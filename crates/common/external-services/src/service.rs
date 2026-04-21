@@ -290,6 +290,7 @@ pub struct EventProcessingParams<'a> {
     pub reference_id: &'a Option<String>,
     pub resource_id: &'a Option<String>,
     pub shadow_mode: bool,
+    pub tenant_id: &'a str,
 }
 
 #[cfg(feature = "injector-client")]
@@ -785,7 +786,7 @@ fn create_event(
 
     let mut event = Event {
         request_id: request_id.to_string(),
-        timestamp: chrono::Utc::now().timestamp().into(),
+        timestamp: chrono::Utc::now().timestamp_millis().into(),
         flow_type: event_params.flow_name,
         connector: event_params.connector_name.to_string(),
         url,
@@ -805,6 +806,7 @@ fn create_event(
     event.add_resource_id(event_params.resource_id.as_deref());
     event.add_service_type(event_params.service_type);
     event.add_service_name(event_params.service_name);
+    event.add_tenant_id(event_params.tenant_id);
 
     event
 }
