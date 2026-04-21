@@ -246,7 +246,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | BACS | x |
 | BECS | x |
 | SEPA Guaranteed | x |
-| Crypto | x |
+| Crypto | ⚠ |
 | Reward | ⚠ |
 | Givex | x |
 | PaySafeCard | x |
