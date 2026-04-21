@@ -1176,12 +1176,12 @@ fn build_paypal_apple_pay_source<
 
     Ok(PaymentSourceItem::ApplePay(ApplePayRequest {
         id: apple_pay_data.transaction_identifier.clone(),
-        name: cardholder_name,
+        name: cardholder_name.clone(),
         decrypted_token: ApplePayDecryptedToken {
             tokenized_card: ApplePayTokenizedCard {
                 number: card_number,
                 expiry,
-                name: cardholder_name.clone(),
+                name: cardholder_name,
             },
             // PayPal supports two payment_data_type values: "3DSECURE" (cryptogram + ECI,
             // standard outside China) and "EMV" (emv_data + pin, China only).
