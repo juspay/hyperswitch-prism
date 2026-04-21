@@ -80,6 +80,7 @@ use super::macros;
 use crate::{types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
+use domain_types::errors::IntegrationErrorContext;
 use domain_types::errors::WebhookError;
 
 pub(crate) mod headers {
@@ -429,6 +430,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 }
 
 const ADYEN_API_VERSION: &str = "v68";
+const ADYEN_AMOUNT_UPDATES_DOC_URL: &str =
+    "https://docs.adyen.com/api-explorer/Checkout/68/post/payments/-paymentPspReference-/amountUpdates";
 
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
@@ -599,7 +602,19 @@ macros::macro_connector_implementation!(
                 .connector_transaction_id
                 .get_connector_transaction_id()
                 .change_context(IntegrationError::MissingConnectorTransactionID {
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Propagate the original authorization's connector_transaction_id \
+                             (Adyen pspReference) to the IncrementalAuthorization request."
+                                .to_string(),
+                        ),
+                        doc_url: Some(ADYEN_AMOUNT_UPDATES_DOC_URL.to_string()),
+                        additional_context: Some(
+                            "connector_transaction_id is required as the paymentPspReference path \
+                             segment for the /amountUpdates endpoint."
+                                .to_string(),
+                        ),
+                    },
                 })?;
             let endpoint = build_env_specific_endpoint(
                 self.connector_base_url_payments(req),

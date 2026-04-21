@@ -7658,6 +7658,14 @@ impl TryFrom<ResponseRouterData<AdyenOrderCreateResponse, Self>>
 // The `amount.value` is the new total authorized amount (replaces original).
 // Response HTTP 201 indicates the adjustment request was accepted; the final
 // outcome is delivered asynchronously via the AUTHORISATION_ADJUSTMENT webhook.
+// Ref: https://docs.adyen.com/api-explorer/Checkout/68/post/payments/-paymentPspReference-/amountUpdates
+
+// Adyen's /amountUpdates endpoint is documented to return exactly one synchronous
+// status value — `"received"` — acknowledging that the adjustment has been queued.
+// The eventual Authorised/Refused outcome is delivered asynchronously via the
+// AUTHORISATION_ADJUSTMENT webhook (handled separately). The casing below matches
+// Adyen's documented response verbatim, so we do not normalize casing here.
+const ADYEN_INCREMENTAL_AUTH_STATUS_RECEIVED: &str = "received";
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -7666,8 +7674,6 @@ pub struct AdyenIncrementalAuthRequest {
     pub amount: Amount,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub industry_usage: Option<String>,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -7708,7 +7714,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .connector_request_reference_id
                     .clone(),
             ),
-            industry_usage: None,
         })
     }
 }
@@ -7729,6 +7734,30 @@ pub struct AdyenIncrementalAuthResponse {
     pub status: Option<String>,
 }
 
+// Maps the /amountUpdates synchronous status string to AuthorizationStatus.
+//
+// Adyen's /amountUpdates synchronous body carries only `status: "received"`
+// (see doc link above). Final Authorised/Refused outcomes arrive asynchronously
+// via the AUTHORISATION_ADJUSTMENT webhook. Therefore:
+//   - 2xx + status = "received"  -> Success (adjustment accepted)
+//   - 2xx + any other / missing  -> Processing (Adyen changed API; fall back
+//                                   to Processing and rely on the webhook)
+//   - non-2xx                     -> Failure (handled by caller)
+fn map_incremental_auth_status(
+    http_code: u16,
+    status: Option<&str>,
+) -> common_enums::AuthorizationStatus {
+    if !(200..300).contains(&http_code) {
+        return common_enums::AuthorizationStatus::Failure;
+    }
+    match status {
+        Some(s) if s == ADYEN_INCREMENTAL_AUTH_STATUS_RECEIVED => {
+            common_enums::AuthorizationStatus::Success
+        }
+        _ => common_enums::AuthorizationStatus::Processing,
+    }
+}
+
 impl TryFrom<ResponseRouterData<AdyenIncrementalAuthResponse, Self>>
     for RouterDataV2<
         IncrementalAuthorization,
@@ -7741,24 +7770,8 @@ impl TryFrom<ResponseRouterData<AdyenIncrementalAuthResponse, Self>>
     fn try_from(
         item: ResponseRouterData<AdyenIncrementalAuthResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        // Adyen returns HTTP 201 with a pspReference to confirm the adjustment
-        // request was accepted. The final authorization outcome is delivered
-        // asynchronously via the AUTHORISATION_ADJUSTMENT webhook, so a 2xx
-        // response here maps to Processing (pending) by default. If the body
-        // carries an explicit `status` field indicating refusal, map to Failure.
-        let authorization_status = if item.http_code >= 200 && item.http_code < 300 {
-            match item.response.status.as_deref() {
-                Some("Refused") | Some("Declined") | Some("Error") | Some("Failed") => {
-                    common_enums::AuthorizationStatus::Failure
-                }
-                Some("Authorised") | Some("received") | Some("Success") => {
-                    common_enums::AuthorizationStatus::Success
-                }
-                _ => common_enums::AuthorizationStatus::Processing,
-            }
-        } else {
-            common_enums::AuthorizationStatus::Failure
-        };
+        let authorization_status =
+            map_incremental_auth_status(item.http_code, item.response.status.as_deref());
 
         Ok(Self {
             response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
