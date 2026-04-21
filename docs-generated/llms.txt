@@ -171,7 +171,7 @@ connector_id: cybersource
 doc: docs/connectors/cybersource.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: ApplePay, ApplePayDecrypted, Card, GooglePay, GooglePayDecrypted, SamsungPay
-flows: authenticate, authorize, capture, get, post_authenticate, pre_authenticate, proxy_authorize, recurring_charge, recurring_revoke, refund, refund_get, token_authorize, void
+flows: authenticate, authorize, capture, get, incremental_authorization, post_authenticate, pre_authenticate, proxy_authorize, recurring_charge, recurring_revoke, refund, refund_get, token_authorize, void
 examples_python: examples/cybersource/cybersource.py
 
 ## Datatrans
