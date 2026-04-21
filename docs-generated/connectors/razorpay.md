@@ -90,7 +90,6 @@ let config = ConnectorConfig {
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.CreateOrder](#paymentservicecreateorder) | Payments | `PaymentServiceCreateOrderRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
@@ -99,125 +98,6 @@ let config = ConnectorConfig {
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
 
 ### Payments
-
-#### PaymentService.Authorize
-
-Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceAuthorizeRequest` |
-| **Response** | `PaymentServiceAuthorizeResponse` |
-
-**Supported payment method types:**
-
-| Payment Method | Supported |
-|----------------|:---------:|
-| Card | ? |
-| Bancontact | ? |
-| Apple Pay | ? |
-| Apple Pay Dec | ? |
-| Apple Pay SDK | ? |
-| Google Pay | ? |
-| Google Pay Dec | ? |
-| Google Pay SDK | ? |
-| PayPal SDK | ? |
-| Amazon Pay | ? |
-| Cash App | ? |
-| PayPal | ? |
-| WeChat Pay | ? |
-| Alipay | ? |
-| Revolut Pay | ? |
-| MiFinity | ? |
-| Bluecode | ? |
-| Paze | x |
-| Samsung Pay | ? |
-| MB Way | ? |
-| Satispay | ? |
-| Wero | ? |
-| Affirm | ? |
-| Afterpay | ? |
-| Klarna | ? |
-| UPI Collect | ✓ |
-| UPI Intent | ✓ |
-| UPI QR | ✓ |
-| Thailand | ? |
-| Czech | ? |
-| Finland | ? |
-| FPX | ? |
-| Poland | ? |
-| Slovakia | ? |
-| UK | ? |
-| PIS | x |
-| Generic | ? |
-| Local | ? |
-| iDEAL | ? |
-| Sofort | ? |
-| Trustly | ? |
-| Giropay | ? |
-| EPS | ? |
-| Przelewy24 | ? |
-| PSE | ? |
-| BLIK | ? |
-| Interac | ? |
-| Bizum | ? |
-| EFT | ? |
-| DuitNow | x |
-| ACH | ? |
-| SEPA | ? |
-| BACS | ? |
-| Multibanco | ? |
-| Instant | ? |
-| Instant FI | ? |
-| Instant PL | ? |
-| Pix | ? |
-| Permata | ? |
-| BCA | ? |
-| BNI VA | ? |
-| BRI VA | ? |
-| CIMB VA | ? |
-| Danamon VA | ? |
-| Mandiri VA | ? |
-| Local | ? |
-| Indonesian | ? |
-| ACH | ? |
-| SEPA | ? |
-| BACS | ? |
-| BECS | ? |
-| SEPA Guaranteed | ? |
-| Crypto | x |
-| Reward | ? |
-| Givex | x |
-| PaySafeCard | x |
-| E-Voucher | ? |
-| Boleto | ? |
-| Efecty | ? |
-| Pago Efectivo | ? |
-| Red Compra | ? |
-| Red Pagos | ? |
-| Alfamart | ? |
-| Indomaret | ? |
-| Oxxo | ? |
-| 7-Eleven | ? |
-| Lawson | ? |
-| Mini Stop | ? |
-| Family Mart | ? |
-| Seicomart | ? |
-| Pay Easy | ? |
-
-**Payment method objects** — use these in the `payment_method` field of the Authorize request.
-
-##### UPI Collect
-
-```python
-"payment_method": {
-  "upi_collect": {
-    "vpa_id": "test@upi"
-  }
-}
-```
-
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L104) · [Kotlin](../../examples/razorpay/razorpay.kt#L91) · [Rust](../../examples/razorpay/razorpay.rs)
 
 #### PaymentService.Capture
 
@@ -228,7 +108,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L113) · [Kotlin](../../examples/razorpay/razorpay.kt#L103) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L81) · [Kotlin](../../examples/razorpay/razorpay.kt#L66) · [Rust](../../examples/razorpay/razorpay.rs)
 
 #### PaymentService.CreateOrder
 
@@ -239,7 +119,7 @@ Create a payment order for later processing. Establishes a transaction context t
 | **Request** | `PaymentServiceCreateOrderRequest` |
 | **Response** | `PaymentServiceCreateOrderResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L122) · [Kotlin](../../examples/razorpay/razorpay.kt#L113) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L90) · [Kotlin](../../examples/razorpay/razorpay.kt#L76) · [Rust](../../examples/razorpay/razorpay.rs)
 
 #### PaymentService.Get
 
@@ -250,7 +130,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L131) · [Kotlin](../../examples/razorpay/razorpay.kt#L127) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L99) · [Kotlin](../../examples/razorpay/razorpay.kt#L90) · [Rust](../../examples/razorpay/razorpay.rs)
 
 #### PaymentService.Refund
 
@@ -261,7 +141,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L149) · [Kotlin](../../examples/razorpay/razorpay.kt#L145) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L117) · [Kotlin](../../examples/razorpay/razorpay.kt#L108) · [Rust](../../examples/razorpay/razorpay.rs)
 
 ### Refunds
 
@@ -274,4 +154,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L158) · [Kotlin](../../examples/razorpay/razorpay.kt#L155) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L126) · [Kotlin](../../examples/razorpay/razorpay.kt#L118) · [Rust](../../examples/razorpay/razorpay.rs)

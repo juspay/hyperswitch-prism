@@ -514,8 +514,8 @@ examples_python: examples/rapyd/rapyd.py
 connector_id: razorpay
 doc: docs/connectors/razorpay.md
 scenarios: none
-payment_methods: UpiCollect, UpiIntent, UpiQr
-flows: authorize, capture, create_order, get, handle_event, refund, refund_get
+payment_methods: none
+flows: capture, create_order, get, handle_event, refund, refund_get
 examples_python: none
 
 ## Razorpay V2
