@@ -6177,7 +6177,11 @@ impl ForeignTryFrom<grpc_api_types::payments::RefundServiceGetRequest> for Refun
                 .map(BrowserInformation::foreign_try_from)
                 .transpose()?,
             connector_transaction_id,
-            connector_refund_id: value.refund_id.clone(),
+            connector_refund_id: if value.connector_refund_id.is_empty() {
+                value.refund_id.clone()
+            } else {
+                value.connector_refund_id.clone()
+            },
             reason: value.refund_reason.clone(),
             refund_status: common_enums::RefundStatus::Pending,
             refund_connector_metadata: value

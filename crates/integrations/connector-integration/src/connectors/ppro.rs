@@ -1056,8 +1056,8 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            let refund_id = req.request.connector_refund_id.clone();
-            Ok(format!("{}/v1/payment-charges/{}", self.base_url(&req.resource_common_data.connectors), refund_id))
+            let charge_id = req.request.connector_transaction_id.clone();
+            Ok(format!("{}/v1/payment-charges/{}", self.base_url(&req.resource_common_data.connectors), charge_id))
         }
     }
 );
