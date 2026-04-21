@@ -105,7 +105,6 @@ pub fn connector_override_context_map(
     loader::load_scenario_override_context_map(connector, suite, scenario)
 }
 
-
 /// Applies connector override patches to request payload and assertions.
 pub fn apply_connector_overrides(
     connector: &str,

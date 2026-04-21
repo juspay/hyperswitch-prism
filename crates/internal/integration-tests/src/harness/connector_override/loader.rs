@@ -126,7 +126,6 @@ pub fn load_scenario_override_context_map(
         .and_then(|patch| patch.context_map))
 }
 
-
 /// Path to `<connector>/webhook_payload.json` under connector override root.
 pub fn connector_webhook_payload_file_path(connector: &str) -> PathBuf {
     connector_override_root()

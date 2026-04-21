@@ -4351,7 +4351,6 @@ fn execute_single_scenario_with_context(
         apply_context_map(&connector_entries, &mut effective_req);
     }
 
-
     // Fallback generation for unresolved non-context placeholders.
     resolve_auto_generate(&mut effective_req)?;
 
