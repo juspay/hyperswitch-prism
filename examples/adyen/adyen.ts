@@ -7,7 +7,7 @@
 
 import { PaymentClient, MerchantAuthenticationClient, DisputeClient, EventClient, RecurringPaymentClient, types } from 'hyperswitch-prism';
 const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, Currency, EvidenceType, FutureUsage, HttpMethod, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "create_order", "dispute_accept", "dispute_defend", "dispute_submit_evidence", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "setup_recurring", "token_authorize", "void"];
+export const SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "create_order", "dispute_accept", "dispute_defend", "dispute_submit_evidence", "incremental_authorization", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "setup_recurring", "token_authorize", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -140,6 +140,18 @@ function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
             },
             "body": new Uint8Array(Buffer.from("{\"notificationItems\":[{\"NotificationRequestItem\":{\"pspReference\":\"probe_ref_001\",\"merchantReference\":\"probe_order_001\",\"merchantAccountCode\":\"ProbeAccount\",\"eventCode\":\"AUTHORISATION\",\"success\":\"true\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"additionalData\":{}}}]}", "utf-8"))  // Body of the HTTP request.
         }
+    };
+}
+
+function _buildIncrementalAuthorizationRequest(): types.IPaymentServiceIncrementalAuthorizationRequest {
+    return {
+        "merchantAuthorizationId": "probe_auth_001",  // Identification.
+        "connectorTransactionId": "probe_connector_txn_001",
+        "amount": {  // new amount to be authorized (in minor currency units).
+            "minorAmount": 1100,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "reason": "incremental_auth_probe"  // Optional Fields.
     };
 }
 
@@ -508,6 +520,15 @@ async function handleEvent(merchantTransactionId: string, config: types.IConnect
     return handleResponse;
 }
 
+// Flow: PaymentService.IncrementalAuthorization
+async function incrementalAuthorization(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const incrementalResponse = await paymentClient.incrementalAuthorization(_buildIncrementalAuthorizationRequest());
+
+    return incrementalResponse;
+}
+
 // Flow: EventService.ParseEvent
 async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const eventClient = new EventClient(config);
@@ -583,7 +604,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, authorize, capture, createClientAuthenticationToken, createOrder, disputeAccept, disputeDefend, disputeSubmitEvidence, handleEvent, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, setupRecurring, tokenAuthorize, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildCreateOrderRequest, _buildDisputeAcceptRequest, _buildDisputeDefendRequest, _buildDisputeSubmitEvidenceRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildSetupRecurringRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, authorize, capture, createClientAuthenticationToken, createOrder, disputeAccept, disputeDefend, disputeSubmitEvidence, handleEvent, incrementalAuthorization, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, setupRecurring, tokenAuthorize, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildCreateOrderRequest, _buildDisputeAcceptRequest, _buildDisputeDefendRequest, _buildDisputeSubmitEvidenceRequest, _buildHandleEventRequest, _buildIncrementalAuthorizationRequest, _buildParseEventRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildSetupRecurringRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
 };
 
 // CLI runner

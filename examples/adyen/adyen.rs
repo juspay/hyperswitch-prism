@@ -22,6 +22,7 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "dispute_accept",
     "dispute_defend",
     "dispute_submit_evidence",
+    "incremental_authorization",
     "parse_event",
     "proxy_authorize",
     "proxy_setup_recurring",
@@ -185,6 +186,20 @@ pub fn build_handle_event_request() -> EventServiceHandleRequest {
     }
 }
 
+pub fn build_incremental_authorization_request() -> PaymentServiceIncrementalAuthorizationRequest {
+    PaymentServiceIncrementalAuthorizationRequest {
+        merchant_authorization_id: Some("probe_auth_001".to_string()), // Identification.
+        connector_transaction_id: "probe_connector_txn_001".to_string(),
+        amount: Some(Money {
+            // new amount to be authorized (in minor currency units).
+            minor_amount: 1100, // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        reason: Some("incremental_auth_probe".to_string()), // Optional Fields.
+        ..Default::default()
+    }
+}
+
 pub fn build_parse_event_request() -> EventServiceParseRequest {
     EventServiceParseRequest {
         request_details: Some(RequestDetails {
@@ -194,49 +209,6 @@ pub fn build_parse_event_request() -> EventServiceParseRequest {
             body: "{\"notificationItems\":[{\"NotificationRequestItem\":{\"pspReference\":\"probe_ref_001\",\"merchantReference\":\"probe_order_001\",\"merchantAccountCode\":\"ProbeAccount\",\"eventCode\":\"AUTHORISATION\",\"success\":\"true\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"additionalData\":{}}}]}".to_string(),  // Body of the HTTP request.
             ..Default::default()
         }),
-    }
-}
-
-pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
-    PaymentServiceProxyAuthorizeRequest {
-        merchant_transaction_id: Some("probe_proxy_txn_001".to_string()),
-        amount: Some(Money {
-            minor_amount: 1000,             // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
-        }),
-        card_proxy: Some(ProxyCardDetails {
-            // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
-            card_number: Some(Secret::new("4111111111111111".to_string())), // Card Identification.
-            card_exp_month: Some(Secret::new("03".to_string())),
-            card_exp_year: Some(Secret::new("2030".to_string())),
-            card_cvc: Some(Secret::new("123".to_string())),
-            card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
-            ..Default::default()
-        }),
-        address: Some(PaymentAddress {
-            billing_address: Some(Address {
-                ..Default::default()
-            }),
-            ..Default::default()
-        }),
-        capture_method: Some(CaptureMethod::Automatic.into()),
-        auth_type: AuthenticationType::NoThreeDs.into(),
-        return_url: Some("https://example.com/return".to_string()),
-        browser_info: Some(BrowserInformation {
-            color_depth: Some(24), // Display Information.
-            screen_height: Some(900),
-            screen_width: Some(1440),
-            java_enabled: Some(false), // Browser Settings.
-            java_script_enabled: Some(true),
-            language: Some("en-US".to_string()),
-            time_zone_offset_minutes: Some(-480),
-            accept_header: Some("application/json".to_string()), // Browser Headers.
-            user_agent: Some("Mozilla/5.0 (probe-bot)".to_string()),
-            accept_language: Some("en-US,en;q=0.9".to_string()),
-            ip_address: Some("1.2.3.4".to_string()), // Device Information.
-            ..Default::default()
-        }),
-        ..Default::default()
     }
 }
 
@@ -726,6 +698,22 @@ pub async fn process_dispute_submit_evidence(
     Ok(format!("dispute_status: {:?}", response.dispute_status()))
 }
 
+// Flow: PaymentService.IncrementalAuthorization
+#[allow(dead_code)]
+pub async fn process_incremental_authorization(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .incremental_authorization(
+            build_incremental_authorization_request(),
+            &HashMap::new(),
+            None,
+        )
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: EventService.ParseEvent
 #[allow(dead_code)]
 pub async fn process_parse_event(
@@ -846,6 +834,9 @@ async fn main() {
         "process_dispute_submit_evidence" => {
             process_dispute_submit_evidence(&client, "txn_001").await
         }
+        "process_incremental_authorization" => {
+            process_incremental_authorization(&client, "txn_001").await
+        }
         "process_parse_event" => process_parse_event(&client, "txn_001").await,
         "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
         "process_proxy_setup_recurring" => process_proxy_setup_recurring(&client, "txn_001").await,
@@ -854,7 +845,7 @@ async fn main() {
         "process_token_authorize" => process_token_authorize(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_authorize, process_capture, process_create_client_authentication_token, process_create_order, process_dispute_accept, process_dispute_defend, process_dispute_submit_evidence, process_parse_event, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_setup_recurring, process_token_authorize, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_authorize, process_capture, process_create_client_authentication_token, process_create_order, process_dispute_accept, process_dispute_defend, process_dispute_submit_evidence, process_incremental_authorization, process_parse_event, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_setup_recurring, process_token_authorize, process_void", flow);
             return;
         }
     };
