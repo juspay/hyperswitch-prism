@@ -139,17 +139,18 @@ pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRef
 }
 
 pub fn build_refund_get_request() -> RefundServiceGetRequest {
-    serde_json::from_value::<RefundServiceGetRequest>(serde_json::json!({
-    "merchant_refund_id": "probe_refund_001",  // Identification.
-    "connector_transaction_id": "probe_connector_txn_001",
-    "refund_id": "probe_refund_id_001",
-    })).unwrap_or_default()
+    RefundServiceGetRequest {
+        merchant_refund_id: Some("probe_refund_001".to_string()), // Identification.
+        connector_transaction_id: "probe_connector_txn_001".to_string(),
+        refund_id: "probe_refund_id_001".to_string(),
+        ..Default::default()
+    }
 }
 
 pub fn build_verify_redirect_request() -> PaymentServiceVerifyRedirectResponseRequest {
-    serde_json::from_value::<PaymentServiceVerifyRedirectResponseRequest>(serde_json::json!({
-
-    })).unwrap_or_default()
+    PaymentServiceVerifyRedirectResponseRequest {
+        ..Default::default()
+    }
 }
 
 pub fn build_void_request(connector_transaction_id: &str) -> PaymentServiceVoidRequest {
@@ -239,15 +240,13 @@ pub async fn process_refund(
 
 // Flow: RefundService.Get
 #[allow(dead_code)]
-pub async fn refund_get(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.refund_get(build_refund_get_request(), &HashMap::new(), None).await?;
-    Ok(format!("status: {:?}", response.status()))
-}
-
-// Flow: PaymentService.VerifyRedirectResponse
-#[allow(dead_code)]
-pub async fn verify_redirect(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.verify_redirect(build_verify_redirect_request(), &HashMap::new(), None).await?;
+pub async fn process_refund_get(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .refund_get(build_refund_get_request(), &HashMap::new(), None)
+        .await?;
     Ok(format!("status: {:?}", response.status()))
 }
 
