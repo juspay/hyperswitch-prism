@@ -1181,9 +1181,7 @@ fn build_paypal_apple_pay_source<
             tokenized_card: ApplePayTokenizedCard {
                 number: card_number,
                 expiry,
-                name: router_data
-                    .resource_common_data
-                    .get_optional_payment_billing_full_name(),
+                name: cardholder_name.clone(),
             },
             // PayPal supports two payment_data_type values: "3DSECURE" (cryptogram + ECI,
             // standard outside China) and "EMV" (emv_data + pin, China only).
