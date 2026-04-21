@@ -52,6 +52,9 @@
       "Becs": {
         "status": "not_implemented"
       },
+      "BillDeskRedirect": {
+        "status": "not_implemented"
+      },
       "Bizum": {
         "status": "not_implemented"
       },
@@ -76,6 +79,9 @@
       "CashappQr": {
         "status": "not_implemented"
       },
+      "CashfreeRedirect": {
+        "status": "not_implemented"
+      },
       "CimbVaBankTransfer": {
         "status": "not_implemented"
       },
@@ -94,6 +100,9 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_implemented"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_implemented"
       },
       "Efecty": {
@@ -151,6 +160,9 @@
       "Lawson": {
         "status": "not_implemented"
       },
+      "LazyPayRedirect": {
+        "status": "not_implemented"
+      },
       "LocalBankRedirect": {
         "status": "not_implemented"
       },
@@ -170,6 +182,9 @@
         "status": "not_implemented"
       },
       "MultibancoBankTransfer": {
+        "status": "not_implemented"
+      },
+      "Netbanking": {
         "status": "not_implemented"
       },
       "OnlineBankingCzechRepublic": {
@@ -213,6 +228,9 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "PayURedirect": {
+        "status": "not_implemented"
+      },
       "PaypalRedirect": {
         "status": "not_implemented"
       },
@@ -224,6 +242,9 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_implemented"
+      },
+      "PhonePeRedirect": {
         "status": "not_implemented"
       },
       "Pix": {

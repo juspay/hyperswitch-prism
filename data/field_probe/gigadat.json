@@ -67,6 +67,10 @@
         "status": "not_supported",
         "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
       },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+      },
       "Bizum": {
         "status": "not_supported",
         "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
@@ -99,6 +103,10 @@
         "status": "not_supported",
         "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
       },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+      },
       "CimbVaBankTransfer": {
         "status": "not_supported",
         "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
@@ -120,6 +128,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_supported",
+        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_supported",
         "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
       },
@@ -242,6 +254,10 @@
         "status": "not_supported",
         "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
       },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+      },
       "LocalBankRedirect": {
         "status": "not_supported",
         "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
@@ -267,6 +283,10 @@
         "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
       },
       "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+      },
+      "Netbanking": {
         "status": "not_supported",
         "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
       },
@@ -322,6 +342,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+      },
       "PaypalRedirect": {
         "status": "not_supported",
         "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
@@ -335,6 +359,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+      },
+      "PhonePeRedirect": {
         "status": "not_supported",
         "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
       },

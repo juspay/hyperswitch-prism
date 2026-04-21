@@ -67,6 +67,10 @@
         "status": "error",
         "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
+      "BillDeskRedirect": {
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+      },
       "Bizum": {
         "status": "error",
         "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
@@ -99,6 +103,10 @@
         "status": "error",
         "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
+      "CashfreeRedirect": {
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+      },
       "CimbVaBankTransfer": {
         "status": "error",
         "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
@@ -120,6 +128,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+      },
+      "EaseBuzzRedirect": {
         "status": "error",
         "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
@@ -195,6 +207,10 @@
         "status": "error",
         "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
+      "LazyPayRedirect": {
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+      },
       "LocalBankRedirect": {
         "status": "error",
         "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
@@ -222,6 +238,10 @@
       "MultibancoBankTransfer": {
         "status": "error",
         "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+      },
+      "Netbanking": {
+        "status": "error",
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "OnlineBankingCzechRepublic": {
         "status": "error",
@@ -275,6 +295,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "PayURedirect": {
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+      },
       "PaypalRedirect": {
         "status": "error",
         "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
@@ -288,6 +312,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+      },
+      "PhonePeRedirect": {
         "status": "error",
         "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },

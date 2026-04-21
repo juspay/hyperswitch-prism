@@ -67,6 +67,10 @@
         "status": "not_supported",
         "error": "The given currency is not configured with the given connector"
       },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "The given currency is not configured with the given connector"
+      },
       "Bizum": {
         "status": "not_supported",
         "error": "The given currency is not configured with the given connector"
@@ -99,6 +103,10 @@
         "status": "not_supported",
         "error": "The given currency is not configured with the given connector"
       },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "The given currency is not configured with the given connector"
+      },
       "CimbVaBankTransfer": {
         "status": "not_supported",
         "error": "The given currency is not configured with the given connector"
@@ -120,6 +128,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_supported",
+        "error": "The given currency is not configured with the given connector"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_supported",
         "error": "The given currency is not configured with the given connector"
       },
@@ -195,6 +207,10 @@
         "status": "not_supported",
         "error": "The given currency is not configured with the given connector"
       },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "The given currency is not configured with the given connector"
+      },
       "LocalBankRedirect": {
         "status": "not_supported",
         "error": "The given currency is not configured with the given connector"
@@ -220,6 +236,10 @@
         "error": "The given currency is not configured with the given connector"
       },
       "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "The given currency is not configured with the given connector"
+      },
+      "Netbanking": {
         "status": "not_supported",
         "error": "The given currency is not configured with the given connector"
       },
@@ -275,6 +295,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "The given currency is not configured with the given connector"
+      },
       "PaypalRedirect": {
         "status": "not_supported",
         "error": "The given currency is not configured with the given connector"
@@ -288,6 +312,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "The given currency is not configured with the given connector"
+      },
+      "PhonePeRedirect": {
         "status": "not_supported",
         "error": "The given currency is not configured with the given connector"
       },

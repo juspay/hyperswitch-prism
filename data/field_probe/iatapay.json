@@ -67,6 +67,10 @@
         "status": "not_supported",
         "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
+      },
       "Bizum": {
         "status": "not_supported",
         "error": "Unsupported bank redirect type for Iatapay is not supported by Iatapay"
@@ -99,6 +103,10 @@
         "status": "not_supported",
         "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
+      },
       "CimbVaBankTransfer": {
         "status": "not_supported",
         "error": "Payment method not supported by Iatapay is not supported by Iatapay"
@@ -120,6 +128,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_supported",
         "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
@@ -228,6 +240,10 @@
         "status": "not_supported",
         "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
+      },
       "LocalBankRedirect": {
         "status": "supported",
         "proto_request": {
@@ -289,6 +305,10 @@
         "status": "not_supported",
         "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "Unsupported bank redirect type for Iatapay is not supported by Iatapay"
+      },
       "OnlineBankingCzechRepublic": {
         "status": "not_supported",
         "error": "Unsupported bank redirect type for Iatapay is not supported by Iatapay"
@@ -341,6 +361,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
+      },
       "PaypalRedirect": {
         "status": "not_supported",
         "error": "Payment method not supported by Iatapay is not supported by Iatapay"
@@ -354,6 +378,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
+      },
+      "PhonePeRedirect": {
         "status": "not_supported",
         "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },

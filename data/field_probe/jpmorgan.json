@@ -105,6 +105,10 @@
         "status": "not_supported",
         "error": "Only ACH Bank Debit is supported is not supported by Jpmorgan"
       },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Wallet not supported"
+      },
       "Bizum": {
         "status": "not_supported",
         "error": "Payment method not supported is not supported by Jpmorgan"
@@ -177,6 +181,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Wallet not supported"
       },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Wallet not supported"
+      },
       "CimbVaBankTransfer": {
         "status": "not_supported",
         "error": "Payment method not supported is not supported by Jpmorgan"
@@ -200,6 +208,10 @@
       "EVoucher": {
         "status": "not_supported",
         "error": "Payment method not supported is not supported by Jpmorgan"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Wallet not supported"
       },
       "Efecty": {
         "status": "not_supported",
@@ -273,6 +285,10 @@
         "status": "not_supported",
         "error": "Payment method not supported is not supported by Jpmorgan"
       },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Wallet not supported"
+      },
       "LocalBankRedirect": {
         "status": "not_supported",
         "error": "Payment method not supported is not supported by Jpmorgan"
@@ -298,6 +314,10 @@
         "error": "Payment method not supported is not supported by Jpmorgan"
       },
       "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Jpmorgan"
+      },
+      "Netbanking": {
         "status": "not_supported",
         "error": "Payment method not supported is not supported by Jpmorgan"
       },
@@ -353,6 +373,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Wallet not supported"
+      },
       "PaypalRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Wallet not supported"
@@ -368,6 +392,10 @@
       "PermataBankTransfer": {
         "status": "not_supported",
         "error": "Payment method not supported is not supported by Jpmorgan"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Wallet not supported"
       },
       "Pix": {
         "status": "not_supported",

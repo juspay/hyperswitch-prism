@@ -67,6 +67,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported for Datatrans"
       },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+      },
       "Bizum": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported for Datatrans"
@@ -130,6 +134,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported for Datatrans"
       },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+      },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported for Datatrans"
@@ -151,6 +159,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported for Datatrans"
       },
@@ -226,6 +238,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported for Datatrans"
       },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+      },
       "LocalBankRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported for Datatrans"
@@ -251,6 +267,10 @@
         "error": "This feature is not implemented: Only card payments are supported for Datatrans"
       },
       "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+      },
+      "Netbanking": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported for Datatrans"
       },
@@ -306,6 +326,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+      },
       "PaypalRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported for Datatrans"
@@ -319,6 +343,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+      },
+      "PhonePeRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported for Datatrans"
       },

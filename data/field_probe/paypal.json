@@ -67,6 +67,10 @@
         "status": "not_supported",
         "error": "Selected payment method through Paypal is not supported by Paypal"
       },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
+      },
       "Bizum": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Paypal"
@@ -141,6 +145,10 @@
         "status": "not_supported",
         "error": "Selected payment method through Paypal is not supported by Paypal"
       },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
+      },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Paypal"
@@ -162,6 +170,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_supported",
         "error": "Selected payment method through Paypal is not supported by Paypal"
       },
@@ -406,6 +418,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
+      },
       "LocalBankRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Paypal"
@@ -431,6 +447,10 @@
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
       "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paypal"
+      },
+      "Netbanking": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
@@ -485,6 +505,10 @@
       "PaySafeCard": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "PaypalRedirect": {
         "status": "supported",
@@ -576,6 +600,10 @@
       "PermataBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Paypal"
+      },
+      "PhonePeRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "Pix": {
         "status": "not_implemented",

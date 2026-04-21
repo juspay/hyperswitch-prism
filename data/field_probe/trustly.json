@@ -67,6 +67,10 @@
         "status": "not_supported",
         "error": "Selected payment method through Trustly is not supported by Trustly"
       },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
+      },
       "Bizum": {
         "status": "not_supported",
         "error": "Selected payment method through Trustly is not supported by Trustly"
@@ -99,6 +103,10 @@
         "status": "not_supported",
         "error": "Selected payment method through Trustly is not supported by Trustly"
       },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
+      },
       "CimbVaBankTransfer": {
         "status": "not_supported",
         "error": "Selected payment method through Trustly is not supported by Trustly"
@@ -120,6 +128,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_supported",
         "error": "Selected payment method through Trustly is not supported by Trustly"
       },
@@ -195,6 +207,10 @@
         "status": "not_supported",
         "error": "Selected payment method through Trustly is not supported by Trustly"
       },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
+      },
       "LocalBankRedirect": {
         "status": "not_supported",
         "error": "Selected payment method through Trustly is not supported by Trustly"
@@ -220,6 +236,10 @@
         "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
+      },
+      "Netbanking": {
         "status": "not_supported",
         "error": "Selected payment method through Trustly is not supported by Trustly"
       },
@@ -275,6 +295,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
+      },
       "PaypalRedirect": {
         "status": "not_supported",
         "error": "Selected payment method through Trustly is not supported by Trustly"
@@ -288,6 +312,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
+      },
+      "PhonePeRedirect": {
         "status": "not_supported",
         "error": "Selected payment method through Trustly is not supported by Trustly"
       },

@@ -95,6 +95,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through multisafepay"
       },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
       "Bizum": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through multisafepay"
@@ -161,6 +165,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through multisafepay"
       },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through multisafepay"
@@ -182,6 +190,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through multisafepay"
       },
@@ -426,6 +438,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through multisafepay"
       },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
       "LocalBankRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through multisafepay"
@@ -451,6 +467,10 @@
         "error": "This feature is not implemented: Selected payment method through multisafepay"
       },
       "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "Netbanking": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through multisafepay"
       },
@@ -506,6 +526,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
       "PaypalRedirect": {
         "status": "supported",
         "proto_request": {
@@ -549,6 +573,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "PhonePeRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through multisafepay"
       },

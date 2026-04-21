@@ -67,6 +67,10 @@
         "status": "not_supported",
         "error": "Payment method not yet implemented for Payme is not supported by Payme"
       },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+      },
       "Bizum": {
         "status": "not_supported",
         "error": "Payment method not yet implemented for Payme is not supported by Payme"
@@ -134,6 +138,10 @@
         "status": "not_supported",
         "error": "Payment method not yet implemented for Payme is not supported by Payme"
       },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+      },
       "CimbVaBankTransfer": {
         "status": "not_supported",
         "error": "Payment method not yet implemented for Payme is not supported by Payme"
@@ -155,6 +163,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_supported",
+        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_supported",
         "error": "Payment method not yet implemented for Payme is not supported by Payme"
       },
@@ -230,6 +242,10 @@
         "status": "not_supported",
         "error": "Payment method not yet implemented for Payme is not supported by Payme"
       },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+      },
       "LocalBankRedirect": {
         "status": "not_supported",
         "error": "Payment method not yet implemented for Payme is not supported by Payme"
@@ -255,6 +271,10 @@
         "error": "Payment method not yet implemented for Payme is not supported by Payme"
       },
       "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+      },
+      "Netbanking": {
         "status": "not_supported",
         "error": "Payment method not yet implemented for Payme is not supported by Payme"
       },
@@ -310,6 +330,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+      },
       "PaypalRedirect": {
         "status": "not_supported",
         "error": "Payment method not yet implemented for Payme is not supported by Payme"
@@ -323,6 +347,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+      },
+      "PhonePeRedirect": {
         "status": "not_supported",
         "error": "Payment method not yet implemented for Payme is not supported by Payme"
       },

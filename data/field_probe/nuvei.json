@@ -67,6 +67,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
       "Bizum": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
@@ -148,6 +152,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
       "CimbVaBankTransfer": {
         "status": "not_supported",
         "error": "CimbVaBankTransfer is not supported for Nuvei is not supported by nuvei"
@@ -169,6 +177,10 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
@@ -244,6 +256,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
       "LocalBankRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
@@ -271,6 +287,10 @@
       "MultibancoBankTransfer": {
         "status": "not_supported",
         "error": "MultibancoBankTransfer is not supported for Nuvei is not supported by nuvei"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
@@ -324,6 +344,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
       "PaypalRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
@@ -339,6 +363,10 @@
       "PermataBankTransfer": {
         "status": "not_supported",
         "error": "PermataBankTransfer is not supported for Nuvei is not supported by nuvei"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Pix": {
         "status": "not_supported",

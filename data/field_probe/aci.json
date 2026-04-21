@@ -142,6 +142,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Aci"
       },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
       "Bizum": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method"
@@ -207,6 +211,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method"
       },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Aci"
@@ -230,6 +238,10 @@
       "EVoucher": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Aci"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "Efecty": {
         "status": "not_implemented",
@@ -468,6 +480,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Aci"
       },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
       "LocalBankRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method"
@@ -495,6 +511,10 @@
       "MultibancoBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Aci"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
@@ -548,6 +568,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
       "PaypalRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method"
@@ -563,6 +587,10 @@
       "PermataBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Aci"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "Pix": {
         "status": "not_implemented",
