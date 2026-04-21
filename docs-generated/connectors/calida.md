@@ -113,6 +113,7 @@ let config = ConnectorConfig {
 |--------------------|----------|----------------------|
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 
 ### Payments
 
@@ -125,4 +126,4 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/calida/calida.py) · [TypeScript](../../examples/calida/calida.ts#L44) · [Kotlin](../../examples/calida/calida.kt#L50) · [Rust](../../examples/calida/calida.rs)
+**Examples:** [Python](../../examples/calida/calida.py) · [TypeScript](../../examples/calida/calida.ts#L64) · [Kotlin](../../examples/calida/calida.kt#L51) · [Rust](../../examples/calida/calida.rs)

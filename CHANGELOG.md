@@ -19,6 +19,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.04.21.1
+
+### Features
+
+- **connector:** Implement INCREMENTAL_AUTH for shift4 ([#1123](https://github.com/juspay/connector-service/pull/1123)) ([`f083b6b`](https://github.com/juspay/connector-service/commit/f083b6b4c05acd54e2e19e9f936bb170545f1728))
+- **paypal:** Implement ApplePay wallet support ([#1047](https://github.com/juspay/connector-service/pull/1047)) ([`3cc3074`](https://github.com/juspay/connector-service/commit/3cc30744a4e787afc9f88167c0b79536cb6be567))
+- **trustpayments:** Implement ApplePay wallet support ([#1046](https://github.com/juspay/connector-service/pull/1046)) ([`e09a060`](https://github.com/juspay/connector-service/commit/e09a060d82e91feeed7c88ffe0818481e4feaf7d))
+- Update method to non optional string, req, res as string instead of json object as per ckh ([#1156](https://github.com/juspay/connector-service/pull/1156)) ([`3f5dcf0`](https://github.com/juspay/connector-service/commit/3f5dcf05ac5e561f8ee53defc0021db179f3a437))
+
+### Refactors
+
+- **connectors:** Reclassify not_implemented → NotSupported for gateway-unsupported features ([#1152](https://github.com/juspay/connector-service/pull/1152)) ([`efa2421`](https://github.com/juspay/connector-service/commit/efa2421e9d8635c19f515ce6c547c7eae8c0338e))
+- Webhook resource id granular - two step (parseEvent and handleEvent) ([#1025](https://github.com/juspay/connector-service/pull/1025)) ([`59d3a57`](https://github.com/juspay/connector-service/commit/59d3a57e08727945362d916585a90935a375ef3b))
+
+**Full Changelog:** [`2026.04.21.0...2026.04.21.1`](https://github.com/juspay/connector-service/compare/2026.04.21.0...2026.04.21.1)
+
+- - -
+
 ## 2026.04.21.0
 
 ### Features
