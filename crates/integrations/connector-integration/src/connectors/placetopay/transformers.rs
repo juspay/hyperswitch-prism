@@ -212,7 +212,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(IntegrationError::NotImplemented(
-                    (utils::get_unimplemented_payment_method_error_message("Placetopay")).into(),
+                    utils::get_unimplemented_payment_method_error_message("Placetopay"),
                     Default::default(),
                 )
                 .into())

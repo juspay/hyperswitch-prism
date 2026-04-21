@@ -250,7 +250,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::MobilePayment(_) => Err(IntegrationError::NotImplemented(
-                (utils::get_unimplemented_payment_method_error_message("Loonio")).into(),
+                utils::get_unimplemented_payment_method_error_message("Loonio"),
                 Default::default(),
             ))?,
         }

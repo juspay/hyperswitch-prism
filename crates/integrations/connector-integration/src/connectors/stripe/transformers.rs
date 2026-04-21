@@ -845,7 +845,7 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             | common_enums::PaymentMethodType::Bluecode
             | common_enums::PaymentMethodType::SepaGuaranteedDebit
             | common_enums::PaymentMethodType::Oxxo => Err(IntegrationError::NotImplemented(
-                (get_unimplemented_payment_method_error_message("stripe")).into(),
+                get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),
             )
             .into()),
@@ -930,7 +930,7 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             | common_enums::PaymentMethodType::PayU
             | common_enums::PaymentMethodType::EaseBuzz
             | common_enums::PaymentMethodType::Netbanking => Err(IntegrationError::NotImplemented(
-                (get_unimplemented_payment_method_error_message("stripe")).into(),
+                get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),
             )
             .into()),
@@ -1091,7 +1091,7 @@ impl TryFrom<&common_enums::BankNames> for StripeBankNames {
             common_enums::BankNames::Boz => Self::Boz,
 
             _ => Err(IntegrationError::NotImplemented(
-                (get_unimplemented_payment_method_error_message("stripe")).into(),
+                get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),
             ))?,
         })
@@ -1143,7 +1143,7 @@ impl TryFrom<&PayLaterData> for StripePaymentMethodType {
             | PayLaterData::WalleyRedirect {}
             | PayLaterData::AlmaRedirect {}
             | PayLaterData::AtomeRedirect {} => Err(IntegrationError::NotImplemented(
-                (get_unimplemented_payment_method_error_message("stripe")).into(),
+                get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),
             )),
         }
@@ -1162,7 +1162,7 @@ impl TryFrom<&BankRedirectData> for StripePaymentMethodType {
             BankRedirectData::Eps { .. } => Ok(Self::Eps),
             BankRedirectData::Blik { .. } => Ok(Self::Blik),
             BankRedirectData::OnlineBankingFpx { .. } => Err(IntegrationError::NotImplemented(
-                (get_unimplemented_payment_method_error_message("stripe")).into(),
+                get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),
             )),
             BankRedirectData::Bizum {}
@@ -1178,7 +1178,7 @@ impl TryFrom<&BankRedirectData> for StripePaymentMethodType {
             | BankRedirectData::LocalBankRedirect {}
             | BankRedirectData::OpenBanking {}
             | BankRedirectData::Netbanking { .. } => Err(IntegrationError::NotImplemented(
-                (get_unimplemented_payment_method_error_message("stripe")).into(),
+                get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),
             )),
         }
@@ -1197,7 +1197,7 @@ fn get_stripe_payment_method_type_from_wallet_data(
         WalletData::AmazonPayRedirect(_) => Ok(Some(StripePaymentMethodType::AmazonPay)),
         WalletData::RevolutPay(_) => Ok(Some(StripePaymentMethodType::RevolutPay)),
         WalletData::MobilePayRedirect(_) => Err(IntegrationError::NotImplemented(
-            (get_unimplemented_payment_method_error_message("stripe")).into(),
+            get_unimplemented_payment_method_error_message("stripe"),
             Default::default(),
         )),
         WalletData::PaypalRedirect(_)
@@ -1232,7 +1232,7 @@ fn get_stripe_payment_method_type_from_wallet_data(
         | WalletData::CashfreeRedirect(_)
         | WalletData::PayURedirect(_)
         | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotImplemented(
-            (get_unimplemented_payment_method_error_message("stripe")).into(),
+            get_unimplemented_payment_method_error_message("stripe"),
             Default::default(),
         )),
     }
@@ -1249,7 +1249,7 @@ impl TryFrom<&payment_method_data::BankDebitData> for StripePaymentMethodType {
             payment_method_data::BankDebitData::SepaGuaranteedBankDebit { .. }
             | payment_method_data::BankDebitData::EftBankDebit { .. } => {
                 Err(IntegrationError::NotImplemented(
-                    (get_unimplemented_payment_method_error_message("stripe")).into(),
+                    get_unimplemented_payment_method_error_message("stripe"),
                     Default::default(),
                 ))
             }
@@ -1304,7 +1304,7 @@ fn get_bank_debit_data(
         payment_method_data::BankDebitData::SepaGuaranteedBankDebit { .. }
         | payment_method_data::BankDebitData::EftBankDebit { .. } => {
             Err(IntegrationError::NotImplemented(
-                (get_unimplemented_payment_method_error_message("stripe")).into(),
+                get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),
             ))
         }
@@ -1458,7 +1458,7 @@ fn create_stripe_payment_method<
             )),
             payment_method_data::BankTransferData::Pix { .. } => {
                 Err(IntegrationError::NotImplemented(
-                    (get_unimplemented_payment_method_error_message("stripe")).into(),
+                    get_unimplemented_payment_method_error_message("stripe"),
                     Default::default(),
                 )
                 .into())
@@ -1477,14 +1477,14 @@ fn create_stripe_payment_method<
             | payment_method_data::BankTransferData::DanamonVaBankTransfer { .. }
             | payment_method_data::BankTransferData::MandiriVaBankTransfer { .. } => {
                 Err(IntegrationError::NotImplemented(
-                    (get_unimplemented_payment_method_error_message("stripe")).into(),
+                    get_unimplemented_payment_method_error_message("stripe"),
                     Default::default(),
                 )
                 .into())
             }
         },
         PaymentMethodData::Crypto(_) => Err(IntegrationError::NotImplemented(
-            (get_unimplemented_payment_method_error_message("stripe")).into(),
+            get_unimplemented_payment_method_error_message("stripe"),
             Default::default(),
         )
         .into()),
@@ -1492,7 +1492,7 @@ fn create_stripe_payment_method<
         PaymentMethodData::GiftCard(giftcard_data) => match giftcard_data.deref() {
             GiftCardData::Givex(_) | GiftCardData::PaySafeCard {} => {
                 Err(IntegrationError::NotImplemented(
-                    (get_unimplemented_payment_method_error_message("stripe")).into(),
+                    get_unimplemented_payment_method_error_message("stripe"),
                     Default::default(),
                 )
                 .into())
@@ -1503,20 +1503,20 @@ fn create_stripe_payment_method<
             | CardRedirectData::Benefit {}
             | CardRedirectData::MomoAtm {}
             | CardRedirectData::CardRedirect {} => Err(IntegrationError::NotImplemented(
-                (get_unimplemented_payment_method_error_message("stripe")).into(),
+                get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),
             )
             .into()),
         },
         PaymentMethodData::Reward => Err(IntegrationError::NotImplemented(
-            (get_unimplemented_payment_method_error_message("stripe")).into(),
+            get_unimplemented_payment_method_error_message("stripe"),
             Default::default(),
         )
         .into()),
 
         PaymentMethodData::Voucher(voucher_data) => match voucher_data {
             VoucherData::Boleto(_) | VoucherData::Oxxo => Err(IntegrationError::NotImplemented(
-                (get_unimplemented_payment_method_error_message("stripe")).into(),
+                get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),
             )
             .into()),
@@ -1532,7 +1532,7 @@ fn create_stripe_payment_method<
             | VoucherData::FamilyMart(_)
             | VoucherData::Seicomart(_)
             | VoucherData::PayEasy(_) => Err(IntegrationError::NotImplemented(
-                (get_unimplemented_payment_method_error_message("stripe")).into(),
+                get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),
             )
             .into()),
@@ -1548,7 +1548,7 @@ fn create_stripe_payment_method<
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
             Err(IntegrationError::NotImplemented(
-                (get_unimplemented_payment_method_error_message("stripe")).into(),
+                get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),
             )
             .into())
@@ -1683,7 +1683,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> TryF
             WalletData::GooglePay(gpay_data) => Ok(Self::try_from(gpay_data)?),
             WalletData::PaypalRedirect(_) | WalletData::MobilePayRedirect(_) => {
                 Err(IntegrationError::NotImplemented(
-                    (get_unimplemented_payment_method_error_message("stripe")).into(),
+                    get_unimplemented_payment_method_error_message("stripe"),
                     Default::default(),
                 )
                 .into())
@@ -1719,7 +1719,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> TryF
             | WalletData::CashfreeRedirect(_)
             | WalletData::PayURedirect(_)
             | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotImplemented(
-                (get_unimplemented_payment_method_error_message("stripe")).into(),
+                get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),
             )
             .into()),
@@ -1786,7 +1786,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 ))
             }
             BankRedirectData::OnlineBankingFpx { .. } => Err(IntegrationError::NotImplemented(
-                (get_unimplemented_payment_method_error_message("stripe")).into(),
+                get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),
             )
             .into()),
@@ -1804,7 +1804,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | BankRedirectData::LocalBankRedirect {}
             | BankRedirectData::OpenBanking {}
             | BankRedirectData::Netbanking { .. } => Err(IntegrationError::NotImplemented(
-                (get_unimplemented_payment_method_error_message("stripe")).into(),
+                get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),
             )
             .into()),
@@ -4621,7 +4621,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 | payment_method_data::BankTransferData::IndonesianBankTransfer { .. }
                 | payment_method_data::BankTransferData::MandiriVaBankTransfer { .. } => {
                     Err(IntegrationError::NotImplemented(
-                        (get_unimplemented_payment_method_error_message("stripe")).into(),
+                        get_unimplemented_payment_method_error_message("stripe"),
                         Default::default(),
                     )
                     .into())
@@ -4642,7 +4642,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(IntegrationError::NotImplemented(
-                    (get_unimplemented_payment_method_error_message("stripe")).into(),
+                    get_unimplemented_payment_method_error_message("stripe"),
                     Default::default(),
                 ))?
             }
@@ -5030,7 +5030,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             _,
                         )
                         | PaymentMethodData::Card(_) => Err(IntegrationError::NotImplemented(
-                            ("Network tokenization for payment method".to_string()).into(),
+                            "Network tokenization for payment method".to_string(),
                             Default::default(),
                         ))?,
                     };

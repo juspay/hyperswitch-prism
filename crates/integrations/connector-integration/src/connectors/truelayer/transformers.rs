@@ -427,7 +427,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 })
             }
             _ => Err(IntegrationError::NotImplemented(
-                (utils::get_unimplemented_payment_method_error_message("Truelayer")).into(),
+                utils::get_unimplemented_payment_method_error_message("Truelayer"),
                 Default::default(),
             )
             .into()),
@@ -1083,7 +1083,7 @@ fn pad_to(bytes: Vec<u8>, target: usize) -> Result<Vec<u8>, IntegrationError> {
             Ok(padded)
         }
         std::cmp::Ordering::Greater => Err(IntegrationError::NotImplemented(
-            ("webhook source verification failed".to_string()).into(),
+            "webhook source verification failed".to_string(),
             Default::default(),
         )),
     }
@@ -1101,12 +1101,12 @@ fn convert_p163_signature_to_der(
         URL_SAFE_NO_PAD
             .decode(signature_b64)
             .change_context(IntegrationError::NotImplemented(
-                ("webhook decoding failed".to_string()).into(),
+                "webhook decoding failed".to_string(),
                 Default::default(),
             ))?;
     if sig_bytes.len() != SIG_BYTES_EXPECTED_LENGTH {
         return Err(IntegrationError::NotImplemented(
-            ("webhook decoding failed".to_string()).into(),
+            "webhook decoding failed".to_string(),
             Default::default(),
         )
         .into());
@@ -1116,30 +1116,30 @@ fn convert_p163_signature_to_der(
         sig_bytes
             .get(0..66)
             .ok_or(IntegrationError::NotImplemented(
-                ("webhook decoding failed".to_string()).into(),
+                "webhook decoding failed".to_string(),
                 Default::default(),
             ))?,
     )
     .change_context(IntegrationError::NotImplemented(
-        ("webhook decoding failed".to_string()).into(),
+        "webhook decoding failed".to_string(),
         Default::default(),
     ))?;
     let s = BigNum::from_slice(sig_bytes.get(66..).ok_or(IntegrationError::NotImplemented(
-        ("webhook decoding failed".to_string()).into(),
+        "webhook decoding failed".to_string(),
         Default::default(),
     ))?)
     .change_context(IntegrationError::NotImplemented(
-        ("webhook decoding failed".to_string()).into(),
+        "webhook decoding failed".to_string(),
         Default::default(),
     ))?;
     let der_sig = EcdsaSig::from_private_components(r, s)
         .change_context(IntegrationError::NotImplemented(
-            ("webhook decoding failed".to_string()).into(),
+            "webhook decoding failed".to_string(),
             Default::default(),
         ))?
         .to_der()
         .change_context(IntegrationError::NotImplemented(
-            ("webhook decoding failed".to_string()).into(),
+            "webhook decoding failed".to_string(),
             Default::default(),
         ))?;
     Ok(der_sig)
@@ -1151,23 +1151,18 @@ fn verify_ecdsa_signature_and_digest(
     ec_key: EcKey<Public>,
 ) -> Result<bool, error_stack::Report<IntegrationError>> {
     let digest = hash(MessageDigest::sha512(), signing_input.as_bytes()).change_context(
-        IntegrationError::NotImplemented(
-            ("webhook decoding failed".to_string()).into(),
-            Default::default(),
-        ),
+        IntegrationError::NotImplemented("webhook decoding failed".to_string(), Default::default()),
     )?;
 
-    let ecdsa_sig =
-        EcdsaSig::from_der(&der_sig).change_context(IntegrationError::NotImplemented(
-            ("webhook decoding failed".to_string()).into(),
-            Default::default(),
-        ))?;
+    let ecdsa_sig = EcdsaSig::from_der(&der_sig).change_context(
+        IntegrationError::NotImplemented("webhook decoding failed".to_string(), Default::default()),
+    )?;
 
     let valid =
         ecdsa_sig
             .verify(&digest, &ec_key)
             .change_context(IntegrationError::NotImplemented(
-                ("webhook decoding failed".to_string()).into(),
+                "webhook decoding failed".to_string(),
                 Default::default(),
             ))?;
 
@@ -1183,30 +1178,22 @@ fn build_uncompressed_ec1_point(
     sec1.extend(pad_to(y, P521_COORDINATE_BYTE_LEN)?);
 
     let group = EcGroup::from_curve_name(Nid::SECP521R1).change_context(
-        IntegrationError::NotImplemented(
-            ("webhook decoding failed".to_string()).into(),
-            Default::default(),
-        ),
+        IntegrationError::NotImplemented("webhook decoding failed".to_string(), Default::default()),
     )?;
     let mut ctx = BigNumContext::new().change_context(IntegrationError::NotImplemented(
-        ("webhook decoding failed".to_string()).into(),
+        "webhook decoding failed".to_string(),
         Default::default(),
     ))?;
     let point = EcPoint::from_bytes(&group, &sec1, &mut ctx).change_context(
-        IntegrationError::NotImplemented(
-            ("webhook decoding failed".to_string()).into(),
-            Default::default(),
-        ),
+        IntegrationError::NotImplemented("webhook decoding failed".to_string(), Default::default()),
     )?;
-    let ec_key =
-        EcKey::from_public_key(&group, &point).change_context(IntegrationError::NotImplemented(
-            ("webhook decoding failed".to_string()).into(),
-            Default::default(),
-        ))?;
+    let ec_key = EcKey::from_public_key(&group, &point).change_context(
+        IntegrationError::NotImplemented("webhook decoding failed".to_string(), Default::default()),
+    )?;
     ec_key
         .check_key()
         .change_context(IntegrationError::NotImplemented(
-            ("webhook decoding failed".to_string()).into(),
+            "webhook decoding failed".to_string(),
             Default::default(),
         ))?;
     Ok(ec_key)
@@ -1233,7 +1220,7 @@ fn verify_signature(
                 lower_headers
                     .get(&name.to_lowercase())
                     .ok_or(IntegrationError::NotImplemented(
-                        ("webhook decoding failed".to_string()).into(),
+                        "webhook decoding failed".to_string(),
                         Default::default(),
                     ))?;
             payload.extend_from_slice(format!("{}: {}\n", name, value).as_bytes());
@@ -1271,18 +1258,18 @@ impl TryFrom<ResponseRouterData<Jwks, Self>>
             headers
                 .get("tl-signature")
                 .ok_or(IntegrationError::NotImplemented(
-                    ("webhook signature not found".to_string()).into(),
+                    "webhook signature not found".to_string(),
                     Default::default(),
                 ))?;
         let tl_signature = tl_signature_header.as_str();
         let parts: Vec<&str> = tl_signature.splitn(3, '.').collect();
 
         let header_b64 = parts.first().ok_or(IntegrationError::NotImplemented(
-            ("webhook decoding failed".to_string()).into(),
+            "webhook decoding failed".to_string(),
             Default::default(),
         ))?;
         let signature_b64 = parts.get(2).ok_or(IntegrationError::NotImplemented(
-            ("webhook decoding failed".to_string()).into(),
+            "webhook decoding failed".to_string(),
             Default::default(),
         ))?;
 
@@ -1290,12 +1277,12 @@ impl TryFrom<ResponseRouterData<Jwks, Self>>
             URL_SAFE_NO_PAD
                 .decode(header_b64)
                 .change_context(IntegrationError::NotImplemented(
-                    ("webhook decoding failed".to_string()).into(),
+                    "webhook decoding failed".to_string(),
                     Default::default(),
                 ))?;
         let jws_header: JwsHeaderWebhooks = serde_json::from_slice(&header_json).change_context(
             IntegrationError::NotImplemented(
-                ("webhook decoding failed".to_string()).into(),
+                "webhook decoding failed".to_string(),
                 Default::default(),
             ),
         )?;
@@ -1306,26 +1293,26 @@ impl TryFrom<ResponseRouterData<Jwks, Self>>
             .into_iter()
             .find(|k| k.kid == jws_header.kid && k.kty == "EC")
             .ok_or(IntegrationError::NotImplemented(
-                ("webhook source verification failed".to_string()).into(),
+                "webhook source verification failed".to_string(),
                 Default::default(),
             ))?;
 
         let x_raw = URL_SAFE_NO_PAD
             .decode(jwk.x.ok_or(IntegrationError::NotImplemented(
-                ("webhook decoding failed".to_string()).into(),
+                "webhook decoding failed".to_string(),
                 Default::default(),
             ))?)
             .change_context(IntegrationError::NotImplemented(
-                ("webhook decoding failed".to_string()).into(),
+                "webhook decoding failed".to_string(),
                 Default::default(),
             ))?;
         let y_raw = URL_SAFE_NO_PAD
             .decode(jwk.y.ok_or(IntegrationError::NotImplemented(
-                ("webhook decoding failed".to_string()).into(),
+                "webhook decoding failed".to_string(),
                 Default::default(),
             ))?)
             .change_context(IntegrationError::NotImplemented(
-                ("webhook decoding failed".to_string()).into(),
+                "webhook decoding failed".to_string(),
                 Default::default(),
             ))?;
 

@@ -775,8 +775,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
             _ => {
                 return Err(IntegrationError::NotImplemented(
-                    ("Payment method not supported by Nuvei in this transformer".to_string())
-                        .into(),
+                    "Payment method not supported by Nuvei in this transformer".to_string(),
                     Default::default(),
                 )
                 .into())

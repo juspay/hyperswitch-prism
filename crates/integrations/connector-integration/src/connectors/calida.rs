@@ -600,7 +600,7 @@ impl ConnectorValidation for Calida<DefaultPCIHolder> {
     ) -> CustomResult<(), IntegrationError> {
         match pm_data {
             PaymentMethodData::Card(_) => Err(IntegrationError::NotImplemented(
-                ("validate_mandate_payment does not support cards".to_string()).into(),
+                "validate_mandate_payment does not support cards".to_string(),
                 Default::default(),
             )
             .into()),

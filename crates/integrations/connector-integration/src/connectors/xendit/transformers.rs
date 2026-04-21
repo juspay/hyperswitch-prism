@@ -439,7 +439,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 channel_properties: None,
             }),
             _ => Err(IntegrationError::NotImplemented(
-                (get_unimplemented_payment_method_error_message("xendit")).into(),
+                get_unimplemented_payment_method_error_message("xendit"),
                 Default::default(),
             )
             .into()),

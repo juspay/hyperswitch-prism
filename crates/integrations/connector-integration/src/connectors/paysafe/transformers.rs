@@ -174,11 +174,10 @@ impl TryFrom<&enums::BankType> for PaysafeAchAccountType {
             enums::BankType::Checking => Ok(Self::Checking),
             enums::BankType::Savings => Ok(Self::Savings),
             _ => Err(IntegrationError::NotImplemented(
-                (format!(
+                format!(
                     "Bank type {:?} is not supported for ACH bank debit",
                     bank_type
-                ))
-                .into(),
+                ),
                 Default::default(),
             )),
         }
@@ -393,8 +392,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     )
                 }
                 _ => {
-                    return Err(IntegrationError::NotImplemented(("Only card, ACH, and GooglePay payment methods are supported for PaymentMethodToken"
-                            .to_string()).into(), Default::default())
+                    return Err(IntegrationError::NotImplemented("Only card, ACH, and GooglePay payment methods are supported for PaymentMethodToken"
+                            .to_string() , Default::default())
                     .into())
                 }
             };

@@ -142,7 +142,7 @@ fn fetch_payment_instrument<
 }))
         }
         PaymentMethodData::MandatePayment => {
-            Err(IntegrationError::NotImplemented(("MandatePayment should not be used in Authorize flow - use RepeatPayment flow for MIT transactions".to_string()).into(), Default::default()).into())
+            Err(IntegrationError::NotImplemented("MandatePayment should not be used in Authorize flow - use RepeatPayment flow for MIT transactions".to_string() , Default::default()).into())
         }
         PaymentMethodData::Wallet(wallet) => match wallet {
             WalletDataPaymentMethod::GooglePay(data) => {
@@ -226,7 +226,7 @@ fn fetch_payment_instrument<
         | PaymentMethodData::OpenBanking(_)
         | PaymentMethodData::PaymentMethodToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-        | PaymentMethodData::NetworkToken(_) => Err(IntegrationError::NotImplemented((utils::get_unimplemented_payment_method_error_message("worldpay")).into(), Default::default())
+        | PaymentMethodData::NetworkToken(_) => Err(IntegrationError::NotImplemented(utils::get_unimplemented_payment_method_error_message("worldpay") , Default::default())
         .into())
 }
 }
@@ -247,14 +247,14 @@ impl TryFrom<(enums::PaymentMethod, Option<enums::PaymentMethodType>)> for Payme
                     enums::PaymentMethodType::ApplePay => Ok(Self::ApplePay),
                     enums::PaymentMethodType::GooglePay => Ok(Self::GooglePay),
                     _ => Err(IntegrationError::NotImplemented(
-                        (utils::get_unimplemented_payment_method_error_message("worldpay")).into(),
+                        utils::get_unimplemented_payment_method_error_message("worldpay"),
                         Default::default(),
                     )
                     .into()),
                 }
             }
             _ => Err(IntegrationError::NotImplemented(
-                (utils::get_unimplemented_payment_method_error_message("worldpay")).into(),
+                utils::get_unimplemented_payment_method_error_message("worldpay"),
                 Default::default(),
             )
             .into()),
@@ -546,14 +546,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             MandateReferenceId::NetworkMandateId(_network_txn_id) => {
                 // NTI flow would need raw card details, which RepeatPayment doesn't have
                 return Err(IntegrationError::NotImplemented(
-                    ("NetworkMandateId not supported in RepeatPayment".to_string()).into(),
+                    "NetworkMandateId not supported in RepeatPayment".to_string(),
                     Default::default(),
                 )
                 .into());
             }
             MandateReferenceId::NetworkTokenWithNTI(_) => {
                 return Err(IntegrationError::NotImplemented(
-                    ("NetworkTokenWithNTI not supported in RepeatPayment yet".to_string()).into(),
+                    "NetworkTokenWithNTI not supported in RepeatPayment yet".to_string(),
                     Default::default(),
                 )
                 .into());

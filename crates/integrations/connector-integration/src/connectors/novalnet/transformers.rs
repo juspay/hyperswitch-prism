@@ -486,7 +486,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::PayURedirect(_)
                 | WalletDataPaymentMethod::EaseBuzzRedirect(_) => {
                     Err(IntegrationError::NotImplemented(
-                        (utils::get_unimplemented_payment_method_error_message("novalnet")).into(),
+                        utils::get_unimplemented_payment_method_error_message("novalnet"),
                         Default::default(),
                     )
                     .into())
@@ -574,8 +574,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     | BankDebitData::EftBankDebit { .. }
                     | BankDebitData::BacsBankDebit { .. } => {
                         return Err(IntegrationError::NotImplemented(
-                            (utils::get_unimplemented_payment_method_error_message("novalnet"))
-                                .into(),
+                            utils::get_unimplemented_payment_method_error_message("novalnet"),
                             Default::default(),
                         )
                         .into());
@@ -590,7 +589,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 })
             }
             _ => Err(IntegrationError::NotImplemented(
-                (utils::get_unimplemented_payment_method_error_message("novalnet")).into(),
+                utils::get_unimplemented_payment_method_error_message("novalnet"),
                 Default::default(),
             )
             .into()),
@@ -1933,7 +1932,7 @@ impl ForeignTryFrom<WebhookDisputeStatus> for common_enums::DisputeStatus {
             WebhookDisputeStatus::DisputeOpened => Ok(Self::DisputeOpened),
             WebhookDisputeStatus::DisputeWon => Ok(Self::DisputeWon),
             WebhookDisputeStatus::Unknown => Err(IntegrationError::NotImplemented(
-                ("webhook body decoding failed".to_string()).into(),
+                "webhook body decoding failed".to_string(),
                 Default::default(),
             ))?,
         }
@@ -1942,7 +1941,7 @@ impl ForeignTryFrom<WebhookDisputeStatus> for common_enums::DisputeStatus {
 
 pub fn option_to_result<T>(opt: Option<T>) -> Result<T, IntegrationError> {
     opt.ok_or(IntegrationError::NotImplemented(
-        ("webhook body decoding failed".to_string()).into(),
+        "webhook body decoding failed".to_string(),
         Default::default(),
     ))
 }
@@ -2167,7 +2166,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::MbWayRedirect(_)
                 | WalletDataPaymentMethod::MobilePayRedirect(_)
                 | WalletDataPaymentMethod::RevolutPay(_) => Err(IntegrationError::NotImplemented(
-                    (utils::get_unimplemented_payment_method_error_message("novalnet")).into(),
+                    utils::get_unimplemented_payment_method_error_message("novalnet"),
                     Default::default(),
                 ))?,
                 WalletDataPaymentMethod::PaypalRedirect(_) => {
@@ -2217,13 +2216,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::PayURedirect(_)
                 | WalletDataPaymentMethod::EaseBuzzRedirect(_) => {
                     Err(IntegrationError::NotImplemented(
-                        (utils::get_unimplemented_payment_method_error_message("novalnet")).into(),
+                        utils::get_unimplemented_payment_method_error_message("novalnet"),
                         Default::default(),
                     ))?
                 }
             },
             _ => Err(IntegrationError::NotImplemented(
-                (utils::get_unimplemented_payment_method_error_message("novalnet")).into(),
+                utils::get_unimplemented_payment_method_error_message("novalnet"),
                 Default::default(),
             ))?,
         }
@@ -2416,14 +2415,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         })
                     }
                     _ => Err(IntegrationError::NotImplemented(
-                        (utils::get_unimplemented_payment_method_error_message("novalnet")).into(),
+                        utils::get_unimplemented_payment_method_error_message("novalnet"),
                         Default::default(),
                     )
                     .into()),
                 }
             }
             _ => Err(IntegrationError::NotImplemented(
-                (utils::get_unimplemented_payment_method_error_message("novalnet")).into(),
+                utils::get_unimplemented_payment_method_error_message("novalnet"),
                 Default::default(),
             )
             .into()),
@@ -2540,7 +2539,7 @@ impl TryFrom<NovalnetWebhookNotificationResponse> for WebhookDetailsResponse {
                 }
             }
             _ => Err(IntegrationError::NotImplemented(
-                ("webhook body decoding failed".to_string()).into(),
+                "webhook body decoding failed".to_string(),
                 Default::default(),
             ))?,
         }
@@ -2557,7 +2556,7 @@ impl TryFrom<NovalnetWebhookNotificationResponseRefunds> for RefundWebhookDetail
             .tid
             .map(|tid| tid.to_string())
             .ok_or(IntegrationError::NotImplemented(
-                ("missing refund transaction id in webhook".to_string()).into(),
+                "missing refund transaction id in webhook".to_string(),
                 Default::default(),
             ))?;
 

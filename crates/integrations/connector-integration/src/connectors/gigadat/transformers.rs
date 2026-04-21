@@ -134,7 +134,7 @@ impl TryFrom<String> for GigadatTransactionStatus {
             "STATUS_PENDING" => Ok(Self::StatusPending),
             "STATUS_FAILED" => Ok(Self::StatusFailed),
             _ => Err(IntegrationError::NotImplemented(
-                ("webhook body decoding failed".to_string()).into(),
+                "webhook body decoding failed".to_string(),
                 Default::default(),
             )
             .into()),

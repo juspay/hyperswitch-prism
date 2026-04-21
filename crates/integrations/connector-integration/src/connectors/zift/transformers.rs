@@ -598,7 +598,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 }
             }
             _ => Err(error_stack::report!(IntegrationError::NotImplemented(
-                ("Payment method".to_string()).into(),
+                "Payment method".to_string(),
                 Default::default()
             ),)),
         }
@@ -763,7 +763,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 Ok(Self::Mandate(mandate_request))
             }
             _ => Err(error_stack::report!(IntegrationError::NotImplemented(
-                ("Payment method".to_string()).into(),
+                "Payment method".to_string(),
                 Default::default()
             ),)),
         }

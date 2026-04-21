@@ -609,7 +609,7 @@ impl TryFrom<&common_enums::BankNames> for AdyenTestBankNames {
                 Ok(Self("4a0a975b-0594-4b40-9068-39f77b3a91f9".to_string()))
             }
             _ => Err(IntegrationError::NotImplemented(
-                (utils::get_unimplemented_payment_method_error_message("Adyen")).into(),
+                utils::get_unimplemented_payment_method_error_message("Adyen"),
                 Default::default(),
             )
             .into()),
@@ -1203,7 +1203,7 @@ impl TryFrom<&common_enums::PaymentMethodType> for PaymentType {
             common_enums::PaymentMethodType::Givex => Ok(Self::Giftcard),
             common_enums::PaymentMethodType::PaySafeCard => Ok(Self::PaySafeCard),
             _ => Err(IntegrationError::NotImplemented(
-                (utils::get_unimplemented_payment_method_error_message("Adyen")).into(),
+                utils::get_unimplemented_payment_method_error_message("Adyen"),
                 Default::default(),
             )
             .into()),
@@ -1639,7 +1639,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | VoucherData::PagoEfectivo
             | VoucherData::RedCompra
             | VoucherData::RedPagos => Err(IntegrationError::NotImplemented(
-                (utils::get_unimplemented_payment_method_error_message("Adyen")).into(),
+                utils::get_unimplemented_payment_method_error_message("Adyen"),
                 Default::default(),
             )
             .into()),
@@ -1811,7 +1811,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | BankRedirectData::Sofort { .. }
             | BankRedirectData::OpenBanking { .. }
             | BankRedirectData::Netbanking { .. } => Err(IntegrationError::NotImplemented(
-                (utils::get_unimplemented_payment_method_error_message("Adyen")).into(),
+                utils::get_unimplemented_payment_method_error_message("Adyen"),
                 Default::default(),
             )
             .into()),
@@ -1898,7 +1898,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | BankTransferData::InstantBankTransferFinland {}
             | BankTransferData::InstantBankTransferPoland {} => {
                 Err(IntegrationError::NotImplemented(
-                    (utils::get_unimplemented_payment_method_error_message("Adyen")).into(),
+                    utils::get_unimplemented_payment_method_error_message("Adyen"),
                     Default::default(),
                 )
                 .into())
@@ -1981,7 +1981,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             BankDebitData::BecsBankDebit { .. }
             | BankDebitData::SepaGuaranteedBankDebit { .. }
             | BankDebitData::EftBankDebit { .. } => Err(IntegrationError::NotImplemented(
-                (utils::get_unimplemented_payment_method_error_message("Adyen")).into(),
+                utils::get_unimplemented_payment_method_error_message("Adyen"),
                 Default::default(),
             )
             .into()),
@@ -5439,7 +5439,7 @@ pub fn get_webhook_object_from_body(
     let mut webhook: AdyenIncomingWebhook = body
         .parse_struct("AdyenIncomingWebhook")
         .change_context(IntegrationError::NotImplemented(
-            ("webhook body decoding failed".to_string()).into(),
+            "webhook body decoding failed".to_string(),
             Default::default(),
         ))?;
 
@@ -5449,7 +5449,7 @@ pub fn get_webhook_object_from_body(
             .drain(..)
             .next()
             .ok_or(IntegrationError::NotImplemented(
-                ("webhook body decoding failed".to_string()).into(),
+                "webhook body decoding failed".to_string(),
                 Default::default(),
             ))?;
 

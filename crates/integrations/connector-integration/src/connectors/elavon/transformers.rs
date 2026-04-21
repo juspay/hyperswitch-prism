@@ -269,7 +269,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 Ok(Self::Card(card_req))
             }
             _ => Err(report!(IntegrationError::NotImplemented(
-                ("Only card payments are supported for Elavon".to_string()).into(),
+                "Only card payments are supported for Elavon".to_string(),
                 Default::default()
             ))),
         }

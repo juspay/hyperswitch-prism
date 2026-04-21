@@ -3121,7 +3121,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(IntegrationError::NotImplemented(
-                    (utils::get_unimplemented_payment_method_error_message("Cybersource")).into(),
+                    utils::get_unimplemented_payment_method_error_message("Cybersource"),
                     Default::default(),
                 ))
             }
@@ -3399,7 +3399,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(IntegrationError::NotImplemented(
-                    (utils::get_unimplemented_payment_method_error_message("Cybersource")).into(),
+                    utils::get_unimplemented_payment_method_error_message("Cybersource"),
                     Default::default(),
                 ))
             }
@@ -4419,8 +4419,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::PaymentMethodToken(_) => {
                     Err(IntegrationError::NotImplemented(
-                        (utils::get_unimplemented_payment_method_error_message("Cybersource"))
-                            .into(),
+                        utils::get_unimplemented_payment_method_error_message("Cybersource"),
                         Default::default(),
                     ))?
                 }

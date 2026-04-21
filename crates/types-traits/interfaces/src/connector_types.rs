@@ -514,7 +514,7 @@ pub trait VerifyRedirectResponse: SourceVerification + BodyDecoding {
         _request: &RequestDetails,
     ) -> CustomResult<RedirectDetailsResponse, domain_types::errors::IntegrationError> {
         Err(domain_types::errors::IntegrationError::NotImplemented(
-            ("process_redirect_response".to_string()).into(),
+            "process_redirect_response".to_string(),
             Default::default(),
         )
         .into())

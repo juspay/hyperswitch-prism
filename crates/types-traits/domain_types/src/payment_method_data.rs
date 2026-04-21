@@ -773,7 +773,7 @@ impl WalletData {
                 Ok(encoded_token)
             }
             _ => Err(IntegrationError::NotImplemented(
-                ("SELECTED PAYMENT METHOD".to_owned()).into(),
+                "SELECTED PAYMENT METHOD".to_owned(),
                 Default::default(),
             )
             .into()),

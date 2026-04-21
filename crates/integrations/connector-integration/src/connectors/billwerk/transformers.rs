@@ -240,7 +240,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(IntegrationError::NotImplemented(
-                    (utils::get_unimplemented_payment_method_error_message("billwerk")).into(),
+                    utils::get_unimplemented_payment_method_error_message("billwerk"),
                     Default::default(),
                 )
                 .into())
@@ -277,7 +277,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         if item.router_data.resource_common_data.is_three_ds() {
             return Err(IntegrationError::NotImplemented(
-                ("Three_ds payments through Billwerk".to_string()).into(),
+                "Three_ds payments through Billwerk".to_string(),
                 Default::default(),
             )
             .into());

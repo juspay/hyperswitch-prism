@@ -385,7 +385,7 @@ impl<T: PaymentMethodDataTypes>
             }
             _ => {
                 return Err(IntegrationError::NotImplemented(
-                    ("Payment method".to_string()).into(),
+                    "Payment method".to_string(),
                     Default::default(),
                 )
                 .into());

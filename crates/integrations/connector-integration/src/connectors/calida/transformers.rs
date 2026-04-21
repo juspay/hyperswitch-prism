@@ -244,7 +244,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 })
             }
             _ => Err(IntegrationError::NotImplemented(
-                ("Payment method".to_string()).into(),
+                "Payment method".to_string(),
                 Default::default(),
             )
             .into()),
@@ -417,7 +417,7 @@ pub fn sort_and_minify_json(value: &Value) -> Result<String, IntegrationError> {
     let sorted_value = sort_value(value);
     serde_json::to_string(&sorted_value).map_err(|_| {
         IntegrationError::NotImplemented(
-            ("webhook body decoding failed".to_string()).into(),
+            "webhook body decoding failed".to_string(),
             Default::default(),
         )
     })

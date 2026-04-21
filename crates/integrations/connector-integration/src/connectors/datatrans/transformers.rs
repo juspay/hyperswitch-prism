@@ -199,7 +199,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
             }
             _ => Err(IntegrationError::NotImplemented(
-                (UNSUPPORTED_PAYMENT_METHOD_ERROR.to_string()).into(),
+                UNSUPPORTED_PAYMENT_METHOD_ERROR.to_string(),
                 Default::default(),
             ))?,
         };

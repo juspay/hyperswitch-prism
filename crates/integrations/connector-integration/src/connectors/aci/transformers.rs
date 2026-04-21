@@ -224,7 +224,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | WalletData::CashfreeRedirect(_)
             | WalletData::PayURedirect(_)
             | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotImplemented(
-                ("Payment method".to_string()).into(),
+                "Payment method".to_string(),
                 Default::default(),
             ))?,
         };
@@ -422,7 +422,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | BankRedirectData::OpenBankingUk { .. }
             | BankRedirectData::OpenBanking {}
             | BankRedirectData::Netbanking { .. } => Err(IntegrationError::NotImplemented(
-                ("Payment method".to_string()).into(),
+                "Payment method".to_string(),
                 Default::default(),
             ))?,
         };
@@ -759,7 +759,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(IntegrationError::NotImplemented(
-                    (utils::get_unimplemented_payment_method_error_message("Aci")).into(),
+                    utils::get_unimplemented_payment_method_error_message("Aci"),
                     Default::default(),
                 ))?
             }

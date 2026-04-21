@@ -192,7 +192,7 @@ impl TryFrom<&BankRedirectData> for TrustpayPaymentMethod {
             | BankRedirectData::LocalBankRedirect {}
             | BankRedirectData::OpenBanking {}
             | BankRedirectData::Netbanking { .. } => Err(IntegrationError::NotImplemented(
-                (utils::get_unimplemented_payment_method_error_message("trustpay")).into(),
+                utils::get_unimplemented_payment_method_error_message("trustpay"),
                 Default::default(),
             )
             .into()),

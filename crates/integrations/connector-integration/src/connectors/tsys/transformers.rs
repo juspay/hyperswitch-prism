@@ -251,7 +251,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let item = &item_data.router_data;
         if item.resource_common_data.is_three_ds() {
             return Err(IntegrationError::NotImplemented(
-                ("Three_ds payments through Tsys".to_string()).into(),
+                "Three_ds payments through Tsys".to_string(),
                 Default::default(),
             )
             .into());
@@ -296,7 +296,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
             }
             _ => Err(IntegrationError::NotImplemented(
-                ("Payment method not implemented".to_string()).into(),
+                "Payment method not implemented".to_string(),
                 Default::default(),
             ))?,
         }

@@ -2732,7 +2732,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Card(card) => card,
             pm => {
                 return Err(error_stack::report!(IntegrationError::NotImplemented(
-                    (format!("Payment method {:?}", pm)).into(),
+                    format!("Payment method {:?}", pm),
                     Default::default()
                 )))
             }

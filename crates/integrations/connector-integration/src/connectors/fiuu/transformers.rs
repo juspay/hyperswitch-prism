@@ -214,7 +214,7 @@ impl TryFrom<BankNames> for FPXTxnChannel {
             BankNames::UobBank => Ok(Self::FpxUob),
             BankNames::OcbcBank => Ok(Self::FpxOcbc),
             _ => Err(IntegrationError::NotImplemented(
-                (utils::get_unimplemented_payment_method_error_message("Fiuu")).into(),
+                utils::get_unimplemented_payment_method_error_message("Fiuu"),
                 Default::default(),
             ))?,
         }
@@ -575,7 +575,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     RealTimePaymentData::Fps {}
                     | RealTimePaymentData::PromptPay {}
                     | RealTimePaymentData::VietQr {} => Err(IntegrationError::NotImplemented(
-                        (utils::get_unimplemented_payment_method_error_message("fiuu")).into(),
+                        utils::get_unimplemented_payment_method_error_message("fiuu"),
                         Default::default(),
                     )
                     .into()),
@@ -666,7 +666,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotImplemented(
-                    (utils::get_unimplemented_payment_method_error_message("fiuu")).into(),
+                    utils::get_unimplemented_payment_method_error_message("fiuu"),
                     Default::default(),
                 )
                 .into()),
@@ -688,7 +688,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(IntegrationError::NotImplemented(
-                    (utils::get_unimplemented_payment_method_error_message("fiuu")).into(),
+                    utils::get_unimplemented_payment_method_error_message("fiuu"),
                     Default::default(),
                 )
                 .into())
@@ -780,14 +780,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         ))
                     }
                     _ => Err(IntegrationError::NotImplemented(
-                        (utils::get_unimplemented_payment_method_error_message("fiuu")).into(),
+                        utils::get_unimplemented_payment_method_error_message("fiuu"),
                         Default::default(),
                     )
                     .into()),
                 }
             }
             _ => Err(IntegrationError::NotImplemented(
-                (utils::get_unimplemented_payment_method_error_message("fiuu")).into(),
+                utils::get_unimplemented_payment_method_error_message("fiuu"),
                 Default::default(),
             )
             .into()),
@@ -2567,7 +2567,7 @@ impl TryFrom<FiuuRefundSyncResponse> for RefundWebhookDetailsResponse {
                 response_headers: None,
             }),
             _ => Err(IntegrationError::NotImplemented(
-                ("webhook body decoding failed".to_string()).into(),
+                "webhook body decoding failed".to_string(),
                 Default::default(),
             ))?,
         }

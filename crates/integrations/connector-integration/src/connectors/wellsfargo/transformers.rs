@@ -576,8 +576,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentMethodData::Wallet(_)
             | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_) => Err(IntegrationError::NotImplemented(
-                ("Payment method supported by connector but not yet implemented".to_string())
-                    .into(),
+                "Payment method supported by connector but not yet implemented".to_string(),
                 Default::default(),
             ))?,
             // Connector does not support these payment methods

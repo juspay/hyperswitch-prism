@@ -243,7 +243,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     == common_enums::AuthenticationType::ThreeDs
                 {
                     return Err(IntegrationError::NotImplemented(
-                        ("3DS payments".to_string()).into(),
+                        "3DS payments".to_string(),
                         Default::default(),
                     )
                     .into());
@@ -613,7 +613,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }
                 }
                 _ => Err(IntegrationError::NotImplemented(
-                    ("Wallet not supported".to_string()).into(),
+                    "Wallet not supported".to_string(),
                     Default::default(),
                 )
                 .into()),

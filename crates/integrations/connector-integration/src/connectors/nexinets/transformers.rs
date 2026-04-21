@@ -745,7 +745,7 @@ fn get_payment_details_and_product<
             | BankRedirectData::LocalBankRedirect {}
             | BankRedirectData::OpenBanking {}
             | BankRedirectData::Netbanking { .. } => Err(IntegrationError::NotImplemented(
-                (utils::get_unimplemented_payment_method_error_message("nexinets")).into(),
+                utils::get_unimplemented_payment_method_error_message("nexinets"),
                 Default::default(),
             ))?,
         },
@@ -767,7 +767,7 @@ fn get_payment_details_and_product<
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
             Err(IntegrationError::NotImplemented(
-                (utils::get_unimplemented_payment_method_error_message("nexinets")).into(),
+                utils::get_unimplemented_payment_method_error_message("nexinets"),
                 Default::default(),
             ))?
         }
@@ -890,7 +890,7 @@ fn get_wallet_details<
         | WalletData::CashfreeRedirect(_)
         | WalletData::PayURedirect(_)
         | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotImplemented(
-            (utils::get_unimplemented_payment_method_error_message("nexinets")).into(),
+            utils::get_unimplemented_payment_method_error_message("nexinets"),
             Default::default(),
         ))?,
     }
@@ -1139,7 +1139,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             _ => {
                 return Err(IntegrationError::NotImplemented(
-                    (utils::get_unimplemented_payment_method_error_message("nexinets")).into(),
+                    utils::get_unimplemented_payment_method_error_message("nexinets"),
                     Default::default(),
                 ))?;
             }
