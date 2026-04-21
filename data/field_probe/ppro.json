@@ -616,7 +616,7 @@
           "refund_id": "probe_refund_id_001"
         },
         "sample": {
-          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges/probe_refund_id_001",
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges/probe_connector_txn_001",
           "method": "Get",
           "headers": {
             "authorization": "Bearer probe_key",

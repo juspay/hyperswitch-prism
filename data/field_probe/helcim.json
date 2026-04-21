@@ -638,7 +638,7 @@
         "status": "supported",
         "proto_request": {
           "merchant_refund_id": "probe_refund_001",
-          "connector_transaction_id": "12345",
+          "connector_transaction_id": "probe_connector_txn_001",
           "refund_id": "probe_refund_id_001"
         },
         "sample": {

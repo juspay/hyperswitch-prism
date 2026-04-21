@@ -5,9 +5,9 @@
 // Braintree — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx braintree.ts checkout_autocapture
 
-import { PaymentClient, MerchantAuthenticationClient, RefundClient, PaymentMethodClient, types } from 'hyperswitch-prism';
+import { PaymentClient, MerchantAuthenticationClient, PaymentMethodClient, types } from 'hyperswitch-prism';
 const { Environment, Currency } = types;
-export const SUPPORTED_FLOWS = ["capture", "create_client_authentication_token", "get", "refund", "refund_get", "tokenize", "void"];
+export const SUPPORTED_FLOWS = ["capture", "create_client_authentication_token", "get", "refund", "tokenize", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -81,15 +81,6 @@ function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServ
     };
 }
 
-function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
-    return {
-        "merchantRefundId": "probe_refund_001",  // Identification.
-        "connectorTransactionId": "probe_connector_txn_001",
-        "refundId": "probe_refund_id_001",
-        "refundMetadata": {"value": "{\"currency\":\"USD\"}"}  // Metadata specific to the refund sync.
-    };
-}
-
 function _buildTokenizeRequest(): types.IPaymentMethodServiceTokenizeRequest {
     return {
         "amount": {  // Payment Information.
@@ -157,15 +148,6 @@ async function refund(merchantTransactionId: string, config: types.IConnectorCon
     return refundResponse;
 }
 
-// Flow: RefundService.Get
-async function refundGet(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const refundClient = new RefundClient(config);
-
-    const refundResponse = await refundClient.refundGet(_buildRefundGetRequest());
-
-    return refundResponse;
-}
-
 // Flow: PaymentMethodService.Tokenize
 async function tokenize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentMethodClient = new PaymentMethodClient(config);
@@ -187,7 +169,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    capture, createClientAuthenticationToken, get, refund, refundGet, tokenize, voidPayment, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildGetRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenizeRequest, _buildVoidRequest
+    capture, createClientAuthenticationToken, get, refund, tokenize, voidPayment, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildGetRequest, _buildRefundRequest, _buildTokenizeRequest, _buildVoidRequest
 };
 
 // CLI runner

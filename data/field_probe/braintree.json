@@ -651,24 +651,8 @@
     },
     "refund_get": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_refund_id": "probe_refund_001",
-          "connector_transaction_id": "probe_connector_txn_001",
-          "refund_id": "probe_refund_id_001",
-          "refund_metadata": "{\"currency\":\"USD\"}"
-        },
-        "sample": {
-          "url": "https://payments.sandbox.braintree-api.com/graphql",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "braintree-version": "2019-01-01",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"query\":\"query($input: RefundSearchInput!) { search { refunds(input: $input, first: 1) { edges { node { id status createdAt amount { value currencyCode } orderId } } } } }\",\"variables\":{\"input\":{\"id\":{\"is\":\"probe_refund_id_001\"}}}}"
-        }
+        "status": "error",
+        "error": "Stuck on field: currency — Missing required field: currency"
       }
     },
     "reverse": {

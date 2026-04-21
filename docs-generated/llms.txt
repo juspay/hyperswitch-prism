@@ -115,7 +115,7 @@ connector_id: braintree
 doc: docs/connectors/braintree.md
 scenarios: none
 payment_methods: ApplePayThirdPartySdk, GooglePayThirdPartySdk, PaypalSdk
-flows: authorize, capture, create_client_authentication_token, get, refund, refund_get, tokenize, void
+flows: authorize, capture, create_client_authentication_token, get, refund, tokenize, void
 examples_python: none
 
 ## Calida
@@ -483,7 +483,7 @@ connector_id: placetopay
 doc: docs/connectors/placetopay.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, proxy_authorize, refund, refund_get, void
+flows: authorize, capture, get, proxy_authorize, refund, void
 examples_python: examples/placetopay/placetopay.py
 
 ## Powertranz
@@ -499,7 +499,7 @@ connector_id: ppro
 doc: docs/connectors/ppro.md
 scenarios: none
 payment_methods: none
-flows: capture, get, handle_event, parse_event, recurring_charge, refund, refund_get, void
+flows: capture, get, handle_event, parse_event, recurring_charge, refund, refund_get, verify_redirect, void
 examples_python: none
 
 ## Rapyd
@@ -619,7 +619,7 @@ connector_id: trustpayments
 doc: docs/connectors/trustpayments.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: ApplePayDecrypted, Card, GooglePayDecrypted
-flows: authorize, capture, get, proxy_authorize, refund, refund_get, void
+flows: authorize, capture, get, incremental_authorization, proxy_authorize, refund, refund_get, void
 examples_python: examples/trustpayments/trustpayments.py
 
 ## Tsys

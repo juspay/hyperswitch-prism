@@ -167,7 +167,7 @@ def _build_refund_get_request():
     return payment_pb2.RefundServiceGetRequest(
         merchant_refund_id="probe_refund_001",  # Identification.
         connector_transaction_id="probe_connector_txn_001",
-        refund_id="probe_refund_id_001",
+        refund_id="probe_refund_id_001",  # Deprecated.
         state=payment_pb2.ConnectorState(  # State Information.
             access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
                 token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.

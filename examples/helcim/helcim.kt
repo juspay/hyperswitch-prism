@@ -317,8 +317,8 @@ fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = RefundClient(config)
     val request = RefundServiceGetRequest.newBuilder().apply {
         merchantRefundId = "probe_refund_001"  // Identification.
-        connectorTransactionId = "12345"
-        refundId = "probe_refund_id_001"
+        connectorTransactionId = "probe_connector_txn_001"
+        refundId = "probe_refund_id_001"  // Deprecated.
     }.build()
     val response = client.refund_get(request)
     println("Status: ${response.status.name}")

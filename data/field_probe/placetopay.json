@@ -624,21 +624,8 @@
     },
     "refund_get": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_refund_id": "probe_refund_001",
-          "connector_transaction_id": "12345",
-          "refund_id": "probe_refund_id_001"
-        },
-        "sample": {
-          "url": "https://test.placetopay.com/rest/gateway/query",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"auth\":{\"login\":\"probe_user\",\"tranKey\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"nonce\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"seed\":\"2020-01-01T00:00:00+00:00\"},\"internalReference\":12345}"
-        }
+        "status": "error",
+        "error": "Failed to encode connector request"
       }
     },
     "reverse": {

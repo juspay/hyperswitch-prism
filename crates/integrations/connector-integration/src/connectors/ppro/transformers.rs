@@ -7,7 +7,7 @@ use super::PproRouterData;
 use crate::types::ResponseRouterData;
 use domain_types::errors::{ConnectorError, IntegrationError, WebhookError};
 use domain_types::{
-    connector_flow::{Capture, Refund, RepeatPayment, RSync, SetupMandate, Void},
+    connector_flow::{Capture, RSync, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
         EventType, MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
         PaymentsCaptureData, PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData,
@@ -923,39 +923,40 @@ impl TryFrom<ResponseRouterData<PproRSyncResponse, Self>>
     fn try_from(item: ResponseRouterData<PproRSyncResponse, Self>) -> Result<Self, Self::Error> {
         let connector_refund_id = &item.router_data.request.connector_refund_id;
         let refunds = &item.response.refunds;
-        let refund_status = if let Some(entry) = refunds.iter().find(|r| &r.id == connector_refund_id) {
-            match entry.status {
-                PproRefundStatus::RefundSettled | PproRefundStatus::Refunded => {
-                    common_enums::RefundStatus::Success
+        let refund_status =
+            if let Some(entry) = refunds.iter().find(|r| &r.id == connector_refund_id) {
+                match entry.status {
+                    PproRefundStatus::RefundSettled | PproRefundStatus::Refunded => {
+                        common_enums::RefundStatus::Success
+                    }
+                    PproRefundStatus::Failed
+                    | PproRefundStatus::Rejected
+                    | PproRefundStatus::Declined => common_enums::RefundStatus::Failure,
+                    PproRefundStatus::Pending | PproRefundStatus::Unknown => {
+                        common_enums::RefundStatus::Pending
+                    }
                 }
-                PproRefundStatus::Failed
-                | PproRefundStatus::Rejected
-                | PproRefundStatus::Declined => common_enums::RefundStatus::Failure,
-                PproRefundStatus::Pending | PproRefundStatus::Unknown => {
-                    common_enums::RefundStatus::Pending
-                }
-            }
-        } else if refunds.iter().any(|r| {
-            matches!(
-                r.status,
-                PproRefundStatus::Refunded | PproRefundStatus::RefundSettled
-            )
-        }) {
-            common_enums::RefundStatus::Success
-        } else if !refunds.is_empty()
-            && refunds.iter().all(|r| {
+            } else if refunds.iter().any(|r| {
                 matches!(
                     r.status,
-                    PproRefundStatus::Failed
-                        | PproRefundStatus::Rejected
-                        | PproRefundStatus::Declined
+                    PproRefundStatus::Refunded | PproRefundStatus::RefundSettled
                 )
-            })
-        {
-            common_enums::RefundStatus::Failure
-        } else {
-            common_enums::RefundStatus::Pending
-        };
+            }) {
+                common_enums::RefundStatus::Success
+            } else if !refunds.is_empty()
+                && refunds.iter().all(|r| {
+                    matches!(
+                        r.status,
+                        PproRefundStatus::Failed
+                            | PproRefundStatus::Rejected
+                            | PproRefundStatus::Declined
+                    )
+                })
+            {
+                common_enums::RefundStatus::Failure
+            } else {
+                common_enums::RefundStatus::Pending
+            };
 
         let response = Ok(RefundsResponseData {
             connector_refund_id: connector_refund_id.clone(),
