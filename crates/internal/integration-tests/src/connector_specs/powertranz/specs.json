@@ -3,9 +3,11 @@
   "supported_suites": [
     "authorize",
     "capture",
-    "void",
-    "refund",
     "get",
-    "refund_sync"
+    "recurring_charge",
+    "refund",
+    "refund_sync",
+    "setup_recurring",
+    "void"
   ]
 }

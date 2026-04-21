@@ -5,9 +5,9 @@
 // Finix — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx finix.ts checkout_autocapture
 
-import { PaymentClient, CustomerClient, RefundClient, PaymentMethodClient, types } from 'hyperswitch-prism';
-const { Environment, CaptureMethod, Currency } = types;
-export const SUPPORTED_FLOWS = ["capture", "create_customer", "get", "refund", "refund_get", "token_authorize", "tokenize", "void"];
+import { PaymentClient, CustomerClient, RecurringPaymentClient, RefundClient, PaymentMethodClient, types } from 'hyperswitch-prism';
+const { Environment, CaptureMethod, Currency, PaymentMethodType } = types;
+export const SUPPORTED_FLOWS = ["capture", "create_customer", "get", "recurring_charge", "refund", "refund_get", "token_authorize", "tokenize", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -45,6 +45,26 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
             "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
+    };
+}
+
+function _buildRecurringChargeRequest(): types.IRecurringPaymentServiceChargeRequest {
+    return {
+        "connectorRecurringPaymentId": {  // Reference to existing mandate.
+        },
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "paymentMethod": {  // Optional payment Method Information (for network transaction flows).
+            "token": {  // Payment tokens.
+                "token": {"value": "probe_pm_token"}  // The token string representing a payment method.
+            }
+        },
+        "returnUrl": "https://example.com/recurring-return",
+        "connectorCustomerId": "cust_probe_123",
+        "paymentMethodType": PaymentMethodType.PAY_PAL,
+        "offSession": true  // Behavioral Flags and Preferences.
     };
 }
 
@@ -147,6 +167,15 @@ async function get(merchantTransactionId: string, config: types.IConnectorConfig
     return getResponse;
 }
 
+// Flow: RecurringPaymentService.Charge
+async function recurringCharge(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const recurringPaymentClient = new RecurringPaymentClient(config);
+
+    const recurringResponse = await recurringPaymentClient.charge(_buildRecurringChargeRequest());
+
+    return recurringResponse;
+}
+
 // Flow: PaymentService.Refund
 async function refund(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -195,7 +224,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    capture, createCustomer, get, refund, refundGet, tokenAuthorize, tokenize, voidPayment, _buildCaptureRequest, _buildCreateCustomerRequest, _buildGetRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildTokenizeRequest, _buildVoidRequest
+    capture, createCustomer, get, recurringCharge, refund, refundGet, tokenAuthorize, tokenize, voidPayment, _buildCaptureRequest, _buildCreateCustomerRequest, _buildGetRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildTokenizeRequest, _buildVoidRequest
 };
 
 // CLI runner

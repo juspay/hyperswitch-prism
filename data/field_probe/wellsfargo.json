@@ -753,8 +753,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported for SetupMandate"
+        "status": "not_supported",
+        "error": "Payment method not supported for SetupMandate is not supported by Wellsfargo"
       }
     },
     "tokenize": {

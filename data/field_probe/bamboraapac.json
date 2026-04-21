@@ -8,88 +8,88 @@
     },
     "authorize": {
       "Ach": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "AchBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Affirm": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Afterpay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Alfamart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "AliPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "AmazonPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Bacs": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "BacsBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "BancontactCard": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "BcaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Becs": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Bizum": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Blik": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Bluecode": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "BniVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Boleto": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "BriVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Card": {
         "status": "supported",
@@ -126,280 +126,280 @@
         }
       },
       "CashappQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "CimbVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "ClassicReward": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Crypto": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "DuitNow": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Efecty": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Eft": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Eps": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "FamilyMart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Giropay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Givex": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GooglePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Ideal": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Indomaret": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "IndonesianBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "InstantBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "InstantBankTransferFinland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "InstantBankTransferPoland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Interac": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Klarna": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Lawson": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "LocalBankRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "LocalBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "MbWay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Mifinity": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "MiniStop": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "MultibancoBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "OnlineBankingFinland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "OnlineBankingFpx": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "OnlineBankingPoland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "OnlineBankingThailand": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "OpenBanking": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "OpenBankingPis": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Oxxo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "PagoEfectivo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "PayEasy": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "PaySafeCard": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PaypalRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "PaypalSdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Paze": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Pix": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Przelewy24": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Pse": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "RedCompra": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "RedPagos": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "RevolutPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "SamsungPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Satispay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Seicomart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Sepa": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "SepaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "SevenEleven": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Sofort": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Trustly": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "UpiCollect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "UpiIntent": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "UpiQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "WeChatPayQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Wero": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       }
     },
     "capture": {
@@ -720,14 +720,14 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       }
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payment methods are supported for SetupMandate"
+        "status": "not_supported",
+        "error": "Only card payment methods are supported for SetupMandate is not supported by Bamboraapac"
       }
     },
     "tokenize": {

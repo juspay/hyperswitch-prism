@@ -98,8 +98,8 @@
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "BancontactCard": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
@@ -110,12 +110,12 @@
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "Bizum": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "Blik": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "Bluecode": {
         "status": "not_implemented",
@@ -200,20 +200,20 @@
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "Eft": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "Eps": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "FamilyMart": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "Giropay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "Givex": {
         "status": "not_supported",
@@ -269,8 +269,8 @@
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "Ideal": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "Indomaret": {
         "status": "not_implemented",
@@ -293,8 +293,8 @@
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "Interac": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "Klarna": {
         "status": "not_implemented",
@@ -305,8 +305,8 @@
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "LocalBankRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
@@ -333,12 +333,12 @@
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "OnlineBankingFinland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "OnlineBankingFpx": {
         "status": "supported",
@@ -371,28 +371,28 @@
         }
       },
       "OnlineBankingPoland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "OnlineBankingThailand": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "OpenBanking": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "OpenBankingPis": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "Oxxo": {
         "status": "not_implemented",
@@ -431,8 +431,8 @@
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "Przelewy24": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "Pse": {
         "status": "not_implemented",
@@ -479,12 +479,12 @@
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "Sofort": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "Trustly": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "UpiCollect": {
         "status": "not_implemented",

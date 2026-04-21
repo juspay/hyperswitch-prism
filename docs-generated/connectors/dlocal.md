@@ -131,7 +131,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/dlocal/dlocal.py#L164) · [JavaScript](../../examples/dlocal/dlocal.js) · [Kotlin](../../examples/dlocal/dlocal.kt#L120) · [Rust](../../examples/dlocal/dlocal.rs#L203)
+**Examples:** [Python](../../examples/dlocal/dlocal.py#L231) · [JavaScript](../../examples/dlocal/dlocal.js) · [Kotlin](../../examples/dlocal/dlocal.kt#L122) · [Rust](../../examples/dlocal/dlocal.rs#L285)
 
 ### Card Payment (Authorize + Capture)
 
@@ -145,25 +145,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/dlocal/dlocal.py#L183) · [JavaScript](../../examples/dlocal/dlocal.js) · [Kotlin](../../examples/dlocal/dlocal.kt#L136) · [Rust](../../examples/dlocal/dlocal.rs#L219)
+**Examples:** [Python](../../examples/dlocal/dlocal.py#L250) · [JavaScript](../../examples/dlocal/dlocal.js) · [Kotlin](../../examples/dlocal/dlocal.kt#L138) · [Rust](../../examples/dlocal/dlocal.rs#L301)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/dlocal/dlocal.py#L208) · [JavaScript](../../examples/dlocal/dlocal.js) · [Kotlin](../../examples/dlocal/dlocal.kt#L158) · [Rust](../../examples/dlocal/dlocal.rs#L242)
+**Examples:** [Python](../../examples/dlocal/dlocal.py#L275) · [JavaScript](../../examples/dlocal/dlocal.js) · [Kotlin](../../examples/dlocal/dlocal.kt#L160) · [Rust](../../examples/dlocal/dlocal.rs#L324)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/dlocal/dlocal.py#L233) · [JavaScript](../../examples/dlocal/dlocal.js) · [Kotlin](../../examples/dlocal/dlocal.kt#L180) · [Rust](../../examples/dlocal/dlocal.rs#L265)
+**Examples:** [Python](../../examples/dlocal/dlocal.py#L300) · [JavaScript](../../examples/dlocal/dlocal.js) · [Kotlin](../../examples/dlocal/dlocal.kt#L182) · [Rust](../../examples/dlocal/dlocal.rs#L347)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/dlocal/dlocal.py#L255) · [JavaScript](../../examples/dlocal/dlocal.js) · [Kotlin](../../examples/dlocal/dlocal.kt#L199) · [Rust](../../examples/dlocal/dlocal.rs#L284)
+**Examples:** [Python](../../examples/dlocal/dlocal.py#L322) · [JavaScript](../../examples/dlocal/dlocal.js) · [Kotlin](../../examples/dlocal/dlocal.kt#L201) · [Rust](../../examples/dlocal/dlocal.rs#L366)
 
 ## API Reference
 
@@ -173,9 +173,11 @@ Retrieve current payment status from the connector.
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
+| [PaymentService.ProxySetupRecurring](#paymentserviceproxysetuprecurring) | Payments | `PaymentServiceProxySetupRecurringRequest` |
 | [RecurringPaymentService.Charge](#recurringpaymentservicecharge) | Mandates | `RecurringPaymentServiceChargeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
+| [PaymentService.SetupRecurring](#paymentservicesetuprecurring) | Payments | `PaymentServiceSetupRecurringRequest` |
 | [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
 
 ### Payments
@@ -262,8 +264,8 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Indonesian | ⚠ |
 | ACH | x |
 | SEPA | x |
-| BACS | ⚠ |
-| BECS | ⚠ |
+| BACS | x |
+| BECS | x |
 | SEPA Guaranteed | x |
 | Crypto | x |
 | Reward | ⚠ |
@@ -301,7 +303,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/dlocal/dlocal.py) · [TypeScript](../../examples/dlocal/dlocal.ts#L283) · [Kotlin](../../examples/dlocal/dlocal.kt#L217) · [Rust](../../examples/dlocal/dlocal.rs)
+**Examples:** [Python](../../examples/dlocal/dlocal.py) · [TypeScript](../../examples/dlocal/dlocal.ts#L352) · [Kotlin](../../examples/dlocal/dlocal.kt#L219) · [Rust](../../examples/dlocal/dlocal.rs)
 
 #### PaymentService.Capture
 
@@ -312,7 +314,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/dlocal/dlocal.py) · [TypeScript](../../examples/dlocal/dlocal.ts#L292) · [Kotlin](../../examples/dlocal/dlocal.kt#L229) · [Rust](../../examples/dlocal/dlocal.rs)
+**Examples:** [Python](../../examples/dlocal/dlocal.py) · [TypeScript](../../examples/dlocal/dlocal.ts#L361) · [Kotlin](../../examples/dlocal/dlocal.kt#L231) · [Rust](../../examples/dlocal/dlocal.rs)
 
 #### PaymentService.Get
 
@@ -323,7 +325,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/dlocal/dlocal.py) · [TypeScript](../../examples/dlocal/dlocal.ts#L301) · [Kotlin](../../examples/dlocal/dlocal.kt#L239) · [Rust](../../examples/dlocal/dlocal.rs)
+**Examples:** [Python](../../examples/dlocal/dlocal.py) · [TypeScript](../../examples/dlocal/dlocal.ts#L370) · [Kotlin](../../examples/dlocal/dlocal.kt#L241) · [Rust](../../examples/dlocal/dlocal.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -334,7 +336,18 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/dlocal/dlocal.py) · [TypeScript](../../examples/dlocal/dlocal.ts#L310) · [Kotlin](../../examples/dlocal/dlocal.kt#L247) · [Rust](../../examples/dlocal/dlocal.rs)
+**Examples:** [Python](../../examples/dlocal/dlocal.py) · [TypeScript](../../examples/dlocal/dlocal.ts#L379) · [Kotlin](../../examples/dlocal/dlocal.kt#L249) · [Rust](../../examples/dlocal/dlocal.rs)
+
+#### PaymentService.ProxySetupRecurring
+
+Setup recurring mandate using vault-aliased card data.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceProxySetupRecurringRequest` |
+| **Response** | `PaymentServiceSetupRecurringResponse` |
+
+**Examples:** [Python](../../examples/dlocal/dlocal.py) · [TypeScript](../../examples/dlocal/dlocal.ts#L388) · [Kotlin](../../examples/dlocal/dlocal.kt#L282) · [Rust](../../examples/dlocal/dlocal.rs)
 
 #### PaymentService.Refund
 
@@ -345,7 +358,18 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/dlocal/dlocal.py) · [TypeScript](../../examples/dlocal/dlocal.ts#L328) · [Kotlin](../../examples/dlocal/dlocal.kt#L319) · [Rust](../../examples/dlocal/dlocal.rs)
+**Examples:** [Python](../../examples/dlocal/dlocal.py) · [TypeScript](../../examples/dlocal/dlocal.ts#L406) · [Kotlin](../../examples/dlocal/dlocal.kt#L357) · [Rust](../../examples/dlocal/dlocal.rs)
+
+#### PaymentService.SetupRecurring
+
+Configure a payment method for recurring billing. Sets up the mandate and payment details needed for future automated charges.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceSetupRecurringRequest` |
+| **Response** | `PaymentServiceSetupRecurringResponse` |
+
+**Examples:** [Python](../../examples/dlocal/dlocal.py) · [TypeScript](../../examples/dlocal/dlocal.ts#L424) · [Kotlin](../../examples/dlocal/dlocal.kt#L379) · [Rust](../../examples/dlocal/dlocal.rs)
 
 #### PaymentService.Void
 
@@ -356,7 +380,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/dlocal/dlocal.py) · [TypeScript](../../examples/dlocal/dlocal.ts) · [Kotlin](../../examples/dlocal/dlocal.kt#L341) · [Rust](../../examples/dlocal/dlocal.rs)
+**Examples:** [Python](../../examples/dlocal/dlocal.py) · [TypeScript](../../examples/dlocal/dlocal.ts) · [Kotlin](../../examples/dlocal/dlocal.kt#L423) · [Rust](../../examples/dlocal/dlocal.rs)
 
 ### Refunds
 
@@ -369,7 +393,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/dlocal/dlocal.py) · [TypeScript](../../examples/dlocal/dlocal.ts#L337) · [Kotlin](../../examples/dlocal/dlocal.kt#L329) · [Rust](../../examples/dlocal/dlocal.rs)
+**Examples:** [Python](../../examples/dlocal/dlocal.py) · [TypeScript](../../examples/dlocal/dlocal.ts#L415) · [Kotlin](../../examples/dlocal/dlocal.kt#L367) · [Rust](../../examples/dlocal/dlocal.rs)
 
 ### Mandates
 
@@ -382,4 +406,4 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/dlocal/dlocal.py) · [TypeScript](../../examples/dlocal/dlocal.ts#L319) · [Kotlin](../../examples/dlocal/dlocal.kt#L280) · [Rust](../../examples/dlocal/dlocal.rs)
+**Examples:** [Python](../../examples/dlocal/dlocal.py) · [TypeScript](../../examples/dlocal/dlocal.ts#L397) · [Kotlin](../../examples/dlocal/dlocal.kt#L318) · [Rust](../../examples/dlocal/dlocal.rs)
