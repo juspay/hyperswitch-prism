@@ -48,8 +48,8 @@
         "error": "This feature is not implemented: Selected payment method through Dlocal"
       },
       "Bacs": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "not_supported",
+        "error": "Selected payment method through Dlocal is not supported by Dlocal"
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
@@ -64,8 +64,8 @@
         "error": "This feature is not implemented: Selected payment method through Dlocal"
       },
       "Becs": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "not_supported",
+        "error": "Selected payment method through Dlocal is not supported by Dlocal"
       },
       "Bizum": {
         "status": "not_implemented",
@@ -584,7 +584,50 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe"
+          },
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "country_alpha2_code": "US"
+            }
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://sandbox.dlocal.com/secure_payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "V2-HMAC-SHA256, Signature: a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-date": "2020-01-01T00:00:00+00:00",
+            "x-login": "probe_user",
+            "x-trans-key": "probe_key",
+            "x-version": "2.1"
+          },
+          "body": "{\"amount\":0.0,\"currency\":\"USD\",\"country\":\"US\",\"payment_method_id\":\"CARD\",\"payment_method_flow\":\"DIRECT\",\"payer\":{\"name\":\"John\",\"email\":\"test@example.com\",\"document\":\"12345678\"},\"card\":{\"holder_name\":\"John Doe\",\"number\":\"4111111111111111\",\"cvv\":\"123\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"capture\":\"false\",\"save\":true},\"order_id\":\"probe_proxy_mandate_001\"}"
+        }
       }
     },
     "recurring_charge": {
@@ -701,7 +744,55 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://sandbox.dlocal.com/secure_payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "V2-HMAC-SHA256, Signature: a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-date": "2020-01-01T00:00:00+00:00",
+            "x-login": "probe_user",
+            "x-trans-key": "probe_key",
+            "x-version": "2.1"
+          },
+          "body": "{\"amount\":0.0,\"currency\":\"USD\",\"country\":\"US\",\"payment_method_id\":\"CARD\",\"payment_method_flow\":\"DIRECT\",\"payer\":{\"name\":\"John\",\"email\":\"test@example.com\",\"document\":\"12345678\"},\"card\":{\"holder_name\":\"John Doe\",\"number\":\"4111111111111111\",\"cvv\":\"737\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"capture\":\"false\",\"save\":true},\"order_id\":\"probe_mandate_001\",\"callback_url\":\"https://example.com/mandate-return\"}"
+        }
       }
     },
     "token_authorize": {
@@ -712,7 +803,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "Selected payment method through Dlocal is not supported by Dlocal"
       }
     },
     "tokenize": {

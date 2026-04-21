@@ -813,15 +813,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     },
                 }),
             ),
-            PaymentMethodData::Wallet(_) => Err(IntegrationError::not_implemented(
-                utils::get_unimplemented_payment_method_error_message("Paypal"),
-            ))?,
+            PaymentMethodData::Wallet(_) => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("Paypal"),
+                    connector: "Paypal",
+                    context: Default::default(),
+                }))?
+            }
             PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
                 get_payment_source(item.router_data.clone(), bank_redirection_data)?
             }
-            _ => Err(IntegrationError::not_implemented(
-                utils::get_unimplemented_payment_method_error_message("Paypal"),
-            ))?,
+            _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: utils::get_unimplemented_payment_method_error_message("Paypal"),
+                connector: "Paypal",
+                context: Default::default(),
+            }))?,
         };
 
         Ok(Self { payment_source })
@@ -1451,9 +1457,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::BillDeskRedirect(_)
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
-                | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("Paypal"),
-                ))?,
+                | WalletData::EaseBuzzRedirect(_) => {
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: utils::get_unimplemented_payment_method_error_message("Paypal"),
+                        connector: "Paypal",
+                        context: Default::default(),
+                    }))?
+                }
             },
             PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
                 let payment_source = Some(get_payment_source(
@@ -1500,10 +1510,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("Paypal"),
-                )
-                .into())
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("Paypal"),
+                    connector: "Paypal",
+                    context: Default::default(),
+                }))
             }
         }
     }
@@ -1518,10 +1529,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             CardRedirectData::Knet {}
             | CardRedirectData::Benefit {}
             | CardRedirectData::MomoAtm {}
-            | CardRedirectData::CardRedirect {} => Err(IntegrationError::not_implemented(
-                utils::get_unimplemented_payment_method_error_message("Paypal"),
-            )
-            .into()),
+            | CardRedirectData::CardRedirect {} => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("Paypal"),
+                    connector: "Paypal",
+                    context: Default::default(),
+                }))
+            }
         }
     }
 }
@@ -1539,10 +1553,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PayLaterData::PayBrightRedirect {}
             | PayLaterData::WalleyRedirect {}
             | PayLaterData::AlmaRedirect {}
-            | PayLaterData::AtomeRedirect {} => Err(IntegrationError::not_implemented(
-                utils::get_unimplemented_payment_method_error_message("Paypal"),
-            )
-            .into()),
+            | PayLaterData::AtomeRedirect {} => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("Paypal"),
+                    connector: "Paypal",
+                    context: Default::default(),
+                }))
+            }
         }
     }
 }
@@ -1555,12 +1572,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         match value {
             BankDebitData::AchBankDebit { .. }
             | BankDebitData::SepaBankDebit { .. }
+            | BankDebitData::EftBankDebit { .. }
             | BankDebitData::SepaGuaranteedBankDebit { .. }
             | BankDebitData::BecsBankDebit { .. }
-            | BankDebitData::BacsBankDebit { .. } => Err(IntegrationError::not_implemented(
-                utils::get_unimplemented_payment_method_error_message("Paypal"),
-            )
-            .into()),
+            | BankDebitData::BacsBankDebit { .. } => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("Paypal"),
+                    connector: "Paypal",
+                    context: Default::default(),
+                }))
+            }
         }
     }
 }
@@ -1630,10 +1651,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn try_from(value: &GiftCardData) -> Result<Self, Self::Error> {
         match value {
             GiftCardData::Givex(_) | GiftCardData::PaySafeCard {} => {
-                Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("Paypal"),
-                )
-                .into())
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("Paypal"),
+                    connector: "Paypal",
+                    context: Default::default(),
+                }))
             }
         }
     }
@@ -2952,9 +2974,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::MobilePayment(_) => Err(IntegrationError::not_implemented(
-                utils::get_unimplemented_payment_method_error_message("Paypal"),
-            ))?,
+            | PaymentMethodData::MobilePayment(_) => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("Paypal"),
+                    connector: "Paypal",
+                    context: Default::default(),
+                }))?
+            }
         };
 
         Ok(Self { payment_source })

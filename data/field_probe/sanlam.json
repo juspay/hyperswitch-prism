@@ -1,0 +1,523 @@
+{
+  "connector": "sanlam",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "AchBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Affirm": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Afterpay": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Bacs": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "BcaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Becs": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Blik": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Card": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Ideal": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Interac": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Klarna": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "RevolutPay": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "SamsungPay": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Sepa": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Trustly": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "UpiCollect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "UpiIntent": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "UpiQr": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      },
+      "Wero": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_customer": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_implemented"
+      }
+    }
+  }
+}

@@ -976,7 +976,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> CustomResult<String, IntegrationError> {
         Ok(format!(
-            "{}flex/v2/sessions",
+            "{}microform/v2/sessions",
             self.connector_base_url_payments(req)
         ))
     }
@@ -1018,12 +1018,63 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
         ConnectorError,
     > {
-        // Cybersource Flex v2 sessions API returns a raw JWT string (content-type: application/jwt)
-        let capture_context_jwt = String::from_utf8(res.response.to_vec())
+        let response_bytes = res.response.to_vec();
+        let response_str = String::from_utf8(response_bytes.clone())
             .map_err(|_| ConnectorError::response_handling_failed(res.status_code))?;
+
+        // Cybersource Microform v2 sessions API returns JSON with captureContext field
+        // Flex v2 sessions API returns a raw JWT string (content-type: application/jwt)
+        let capture_context_jwt =
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&response_str) {
+                json.get("captureContext")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string())
+                    .unwrap_or(response_str)
+            } else {
+                response_str
+            };
+
+        // Decode JWT payload to extract client library info
+        let parts: Vec<&str> = capture_context_jwt.split('.').collect();
+        if parts.len() < 2 {
+            return Err(Report::new(ConnectorError::response_handling_failed(
+                res.status_code,
+            )));
+        }
+
+        let payload = parts.get(1).ok_or_else(|| {
+            Report::new(ConnectorError::response_handling_failed(res.status_code))
+        })?;
+        let decoded_bytes = Engine::decode(&BASE64_ENGINE, payload)
+            .map_err(|_| ConnectorError::response_handling_failed(res.status_code))?;
+        let decoded_str = String::from_utf8(decoded_bytes)
+            .map_err(|_| ConnectorError::response_handling_failed(res.status_code))?;
+        let decoded: serde_json::Value = serde_json::from_str(&decoded_str)
+            .map_err(|_| ConnectorError::response_handling_failed(res.status_code))?;
+
+        let client_library = decoded
+            .get("ctx")
+            .and_then(|ctx| ctx.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|item| item.get("data"))
+            .and_then(|data| data.get("clientLibrary"))
+            .and_then(|val| val.as_str())
+            .unwrap_or_default()
+            .to_string();
+        let client_library_integrity = decoded
+            .get("ctx")
+            .and_then(|ctx| ctx.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|item| item.get("data"))
+            .and_then(|data| data.get("clientLibraryIntegrity"))
+            .and_then(|val| val.as_str())
+            .unwrap_or_default()
+            .to_string();
 
         let response_body = CybersourceClientAuthResponse {
             capture_context: capture_context_jwt,
+            client_library,
+            client_library_integrity,
         };
         event_builder.map(|i| i.set_connector_response(&response_body));
 

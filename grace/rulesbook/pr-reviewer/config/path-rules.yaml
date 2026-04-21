@@ -1,6 +1,6 @@
 version: 1
-repo: connector-service
-default_owner: "@juspay/connector-service-maintainers"
+repo: hyperswitch-prism
+default_owner: "@juspay/hyperswitch-prism-maintainers"
 
 primary_scenario_precedence:
   - ci-config-security
@@ -21,20 +21,18 @@ metadata_scenarios:
     reviewer: grace-generated-pr
     subagent_prompt: grace/rulesbook/pr-reviewer/subagents/grace-generated-pr.md
     description: Extra code-pattern scrutiny for PRs raised by `10xGRACE`.
-    matching_rule: activate when the PR author or head repo owner is `10xGRACE`.
+    matching_rule: activate when the PR author is `10xGRACE` or branch matches `feat/grace-*`.
     pr_author_any:
       - "10xGRACE"
       - "10xgrace"
       - "10xgrace[bot]"
-    head_owner_any:
-      - "10xGRACE"
-      - "10xgrace"
+    branch_pattern: "feat/grace-*"
     must_read_companion_files:
       - "grace/rulesbook/codegen/README.md"
       - "grace/rulesbook/codegen/guides/quality/README.md"
     likely_owners:
-      - "@juspay/connector-service-grace"
-      - "@juspay/connector-service-connectors"
+      - "@juspay/hyperswitch-prism-grace"
+      - "@juspay/hyperswitch-prism-connectors"
 
 reviewer_families:
   - id: connector
@@ -120,8 +118,8 @@ scenarios:
       - "crates/types-traits/domain_types/src/connector_types.rs"
       - "data/field_probe/manifest.json"
     likely_owners:
-      - "@juspay/connector-service-connectors"
-      - "@juspay/connector-service-framework"
+      - "@juspay/hyperswitch-prism-connectors"
+      - "@juspay/hyperswitch-prism-framework"
 
   - id: connector-flow-addition
     reviewer: connector
@@ -139,7 +137,7 @@ scenarios:
       - "crates/integrations/connector-integration/src/types.rs"
       - "crates/internal/ucs-connector-tests/src/global_suites/"
     likely_owners:
-      - "@juspay/connector-service-connectors"
+      - "@juspay/hyperswitch-prism-connectors"
 
   - id: connector-payment-method-addition
     reviewer: connector
@@ -157,8 +155,8 @@ scenarios:
       - "crates/common/common_enums/src/enums.rs"
       - "crates/internal/ucs-connector-tests/src/connector_specs/"
     likely_owners:
-      - "@juspay/connector-service-connectors"
-      - "@juspay/connector-service-framework"
+      - "@juspay/hyperswitch-prism-connectors"
+      - "@juspay/hyperswitch-prism-framework"
 
   - id: connector-bugfix-webhook
     reviewer: connector
@@ -176,7 +174,7 @@ scenarios:
       - "crates/types-traits/interfaces/src/verification.rs"
       - "crates/integrations/connector-integration/src/default_implementations.rs"
     likely_owners:
-      - "@juspay/connector-service-connectors"
+      - "@juspay/hyperswitch-prism-connectors"
 
   - id: connector-shared-plumbing
     reviewer: connector
@@ -196,7 +194,7 @@ scenarios:
       - "crates/types-traits/interfaces/src/connector_types.rs"
       - "crates/types-traits/domain_types/src/connector_types.rs"
     likely_owners:
-      - "@juspay/connector-service-connectors"
+      - "@juspay/hyperswitch-prism-connectors"
 
   - id: core-flow-framework
     reviewer: core-flow
@@ -219,7 +217,7 @@ scenarios:
       - "crates/types-traits/domain_types/src/connector_types.rs"
       - "Cargo.toml"
     likely_owners:
-      - "@juspay/connector-service-framework"
+      - "@juspay/hyperswitch-prism-framework"
 
   - id: proto-api-contract
     reviewer: proto-api
@@ -243,7 +241,7 @@ scenarios:
       - "crates/types-traits/grpc-api-types/build.rs"
       - "Makefile"
     likely_owners:
-      - "@juspay/connector-service-proto-maintainers"
+      - "@juspay/hyperswitch-prism-proto-maintainers"
 
   - id: server-composite
     reviewer: server-composite
@@ -263,8 +261,8 @@ scenarios:
       - "crates/internal/composite-service/src/payments.rs"
       - "crates/types-traits/grpc-api-types/proto/services.proto"
     likely_owners:
-      - "@juspay/connector-service-core"
-      - "@juspay/connector-service-framework"
+      - "@juspay/hyperswitch-prism-core"
+      - "@juspay/hyperswitch-prism-framework"
 
   - id: sdk-ffi-codegen
     reviewer: sdk-ffi-codegen
@@ -284,7 +282,7 @@ scenarios:
       - "crates/ffi/ffi/src/"
       - ".github/workflows/sdk-client-sanity.yml"
     likely_owners:
-      - "@juspay/connector-service-maintainers"
+      - "@juspay/hyperswitch-prism-maintainers"
 
   - id: tests-specs-docs
     reviewer: tests-docs
@@ -309,7 +307,7 @@ scenarios:
       - "crates/internal/ucs-connector-tests/src/harness/scenario_loader.rs"
       - "scripts/generators/docs/generate.py"
     likely_owners:
-      - "@juspay/connector-service-maintainers"
+      - "@juspay/hyperswitch-prism-maintainers"
 
   - id: ci-config-security
     reviewer: ci-config-security
@@ -336,8 +334,8 @@ scenarios:
       - ".github/workflows/sdk-client-sanity.yml"
       - "Makefile"
     likely_owners:
-      - "@juspay/connector-service-maintainers"
-      - "@juspay/connector-service-framework"
+      - "@juspay/hyperswitch-prism-maintainers"
+      - "@juspay/hyperswitch-prism-framework"
 
   - id: grace-tooling
     reviewer: ci-config-security
@@ -355,7 +353,7 @@ scenarios:
       - "grace/rulesbook/codegen/README.md"
       - "grace/rulesbook/codegen/guides/quality/README.md"
     likely_owners:
-      - "@juspay/connector-service-grace"
+      - "@juspay/hyperswitch-prism-grace"
 
 mixed_pr_escalation_rules:
   - "If a PR matches 3 or more scenarios, treat it as mixed-high-risk and require the aggregator to comment on whether the PR should be split."

@@ -8,64 +8,64 @@
     },
     "authorize": {
       "Ach": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "AchBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Affirm": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Afterpay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Alfamart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "AliPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "AmazonPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Bacs": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "BacsBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "BancontactCard": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through trustpay"
       },
       "BcaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Becs": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Bizum": {
         "status": "not_implemented",
@@ -119,20 +119,20 @@
         }
       },
       "Bluecode": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "BniVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Boleto": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "BriVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Card": {
         "status": "supported",
@@ -190,36 +190,36 @@
         }
       },
       "CashappQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "CimbVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "ClassicReward": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Crypto": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "DuitNow": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "EVoucher": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Efecty": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Eft": {
         "status": "not_implemented",
@@ -268,8 +268,8 @@
         }
       },
       "FamilyMart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Giropay": {
         "status": "supported",
@@ -318,16 +318,16 @@
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "GooglePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Ideal": {
         "status": "supported",
@@ -372,12 +372,12 @@
         }
       },
       "Indomaret": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "IndonesianBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "InstantBankTransfer": {
         "status": "supported",
@@ -519,40 +519,40 @@
         "error": "This feature is not implemented: Selected payment method through trustpay"
       },
       "Klarna": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Lawson": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through trustpay"
       },
       "LocalBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "MbWay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Mifinity": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "MiniStop": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "MultibancoBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
@@ -591,76 +591,76 @@
         "error": "This feature is not implemented: Selected payment method through trustpay"
       },
       "Oxxo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "PagoEfectivo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "PayEasy": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "PaySafeCard": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "PaypalRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "PaypalSdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Paze": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "PermataBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Pix": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Przelewy24": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through trustpay"
       },
       "Pse": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "RedCompra": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "RedPagos": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "RevolutPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "SamsungPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Satispay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Seicomart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Sepa": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "SepaBankTransfer": {
         "status": "supported",
@@ -708,12 +708,12 @@
         }
       },
       "SepaGuaranteedDebit": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "SevenEleven": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Sofort": {
         "status": "supported",
@@ -762,24 +762,24 @@
         "error": "This feature is not implemented: Selected payment method through trustpay"
       },
       "UpiCollect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "UpiIntent": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "UpiQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "WeChatPayQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Wero": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       }
     },
     "capture": {
@@ -979,12 +979,52 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: billing.address.city — Missing required field: billing.address.city"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true,
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://test-tpgw.trustpay.eu/api/v1/purchase",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "amount=10.00&currency=USD&InstanceId=probe-mandate-123&reference=&PaymentType=RecurringSubsequent"
+        }
       }
     },
     "recurring_revoke": {
@@ -1058,18 +1098,20 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: billing.address.city — Missing required field: billing.address.city"
       }
     },
     "token_authorize": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       }
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay SetupMandate is not supported by trustpay"
       }
     },
     "tokenize": {

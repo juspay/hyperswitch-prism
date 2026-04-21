@@ -309,11 +309,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     | WalletData::BillDeskRedirect(_)
                     | WalletData::CashfreeRedirect(_)
                     | WalletData::PayURedirect(_)
-                    | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::not_implemented(
-                        domain_types::utils::get_unimplemented_payment_method_error_message(
-                            "Cybersource",
-                        ),
-                    ))?,
+                    | WalletData::EaseBuzzRedirect(_) => {
+                        Err(error_stack::report!(IntegrationError::NotSupported {
+                            message:
+                                domain_types::utils::get_unimplemented_payment_method_error_message(
+                                    "Cybersource"
+                                ),
+                            connector: "Cybersource",
+                            context: Default::default(),
+                        }))?
+                    }
                 },
                 PaymentMethodData::CardRedirect(_)
                 | PaymentMethodData::PayLater(_)
@@ -333,11 +338,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | PaymentMethodData::NetworkToken(_)
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                    Err(IntegrationError::not_implemented(
-                        domain_types::utils::get_unimplemented_payment_method_error_message(
-                            "Cybersource",
-                        ),
-                    ))?
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message:
+                            domain_types::utils::get_unimplemented_payment_method_error_message(
+                                "Cybersource"
+                            ),
+                        connector: "Cybersource",
+                        context: Default::default(),
+                    }))?
                 }
             };
 
@@ -2206,12 +2214,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::BillDeskRedirect(_)
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
-                | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::not_implemented(
-                    domain_types::utils::get_unimplemented_payment_method_error_message(
-                        "Cybersource",
-                    ),
-                )
-                .into()),
+                | WalletData::EaseBuzzRedirect(_) => {
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message:
+                            domain_types::utils::get_unimplemented_payment_method_error_message(
+                                "Cybersource",
+                            ),
+                        connector: "Cybersource",
+                        context: Default::default(),
+                    }))
+                }
             },
             PaymentMethodData::NetworkToken(token_data) => Self::try_from((&item, token_data)),
             PaymentMethodData::PaymentMethodToken(token_data) => {
@@ -2268,12 +2280,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
-                    domain_types::utils::get_unimplemented_payment_method_error_message(
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: domain_types::utils::get_unimplemented_payment_method_error_message(
                         "Cybersource",
                     ),
-                )
-                .into())
+                    connector: "Cybersource",
+                    context: Default::default(),
+                }))
             }
         }
     }
@@ -2374,10 +2387,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("Cybersource"),
-                )
-                .into())
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("Cybersource"),
+                    connector: "Cybersource",
+                    context: Default::default(),
+                }))
             }
         }
     }
@@ -5366,6 +5380,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[derive(Debug, Serialize)]
 pub struct CybersourceClientAuthResponse {
     pub capture_context: String,
+    pub client_library: String,
+    pub client_library_integrity: String,
 }
 
 impl<'de> Deserialize<'de> for CybersourceClientAuthResponse {
@@ -5387,11 +5403,17 @@ impl<'de> Deserialize<'de> for CybersourceClientAuthResponse {
             fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
                 Ok(CybersourceClientAuthResponse {
                     capture_context: v.to_string(),
+                    client_library: String::new(),
+                    client_library_integrity: String::new(),
                 })
             }
 
             fn visit_string<E: serde::de::Error>(self, v: String) -> Result<Self::Value, E> {
-                Ok(CybersourceClientAuthResponse { capture_context: v })
+                Ok(CybersourceClientAuthResponse {
+                    capture_context: v,
+                    client_library: String::new(),
+                    client_library_integrity: String::new(),
+                })
             }
 
             fn visit_map<A: serde::de::MapAccess<'de>>(
@@ -5409,7 +5431,11 @@ impl<'de> Deserialize<'de> for CybersourceClientAuthResponse {
                 }
                 let capture_context =
                     key_id.ok_or_else(|| serde::de::Error::missing_field("keyId"))?;
-                Ok(CybersourceClientAuthResponse { capture_context })
+                Ok(CybersourceClientAuthResponse {
+                    capture_context,
+                    client_library: String::new(),
+                    client_library_integrity: String::new(),
+                })
             }
         }
 
@@ -5432,10 +5458,16 @@ impl TryFrom<ResponseRouterData<CybersourceClientAuthResponse, Self>>
         let response = item.response;
 
         let capture_context = Secret::new(response.capture_context);
+        let client_library = response.client_library;
+        let client_library_integrity = response.client_library_integrity;
 
         let session_data = ClientAuthenticationTokenData::ConnectorSpecific(Box::new(
             ConnectorSpecificClientAuthenticationResponse::Cybersource(
-                CybersourceClientAuthenticationResponseDomain { capture_context },
+                CybersourceClientAuthenticationResponseDomain {
+                    capture_context,
+                    client_library,
+                    client_library_integrity,
+                },
             ),
         ));
 

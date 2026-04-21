@@ -224,9 +224,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     webhook_url: Some(item.router_data.request.get_webhook_url()?),
                 })
             }
-            PaymentMethodData::BankRedirect(_) => Err(IntegrationError::not_implemented(
-                utils::get_unimplemented_payment_method_error_message("Loonio"),
-            ))?,
+            PaymentMethodData::BankRedirect(_) => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("Loonio"),
+                    connector: "Loonio",
+                    context: Default::default(),
+                }))?
+            }
             PaymentMethodData::Card(_)
             | PaymentMethodData::Wallet(_)
             | PaymentMethodData::CardRedirect(_)

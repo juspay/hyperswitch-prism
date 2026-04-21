@@ -294,6 +294,16 @@ impl IntegrationError {
         }
     }
 
+    /// Get API error representation (compatibility with PaymentAuthorizationError)
+    pub fn get_api_error(&self) -> ApiError {
+        ApiError {
+            sub_code: self.error_code().to_string(),
+            error_identifier: 500,
+            error_message: self.to_string(),
+            error_object: None,
+        }
+    }
+
     /// Machine-readable error code (SCREAMING_SNAKE_CASE from variant name, or explicit `code` for ConfigurationError).
     pub fn error_code(&self) -> &str {
         match self {
@@ -597,6 +607,8 @@ pub enum ConnectorFlowError {
     Request(#[from] IntegrationError),
     #[error("Client error: {0}")]
     Client(#[from] ApiClientError),
+    #[error("Kafka client error: {0}")]
+    KafkaClient(common_enums::KafkaClientError),
     #[error("Connector error: {0}")]
     Response(#[from] ConnectorError),
 }
@@ -661,6 +673,14 @@ pub fn report_common_api_client_to_flow(
 ) -> Report<ConnectorFlowError> {
     let ctx: ApiClientError = report.current_context().clone().into();
     report.change_context(ConnectorFlowError::Client(ctx))
+}
+
+/// Map `common_enums::KafkaClientError` reports into `ConnectorFlowError::KafkaClient`.
+pub fn report_kafka_client_to_flow(
+    report: Report<common_enums::KafkaClientError>,
+) -> Report<ConnectorFlowError> {
+    let ctx = report.current_context().clone();
+    report.change_context(ConnectorFlowError::KafkaClient(ctx))
 }
 
 #[derive(Debug, thiserror::Error)]
