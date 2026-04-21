@@ -2712,10 +2712,32 @@ impl TryFrom<ResponseRouterData<NovalnetIncrementalAuthResponse, Self>>
                 // status that still indicates the increment was not honoured
                 // (Failure/Deactivated). Route those back through the error path
                 // rather than falsely reporting AuthorizationStatus::Success.
-                if matches!(
-                    transaction_status,
+                let authorization_status = match transaction_status {
+                    Some(NovalnetTransactionStatus::Success)
+                    | Some(NovalnetTransactionStatus::Confirmed)
+                    | Some(NovalnetTransactionStatus::OnHold) => {
+                        // OnHold = authorization still held after a successful
+                        // amount update (Novalnet keeps the auth in ON_HOLD
+                        // until a subsequent capture/void).
+                        common_enums::AuthorizationStatus::Success
+                    }
+                    Some(NovalnetTransactionStatus::Pending)
+                    | Some(NovalnetTransactionStatus::Progress)
+                    | None => {
+                        // Missing transaction / no definitive signal — let the
+                        // caller re-sync rather than optimistically marking
+                        // success.
+                        common_enums::AuthorizationStatus::Processing
+                    }
                     Some(NovalnetTransactionStatus::Failure)
-                        | Some(NovalnetTransactionStatus::Deactivated)
+                    | Some(NovalnetTransactionStatus::Deactivated) => {
+                        common_enums::AuthorizationStatus::Failure
+                    }
+                };
+
+                if matches!(
+                    authorization_status,
+                    common_enums::AuthorizationStatus::Failure
                 ) {
                     let response = Err(get_error_response(
                         item.response.result,
@@ -2731,14 +2753,6 @@ impl TryFrom<ResponseRouterData<NovalnetIncrementalAuthResponse, Self>>
                         ..item.router_data
                     });
                 }
-
-                let authorization_status = match transaction_status {
-                    Some(NovalnetTransactionStatus::Pending)
-                    | Some(NovalnetTransactionStatus::Progress) => {
-                        common_enums::AuthorizationStatus::Processing
-                    }
-                    _ => common_enums::AuthorizationStatus::Success,
-                };
 
                 Ok(Self {
                     response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
