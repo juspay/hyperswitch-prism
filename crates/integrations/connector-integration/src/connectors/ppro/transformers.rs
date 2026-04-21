@@ -203,11 +203,18 @@ where
             .get_optional_billing_email()
             .or_else(|| router_data.request.get_optional_email());
 
-        let merchant_consumer_reference = Some(sanitize_merchant_consumer_reference(
-            &router_data
-                .resource_common_data
-                .get_connector_customer_id()?,
-        ));
+        let merchant_consumer_reference = if matches!(
+            router_data.request.payment_method_type,
+            Some(common_enums::PaymentMethodType::Trustly)
+        ) {
+            Some(sanitize_merchant_consumer_reference(
+                &router_data
+                    .resource_common_data
+                    .get_connector_customer_id()?,
+            ))
+        } else {
+            None
+        };
 
         let consumer = router_data
             .resource_common_data
@@ -1127,11 +1134,18 @@ where
 
         let email = router_data.request.email.clone();
 
-        let merchant_consumer_reference = Some(sanitize_merchant_consumer_reference(
-            &router_data
-                .resource_common_data
-                .get_connector_customer_id()?,
-        ));
+        let merchant_consumer_reference = if matches!(
+            router_data.request.payment_method_type,
+            Some(common_enums::PaymentMethodType::Trustly)
+        ) {
+            Some(sanitize_merchant_consumer_reference(
+                &router_data
+                    .resource_common_data
+                    .get_connector_customer_id()?,
+            ))
+        } else {
+            None
+        };
 
         let consumer = router_data
             .resource_common_data
