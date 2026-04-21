@@ -22,11 +22,17 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        adyen=payment_pb2.AdyenConfig(
+            api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
+            merchant_account=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ACCOUNT"),
+            review_key=payment_methods_pb2.SecretString(value="YOUR_REVIEW_KEY"),
+            base_url="YOUR_BASE_URL",
+            dispute_base_url="YOUR_DISPUTE_BASE_URL",
+            endpoint_prefix="YOUR_ENDPOINT_PREFIX",
+        ),
+    ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     adyen=payment_pb2.AdyenConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,14 +44,21 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Adyen',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
+const config = ConnectorConfig.create({
+    connector: Connector.ADYEN,
+    environment: Environment.SANDBOX,
+    auth: {
+        adyen: {
+            apiKey: { value: 'YOUR_API_KEY' },
+            merchantAccount: { value: 'YOUR_MERCHANT_ACCOUNT' },
+            reviewKey: { value: 'YOUR_REVIEW_KEY' },
+            baseUrl: 'YOUR_BASE_URL',
+            disputeBaseUrl: 'YOUR_DISPUTE_BASE_URL',
+            endpointPrefix: 'YOUR_ENDPOINT_PREFIX',
+        }
     },
 });
 ```
@@ -59,11 +72,18 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Adyen")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setAdyen(AdyenConfig.newBuilder()
+                .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
+                .setMerchantAccount(SecretString.newBuilder().setValue("YOUR_MERCHANT_ACCOUNT").build())
+                .setReviewKey(SecretString.newBuilder().setValue("YOUR_REVIEW_KEY").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .setDisputeBaseUrl("YOUR_DISPUTE_BASE_URL")
+                .setEndpointPrefix("YOUR_ENDPOINT_PREFIX")
+                .build())
+            .build()
     )
     .build()
 ```
@@ -76,13 +96,24 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Adyen".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Adyen(AdyenConfig {
+                api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
+                merchant_account: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ACCOUNT".to_string())),  // Authentication credential
+                review_key: Some(hyperswitch_masking::Secret::new("YOUR_REVIEW_KEY".to_string())),  // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                dispute_base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                endpoint_prefix: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -108,7 +139,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L362) · [JavaScript](../../examples/adyen/adyen.js) · [Kotlin](../../examples/adyen/adyen.kt#L120) · [Rust](../../examples/adyen/adyen.rs#L344)
+**Examples:** [Python](../../examples/adyen/adyen.py#L313) · [JavaScript](../../examples/adyen/adyen.js) · [Kotlin](../../examples/adyen/adyen.kt#L123) · [Rust](../../examples/adyen/adyen.rs#L389)
 
 ### Card Payment (Authorize + Capture)
 
@@ -122,19 +153,19 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L381) · [JavaScript](../../examples/adyen/adyen.js) · [Kotlin](../../examples/adyen/adyen.kt#L136) · [Rust](../../examples/adyen/adyen.rs#L360)
+**Examples:** [Python](../../examples/adyen/adyen.py#L332) · [JavaScript](../../examples/adyen/adyen.js) · [Kotlin](../../examples/adyen/adyen.kt#L139) · [Rust](../../examples/adyen/adyen.rs#L405)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L406) · [JavaScript](../../examples/adyen/adyen.js) · [Kotlin](../../examples/adyen/adyen.kt#L158) · [Rust](../../examples/adyen/adyen.rs#L383)
+**Examples:** [Python](../../examples/adyen/adyen.py#L357) · [JavaScript](../../examples/adyen/adyen.js) · [Kotlin](../../examples/adyen/adyen.kt#L161) · [Rust](../../examples/adyen/adyen.rs#L428)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L431) · [JavaScript](../../examples/adyen/adyen.js) · [Kotlin](../../examples/adyen/adyen.kt#L180) · [Rust](../../examples/adyen/adyen.rs#L406)
+**Examples:** [Python](../../examples/adyen/adyen.py#L382) · [JavaScript](../../examples/adyen/adyen.js) · [Kotlin](../../examples/adyen/adyen.kt#L183) · [Rust](../../examples/adyen/adyen.rs#L451)
 
 ## API Reference
 
@@ -148,7 +179,7 @@ Cancel an authorized but not-yet-captured payment.
 | [DisputeService.Defend](#disputeservicedefend) | Disputes | `DisputeServiceDefendRequest` |
 | [DisputeService.SubmitEvidence](#disputeservicesubmitevidence) | Disputes | `DisputeServiceSubmitEvidenceRequest` |
 | [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
-| [PaymentService.IncrementalAuthorization](#paymentserviceincrementalauthorization) | Payments | `PaymentServiceIncrementalAuthorizationRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 | [PaymentService.ProxySetupRecurring](#paymentserviceproxysetuprecurring) | Payments | `PaymentServiceProxySetupRecurringRequest` |
 | [RecurringPaymentService.Charge](#recurringpaymentservicecharge) | Mandates | `RecurringPaymentServiceChargeRequest` |
@@ -270,13 +301,13 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "card": {  # Generic card payment.
-        "card_number": {"value": "4111111111111111"},  # Card Identification.
-        "card_exp_month": {"value": "03"},
-        "card_exp_year": {"value": "2030"},
-        "card_cvc": {"value": "737"},
-        "card_holder_name": {"value": "John Doe"}  # Cardholder Information.
-    }
+  "card": {
+    "card_number": "4111111111111111",
+    "card_exp_month": "03",
+    "card_exp_year": "2030",
+    "card_cvc": "737",
+    "card_holder_name": "John Doe"
+  }
 }
 ```
 
@@ -284,20 +315,20 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "google_pay": {  # Google Pay.
-        "type": "CARD",  # Type of payment method.
-        "description": "Visa 1111",  # User-facing description of the payment method.
-        "info": {
-            "card_network": "VISA",  # Card network name.
-            "card_details": "1111"  # Card details (usually last 4 digits).
-        },
-        "tokenization_data": {
-            "encrypted_data": {  # Encrypted Google Pay payment data.
-                "token_type": "PAYMENT_GATEWAY",  # The type of the token.
-                "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"  # Token generated for the wallet.
-            }
-        }
+  "google_pay": {
+    "type": "CARD",
+    "description": "Visa 1111",
+    "info": {
+      "card_network": "VISA",
+      "card_details": "1111"
+    },
+    "tokenization_data": {
+      "encrypted_data": {
+        "token_type": "PAYMENT_GATEWAY",
+        "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
+      }
     }
+  }
 }
 ```
 
@@ -305,17 +336,17 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "apple_pay": {  # Apple Pay.
-        "payment_data": {
-            "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"  # Encrypted Apple Pay payment data as string.
-        },
-        "payment_method": {
-            "display_name": "Visa 1111",
-            "network": "Visa",
-            "type": "debit"
-        },
-        "transaction_identifier": "probe_txn_id"  # Transaction identifier.
-    }
+  "apple_pay": {
+    "payment_data": {
+      "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
+    },
+    "payment_method": {
+      "display_name": "Visa 1111",
+      "network": "Visa",
+      "type": "debit"
+    },
+    "transaction_identifier": "probe_txn_id"
+  }
 }
 ```
 
@@ -323,10 +354,10 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "sepa": {  # Sepa - Single Euro Payments Area direct debit.
-        "iban": {"value": "DE89370400440532013000"},  # International bank account number (iban) for SEPA.
-        "bank_account_holder_name": {"value": "John Doe"}  # Owner name for bank debit.
-    }
+  "sepa": {
+    "iban": "DE89370400440532013000",
+    "bank_account_holder_name": "John Doe"
+  }
 }
 ```
 
@@ -334,11 +365,11 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "bacs": {  # Bacs - Bankers' Automated Clearing Services.
-        "account_number": {"value": "55779911"},  # Account number for Bacs payment method.
-        "sort_code": {"value": "200000"},  # Sort code for Bacs payment method.
-        "bank_account_holder_name": {"value": "John Doe"}  # Holder name for bank debit.
-    }
+  "bacs": {
+    "account_number": "55779911",
+    "sort_code": "200000",
+    "bank_account_holder_name": "John Doe"
+  }
 }
 ```
 
@@ -346,11 +377,11 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "ach": {  # Ach - Automated Clearing House.
-        "account_number": {"value": "000123456789"},  # Account number for ach bank debit payment.
-        "routing_number": {"value": "110000000"},  # Routing number for ach bank debit payment.
-        "bank_account_holder_name": {"value": "John Doe"}  # Bank account holder name.
-    }
+  "ach": {
+    "account_number": "000123456789",
+    "routing_number": "110000000",
+    "bank_account_holder_name": "John Doe"
+  }
 }
 ```
 
@@ -358,8 +389,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "ideal": {
-    }
+  "ideal": {}
 }
 ```
 
@@ -367,9 +397,9 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "paypal_redirect": {  # PayPal.
-        "email": {"value": "test@example.com"}  # PayPal's email address.
-    }
+  "paypal_redirect": {
+    "email": "test@example.com"
+  }
 }
 ```
 
@@ -377,9 +407,9 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "blik": {
-        "blik_code": "777124"
-    }
+  "blik": {
+    "blik_code": "777124"
+  }
 }
 ```
 
@@ -387,8 +417,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "klarna": {  # Klarna - Swedish BNPL service.
-    }
+  "klarna": {}
 }
 ```
 
@@ -396,8 +425,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "afterpay_clearpay": {  # Afterpay/Clearpay - BNPL service.
-    }
+  "afterpay_clearpay": {}
 }
 ```
 
@@ -405,12 +433,11 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "affirm": {  # Affirm - US BNPL service.
-    }
+  "affirm": {}
 }
 ```
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L453) · [TypeScript](../../examples/adyen/adyen.ts#L420) · [Kotlin](../../examples/adyen/adyen.kt#L198) · [Rust](../../examples/adyen/adyen.rs#L424)
+**Examples:** [Python](../../examples/adyen/adyen.py) · [TypeScript](../../examples/adyen/adyen.ts#L440) · [Kotlin](../../examples/adyen/adyen.kt#L201) · [Rust](../../examples/adyen/adyen.rs)
 
 #### PaymentService.Capture
 
@@ -421,7 +448,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L462) · [TypeScript](../../examples/adyen/adyen.ts#L429) · [Kotlin](../../examples/adyen/adyen.kt#L210) · [Rust](../../examples/adyen/adyen.rs#L436)
+**Examples:** [Python](../../examples/adyen/adyen.py) · [TypeScript](../../examples/adyen/adyen.ts#L449) · [Kotlin](../../examples/adyen/adyen.kt#L213) · [Rust](../../examples/adyen/adyen.rs)
 
 #### PaymentService.CreateOrder
 
@@ -432,18 +459,7 @@ Create a payment order for later processing. Establishes a transaction context t
 | **Request** | `PaymentServiceCreateOrderRequest` |
 | **Response** | `PaymentServiceCreateOrderResponse` |
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L480) · [TypeScript](../../examples/adyen/adyen.ts#L447) · [Kotlin](../../examples/adyen/adyen.kt#L236) · [Rust](../../examples/adyen/adyen.rs#L450)
-
-#### PaymentService.IncrementalAuthorization
-
-Increase the authorized amount for an existing payment. Enables you to capture additional funds when the transaction amount changes after initial authorization.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceIncrementalAuthorizationRequest` |
-| **Response** | `PaymentServiceIncrementalAuthorizationResponse` |
-
-**Examples:** [Python](../../examples/adyen/adyen.py#L525) · [TypeScript](../../examples/adyen/adyen.ts#L492) · [Kotlin](../../examples/adyen/adyen.kt#L298) · [Rust](../../examples/adyen/adyen.rs#L485)
+**Examples:** [Python](../../examples/adyen/adyen.py) · [TypeScript](../../examples/adyen/adyen.ts#L467) · [Kotlin](../../examples/adyen/adyen.kt#L239) · [Rust](../../examples/adyen/adyen.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -454,7 +470,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L534) · [TypeScript](../../examples/adyen/adyen.ts#L501) · [Kotlin](../../examples/adyen/adyen.kt#L314) · [Rust](../../examples/adyen/adyen.rs#L492)
+**Examples:** [Python](../../examples/adyen/adyen.py) · [TypeScript](../../examples/adyen/adyen.ts#L521) · [Kotlin](../../examples/adyen/adyen.kt#L322) · [Rust](../../examples/adyen/adyen.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -465,7 +481,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L543) · [TypeScript](../../examples/adyen/adyen.ts#L510) · [Kotlin](../../examples/adyen/adyen.kt#L355) · [Rust](../../examples/adyen/adyen.rs#L499)
+**Examples:** [Python](../../examples/adyen/adyen.py) · [TypeScript](../../examples/adyen/adyen.ts#L530) · [Kotlin](../../examples/adyen/adyen.kt#L363) · [Rust](../../examples/adyen/adyen.rs)
 
 #### PaymentService.Refund
 
@@ -476,7 +492,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L561) · [TypeScript](../../examples/adyen/adyen.ts#L528) · [Kotlin](../../examples/adyen/adyen.kt#L434) · [Rust](../../examples/adyen/adyen.rs#L513)
+**Examples:** [Python](../../examples/adyen/adyen.py) · [TypeScript](../../examples/adyen/adyen.ts#L548) · [Kotlin](../../examples/adyen/adyen.kt#L442) · [Rust](../../examples/adyen/adyen.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -487,7 +503,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L570) · [TypeScript](../../examples/adyen/adyen.ts#L537) · [Kotlin](../../examples/adyen/adyen.kt#L444) · [Rust](../../examples/adyen/adyen.rs#L520)
+**Examples:** [Python](../../examples/adyen/adyen.py) · [TypeScript](../../examples/adyen/adyen.ts#L557) · [Kotlin](../../examples/adyen/adyen.kt#L452) · [Rust](../../examples/adyen/adyen.rs)
 
 #### PaymentService.TokenAuthorize
 
@@ -498,7 +514,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L579) · [TypeScript](../../examples/adyen/adyen.ts#L546) · [Kotlin](../../examples/adyen/adyen.kt#L499) · [Rust](../../examples/adyen/adyen.rs#L530)
+**Examples:** [Python](../../examples/adyen/adyen.py) · [TypeScript](../../examples/adyen/adyen.ts#L566) · [Kotlin](../../examples/adyen/adyen.kt#L507) · [Rust](../../examples/adyen/adyen.rs)
 
 #### PaymentService.Void
 
@@ -509,7 +525,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L588) · [TypeScript](../../examples/adyen/adyen.ts) · [Kotlin](../../examples/adyen/adyen.kt#L520) · [Rust](../../examples/adyen/adyen.rs#L537)
+**Examples:** [Python](../../examples/adyen/adyen.py) · [TypeScript](../../examples/adyen/adyen.ts) · [Kotlin](../../examples/adyen/adyen.kt#L528) · [Rust](../../examples/adyen/adyen.rs)
 
 ### Mandates
 
@@ -522,7 +538,7 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L552) · [TypeScript](../../examples/adyen/adyen.ts#L519) · [Kotlin](../../examples/adyen/adyen.kt#L403) · [Rust](../../examples/adyen/adyen.rs#L506)
+**Examples:** [Python](../../examples/adyen/adyen.py) · [TypeScript](../../examples/adyen/adyen.ts#L539) · [Kotlin](../../examples/adyen/adyen.kt#L411) · [Rust](../../examples/adyen/adyen.rs)
 
 ### Disputes
 
@@ -535,7 +551,7 @@ Concede dispute and accepts chargeback loss. Acknowledges liability and stops di
 | **Request** | `DisputeServiceAcceptRequest` |
 | **Response** | `DisputeServiceAcceptResponse` |
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L489) · [TypeScript](../../examples/adyen/adyen.ts#L456) · [Kotlin](../../examples/adyen/adyen.kt#L250) · [Rust](../../examples/adyen/adyen.rs#L457)
+**Examples:** [Python](../../examples/adyen/adyen.py) · [TypeScript](../../examples/adyen/adyen.ts#L476) · [Kotlin](../../examples/adyen/adyen.kt#L253) · [Rust](../../examples/adyen/adyen.rs)
 
 #### DisputeService.Defend
 
@@ -546,7 +562,7 @@ Submit defense with reason code for dispute. Presents formal argument against cu
 | **Request** | `DisputeServiceDefendRequest` |
 | **Response** | `DisputeServiceDefendResponse` |
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L498) · [TypeScript](../../examples/adyen/adyen.ts#L465) · [Kotlin](../../examples/adyen/adyen.kt#L262) · [Rust](../../examples/adyen/adyen.rs#L464)
+**Examples:** [Python](../../examples/adyen/adyen.py) · [TypeScript](../../examples/adyen/adyen.ts#L485) · [Kotlin](../../examples/adyen/adyen.kt#L265) · [Rust](../../examples/adyen/adyen.rs)
 
 #### DisputeService.SubmitEvidence
 
@@ -557,7 +573,7 @@ Upload evidence to dispute customer chargeback. Provides documentation like rece
 | **Request** | `DisputeServiceSubmitEvidenceRequest` |
 | **Response** | `DisputeServiceSubmitEvidenceResponse` |
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L507) · [TypeScript](../../examples/adyen/adyen.ts#L474) · [Kotlin](../../examples/adyen/adyen.kt#L275) · [Rust](../../examples/adyen/adyen.rs#L471)
+**Examples:** [Python](../../examples/adyen/adyen.py) · [TypeScript](../../examples/adyen/adyen.ts#L494) · [Kotlin](../../examples/adyen/adyen.kt#L278) · [Rust](../../examples/adyen/adyen.rs)
 
 ### Authentication
 
@@ -570,4 +586,4 @@ Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. R
 | **Request** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/adyen/adyen.py#L471) · [TypeScript](../../examples/adyen/adyen.ts#L438) · [Kotlin](../../examples/adyen/adyen.kt#L220) · [Rust](../../examples/adyen/adyen.rs#L443)
+**Examples:** [Python](../../examples/adyen/adyen.py) · [TypeScript](../../examples/adyen/adyen.ts#L458) · [Kotlin](../../examples/adyen/adyen.kt#L223) · [Rust](../../examples/adyen/adyen.rs)

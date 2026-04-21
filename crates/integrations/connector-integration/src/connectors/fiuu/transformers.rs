@@ -605,10 +605,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | BankRedirectData::OnlineBankingThailand { .. }
                 | BankRedirectData::LocalBankRedirect {}
                 | BankRedirectData::OpenBanking {}
-                | BankRedirectData::Netbanking { .. } => Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("fiuu"),
-                )
-                .into()),
+                | BankRedirectData::Netbanking { .. } => {
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: utils::get_unimplemented_payment_method_error_message("fiuu"),
+                        connector: "Fiuu",
+                        context: Default::default(),
+                    }))
+                }
             },
             PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                 WalletData::GooglePay(google_pay_data) => {
@@ -818,10 +821,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let (mps_token_status, customer_email) =
             if item.request.is_customer_initiated_mandate_payment() {
-                (
-                    Some(1),
-                    Some(item.resource_common_data.get_billing_email()?),
-                )
+                let email = item.resource_common_data.get_billing_email()?;
+                // Filter out empty emails - don't send CustEmail field if email is empty
+                if email.peek().is_empty() {
+                    (Some(1), None)
+                } else {
+                    (Some(1), Some(email))
+                }
             } else {
                 (Some(3), None)
             };
@@ -2346,7 +2352,7 @@ pub struct FiuWebhookEvent {
     pub status: FiuuPaymentWebhookStatus,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, strum::Display)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, strum::Display)]
 pub enum FiuuPaymentWebhookStatus {
     #[strum(serialize = "00")]
     #[serde(rename = "00")]

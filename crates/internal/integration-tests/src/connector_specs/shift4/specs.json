@@ -6,8 +6,10 @@
     "client_authentication_token",
     "create_customer",
     "get",
+    "incremental_authorization",
     "recurring_charge",
     "refund",
-    "refund_sync"
+    "refund_sync",
+    "setup_recurring"
   ]
 }

@@ -83,10 +83,10 @@ impl PaymentMethodDataTypes for DefaultPCIHolder {
 }
 
 impl PaymentMethodDataTypes for VaultTokenHolder {
-    type Inner = String; //Token
+    type Inner = Secret<String>; //Token
 
     fn peek_inner(inner: &Self::Inner) -> &str {
-        inner
+        inner.peek()
     }
 
     fn is_cobadged_inner(_inner: &Self::Inner) -> Result<bool, IntegrationError> {
@@ -174,6 +174,21 @@ impl<T: PaymentMethodDataTypes> Card<T> {
             .map(Secret::new)
     }
 
+    pub fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error> {
+        self.card_exp_year
+            .peek()
+            .clone()
+            .parse::<i32>()
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "payment_method_data.card.card_exp_year",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Expected format: YY or YYYY".to_owned()),
+                    ..Default::default()
+                },
+            })
+            .map(Secret::new)
+    }
+
     pub fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String> {
         let year = self.get_expiry_year_4_digit();
         Secret::new(format!(
@@ -188,6 +203,12 @@ impl<T: PaymentMethodDataTypes> Card<T> {
         let year = self.get_card_expiry_year_2_digit()?;
         let month = self.get_card_expiry_month_2_digit()?;
         Ok(Secret::new(format!("{}{}", month.peek(), year.peek())))
+    }
+
+    pub fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, IntegrationError> {
+        let year = self.get_card_expiry_year_2_digit()?;
+        let month = self.get_card_expiry_month_2_digit()?;
+        Ok(Secret::new(format!("{}{}", year.peek(), month.peek())))
     }
 
     pub fn get_card_expiry_year_month_2_digit_with_delimiter(
@@ -222,25 +243,6 @@ impl Card<DefaultPCIHolder> {
             delimiter,
             year.peek()
         ))
-    }
-    pub fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, IntegrationError> {
-        let year = self.get_card_expiry_year_2_digit()?.expose();
-        let month = self.card_exp_month.clone().expose();
-        Ok(Secret::new(format!("{year}{month}")))
-    }
-    pub fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error> {
-        self.card_exp_year
-            .peek()
-            .clone()
-            .parse::<i32>()
-            .change_context(IntegrationError::InvalidDataFormat {
-                field_name: "payment_method_data.card.card_exp_year",
-                context: IntegrationErrorContext {
-                    additional_context: Some("Expected format: YY or YYYY".to_owned()),
-                    ..Default::default()
-                },
-            })
-            .map(Secret::new)
     }
 }
 
@@ -577,6 +579,13 @@ pub enum BankDebitData {
         bank_name: Option<common_enums::BankNames>,
         bank_type: Option<common_enums::BankType>,
         bank_holder_type: Option<common_enums::BankHolderType>,
+    },
+    EftBankDebit {
+        account_number: Secret<String>,
+        branch_code: Secret<String>,
+        bank_account_holder_name: Option<Secret<String>>,
+        bank_name: Option<common_enums::BankNames>,
+        bank_type: Option<common_enums::BankType>,
     },
     SepaBankDebit {
         iban: Secret<String>,
@@ -1230,6 +1239,20 @@ impl ApplePayDecryptedData {
         let year = self.get_two_digit_expiry_year()?.expose();
         let month = self.application_expiration_month.clone().expose();
         Ok(Secret::new(format!("{month}{year}")))
+    }
+
+    /// Get the expiry date in YYYY{separator}MM format from the Apple Pay pre-decrypt data
+    pub fn get_expiry_date_as_yyyymm(&self, separator: &str) -> Secret<String> {
+        let year = self.get_four_digit_expiry_year();
+        let month = self.application_expiration_month.clone().expose();
+        Secret::new(format!("{}{}{:0>2}", year.peek(), separator, month))
+    }
+
+    /// Get the expiry date in MM{separator}YYYY format from the Apple Pay pre-decrypt data
+    pub fn get_expiry_date_as_mmyyyy(&self, separator: &str) -> Secret<String> {
+        let year = self.get_four_digit_expiry_year();
+        let month = self.application_expiration_month.clone().expose();
+        Secret::new(format!("{month}{separator}{}", year.peek()))
     }
 }
 

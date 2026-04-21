@@ -8,88 +8,88 @@
     },
     "authorize": {
       "Ach": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "AchBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Affirm": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Afterpay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Alfamart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "AliPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "AmazonPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Bacs": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "BacsBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "BancontactCard": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "BcaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Becs": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Bizum": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Blik": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Bluecode": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "BniVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Boleto": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "BriVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Card": {
         "status": "supported",
@@ -127,280 +127,280 @@
         }
       },
       "CashappQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "CimbVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "ClassicReward": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Crypto": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "DuitNow": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "EVoucher": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Efecty": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Eft": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Eps": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "FamilyMart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Giropay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Givex": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "GooglePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Ideal": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Indomaret": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "IndonesianBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "InstantBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "InstantBankTransferFinland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "InstantBankTransferPoland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Interac": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Klarna": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Lawson": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "LocalBankRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "LocalBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "MbWay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Mifinity": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "MiniStop": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "MultibancoBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "OnlineBankingFinland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "OnlineBankingFpx": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "OnlineBankingPoland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "OnlineBankingThailand": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "OpenBanking": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "OpenBankingPis": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "OpenBankingUk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Oxxo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "PagoEfectivo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "PayEasy": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "PaySafeCard": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "PaypalRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "PaypalSdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Paze": {
         "status": "not_supported",
         "error": "Invalid data format: unknown. Unsupported payment method"
       },
       "PermataBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Pix": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Przelewy24": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Pse": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "RedCompra": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "RedPagos": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "RevolutPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "SamsungPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Satispay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Seicomart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Sepa": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "SepaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "SevenEleven": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Sofort": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Trustly": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "UpiCollect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "UpiIntent": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "UpiQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "WeChatPayQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       },
       "Wero": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       }
     },
     "capture": {
@@ -505,6 +505,11 @@
       }
     },
     "incremental_authorization": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "parse_event": {
       "default": {
         "status": "not_implemented"
       }
@@ -626,8 +631,8 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
       }
     },
     "token_setup_recurring": {

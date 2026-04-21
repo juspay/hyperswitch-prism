@@ -1,9 +1,9 @@
 pub mod transformers;
 
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::LazyLock};
 
 use base64::Engine;
-use common_enums::{enums, CurrencyUnit};
+use common_enums::{enums, CaptureMethod, CurrencyUnit, PaymentMethod, PaymentMethodType};
 use common_utils::{
     errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMajorUnit,
 };
@@ -17,24 +17,27 @@ use domain_types::{
     },
     connector_types::{
         AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
-        ConnectorCustomerResponse, DisputeDefendData, DisputeFlowData, DisputeResponseData,
-        MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
-        PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        ConnectorCustomerResponse, ConnectorSpecifications, DisputeDefendData, DisputeFlowData,
+        DisputeResponseData, MandateRevokeRequestData, MandateRevokeResponseData,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
+        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
         RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
         ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        SetupMandateRequestData, SubmitEvidenceData,
+        SetupMandateRequestData, SubmitEvidenceData, SupportedPaymentMethodsExt,
     },
     errors::IntegrationError,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
-    types::Connectors,
+    types::{
+        ConnectorInfo, Connectors, FeatureStatus, PaymentConnectorCategory, PaymentMethodDetails,
+        SupportedPaymentMethods,
+    },
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::Maskable;
@@ -47,8 +50,10 @@ use serde::Serialize;
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
 use transformers::{
-    is_upi_collect_flow, PayuAuthType, PayuPaymentRequest, PayuPaymentResponse, PayuSyncRequest,
-    PayuSyncResponse,
+    is_netbanking_redirect_flow, is_upi_collect_flow, is_wallet_redirect_flow, PayuAuthType,
+    PayuCaptureRequest, PayuCaptureResponse, PayuPaymentRequest, PayuPaymentResponse,
+    PayuRefundRequest, PayuRefundResponse, PayuRefundSyncRequest, PayuRefundSyncResponse,
+    PayuSyncRequest, PayuSyncResponse, PayuVoidRequest, PayuVoidResponse,
 };
 
 use super::macros;
@@ -223,6 +228,30 @@ macros::create_all_prerequisites!(
             request_body: PayuSyncRequest,
             response_body: PayuSyncResponse,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+        ),
+        (
+            flow: Capture,
+            request_body: PayuCaptureRequest,
+            response_body: PayuCaptureResponse,
+            router_data: RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+        ),
+        (
+            flow: Void,
+            request_body: PayuVoidRequest,
+            response_body: PayuVoidResponse,
+            router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ),
+        (
+            flow: Refund,
+            request_body: PayuRefundRequest,
+            response_body: PayuRefundResponse,
+            router_data: RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+        ),
+        (
+            flow: RSync,
+            request_body: PayuRefundSyncRequest,
+            response_body: PayuRefundSyncResponse,
+            router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         )
     ],
     amount_converters: [
@@ -269,6 +298,54 @@ macros::create_all_prerequisites!(
                 match decoded_value {
                     Ok(decoded_bytes) => Ok(decoded_bytes.into()),
                     Err(_) => Ok(bytes.clone())
+                }
+            } else if is_wallet_redirect_flow(&req.request) || is_netbanking_redirect_flow(&req.request) {
+                // For wallet redirect and netbanking redirect flows, PayU responds with an
+                // HTML page (Content-Type: text/html) that the browser submits to complete
+                // the redirect. We must NOT attempt to JSON-deserialize this HTML.
+                //
+                // If the response bytes start with '<' (HTML), inspect the hidden form
+                // fields to determine whether this is a genuine redirect (pending) or a
+                // failure bounce-back from PayU.
+                let trimmed = bytes
+                    .iter()
+                    .position(|&b| !b.is_ascii_whitespace())
+                    .and_then(|pos| bytes.get(pos..))
+                    .unwrap_or(&bytes[..]);
+                if trimmed.starts_with(b"<") {
+                    let html = String::from_utf8_lossy(&bytes);
+                    // PayU embeds `name="status" value="failure"` in the redirect HTML
+                    // when the payment method is rejected at the gateway level.
+                    if html.contains(r#"name="status" value="failure""#) {
+                        // Extract error details from the HTML hidden fields
+                        let extract = |field: &str| -> String {
+                            let needle = format!(r#"name="{field}" value=""#);
+                            html.find(&needle)
+                                .and_then(|start| {
+                                    let val_start = start + needle.len();
+                                    html[val_start..].find('"').map(|end| html[val_start..val_start + end].to_string())
+                                })
+                                .unwrap_or_default()
+                        };
+                        let error_code = extract("error");
+                        let error_message = extract("field9");
+                        let mihpayid = extract("mihpayid");
+                        let synthetic = serde_json::json!({
+                            "status": "failed",
+                            "error": error_code,
+                            "message": error_message,
+                            "result": { "status": "failure", "mihpayid": mihpayid }
+                        })
+                        .to_string();
+                        Ok(bytes::Bytes::from(synthetic))
+                    } else {
+                        // Genuine redirect HTML — payment is pending customer action.
+                        let synthetic_json = br#"{"status":"success","result":{"status":"pending","mihpayid":null}}"#;
+                        Ok(bytes::Bytes::from_static(synthetic_json))
+                    }
+                } else {
+                    // Not HTML — pass through as-is (may be JSON error)
+                    Ok(bytes)
                 }
             } else {
                 // For other flows, we can use the response itself
@@ -354,6 +431,264 @@ macros::macro_connector_implementation!(
                     network_decline_code: None
 })
             }
+        }
+    }
+);
+
+// Implement capture flow using macro framework
+macros::macro_connector_implementation!(
+    connector_default_implementations: [],
+    connector: Payu,
+    curl_request: FormUrlEncoded(PayuCaptureRequest),
+    curl_response: PayuCaptureResponse,
+    flow_name: Capture,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsCaptureData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            _req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            Ok(vec![
+                ("Content-Type".to_string(), "application/x-www-form-urlencoded".into()),
+                ("Accept".to_string(), "application/json".into()),
+            ])
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // PayU capture uses the same postservice endpoint as PSync
+            let base_url = self.base_url(&req.resource_common_data.connectors);
+            Ok(format!("{base_url}/merchant/postservice.php?form=2"))
+        }
+
+        fn get_content_type(&self) -> &'static str {
+            "application/x-www-form-urlencoded"
+        }
+
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            _event_builder: Option<&mut events::Event>,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            let response: PayuCaptureResponse = res
+                .response
+                .parse_struct("PayU Capture ErrorResponse")
+                .change_context(crate::utils::response_handling_fail_for_connector(res.status_code, "payu"))?;
+
+            Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: response.error_code.unwrap_or_else(|| "CAPTURE_ERROR".to_string()),
+                message: response
+                    .error_description
+                    .or(response.message)
+                    .unwrap_or_else(|| "PayU capture error".to_string()),
+                reason: None,
+                attempt_status: Some(enums::AttemptStatus::CaptureFailed),
+                connector_transaction_id: response.mihpayid,
+                network_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+            })
+        }
+    }
+);
+
+// Implement void flow using macro framework
+macros::macro_connector_implementation!(
+    connector_default_implementations: [],
+    connector: Payu,
+    curl_request: FormUrlEncoded(PayuVoidRequest),
+    curl_response: PayuVoidResponse,
+    flow_name: Void,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentVoidData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            _req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            Ok(vec![
+                ("Content-Type".to_string(), "application/x-www-form-urlencoded".into()),
+                ("Accept".to_string(), "application/json".into()),
+            ])
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // PayU void uses the same postservice endpoint as capture/psync
+            let base_url = self.base_url(&req.resource_common_data.connectors);
+            Ok(format!("{base_url}/merchant/postservice.php?form=2"))
+        }
+
+        fn get_content_type(&self) -> &'static str {
+            "application/x-www-form-urlencoded"
+        }
+
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            _event_builder: Option<&mut events::Event>,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            let response: PayuVoidResponse = res
+                .response
+                .parse_struct("PayU Void ErrorResponse")
+                .change_context(crate::utils::response_handling_fail_for_connector(res.status_code, "payu"))?;
+
+            Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: response.error_code.unwrap_or_else(|| "VOID_ERROR".to_string()),
+                message: response
+                    .error_description
+                    .or(response.message)
+                    .unwrap_or_else(|| "PayU void error".to_string()),
+                reason: None,
+                attempt_status: Some(enums::AttemptStatus::VoidFailed),
+                connector_transaction_id: response.mihpayid,
+                network_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+            })
+        }
+    }
+);
+
+// Implement refund flow using macro framework
+macros::macro_connector_implementation!(
+    connector_default_implementations: [],
+    connector: Payu,
+    curl_request: FormUrlEncoded(PayuRefundRequest),
+    curl_response: PayuRefundResponse,
+    flow_name: Refund,
+    resource_common_data: RefundFlowData,
+    flow_request: RefundsData,
+    flow_response: RefundsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            _req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            Ok(vec![
+                ("Content-Type".to_string(), "application/x-www-form-urlencoded".into()),
+                ("Accept".to_string(), "application/json".into()),
+            ])
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let base_url = self.connector_base_url_refunds(req);
+            Ok(format!("{base_url}/merchant/postservice.php?form=2"))
+        }
+
+        fn get_content_type(&self) -> &'static str {
+            "application/x-www-form-urlencoded"
+        }
+
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            _event_builder: Option<&mut events::Event>,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            let response: PayuRefundResponse = res
+                .response
+                .parse_struct("PayU Refund ErrorResponse")
+                .change_context(crate::utils::response_handling_fail_for_connector(res.status_code, "payu"))?;
+
+            Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: response.error_code.unwrap_or_else(|| "REFUND_ERROR".to_string()),
+                message: response
+                    .error_description
+                    .or(response.message)
+                    .unwrap_or_else(|| "PayU refund error".to_string()),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: response.mihpayid,
+                network_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+            })
+        }
+    }
+);
+
+// Implement RSync (Refund Sync) flow using macro framework
+macros::macro_connector_implementation!(
+    connector_default_implementations: [],
+    connector: Payu,
+    curl_request: FormUrlEncoded(PayuRefundSyncRequest),
+    curl_response: PayuRefundSyncResponse,
+    flow_name: RSync,
+    resource_common_data: RefundFlowData,
+    flow_request: RefundSyncData,
+    flow_response: RefundsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            _req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            Ok(vec![
+                ("Content-Type".to_string(), "application/x-www-form-urlencoded".into()),
+                ("Accept".to_string(), "application/json".into()),
+            ])
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let base_url = self.connector_base_url_refunds(req);
+            Ok(format!("{base_url}/merchant/postservice.php?form=2"))
+        }
+
+        fn get_content_type(&self) -> &'static str {
+            "application/x-www-form-urlencoded"
+        }
+
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            _event_builder: Option<&mut events::Event>,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            let response: PayuRefundSyncResponse = res
+                .response
+                .parse_struct("PayU RSync ErrorResponse")
+                .change_context(crate::utils::response_handling_fail_for_connector(res.status_code, "payu"))?;
+
+            Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: response.error_code.unwrap_or_else(|| "RSYNC_ERROR".to_string()),
+                message: response
+                    .error_description
+                    .or(response.message)
+                    .unwrap_or_else(|| "PayU refund sync error".to_string()),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+            })
         }
     }
 );
@@ -464,24 +799,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 }
 
 // Connector integration implementations for unsupported flows (stubs)
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Serialize>
-    ConnectorIntegrationV2<Refund, RefundFlowData, RefundsData, RefundsResponseData> for Payu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Serialize>
-    ConnectorIntegrationV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData> for Payu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Serialize>
-    ConnectorIntegrationV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
-    for Payu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Serialize>
-    ConnectorIntegrationV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
-    for Payu<T>
-{
-}
+// Capture flow implemented via macro below
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Serialize>
     ConnectorIntegrationV2<
         SetupMandate,
@@ -616,4 +934,90 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         MandateRevokeResponseData,
     > for Payu<T>
 {
+}
+
+static PAYU_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let payu_supported_capture_methods = vec![CaptureMethod::Automatic];
+
+    let mut payu_supported_payment_methods = SupportedPaymentMethods::new();
+
+    // UPI - UpiIntent (UPI_PAY)
+    payu_supported_payment_methods.add(
+        PaymentMethod::Upi,
+        PaymentMethodType::UpiIntent,
+        PaymentMethodDetails {
+            mandates: FeatureStatus::NotSupported,
+            refunds: FeatureStatus::Supported,
+            supported_capture_methods: payu_supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    // UPI - UpiQr (UPI_QR)
+    payu_supported_payment_methods.add(
+        PaymentMethod::Upi,
+        PaymentMethodType::UpiQr,
+        PaymentMethodDetails {
+            mandates: FeatureStatus::NotSupported,
+            refunds: FeatureStatus::Supported,
+            supported_capture_methods: payu_supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    // UPI - UpiCollect (UPI_COLLECT)
+    payu_supported_payment_methods.add(
+        PaymentMethod::Upi,
+        PaymentMethodType::UpiCollect,
+        PaymentMethodDetails {
+            mandates: FeatureStatus::NotSupported,
+            refunds: FeatureStatus::Supported,
+            supported_capture_methods: payu_supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    // Wallet - REDIRECT_WALLET_DEBIT (per-wallet variants)
+    payu_supported_payment_methods.add(
+        PaymentMethod::Wallet,
+        PaymentMethodType::PayU,
+        PaymentMethodDetails {
+            mandates: FeatureStatus::NotSupported,
+            refunds: FeatureStatus::Supported,
+            supported_capture_methods: payu_supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    // Netbanking
+    payu_supported_payment_methods.add(
+        PaymentMethod::BankRedirect,
+        PaymentMethodType::Netbanking,
+        PaymentMethodDetails {
+            mandates: FeatureStatus::NotSupported,
+            refunds: FeatureStatus::Supported,
+            supported_capture_methods: payu_supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    payu_supported_payment_methods
+});
+
+static PAYU_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "PayU",
+    description: "PayU is a leading payment gateway for India, supporting UPI, Wallets, Net Banking, and Cards.",
+    connector_type: PaymentConnectorCategory::PaymentGateway,
+};
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
+    for Payu<T>
+{
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&PAYU_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&PAYU_SUPPORTED_PAYMENT_METHODS)
+    }
 }
