@@ -138,6 +138,8 @@ pub enum ConnectorEnum {
     Finix,
     Trustly,
     Itaubank,
+    Sanlam,
+    PinelabsOnline,
 }
 
 impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
@@ -225,6 +227,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Finix => Ok(Self::Finix),
             grpc_api_types::payments::Connector::Trustly => Ok(Self::Trustly),
             grpc_api_types::payments::Connector::Itaubank => Ok(Self::Itaubank),
+            grpc_api_types::payments::Connector::PinelabsOnline => Ok(Self::PinelabsOnline),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -2947,6 +2950,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::BankDebitData::SepaGuaranteedBankDebit { .. } => {
                     Self::SepaGuaranteedBankDebit
                 }
+                payment_method_data::BankDebitData::EftBankDebit { .. } => Self::EftBankDebit,
             },
             PaymentMethodData::BankTransfer(bank_transfer_data) => match *bank_transfer_data {
                 payment_method_data::BankTransferData::AchBankTransfer { .. } => {
@@ -4019,6 +4023,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Elavon(_) => Ok(Self::Elavon),
             AuthType::Fiserv(_) => Ok(Self::Fiserv),
             AuthType::Fiservemea(_) => Ok(Self::Fiservemea),
+            AuthType::Sanlam(_) => Ok(Self::Sanlam),
             AuthType::Forte(_) => Ok(Self::Forte),
             AuthType::Getnet(_) => Ok(Self::Getnet),
             AuthType::Globalpay(_) => Ok(Self::Globalpay),
@@ -4108,6 +4113,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Revolv3(_) => Ok(Self::Revolv3),
             AuthType::Authorizedotnet(_) => Ok(Self::Authorizedotnet),
             AuthType::Ppro(_) => Ok(Self::Ppro),
+            AuthType::PinelabsOnline(_) => Ok(Self::PinelabsOnline),
         }
     }
 }

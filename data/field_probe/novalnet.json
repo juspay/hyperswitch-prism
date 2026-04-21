@@ -120,8 +120,8 @@
         "error": "This feature is not implemented: Selected payment method through novalnet"
       },
       "Bacs": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Novalnet"
+        "status": "not_supported",
+        "error": "Selected payment method through Novalnet is not supported by Novalnet"
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
@@ -136,8 +136,8 @@
         "error": "This feature is not implemented: Selected payment method through novalnet"
       },
       "Becs": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Novalnet"
+        "status": "not_supported",
+        "error": "Selected payment method through Novalnet is not supported by Novalnet"
       },
       "Bizum": {
         "status": "not_implemented",
@@ -550,8 +550,8 @@
         "error": "This feature is not implemented: Selected payment method through novalnet"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Novalnet"
+        "status": "not_supported",
+        "error": "Selected payment method through Novalnet is not supported by Novalnet"
       },
       "SevenEleven": {
         "status": "not_implemented",

@@ -64,6 +64,7 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
             minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
         }),
+        shipping_cost: Some(0), // Cost of shipping for the order.
         payment_method: Some(PaymentMethod {
             // Payment method to be used.
             payment_method: Some(payment_method::PaymentMethod::Card(CardDetails {
@@ -201,9 +202,9 @@ pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
             minor_amount: 1000,             // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
         }),
-        card_proxy: Some(CardDetails {
+        card_proxy: Some(ProxyCardDetails {
             // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
-            card_number: Some(CardNumber::from_str("4111111111111111").unwrap()), // Card Identification.
+            card_number: Some(Secret::new("4111111111111111".to_string())), // Card Identification.
             card_exp_month: Some(Secret::new("03".to_string())),
             card_exp_year: Some(Secret::new("2030".to_string())),
             card_cvc: Some(Secret::new("123".to_string())),
@@ -228,6 +229,7 @@ pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
             }),
             ..Default::default()
         }),
+        shipping_cost: Some(0), // Cost of shipping for the order.
         ..Default::default()
     }
 }
@@ -239,9 +241,9 @@ pub fn build_proxy_setup_recurring_request() -> PaymentServiceProxySetupRecurrin
             minor_amount: 0,                // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
         }),
-        card_proxy: Some(CardDetails {
+        card_proxy: Some(ProxyCardDetails {
             // Card proxy for vault-aliased payments.
-            card_number: Some(CardNumber::from_str("4111111111111111").unwrap()), // Card Identification.
+            card_number: Some(Secret::new("4111111111111111".to_string())), // Card Identification.
             card_exp_month: Some(Secret::new("03".to_string())),
             card_exp_year: Some(Secret::new("2030".to_string())),
             card_cvc: Some(Secret::new("123".to_string())),

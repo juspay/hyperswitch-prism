@@ -206,10 +206,11 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::CashfreeRedirect(_)
             | WalletDataPaymentMethod::PayURedirect(_)
             | WalletDataPaymentMethod::EaseBuzzRedirect(_) => {
-                Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("worldpay"),
-                )
-                .into())
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("worldpay"),
+                    connector: "Worldpay",
+                    context: Default::default(),
+                }))
             }
         },
         PaymentMethodData::PayLater(_)

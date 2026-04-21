@@ -56,6 +56,53 @@ If the service fails to start, check build errors and fix before proceeding.
 
 ---
 
+## Step 1.5: Load gRPC Request Payloads from Field Probe (PREFERRED)
+
+**Before manually constructing grpcurl requests, check `data/field_probe/{connector_name}.json`.** This file is the authoritative source for correctly-structured gRPC request payloads.
+
+### Structure
+
+Each file contains `{ "connector": "...", "flows": { ... } }` where each flow (e.g., `authorize`, `capture`, `refund`) maps to scenarios (e.g., `Card`, `Ach`, `Sepa`, `GooglePay`). Each supported scenario has:
+
+- `status`: `"supported"` or `"not_implemented"`
+- `proto_request`: The exact JSON payload to use as the `-d` argument in grpcurl
+- `sample`: The downstream HTTP request the connector sends (useful for debugging)
+
+### Usage
+
+```bash
+# List available flows for a connector:
+cat data/field_probe/{connector_name}.json | jq '.flows | keys'
+
+# List payment method scenarios for Authorize:
+cat data/field_probe/{connector_name}.json | jq '.flows.authorize | keys'
+
+# Get the proto_request for a Card Authorize:
+cat data/field_probe/{connector_name}.json | jq '.flows.authorize.Card.proto_request'
+
+# Check which scenarios are supported vs not_implemented:
+cat data/field_probe/{connector_name}.json | jq '.flows.authorize | to_entries[] | {scenario: .key, status: .value.status}'
+```
+
+### Using proto_request in grpcurl
+
+The `proto_request` value is a JSON object ready to use directly:
+
+```bash
+PROTO_REQ=$(cat data/field_probe/{connector_name}.json | jq -c '.flows.authorize.Card.proto_request')
+
+grpcurl -plaintext \
+  -H 'x-connector: {connector_name}' \
+  -H 'x-api-key: <from_creds>' \
+  -d "$PROTO_REQ" \
+  localhost:8000 \
+  types.PaymentService/Authorize
+```
+
+**Always prefer field_probe data over manually constructing requests** — it ensures the request structure matches what the connector actually supports. Fall back to manual construction only for new connectors that don't have a field_probe file yet.
+
+---
+
 ## Step 2: Load Credentials
 
 ```bash
@@ -279,18 +326,20 @@ Test the {ConnectorName} connector's {FlowName} flow via grpcurl.
 ## Context
 - Connector: {connector_name}
 - Credentials: creds.json (field: {connector_name})
+- Field probe data: data/field_probe/{connector_name}.json (use proto_request for gRPC payloads)
 - Tech spec: grace/rulesbook/codegen/references/{connector}/technical_specification.md
-- Testing guide: .skills/new-connector/references/grpc-testing-guide.md
+- Testing guide: .skills/_shared/references/grpc-testing-guide.md
 - Connector source: crates/integrations/connector-integration/src/connectors/{connector}.rs
 - Transformers: crates/integrations/connector-integration/src/connectors/{connector}/transformers.rs
 
 ## Instructions
-1. Read the testing guide at .skills/new-connector/references/grpc-testing-guide.md
+1. Read the testing guide at .skills/_shared/references/grpc-testing-guide.md
 2. Start the gRPC server if not running
 3. Load credentials from creds.json
-4. Run the grpcurl test for {FlowName} using the correct service/method from the guide
-5. Validate the response against PASS/FAIL criteria
-6. If FAILED: read server logs, diagnose root cause, fix code, rebuild, retest
-7. Follow anti-loop safeguards (3-strike rule, max 7 iterations, always change code between retries)
-8. Report: PASS or FAIL with details, grpcurl output, and fix log if applicable
+4. Load gRPC request payloads from data/field_probe/{connector_name}.json (preferred — use proto_request for each flow/scenario)
+5. Run the grpcurl test for {FlowName} using the correct service/method from the guide and the proto_request from field probe
+6. Validate the response against PASS/FAIL criteria
+7. If FAILED: read server logs, diagnose root cause, fix code, rebuild, retest
+8. Follow anti-loop safeguards (3-strike rule, max 7 iterations, always change code between retries)
+9. Report: PASS or FAIL with details, grpcurl output, and fix log if applicable
 ```

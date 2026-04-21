@@ -173,7 +173,11 @@ fn map_capture_method(
         Some(CaptureMethod::Scheduled)
         | Some(CaptureMethod::ManualMultiple)
         | Some(CaptureMethod::SequentialAutomatic) => {
-            Err(IntegrationError::not_implemented("Capture Method".to_string()).into())
+            Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "Capture Method".to_string(),
+                connector: "Jpmorgan",
+                context: Default::default(),
+            }))
         }
     }
 }
@@ -238,12 +242,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 if router_data.resource_common_data.auth_type
                     == common_enums::AuthenticationType::ThreeDs
                 {
-                    return Err(IntegrationError::NotSupported {
-                        message: "3DS payments".to_string(),
-                        connector: "JPMorgan",
-                        context: Default::default(),
-                    }
-                    .into());
+                    return Err(
+                        IntegrationError::not_implemented("3DS payments".to_string()).into(),
+                    );
                 }
                 let capture_method = map_capture_method(router_data.request.capture_method)?;
 
@@ -480,10 +481,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     statement_descriptor: Some(statement_descriptor),
                 })
             }
-            PaymentMethodData::BankDebit(_) => Err(IntegrationError::not_implemented(
-                "Only ACH Bank Debit is supported".to_string(),
-            )
-            .into()),
+            PaymentMethodData::BankDebit(_) => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "Only ACH Bank Debit is supported".to_string(),
+                    connector: "Jpmorgan",
+                    context: Default::default(),
+                }))
+            }
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 domain_types::payment_method_data::WalletData::GooglePay(google_pay_data) => {
                     match &google_pay_data.tokenization_data {
@@ -610,10 +614,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     IntegrationError::not_implemented("Wallet not supported".to_string()).into(),
                 ),
             },
-            _ => Err(
-                IntegrationError::not_implemented("Payment method not supported".to_string())
-                    .into(),
-            ),
+            _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "Payment method not supported".to_string(),
+                connector: "Jpmorgan",
+                context: Default::default(),
+            })),
         }
     }
 }
