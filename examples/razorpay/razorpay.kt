@@ -7,23 +7,27 @@
 
 package examples.razorpay
 
+import types.Payment.*
+import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.EventClient
 import payments.RefundClient
-import payments.PaymentServiceAuthorizeRequest
-import payments.PaymentServiceCaptureRequest
-import payments.PaymentServiceRefundRequest
-import payments.PaymentServiceGetRequest
-import payments.PaymentServiceCreateOrderRequest
-import payments.EventServiceHandleRequest
-import payments.PaymentServiceProxyAuthorizeRequest
-import payments.RefundServiceGetRequest
 import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.Currency
+import payments.HttpMethod
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
+
+
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_order", "get", "parse_event", "proxy_authorize", "refund", "refund_get")
+
+val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    // .setConnectorConfig(...) — set your Razorpay credentials here
+    .build()
+
 
 
 private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAuthorizeRequest {
@@ -91,12 +95,6 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
         reason = "customer_request"  // Reason for the refund.
     }.build()
 }
-
-val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
-    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your connector config here
-    .build()
-
 
 // Scenario: One-step Payment (Authorize + Capture)
 // Simple payment that authorizes and captures in one call. Use for immediate charges.
@@ -178,8 +176,8 @@ fun processGetPayment(txnId: String, config: ConnectorConfig = _defaultConfig): 
 }
 
 // Flow: PaymentService.Authorize (Card)
-fun authorize(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun authorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildAuthorizeRequest("AUTOMATIC")
     val response = client.authorize(request)
     when (response.status.name) {
@@ -190,8 +188,8 @@ fun authorize(txnId: String) {
 }
 
 // Flow: PaymentService.Capture
-fun capture(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun capture(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildCaptureRequest("probe_connector_txn_001")
     val response = client.capture(request)
     if (response.status.name == "FAILED")
@@ -200,8 +198,8 @@ fun capture(txnId: String) {
 }
 
 // Flow: PaymentService.CreateOrder
-fun createOrder(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun createOrder(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = PaymentServiceCreateOrderRequest.newBuilder().apply {
         merchantOrderId = "probe_order_001"  // Identification.
         amountBuilder.apply {  // Amount Information.
@@ -214,26 +212,47 @@ fun createOrder(txnId: String) {
 }
 
 // Flow: PaymentService.Get
-fun get(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildGetRequest("probe_connector_txn_001")
     val response = client.get(request)
     println("Status: ${response.status.name}")
 }
 
 // Flow: EventService.HandleEvent
-fun handleEvent(txnId: String) {
-    val client = EventClient(_defaultConfig)
+fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = EventClient(config)
     val request = EventServiceHandleRequest.newBuilder().apply {
-
+        merchantEventId = "probe_event_001"  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        requestDetailsBuilder.apply {
+            method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
+            uri = "https://example.com/webhook"  // URI of the request.
+            putAllHeaders(mapOf())  // Headers of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("{\"account_id\":\"probe_acct\",\"contains\":[\"payment\"],\"entity\":\"event\",\"event\":\"payment.captured\",\"payload\":{\"payment\":{\"entity\":{\"id\":\"pay_probe001\",\"entity\":\"payment\",\"amount\":1000,\"currency\":\"USD\",\"status\":\"captured\",\"order_id\":\"order_probe001\"}}}}")  // Body of the HTTP request.
+        }
     }.build()
     val response = client.handle_event(request)
-    println("Status: ${response.status.name}")
+    println("Webhook: type=${response.eventType.name} verified=${response.sourceVerified}")
+}
+
+// Flow: EventService.ParseEvent
+fun parseEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = EventClient(config)
+    val request = EventServiceParseRequest.newBuilder().apply {
+        requestDetailsBuilder.apply {
+            method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
+            uri = "https://example.com/webhook"  // URI of the request.
+            putAllHeaders(mapOf())  // Headers of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("{\"account_id\":\"probe_acct\",\"contains\":[\"payment\"],\"entity\":\"event\",\"event\":\"payment.captured\",\"payload\":{\"payment\":{\"entity\":{\"id\":\"pay_probe001\",\"entity\":\"payment\",\"amount\":1000,\"currency\":\"USD\",\"status\":\"captured\",\"order_id\":\"order_probe001\"}}}}")  // Body of the HTTP request.
+        }
+    }.build()
+    val response = client.parse_event(request)
+    println("Webhook parsed: type=${response.eventType.name}")
 }
 
 // Flow: PaymentService.ProxyAuthorize
-fun proxyAuthorize(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = PaymentServiceProxyAuthorizeRequest.newBuilder().apply {
         merchantTransactionId = "probe_proxy_txn_001"
         amountBuilder.apply {
@@ -265,8 +284,8 @@ fun proxyAuthorize(txnId: String) {
 }
 
 // Flow: PaymentService.Refund
-fun refund(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun refund(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildRefundRequest("probe_connector_txn_001")
     val response = client.refund(request)
     if (response.status.name == "FAILED")
@@ -275,8 +294,8 @@ fun refund(txnId: String) {
 }
 
 // Flow: RefundService.Get
-fun refundGet(txnId: String) {
-    val client = RefundClient(_defaultConfig)
+fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = RefundClient(config)
     val request = RefundServiceGetRequest.newBuilder().apply {
         merchantRefundId = "probe_refund_001"  // Identification.
         connectorTransactionId = "probe_connector_txn_001"
@@ -300,9 +319,10 @@ fun main(args: Array<String>) {
         "createOrder" -> createOrder(txnId)
         "get" -> get(txnId)
         "handleEvent" -> handleEvent(txnId)
+        "parseEvent" -> parseEvent(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processGetPayment, authorize, capture, createOrder, get, handleEvent, proxyAuthorize, refund, refundGet")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processGetPayment, authorize, capture, createOrder, get, handleEvent, parseEvent, proxyAuthorize, refund, refundGet")
     }
 }

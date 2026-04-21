@@ -447,9 +447,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Extract card data
         let card_data = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card) => Ok(card),
-            _ => Err(IntegrationError::not_implemented(
-                "Payment method not supported".to_string(),
-            )),
+            _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "Payment method not supported".to_string(),
+                connector: "Bamboraapac",
+                context: Default::default(),
+            })),
         }?;
 
         // Determine transaction type based on capture method
@@ -1199,9 +1201,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Extract card data from payment method data
         let card_data = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card) => Ok(card),
-            _ => Err(IntegrationError::not_implemented(
-                "Only card payment methods are supported for SetupMandate".to_string(),
-            )),
+            _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "Only card payment methods are supported for SetupMandate".to_string(),
+                connector: "Bamboraapac",
+                context: Default::default(),
+            })),
         }?;
 
         // Get card number using peek() method

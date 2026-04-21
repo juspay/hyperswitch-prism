@@ -588,10 +588,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             },
                         }))
                     }
-                    _ => Err(IntegrationError::not_implemented(
-                        utils::get_unimplemented_payment_method_error_message("braintree"),
-                    )
-                    .into()),
+                    _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: utils::get_unimplemented_payment_method_error_message("braintree"),
+                        connector: "Braintree",
+                        context: Default::default(),
+                    })),
                 }
             }
             PaymentMethodData::MandatePayment
@@ -612,10 +613,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("braintree"),
-                )
-                .into())
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("braintree"),
+                    connector: "Braintree",
+                    context: Default::default(),
+                }))
             }
         }
     }
@@ -1599,10 +1601,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("braintree"),
-                )
-                .into())
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("braintree"),
+                    connector: "Braintree",
+                    context: Default::default(),
+                }))
             }
         }
     }
@@ -2424,7 +2427,11 @@ where
                 .collect::<String>();
             Ok(cleaned_number)
         }
-        _ => Err(IntegrationError::not_implemented("given payment method".to_owned()).into()),
+        _ => Err(error_stack::report!(IntegrationError::NotSupported {
+            message: "given payment method".to_owned(),
+            connector: "Braintree",
+            context: Default::default(),
+        })),
     }
 }
 
@@ -2797,10 +2804,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("braintree"),
-                )
-                .into())
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("braintree"),
+                    connector: "Braintree",
+                    context: Default::default(),
+                }))
             }
         }
     }

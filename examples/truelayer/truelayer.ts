@@ -6,25 +6,34 @@
 // Run a scenario:  npx tsx truelayer.ts checkout_autocapture
 
 import { MerchantAuthenticationClient, PaymentClient, EventClient, RefundClient, types } from 'hyperswitch-prism';
-const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment, Currency } = types;
+const { Environment, Currency, HttpMethod } = types;
+export const SUPPORTED_FLOWS = ["create_server_authentication_token", "get", "parse_event", "refund_get"];
 
-const _defaultConfig: ConnectorConfig = {
+const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
+    connectorConfig: {
+        truelayer: {
+            clientId: { value: 'YOUR_CLIENT_ID' },
+            clientSecret: { value: 'YOUR_CLIENT_SECRET' },
+            merchantAccountId: { value: 'YOUR_MERCHANT_ACCOUNT_ID' },
+            accountHolderName: { value: 'YOUR_ACCOUNT_HOLDER_NAME' },
+            privateKey: { value: 'YOUR_PRIVATE_KEY' },
+            kid: { value: 'YOUR_KID' },
+            baseUrl: 'YOUR_BASE_URL',
+            secondaryBaseUrl: 'YOUR_SECONDARY_BASE_URL',
+        }
+    },
 };
-// Standalone credentials (field names depend on connector auth type):
-// _defaultConfig.connectorConfig = {
-//     truelayer: { apiKey: { value: 'YOUR_API_KEY' } }
-// };
 
 
-function _buildCreateServerAuthenticationTokenRequest(): MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+function _buildCreateServerAuthenticationTokenRequest(): types.IMerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
     return {
     };
 }
 
-function _buildGetRequest(connectorTransactionId: string): PaymentServiceGetRequest {
+function _buildGetRequest(connectorTransactionId: string): types.IPaymentServiceGetRequest {
     return {
         "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
         "connectorTransactionId": connectorTransactionId,
@@ -42,12 +51,32 @@ function _buildGetRequest(connectorTransactionId: string): PaymentServiceGetRequ
     };
 }
 
-function _buildHandleEventRequest(): EventServiceHandleRequest {
+function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
     return {
+        "merchantEventId": "probe_event_001",  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{\"type\":\"payment_executed\",\"payment_id\":\"probe_payment_001\"}", "utf-8"))  // Body of the HTTP request.
+        }
     };
 }
 
-function _buildRefundGetRequest(): RefundServiceGetRequest {
+function _buildParseEventRequest(): types.IEventServiceParseRequest {
+    return {
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{\"type\":\"payment_executed\",\"payment_id\":\"probe_payment_001\"}", "utf-8"))  // Body of the HTTP request.
+        }
+    };
+}
+
+function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
     return {
         "merchantRefundId": "probe_refund_001",  // Identification.
         "connectorTransactionId": "probe_connector_txn_001",
@@ -65,45 +94,54 @@ function _buildRefundGetRequest(): RefundServiceGetRequest {
 
 // ANCHOR: scenario_functions
 // Flow: MerchantAuthenticationService.CreateServerAuthenticationToken
-async function createServerAuthenticationToken(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse> {
+async function createServerAuthenticationToken(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const merchantAuthenticationClient = new MerchantAuthenticationClient(config);
 
     const createResponse = await merchantAuthenticationClient.createServerAuthenticationToken(_buildCreateServerAuthenticationTokenRequest());
 
-    return { status: createResponse.status };
+    return createResponse;
 }
 
 // Flow: PaymentService.Get
-async function get(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceGetResponse> {
+async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
 
     const getResponse = await paymentClient.get(_buildGetRequest('probe_connector_txn_001'));
 
-    return { status: getResponse.status };
+    return getResponse;
 }
 
 // Flow: EventService.HandleEvent
-async function handleEvent(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<EventServiceHandleResponse> {
+async function handleEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const eventClient = new EventClient(config);
 
     const handleResponse = await eventClient.handleEvent(_buildHandleEventRequest());
 
-    return { status: handleResponse.status };
+    return handleResponse;
+}
+
+// Flow: EventService.ParseEvent
+async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const parseResponse = await eventClient.parseEvent(_buildParseEventRequest());
+
+    return parseResponse;
 }
 
 // Flow: RefundService.Get
-async function refundGet(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<RefundResponse> {
+async function refundGet(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const refundClient = new RefundClient(config);
 
     const refundResponse = await refundClient.refundGet(_buildRefundGetRequest());
 
-    return { status: refundResponse.status };
+    return refundResponse;
 }
 
 
 // Export all process* functions for the smoke test
 export {
-    createServerAuthenticationToken, get, handleEvent, refundGet, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildHandleEventRequest, _buildRefundGetRequest
+    createServerAuthenticationToken, get, handleEvent, parseEvent, refundGet, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildRefundGetRequest
 };
 
 // CLI runner

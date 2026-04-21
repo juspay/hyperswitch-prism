@@ -18,14 +18,32 @@ interface ?= grpc
 # gRPC server settings
 # The test harness connects to localhost:50051 by default.
 # Override with: make test-connector connector=stripe GRPC_PORT=9090
-GRPC_PORT  ?= 50051
-GRPC_HOST  ?= 0.0.0.0
+GRPC_PORT    ?= 50051
+GRPC_HOST    ?= 0.0.0.0
+GRPC_PROFILE ?= release-fast
 # PID file used to track the background server process
 GRPC_PID_FILE := .grpc-server.pid
 
+# Platform detection (mirrors sdk/common.mk so all Rust binaries share the same target/ layout)
+UNAME_S := $(shell uname -s)
+UNAME_M := $(shell uname -m)
+ifeq ($(UNAME_S), Darwin)
+  ifeq ($(UNAME_M), arm64)
+    PLATFORM := aarch64-apple-darwin
+  else
+    PLATFORM := x86_64-apple-darwin
+  endif
+else
+  ifeq ($(UNAME_M), aarch64)
+    PLATFORM := aarch64-unknown-linux-gnu
+  else
+    PLATFORM := x86_64-unknown-linux-gnu
+  endif
+endif
+
 .PHONY: all fmt check clippy test nextest ci check-specs help \
         proto-format proto-generate proto-build proto-lint proto-clean \
-        generate certify-client-sanity field-probe docs docs-check all-connectors-doc \
+        generate certify-client-sanity field-probe docs docs-check \
         setup-connector-tests \
         start-grpc stop-grpc \
         test-prism test-ucs test-connector test-scenario cargo \
@@ -96,11 +114,13 @@ setup-connector-tests:
 ## The server PID is written to $(GRPC_PID_FILE) so stop-grpc can kill it.
 ## You rarely need to call this directly — test-prism / test-connector /
 ## test-scenario all manage the server lifecycle automatically.
+GRPC_SERVER_BIN = ./target/$(PLATFORM)/$(GRPC_PROFILE)/grpc-server
+
 start-grpc:
-	@echo "▶ Building grpc-server…"
-	@cargo build -p grpc-server --release 2>&1
+	@echo "▶ Building grpc-server ($(GRPC_PROFILE))…"
+	@cargo build -p grpc-server --profile $(GRPC_PROFILE) --target $(PLATFORM) 2>&1
 	@echo "▶ Starting grpc-server on $(GRPC_HOST):$(GRPC_PORT)…"
-	@CS__SERVER__HOST=$(GRPC_HOST) CS__SERVER__PORT=$(GRPC_PORT) CS__COMMON__ENVIRONMENT=development ./target/release/grpc-server & echo $$! > $(GRPC_PID_FILE)
+	@CS__SERVER__HOST=$(GRPC_HOST) CS__SERVER__PORT=$(GRPC_PORT) CS__COMMON__ENVIRONMENT=development $(GRPC_SERVER_BIN) & echo $$! > $(GRPC_PID_FILE)
 	@echo "[grpc] waiting for server to be ready on port $(GRPC_PORT)…"
 	@for i in $$(seq 1 40); do \
 	  if nc -z 127.0.0.1 $(GRPC_PORT) 2>/dev/null; then \
@@ -250,12 +270,13 @@ certify-client-sanity:
 	@node sdk/tests/client_sanity/simple_proxy.js > /dev/null 2>&1 & sleep 2
 	@echo "Generating golden captures from manifest..."
 	@node sdk/tests/client_sanity/generate_golden.js
+	@echo "[CERTIFICATION]: Building test runners..."
+	@cd sdk/rust && cargo build --bin client_sanity_runner --quiet 2>/dev/null || cargo build --bin client_sanity_runner
 	@echo "[CERTIFICATION]: Running client sanity suite..."
 	@node sdk/tests/client_sanity/run_client_certification.js rust python node kotlin
 	@pkill -f "[/]echo_server\\.js"; pkill -f "[/]simple_proxy\\.js" || true
 
-CONNECTORS   ?= stripe
-GRPC_PROFILE ?= release-fast
+CONNECTORS ?= stripe
 
 ## Run gRPC smoke tests for all SDKs (Rust + JS + Python) with a combined pass/fail summary
 test-grpc:
@@ -267,22 +288,15 @@ test-ffi:
 
 ## Run FFI smoke tests in MOCK mode for all SDKs (no real HTTP, verifies req_transformer only)
 ## Runs all SDKs in parallel and prints a combined pass/fail table.
+## Uses examples/ directly — no separate harness generation needed.
 ## Set VERBOSE=1 or V=1 to see detailed error messages
-test-ffi-mock: generate-harnesses
+test-ffi-mock:
 	@python3 scripts/run_smoke_tests_parallel.py --connectors $(CONNECTORS) --mock $(if $(filter 1,$(VERBOSE) $(V)),--verbose)
-
-## Generate harnesses for all connectors specified in CONNECTORS
-## Used by test-ffi-mock to ensure harnesses are up to date
-generate-harnesses:
-	@echo "Generating harnesses for: $(CONNECTORS)"
-	@for connector in $(shell echo $(CONNECTORS) | tr ',' ' '); do \
-		python3 scripts/generators/code/generate_harnesses.py --connector $$connector; \
-	done
 
 ## Run field-probe to generate connector flow data
 field-probe:
 	@echo "▶ Running field-probe to generate connector flow data…"
-	-cargo run -p field-probe
+	-cargo run -p field-probe --target $(PLATFORM) --profile release-fast
 
 ## Run comprehensive pre-push validation (format, check, clippy, generate, docs)
 validate-pre-push:
@@ -299,26 +313,26 @@ validate-pre-push-fix:
 	@echo "▶ Running pre-push validation with auto-fix..."
 	@./scripts/validation/pre-push.sh --fix
 
-## Generate connector docs (default: stripe only; use CONNECTORS=all for all connectors)
-## Skips field-probe if data/field_probe already exists; use CONNECTORS=all to re-probe all connectors.
+## Generate connector docs and update all_connector.md coverage matrix
+## Variables:
+##   DOCS_CONNECTORS=stripe,adyen   - Generate docs for specific connectors only (default: all)
+##   SKIP_PROBE=1                   - Skip field-probe and use existing cached data
+## Usage:
+##   make docs                                    # Run field-probe then generate all connector docs
+##   make docs SKIP_PROBE=1                      # Skip field-probe, use cached probe data
+##   make docs DOCS_CONNECTORS=stripe,adyen      # Run field-probe then generate specific connectors
 docs:
 	@echo "▶ Generating connector docs…"
-	@if [ "$(CONNECTORS)" = "all" ]; then \
-		$(MAKE) field-probe; \
-		python3 scripts/generators/docs/generate.py --all --probe-path data/field_probe; \
+	@if [ -n "$(SKIP_PROBE)" ]; then \
+		echo "▶ Using cached probe data ($(shell ls data/field_probe/*.json 2>/dev/null | wc -l) connectors)…"; \
 	else \
-		if [ ! -d data/field_probe ] || [ -z "$$(ls -A data/field_probe 2>/dev/null)" ]; then \
-			$(MAKE) field-probe; \
-		fi; \
-		python3 scripts/generators/docs/generate.py stripe --probe-path data/field_probe; \
+		$(MAKE) field-probe; \
 	fi
-	@echo "▶ Formatting Rust code (nightly)…"
-	@cargo $(NIGHTLY) fmt --all
-
-## Generate the all-connectors coverage document
-all-connectors-doc: field-probe
-	@echo "▶ Generating all-connectors coverage doc…"
-	python3 scripts/generators/docs/generate.py --all-connectors-doc --probe-path data/field_probe
+	@if [ -n "$(DOCS_CONNECTORS)" ]; then \
+		python3 scripts/generators/docs/generate.py $$(echo "$(DOCS_CONNECTORS)" | tr ',' ' ') --probe-path data/field_probe; \
+	else \
+		python3 scripts/generators/docs/generate.py --all --probe-path data/field_probe; \
+	fi
 
 ## Report annotation coverage for connector docs
 docs-check:
@@ -482,8 +496,7 @@ help:
 	@echo "  generate         Generate SDK flow bindings (Python, JS, Kotlin) from services.proto"
 	@echo ""
 	@echo "Docs Targets:"
-	@echo "  docs               Regenerate connector docs (default: stripe; CONNECTORS=all for all)"
-	@echo "  all-connectors-doc Generate the all-connectors coverage document"
+	@echo "  docs               Run field-probe then regenerate all connector docs + all_connector.md (SKIP_PROBE=1 to skip probe)"
 	@echo "  docs-check         Report which connectors are missing annotation files"
 	@echo ""
 	@echo "Certification Targets:"

@@ -22,11 +22,16 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        worldpay=payment_pb2.WorldpayConfig(
+            username=payment_methods_pb2.SecretString(value="YOUR_USERNAME"),
+            password=payment_methods_pb2.SecretString(value="YOUR_PASSWORD"),
+            entity_id=payment_methods_pb2.SecretString(value="YOUR_ENTITY_ID"),
+            base_url="YOUR_BASE_URL",
+            merchant_name=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_NAME"),
+        ),
+    ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     worldpay=payment_pb2.WorldpayConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,14 +43,20 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Worldpay',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
+const config = ConnectorConfig.create({
+    connector: Connector.WORLDPAY,
+    environment: Environment.SANDBOX,
+    auth: {
+        worldpay: {
+            username: { value: 'YOUR_USERNAME' },
+            password: { value: 'YOUR_PASSWORD' },
+            entityId: { value: 'YOUR_ENTITY_ID' },
+            baseUrl: 'YOUR_BASE_URL',
+            merchantName: { value: 'YOUR_MERCHANT_NAME' },
+        }
     },
 });
 ```
@@ -59,11 +70,17 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Worldpay")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setWorldpay(WorldpayConfig.newBuilder()
+                .setUsername(SecretString.newBuilder().setValue("YOUR_USERNAME").build())
+                .setPassword(SecretString.newBuilder().setValue("YOUR_PASSWORD").build())
+                .setEntityId(SecretString.newBuilder().setValue("YOUR_ENTITY_ID").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .setMerchantName(SecretString.newBuilder().setValue("YOUR_MERCHANT_NAME").build())
+                .build())
+            .build()
     )
     .build()
 ```
@@ -76,13 +93,23 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Worldpay".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Worldpay(WorldpayConfig {
+                username: Some(hyperswitch_masking::Secret::new("YOUR_USERNAME".to_string())),  // Authentication credential
+                password: Some(hyperswitch_masking::Secret::new("YOUR_PASSWORD".to_string())),  // Authentication credential
+                entity_id: Some(hyperswitch_masking::Secret::new("YOUR_ENTITY_ID".to_string())),  // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                merchant_name: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_NAME".to_string())),  // Authentication credential
+                ..Default::default()
+            })),
+        }),
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -108,7 +135,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/worldpay/worldpay.py#L179) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L107) · [Rust](../../examples/worldpay/worldpay.rs#L170)
+**Examples:** [Python](../../examples/worldpay/worldpay.py#L145) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L115) · [Rust](../../examples/worldpay/worldpay.rs#L182)
 
 ### Card Payment (Authorize + Capture)
 
@@ -122,25 +149,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/worldpay/worldpay.py#L198) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L123) · [Rust](../../examples/worldpay/worldpay.rs#L186)
+**Examples:** [Python](../../examples/worldpay/worldpay.py#L164) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L131) · [Rust](../../examples/worldpay/worldpay.rs#L198)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/worldpay/worldpay.py#L223) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L145) · [Rust](../../examples/worldpay/worldpay.rs#L209)
+**Examples:** [Python](../../examples/worldpay/worldpay.py#L189) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L153) · [Rust](../../examples/worldpay/worldpay.rs#L221)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/worldpay/worldpay.py#L248) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L167) · [Rust](../../examples/worldpay/worldpay.rs#L232)
+**Examples:** [Python](../../examples/worldpay/worldpay.py#L214) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L175) · [Rust](../../examples/worldpay/worldpay.rs#L244)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/worldpay/worldpay.py#L270) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L186) · [Rust](../../examples/worldpay/worldpay.rs#L251)
+**Examples:** [Python](../../examples/worldpay/worldpay.py#L236) · [JavaScript](../../examples/worldpay/worldpay.js) · [Kotlin](../../examples/worldpay/worldpay.kt#L194) · [Rust](../../examples/worldpay/worldpay.rs#L263)
 
 ## API Reference
 
@@ -175,10 +202,10 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Bancontact | ⚠ |
 | Apple Pay | ✓ |
 | Apple Pay Dec | ? |
-| Apple Pay SDK | ⚠ |
+| Apple Pay SDK | x |
 | Google Pay | ✓ |
 | Google Pay Dec | ? |
-| Google Pay SDK | ⚠ |
+| Google Pay SDK | x |
 | PayPal SDK | ⚠ |
 | Amazon Pay | ⚠ |
 | Cash App | ⚠ |
@@ -269,13 +296,13 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "card": {  # Generic card payment.
-        "card_number": {"value": "4111111111111111"},  # Card Identification.
-        "card_exp_month": {"value": "03"},
-        "card_exp_year": {"value": "2030"},
-        "card_cvc": {"value": "737"},
-        "card_holder_name": {"value": "John Doe"}  # Cardholder Information.
-    }
+  "card": {
+    "card_number": "4111111111111111",
+    "card_exp_month": "03",
+    "card_exp_year": "2030",
+    "card_cvc": "737",
+    "card_holder_name": "John Doe"
+  }
 }
 ```
 
@@ -283,20 +310,20 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "google_pay": {  # Google Pay.
-        "type": "CARD",  # Type of payment method.
-        "description": "Visa 1111",  # User-facing description of the payment method.
-        "info": {
-            "card_network": "VISA",  # Card network name.
-            "card_details": "1111"  # Card details (usually last 4 digits).
-        },
-        "tokenization_data": {
-            "encrypted_data": {  # Encrypted Google Pay payment data.
-                "token_type": "PAYMENT_GATEWAY",  # The type of the token.
-                "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"  # Token generated for the wallet.
-            }
-        }
+  "google_pay": {
+    "type": "CARD",
+    "description": "Visa 1111",
+    "info": {
+      "card_network": "VISA",
+      "card_details": "1111"
+    },
+    "tokenization_data": {
+      "encrypted_data": {
+        "token_type": "PAYMENT_GATEWAY",
+        "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
+      }
     }
+  }
 }
 ```
 
@@ -304,21 +331,21 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "apple_pay": {  # Apple Pay.
-        "payment_data": {
-            "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"  # Encrypted Apple Pay payment data as string.
-        },
-        "payment_method": {
-            "display_name": "Visa 1111",
-            "network": "Visa",
-            "type": "debit"
-        },
-        "transaction_identifier": "probe_txn_id"  # Transaction identifier.
-    }
+  "apple_pay": {
+    "payment_data": {
+      "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
+    },
+    "payment_method": {
+      "display_name": "Visa 1111",
+      "network": "Visa",
+      "type": "debit"
+    },
+    "transaction_identifier": "probe_txn_id"
+  }
 }
 ```
 
-**Examples:** [Python](../../examples/worldpay/worldpay.py#L292) · [TypeScript](../../examples/worldpay/worldpay.ts#L275) · [Kotlin](../../examples/worldpay/worldpay.kt#L204) · [Rust](../../examples/worldpay/worldpay.rs#L269)
+**Examples:** [Python](../../examples/worldpay/worldpay.py) · [TypeScript](../../examples/worldpay/worldpay.ts#L266) · [Kotlin](../../examples/worldpay/worldpay.kt#L212) · [Rust](../../examples/worldpay/worldpay.rs)
 
 #### PaymentService.Capture
 
@@ -329,7 +356,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/worldpay/worldpay.py#L301) · [TypeScript](../../examples/worldpay/worldpay.ts#L284) · [Kotlin](../../examples/worldpay/worldpay.kt#L216) · [Rust](../../examples/worldpay/worldpay.rs#L281)
+**Examples:** [Python](../../examples/worldpay/worldpay.py) · [TypeScript](../../examples/worldpay/worldpay.ts#L275) · [Kotlin](../../examples/worldpay/worldpay.kt#L224) · [Rust](../../examples/worldpay/worldpay.rs)
 
 #### PaymentService.Get
 
@@ -340,18 +367,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/worldpay/worldpay.py#L310) · [TypeScript](../../examples/worldpay/worldpay.ts#L293) · [Kotlin](../../examples/worldpay/worldpay.kt#L226) · [Rust](../../examples/worldpay/worldpay.rs#L288)
-
-#### PaymentService.IncrementalAuthorization
-
-Increase the authorized amount for an existing payment. Enables you to capture additional funds when the transaction amount changes after initial authorization.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceIncrementalAuthorizationRequest` |
-| **Response** | `PaymentServiceIncrementalAuthorizationResponse` |
-
-**Examples:** [Python](../../examples/worldpay/worldpay.py#L319) · [TypeScript](../../examples/worldpay/worldpay.ts#L302) · [Kotlin](../../examples/worldpay/worldpay.kt#L234) · [Rust](../../examples/worldpay/worldpay.rs#L295)
+**Examples:** [Python](../../examples/worldpay/worldpay.py) · [TypeScript](../../examples/worldpay/worldpay.ts#L284) · [Kotlin](../../examples/worldpay/worldpay.kt#L234) · [Rust](../../examples/worldpay/worldpay.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -362,7 +378,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/worldpay/worldpay.py#L328) · [TypeScript](../../examples/worldpay/worldpay.ts#L311) · [Kotlin](../../examples/worldpay/worldpay.kt#L250) · [Rust](../../examples/worldpay/worldpay.rs#L302)
+**Examples:** [Python](../../examples/worldpay/worldpay.py) · [TypeScript](../../examples/worldpay/worldpay.ts#L293) · [Kotlin](../../examples/worldpay/worldpay.kt#L242) · [Rust](../../examples/worldpay/worldpay.rs)
 
 #### PaymentService.Refund
 
@@ -373,7 +389,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/worldpay/worldpay.py#L346) · [TypeScript](../../examples/worldpay/worldpay.ts#L329) · [Kotlin](../../examples/worldpay/worldpay.kt#L309) · [Rust](../../examples/worldpay/worldpay.rs#L316)
+**Examples:** [Python](../../examples/worldpay/worldpay.py) · [TypeScript](../../examples/worldpay/worldpay.ts#L311) · [Kotlin](../../examples/worldpay/worldpay.kt#L301) · [Rust](../../examples/worldpay/worldpay.rs)
 
 #### PaymentService.Void
 
@@ -384,7 +400,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/worldpay/worldpay.py#L364) · [TypeScript](../../examples/worldpay/worldpay.ts) · [Kotlin](../../examples/worldpay/worldpay.kt#L331) · [Rust](../../examples/worldpay/worldpay.rs#L330)
+**Examples:** [Python](../../examples/worldpay/worldpay.py) · [TypeScript](../../examples/worldpay/worldpay.ts) · [Kotlin](../../examples/worldpay/worldpay.kt#L323) · [Rust](../../examples/worldpay/worldpay.rs)
 
 ### Refunds
 
@@ -397,7 +413,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/worldpay/worldpay.py#L355) · [TypeScript](../../examples/worldpay/worldpay.ts#L338) · [Kotlin](../../examples/worldpay/worldpay.kt#L319) · [Rust](../../examples/worldpay/worldpay.rs#L323)
+**Examples:** [Python](../../examples/worldpay/worldpay.py) · [TypeScript](../../examples/worldpay/worldpay.ts#L320) · [Kotlin](../../examples/worldpay/worldpay.kt#L311) · [Rust](../../examples/worldpay/worldpay.rs)
 
 ### Mandates
 
@@ -410,4 +426,4 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/worldpay/worldpay.py#L337) · [TypeScript](../../examples/worldpay/worldpay.ts#L320) · [Kotlin](../../examples/worldpay/worldpay.kt#L278) · [Rust](../../examples/worldpay/worldpay.rs#L309)
+**Examples:** [Python](../../examples/worldpay/worldpay.py) · [TypeScript](../../examples/worldpay/worldpay.ts#L302) · [Kotlin](../../examples/worldpay/worldpay.kt#L270) · [Rust](../../examples/worldpay/worldpay.rs)

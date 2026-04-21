@@ -80,8 +80,8 @@
         "error": "This feature is not implemented: Selected payment method through Forte"
       },
       "Bacs": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: BACS bank debit is not supported by Forte. Only ACH (US) bank debits are supported."
+        "status": "not_supported",
+        "error": "BACS bank debit is not supported by Forte. Only ACH (US) bank debits are supported. is not supported by forte"
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
@@ -96,8 +96,8 @@
         "error": "This feature is not implemented: Selected payment method through Forte"
       },
       "Becs": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: BECS bank debit is not supported by Forte. Only ACH (US) bank debits are supported."
+        "status": "not_supported",
+        "error": "BECS bank debit is not supported by Forte. Only ACH (US) bank debits are supported. is not supported by forte"
       },
       "Bizum": {
         "status": "not_implemented",
@@ -394,16 +394,16 @@
         "error": "This feature is not implemented: Selected payment method through Forte"
       },
       "Sepa": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: SEPA bank debit is not supported by Forte. Only ACH (US) bank debits are supported."
+        "status": "not_supported",
+        "error": "SEPA bank debit is not supported by Forte. Only ACH (US) bank debits are supported. is not supported by forte"
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Forte"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: SEPA Guaranteed bank debit is not supported by Forte. Only ACH (US) bank debits are supported."
+        "status": "not_supported",
+        "error": "SEPA Guaranteed bank debit is not supported by Forte. Only ACH (US) bank debits are supported. is not supported by forte"
       },
       "SevenEleven": {
         "status": "not_implemented",
@@ -524,6 +524,11 @@
       }
     },
     "incremental_authorization": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "parse_event": {
       "default": {
         "status": "not_implemented"
       }

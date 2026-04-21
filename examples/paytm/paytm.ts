@@ -6,20 +6,26 @@
 // Run a scenario:  npx tsx paytm.ts checkout_autocapture
 
 import { PaymentClient, MerchantAuthenticationClient, types } from 'hyperswitch-prism';
-const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment, AuthenticationType, CaptureMethod, Currency } = types;
+const { Environment, AuthenticationType, CaptureMethod, Currency } = types;
+export const SUPPORTED_FLOWS = ["authorize", "create_server_session_authentication_token", "get"];
 
-const _defaultConfig: ConnectorConfig = {
+const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
+    connectorConfig: {
+        paytm: {
+            merchantId: { value: 'YOUR_MERCHANT_ID' },
+            merchantKey: { value: 'YOUR_MERCHANT_KEY' },
+            website: { value: 'YOUR_WEBSITE' },
+            clientId: { value: 'YOUR_CLIENT_ID' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
+    },
 };
-// Standalone credentials (field names depend on connector auth type):
-// _defaultConfig.connectorConfig = {
-//     paytm: { apiKey: { value: 'YOUR_API_KEY' } }
-// };
 
 
-function _buildAuthorizeRequest(captureMethod: CaptureMethod): PaymentServiceAuthorizeRequest {
+function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaymentServiceAuthorizeRequest {
     return {
         "merchantTransactionId": "probe_txn_001",  // Identification.
         "amount": {  // The amount for the payment.
@@ -42,16 +48,18 @@ function _buildAuthorizeRequest(captureMethod: CaptureMethod): PaymentServiceAut
     };
 }
 
-function _buildCreateServerSessionAuthenticationTokenRequest(): MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest {
+function _buildCreateServerSessionAuthenticationTokenRequest(): types.IMerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest {
     return {
-        "domainContext": {
-            "minorAmount": 1000,
-            "currency": "USD"
+        "payment": {  // PayoutSessionContext payout = 6; // future FrmSessionContext frm = 7; // future.
+            "amount": {
+                "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+                "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            }
         }
     };
 }
 
-function _buildGetRequest(connectorTransactionId: string): PaymentServiceGetRequest {
+function _buildGetRequest(connectorTransactionId: string): types.IPaymentServiceGetRequest {
     return {
         "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
         "connectorTransactionId": connectorTransactionId,
@@ -65,30 +73,30 @@ function _buildGetRequest(connectorTransactionId: string): PaymentServiceGetRequ
 
 // ANCHOR: scenario_functions
 // Flow: PaymentService.Authorize (UpiCollect)
-async function authorize(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceAuthorizeResponse> {
+async function authorize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
 
     const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest(CaptureMethod.AUTOMATIC));
 
-    return { status: authorizeResponse.status, transactionId: authorizeResponse.connectorTransactionId };
+    return authorizeResponse;
 }
 
 // Flow: MerchantAuthenticationService.CreateServerSessionAuthenticationToken
-async function createServerSessionAuthenticationToken(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse> {
+async function createServerSessionAuthenticationToken(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const merchantAuthenticationClient = new MerchantAuthenticationClient(config);
 
     const createResponse = await merchantAuthenticationClient.createServerSessionAuthenticationToken(_buildCreateServerSessionAuthenticationTokenRequest());
 
-    return { status: createResponse.status };
+    return createResponse;
 }
 
 // Flow: PaymentService.Get
-async function get(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceGetResponse> {
+async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
 
     const getResponse = await paymentClient.get(_buildGetRequest('probe_connector_txn_001'));
 
-    return { status: getResponse.status };
+    return getResponse;
 }
 
 

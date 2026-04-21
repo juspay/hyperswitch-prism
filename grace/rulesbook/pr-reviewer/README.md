@@ -1,12 +1,12 @@
 # PR Reviewer
 
-Portable, repo-owned PR review prompts and rules for `connector-service`.
+Portable, repo-owned PR review prompts and rules for `hyperswitch-prism`.
 
 This folder is designed to work with Claude, OpenCode, Cursor, Codex, or any other coding tool that can read files, inspect diffs, and optionally spawn nested subagents. The policy lives here in plain Markdown and YAML so the review behavior stays consistent even when the execution tool changes.
 
 ## What This Does
 
-- Reviews any PR in `connector-service` with a strict, fail-closed posture.
+- Reviews any PR in `hyperswitch-prism` with a strict, fail-closed posture.
 - Uses a nested-subagent workflow: orchestrator -> classifier -> scenario reviewers -> aggregator.
 - Uses scenario-specific subagents as the default dispatch unit, so each PR is reviewed by the exact scenario agents it matches.
 - Classifies mixed PRs across connector, core, flow, proto, server, SDK, tests, docs, and CI/security scenarios.
@@ -45,7 +45,7 @@ Use the same entry prompt in any coding tool.
 ### Full review by PR URL
 
 ```text
-Review PR https://github.com/juspay/connector-service/pull/123.
+Review PR https://github.com/juspay/hyperswitch-prism/pull/123.
 Read grace/rulesbook/pr-reviewer/workflows/full-pr-review.md and follow it exactly.
 Use nested subagents if the tool supports them; otherwise emulate the same phases serially.
 ```
@@ -53,7 +53,7 @@ Use nested subagents if the tool supports them; otherwise emulate the same phase
 ### Full review by PR number
 
 ```text
-Review PR #123 in connector-service.
+Review PR #123 in hyperswitch-prism.
 Read grace/rulesbook/pr-reviewer/workflows/full-pr-review.md and follow it exactly.
 Use nested subagents if the tool supports them; otherwise emulate the same phases serially.
 ```
@@ -61,7 +61,7 @@ Use nested subagents if the tool supports them; otherwise emulate the same phase
 ### Incremental review after updates
 
 ```text
-Re-review PR #123 in connector-service after the latest commits.
+Re-review PR #123 in hyperswitch-prism after the latest commits.
 Read grace/rulesbook/pr-reviewer/workflows/incremental-review.md and follow it exactly.
 Use nested subagents if the tool supports them; otherwise emulate the same phases serially.
 ```
@@ -69,7 +69,7 @@ Use nested subagents if the tool supports them; otherwise emulate the same phase
 ### Review a PR raised by `10xGRACE`
 
 ```text
-Review PR #123 in connector-service.
+Review PR #123 in hyperswitch-prism.
 This PR was raised by 10xGRACE / GRACE automation.
 Read grace/rulesbook/pr-reviewer/workflows/grace-pr-review.md and follow it exactly.
 Use nested subagents if the tool supports them; otherwise emulate the same phases serially.
