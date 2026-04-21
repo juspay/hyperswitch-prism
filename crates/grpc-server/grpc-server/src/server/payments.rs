@@ -1046,12 +1046,8 @@ impl PaymentService for Payments {
                         shadow_mode: metadata_payload.shadow_mode,
                     };
 
-                    let consume_or_trigger_flow = match payload.handle_response {
-                        Some(resource_object) => {
-                            common_enums::CallConnectorAction::HandleResponse(resource_object)
-                        }
-                        None => common_enums::CallConnectorAction::Trigger,
-                    };
+                    // handle_response field removed from proto (field 5 reserved)
+                    let consume_or_trigger_flow = common_enums::CallConnectorAction::Trigger;
 
                     let response_result = Box::pin(
                         external_services::service::execute_connector_processing_step(
