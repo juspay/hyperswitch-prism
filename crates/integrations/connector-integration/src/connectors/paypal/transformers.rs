@@ -136,19 +136,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
-        let shipping_cost = item.router_data.request.shipping_cost.ok_or(
-            IntegrationError::MissingRequiredField {
-                field_name: "shipping_cost",
-                context: Default::default(),
-            },
-        )?;
-        let shipping_value = item
-            .connector
-            .amount_converter
-            .convert(shipping_cost, item.router_data.request.currency)
-            .change_context(IntegrationError::AmountConversionFailed {
-                context: Default::default(),
-            })?;
+        let shipping = item
+            .router_data
+            .request
+            .shipping_cost
+            .map(|cost| {
+                item.connector
+                    .amount_converter
+                    .convert(cost, item.router_data.request.currency)
+                    .change_context(IntegrationError::AmountConversionFailed {
+                        context: Default::default(),
+                    })
+                    .map(|shipping_value| OrderAmount {
+                        currency_code: item.router_data.request.currency,
+                        value: shipping_value,
+                    })
+            })
+            .transpose()?;
         Ok(Self {
             currency_code: item.router_data.request.currency,
             value: value.clone(),
@@ -158,10 +162,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     value,
                 },
                 tax_total: None,
-                shipping: Some(OrderAmount {
-                    currency_code: item.router_data.request.currency,
-                    value: shipping_value,
-                }),
+                shipping,
             },
         })
     }
