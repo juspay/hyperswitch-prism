@@ -9,7 +9,7 @@ use domain_types::{
         PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{
         GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, WalletData,
     },
@@ -33,6 +33,10 @@ const TRUSTPAYMENTS_AUTHMETHOD_INCREMENTAL: &str = "INCREMENTAL";
 // can be processed against it.
 // Reference: https://help.trustpayments.com/hc/en-us/articles/4403195376273-Processing-pre-authorisations
 const TRUSTPAYMENTS_AUTHMETHOD_PRE: &str = "PRE";
+// Trust Payments signals success on an individual response item with errorcode "0".
+const TRUSTPAYMENTS_SUCCESS_CODE: &str = "0";
+// Canonical docs URL for the incremental authorisation flow; reused in error contexts.
+const TRUSTPAYMENTS_INCREMENTAL_AUTH_DOC_URL: &str = "https://docs.trustpayments.com/document/tru-connect/knowledge-base/authorisations/auth-method/incremental-authorisations-api/";
 
 // ===== ENUMS =====
 #[derive(Debug, Serialize, Clone)]
@@ -1384,7 +1388,13 @@ pub struct TrustpaymentsIncrementalAuthRequestItem {
 pub struct TrustpaymentsIncrementalAuthResponse {
     pub requestreference: String,
     pub version: String,
-    // Trust Payments API inconsistently uses "response" and "responses"
+    // The incremental-auth endpoint observed in testing returns `responses` (plural),
+    // matching the AUTH/PSYNC JSON responses in this connector. The `response` alias
+    // is retained for parity with `TrustpaymentsAuthorizeResponse` because Trust
+    // Payments has historically varied the key across endpoints and SDK versions
+    // (compare PSYNC at line ~538 which uses the reverse primary/alias pair); removing
+    // it here would make the incremental-auth deserializer the only one in this file
+    // that is strict about the key name.
     #[serde(alias = "response")]
     pub responses: Vec<TrustpaymentsIncrementalAuthResponseItem>,
 }
@@ -1442,7 +1452,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .connector_transaction_id
             .get_connector_transaction_id()
             .map_err(|_| IntegrationError::MissingConnectorTransactionID {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Ensure the original PRE-authorisation payment's connector transaction \
+                         reference is propagated to the IncrementalAuthorization request."
+                            .to_string(),
+                    ),
+                    doc_url: Some(TRUSTPAYMENTS_INCREMENTAL_AUTH_DOC_URL.to_string()),
+                    additional_context: Some(
+                        "Trust Payments requires parenttransactionreference (sourced from the \
+                         parent payment's connector_transaction_id) to process an INCREMENTAL \
+                         authorisation."
+                            .to_string(),
+                    ),
+                },
             })?;
 
         // Convert minor amount to the string minor unit Trust Payments expects
@@ -1454,7 +1477,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 router_data.request.currency,
             )
             .map_err(|_| IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Verify the requested minor_amount and currency are supported by Trust \
+                         Payments' StringMinorUnit converter."
+                            .to_string(),
+                    ),
+                    doc_url: Some(TRUSTPAYMENTS_INCREMENTAL_AUTH_DOC_URL.to_string()),
+                    additional_context: Some(
+                        "Failed to convert minor_amount to StringMinorUnit for the baseamount \
+                         field on the INCREMENTAL auth request."
+                            .to_string(),
+                    ),
+                },
             })?;
 
         let request_item = TrustpaymentsIncrementalAuthRequestItem {
@@ -1501,19 +1536,21 @@ impl TryFrom<ResponseRouterData<TrustpaymentsIncrementalAuthResponse, Self>>
         )?;
 
         // errorcode "0" indicates success in Trust Payments
-        let authorization_status = if response.errorcode == "0" {
+        let authorization_status = if response.errorcode == TRUSTPAYMENTS_SUCCESS_CODE {
             AuthorizationStatus::Success
         } else {
             AuthorizationStatus::Failure
         };
 
-        let connector_authorization_id = response
-            .transactionreference
-            .clone()
-            .or_else(|| Some(item.response.requestreference.clone()));
+        // Trust Payments guarantees `transactionreference` on a successful AUTH response.
+        // Ref: https://docs.trustpayments.com/document/tru-connect/knowledge-base/authorisations/auth-method/incremental-authorisations-api/
+        // `requestreference` is a request-level correlation id (e.g. "W60-r25A8x6n") and
+        // must NOT be used here — downstream Capture/Sync lookups use this id to find the
+        // authorisation on Trust Payments' side and would break on a request id.
+        let connector_authorization_id = response.transactionreference.clone();
 
         // On non-"0" errorcode, surface as error response while keeping status set
-        if response.errorcode != "0" {
+        if response.errorcode != TRUSTPAYMENTS_SUCCESS_CODE {
             return Ok(Self {
                 response: Err(domain_types::router_data::ErrorResponse {
                     code: response.errorcode.clone(),
