@@ -264,8 +264,8 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Indonesian | ⚠ |
 | ACH | x |
 | SEPA | x |
-| BACS | ⚠ |
-| BECS | ⚠ |
+| BACS | x |
+| BECS | x |
 | SEPA Guaranteed | x |
 | Crypto | x |
 | Reward | ⚠ |

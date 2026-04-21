@@ -678,9 +678,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Extract card data from payment method
         let card_data = match &item.request.payment_method_data {
             PaymentMethodData::Card(card) => Ok(card),
-            _ => Err(IntegrationError::not_implemented(
-                "Only card payment method is supported for tokenization".to_string(),
-            )),
+            _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "Only card payment method is supported for tokenization".to_string(),
+                connector: "Mollie",
+                context: Default::default(),
+            })),
         }?;
 
         // Get profile token from auth

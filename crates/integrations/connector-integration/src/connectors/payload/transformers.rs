@@ -224,10 +224,14 @@ fn build_payload_bank_account_request_data(
                 | Some(enums::BankType::Current)
                 | Some(enums::BankType::Bond)
                 | Some(enums::BankType::SubscriptionShare) => {
-                    Err(IntegrationError::not_implemented(format!(
-                        "Bank type {:?} is not supported for ACH bank debit",
-                        bank_type
-                    )))?
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: format!(
+                            "Bank type {:?} is not supported for ACH bank debit",
+                            bank_type
+                        ),
+                        connector: "Payload",
+                        context: Default::default(),
+                    }))?
                 }
             };
 

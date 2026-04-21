@@ -920,54 +920,57 @@ impl<T: PaymentMethodDataTypes>
         >,
     ) -> Result<Self, Self::Error> {
         // Determine card: use raw card data if available, otherwise use stored card token
-        let (card, customer_id) =
-            if let PaymentMethodData::Card(card_data) = &item.request.payment_method_data {
-                // Approach 3: Raw card details for MIT (no customer needed)
-                let cardholder_name = item
-                    .resource_common_data
-                    .get_optional_billing_full_name()
-                    .unwrap_or_else(|| Secret::new("".to_string()));
+        let (card, customer_id) = if let PaymentMethodData::Card(card_data) =
+            &item.request.payment_method_data
+        {
+            // Approach 3: Raw card details for MIT (no customer needed)
+            let cardholder_name = item
+                .resource_common_data
+                .get_optional_billing_full_name()
+                .unwrap_or_else(|| Secret::new("".to_string()));
 
-                (
-                    Shift4RepeatPaymentCard::RawCard(Shift4CardData {
-                        number: card_data.card_number.clone(),
-                        exp_month: card_data.card_exp_month.clone(),
-                        exp_year: card_data.card_exp_year.clone(),
-                        cardholder_name,
-                    }),
-                    None, // No customer needed for raw card
-                )
-            } else {
-                // Stored card token approach: extract from mandate_reference
-                let token = match &item.request.mandate_reference {
-                    MandateReferenceId::ConnectorMandateId(connector_mandate_ref) => {
-                        connector_mandate_ref
-                            .get_connector_mandate_id()
-                            .ok_or_else(|| {
-                                error_stack::report!(IntegrationError::MissingRequiredField {
-                                    field_name: "connector_mandate_id (card token)",
-                                    context: Default::default(),
-                                })
-                            })?
-                    }
-                    MandateReferenceId::NetworkMandateId(_) => {
-                        return Err(error_stack::report!(IntegrationError::NotImplemented(
-                            "NetworkMandateId is not supported for Shift4 MIT".to_string(),
-                            Default::default(),
-                        )));
-                    }
-                    MandateReferenceId::NetworkTokenWithNTI(_) => {
-                        return Err(error_stack::report!(IntegrationError::NotImplemented(
-                            "NetworkTokenWithNTI is not supported for Shift4 MIT".to_string(),
-                            Default::default(),
-                        )));
-                    }
-                };
-                (
-                    Shift4RepeatPaymentCard::Token(token),
-                    item.resource_common_data.connector_customer.clone(),
-                )
+            (
+                Shift4RepeatPaymentCard::RawCard(Shift4CardData {
+                    number: card_data.card_number.clone(),
+                    exp_month: card_data.card_exp_month.clone(),
+                    exp_year: card_data.card_exp_year.clone(),
+                    cardholder_name,
+                }),
+                None, // No customer needed for raw card
+            )
+        } else {
+            // Stored card token approach: extract from mandate_reference
+            let token = match &item.request.mandate_reference {
+                MandateReferenceId::ConnectorMandateId(connector_mandate_ref) => {
+                    connector_mandate_ref
+                        .get_connector_mandate_id()
+                        .ok_or_else(|| {
+                            error_stack::report!(IntegrationError::MissingRequiredField {
+                                field_name: "connector_mandate_id (card token)",
+                                context: Default::default(),
+                            })
+                        })?
+                }
+                MandateReferenceId::NetworkMandateId(_) => {
+                    return Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: "NetworkMandateId is not supported for Shift4 MIT".to_string(),
+                        connector: "Shift4",
+                        context: Default::default(),
+                    }));
+                }
+                MandateReferenceId::NetworkTokenWithNTI(_) => {
+                    return Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: "NetworkTokenWithNTI is not supported for Shift4 MIT".to_string(),
+                        connector: "Shift4",
+                        context: Default::default(),
+                    }));
+                }
             };
+            (
+                Shift4RepeatPaymentCard::Token(token),
+                item.resource_common_data.connector_customer.clone(),
+            )
+        };
 
         // Determine Shift4 transaction type based on MIT category
         let transaction_type = match item.request.mit_category {

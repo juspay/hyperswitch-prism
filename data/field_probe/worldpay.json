@@ -81,8 +81,8 @@
         "error": "Stuck on field: Apple pay encrypted data — Missing required field: Apple pay encrypted data"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through worldpay"
+        "status": "not_supported",
+        "error": "Selected payment method through worldpay is not supported by Worldpay"
       },
       "Bacs": {
         "status": "not_implemented",
@@ -266,8 +266,8 @@
         "error": "Stuck on field: gpay wallet_token — Missing required field: gpay wallet_token"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through worldpay"
+        "status": "not_supported",
+        "error": "Selected payment method through worldpay is not supported by Worldpay"
       },
       "Ideal": {
         "status": "not_implemented",

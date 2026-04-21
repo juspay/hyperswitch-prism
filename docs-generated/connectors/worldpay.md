@@ -201,10 +201,10 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Bancontact | ⚠ |
 | Apple Pay | ✓ |
 | Apple Pay Dec | ? |
-| Apple Pay SDK | ⚠ |
+| Apple Pay SDK | x |
 | Google Pay | ✓ |
 | Google Pay Dec | ? |
-| Google Pay SDK | ⚠ |
+| Google Pay SDK | x |
 | PayPal SDK | ⚠ |
 | Amazon Pay | ⚠ |
 | Cash App | ⚠ |
