@@ -378,13 +378,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 })
             }
             PaymentMethodData::BankRedirect(_) => {
-                Err(Report::new(IntegrationError::not_implemented(
-                    "Only Interac bank redirect is supported for Gigadat".to_string(),
-                )))
+                Err(Report::new(IntegrationError::NotSupported {
+                    message: "Only Interac bank redirect is supported for Gigadat".to_string(),
+                    connector: "Gigadat",
+                    context: Default::default(),
+                }))
             }
-            _ => Err(Report::new(IntegrationError::not_implemented(
-                "Only Interac bank redirect is supported for Gigadat".to_string(),
-            ))),
+            _ => Err(Report::new(IntegrationError::NotSupported {
+                message: "Only Interac bank redirect is supported for Gigadat".to_string(),
+                connector: "Gigadat",
+                context: Default::default(),
+            })),
         }
     }
 }

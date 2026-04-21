@@ -10,6 +10,7 @@ use grpc_api_types::payments::{
     payment_method_service_server::PaymentMethodService, payment_service_server::PaymentService,
     recurring_payment_service_server::RecurringPaymentService, CustomerServiceCreateRequest,
     CustomerServiceCreateResponse, EventServiceHandleRequest, EventServiceHandleResponse,
+    EventServiceParseRequest, EventServiceParseResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
@@ -167,6 +168,20 @@ http_handler!(
 );
 http_handler!(
     transform,
+    EventServiceHandleRequest,
+    EventServiceHandleResponse,
+    handle_event,
+    event_service
+);
+http_handler!(
+    parse_event,
+    EventServiceParseRequest,
+    EventServiceParseResponse,
+    parse_event,
+    event_service
+);
+http_handler!(
+    handle_event,
     EventServiceHandleRequest,
     EventServiceHandleResponse,
     handle_event,

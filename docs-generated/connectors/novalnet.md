@@ -22,11 +22,15 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        novalnet=payment_pb2.NovalnetConfig(
+            product_activation_key=payment_methods_pb2.SecretString(value="YOUR_PRODUCT_ACTIVATION_KEY"),
+            payment_access_key=payment_methods_pb2.SecretString(value="YOUR_PAYMENT_ACCESS_KEY"),
+            tariff_id=payment_methods_pb2.SecretString(value="YOUR_TARIFF_ID"),
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     novalnet=payment_pb2.NovalnetConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,14 +42,19 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Novalnet',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
+const config = ConnectorConfig.create({
+    connector: Connector.NOVALNET,
+    environment: Environment.SANDBOX,
+    auth: {
+        novalnet: {
+            productActivationKey: { value: 'YOUR_PRODUCT_ACTIVATION_KEY' },
+            paymentAccessKey: { value: 'YOUR_PAYMENT_ACCESS_KEY' },
+            tariffId: { value: 'YOUR_TARIFF_ID' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
     },
 });
 ```
@@ -59,11 +68,16 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Novalnet")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setNovalnet(NovalnetConfig.newBuilder()
+                .setProductActivationKey(SecretString.newBuilder().setValue("YOUR_PRODUCT_ACTIVATION_KEY").build())
+                .setPaymentAccessKey(SecretString.newBuilder().setValue("YOUR_PAYMENT_ACCESS_KEY").build())
+                .setTariffId(SecretString.newBuilder().setValue("YOUR_TARIFF_ID").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
     )
     .build()
 ```
@@ -76,13 +90,22 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Novalnet".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Novalnet(NovalnetConfig {
+                product_activation_key: Some(hyperswitch_masking::Secret::new("YOUR_PRODUCT_ACTIVATION_KEY".to_string())),  // Authentication credential
+                payment_access_key: Some(hyperswitch_masking::Secret::new("YOUR_PAYMENT_ACCESS_KEY".to_string())),  // Authentication credential
+                tariff_id: Some(hyperswitch_masking::Secret::new("YOUR_TARIFF_ID".to_string())),  // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -108,7 +131,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L273) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L118) · [Rust](../../examples/novalnet/novalnet.rs#L260)
+**Examples:** [Python](../../examples/novalnet/novalnet.py#L237) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L123) · [Rust](../../examples/novalnet/novalnet.rs#L304)
 
 ### Card Payment (Authorize + Capture)
 
@@ -122,25 +145,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L292) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L134) · [Rust](../../examples/novalnet/novalnet.rs#L276)
+**Examples:** [Python](../../examples/novalnet/novalnet.py#L256) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L139) · [Rust](../../examples/novalnet/novalnet.rs#L320)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L317) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L156) · [Rust](../../examples/novalnet/novalnet.rs#L299)
+**Examples:** [Python](../../examples/novalnet/novalnet.py#L281) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L161) · [Rust](../../examples/novalnet/novalnet.rs#L343)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L342) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L178) · [Rust](../../examples/novalnet/novalnet.rs#L322)
+**Examples:** [Python](../../examples/novalnet/novalnet.py#L306) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L183) · [Rust](../../examples/novalnet/novalnet.rs#L366)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L364) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L197) · [Rust](../../examples/novalnet/novalnet.rs#L341)
+**Examples:** [Python](../../examples/novalnet/novalnet.py#L328) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L202) · [Rust](../../examples/novalnet/novalnet.rs#L385)
 
 ## API Reference
 
@@ -150,7 +173,7 @@ Retrieve current payment status from the connector.
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
-| [PaymentService.IncrementalAuthorization](#paymentserviceincrementalauthorization) | Payments | `PaymentServiceIncrementalAuthorizationRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 | [PaymentService.ProxySetupRecurring](#paymentserviceproxysetuprecurring) | Payments | `PaymentServiceProxySetupRecurringRequest` |
 | [RecurringPaymentService.Charge](#recurringpaymentservicecharge) | Mandates | `RecurringPaymentServiceChargeRequest` |
@@ -243,9 +266,9 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Indonesian | ⚠ |
 | ACH | ✓ |
 | SEPA | ✓ |
-| BACS | ⚠ |
-| BECS | ⚠ |
-| SEPA Guaranteed | ⚠ |
+| BACS | x |
+| BECS | x |
+| SEPA Guaranteed | x |
 | Crypto | x |
 | Reward | ⚠ |
 | Givex | x |
@@ -272,13 +295,13 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "card": {  # Generic card payment.
-        "card_number": {"value": "4111111111111111"},  # Card Identification.
-        "card_exp_month": {"value": "03"},
-        "card_exp_year": {"value": "2030"},
-        "card_cvc": {"value": "737"},
-        "card_holder_name": {"value": "John Doe"}  # Cardholder Information.
-    }
+  "card": {
+    "card_number": "4111111111111111",
+    "card_exp_month": "03",
+    "card_exp_year": "2030",
+    "card_cvc": "737",
+    "card_holder_name": "John Doe"
+  }
 }
 ```
 
@@ -286,20 +309,20 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "google_pay": {  # Google Pay.
-        "type": "CARD",  # Type of payment method.
-        "description": "Visa 1111",  # User-facing description of the payment method.
-        "info": {
-            "card_network": "VISA",  # Card network name.
-            "card_details": "1111"  # Card details (usually last 4 digits).
-        },
-        "tokenization_data": {
-            "encrypted_data": {  # Encrypted Google Pay payment data.
-                "token_type": "PAYMENT_GATEWAY",  # The type of the token.
-                "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"  # Token generated for the wallet.
-            }
-        }
+  "google_pay": {
+    "type": "CARD",
+    "description": "Visa 1111",
+    "info": {
+      "card_network": "VISA",
+      "card_details": "1111"
+    },
+    "tokenization_data": {
+      "encrypted_data": {
+        "token_type": "PAYMENT_GATEWAY",
+        "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
+      }
     }
+  }
 }
 ```
 
@@ -307,17 +330,17 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "apple_pay": {  # Apple Pay.
-        "payment_data": {
-            "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"  # Encrypted Apple Pay payment data as string.
-        },
-        "payment_method": {
-            "display_name": "Visa 1111",
-            "network": "Visa",
-            "type": "debit"
-        },
-        "transaction_identifier": "probe_txn_id"  # Transaction identifier.
-    }
+  "apple_pay": {
+    "payment_data": {
+      "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
+    },
+    "payment_method": {
+      "display_name": "Visa 1111",
+      "network": "Visa",
+      "type": "debit"
+    },
+    "transaction_identifier": "probe_txn_id"
+  }
 }
 ```
 
@@ -325,10 +348,10 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "sepa": {  # Sepa - Single Euro Payments Area direct debit.
-        "iban": {"value": "DE89370400440532013000"},  # International bank account number (iban) for SEPA.
-        "bank_account_holder_name": {"value": "John Doe"}  # Owner name for bank debit.
-    }
+  "sepa": {
+    "iban": "DE89370400440532013000",
+    "bank_account_holder_name": "John Doe"
+  }
 }
 ```
 
@@ -336,11 +359,11 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "ach": {  # Ach - Automated Clearing House.
-        "account_number": {"value": "000123456789"},  # Account number for ach bank debit payment.
-        "routing_number": {"value": "110000000"},  # Routing number for ach bank debit payment.
-        "bank_account_holder_name": {"value": "John Doe"}  # Bank account holder name.
-    }
+  "ach": {
+    "account_number": "000123456789",
+    "routing_number": "110000000",
+    "bank_account_holder_name": "John Doe"
+  }
 }
 ```
 
@@ -348,13 +371,13 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "paypal_redirect": {  # PayPal.
-        "email": {"value": "test@example.com"}  # PayPal's email address.
-    }
+  "paypal_redirect": {
+    "email": "test@example.com"
+  }
 }
 ```
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L386) · [TypeScript](../../examples/novalnet/novalnet.ts#L362) · [Kotlin](../../examples/novalnet/novalnet.kt#L215) · [Rust](../../examples/novalnet/novalnet.rs#L359)
+**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L372) · [Kotlin](../../examples/novalnet/novalnet.kt#L220) · [Rust](../../examples/novalnet/novalnet.rs)
 
 #### PaymentService.Capture
 
@@ -365,7 +388,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L395) · [TypeScript](../../examples/novalnet/novalnet.ts#L371) · [Kotlin](../../examples/novalnet/novalnet.kt#L227) · [Rust](../../examples/novalnet/novalnet.rs#L371)
+**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L381) · [Kotlin](../../examples/novalnet/novalnet.kt#L232) · [Rust](../../examples/novalnet/novalnet.rs)
 
 #### PaymentService.Get
 
@@ -376,18 +399,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L404) · [TypeScript](../../examples/novalnet/novalnet.ts#L380) · [Kotlin](../../examples/novalnet/novalnet.kt#L237) · [Rust](../../examples/novalnet/novalnet.rs#L378)
-
-#### PaymentService.IncrementalAuthorization
-
-Increase the authorized amount for an existing payment. Enables you to capture additional funds when the transaction amount changes after initial authorization.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceIncrementalAuthorizationRequest` |
-| **Response** | `PaymentServiceIncrementalAuthorizationResponse` |
-
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L422) · [TypeScript](../../examples/novalnet/novalnet.ts#L398) · [Kotlin](../../examples/novalnet/novalnet.kt#L255) · [Rust](../../examples/novalnet/novalnet.rs#L392)
+**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L390) · [Kotlin](../../examples/novalnet/novalnet.kt#L242) · [Rust](../../examples/novalnet/novalnet.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -398,7 +410,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L431) · [TypeScript](../../examples/novalnet/novalnet.ts#L407) · [Kotlin](../../examples/novalnet/novalnet.kt#L271) · [Rust](../../examples/novalnet/novalnet.rs#L399)
+**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L417) · [Kotlin](../../examples/novalnet/novalnet.kt#L281) · [Rust](../../examples/novalnet/novalnet.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -409,7 +421,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L440) · [TypeScript](../../examples/novalnet/novalnet.ts#L416) · [Kotlin](../../examples/novalnet/novalnet.kt#L304) · [Rust](../../examples/novalnet/novalnet.rs#L406)
+**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L426) · [Kotlin](../../examples/novalnet/novalnet.kt#L314) · [Rust](../../examples/novalnet/novalnet.rs)
 
 #### PaymentService.Refund
 
@@ -420,7 +432,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L458) · [TypeScript](../../examples/novalnet/novalnet.ts#L434) · [Kotlin](../../examples/novalnet/novalnet.kt#L374) · [Rust](../../examples/novalnet/novalnet.rs#L420)
+**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L444) · [Kotlin](../../examples/novalnet/novalnet.kt#L384) · [Rust](../../examples/novalnet/novalnet.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -431,7 +443,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L476) · [TypeScript](../../examples/novalnet/novalnet.ts#L452) · [Kotlin](../../examples/novalnet/novalnet.kt#L396) · [Rust](../../examples/novalnet/novalnet.rs#L434)
+**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L462) · [Kotlin](../../examples/novalnet/novalnet.kt#L406) · [Rust](../../examples/novalnet/novalnet.rs)
 
 #### PaymentService.Void
 
@@ -442,7 +454,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L485) · [TypeScript](../../examples/novalnet/novalnet.ts) · [Kotlin](../../examples/novalnet/novalnet.kt#L440) · [Rust](../../examples/novalnet/novalnet.rs#L444)
+**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts) · [Kotlin](../../examples/novalnet/novalnet.kt#L450) · [Rust](../../examples/novalnet/novalnet.rs)
 
 ### Refunds
 
@@ -455,7 +467,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L467) · [TypeScript](../../examples/novalnet/novalnet.ts#L443) · [Kotlin](../../examples/novalnet/novalnet.kt#L384) · [Rust](../../examples/novalnet/novalnet.rs#L427)
+**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L453) · [Kotlin](../../examples/novalnet/novalnet.kt#L394) · [Rust](../../examples/novalnet/novalnet.rs)
 
 ### Mandates
 
@@ -468,4 +480,4 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L449) · [TypeScript](../../examples/novalnet/novalnet.ts#L425) · [Kotlin](../../examples/novalnet/novalnet.kt#L341) · [Rust](../../examples/novalnet/novalnet.rs#L413)
+**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L435) · [Kotlin](../../examples/novalnet/novalnet.kt#L351) · [Rust](../../examples/novalnet/novalnet.rs)

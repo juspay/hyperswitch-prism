@@ -10,7 +10,7 @@ use domain_types::{
     // Flow types for all operations
     connector_flow::{
         Authorize, Capture, Void, Refund, PSync, RSync,
-        CreateOrder, CreateSessionToken, SetupMandate, 
+        CreateOrder, ServerSessionAuthenticationToken, SetupMandate, 
         DefendDispute, SubmitEvidence, Accept
     },
     
@@ -25,7 +25,7 @@ use domain_types::{
         
         // Advanced flow types
         PaymentCreateOrderData, PaymentCreateOrderResponse,
-        SessionTokenRequestData, SessionTokenResponseData,
+        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
         SetupMandateRequestData,
         
         // Dispute types
@@ -147,9 +147,9 @@ type CreateOrderRouterData = RouterDataV2<
 >;
 
 type SessionTokenRouterData = RouterDataV2<
-    CreateSessionToken,
-    SessionTokenRequestData,
-    SessionTokenResponseData
+    ServerSessionAuthenticationToken,
+    ServerSessionAuthenticationTokenRequestData,
+    ServerSessionAuthenticationTokenResponseData
 >;
 
 type SetupMandateRouterData = RouterDataV2<

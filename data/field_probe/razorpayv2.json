@@ -919,7 +919,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "eft": {
+            "eft_bank_redirect": {
               "provider": "ozow"
             }
           },
@@ -2810,6 +2810,11 @@
       }
     },
     "incremental_authorization": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "parse_event": {
       "default": {
         "status": "not_implemented"
       }

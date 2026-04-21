@@ -159,8 +159,15 @@ class GrpcEventClient:
         self._ffi    = ffi
         self._config = config
 
+    def parse_event(self, req: payment_pb2.EventServiceParseRequest) -> payment_pb2.EventServiceParseResponse:
+        """EventService.ParseEvent — Parse a raw webhook payload without credentials. Returns resource reference and event type — sufficient to resolve secrets or early-exit."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "event/parse_event",
+            req, payment_pb2.EventServiceParseResponse,
+        )
     def handle_event(self, req: payment_pb2.EventServiceHandleRequest) -> payment_pb2.EventServiceHandleResponse:
-        """EventService.HandleEvent — Process webhook notifications from connectors. Translates connector events into standardized responses for asynchronous payment state updates."""
+        """EventService.HandleEvent — Verify webhook source and return a unified typed response. Response mirrors PaymentService.Get / RefundService.Get / DisputeService.Get."""
         return _call_grpc(
             self._ffi, self._config,
             "event/handle_event",
@@ -472,7 +479,7 @@ class GrpcClient:
         ))
         res = client.customer.create(...)
         res = client.dispute.submit_evidence(...)
-        res = client.event.handle_event(...)
+        res = client.event.parse_event(...)
         res = client.merchant_authentication.create_server_authentication_token(...)
     """
 
