@@ -360,6 +360,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 // Trust Payments has no native encrypted Apple Pay endpoint; follow
                 // the decrypted-passthrough pattern and submit the decrypted DPAN
                 // as a wallet-sourced card transaction (walletsource=APPLEPAY).
+                const WALLET_SOURCE: &str = "APPLEPAY";
+                // ECI "07" = Apple Pay non-3DS (no 3DS challenge, liability shift via TAVV).
+                const DEFAULT_ECI: &str = "07";
+                // tokenisedpayment "1" = Trust Payments flag indicating a tokenised/wallet payment.
+                const TOKENISED_PAYMENT_ENABLED: &str = "1";
+
                 let apple_pay_decrypted_data = apple_pay_data
                     .payment_data
                     .get_decrypted_apple_pay_payment_data_optional()
@@ -374,11 +380,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         )
                     })?;
 
-                let month = apple_pay_decrypted_data.get_expiry_month();
-                let four_digit_year = apple_pay_decrypted_data.get_four_digit_expiry_year();
                 // Trust Payments expects MM/YYYY format
-                let expirydate =
-                    Secret::new(format!("{}/{}", month.peek(), four_digit_year.peek()));
+                let expirydate = apple_pay_decrypted_data.get_expiry_date_as_mmyyyy("/");
 
                 let pan = Secret::new(
                     apple_pay_decrypted_data
@@ -402,20 +405,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         None
                     },
                     // For non-cryptogram flows, Trust Payments requires an ECI value;
-                    // default to "07" (Apple Pay non-3DS) if absent.
-                    eci: Some(eci.unwrap_or_else(|| "07".to_string())),
+                    // default to DEFAULT_ECI (Apple Pay non-3DS) if absent.
+                    eci: Some(eci.unwrap_or_else(|| DEFAULT_ECI.to_string())),
                     tokenisedpayment: if is_cryptogram_3ds {
-                        Some("1".to_string())
+                        Some(TOKENISED_PAYMENT_ENABLED.to_string())
                     } else {
                         None
                     },
                     tokentype: if is_cryptogram_3ds {
-                        Some("APPLEPAY".to_string())
+                        Some(WALLET_SOURCE.to_string())
                     } else {
                         None
                     },
                     walletdisplayname: apple_pay_data.payment_method.display_name.clone(),
-                    walletsource: "APPLEPAY".to_string(),
+                    walletsource: WALLET_SOURCE.to_string(),
                 }))
             }
             _ => {
