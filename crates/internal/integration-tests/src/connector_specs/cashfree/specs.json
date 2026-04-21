@@ -8,5 +8,6 @@
     "void",
     "refund",
     "refund_sync"
-  ]
+  ],
+  "sync_poll_until_terminal_seconds": 60
 }

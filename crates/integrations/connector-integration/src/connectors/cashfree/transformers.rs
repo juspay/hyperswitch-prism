@@ -337,15 +337,6 @@ fn get_cashfree_payment_method_data<
                 }
             }
         }
-        PaymentMethodData::Card(_) => Err(IntegrationError::not_implemented(
-            "Card payments are supported by Cashfree, but are not yet implemented for this connector",
-        )),
-        PaymentMethodData::PayLater(_) => Err(IntegrationError::not_implemented(
-            "Pay later and cardless EMI payments are supported by Cashfree, but are not yet implemented for this connector",
-        )),
-        PaymentMethodData::BankTransfer(_) => Err(IntegrationError::not_implemented(
-            "Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector",
-        )),
         PaymentMethodData::Wallet(wallet_data) => {
             // Map wallet variants to Cashfree APP type (channel: "link", provider: <name>)
             let provider = match wallet_data {
@@ -358,15 +349,32 @@ fn get_cashfree_payment_method_data<
                 WalletData::CashfreeRedirect(_) => "cashfreepay",
                 WalletData::PayURedirect(_) => "payu",
                 WalletData::EaseBuzzRedirect(_) => "easebuzz",
-                _ => {
+                // Wallets Cashfree's docs support but we haven't wired yet.
+                WalletData::ApplePay(_)
+                | WalletData::ApplePayRedirect(_)
+                | WalletData::ApplePayThirdPartySdk(_)
+                | WalletData::GooglePay(_)
+                | WalletData::PaypalSdk(_)
+                | WalletData::SamsungPay(_) => {
                     return Err(IntegrationError::not_implemented_with_context(
-                        "This wallet type is not supported for Cashfree",
+                        format!("Wallet {wallet_data:?} not implemented for Cashfree"),
                         IntegrationErrorContext {
-                            suggested_action: Some("Use a supported wallet: PhonePe, AmazonPay, GooglePay, LazyPay, BillDesk, Cashfree, PayU, or EaseBuzz".to_string()),
+                            suggested_action: Some("This Cashfree-supported wallet is not yet wired in the connector. Add handling in get_cashfree_payment_method_data.".to_string()),
                             doc_url: Some("https://docs.cashfree.com/docs/payment-method".to_string()),
                             additional_context: None,
                         },
-                    ))
+                    ));
+                }
+                other => {
+                    return Err(IntegrationError::NotSupported {
+                        message: format!("Wallet {other:?}"),
+                        connector: "Cashfree",
+                        context: IntegrationErrorContext {
+                            suggested_action: Some("Use a Cashfree-supported wallet: PhonePe, AmazonPay, GooglePay, PayPal, LazyPay, BillDesk, Cashfree, PayU, or EaseBuzz".to_string()),
+                            doc_url: Some("https://docs.cashfree.com/docs/payment-method".to_string()),
+                            additional_context: Some("Cashfree is an Indian payment gateway and does not offer regional wallets outside its partner list.".to_string()),
+                        },
+                    });
                 }
             };
             let customer_phone = phone.unwrap_or_else(|| Secret::new("".to_string()));
@@ -403,13 +411,23 @@ fn get_cashfree_payment_method_data<
                 cardless_emi: None,
             })
         }
-        _ => Err(IntegrationError::NotSupported {
-            message: "Payment method not supported for Cashfree V3".to_string(),
+        PaymentMethodData::Card(_)
+        | PaymentMethodData::CardRedirect(_)
+        | PaymentMethodData::PayLater(_) => Err(IntegrationError::not_implemented_with_context(
+            format!("Payment Method {payment_method_data:?} not implemented for Cashfree"),
+            IntegrationErrorContext {
+                suggested_action: Some("This Cashfree-supported method is not yet wired in the connector. Add handling in get_cashfree_payment_method_data.".to_string()),
+                doc_url: Some("https://docs.cashfree.com/docs/payment-method".to_string()),
+                additional_context: None,
+            },
+        )),
+        other => Err(IntegrationError::NotSupported {
+            message: format!("Payment Method {other:?}"),
             connector: "Cashfree",
             context: IntegrationErrorContext {
-                suggested_action: Some("Use a supported payment method: UPI (collect/intent), Wallet (PhonePe, AmazonPay, GooglePay, etc.), or Netbanking".to_string()),
+                suggested_action: Some("Use a Cashfree-supported method: UPI (collect/intent/qr), Netbanking, or Wallet (PhonePe, AmazonPay, GooglePay, LazyPay, BillDesk, Cashfree, PayU, EaseBuzz)".to_string()),
                 doc_url: Some("https://docs.cashfree.com/docs/payment-method".to_string()),
-                additional_context: Some("Cashfree V3 supports UPI, Wallet redirect, and Netbanking payment methods".to_string()),
+                additional_context: Some("Cashfree is an Indian payment gateway and does not offer international bank transfers (ACH/SEPA/BACS), EU bank redirects, crypto, or region-specific wallets outside India.".to_string()),
             },
         }),
     }
@@ -641,13 +659,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        // Extract payment_session_id: prefer session_token (set by CreateOrder
-        // response passed via gRPC), then reference_id, then merchant_order_id
+        let phone = item
+            .resource_common_data
+            .address
+            .get_payment_method_billing()
+            .and_then(|billing| billing.phone.as_ref())
+            .and_then(|phone| phone.number.as_ref())
+            .map(|number| Secret::new(number.peek().to_string()));
+
+        let payment_method =
+            get_cashfree_payment_method_data(&item.request.payment_method_data, phone)?;
+
         let payment_session_id = item
             .resource_common_data
             .session_token
             .clone()
-            .or_else(|| item.resource_common_data.reference_id.clone())
+            .or_else(|| item.resource_common_data.connector_order_id.clone())
             .or_else(|| item.request.merchant_order_id.clone())
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "payment_session_id",
@@ -657,19 +684,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     additional_context: Some("Cashfree V3 requires a payment_session_id from the CreateOrder response to authorize a payment".to_string()),
                 },
             })?;
-
-        // Extract customer phone from billing address (needed for wallet APP type)
-        let phone = item
-            .resource_common_data
-            .address
-            .get_payment_method_billing()
-            .and_then(|billing| billing.phone.as_ref())
-            .and_then(|phone| phone.number.as_ref())
-            .map(|number| Secret::new(number.peek().to_string()));
-
-        // Get Cashfree payment method data
-        let payment_method =
-            get_cashfree_payment_method_data(&item.request.payment_method_data, phone)?;
 
         Ok(Self {
             payment_session_id,
@@ -1168,20 +1182,40 @@ impl TryFrom<ResponseRouterData<CashfreeSyncResponse, Self>>
         let payments = item.response;
         let router_data = item.router_data;
 
-        // Pick the best payment record: SUCCESS first, then PENDING, then any
-        let payment = payments
+        let Some(payment) = payments
             .iter()
             .find(|p| p.payment_status == "SUCCESS")
             .or_else(|| payments.iter().find(|p| p.payment_status == "PENDING"))
             .or_else(|| payments.first())
-            .ok_or(ConnectorError::ResponseDeserializationFailed {
-                context: ResponseTransformationErrorContext {
-                    http_status_code: Some(item.http_code),
-                    additional_context: Some(
-                        "PSync response returned empty payments array".to_string(),
-                    ),
+        else {
+            let pending_order_id = router_data
+                .resource_common_data
+                .reference_id
+                .clone()
+                .unwrap_or_else(|| {
+                    router_data
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone()
+                });
+            return Ok(Self {
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(pending_order_id),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    status_code: item.http_code,
+                }),
+                resource_common_data: PaymentFlowData {
+                    status: common_enums::AttemptStatus::Pending,
+                    ..router_data.resource_common_data
                 },
-            })?;
+                ..router_data
+            });
+        };
 
         let attempt_status = common_enums::AttemptStatus::from(CashfreePaymentStatus::from(
             payment.payment_status.as_str(),
