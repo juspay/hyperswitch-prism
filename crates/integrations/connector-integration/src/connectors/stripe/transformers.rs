@@ -22,7 +22,7 @@ use domain_types::{
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId, SetupMandateRequestData,
+        ResponseId, SetupMandateRequestData, SubmitEvidenceData,
         StripeClientAuthenticationResponse as StripeClientAuthenticationResponseDomain,
     },
     errors::{ConnectorError, IntegrationError},
@@ -5435,6 +5435,121 @@ impl TryFrom<ResponseRouterData<StripeClientAuthResponse, Self>>
                 status_code: item.http_code,
             }),
             ..item.router_data
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct StripeSubmitEvidenceRequest {
+    #[serde(rename = "evidence[access_activity_log]")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub access_activity_log: Option<String>,
+    #[serde(rename = "evidence[billing_address]")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_address: Option<String>,
+    #[serde(rename = "evidence[cancellation_policy_disclosure]")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cancellation_policy_disclosure: Option<String>,
+    #[serde(rename = "evidence[cancellation_rebuttal]")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cancellation_rebuttal: Option<String>,
+    #[serde(rename = "evidence[customer_communication]")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer_communication: Option<String>,
+    #[serde(rename = "evidence[customer_email_address]")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer_email_address: Option<String>,
+    #[serde(rename = "evidence[customer_name]")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer_name: Option<String>,
+    #[serde(rename = "evidence[customer_purchase_ip]")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer_purchase_ip: Option<String>,
+    #[serde(rename = "evidence[duplicate_charge_explanation]")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duplicate_charge_explanation: Option<String>,
+    #[serde(rename = "evidence[duplicate_charge_id]")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duplicate_charge_id: Option<String>,
+    #[serde(rename = "evidence[product_description]")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub product_description: Option<String>,
+    #[serde(rename = "evidence[receipt]")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub receipt: Option<String>,
+    #[serde(rename = "evidence[refund_policy_disclosure]")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refund_policy_disclosure: Option<String>,
+    #[serde(rename = "evidence[refund_refusal_explanation]")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refund_refusal_explanation: Option<String>,
+    #[serde(rename = "evidence[service_date]")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub service_date: Option<String>,
+    #[serde(rename = "evidence[service_documentation]")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub service_documentation: Option<String>,
+    #[serde(rename = "evidence[shipping_address]")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shipping_address: Option<String>,
+    #[serde(rename = "evidence[shipping_carrier]")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shipping_carrier: Option<String>,
+    #[serde(rename = "evidence[shipping_date]")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shipping_date: Option<String>,
+    #[serde(rename = "evidence[shipping_documentation]")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shipping_documentation: Option<String>,
+    #[serde(rename = "evidence[shipping_tracking_number]")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shipping_tracking_number: Option<String>,
+    #[serde(rename = "evidence[uncategorized_file]")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uncategorized_file: Option<String>,
+    #[serde(rename = "evidence[uncategorized_text]")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uncategorized_text: Option<String>,
+    pub submit: bool,
+}
+
+impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<StripeRouterData<RouterDataV2<F, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>, T>>
+    for StripeSubmitEvidenceRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: StripeRouterData<
+            RouterDataV2<F, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let evidence = &item.router_data.request;
+        Ok(Self {
+            access_activity_log: evidence.access_activity_log.clone(),
+            billing_address: evidence.billing_address.clone(),
+            cancellation_policy_disclosure: evidence.cancellation_policy_disclosure.clone(),
+            cancellation_rebuttal: evidence.cancellation_rebuttal.clone(),
+            customer_communication: evidence.customer_communication_provider_file_id.clone(),
+            customer_email_address: evidence.customer_email_address.clone(),
+            customer_name: evidence.customer_name.clone(),
+            customer_purchase_ip: evidence.customer_purchase_ip.clone(),
+            duplicate_charge_explanation: None,
+            duplicate_charge_id: None,
+            product_description: evidence.product_description.clone(),
+            receipt: evidence.receipt_provider_file_id.clone(),
+            refund_policy_disclosure: evidence.refund_policy_disclosure.clone(),
+            refund_refusal_explanation: evidence.refund_refusal_explanation.clone(),
+            service_date: evidence.service_date.clone(),
+            service_documentation: evidence.service_documentation_provider_file_id.clone(),
+            shipping_address: evidence.shipping_address.clone(),
+            shipping_carrier: evidence.shipping_carrier.clone(),
+            shipping_date: evidence.shipping_date.clone(),
+            shipping_documentation: evidence.shipping_documentation_provider_file_id.clone(),
+            shipping_tracking_number: evidence.shipping_tracking_number.clone(),
+            uncategorized_file: evidence.uncategorized_file_provider_file_id.clone(),
+            uncategorized_text: evidence.uncategorized_text.clone(),
+            submit: true,
         })
     }
 }
