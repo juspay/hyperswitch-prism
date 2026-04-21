@@ -31,7 +31,6 @@ function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaym
             "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         },
-        "shippingCost": 0,  // Cost of shipping for the order.
         "paymentMethod": {  // Payment method to be used.
             "card": {  // Generic card payment.
                 "cardNumber": {"value": "4111111111111111"},  // Card Identification.
@@ -180,8 +179,7 @@ function _buildProxyAuthorizeRequest(): types.IPaymentServiceProxyAuthorizeReque
                 "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
                 "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
-        },
-        "shippingCost": 0  // Cost of shipping for the order.
+        }
     };
 }
 

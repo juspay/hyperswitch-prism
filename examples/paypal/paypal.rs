@@ -65,7 +65,6 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
             minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
         }),
-        shipping_cost: Some(0), // Cost of shipping for the order.
         payment_method: Some(PaymentMethod {
             // Payment method to be used.
             payment_method: Some(payment_method::PaymentMethod::Card(CardDetails {
@@ -250,7 +249,6 @@ pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
             }),
             ..Default::default()
         }),
-        shipping_cost: Some(0), // Cost of shipping for the order.
         ..Default::default()
     }
 }
