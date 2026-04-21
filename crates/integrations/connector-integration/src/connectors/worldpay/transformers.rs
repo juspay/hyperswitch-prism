@@ -51,6 +51,11 @@ const METADATA_DDC_REFERENCE: &str = "device_data_collection";
 const STAGE_DDC: &str = "ddc";
 const STAGE_CHALLENGE: &str = "challenge";
 
+// HAL link relation for the incremental-authorization action exposed by the
+// Access Worldpay Card Payments API. The trailing segment of the link's href
+// is the linkData used as `connector_authorization_id` for subsequent calls.
+const LINK_KEY_INCREASE_AUTHORIZED_AMOUNT: &str = "cardPayments:increaseAuthorizedAmount";
+
 /// Metadata object extracted from connector_feature_data
 /// Contains Worldpay-specific merchant configuration
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -1599,9 +1604,12 @@ impl TryFrom<ResponseRouterData<WorldpayIncrementalAuthResponse, Self>>
     fn try_from(
         item: ResponseRouterData<WorldpayIncrementalAuthResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let attempt_status = enums::AttemptStatus::from(item.response.outcome.clone());
-        // Map Worldpay PaymentOutcome to AuthorizationStatus (success/processing/failure)
-        let authorization_status = match item.response.outcome {
+        // Map Worldpay PaymentOutcome to AuthorizationStatus (success/processing/failure).
+        // Refund-related outcomes (`sentForRefund`, `sentForPartialRefund`) are not part of
+        // the documented outcome set for the Card Payments incremental-authorization endpoint,
+        // but if the connector ever returns one on this flow it indicates the increase did
+        // not take effect — treat as a terminal failure rather than Processing.
+        let authorization_status = match &item.response.outcome {
             PaymentOutcome::Authorized | PaymentOutcome::SentForSettlement => {
                 enums::AuthorizationStatus::Success
             }
@@ -1609,11 +1617,12 @@ impl TryFrom<ResponseRouterData<WorldpayIncrementalAuthResponse, Self>>
             | PaymentOutcome::FraudHighRisk
             | PaymentOutcome::ThreeDsAuthenticationFailed
             | PaymentOutcome::ThreeDsUnavailable
-            | PaymentOutcome::SentForCancellation => enums::AuthorizationStatus::Failure,
-            PaymentOutcome::ThreeDsDeviceDataRequired
-            | PaymentOutcome::ThreeDsChallenged
+            | PaymentOutcome::SentForCancellation
             | PaymentOutcome::SentForRefund
-            | PaymentOutcome::SentForPartialRefund => enums::AuthorizationStatus::Processing,
+            | PaymentOutcome::SentForPartialRefund => enums::AuthorizationStatus::Failure,
+            PaymentOutcome::ThreeDsDeviceDataRequired | PaymentOutcome::ThreeDsChallenged => {
+                enums::AuthorizationStatus::Processing
+            }
         };
 
         // connector_authorization_id is derived from the
@@ -1621,26 +1630,36 @@ impl TryFrom<ResponseRouterData<WorldpayIncrementalAuthResponse, Self>>
         // linkData segment. The original Authorize-flow connector_transaction_id
         // already represents this same linkData, so we fall back to it if the
         // incremental auth response does not expose a new one.
-        let connector_authorization_id = item
-            .response
-            .links
-            .as_ref()
-            .and_then(|links| {
-                links
-                    .get("cardPayments:increaseAuthorizedAmount")
-                    .and_then(|v| v.get("href"))
-                    .and_then(|v| v.as_str())
-                    .map(str::to_string)
-            })
-            .and_then(|href| href.rsplit_once('/').map(|(_, h)| h.to_string()))
-            .and_then(|encoded| urlencoding::decode(&encoded).ok().map(|s| s.into_owned()))
-            .or_else(|| {
+        let href = item.response.links.as_ref().and_then(|links| {
+            links
+                .get(LINK_KEY_INCREASE_AUTHORIZED_AMOUNT)
+                .and_then(|v| v.get("href"))
+                .and_then(|v| v.as_str())
+                .map(str::to_string)
+        });
+        let connector_authorization_id = match href {
+            Some(href) => {
+                let encoded = href.rsplit_once('/').map(|(_, h)| h).unwrap_or(href.as_str());
+                Some(
+                    urlencoding::decode(encoded)
+                        .map(|s| s.into_owned())
+                        .change_context(crate::utils::response_handling_fail_for_connector(
+                            item.http_code,
+                            "worldpay",
+                        ))?,
+                )
+            }
+            None => Some(
                 item.router_data
                     .request
                     .connector_transaction_id
                     .get_connector_transaction_id()
-                    .ok()
-            });
+                    .change_context(crate::utils::response_handling_fail_for_connector(
+                        item.http_code,
+                        "worldpay",
+                    ))?,
+            ),
+        };
 
         let response = Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
             status: authorization_status,
@@ -1648,6 +1667,7 @@ impl TryFrom<ResponseRouterData<WorldpayIncrementalAuthResponse, Self>>
             status_code: item.http_code,
         });
 
+        let attempt_status = enums::AttemptStatus::from(item.response.outcome);
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status: attempt_status,
