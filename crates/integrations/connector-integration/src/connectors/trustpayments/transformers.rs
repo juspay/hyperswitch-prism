@@ -169,6 +169,7 @@ pub struct TrustpaymentsAuthRequest {
 pub enum TrustpaymentsPaymentMethod {
     Card(TrustpaymentsCardData),
     GooglePay(Box<TrustpaymentsGooglePayData>),
+    ApplePay(Box<TrustpaymentsApplePayData>),
 }
 
 #[derive(Debug, Serialize)]
@@ -190,6 +191,18 @@ pub struct TrustpaymentsGooglePayData {
     pub tokenisedpayment: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tokentype: Option<String>,
+    pub walletsource: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct TrustpaymentsApplePayData {
+    pub pan: Secret<String>,
+    pub expirydate: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tavv: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eci: Option<String>,
+    pub walletdisplayname: String,
     pub walletsource: String,
 }
 
@@ -215,6 +228,8 @@ pub struct TrustpaymentsAuthResponse {
     pub requesttypedescription: String,
     pub paymenttypedescription: Option<String>,
     pub maskedpan: Option<Secret<String>>,
+    pub tokenisedpayment: Option<String>,
+    pub tokentype: Option<String>,
 }
 
 // ===== REQUEST TRANSFORMER =====
@@ -337,6 +352,59 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         None
                     },
                     walletsource: "GOOGLEPAY".to_string(),
+                }))
+            }
+            PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay_data)) => {
+                // Trust Payments has no native encrypted Apple Pay endpoint; follow
+                // the decrypted-passthrough pattern and submit the decrypted DPAN
+                // as a wallet-sourced card transaction (walletsource=APPLEPAY).
+                const WALLET_SOURCE: &str = "APPLEPAY";
+                // ECI "07" = Apple Pay non-3DS (no 3DS challenge, liability shift via TAVV).
+                const DEFAULT_ECI: &str = "07";
+
+                let apple_pay_decrypted_data = apple_pay_data
+                    .payment_data
+                    .get_decrypted_apple_pay_payment_data_optional()
+                    .ok_or_else(|| {
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "apple_pay_decrypted_data",
+                            context: Default::default(),
+                        })
+                        .attach_printable(
+                            "Trust Payments requires pre-decrypted Apple Pay data; \
+                             encrypted Apple Pay tokens are not supported.",
+                        )
+                    })?;
+
+                // Trust Payments expects MM/YYYY format
+                let expirydate = apple_pay_decrypted_data.get_expiry_date_as_mmyyyy("/");
+
+                let pan = Secret::new(
+                    apple_pay_decrypted_data
+                        .application_primary_account_number
+                        .get_card_no(),
+                );
+
+                let cryptogram = apple_pay_decrypted_data
+                    .payment_data
+                    .online_payment_cryptogram
+                    .clone();
+                let is_cryptogram_3ds = !cryptogram.peek().is_empty();
+                let eci = apple_pay_decrypted_data.payment_data.eci_indicator.clone();
+
+                TrustpaymentsPaymentMethod::ApplePay(Box::new(TrustpaymentsApplePayData {
+                    pan,
+                    expirydate,
+                    tavv: if is_cryptogram_3ds {
+                        Some(cryptogram)
+                    } else {
+                        None
+                    },
+                    // For non-cryptogram flows, Trust Payments requires an ECI value;
+                    // default to DEFAULT_ECI (Apple Pay non-3DS) if absent.
+                    eci: Some(eci.unwrap_or_else(|| DEFAULT_ECI.to_string())),
+                    walletdisplayname: apple_pay_data.payment_method.display_name.clone(),
+                    walletsource: WALLET_SOURCE.to_string(),
                 }))
             }
             _ => {
