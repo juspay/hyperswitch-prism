@@ -240,17 +240,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         PaymentsResponseData,
     > for Worldpayvantiv<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            PreAuthenticate,
-            PaymentFlowData,
-            PaymentsPreAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayvantiv_flow_not_supported("pre_authenticate"))
-    }
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -261,17 +250,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         PaymentsResponseData,
     > for Worldpayvantiv<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            Authenticate,
-            PaymentFlowData,
-            PaymentsAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayvantiv_flow_not_supported("authenticate"))
-    }
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -282,17 +260,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         PaymentsResponseData,
     > for Worldpayvantiv<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            PostAuthenticate,
-            PaymentFlowData,
-            PaymentsPostAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayvantiv_flow_not_supported("post_authenticate"))
-    }
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -1077,41 +1044,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
     for Worldpayvantiv<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayvantiv_flow_not_supported("accept_dispute"))
-    }
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>
     for Worldpayvantiv<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            SubmitEvidence,
-            DisputeFlowData,
-            SubmitEvidenceData,
-            DisputeResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayvantiv_flow_not_supported("submit_evidence"))
-    }
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
     for Worldpayvantiv<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayvantiv_flow_not_supported("defend_dispute"))
-    }
 }
 
 // Empty implementations for order flows
@@ -1144,19 +1088,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         ServerSessionAuthenticationTokenResponseData,
     > for Worldpayvantiv<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            ServerSessionAuthenticationToken,
-            PaymentFlowData,
-            ServerSessionAuthenticationTokenRequestData,
-            ServerSessionAuthenticationTokenResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayvantiv_flow_not_supported(
-            "create_server_session_authentication_token",
-        ))
-    }
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -1198,17 +1129,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         PaymentsResponseData,
     > for Worldpayvantiv<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            ClientAuthenticationToken,
-            PaymentFlowData,
-            ClientAuthenticationTokenRequestData,
-            PaymentsResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayvantiv_flow_not_supported("create_client_authentication_token"))
-    }
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>

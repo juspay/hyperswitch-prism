@@ -664,19 +664,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ServerSessionAuthenticationTokenResponseData,
     > for Cashfree<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            ServerSessionAuthenticationToken,
-            PaymentFlowData,
-            ServerSessionAuthenticationTokenRequestData,
-            ServerSessionAuthenticationTokenResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(cashfree_flow_not_supported(
-            "create_server_session_authentication_token",
-        ))
-    }
 }
 
 // ServerAuthenticationToken stub implementation
@@ -759,17 +746,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Cashfree<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            ClientAuthenticationToken,
-            PaymentFlowData,
-            ClientAuthenticationTokenRequestData,
-            PaymentsResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(cashfree_flow_not_supported("create_client_authentication_token"))
-    }
 }
 
 // Authentication flow ConnectorIntegrationV2 implementations
@@ -781,17 +757,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Cashfree<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            PreAuthenticate,
-            PaymentFlowData,
-            PaymentsPreAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(cashfree_flow_not_supported("pre_authenticate"))
-    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -812,17 +777,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Cashfree<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            PostAuthenticate,
-            PaymentFlowData,
-            PaymentsPostAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(cashfree_flow_not_supported("post_authenticate"))
-    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

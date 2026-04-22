@@ -644,17 +644,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Multisafepay<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            PreAuthenticate,
-            PaymentFlowData,
-            PaymentsPreAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(multisafepay_flow_not_supported("pre_authenticate"))
-    }
 }
 
 // Authentication
@@ -666,17 +655,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Multisafepay<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            Authenticate,
-            PaymentFlowData,
-            PaymentsAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(multisafepay_flow_not_supported("authenticate"))
-    }
 }
 
 // Post Authentication
@@ -688,17 +666,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Multisafepay<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            PostAuthenticate,
-            PaymentFlowData,
-            PaymentsPostAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(multisafepay_flow_not_supported("post_authenticate"))
-    }
 }
 
 // ===== CONNECTOR CUSTOMER CONNECTOR INTEGRATIONS =====

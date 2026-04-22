@@ -596,19 +596,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ServerSessionAuthenticationTokenResponseData,
     > for Fiservemea<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            ServerSessionAuthenticationToken,
-            PaymentFlowData,
-            ServerSessionAuthenticationTokenRequestData,
-            ServerSessionAuthenticationTokenResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(fiservemea_flow_not_supported(
-            "create_server_session_authentication_token",
-        ))
-    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -685,17 +672,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentMethodTokenResponse,
     > for Fiservemea<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            PaymentMethodToken,
-            PaymentFlowData,
-            PaymentMethodTokenizationData<T>,
-            PaymentMethodTokenResponse,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(fiservemea_flow_not_supported("payment_method_token"))
-    }
 }
 
 // Access Token (required by ServerAuthentication trait)
@@ -707,17 +683,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ServerAuthenticationTokenResponseData,
     > for Fiservemea<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            ServerAuthenticationToken,
-            PaymentFlowData,
-            ServerAuthenticationTokenRequestData,
-            ServerAuthenticationTokenResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(fiservemea_flow_not_supported("create_server_authentication_token"))
-    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -728,17 +693,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         MandateRevokeResponseData,
     > for Fiservemea<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            MandateRevoke,
-            PaymentFlowData,
-            MandateRevokeRequestData,
-            MandateRevokeResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(fiservemea_flow_not_supported("mandate_revoke"))
-    }
 }
 
 // ===== AUTHENTICATION FLOW CONNECTOR INTEGRATIONS =====
@@ -751,17 +705,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Fiservemea<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            PreAuthenticate,
-            PaymentFlowData,
-            PaymentsPreAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(fiservemea_flow_not_supported("pre_authenticate"))
-    }
 }
 
 // Authentication
@@ -773,17 +716,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Fiservemea<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            Authenticate,
-            PaymentFlowData,
-            PaymentsAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(fiservemea_flow_not_supported("authenticate"))
-    }
 }
 
 // Post Authentication
@@ -795,17 +727,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Fiservemea<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            PostAuthenticate,
-            PaymentFlowData,
-            PaymentsPostAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(fiservemea_flow_not_supported("post_authenticate"))
-    }
 }
 
 // ===== CONNECTOR CUSTOMER CONNECTOR INTEGRATIONS =====

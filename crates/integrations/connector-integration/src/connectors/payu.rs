@@ -936,17 +936,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ConnectorCustomerResponse,
     > for Payu<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            CreateConnectorCustomer,
-            PaymentFlowData,
-            ConnectorCustomerData,
-            ConnectorCustomerResponse,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(payu_flow_not_supported("create_connector_customer"))
-    }
 }
 
 // Authentication flow implementations
@@ -958,17 +947,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Payu<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            PreAuthenticate,
-            PaymentFlowData,
-            PaymentsPreAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(payu_flow_not_supported("pre_authenticate"))
-    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -979,17 +957,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Payu<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            Authenticate,
-            PaymentFlowData,
-            PaymentsAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(payu_flow_not_supported("authenticate"))
-    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -1000,17 +967,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Payu<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            PostAuthenticate,
-            PaymentFlowData,
-            PaymentsPostAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(payu_flow_not_supported("post_authenticate"))
-    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

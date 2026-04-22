@@ -219,17 +219,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         MandateRevokeResponseData,
     > for Wellsfargo<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            MandateRevoke,
-            PaymentFlowData,
-            MandateRevokeRequestData,
-            MandateRevokeResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(wellsfargo_flow_not_supported("mandate_revoke"))
-    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

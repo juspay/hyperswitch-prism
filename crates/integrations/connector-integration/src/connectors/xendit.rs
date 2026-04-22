@@ -527,17 +527,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentCreateOrderResponse,
     > for Xendit<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            CreateOrder,
-            PaymentFlowData,
-            PaymentCreateOrderData,
-            PaymentCreateOrderResponse,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(xendit_flow_not_supported("create_order"))
-    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

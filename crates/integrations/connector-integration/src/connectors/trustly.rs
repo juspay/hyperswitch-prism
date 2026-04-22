@@ -513,19 +513,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ServerSessionAuthenticationTokenResponseData,
     > for Trustly<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            ServerSessionAuthenticationToken,
-            PaymentFlowData,
-            ServerSessionAuthenticationTokenRequestData,
-            ServerSessionAuthenticationTokenResponseData,
-        >,
-    ) -> CustomResult<String, errors::IntegrationError> {
-        Err(trustly_flow_not_supported(
-            "create_server_session_authentication_token",
-        ))
-    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -557,17 +544,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentMethodTokenResponse,
     > for Trustly<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            PaymentMethodToken,
-            PaymentFlowData,
-            PaymentMethodTokenizationData<T>,
-            PaymentMethodTokenResponse,
-        >,
-    ) -> CustomResult<String, errors::IntegrationError> {
-        Err(trustly_flow_not_supported("payment_method_token"))
-    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<

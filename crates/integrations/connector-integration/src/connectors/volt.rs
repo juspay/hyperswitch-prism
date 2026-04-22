@@ -266,17 +266,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Volt<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            ClientAuthenticationToken,
-            PaymentFlowData,
-            ClientAuthenticationTokenRequestData,
-            PaymentsResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(volt_flow_not_supported("create_client_authentication_token"))
-    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -701,19 +690,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ServerSessionAuthenticationTokenResponseData,
     > for Volt<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            ServerSessionAuthenticationToken,
-            PaymentFlowData,
-            ServerSessionAuthenticationTokenRequestData,
-            ServerSessionAuthenticationTokenResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(volt_flow_not_supported(
-            "create_server_session_authentication_token",
-        ))
-    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -745,17 +721,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentMethodTokenResponse,
     > for Volt<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            PaymentMethodToken,
-            PaymentFlowData,
-            PaymentMethodTokenizationData<T>,
-            PaymentMethodTokenResponse,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(volt_flow_not_supported("payment_method_token"))
-    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<

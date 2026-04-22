@@ -155,17 +155,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Shift4<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            PreAuthenticate,
-            PaymentFlowData,
-            PaymentsPreAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(shift4_flow_not_supported("pre_authenticate"))
-    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -176,17 +165,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Shift4<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            Authenticate,
-            PaymentFlowData,
-            PaymentsAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(shift4_flow_not_supported("authenticate"))
-    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -197,17 +175,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Shift4<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            PostAuthenticate,
-            PaymentFlowData,
-            PaymentsPostAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(shift4_flow_not_supported("post_authenticate"))
-    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -655,17 +622,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentCreateOrderResponse,
     > for Shift4<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            CreateOrder,
-            PaymentFlowData,
-            PaymentCreateOrderData,
-            PaymentCreateOrderResponse,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(shift4_flow_not_supported("create_order"))
-    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -932,17 +888,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         MandateRevokeResponseData,
     > for Shift4<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            MandateRevoke,
-            PaymentFlowData,
-            MandateRevokeRequestData,
-            MandateRevokeResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(shift4_flow_not_supported("mandate_revoke"))
-    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
