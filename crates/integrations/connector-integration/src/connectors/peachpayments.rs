@@ -48,6 +48,14 @@ pub(crate) mod headers {
 const REFUND: &str = "Refund";
 const TRANSACTION: &str = "transaction";
 
+fn peachpayments_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::FlowNotSupported {
+        flow: flow.to_string(),
+        connector: "Peachpayments".to_string(),
+        context: Default::default(),
+    })
+}
+
 macros::create_all_prerequisites!(
     connector_name: Peachpayments,
     generic_type: T,
@@ -485,6 +493,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         DisputeResponseData,
     > for Peachpayments<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            connector_flow::Accept,
+            DisputeFlowData,
+            AcceptDisputeData,
+            DisputeResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(peachpayments_flow_not_supported("accept_dispute"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -495,6 +514,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ConnectorCustomerResponse,
     > for Peachpayments<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            connector_flow::CreateConnectorCustomer,
+            PaymentFlowData,
+            ConnectorCustomerData,
+            ConnectorCustomerResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(peachpayments_flow_not_supported("create_connector_customer"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -505,6 +535,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         DisputeResponseData,
     > for Peachpayments<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            connector_flow::DefendDispute,
+            DisputeFlowData,
+            DisputeDefendData,
+            DisputeResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(peachpayments_flow_not_supported("defend_dispute"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -525,6 +566,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ServerAuthenticationTokenResponseData,
     > for Peachpayments<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            connector_flow::ServerAuthenticationToken,
+            PaymentFlowData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(peachpayments_flow_not_supported(
+            "server_authentication_token",
+        ))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -545,6 +599,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Peachpayments<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            connector_flow::IncrementalAuthorization,
+            PaymentFlowData,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(peachpayments_flow_not_supported("incremental_authorization"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -575,6 +640,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentCreateOrderResponse,
     > for Peachpayments<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            connector_flow::CreateOrder,
+            PaymentFlowData,
+            PaymentCreateOrderData,
+            PaymentCreateOrderResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(peachpayments_flow_not_supported("create_order"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -585,6 +661,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Peachpayments<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            connector_flow::VoidPC,
+            PaymentFlowData,
+            PaymentsCancelPostCaptureData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(peachpayments_flow_not_supported("void_post_capture"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -595,6 +682,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ServerSessionAuthenticationTokenResponseData,
     > for Peachpayments<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            connector_flow::ServerSessionAuthenticationToken,
+            PaymentFlowData,
+            ServerSessionAuthenticationTokenRequestData,
+            ServerSessionAuthenticationTokenResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(peachpayments_flow_not_supported(
+            "server_session_authentication_token",
+        ))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -625,6 +725,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Peachpayments<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            connector_flow::ClientAuthenticationToken,
+            PaymentFlowData,
+            ClientAuthenticationTokenRequestData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(peachpayments_flow_not_supported(
+            "client_authentication_token",
+        ))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -645,6 +758,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         DisputeResponseData,
     > for Peachpayments<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            connector_flow::SubmitEvidence,
+            DisputeFlowData,
+            SubmitEvidenceData,
+            DisputeResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(peachpayments_flow_not_supported("submit_evidence"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

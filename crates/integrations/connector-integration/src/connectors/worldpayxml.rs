@@ -273,6 +273,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::DisputeResponseData,
     > for Worldpayxml<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            domain_types::connector_flow::Accept,
+            domain_types::connector_types::DisputeFlowData,
+            domain_types::connector_types::AcceptDisputeData,
+            domain_types::connector_types::DisputeResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(error_stack::report!(IntegrationError::FlowNotSupported {
+            flow: "accept_dispute".to_string(),
+            connector: "Worldpayxml".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

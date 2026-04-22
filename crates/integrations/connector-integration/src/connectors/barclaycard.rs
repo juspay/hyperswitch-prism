@@ -53,6 +53,14 @@ pub(crate) mod headers {
     pub(crate) const ACCEPT: &str = "Accept";
 }
 
+fn barclaycard_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::FlowNotSupported {
+        flow: flow.to_string(),
+        connector: "Barclaycard".to_string(),
+        context: Default::default(),
+    })
+}
+
 macros::create_amount_converter_wrapper!(connector_name: Barclaycard, amount_type: StringMajorUnit);
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -254,6 +262,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::DisputeResponseData,
     > for Barclaycard<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            domain_types::connector_flow::SubmitEvidence,
+            domain_types::connector_types::DisputeFlowData,
+            domain_types::connector_types::SubmitEvidenceData,
+            domain_types::connector_types::DisputeResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(barclaycard_flow_not_supported("submit_evidence"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -264,6 +283,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::DisputeResponseData,
     > for Barclaycard<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            domain_types::connector_flow::DefendDispute,
+            domain_types::connector_types::DisputeFlowData,
+            domain_types::connector_types::DisputeDefendData,
+            domain_types::connector_types::DisputeResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(barclaycard_flow_not_supported("defend_dispute"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -274,6 +304,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::DisputeResponseData,
     > for Barclaycard<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            domain_types::connector_flow::Accept,
+            domain_types::connector_types::DisputeFlowData,
+            domain_types::connector_types::AcceptDisputeData,
+            domain_types::connector_types::DisputeResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(barclaycard_flow_not_supported("accept_dispute"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -364,6 +405,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::PaymentCreateOrderResponse,
     > for Barclaycard<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            domain_types::connector_flow::CreateOrder,
+            PaymentFlowData,
+            domain_types::connector_types::PaymentCreateOrderData,
+            domain_types::connector_types::PaymentCreateOrderResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(barclaycard_flow_not_supported("create_order"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -374,6 +426,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::MandateRevokeResponseData,
     > for Barclaycard<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            domain_types::connector_flow::MandateRevoke,
+            PaymentFlowData,
+            domain_types::connector_types::MandateRevokeRequestData,
+            domain_types::connector_types::MandateRevokeResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(barclaycard_flow_not_supported("mandate_revoke"))
+    }
 }
 
 macros::create_all_prerequisites!(
