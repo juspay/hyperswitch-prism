@@ -67,6 +67,10 @@
         "status": "not_supported",
         "error": "Selected payment method is not supported by worldpayxml"
       },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by worldpayxml"
+      },
       "Bizum": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by worldpayxml"
@@ -130,6 +134,10 @@
         "status": "not_supported",
         "error": "Selected payment method is not supported by worldpayxml"
       },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by worldpayxml"
+      },
       "CimbVaBankTransfer": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by worldpayxml"
@@ -140,7 +148,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
@@ -148,9 +156,13 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by worldpayxml"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by worldpayxml"
       },
@@ -176,7 +188,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GooglePay": {
         "status": "not_supported",
@@ -226,6 +238,10 @@
         "status": "not_supported",
         "error": "Selected payment method is not supported by worldpayxml"
       },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by worldpayxml"
+      },
       "LocalBankRedirect": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by worldpayxml"
@@ -251,6 +267,10 @@
         "error": "Selected payment method is not supported by worldpayxml"
       },
       "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by worldpayxml"
+      },
+      "Netbanking": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by worldpayxml"
       },
@@ -284,7 +304,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
         "status": "not_supported",
@@ -304,7 +324,11 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by worldpayxml"
       },
       "PaypalRedirect": {
         "status": "not_supported",
@@ -316,9 +340,13 @@
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by worldpayxml"
+      },
+      "PhonePeRedirect": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by worldpayxml"
       },

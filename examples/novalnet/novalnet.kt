@@ -27,7 +27,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.NovalnetConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "incremental_authorization", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -262,6 +262,22 @@ fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Webhook: type=${response.eventType.name} verified=${response.sourceVerified}")
 }
 
+// Flow: PaymentService.IncrementalAuthorization
+fun incrementalAuthorization(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = PaymentServiceIncrementalAuthorizationRequest.newBuilder().apply {
+        merchantAuthorizationId = "probe_auth_001"  // Identification.
+        connectorTransactionId = "probe_connector_txn_001"
+        amountBuilder.apply {  // new amount to be authorized (in minor currency units).
+            minorAmount = 1100L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        reason = "incremental_auth_probe"  // Optional Fields.
+    }.build()
+    val response = client.incremental_authorization(request)
+    println("Status: ${response.status.name}")
+}
+
 // Flow: EventService.ParseEvent
 fun parseEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = EventClient(config)
@@ -396,7 +412,7 @@ fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val request = RefundServiceGetRequest.newBuilder().apply {
         merchantRefundId = "probe_refund_001"  // Identification.
         connectorTransactionId = "probe_connector_txn_001"
-        refundId = "probe_refund_id_001"
+        refundId = "probe_refund_id_001"  // Deprecated.
     }.build()
     val response = client.refund_get(request)
     println("Status: ${response.status.name}")
@@ -470,6 +486,7 @@ fun main(args: Array<String>) {
         "capture" -> capture(txnId)
         "get" -> get(txnId)
         "handleEvent" -> handleEvent(txnId)
+        "incrementalAuthorization" -> incrementalAuthorization(txnId)
         "parseEvent" -> parseEvent(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
         "proxySetupRecurring" -> proxySetupRecurring(txnId)
@@ -478,6 +495,6 @@ fun main(args: Array<String>) {
         "refundGet" -> refundGet(txnId)
         "setupRecurring" -> setupRecurring(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, handleEvent, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, handleEvent, incrementalAuthorization, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, void")
     }
 }

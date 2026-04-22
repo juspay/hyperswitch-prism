@@ -10,7 +10,6 @@ package examples.placetopay
 import types.Payment.*
 import types.PaymentMethods.*
 import payments.PaymentClient
-import payments.RefundClient
 import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.Currency
@@ -19,7 +18,7 @@ import payments.SdkOptions
 import payments.Environment
 
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "proxy_authorize", "refund", "refund_get", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "proxy_authorize", "refund", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -290,18 +289,6 @@ fun refund(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Done: ${response.status.name}")
 }
 
-// Flow: RefundService.Get
-fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = RefundClient(config)
-    val request = RefundServiceGetRequest.newBuilder().apply {
-        merchantRefundId = "probe_refund_001"  // Identification.
-        connectorTransactionId = "12345"
-        refundId = "probe_refund_id_001"
-    }.build()
-    val response = client.refund_get(request)
-    println("Status: ${response.status.name}")
-}
-
 // Flow: PaymentService.Void
 fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -327,8 +314,7 @@ fun main(args: Array<String>) {
         "get" -> get(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
         "refund" -> refund(txnId)
-        "refundGet" -> refundGet(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, proxyAuthorize, refund, refundGet, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, proxyAuthorize, refund, void")
     }
 }

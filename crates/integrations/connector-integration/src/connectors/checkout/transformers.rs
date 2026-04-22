@@ -591,13 +591,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 }));
                             Ok((p_source, None, Some(false), store_for_future_use))
                         }
-                        None => Err(IntegrationError::not_implemented(
+                        None => Err(IntegrationError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("checkout"),
+                            Default::default(),
                         )),
                     }
                 }
-                _ => Err(IntegrationError::not_implemented(
+                _ => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
+                    Default::default(),
                 )),
             },
             PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
@@ -655,8 +657,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 };
                 Ok((payment_source, None, Some(false), store_for_future))
             }
-            _ => Err(IntegrationError::not_implemented(
+            _ => Err(IntegrationError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("checkout"),
+                Default::default(),
             )),
         }?;
 
@@ -983,13 +986,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             None,
                         ))
                     }
-                    _ => Err(IntegrationError::not_implemented(
+                    _ => Err(IntegrationError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("checkout"),
+                        Default::default(),
                     )),
                 }
             }
-            _ => Err(IntegrationError::not_implemented(
+            _ => Err(IntegrationError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("checkout"),
+                Default::default(),
             )),
         }?;
 
@@ -1265,8 +1270,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 });
                 Ok((payment_source, None, Some(false), payment_type, Some(true)))
             }
-            _ => Err(IntegrationError::not_implemented(
+            _ => Err(IntegrationError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("checkout"),
+                Default::default(),
             )),
         }?;
 

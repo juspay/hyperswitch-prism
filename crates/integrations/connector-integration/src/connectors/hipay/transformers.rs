@@ -338,11 +338,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .unwrap_or_default() // Empty string fallback
             }
             _ => {
-                return Err(IntegrationError::not_implemented(
+                return Err(IntegrationError::NotImplemented(
                     "Payment method not supported".to_string(),
+                    Default::default(),
                 ))
-                .change_context(IntegrationError::not_implemented(
+                .change_context(IntegrationError::NotImplemented(
                     "Payment method".to_string(),
+                    Default::default(),
                 ))
             }
         };
@@ -590,11 +592,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
+                Err(IntegrationError::NotImplemented(
                     "Payment method not supported for tokenization".to_string(),
+                    Default::default(),
                 ))
-                .change_context(IntegrationError::not_implemented(
+                .change_context(IntegrationError::NotImplemented(
                     "Payment method".to_string(),
+                    Default::default(),
                 ))
             }
         }

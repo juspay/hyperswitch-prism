@@ -210,7 +210,8 @@ message CompositeRefundGetRequest {
   // Identification
   optional string merchant_refund_id = 1; // Merchant's refund ID for tracking
   string connector_transaction_id = 2; // Connector transaction ID for the original payment
-  string refund_id = 3; // Connector's refund ID
+  string refund_id = 3; // Deprecated
+  string connector_refund_id = 14; // Connector's refund ID
 
   // Refund Details
   optional string refund_reason = 4; // Reason for the refund

@@ -357,7 +357,7 @@ fn create_and_emit_grpc_event<R>(
 {
     let mut grpc_event = Event {
         request_id: metadata_payload.map_or("unknown".to_string(), |md| md.request_id.clone()),
-        timestamp: chrono::Utc::now().timestamp().into(),
+        timestamp: chrono::Utc::now().timestamp_millis().into(),
         flow_type: flow_name,
         connector: metadata_payload.map_or("unknown".to_string(), |md| md.connector.to_string()),
         url: None,
@@ -380,6 +380,11 @@ fn create_and_emit_grpc_event<R>(
         .add_resource_id(metadata_payload.and_then(|metadata| metadata.resource_id.as_deref()));
     grpc_event.add_service_type(service_type_str(&config.server.type_));
     grpc_event.add_service_name(service_name);
+    grpc_event.add_tenant_id(
+        metadata_payload
+            .map(|md| md.tenant_id.as_str())
+            .unwrap_or("public"),
+    );
 
     match grpc_response {
         Ok(response) => grpc_event.set_grpc_success_response(response.get_ref()),
@@ -550,6 +555,7 @@ macro_rules! implement_connector_operation {
                 reference_id: &metadata_payload.reference_id,
                 resource_id: &metadata_payload.resource_id,
                 shadow_mode: metadata_payload.shadow_mode,
+                tenant_id: &metadata_payload.tenant_id,
             };
             let response_result = external_services::service::execute_connector_processing_step(
                 &config.proxy,
@@ -677,6 +683,7 @@ macro_rules! implement_connector_operation {
                 reference_id: &metadata_payload.reference_id,
                 resource_id: &metadata_payload.resource_id,
                 shadow_mode: metadata_payload.shadow_mode,
+                tenant_id: &metadata_payload.tenant_id,
             };
             let response_result = external_services::service::execute_connector_processing_step(
                 &config.proxy,
@@ -800,6 +807,7 @@ macro_rules! implement_connector_operation {
                 reference_id: &metadata_payload.reference_id,
                 resource_id: &metadata_payload.resource_id,
                 shadow_mode: metadata_payload.shadow_mode,
+                tenant_id: &metadata_payload.tenant_id,
             };
             let response_result = external_services::service::execute_connector_processing_step(
                 &config.proxy,

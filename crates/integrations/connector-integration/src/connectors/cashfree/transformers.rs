@@ -337,15 +337,9 @@ fn get_cashfree_payment_method_data<
                 }
             }
         }
-        PaymentMethodData::Card(_) => Err(IntegrationError::not_implemented(
-            "Card payments are supported by Cashfree, but are not yet implemented for this connector",
-        )),
-        PaymentMethodData::PayLater(_) => Err(IntegrationError::not_implemented(
-            "Pay later and cardless EMI payments are supported by Cashfree, but are not yet implemented for this connector",
-        )),
-        PaymentMethodData::BankTransfer(_) => Err(IntegrationError::not_implemented(
-            "Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector",
-        )),
+        PaymentMethodData::Card(_) => Err(IntegrationError::NotImplemented(("Card payments are supported by Cashfree, but are not yet implemented for this connector").into(), Default::default())),
+        PaymentMethodData::PayLater(_) => Err(IntegrationError::NotImplemented(("Pay later and cardless EMI payments are supported by Cashfree, but are not yet implemented for this connector").into(), Default::default())),
+        PaymentMethodData::BankTransfer(_) => Err(IntegrationError::NotImplemented(("Bank transfer payments are supported by Cashfree, but are not yet implemented for this connector").into(), Default::default())),
         PaymentMethodData::Wallet(wallet_data) => {
             // Map wallet variants to Cashfree APP type (channel: "link", provider: <name>)
             let provider = match wallet_data {
@@ -359,14 +353,11 @@ fn get_cashfree_payment_method_data<
                 WalletData::PayURedirect(_) => "payu",
                 WalletData::EaseBuzzRedirect(_) => "easebuzz",
                 _ => {
-                    return Err(IntegrationError::not_implemented_with_context(
-                        "This wallet type is not supported for Cashfree",
-                        IntegrationErrorContext {
+                    return Err(IntegrationError::NotImplemented(("This wallet type is not supported for Cashfree").into(), IntegrationErrorContext {
                             suggested_action: Some("Use a supported wallet: PhonePe, AmazonPay, GooglePay, LazyPay, BillDesk, Cashfree, PayU, or EaseBuzz".to_string()),
                             doc_url: Some("https://docs.cashfree.com/docs/payment-method".to_string()),
                             additional_context: None,
-                        },
-                    ))
+                        }))
                 }
             };
             let customer_phone = phone.unwrap_or_else(|| Secret::new("".to_string()));

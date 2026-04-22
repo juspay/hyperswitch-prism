@@ -205,6 +205,10 @@
         "status": "not_supported",
         "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
+      },
       "Bizum": {
         "status": "not_supported",
         "error": "Selected payment method through Cybersource is not supported by Cybersource"
@@ -276,6 +280,10 @@
         "status": "not_supported",
         "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
+      },
       "CimbVaBankTransfer": {
         "status": "not_supported",
         "error": "Selected payment method through Cybersource is not supported by Cybersource"
@@ -286,7 +294,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
@@ -294,9 +302,13 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_supported",
         "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
@@ -322,7 +334,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GooglePay": {
         "status": "supported",
@@ -467,6 +479,10 @@
         "status": "not_supported",
         "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
+      },
       "LocalBankRedirect": {
         "status": "not_supported",
         "error": "Selected payment method through Cybersource is not supported by Cybersource"
@@ -492,6 +508,10 @@
         "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
+      },
+      "Netbanking": {
         "status": "not_supported",
         "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
@@ -525,7 +545,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
         "status": "not_supported",
@@ -545,7 +565,11 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "PaypalRedirect": {
         "status": "not_supported",
@@ -557,9 +581,13 @@
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
+      },
+      "PhonePeRedirect": {
         "status": "not_supported",
         "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
@@ -802,7 +830,31 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_authorization_id": "probe_auth_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1100,
+            "currency": "USD"
+          },
+          "reason": "incremental_auth_probe"
+        },
+        "sample": {
+          "url": "https://apitest.cybersource.com/pts/v2/payments/probe_connector_txn_001",
+          "method": "Patch",
+          "headers": {
+            "accept": "application/hal+json;charset=utf-8",
+            "content-type": "application/json;charset=utf-8",
+            "date": "2020-01-01T00:00:00+00:00",
+            "digest": "SHA-256=cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "host": "apitest.cybersource.com",
+            "signature": "keyid=\"probe_key\", algorithm=\"HmacSHA256\", headers=\"host date (request-target) digest v-c-merchant-id\", signature=\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"",
+            "v-c-merchant-id": "probe_merchant",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"processingInformation\":{\"actionList\":null,\"actionTokenTypes\":null,\"authorizationOptions\":{\"initiator\":{\"type\":null,\"credentialStoredOnFile\":null,\"storedCredentialUsed\":true},\"merchantInitiatedTransaction\":null,\"ignoreAvsResult\":null,\"ignoreCvResult\":null},\"commerceIndicator\":\"internet\",\"capture\":null,\"captureOptions\":null,\"paymentSolution\":null},\"orderInformation\":{\"amountDetails\":{\"additionalAmount\":\"11.00\",\"currency\":\"USD\"}}}"
+        }
       }
     },
     "parse_event": {

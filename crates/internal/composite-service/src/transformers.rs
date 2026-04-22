@@ -314,6 +314,7 @@ impl
             merchant_refund_id: item.merchant_refund_id.clone(),
             connector_transaction_id: item.connector_transaction_id.clone(),
             refund_id: item.refund_id.clone(),
+            connector_refund_id: item.connector_refund_id.clone(),
             refund_reason: item.refund_reason.clone(),
             browser_info: item.browser_info.clone(),
             refund_metadata: item.refund_metadata.clone(),

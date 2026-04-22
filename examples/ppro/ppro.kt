@@ -13,6 +13,8 @@ import payments.PaymentClient
 import payments.EventClient
 import payments.RecurringPaymentClient
 import payments.RefundClient
+import payments.AuthenticationType
+import payments.CaptureMethod
 import payments.Currency
 import payments.HttpMethod
 import payments.PaymentMethodType
@@ -23,7 +25,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.PproConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("capture", "get", "parse_event", "recurring_charge", "refund", "refund_get", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "parse_event", "recurring_charge", "refund", "refund_get", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -39,6 +41,28 @@ val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .build()
 
 
+
+private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAuthorizeRequest {
+    return PaymentServiceAuthorizeRequest.newBuilder().apply {
+        merchantTransactionId = "probe_txn_001"  // Identification.
+        amountBuilder.apply {  // The amount for the payment.
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        paymentMethodBuilder.apply {  // Payment method to be used.
+            idealBuilder.apply {
+            }
+        }
+        captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment.
+        addressBuilder.apply {  // Address Information.
+            billingAddressBuilder.apply {
+            }
+        }
+        authType = AuthenticationType.NO_THREE_DS  // Authentication Details.
+        returnUrl = "https://example.com/return"  // URLs for Redirection and Webhooks.
+        webhookUrl = "https://example.com/webhook"
+    }.build()
+}
 
 private fun buildCaptureRequest(connectorTransactionIdStr: String): PaymentServiceCaptureRequest {
     return PaymentServiceCaptureRequest.newBuilder().apply {
@@ -84,6 +108,18 @@ private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceV
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
     }.build()
+}
+
+// Flow: PaymentService.Authorize (Ideal)
+fun authorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = buildAuthorizeRequest("AUTOMATIC")
+    val response = client.authorize(request)
+    when (response.status.name) {
+        "FAILED"  -> throw RuntimeException("Authorize failed: ${response.error.unifiedDetails.message}")
+        "PENDING" -> println("Pending — await webhook before proceeding")
+        else      -> println("Authorized: ${response.connectorTransactionId}")
+    }
 }
 
 // Flow: PaymentService.Capture
@@ -182,10 +218,20 @@ fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val request = RefundServiceGetRequest.newBuilder().apply {
         merchantRefundId = "probe_refund_001"  // Identification.
         connectorTransactionId = "probe_connector_txn_001"
-        refundId = "probe_refund_id_001"
+        refundId = "probe_refund_id_001"  // Deprecated.
     }.build()
     val response = client.refund_get(request)
     println("Status: ${response.status.name}")
+}
+
+// Flow: PaymentService.VerifyRedirectResponse
+fun verifyRedirect(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = PaymentServiceVerifyRedirectResponseRequest.newBuilder().apply {
+
+    }.build()
+    val response = client.verify_redirect_response(request)
+    println("Source verified: ${response.sourceVerified}")
 }
 
 // Flow: PaymentService.Void
@@ -201,8 +247,9 @@ fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
 
 fun main(args: Array<String>) {
     val txnId = "order_001"
-    val flow = args.firstOrNull() ?: "capture"
+    val flow = args.firstOrNull() ?: "authorize"
     when (flow) {
+        "authorize" -> authorize(txnId)
         "capture" -> capture(txnId)
         "get" -> get(txnId)
         "handleEvent" -> handleEvent(txnId)
@@ -210,7 +257,8 @@ fun main(args: Array<String>) {
         "recurringCharge" -> recurringCharge(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
+        "verifyRedirect" -> verifyRedirect(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, get, handleEvent, parseEvent, recurringCharge, refund, refundGet, void")
+        else -> System.err.println("Unknown flow: $flow. Available: authorize, capture, get, handleEvent, parseEvent, recurringCharge, refund, refundGet, verifyRedirect, void")
     }
 }

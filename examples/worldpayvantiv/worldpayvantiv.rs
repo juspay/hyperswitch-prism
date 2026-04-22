@@ -180,7 +180,7 @@ pub fn build_refund_get_request() -> RefundServiceGetRequest {
     RefundServiceGetRequest {
         merchant_refund_id: Some("probe_refund_001".to_string()), // Identification.
         connector_transaction_id: "probe_connector_txn_001".to_string(),
-        refund_id: "probe_refund_id_001".to_string(),
+        refund_id: "probe_refund_id_001".to_string(), // Deprecated.
         ..Default::default()
     }
 }

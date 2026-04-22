@@ -212,6 +212,13 @@ impl<T: ApiEventMetric> ApiEventMetric for &T {
 
 impl ApiEventMetric for TimeRange {}
 
+fn serialize_method<S: serde::Serializer>(
+    method: &Option<String>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    serializer.serialize_str(method.as_deref().unwrap_or(""))
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Event {
     pub request_id: String,
@@ -219,7 +226,8 @@ pub struct Event {
     pub flow_type: FlowName,
     pub connector: String,
     pub url: Option<String>,
-    /// HTTP verb for outbound connector calls; `None` for gRPC-only audit events.
+    /// HTTP verb for outbound connector calls; empty string for gRPC-only audit events.
+    #[serde(serialize_with = "serialize_method")]
     pub method: Option<String>,
     pub stage: EventStage,
     pub latency_ms: Option<u64>,
@@ -273,6 +281,13 @@ impl Event {
                     .insert("service_name".to_string(), masked_name);
             },
         );
+    }
+
+    pub fn add_tenant_id(&mut self, tenant_id: &str) {
+        MaskedSerdeValue::from_masked_optional(&tenant_id.to_string(), "tenant_id").map(|masked| {
+            self.additional_fields
+                .insert("tenant_id".to_string(), masked);
+        });
     }
 
     pub fn set_grpc_error_response(&mut self, tonic_error: &tonic::Status) {
@@ -510,6 +525,18 @@ pub(crate) fn process_event_with_config(
                     error = %e,
                     "Failed to set extraction, continuing with event processing"
                 );
+            }
+        }
+    }
+
+    // Stringify JSON object fields that CKH expects as String columns
+    for field in &["request_data", "response_data", "error"] {
+        if let Some(obj) = result.as_object_mut() {
+            if let Some(val) = obj.get(*field) {
+                if val.is_object() || val.is_array() {
+                    let stringified = val.to_string();
+                    obj.insert(field.to_string(), serde_json::Value::String(stringified));
+                }
             }
         }
     }

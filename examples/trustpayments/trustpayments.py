@@ -11,7 +11,7 @@ from payments import PaymentClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "get", "proxy_authorize", "refund", "refund_get", "void"]
+SUPPORTED_FLOWS = ["authorize", "capture", "get", "incremental_authorization", "proxy_authorize", "refund", "refund_get", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -72,6 +72,17 @@ def _build_get_request(connector_transaction_id: str):
         ),
     )
 
+def _build_incremental_authorization_request():
+    return payment_pb2.PaymentServiceIncrementalAuthorizationRequest(
+        merchant_authorization_id="probe_auth_001",  # Identification.
+        connector_transaction_id="probe_connector_txn_001",
+        amount=payment_pb2.Money(  # new amount to be authorized (in minor currency units).
+            minor_amount=1100,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+        reason="incremental_auth_probe",  # Optional Fields.
+    )
+
 def _build_proxy_authorize_request():
     return payment_pb2.PaymentServiceProxyAuthorizeRequest(
         merchant_transaction_id="probe_proxy_txn_001",
@@ -110,7 +121,7 @@ def _build_refund_get_request():
     return payment_pb2.RefundServiceGetRequest(
         merchant_refund_id="probe_refund_001",  # Identification.
         connector_transaction_id="probe_connector_txn_001",
-        refund_id="probe_refund_id_001",
+        refund_id="probe_refund_id_001",  # Deprecated.
     )
 
 def _build_void_request(connector_transaction_id: str):
@@ -256,6 +267,15 @@ async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.Conne
     get_response = await payment_client.get(_build_get_request("probe_connector_txn_001"))
 
     return {"status": get_response.status}
+
+
+async def process_incremental_authorization(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.IncrementalAuthorization"""
+    payment_client = PaymentClient(config)
+
+    incremental_response = await payment_client.incremental_authorization(_build_incremental_authorization_request())
+
+    return {"status": incremental_response.status}
 
 
 async def process_proxy_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

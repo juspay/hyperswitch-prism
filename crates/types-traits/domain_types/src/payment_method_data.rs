@@ -729,13 +729,12 @@ pub enum WalletData {
     MbWay(MbWayData),
     Satispay(SatispayData),
     Wero(WeroData),
-    // Indian wallet redirect variants
-    LazyPayRedirect(LazyPayRedirectData),
-    PhonePeRedirect(PhonePeRedirectData),
-    BillDeskRedirect(BillDeskRedirectData),
-    CashfreeRedirect(CashfreeRedirectData),
-    PayURedirect(PayURedirectData),
-    EaseBuzzRedirect(EaseBuzzRedirectData),
+    LazyPayRedirect(LazyPayRedirection),
+    PhonePeRedirect(PhonePeRedirection),
+    BillDeskRedirect(BillDeskRedirection),
+    CashfreeRedirect(CashfreeRedirection),
+    PayURedirect(PayURedirection),
+    EaseBuzzRedirect(EaseBuzzRedirection),
 }
 
 impl WalletData {
@@ -776,9 +775,11 @@ impl WalletData {
                 let encoded_token = base64::engine::general_purpose::STANDARD.encode(token_as_vec);
                 Ok(encoded_token)
             }
-            _ => {
-                Err(IntegrationError::not_implemented("SELECTED PAYMENT METHOD".to_owned()).into())
-            }
+            _ => Err(IntegrationError::NotImplemented(
+                "SELECTED PAYMENT METHOD".to_owned(),
+                Default::default(),
+            )
+            .into()),
         }
     }
 }
@@ -796,22 +797,22 @@ pub struct SatispayData {}
 pub struct WeroData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct LazyPayRedirectData {}
+pub struct LazyPayRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct PhonePeRedirectData {}
+pub struct PhonePeRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct BillDeskRedirectData {}
+pub struct BillDeskRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct CashfreeRedirectData {}
+pub struct CashfreeRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct PayURedirectData {}
+pub struct PayURedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct EaseBuzzRedirectData {}
+pub struct EaseBuzzRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MifinityData {
@@ -1250,6 +1251,13 @@ impl ApplePayDecryptedData {
         let year = self.get_four_digit_expiry_year();
         let month = self.application_expiration_month.clone().expose();
         Secret::new(format!("{}{}{:0>2}", year.peek(), separator, month))
+    }
+
+    /// Get the expiry date in MM{separator}YYYY format from the Apple Pay pre-decrypt data
+    pub fn get_expiry_date_as_mmyyyy(&self, separator: &str) -> Secret<String> {
+        let year = self.get_four_digit_expiry_year();
+        let month = self.application_expiration_month.clone().expose();
+        Secret::new(format!("{month}{separator}{}", year.peek()))
     }
 }
 

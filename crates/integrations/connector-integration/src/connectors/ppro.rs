@@ -26,12 +26,12 @@ use domain_types::{
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails,
-        ResponseId, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        SetupMandateRequestData, SubmitEvidenceData, SupportedPaymentMethodsExt,
-        WebhookDetailsResponse,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
+        RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, RequestDetails, ResponseId, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData, ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData, SubmitEvidenceData,
+        SupportedPaymentMethodsExt, WebhookDetailsResponse,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -595,6 +595,35 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Ppro<T>
 {
+    fn verify_redirect_response_source(
+        &self,
+        _request: &RequestDetails,
+        _secrets: Option<interfaces::verification::ConnectorSourceVerificationSecrets>,
+    ) -> CustomResult<bool, IntegrationError> {
+        Ok(false)
+    }
+
+    fn process_redirect_response(
+        &self,
+        request: &RequestDetails,
+    ) -> CustomResult<RedirectDetailsResponse, IntegrationError> {
+        let charge_id = request.query_params.as_deref().and_then(|qs| {
+            url::form_urlencoded::parse(qs.as_bytes())
+                .find(|(k, _)| k == "payment-charge-id")
+                .map(|(_, v)| v.into_owned())
+        });
+
+        Ok(RedirectDetailsResponse {
+            resource_id: charge_id.map(ResponseId::ConnectorTransactionId),
+            status: None,
+            connector_response_reference_id: None,
+            error_code: None,
+            error_message: None,
+            error_reason: None,
+            response_amount: None,
+            raw_connector_response: None,
+        })
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -1027,8 +1056,8 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            let refund_id = req.request.connector_refund_id.clone();
-            Ok(format!("{}/v1/payment-charges/{}", self.base_url(&req.resource_common_data.connectors), refund_id))
+            let charge_id = req.request.connector_transaction_id.clone();
+            Ok(format!("{}/v1/payment-charges/{}", self.base_url(&req.resource_common_data.connectors), charge_id))
         }
     }
 );
