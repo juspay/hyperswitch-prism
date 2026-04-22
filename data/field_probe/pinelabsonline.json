@@ -67,6 +67,10 @@
         "status": "error",
         "error": "Failed to obtain authentication type"
       },
+      "BillDeskRedirect": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
       "Bizum": {
         "status": "error",
         "error": "Failed to obtain authentication type"
@@ -99,6 +103,10 @@
         "status": "error",
         "error": "Failed to obtain authentication type"
       },
+      "CashfreeRedirect": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
       "CimbVaBankTransfer": {
         "status": "error",
         "error": "Failed to obtain authentication type"
@@ -109,7 +117,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "DanamonVaBankTransfer": {
         "status": "error",
@@ -117,9 +125,13 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "EaseBuzzRedirect": {
         "status": "error",
         "error": "Failed to obtain authentication type"
       },
@@ -145,7 +157,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GooglePay": {
         "status": "error",
@@ -195,6 +207,10 @@
         "status": "error",
         "error": "Failed to obtain authentication type"
       },
+      "LazyPayRedirect": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
       "LocalBankRedirect": {
         "status": "error",
         "error": "Failed to obtain authentication type"
@@ -220,6 +236,10 @@
         "error": "Failed to obtain authentication type"
       },
       "MultibancoBankTransfer": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Netbanking": {
         "status": "error",
         "error": "Failed to obtain authentication type"
       },
@@ -253,7 +273,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
         "status": "error",
@@ -273,7 +293,11 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
       },
       "PaypalRedirect": {
         "status": "error",
@@ -285,9 +309,13 @@
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "PhonePeRedirect": {
         "status": "error",
         "error": "Failed to obtain authentication type"
       },
