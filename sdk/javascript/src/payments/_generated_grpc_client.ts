@@ -436,6 +436,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   FfiOptions: { "connectorConfig": "ConnectorSpecificConfig" },
   FfiConnectorHttpRequest: { "headers": "HeadersEntry" },
   FfiConnectorHttpResponse: { "headers": "HeadersEntry" },
+  ConnectorError: { "errorInfo": "ErrorInfo" },
   FfiResult: { "httpRequest": "FfiConnectorHttpRequest", "httpResponse": "FfiConnectorHttpResponse", "integrationError": "IntegrationError", "connectorError": "ConnectorError" },
 };
 
