@@ -51,6 +51,10 @@ pub struct JwsObject {
 pub struct RegisterIntentRequest {
     #[serde(rename = "merchantRequestId")]
     pub merchant_request_id: String,
+    /// UPI Request ID - required for Multibank API requests
+    /// Typically same as merchantRequestId
+    #[serde(rename = "upiRequestId")]
+    pub upi_request_id: String,
     pub amount: String,
     pub flow: String,
     #[serde(rename = "intentRequestExpiryMinutes")]
@@ -142,9 +146,12 @@ pub struct RegisterIntentResponsePayload {
     pub currency: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub remarks: Option<String>,
-    pub flow: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub flow: Option<String>,
     #[serde(rename = "refUrl", skip_serializing_if = "Option::is_none")]
     pub ref_url: Option<String>,
+    #[serde(rename = "refCategory", skip_serializing_if = "Option::is_none")]
+    pub ref_category: Option<String>,
     #[serde(rename = "TxnInitiationMode", skip_serializing_if = "Option::is_none")]
     pub txn_initiation_mode: Option<String>,
 }
@@ -338,6 +345,38 @@ impl RefundStatus {
             "00" | "01" => RefundStatus::Pending,
             "RB" | "BT" => RefundStatus::Pending,
             _ => RefundStatus::Failed,
+        }
+    }
+}
+
+// ============================================
+// JWE RESPONSE TYPES
+// ============================================
+
+/// JWE encrypted response from Axis Bank
+/// Contains the encrypted payload that needs to be decrypted
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JweResponse {
+    /// Base64url-encoded ciphertext (the encrypted payload)
+    pub cipher_text: String,
+    /// Base64url-encoded encrypted content encryption key
+    pub encrypted_key: String,
+    /// Base64url-encoded initialization vector
+    pub iv: String,
+    /// Base64url-encoded JWE protected header (contains alg, enc, kid)
+    pub protected: String,
+    /// Base64url-encoded authentication tag
+    pub tag: String,
+}
+
+impl JweResponse {
+    /// Check if the bytes appear to be a JWE response
+    pub fn is_jwe_response(bytes: &[u8]) -> bool {
+        if let Ok(json_str) = std::str::from_utf8(bytes) {
+            json_str.contains("cipherText") && json_str.contains("encryptedKey")
+        } else {
+            false
         }
     }
 }

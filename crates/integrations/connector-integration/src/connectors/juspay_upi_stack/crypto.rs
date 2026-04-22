@@ -219,7 +219,7 @@ fn wrap_sequence(data: &[u8]) -> Result<Vec<u8>, error_stack::Report<CryptoError
     Ok(result)
 }
 
-/// Verify a response signature using RSA-SHA256 with PSS padding
+/// Verify a response signature using RSA-SHA256 with PKCS#1 v1.5 padding
 ///
 /// This is used to verify the `x-response-signature` header
 pub fn verify_response_signature(
@@ -247,13 +247,56 @@ pub fn verify_response_signature(
         .attach_printable("Failed to extract public key from PEM")?;
 
     // Parse RSA public key using ring
+    // RS256 = RSA PKCS#1 v1.5 with SHA-256 (per RFC 7515)
+    let public_key = signature::UnparsedPublicKey::new(
+        &signature::RSA_PKCS1_2048_8192_SHA256,
+        &key_bytes,
+    );
+
+    // Verify the signature
+    match public_key.verify(response_body.as_bytes(), &signature) {
+        Ok(_) => Ok(true),
+        Err(_) => Ok(false),
+    }
+}
+
+/// Verify a JWS signature using RSA-PSS with SHA-256
+///
+/// This is used for verifying JWS signatures from Axis Bank responses.
+/// Per Axis Bank documentation, responses use RSA-PSS (not PKCS#1 v1.5).
+pub fn verify_jws_signature_pss(
+    signature_b64: &str,
+    signing_input: &str,
+    public_key_pem: &Secret<String>,
+) -> Result<bool, error_stack::Report<IntegrationError>> {
+    // Decode the signature
+    let signature = BASE64_ENGINE_URL_SAFE_NO_PAD
+        .decode(signature_b64)
+        .or_else(|_| base64::engine::general_purpose::STANDARD.decode(signature_b64))
+        .change_context(IntegrationError::InvalidDataFormat {
+            field_name: "signature",
+            context: Default::default(),
+        })
+        .attach_printable("Failed to decode JWS signature from base64")?;
+
+    // Parse the public key
+    let pem_bytes = public_key_pem.peek().as_bytes();
+    let key_bytes = extract_key_from_pem(pem_bytes)
+        .change_context(IntegrationError::InvalidConnectorConfig {
+            config: "juspay_public_key",
+            context: Default::default(),
+        })
+        .attach_printable("Failed to extract public key from PEM")?;
+
+    // Parse RSA public key using ring with PSS padding
+    // RSA-PSS with SHA-256 (used by Axis Bank for response signatures)
     let public_key = signature::UnparsedPublicKey::new(
         &signature::RSA_PSS_2048_8192_SHA256,
         &key_bytes,
     );
 
     // Verify the signature
-    match public_key.verify(response_body.as_bytes(), &signature) {
+    match public_key.verify(signing_input.as_bytes(), &signature) {
         Ok(_) => Ok(true),
         Err(_) => Ok(false),
     }
@@ -276,6 +319,85 @@ pub fn decode_jws_payload(payload_b64: &str) -> Result<String, error_stack::Repo
             context: Default::default(),
         })
         .attach_printable("JWS payload is not valid UTF-8")
+}
+
+// ============================================
+// JWE DECRYPTION
+// ============================================
+
+/// Decrypt a JWE-encrypted response using RSA-OAEP-256 + A256GCM
+///
+/// This handles the JWE envelope that Axis Bank sends in response to successful
+/// API calls. The JWE contains a nested JWS that must then be verified.
+///
+/// # Arguments
+/// * `cipher_text` - Base64url-encoded ciphertext
+/// * `encrypted_key` - Base64url-encoded encrypted content encryption key
+/// * `iv` - Base64url-encoded initialization vector
+/// * `protected` - Base64url-encoded JWE protected header
+/// * `tag` - Base64url-encoded authentication tag
+/// * `merchant_private_key_pem` - Merchant's RSA private key for decryption
+///
+/// # Returns
+/// The decrypted plaintext (which is a JWS string)
+pub fn decrypt_jwe_response(
+    cipher_text: &str,
+    encrypted_key: &str,
+    iv: &str,
+    protected: &str,
+    tag: &str,
+    merchant_private_key_pem: &Secret<String>,
+) -> Result<String, error_stack::Report<IntegrationError>> {
+    // Build the compact JWE serialization format
+    // Format: BASE64URL(UTF8(JWE Protected Header)) || '.' ||
+    //         BASE64URL(JWE Encrypted Key) || '.' ||
+    //         BASE64URL(JWE Initialization Vector) || '.' ||
+    //         BASE64URL(JWE Ciphertext) || '.' ||
+    //         BASE64URL(JWE Authentication Tag)
+    let compact_jwe = format!(
+        "{}.{}.{}.{}.{}",
+        protected, encrypted_key, iv, cipher_text, tag
+    );
+
+    // Load the merchant private key for RSA-OAEP-256
+    let private_key_pem = merchant_private_key_pem.peek();
+
+    // Create RSA key pair from PEM
+    let rsa_key = josekit::jwk::alg::rsa::RsaKeyPair::from_pem(private_key_pem.as_bytes())
+        .change_context(IntegrationError::InvalidConnectorConfig {
+            config: "merchant_private_key",
+            context: Default::default(),
+        })
+        .attach_printable("Failed to load merchant private key for JWE decryption")?;
+
+    // Convert to JWK for decrypter
+    let jwk = rsa_key.to_jwk_key_pair();
+
+    // Create a JWE decrypter with RSA-OAEP-256 algorithm
+    let decrypter = josekit::jwe::alg::rsaes::RsaesJweAlgorithm::RsaOaep256
+        .decrypter_from_jwk(&jwk)
+        .change_context(IntegrationError::InvalidConnectorConfig {
+            config: "merchant_private_key",
+            context: Default::default(),
+        })
+        .attach_printable("Failed to create JWE decrypter from JWK")?;
+
+    // Decrypt the JWE using the high-level deserialize_compact function
+    // This handles the A256GCM content encryption automatically from the header
+    let (decrypted_bytes, _header) = josekit::jwe::deserialize_compact(&compact_jwe, &decrypter)
+        .change_context(IntegrationError::InvalidDataFormat {
+            field_name: "jwe_response",
+            context: Default::default(),
+        })
+        .attach_printable("Failed to decrypt JWE response")?;
+
+    // Convert to UTF-8 string
+    String::from_utf8(decrypted_bytes)
+        .change_context(IntegrationError::InvalidDataFormat {
+            field_name: "jwe_response",
+            context: Default::default(),
+        })
+        .attach_printable("JWE decryption result is not valid UTF-8")
 }
 
 /// Get the current Unix timestamp in milliseconds as a string

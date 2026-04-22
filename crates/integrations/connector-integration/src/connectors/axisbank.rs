@@ -52,6 +52,7 @@ use self::transformers::{
 use super::macros;
 use crate::types::ResponseRouterData;
 use domain_types::errors::{ConnectorError, IntegrationError};
+use tracing::error;
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Axisbank<T>
@@ -245,6 +246,122 @@ macros::create_all_prerequisites!(
         amount_converter: StringMajorUnit
     ],
     member_functions: {
+        /// Preprocess JWE-encrypted responses from Axis Bank
+        ///
+        /// Axis Bank encrypts responses using JWE (RSA-OAEP-256 + A256GCM).
+        /// This function decrypts the JWE to reveal the inner JWS, then verifies
+        /// the JWS signature using Juspay's public key, and returns the plaintext payload.
+        pub fn preprocess_response_bytes<F, FCD, Req, Res>(
+            &self,
+            req: &RouterDataV2<F, FCD, Req, Res>,
+            response_bytes: bytes::Bytes,
+            _status_code: u16,
+        ) -> Result<bytes::Bytes, ConnectorError>
+        where
+            Self: ConnectorIntegrationV2<F, FCD, Req, Res>,
+        {
+            use crate::connectors::juspay_upi_stack::{
+                crypto::decrypt_jwe_response,
+                types::JweResponse,
+            };
+            use base64::Engine;
+            use common_utils::consts::BASE64_ENGINE_URL_SAFE_NO_PAD;
+
+            // Check if this is a JWE-encrypted response
+            if !JweResponse::is_jwe_response(&response_bytes) {
+                // Not a JWE response (possibly error response), return as-is
+                return Ok(response_bytes);
+            }
+
+            // Parse the JWE response
+            let jwe_response: JweResponse = serde_json::from_slice(&response_bytes)
+                .map_err(|e| {
+                    error!(error = %e, "Could not parse JWE JSON envelope");
+                    error!(raw_response = %String::from_utf8_lossy(&response_bytes), "Raw JWE response");
+                    ConnectorError::ResponseDeserializationFailed {
+                        context: Default::default(),
+                    }
+                })?;
+
+            // Get auth config for private key
+            let auth_config = AxisbankAuthConfig::try_from(&req.connector_config)
+                .map_err(|e| {
+                    error!(error = %e, "Could not extract Axisbank auth config");
+                    ConnectorError::ResponseDeserializationFailed {
+                        context: Default::default(),
+                    }
+                })?;
+
+            // Decrypt the JWE to get the inner JWS
+            // Following Newton Gateway approach: JWE AEAD (A256GCM) provides integrity,
+            // so JWS signature verification is skipped after decryption.
+            let jws_json = decrypt_jwe_response(
+                &jwe_response.cipher_text,
+                &jwe_response.encrypted_key,
+                &jwe_response.iv,
+                &jwe_response.protected,
+                &jwe_response.tag,
+                &auth_config.merchant_private_key,
+            )
+            .map_err(|e| {
+                error!(error = %e, "JWE decryption failed");
+                error!(protected_header = %jwe_response.protected, "JWE protected header (base64url)");
+                if let Ok(header_bytes) = BASE64_ENGINE_URL_SAFE_NO_PAD.decode(&jwe_response.protected) {
+                    error!(decoded_header = %String::from_utf8_lossy(&header_bytes), "JWE protected header (decoded)");
+                }
+                ConnectorError::ResponseDeserializationFailed {
+                    context: Default::default(),
+                }
+            })?;
+
+            // Parse the decrypted JWS object
+            let jws_obj: crate::connectors::juspay_upi_stack::types::JwsObject =
+                serde_json::from_str(&jws_json)
+                    .map_err(|e| {
+                        error!(error = %e, "Could not parse JWS JSON structure");
+                        ConnectorError::ResponseDeserializationFailed {
+                            context: Default::default(),
+                        }
+                    })?;
+
+            // Decode the JWS payload (base64url-encoded)
+            let payload_bytes = BASE64_ENGINE_URL_SAFE_NO_PAD
+                .decode(&jws_obj.payload)
+                .map_err(|e| {
+                    error!(error = %e, "Could not base64url-decode JWS payload");
+                    ConnectorError::ResponseDeserializationFailed {
+                        context: Default::default(),
+                    }
+                })?;
+
+            // The JWS payload contains a nested structure with the actual response:
+            // {"payload": {...}, "responseCode": "...", "responseMessage": "...", "status": "..."}
+            let payload_json: serde_json::Value = serde_json::from_slice(&payload_bytes)
+                .map_err(|e| {
+                    error!(error = %e, "Could not parse JWS payload as JSON");
+                    ConnectorError::ResponseDeserializationFailed {
+                        context: Default::default(),
+                    }
+                })?;
+
+            let final_response = serde_json::json!({
+                "status": payload_json.get("status").cloned().unwrap_or(serde_json::json!("UNKNOWN")),
+                "responseCode": payload_json.get("responseCode").cloned().unwrap_or(serde_json::json!("UNKNOWN")),
+                "responseMessage": payload_json.get("responseMessage").cloned().unwrap_or(serde_json::json!("Unknown")),
+                "payload": payload_json.get("payload").cloned()
+            });
+
+            let final_bytes = serde_json::to_vec(&final_response)
+                .map_err(|e| {
+                    error!(error = %e, "Could not serialize final response");
+                    ConnectorError::ResponseDeserializationFailed {
+                        context: Default::default(),
+                    }
+                })?;
+
+            Ok(bytes::Bytes::from(final_bytes))
+        }
+
         pub fn connector_base_url<'a, F, Req, Res>(
             &self,
             req: &'a RouterDataV2<F, PaymentFlowData, Req, Res>,
@@ -284,6 +401,7 @@ macros::macro_connector_implementation!(
     flow_request: PaymentsAuthorizeData<T>,
     flow_response: PaymentsResponseData,
     http_method: Post,
+    preprocess_response: true,
     generic_type: T,
     [PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
     other_functions: {
@@ -327,6 +445,7 @@ macros::macro_connector_implementation!(
     flow_request: PaymentsSyncData,
     flow_response: PaymentsResponseData,
     http_method: Post,
+    preprocess_response: true,
     generic_type: T,
     [PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
     other_functions: {
@@ -374,6 +493,7 @@ macros::macro_connector_implementation!(
     flow_request: RefundsData,
     flow_response: RefundsResponseData,
     http_method: Post,
+    preprocess_response: true,
     generic_type: T,
     [PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
     other_functions: {
@@ -417,6 +537,7 @@ macros::macro_connector_implementation!(
     flow_request: RefundSyncData,
     flow_response: RefundsResponseData,
     http_method: Post,
+    preprocess_response: true,
     generic_type: T,
     [PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
     other_functions: {

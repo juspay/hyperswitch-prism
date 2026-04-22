@@ -89,6 +89,8 @@ use crate::connectors::juspay_upi_stack::types::JuspayUpiAuthConfig as SharedAut
 
 impl From<AxisbankAuthConfig> for SharedAuthConfig {
     fn from(config: AxisbankAuthConfig) -> Self {
+        let jwe_kid = config.merchant_kid.clone();
+        let merchant_private_key = config.merchant_private_key.clone();
         Self {
             merchant_id: config.merchant_id,
             merchant_channel_id: config.merchant_channel_id,
@@ -96,10 +98,10 @@ impl From<AxisbankAuthConfig> for SharedAuthConfig {
             juspay_kid: config.juspay_kid,
             merchant_private_key: config.merchant_private_key,
             juspay_public_key: config.juspay_public_key,
-            use_jwe: false,
-            jwe_kid: None,
+            use_jwe: true,  // Axis Bank UAT uses JWE encryption for responses
+            jwe_kid: Some(jwe_kid),
             juspay_jwe_public_key: None,
-            merchant_jwe_private_key: None,
+            merchant_jwe_private_key: Some(merchant_private_key),
         }
     }
 }
@@ -172,6 +174,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let merchant_request_id = sanitize_merchant_request_id(
             &router_data.resource_common_data.connector_request_reference_id,
         );
+        // UPI Request ID - must be strictly alphanumeric (no hyphens, dots, or underscores)
+        // Per Juspay docs: "Constraint: 35 character alphanumeric"
+        // Strip all non-alphanumeric characters from merchant_request_id
+        let upi_request_id: String = merchant_request_id
+            .chars()
+            .filter(|c| c.is_alphanumeric())
+            .collect();
 
         // Build remarks from description
         let remarks = router_data
@@ -187,6 +196,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Build the raw payload
         let register_intent = RegisterIntentRequest {
             merchant_request_id,
+            upi_request_id,
             amount: amount.get_amount_as_string(),
             flow: FLOW_TRANSACTION.to_string(),
             intent_request_expiry_minutes: Some(intent_expiry),
