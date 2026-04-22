@@ -207,11 +207,10 @@ where
             router_data.request.payment_method_type,
             Some(common_enums::PaymentMethodType::Trustly)
         ) {
-            Some(sanitize_merchant_consumer_reference(
-                &router_data
-                    .resource_common_data
-                    .get_connector_customer_id()?,
-            ))
+            let id = router_data
+                .resource_common_data
+                .get_connector_customer_id()?;
+            Some(sanitize_merchant_consumer_reference(&id))
         } else {
             None
         };
@@ -1138,11 +1137,10 @@ where
             router_data.request.payment_method_type,
             Some(common_enums::PaymentMethodType::Trustly)
         ) {
-            Some(sanitize_merchant_consumer_reference(
-                &router_data
-                    .resource_common_data
-                    .get_connector_customer_id()?,
-            ))
+            let id = router_data
+                .resource_common_data
+                .get_connector_customer_id()?;
+            Some(sanitize_merchant_consumer_reference(&id))
         } else {
             None
         };
