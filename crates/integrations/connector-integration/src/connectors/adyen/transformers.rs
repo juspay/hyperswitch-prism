@@ -7723,15 +7723,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[serde(rename_all = "camelCase")]
 pub struct AdyenIncrementalAuthResponse {
     pub psp_reference: String,
-    #[serde(default)]
     pub payment_psp_reference: Option<String>,
-    #[serde(default)]
     pub amount: Option<Amount>,
-    #[serde(default)]
     pub merchant_account: Option<String>,
-    #[serde(default)]
     pub reference: Option<String>,
-    #[serde(default)]
     pub status: Option<String>,
 }
 
