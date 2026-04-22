@@ -1,0 +1,9 @@
+{
+    "connector": "billdesk",
+    "supported_suites": [
+        "authorize",
+        "get",
+        "refund",
+        "refund_sync"
+    ]
+}
