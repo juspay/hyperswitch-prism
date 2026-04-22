@@ -1316,8 +1316,9 @@ fn get_payment_source<
         })),
         BankRedirectData::BancontactCard { .. }
         | BankRedirectData::Blik { .. }
-        | BankRedirectData::Przelewy24 { .. } => Err(IntegrationError::not_implemented(
+        | BankRedirectData::Przelewy24 { .. } => Err(IntegrationError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("Paypal"),
+            Default::default(),
         )
         .into()),
         BankRedirectData::Bizum {}
@@ -1333,8 +1334,9 @@ fn get_payment_source<
         | BankRedirectData::OnlineBankingThailand { .. }
         | BankRedirectData::LocalBankRedirect {}
         | BankRedirectData::OpenBanking {}
-        | BankRedirectData::Netbanking { .. } => Err(IntegrationError::not_implemented(
+        | BankRedirectData::Netbanking { .. } => Err(IntegrationError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("Paypal"),
+            Default::default(),
         ))?,
     }
 }
@@ -1576,8 +1578,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             payment_source,
                         })
                     }
-                    GpayTokenizationData::Encrypted(_) => Err(IntegrationError::not_implemented(
+                    GpayTokenizationData::Encrypted(_) => Err(IntegrationError::NotImplemented(
                         "PayPal GooglePay encrypted flow".to_string(),
+                        Default::default(),
                     )
                     .into()),
                 },
@@ -1791,8 +1794,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | BankTransferData::InstantBankTransferFinland {}
             | BankTransferData::InstantBankTransferPoland {}
             | BankTransferData::IndonesianBankTransfer { .. }
-            | BankTransferData::LocalBankTransfer { .. } => Err(IntegrationError::not_implemented(
+            | BankTransferData::LocalBankTransfer { .. } => Err(IntegrationError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Paypal"),
+                Default::default(),
             )
             .into()),
         }
@@ -1818,8 +1822,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | VoucherData::MiniStop(_)
             | VoucherData::FamilyMart(_)
             | VoucherData::Seicomart(_)
-            | VoucherData::PayEasy(_) => Err(IntegrationError::not_implemented(
+            | VoucherData::PayEasy(_) => Err(IntegrationError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Paypal"),
+                Default::default(),
             )
             .into()),
         }
@@ -3755,8 +3760,9 @@ impl TryFrom<&VerifyWebhookSourceRequestData> for PaypalSourceVerificationReques
         // Parse the webhook body into serde_json::Value
         // With preserve_order feature enabled, this preserves field order (uses IndexMap, not BTreeMap)
         let webhook_event = serde_json::from_slice(&req.webhook_body)
-            .change_context(IntegrationError::not_implemented(
+            .change_context(IntegrationError::NotImplemented(
                 "webhook body decoding failed".to_string(),
+                Default::default(),
             ))
             .attach_printable("Webhook body is not valid JSON")?;
 
@@ -3799,8 +3805,9 @@ impl TryFrom<&VerifyWebhookSourceRequestData> for PaypalSourceVerificationReques
                 })?
                 .clone(),
             webhook_id: String::from_utf8(req.merchant_secret.secret.to_vec())
-                .change_context(IntegrationError::not_implemented(
+                .change_context(IntegrationError::NotImplemented(
                     "webhook verification secret not found".to_string(),
+                    Default::default(),
                 ))
                 .attach_printable("Could not convert secret to UTF-8")?,
             webhook_event,

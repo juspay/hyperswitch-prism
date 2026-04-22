@@ -121,8 +121,9 @@ fn get_order_type_from_payment_method<T: PaymentMethodDataTypes>(
             | WalletData::BillDeskRedirect(_)
             | WalletData::CashfreeRedirect(_)
             | WalletData::PayURedirect(_)
-            | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::not_implemented(
+            | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                Default::default(),
             ))
             .attach_printable("Wallet payment method not supported")?,
         },
@@ -147,8 +148,9 @@ fn get_order_type_from_payment_method<T: PaymentMethodDataTypes>(
             | BankRedirectData::OnlineBankingThailand { .. }
             | BankRedirectData::LocalBankRedirect {}
             | BankRedirectData::OpenBanking {}
-            | BankRedirectData::Netbanking { .. } => Err(IntegrationError::not_implemented(
+            | BankRedirectData::Netbanking { .. } => Err(IntegrationError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                Default::default(),
             ))
             .attach_printable("Bank redirect payment method not supported")?,
         },
@@ -167,8 +169,9 @@ fn get_order_type_from_payment_method<T: PaymentMethodDataTypes>(
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-            Err(IntegrationError::not_implemented(
+            Err(IntegrationError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                Default::default(),
             ))
             .attach_printable("Payment method not supported")?
         }
@@ -272,8 +275,9 @@ fn get_gateway_from_payment_method<T: PaymentMethodDataTypes>(
             | BankRedirectData::OnlineBankingThailand { .. }
             | BankRedirectData::LocalBankRedirect {}
             | BankRedirectData::OpenBanking {}
-            | BankRedirectData::Netbanking { .. } => Err(IntegrationError::not_implemented(
+            | BankRedirectData::Netbanking { .. } => Err(IntegrationError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                Default::default(),
             ))
             .attach_printable("Bank redirect payment method not supported")?,
         },
@@ -317,8 +321,9 @@ fn get_gateway_from_payment_method<T: PaymentMethodDataTypes>(
             | WalletData::BillDeskRedirect(_)
             | WalletData::CashfreeRedirect(_)
             | WalletData::PayURedirect(_)
-            | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::not_implemented(
+            | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                Default::default(),
             ))
             .attach_printable("Wallet payment method not supported")?,
         },
@@ -331,10 +336,11 @@ fn get_gateway_from_payment_method<T: PaymentMethodDataTypes>(
                 | BankDebitData::EftBankDebit { .. }
                 | BankDebitData::BacsBankDebit { .. }
                 | BankDebitData::SepaGuaranteedBankDebit { .. } => {
-                    Err(IntegrationError::not_implemented(
+                    Err(IntegrationError::NotImplemented(
                         crate::utils::get_unimplemented_payment_method_error_message(
                             "multisafepay",
                         ),
+                        Default::default(),
                     ))
                     .attach_printable("Only SEPA bank debit is supported by MultiSafepay")?
                 }
@@ -355,8 +361,9 @@ fn get_gateway_from_payment_method<T: PaymentMethodDataTypes>(
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-            Err(IntegrationError::not_implemented(
+            Err(IntegrationError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                Default::default(),
             ))
             .attach_printable("Payment method not supported")?
         }
@@ -450,8 +457,9 @@ fn build_gateway_info<T: PaymentMethodDataTypes>(
                     },
                 )))
             }
-            _ => Err(IntegrationError::not_implemented(
+            _ => Err(IntegrationError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                Default::default(),
             ))
             .attach_printable("Payment method not supported")?,
         },

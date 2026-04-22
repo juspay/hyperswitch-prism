@@ -534,6 +534,21 @@ impl Connectors {
             ConnectorEnum::Worldpay => {
                 patched.worldpay.apply(params_patch);
             }
+            ConnectorEnum::Rapyd => {
+                patched.rapyd.apply(params_patch);
+            }
+            ConnectorEnum::Fiserv => {
+                patched.fiserv.apply(params_patch);
+            }
+            ConnectorEnum::Nexinets => {
+                patched.nexinets.apply(params_patch);
+            }
+            ConnectorEnum::Elavon => {
+                patched.elavon.apply(params_patch);
+            }
+            ConnectorEnum::Novalnet => {
+                patched.novalnet.apply(params_patch);
+            }
             ConnectorEnum::Trustpay => {
                 // TrustPay uses ConnectorParamsWithMoreUrls which has different fields
                 let trustpay_patch = ConnectorParamsWithMoreUrlsPatch {
@@ -549,7 +564,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, worldpay, trustpay",
+                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay",
                             connector
                         )),
                         ..Default::default()
@@ -936,9 +951,7 @@ impl<
                 // ============================================================================
                 grpc_api_types::payments::payment_method::PaymentMethod::Card(_) |
                 grpc_api_types::payments::payment_method::PaymentMethod::CardProxy(_) => {
-                    Err(report!(IntegrationError::not_implemented(
-                        "UNSUPPORTED_PAYMENT_METHOD: This flow should never be hit for card or cardproxy types. Please check payment method dispatch/branching logic."
-                    )))
+                    Err(report!(IntegrationError::NotImplemented(("UNSUPPORTED_PAYMENT_METHOD: This flow should never be hit for card or cardproxy types. Please check payment method dispatch/branching logic.").into(), Default::default())))
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::CardRedirect(
                     card_redirect,
@@ -2448,8 +2461,9 @@ impl PaymentMethodDataAction {
                 payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(pm)
             }
             PaymentMethodDataAction::CardProxy(_) => {
-                Err(report!(IntegrationError::not_implemented(
-                    "CardProxy not supported in this flow; use the proxy endpoint"
+                Err(report!(IntegrationError::NotImplemented(
+                    ("CardProxy not supported in this flow; use the proxy endpoint").into(),
+                    Default::default()
                 )))
             }
         }
