@@ -561,12 +561,27 @@ where
                             )?;
 
                         // Convert injector response to connector service Response format
-                        let response_bytes = serde_json::to_vec(&injector_response.response)
+                        let actual_response = injector_response
+                            .response
+                            .get("response")
+                            .cloned()
+                            .unwrap_or(injector_response.response.clone());
+
+                        let response_bytes = serde_json::to_vec(&actual_response)
                             .map_err(|_| {
                                 ConnectorFlowError::from(
                                     ConnectorError::response_handling_failed_http_status_unknown(),
                                 )
                             })?;
+
+                        // Extract the actual connector status_code from the wrapper if present,
+                        // otherwise fall back to the injector-level status_code
+                        let actual_status_code = injector_response
+                            .response
+                            .get("status_code")
+                            .and_then(|v| v.as_u64())
+                            .map(|v| v as u16)
+                            .unwrap_or(injector_response.status_code);
 
                         // Convert headers from HashMap<String, String> to reqwest::HeaderMap if present
                         let headers = injector_response.headers.map(|h| {
@@ -585,7 +600,7 @@ where
                         Ok(Ok(Response {
                             headers,
                             response: response_bytes.into(),
-                            status_code: injector_response.status_code, // Use actual status code from connector
+                            status_code: actual_status_code, // Use actual status code from connector
                         }))
                     } else {
                         let test_mode = test_context.is_some();
@@ -1396,16 +1411,34 @@ impl RequestBuilderExt for reqwest::RequestBuilder {
 }
 
 /// Parse the `x-external-vault-metadata` header from vault headers and return the config.
+///
+/// The header value is expected to be a **base64-encoded** JSON string representing
+/// an [`ExternalVaultProxyConfig`]. This function decodes the base64 payload, converts
+/// it to a UTF-8 string, and then deserializes the JSON.
 fn parse_external_vault_config(
     vault_headers: Option<&HashMap<String, Secret<String>>>,
 ) -> Option<ExternalVaultProxyConfig> {
+    use base64::{engine::general_purpose::STANDARD as BASE64_ENGINE, Engine};
+
     vault_headers
         .and_then(|vh| vh.get(consts::X_EXTERNAL_VAULT_METADATA))
         .and_then(|header_value| {
-            let json_str = header_value.clone().expose();
+            let encoded = header_value.clone().expose();
+            let decoded_bytes = BASE64_ENGINE.decode(&encoded)
+                .inspect_err(|e| {
+                    tracing::warn!("Failed to base64-decode external vault metadata: {:?}", e);
+                })
+                .ok()?;
+
+            let json_str = String::from_utf8(decoded_bytes)
+                .inspect_err(|e| {
+                    tracing::warn!("External vault metadata is not valid UTF-8: {:?}", e);
+                })
+                .ok()?;
+
             serde_json::from_str::<ExternalVaultProxyConfig>(&json_str)
                 .inspect_err(|e| {
-                    tracing::warn!("Failed to parse external vault metadata: {:?}", e);
+                    tracing::warn!("Failed to parse external vault metadata JSON: {:?}", e);
                 })
                 .ok()
         })
@@ -1436,7 +1469,7 @@ fn apply_vault_config_to_injector(
             .as_deref()
             .and_then(|id| match id.to_lowercase().as_str() {
                 "vgs" => Some(injector::VaultConnectors::VGS),
-                "hyperswitch_vault" | "hyperswitchvault" => {
+                "hyperswitch_vault" => {
                     Some(injector::VaultConnectors::HyperswitchVault)
                 }
                 _ => {
