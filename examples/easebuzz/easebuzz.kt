@@ -7,17 +7,34 @@
 
 package examples.easebuzz
 
+import types.Payment.*
+import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.RefundClient
-import payments.PaymentServiceCaptureRequest
-import payments.PaymentServiceCreateOrderRequest
-import payments.PaymentServiceGetRequest
-import payments.PaymentServiceRefundRequest
-import payments.RefundServiceGetRequest
 import payments.Currency
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
+import payments.ConnectorSpecificConfig
+import types.Payment.EasebuzzConfig
+import payments.SecretString
+
+val SUPPORTED_FLOWS = listOf<String>("capture", "create_order", "get", "refund", "refund_get")
+
+val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setEasebuzz(EasebuzzConfig.newBuilder()
+                .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
+                .setApiSalt(SecretString.newBuilder().setValue("YOUR_API_SALT").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .setSecondaryBaseUrl("YOUR_SECONDARY_BASE_URL")
+                .build())
+            .build()
+    )
+    .build()
+
 
 
 private fun buildCaptureRequest(connectorTransactionIdStr: String): PaymentServiceCaptureRequest {
@@ -55,15 +72,9 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
     }.build()
 }
 
-val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
-    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your connector config here
-    .build()
-
-
 // Flow: PaymentService.Capture
-fun capture(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun capture(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildCaptureRequest("probe_connector_txn_001")
     val response = client.capture(request)
     if (response.status.name == "FAILED")
@@ -72,8 +83,8 @@ fun capture(txnId: String) {
 }
 
 // Flow: PaymentService.CreateOrder
-fun createOrder(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun createOrder(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = PaymentServiceCreateOrderRequest.newBuilder().apply {
         merchantOrderId = "probe_order_001"  // Identification.
         amountBuilder.apply {  // Amount Information.
@@ -86,16 +97,16 @@ fun createOrder(txnId: String) {
 }
 
 // Flow: PaymentService.Get
-fun get(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildGetRequest("probe_connector_txn_001")
     val response = client.get(request)
     println("Status: ${response.status.name}")
 }
 
 // Flow: PaymentService.Refund
-fun refund(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun refund(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildRefundRequest("probe_connector_txn_001")
     val response = client.refund(request)
     if (response.status.name == "FAILED")
@@ -104,8 +115,8 @@ fun refund(txnId: String) {
 }
 
 // Flow: RefundService.Get
-fun refundGet(txnId: String) {
-    val client = RefundClient(_defaultConfig)
+fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = RefundClient(config)
     val request = RefundServiceGetRequest.newBuilder().apply {
         merchantRefundId = "probe_refund_001"  // Identification.
         connectorTransactionId = "probe_connector_txn_001"

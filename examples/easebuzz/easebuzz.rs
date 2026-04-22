@@ -4,16 +4,31 @@
 //
 // Easebuzz — all scenarios and flows in one file.
 // Run a scenario:  cargo run --example easebuzz -- process_checkout_card
-
+use grpc_api_types::payments::connector_specific_config;
 use grpc_api_types::payments::*;
 use hyperswitch_payments_client::ConnectorClient;
 use std::collections::HashMap;
 
 #[allow(dead_code)]
+pub const SUPPORTED_FLOWS: &[&str] = &["capture", "create_order", "get", "refund", "refund_get"];
+
+#[allow(dead_code)]
 fn build_client() -> ConnectorClient {
-    // Set connector_config to authenticate: use ConnectorSpecificConfig with your EasebuzzConfig
+    // Configure the connector with authentication
     let config = ConnectorConfig {
-        connector_config: None,  // TODO: Some(ConnectorSpecificConfig { config: Some(...) })
+        connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Easebuzz(
+                EasebuzzConfig {
+                    api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())), // Authentication credential
+                    api_salt: Some(hyperswitch_masking::Secret::new(
+                        "YOUR_API_SALT".to_string(),
+                    )), // Authentication credential
+                    base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
+                    secondary_base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
+                    ..Default::default()
+                },
+            )),
+        }),
         options: Some(SdkOptions {
             environment: Environment::Sandbox.into(),
         }),
@@ -22,91 +37,135 @@ fn build_client() -> ConnectorClient {
 }
 
 pub fn build_capture_request(connector_transaction_id: &str) -> PaymentServiceCaptureRequest {
-    serde_json::from_value::<PaymentServiceCaptureRequest>(serde_json::json!({
-    "merchant_capture_id": "probe_capture_001",  // Identification.
-    "connector_transaction_id": connector_transaction_id,
-    "amount_to_capture": {  // Capture Details.
-        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
-    },
-    })).unwrap_or_default()
+    PaymentServiceCaptureRequest {
+        merchant_capture_id: Some("probe_capture_001".to_string()), // Identification.
+        connector_transaction_id: connector_transaction_id.to_string(),
+        amount_to_capture: Some(Money {
+            // Capture Details.
+            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        ..Default::default()
+    }
 }
 
 pub fn build_create_order_request() -> PaymentServiceCreateOrderRequest {
-    serde_json::from_value::<PaymentServiceCreateOrderRequest>(serde_json::json!({
-    "merchant_order_id": "probe_order_001",  // Identification.
-    "amount": {  // Amount Information.
-        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
-    },
-    })).unwrap_or_default()
+    PaymentServiceCreateOrderRequest {
+        merchant_order_id: Some("probe_order_001".to_string()), // Identification.
+        amount: Some(Money {
+            // Amount Information.
+            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        ..Default::default()
+    }
 }
 
 pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetRequest {
-    serde_json::from_value::<PaymentServiceGetRequest>(serde_json::json!({
-    "merchant_transaction_id": "probe_merchant_txn_001",  // Identification.
-    "connector_transaction_id": connector_transaction_id,
-    "amount": {  // Amount Information.
-        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
-    },
-    })).unwrap_or_default()
+    PaymentServiceGetRequest {
+        merchant_transaction_id: Some("probe_merchant_txn_001".to_string()), // Identification.
+        connector_transaction_id: connector_transaction_id.to_string(),
+        amount: Some(Money {
+            // Amount Information.
+            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        ..Default::default()
+    }
 }
 
 pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRefundRequest {
-    serde_json::from_value::<PaymentServiceRefundRequest>(serde_json::json!({
-    "merchant_refund_id": "probe_refund_001",  // Identification.
-    "connector_transaction_id": connector_transaction_id,
-    "payment_amount": 1000,  // Amount Information.
-    "refund_amount": {
-        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
-    },
-    "reason": "customer_request",  // Reason for the refund.
-    })).unwrap_or_default()
+    PaymentServiceRefundRequest {
+        merchant_refund_id: Some("probe_refund_001".to_string()), // Identification.
+        connector_transaction_id: connector_transaction_id.to_string(),
+        payment_amount: 1000, // Amount Information.
+        refund_amount: Some(Money {
+            minor_amount: 1000,             // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        reason: Some("customer_request".to_string()), // Reason for the refund.
+        ..Default::default()
+    }
 }
 
 pub fn build_refund_get_request() -> RefundServiceGetRequest {
-    serde_json::from_value::<RefundServiceGetRequest>(serde_json::json!({
-    "merchant_refund_id": "probe_refund_001",  // Identification.
-    "connector_transaction_id": "probe_connector_txn_001",
-    "refund_id": "probe_refund_id_001",
-    })).unwrap_or_default()
+    RefundServiceGetRequest {
+        merchant_refund_id: Some("probe_refund_001".to_string()), // Identification.
+        connector_transaction_id: "probe_connector_txn_001".to_string(),
+        refund_id: "probe_refund_id_001".to_string(),
+        ..Default::default()
+    }
 }
-
 
 // Flow: PaymentService.Capture
 #[allow(dead_code)]
-pub async fn capture(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.capture(build_capture_request("probe_connector_txn_001"), &HashMap::new(), None).await?;
+pub async fn process_capture(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .capture(
+            build_capture_request("probe_connector_txn_001"),
+            &HashMap::new(),
+            None,
+        )
+        .await?;
     Ok(format!("status: {:?}", response.status()))
 }
 
 // Flow: PaymentService.CreateOrder
 #[allow(dead_code)]
-pub async fn create_order(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.create_order(build_create_order_request(), &HashMap::new(), None).await?;
+pub async fn process_create_order(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .create_order(build_create_order_request(), &HashMap::new(), None)
+        .await?;
     Ok(format!("status: {:?}", response.status()))
 }
 
 // Flow: PaymentService.Get
 #[allow(dead_code)]
-pub async fn get(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.get(build_get_request("probe_connector_txn_001"), &HashMap::new(), None).await?;
+pub async fn process_get(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .get(
+            build_get_request("probe_connector_txn_001"),
+            &HashMap::new(),
+            None,
+        )
+        .await?;
     Ok(format!("status: {:?}", response.status()))
 }
 
 // Flow: PaymentService.Refund
 #[allow(dead_code)]
-pub async fn refund(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.refund(build_refund_request("probe_connector_txn_001"), &HashMap::new(), None).await?;
+pub async fn process_refund(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .refund(
+            build_refund_request("probe_connector_txn_001"),
+            &HashMap::new(),
+            None,
+        )
+        .await?;
     Ok(format!("status: {:?}", response.status()))
 }
 
 // Flow: RefundService.Get
 #[allow(dead_code)]
-pub async fn refund_get(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.refund_get(build_refund_get_request(), &HashMap::new(), None).await?;
+pub async fn process_refund_get(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .refund_get(build_refund_get_request(), &HashMap::new(), None)
+        .await?;
     Ok(format!("status: {:?}", response.status()))
 }
 
@@ -114,14 +173,19 @@ pub async fn refund_get(client: &ConnectorClient, _merchant_transaction_id: &str
 #[tokio::main]
 async fn main() {
     let client = build_client();
-    let flow = std::env::args().nth(1).unwrap_or_else(|| "capture".to_string());
+    let flow = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "process_capture".to_string());
     let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
-        "capture" => capture(&client, "order_001").await,
-        "create_order" => create_order(&client, "order_001").await,
-        "get" => get(&client, "order_001").await,
-        "refund" => refund(&client, "order_001").await,
-        "refund_get" => refund_get(&client, "order_001").await,
-        _ => { eprintln!("Unknown flow: {}. Available: capture, create_order, get, refund, refund_get", flow); return; }
+        "process_capture" => process_capture(&client, "txn_001").await,
+        "process_create_order" => process_create_order(&client, "txn_001").await,
+        "process_get" => process_get(&client, "txn_001").await,
+        "process_refund" => process_refund(&client, "txn_001").await,
+        "process_refund_get" => process_refund_get(&client, "txn_001").await,
+        _ => {
+            eprintln!("Unknown flow: {}. Available: process_capture, process_create_order, process_get, process_refund, process_refund_get", flow);
+            return;
+        }
     };
     match result {
         Ok(msg) => println!("✓ {msg}"),

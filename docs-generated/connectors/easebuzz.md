@@ -22,11 +22,15 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        easebuzz=payment_pb2.EasebuzzConfig(
+            api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
+            api_salt=payment_methods_pb2.SecretString(value="YOUR_API_SALT"),
+            base_url="YOUR_BASE_URL",
+            secondary_base_url="YOUR_SECONDARY_BASE_URL",
+        ),
+    ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     easebuzz=payment_pb2.EasebuzzConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,14 +42,19 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Easebuzz',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
+const config = ConnectorConfig.create({
+    connector: Connector.EASEBUZZ,
+    environment: Environment.SANDBOX,
+    auth: {
+        easebuzz: {
+            apiKey: { value: 'YOUR_API_KEY' },
+            apiSalt: { value: 'YOUR_API_SALT' },
+            baseUrl: 'YOUR_BASE_URL',
+            secondaryBaseUrl: 'YOUR_SECONDARY_BASE_URL',
+        }
     },
 });
 ```
@@ -59,11 +68,16 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Easebuzz")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setEasebuzz(EasebuzzConfig.newBuilder()
+                .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
+                .setApiSalt(SecretString.newBuilder().setValue("YOUR_API_SALT").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .setSecondaryBaseUrl("YOUR_SECONDARY_BASE_URL")
+                .build())
+            .build()
     )
     .build()
 ```
@@ -76,13 +90,22 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Easebuzz".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Easebuzz(EasebuzzConfig {
+                api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
+                api_salt: Some(hyperswitch_masking::Secret::new("YOUR_API_SALT".to_string())),  // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                secondary_base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -113,7 +136,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/easebuzz/easebuzz.py#L88) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L78) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L65) · [Rust](../../examples/easebuzz/easebuzz.rs#L80)
+**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L83) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L76) · [Rust](../../examples/easebuzz/easebuzz.rs)
 
 #### PaymentService.CreateOrder
 
@@ -124,7 +147,7 @@ Create a payment order for later processing. Establishes a transaction context t
 | **Request** | `PaymentServiceCreateOrderRequest` |
 | **Response** | `PaymentServiceCreateOrderResponse` |
 
-**Examples:** [Python](../../examples/easebuzz/easebuzz.py#L97) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L87) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L75) · [Rust](../../examples/easebuzz/easebuzz.rs#L87)
+**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L92) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L86) · [Rust](../../examples/easebuzz/easebuzz.rs)
 
 #### PaymentService.Get
 
@@ -135,7 +158,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/easebuzz/easebuzz.py#L106) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L96) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L89) · [Rust](../../examples/easebuzz/easebuzz.rs#L94)
+**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L101) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L100) · [Rust](../../examples/easebuzz/easebuzz.rs)
 
 #### PaymentService.Refund
 
@@ -146,7 +169,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/easebuzz/easebuzz.py#L115) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L105) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L97) · [Rust](../../examples/easebuzz/easebuzz.rs#L101)
+**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L110) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L108) · [Rust](../../examples/easebuzz/easebuzz.rs)
 
 ### Refunds
 
@@ -159,4 +182,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/easebuzz/easebuzz.py#L124) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L114) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L107) · [Rust](../../examples/easebuzz/easebuzz.rs#L108)
+**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L119) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L118) · [Rust](../../examples/easebuzz/easebuzz.rs)
