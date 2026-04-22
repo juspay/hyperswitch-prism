@@ -169,7 +169,12 @@ class GrpcEventClient internal constructor(
     private val config: GrpcConfig,
 ) {
     /**
-     * EventService.HandleEvent — Process webhook notifications from connectors. Translates connector events into standardized responses for asynchronous payment state updates.
+     * EventService.ParseEvent — Parse a raw webhook payload without credentials. Returns resource reference and event type — sufficient to resolve secrets or early-exit.
+     */
+    suspend fun parse_event(req: EventServiceParseRequest): EventServiceParseResponse =
+        callGrpc(config, "event/parse_event", req, EventServiceParseResponse.parser())
+    /**
+     * EventService.HandleEvent — Verify webhook source and return a unified typed response. Response mirrors PaymentService.Get / RefundService.Get / DisputeService.Get.
      */
     suspend fun handle_event(req: EventServiceHandleRequest): EventServiceHandleResponse =
         callGrpc(config, "event/handle_event", req, EventServiceHandleResponse.parser())

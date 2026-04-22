@@ -534,6 +534,21 @@ impl Connectors {
             ConnectorEnum::Worldpay => {
                 patched.worldpay.apply(params_patch);
             }
+            ConnectorEnum::Rapyd => {
+                patched.rapyd.apply(params_patch);
+            }
+            ConnectorEnum::Fiserv => {
+                patched.fiserv.apply(params_patch);
+            }
+            ConnectorEnum::Nexinets => {
+                patched.nexinets.apply(params_patch);
+            }
+            ConnectorEnum::Elavon => {
+                patched.elavon.apply(params_patch);
+            }
+            ConnectorEnum::Novalnet => {
+                patched.novalnet.apply(params_patch);
+            }
             ConnectorEnum::Trustpay => {
                 // TrustPay uses ConnectorParamsWithMoreUrls which has different fields
                 let trustpay_patch = ConnectorParamsWithMoreUrlsPatch {
@@ -549,7 +564,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, worldpay, trustpay",
+                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay",
                             connector
                         )),
                         ..Default::default()
@@ -936,9 +951,7 @@ impl<
                 // ============================================================================
                 grpc_api_types::payments::payment_method::PaymentMethod::Card(_) |
                 grpc_api_types::payments::payment_method::PaymentMethod::CardProxy(_) => {
-                    Err(report!(IntegrationError::not_implemented(
-                        "UNSUPPORTED_PAYMENT_METHOD: This flow should never be hit for card or cardproxy types. Please check payment method dispatch/branching logic."
-                    )))
+                    Err(report!(IntegrationError::NotImplemented(("UNSUPPORTED_PAYMENT_METHOD: This flow should never be hit for card or cardproxy types. Please check payment method dispatch/branching logic.").into(), Default::default())))
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::CardRedirect(
                     card_redirect,
@@ -2447,8 +2460,9 @@ impl PaymentMethodDataAction {
                 payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(pm)
             }
             PaymentMethodDataAction::CardProxy(_) => {
-                Err(report!(IntegrationError::not_implemented(
-                    "CardProxy not supported in this flow; use the proxy endpoint"
+                Err(report!(IntegrationError::NotImplemented(
+                    ("CardProxy not supported in this flow; use the proxy endpoint").into(),
+                    Default::default()
                 )))
             }
         }
@@ -13225,5 +13239,66 @@ pub fn generate_mandate_revoke_response(
             raw_connector_response,
             raw_connector_request,
         }),
+    }
+}
+
+impl From<connector_types::WebhookResourceReference> for grpc_api_types::payments::EventReference {
+    fn from(r: connector_types::WebhookResourceReference) -> Self {
+        use connector_types::{
+            DisputeWebhookReference, MandateWebhookReference, PaymentWebhookReference,
+            PayoutWebhookReference, RefundWebhookReference, WebhookResourceReference,
+        };
+        use grpc_api_types::payments::{
+            event_reference, DisputeEventReference, EventReference, MandateEventReference,
+            PaymentEventReference, PayoutEventReference, RefundEventReference,
+        };
+
+        match r {
+            WebhookResourceReference::Payment(PaymentWebhookReference {
+                connector_transaction_id,
+                merchant_transaction_id,
+            }) => EventReference {
+                resource: Some(event_reference::Resource::Payment(PaymentEventReference {
+                    connector_transaction_id,
+                    merchant_transaction_id,
+                })),
+            },
+            WebhookResourceReference::Refund(RefundWebhookReference {
+                connector_refund_id,
+                merchant_refund_id,
+                connector_transaction_id,
+            }) => EventReference {
+                resource: Some(event_reference::Resource::Refund(RefundEventReference {
+                    connector_refund_id,
+                    merchant_refund_id,
+                    connector_transaction_id,
+                })),
+            },
+            WebhookResourceReference::Dispute(DisputeWebhookReference {
+                connector_dispute_id,
+                connector_transaction_id,
+            }) => EventReference {
+                resource: Some(event_reference::Resource::Dispute(DisputeEventReference {
+                    connector_dispute_id,
+                    connector_transaction_id,
+                })),
+            },
+            WebhookResourceReference::Mandate(MandateWebhookReference {
+                connector_mandate_id,
+            }) => EventReference {
+                resource: Some(event_reference::Resource::Mandate(MandateEventReference {
+                    connector_mandate_id,
+                })),
+            },
+            WebhookResourceReference::Payout(PayoutWebhookReference {
+                connector_payout_id,
+                merchant_payout_id,
+            }) => EventReference {
+                resource: Some(event_reference::Resource::Payout(PayoutEventReference {
+                    connector_payout_id,
+                    merchant_payout_id,
+                })),
+            },
+        }
     }
 }

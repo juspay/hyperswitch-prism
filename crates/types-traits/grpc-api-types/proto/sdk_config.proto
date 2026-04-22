@@ -193,6 +193,11 @@ message FfiResult {
     HTTP_RESPONSE = 1;
     INTEGRATION_ERROR = 2;
     CONNECTOR_ERROR = 3;
+    // Direct serialized protobuf response — no HTTP envelope.
+    // Used by single-step flows (e.g. webhook parse/handle) where there is no
+    // outgoing connector HTTP call. The bytes are decoded by the call site into
+    // the expected response proto type.
+    PROTO_RESPONSE = 4;
   }
 
   Type type = 1;
@@ -202,6 +207,7 @@ message FfiResult {
     FfiConnectorHttpResponse http_response = 3;
     IntegrationError integration_error = 4;
     ConnectorError connector_error = 5;
+    bytes proto_response = 6;
   }
 }
 // ============================================================

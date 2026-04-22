@@ -281,8 +281,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             },
             _ => {
-                return Err(IntegrationError::not_implemented(
+                return Err(IntegrationError::NotImplemented(
                     "Phonepe currently implements UPI payment methods only".to_string(),
+                    Default::default(),
                 )
                 .into())
             }
@@ -441,8 +442,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             },
             _ => {
-                return Err(IntegrationError::not_implemented(
+                return Err(IntegrationError::NotImplemented(
                     "Phonepe currently implements UPI payment methods only".to_string(),
+                    Default::default(),
                 )
                 .into())
             }

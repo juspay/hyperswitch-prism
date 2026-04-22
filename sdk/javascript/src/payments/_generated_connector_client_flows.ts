@@ -44,12 +44,20 @@ export class DisputeClient extends _ConnectorClientBase {
 }
 
 export class EventClient extends _ConnectorClientBase {
-  /** EventService.HandleEvent — Process webhook notifications from connectors. Translates connector events into standardized responses for asynchronous payment state updates. */
+  /** EventService.HandleEvent — Verify webhook source and return a unified typed response. Response mirrors PaymentService.Get / RefundService.Get / DisputeService.Get. */
   async handleEvent(
     requestMsg: types.IEventServiceHandleRequest,
     options?: types.IRequestConfig | null
   ): Promise<types.EventServiceHandleResponse> {
     return this._executeDirect('handle_event', requestMsg, options, 'EventServiceHandleRequest', 'EventServiceHandleResponse') as Promise<types.EventServiceHandleResponse>;
+  }
+
+  /** EventService.ParseEvent — Parse a raw webhook payload without credentials. Returns resource reference and event type — sufficient to resolve secrets or early-exit. */
+  async parseEvent(
+    requestMsg: types.IEventServiceParseRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.EventServiceParseResponse> {
+    return this._executeDirect('parse_event', requestMsg, options, 'EventServiceParseRequest', 'EventServiceParseResponse') as Promise<types.EventServiceParseResponse>;
   }
 
 }

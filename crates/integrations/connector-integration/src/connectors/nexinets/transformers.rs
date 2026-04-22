@@ -744,8 +744,9 @@ fn get_payment_details_and_product<
             | BankRedirectData::OnlineBankingThailand { .. }
             | BankRedirectData::LocalBankRedirect {}
             | BankRedirectData::OpenBanking {}
-            | BankRedirectData::Netbanking { .. } => Err(IntegrationError::not_implemented(
+            | BankRedirectData::Netbanking { .. } => Err(IntegrationError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("nexinets"),
+                Default::default(),
             ))?,
         },
         PaymentMethodData::CardRedirect(_)
@@ -765,8 +766,9 @@ fn get_payment_details_and_product<
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-            Err(IntegrationError::not_implemented(
+            Err(IntegrationError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("nexinets"),
+                Default::default(),
             ))?
         }
     }
@@ -826,7 +828,7 @@ fn get_card_details<
     Ok(CardDetails {
         card_number: req_card.card_number.clone(),
         expiry_month: req_card.card_exp_month.clone(),
-        expiry_year: req_card.card_exp_year.clone(),
+        expiry_year: req_card.get_card_expiry_year_2_digit()?,
         verification: req_card.card_cvc.clone(),
     })
 }
@@ -887,8 +889,9 @@ fn get_wallet_details<
         | WalletData::BillDeskRedirect(_)
         | WalletData::CashfreeRedirect(_)
         | WalletData::PayURedirect(_)
-        | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::not_implemented(
+        | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("nexinets"),
+            Default::default(),
         ))?,
     }
 }
@@ -1135,8 +1138,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )
             }
             _ => {
-                return Err(IntegrationError::not_implemented(
+                return Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("nexinets"),
+                    Default::default(),
                 ))?;
             }
         };

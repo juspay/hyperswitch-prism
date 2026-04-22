@@ -170,6 +170,56 @@ pub fn parse_metadata(
 
     Ok(crate::types::FfiMetadataPayload {
         connector,
+        connector_config: Some(connector_config),
+    })
+}
+
+/// Resolve connector identity for direct webhook flows.
+///
+/// Unlike the main req/res flow path, webhook direct flows only need the
+/// connector identity up front. Full connector config is optional and is
+/// passed through when it can be converted successfully.
+pub fn parse_webhook_metadata(
+    options: &FfiOptions,
+) -> Result<crate::types::FfiMetadataPayload, IntegrationError> {
+    let proto_config = options
+        .connector_config
+        .as_ref()
+        .ok_or_else(|| IntegrationError {
+            error_message: "Missing connector_config".to_string(),
+            error_code: "MISSING_CONNECTOR_CONFIG".to_string(),
+            suggested_action: None,
+            doc_url: None,
+        })?;
+
+    let config_variant = proto_config
+        .config
+        .as_ref()
+        .ok_or_else(|| IntegrationError {
+            error_message:
+                "Missing connector_config.config. Webhook flows require connector identity, but full connector credentials are optional."
+                    .to_string(),
+            error_code: "MISSING_CONNECTOR_CONFIG_VARIANT".to_string(),
+            suggested_action: None,
+            doc_url: None,
+        })?;
+
+    // Extract connector identity from the oneof variant.
+    // This does NOT parse auth fields, just maps variant name to ConnectorEnum.
+    let connector = ConnectorEnum::foreign_try_from(config_variant.clone()).map_err(
+        |e: Report<domain_types::errors::IntegrationError>| IntegrationError {
+            error_message: e.current_context().to_string(),
+            error_code: "INVALID_CONNECTOR_CONFIG_VARIANT".to_string(),
+            suggested_action: None,
+            doc_url: None,
+        },
+    )?;
+
+    // For webhook flows, connector config is optional.
+    let connector_config = ConnectorSpecificConfig::foreign_try_from(proto_config.clone()).ok();
+
+    Ok(crate::types::FfiMetadataPayload {
+        connector,
         connector_config,
     })
 }

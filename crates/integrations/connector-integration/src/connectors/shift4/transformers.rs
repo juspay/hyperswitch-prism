@@ -1,17 +1,18 @@
 use crate::types::ResponseRouterData;
-use common_enums::{AttemptStatus, Currency, RefundStatus};
+use common_enums::{AttemptStatus, AuthorizationStatus, Currency, RefundStatus};
 use common_utils::{pii, request::Method, types::MinorUnit};
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer, PSync, RSync,
-        Refund, RepeatPayment, SetupMandate,
+        Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
+        IncrementalAuthorization, PSync, RSync, Refund, RepeatPayment, SetupMandate,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, ConnectorSpecificClientAuthenticationResponse, MandateReference,
         MandateReferenceId, PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
+        PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ResponseId, SetupMandateRequestData,
         Shift4ClientAuthenticationResponse as Shift4ClientAuthenticationResponseDomain,
     },
     payment_method_data::{
@@ -28,7 +29,7 @@ use url::Url;
 
 // Import the connector's RouterData wrapper type created by the macro
 use super::Shift4RouterData;
-use domain_types::errors::{ConnectorError, IntegrationError};
+use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
 
 #[derive(Debug, Clone)]
 pub struct Shift4AuthType {
@@ -144,8 +145,27 @@ pub struct Shift4PaymentsRequest<T: PaymentMethodDataTypes> {
     /// Customer ID required when charging a stored card token
     #[serde(skip_serializing_if = "Option::is_none")]
     pub customer_id: Option<String>,
+    /// Optional charge options. When incremental authorization is requested, this
+    /// must include `authorizationType = "pre"` so that the charge is created as
+    /// a pre-authorization eligible for future `POST /charges/{id}/increment-authorization`
+    /// calls. Shift4 requires BOTH `captured=false` AND `options.authorizationType=pre`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub options: Option<Shift4ChargeOptions>,
     #[serde(flatten)]
     pub payment_method: Shift4PaymentMethod<T>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shift4ChargeOptions {
+    /// "pre" to mark the charge as a pre-authorization (required for incremental auth).
+    pub authorization_type: Shift4AuthorizationType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Shift4AuthorizationType {
+    Pre,
 }
 
 #[derive(Debug, Serialize)]
@@ -364,12 +384,56 @@ impl<T: PaymentMethodDataTypes>
                 })
             }
             _ => {
-                return Err(IntegrationError::not_implemented("Payment method".to_string()).into());
+                return Err(IntegrationError::NotImplemented(
+                    "Payment method".to_string(),
+                    Default::default(),
+                )
+                .into());
             }
         };
 
         // Get customer_id from connector_customer if available (needed for token payments)
         let customer_id = item.resource_common_data.connector_customer.clone();
+
+        // When the upstream requests incremental authorization support, Shift4 requires
+        // the original charge to be created as a pre-authorization: `captured=false` AND
+        // `options.authorizationType=pre`. Fail fast at authorize time if the caller
+        // asked for incremental auth under AUTOMATIC capture — otherwise the mismatch
+        // would only surface later at increment time with an opaque Shift4 rejection.
+        let wants_incremental_auth =
+            matches!(item.request.request_incremental_authorization, Some(true));
+        if wants_incremental_auth && captured {
+            return Err(IntegrationError::InvalidDataFormat {
+                field_name: "capture_method",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Shift4 incremental authorization requires the parent charge to be a \
+                         pre-authorization (captured=false, options.authorizationType=\"pre\"). \
+                         The caller sent request_incremental_authorization=true with \
+                         capture_method=AUTOMATIC, which would create a captured sale and cause \
+                         POST /charges/{id}/incremental-authorization to fail with HTTP 400."
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Set capture_method=MANUAL when request_incremental_authorization=true, \
+                         or drop request_incremental_authorization if a normal auto-capture sale \
+                         is intended."
+                            .to_string(),
+                    ),
+                    doc_url: Some(
+                        "https://dev.shift4.com/docs/api#increment-authorization".to_string(),
+                    ),
+                },
+            }
+            .into());
+        }
+        let options = if wants_incremental_auth {
+            Some(Shift4ChargeOptions {
+                authorization_type: Shift4AuthorizationType::Pre,
+            })
+        } else {
+            None
+        };
 
         Ok(Self {
             amount: item.request.minor_amount,
@@ -378,6 +442,7 @@ impl<T: PaymentMethodDataTypes>
             description: item.resource_common_data.description.clone(),
             metadata: item.request.metadata.clone().expose_option(),
             customer_id,
+            options,
             payment_method,
         })
     }
@@ -1157,6 +1222,137 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
                 quantity: 1,
             }],
+        })
+    }
+}
+
+// ===== INCREMENTAL AUTHORIZATION FLOW =====
+//
+// Shift4 exposes `POST /charges/{chargeId}/incremental-authorization` to raise the
+// authorized amount on an existing pre-authorization. The charge must have been
+// created with `captured=false` AND `options.authorizationType="pre"`.
+// Reference: https://dev.shift4.com/docs/api/#increment-charge-authorization
+// Note: the published doc example URL uses the singular "/increment-authorization",
+// but the deployed API only routes the plural "/incremental-authorization". The
+// plural form is what the SDK actually calls.
+//
+// The `amount` field in the request is the INCREMENT amount (additional amount to
+// add to the existing authorization), not the new total. This matches CyberSource's
+// `additionalAmount` semantics and Prism's `PaymentsIncrementalAuthorizationData.minor_amount`.
+// The response is the updated charge object, which mirrors `Shift4PaymentsResponse`.
+
+#[derive(Debug, Serialize)]
+pub struct Shift4IncrementalAuthRequest {
+    /// Increment amount (additional funds to authorize) in minor units.
+    /// Example: initial charge $10.00 (amount=1000) + increment $5.00 (amount=500)
+    /// results in a total authorization of $15.00 (amount=1500).
+    pub amount: MinorUnit,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        Shift4RouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for Shift4IncrementalAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: Shift4RouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: item.router_data.request.minor_amount,
+        })
+    }
+}
+
+// Map the Shift4 charge-object response returned by /increment-authorization
+// into a PaymentsResponseData::IncrementalAuthorizationResponse.
+//
+// A 200 OK from Shift4 with `status: "failed"` is mapped to `Err(ErrorResponse)`
+// so downstream error handling uses the conventional error channel rather than
+// the caller having to inspect `AuthorizationStatus::Failure` inside an `Ok`.
+// This mirrors the worldpayvantiv IncrementalAuthorization transformer.
+impl TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
+    for RouterDataV2<
+        IncrementalAuthorization,
+        PaymentFlowData,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<Shift4PaymentsResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = match item.response.status {
+            Shift4PaymentStatus::Failed => Err(domain_types::router_data::ErrorResponse {
+                status_code: item.http_code,
+                code: item
+                    .response
+                    .failure_code
+                    .clone()
+                    .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
+                message: item
+                    .response
+                    .failure_message
+                    .clone()
+                    .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
+                reason: item.response.failure_message.clone(),
+                attempt_status: Some(AttemptStatus::AuthorizationFailed),
+                connector_transaction_id: Some(item.response.id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            }),
+            Shift4PaymentStatus::Successful => {
+                Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                    status: AuthorizationStatus::Success,
+                    connector_authorization_id: Some(item.response.id.clone()),
+                    status_code: item.http_code,
+                })
+            }
+            Shift4PaymentStatus::Pending => {
+                Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                    status: AuthorizationStatus::Processing,
+                    connector_authorization_id: Some(item.response.id.clone()),
+                    status_code: item.http_code,
+                })
+            }
+        };
+
+        // Keep the parent payment in Authorized state on success; on failure, mark
+        // the attempt as AuthorizationFailed so downstream sees a coherent terminal
+        // state rather than a stale Authorized with an Err response.
+        let status = if response.is_ok() {
+            AttemptStatus::Authorized
+        } else {
+            AttemptStatus::AuthorizationFailed
+        };
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            response,
+            ..item.router_data
         })
     }
 }

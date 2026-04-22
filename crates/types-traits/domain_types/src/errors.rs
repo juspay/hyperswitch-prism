@@ -242,20 +242,6 @@ impl IntegrationError {
         }
     }
 
-    /// Connector feature not implemented; uses default empty [`IntegrationErrorContext`].
-    pub fn not_implemented(message: impl Into<String>) -> Self {
-        Self::not_implemented_with_context(message, IntegrationErrorContext::default())
-    }
-
-    /// Like [`Self::not_implemented`], but allows connector-specific [`IntegrationErrorContext`]
-    /// (merged with central defaults in `ucs_env`).
-    pub fn not_implemented_with_context(
-        message: impl Into<String>,
-        context: IntegrationErrorContext,
-    ) -> Self {
-        Self::NotImplemented(message.into(), context)
-    }
-
     /// Optional connector-specific guidance for gRPC [`IntegrationError`] (overrides merged in `ucs_env`).
     pub fn integration_context(&self) -> &IntegrationErrorContext {
         match self {
@@ -644,6 +630,24 @@ pub enum WebhookError {
     WebhookResourceObjectNotFound,
     #[error("Failed to encode webhook response")]
     WebhookResponseEncodingFailed,
+    #[error("Missing required EventContext field '{field}' for this connector's webhook handling. Pass {field} from your original {origin} request in EventContext.")]
+    WebhookMissingRequiredContext {
+        field: &'static str,
+        origin: &'static str,
+    },
+    #[error("Missing required field '{field}' in webhook request")]
+    WebhookMissingRequiredField { field: &'static str },
+}
+
+impl ErrorSwitch<grpc_api_types::payments::IntegrationError> for WebhookError {
+    fn switch(&self) -> grpc_api_types::payments::IntegrationError {
+        grpc_api_types::payments::IntegrationError {
+            error_message: self.to_string(),
+            error_code: self.as_ref().to_string(),
+            suggested_action: None,
+            doc_url: None,
+        }
+    }
 }
 
 /// Wrapper enum used by `execute_connector_processing_step` (gRPC unified path)

@@ -440,7 +440,6 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
                 mandate_reference: None,
                 raw_connector_response: None,
                 response_headers: None,
-                transformation_status: common_enums::WebhookTransformationStatus::Complete,
                 minor_amount_captured: None,
                 amount_captured: None,
                 network_txn_id: None,
@@ -481,7 +480,6 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
                         response_headers: None,
                         network_txn_id: None,
                         payment_method_update: None,
-                        transformation_status: common_enums::WebhookTransformationStatus::Complete,
                     })
                 }
                 _ => Ok(Self {
@@ -499,7 +497,6 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
                     error_reason: None,
                     network_txn_id: None,
                     payment_method_update: None,
-                    transformation_status: common_enums::WebhookTransformationStatus::Complete,
                 }),
             }
         }

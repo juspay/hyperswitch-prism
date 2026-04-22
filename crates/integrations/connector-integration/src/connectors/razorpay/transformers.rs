@@ -330,9 +330,10 @@ impl TryFrom<&WalletData> for RazorpayWalletType {
             | WalletData::RevolutPay(_)
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
-            | WalletData::Wero(_) => Err(IntegrationError::not_implemented(format!(
-                "Payment Method {wallet_data:?} not supported for Razorpay"
-            ))),
+            | WalletData::Wero(_) => Err(IntegrationError::NotImplemented(
+                format!("Payment Method {wallet_data:?} not supported for Razorpay"),
+                Default::default(),
+            )),
         }
     }
 }
@@ -516,9 +517,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | PaymentMethodData::NetworkToken(_)
                 | PaymentMethodData::MobilePayment(_)
                 | PaymentMethodData::OpenBanking(_)) => {
-                    return Err(IntegrationError::not_implemented(format!(
-                        "Payment Method {pm:?} not supported for Razorpay"
-                    ))
+                    return Err(IntegrationError::NotImplemented(
+                        format!("Payment Method {pm:?} not supported for Razorpay"),
+                        Default::default(),
+                    )
                     .into())
                 }
             };

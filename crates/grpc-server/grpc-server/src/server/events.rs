@@ -7,7 +7,7 @@ use connector_integration::types::ConnectorData;
 use domain_types::{
     connector_flow::VerifyWebhookSource,
     connector_types::VerifyWebhookSourceFlowData,
-    errors::IntegrationError,
+    errors::WebhookError,
     payment_method_data::DefaultPCIHolder,
     router_data::ConnectorSpecificConfig,
     router_data::ErrorResponse,
@@ -19,6 +19,7 @@ use domain_types::{
 use external_services::service::EventProcessingParams;
 use grpc_api_types::payments::{
     event_service_server::EventService, EventServiceHandleRequest, EventServiceHandleResponse,
+    EventServiceParseRequest, EventServiceParseResponse,
 };
 use interfaces::connector_integration_v2::BoxedConnectorIntegrationV2;
 use ucs_env::{
@@ -31,6 +32,74 @@ pub struct EventServiceImpl;
 
 #[tonic::async_trait]
 impl EventService for EventServiceImpl {
+    #[tracing::instrument(
+        name = "EventService::parse_event",
+        skip(self, request),
+        fields(
+            name = common_utils::consts::NAME,
+            service_name = tracing::field::Empty,
+            service_method = "ParseEvent",
+            request_body = tracing::field::Empty,
+            response_body = tracing::field::Empty,
+            error_message = tracing::field::Empty,
+            merchant_id = tracing::field::Empty,
+            gateway = tracing::field::Empty,
+            request_id = tracing::field::Empty,
+            status_code = tracing::field::Empty,
+            message_ = "Golden Log Line (incoming)",
+            response_time = tracing::field::Empty,
+            tenant_id = tracing::field::Empty,
+            flow = FlowName::IncomingWebhook.to_string(),
+            flow_specific_fields.status = tracing::field::Empty,
+        )
+    )]
+    async fn parse_event(
+        &self,
+        request: tonic::Request<EventServiceParseRequest>,
+    ) -> Result<tonic::Response<EventServiceParseResponse>, tonic::Status> {
+        let service_name = request
+            .extensions()
+            .get::<String>()
+            .cloned()
+            .unwrap_or_else(|| "EventService".to_string());
+        let config = get_config_from_request(&request)?;
+        grpc_logging_wrapper(
+            request,
+            &service_name,
+            config,
+            FlowName::IncomingWebhook,
+            |request_data| async move {
+                let payload = request_data.payload;
+                let metadata_payload = request_data.extracted_metadata;
+                let connector = metadata_payload.connector;
+                let request_details =
+                    domain_types::connector_types::RequestDetails::foreign_try_from(
+                        payload
+                            .request_details
+                            .ok_or_else(|| {
+                                error_stack::report!(WebhookError::WebhookMissingRequiredField {
+                                    field: "request_details"
+                                })
+                            })
+                            .into_grpc_status()?,
+                    )
+                    .into_grpc_status()?;
+
+                let connector_data: ConnectorData<DefaultPCIHolder> =
+                    ConnectorData::get_connector_by_name(&connector);
+
+                let response = connector_integration::webhook_utils::parse_webhook_event(
+                    connector_data,
+                    request_details,
+                )
+                .into_grpc_status()?;
+
+                Ok(tonic::Response::new(response))
+            },
+        )
+        .await
+    }
+
     #[tracing::instrument(
         name = "EventService::handle_event",
         skip(self, request),
@@ -77,13 +146,11 @@ impl EventService for EventServiceImpl {
                     let connector_config = &metadata_payload.connector_config;
                     let request_details = payload
                         .request_details
-                        .map(domain_types::connector_types::RequestDetails::foreign_try_from)
-                        .transpose()
-                        .map_err(|e: error_stack::Report<IntegrationError>| {
-                            e.into_grpc_status()
-                        })?
-                        .ok_or_else(|| {
-                            tonic::Status::invalid_argument("missing request_details in the payload")
+                        .ok_or_else(|| error_stack::report!(WebhookError::WebhookMissingRequiredField { field: "request_details" }))
+                        .into_grpc_status()
+                        .and_then(|rd| {
+                            domain_types::connector_types::RequestDetails::foreign_try_from(rd)
+                                .into_grpc_status()
                         })?;
                     let webhook_secrets = payload
                         .webhook_secrets
@@ -92,11 +159,18 @@ impl EventService for EventServiceImpl {
                             domain_types::connector_types::ConnectorWebhookSecrets::foreign_try_from(
                                 details,
                             )
-                            .map_err(|e: error_stack::Report<IntegrationError>| {
+                            .map_err(|e: error_stack::Report<WebhookError>| {
                                 e.into_grpc_status()
                             })
                         })
                         .transpose()?;
+                    let event_context = payload
+                        .event_context
+                        .map(domain_types::connector_types::EventContext::foreign_try_from)
+                        .transpose()
+                        .map_err(|e: error_stack::Report<WebhookError>| {
+                            e.into_grpc_status()
+                        })?;
                     //get connector data
                     let connector_data: ConnectorData<DefaultPCIHolder> =
                         ConnectorData::get_connector_by_name(&connector);
@@ -146,6 +220,8 @@ impl EventService for EventServiceImpl {
                         webhook_secrets,
                         Some(connector_config.clone()),
                         source_verified,
+                        payload.merchant_event_id,
+                        event_context,
                     )
                     .into_grpc_status()?;
 
@@ -221,6 +297,7 @@ async fn verify_webhook_source_external(
         reference_id: &metadata_payload.reference_id,
         resource_id: &metadata_payload.resource_id,
         shadow_mode: metadata_payload.shadow_mode,
+        tenant_id: &metadata_payload.tenant_id,
     };
 
     match Box::pin(

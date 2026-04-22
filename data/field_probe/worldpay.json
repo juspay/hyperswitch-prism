@@ -589,6 +589,31 @@
     },
     "incremental_authorization": {
       "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_authorization_id": "probe_auth_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1100,
+            "currency": "USD"
+          },
+          "reason": "incremental_auth_probe"
+        },
+        "sample": {
+          "url": "https://try.access.worldpay.com/payments/authorizations/incrementalAuthorizations/probe_connector_txn_001",
+          "method": "Post",
+          "headers": {
+            "accept": "application/vnd.worldpay.payments-v7+json",
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/vnd.worldpay.payments-v7+json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"value\":{\"amount\":1100,\"currency\":\"USD\"}}"
+        }
+      }
+    },
+    "parse_event": {
+      "default": {
         "status": "not_implemented"
       }
     },
