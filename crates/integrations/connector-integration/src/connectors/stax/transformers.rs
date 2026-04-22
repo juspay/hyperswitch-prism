@@ -14,7 +14,7 @@ use domain_types::{
         ResponseId,
     },
     payment_method_data::{
-        BankDebitData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        BankDebitData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -1071,9 +1071,101 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     customer_id: Secret::new(customer_id),
                 }))
             }
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                WalletData::ApplePay(apple_pay_data) => {
+                    // Decrypted-passthrough: Stax requires raw card data for tokenization.
+                    // We extract the decrypted PAN/expiry from the Apple Pay token and
+                    // submit it as a card tokenize request.
+                    let apple_pay_decrypted_data = apple_pay_data
+                        .payment_data
+                        .get_decrypted_apple_pay_payment_data_optional()
+                        .ok_or_else(|| {
+                            error_stack::report!(IntegrationError::MissingRequiredField {
+                                field_name: "apple_pay_decrypted_data",
+                                context: Default::default(),
+                            })
+                            .attach_printable(
+                                "Stax requires pre-decrypted Apple Pay data; \
+                                 encrypted Apple Pay tokens are not supported.",
+                            )
+                        })?;
+
+                    let card_number_string = apple_pay_decrypted_data
+                        .application_primary_account_number
+                        .get_card_no();
+
+                    // Convert PAN string into the generic RawCardNumber<T> type
+                    let inner: T::Inner =
+                        serde_json::from_value(serde_json::Value::String(card_number_string))
+                            .map_err(|e| {
+                                error_stack::report!(IntegrationError::InvalidDataFormat {
+                                    field_name: "apple_pay.application_primary_account_number",
+                                    context: Default::default(),
+                                })
+                                .attach_printable(format!(
+                                    "Failed to convert Apple Pay PAN to card number type: {e}"
+                                ))
+                            })?;
+                    let card_number: RawCardNumber<T> = RawCardNumber(inner);
+
+                    // Stax requires expiry as MMYY (no delimiter)
+                    let exp_month_raw = apple_pay_decrypted_data.get_expiry_month().expose();
+                    let exp_month_padded = format!("{exp_month_raw:0>2}");
+                    let exp_year_4d = apple_pay_decrypted_data
+                        .get_four_digit_expiry_year()
+                        .expose();
+                    let exp_year_2d = if exp_year_4d.len() >= 2 {
+                        exp_year_4d[exp_year_4d.len() - 2..].to_string()
+                    } else {
+                        exp_year_4d
+                    };
+                    let card_exp = Secret::new(format!("{exp_month_padded}{exp_year_2d}"));
+
+                    // Stax requires a cardholder full name (first + last)
+                    let person_name = if let Some(billing) = item
+                        .router_data
+                        .resource_common_data
+                        .address
+                        .get_payment_method_billing()
+                    {
+                        let first_name = billing.get_optional_first_name();
+                        let last_name = billing.get_optional_last_name();
+                        match (first_name, last_name) {
+                            (Some(first), Some(last)) => {
+                                Secret::new(format!("{} {}", first.peek(), last.peek()))
+                            }
+                            (Some(first), None) => first.clone(),
+                            (None, Some(last)) => last.clone(),
+                            (None, None) => {
+                                return Err(IntegrationError::MissingRequiredField {
+                                    field_name: "billing.first_name+last_name (required by Stax for Apple Pay tokenization)",
+                                    context: Default::default(),
+                                })?;
+                            }
+                        }
+                    } else {
+                        return Err(IntegrationError::MissingRequiredField {
+                            field_name:
+                                "billing address (required by Stax for Apple Pay tokenization)",
+                            context: Default::default(),
+                        })?;
+                    };
+
+                    Ok(Self::Card(StaxCardTokenizeData {
+                        person_name,
+                        card_number,
+                        card_exp,
+                        // Apple Pay tokens do not carry CVV; pass empty (matches forte/elavon pattern)
+                        card_cvv: Secret::new(String::new()),
+                        customer_id: Secret::new(customer_id),
+                    }))
+                }
+                _ => Err(IntegrationError::not_implemented(
+                    "Only Apple Pay wallet tokenization is supported for Stax".to_string(),
+                ))?,
+            },
             PaymentMethodData::BankDebit(_)
             | PaymentMethodData::CardRedirect(_)
-            | PaymentMethodData::Wallet(_)
             | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankRedirect(_)
             | PaymentMethodData::BankTransfer(_)
@@ -1091,7 +1183,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(IntegrationError::not_implemented(
-                    "Only card and ACH bank debit tokenization are supported for Stax".to_string(),
+                    "Only card, ACH bank debit, and Apple Pay tokenization are supported for Stax"
+                        .to_string(),
                 ))?
             }
         }
