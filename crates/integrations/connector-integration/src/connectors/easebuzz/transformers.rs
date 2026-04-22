@@ -400,8 +400,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ("NB".to_string(), None, None, Some(issuer.to_string()))
                 }
                 _ => {
-                    return Err(error_stack::report!(IntegrationError::not_implemented(
-                        "This payment method is not supported for Easebuzz"
+                    return Err(error_stack::report!(IntegrationError::NotImplemented(
+                        "This payment method is not supported for Easebuzz".to_string(),
+                        Default::default(),
                     )));
                 }
             };
