@@ -4132,7 +4132,7 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
                 &value.merchant_transaction_id,
             ),
             customer_id: None,
-            connector_customer: None,
+            connector_customer: value.customer.and_then(|customer| customer.connector_customer_id),
             description: None,
             return_url: value.return_url.clone(),
             connector_feature_data,
