@@ -538,9 +538,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
                 // Netbanking uses RazorpayNetbankingRequest via a separate flow
                 PaymentMethodData::BankRedirect(BankRedirectData::Netbanking { .. }) => {
-                    return Err(IntegrationError::not_implemented(
+                    return Err(IntegrationError::NotImplemented(
                         "Netbanking uses RazorpayNetbankingRequest, not RazorpayPaymentRequest"
                             .to_string(),
+                        Default::default(),
                     )
                     .into())
                 }
