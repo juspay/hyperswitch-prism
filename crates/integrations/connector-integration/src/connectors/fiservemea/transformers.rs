@@ -15,7 +15,7 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId,
     },
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
+    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
 };
@@ -374,9 +374,77 @@ impl<T: PaymentMethodDataTypes>
                 };
                 PaymentMethod { payment_card }
             }
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                WalletData::ApplePay(apple_pay_data) => {
+                    // Fiserv EMEA has no native encrypted Apple Pay endpoint; the
+                    // integration pattern is to submit the decrypted DPAN through the
+                    // standard card transaction (PaymentCardSale/PreAuth).
+                    let apple_pay_decrypted_data = apple_pay_data
+                        .payment_data
+                        .get_decrypted_apple_pay_payment_data_optional()
+                        .ok_or_else(|| {
+                            error_stack::report!(IntegrationError::MissingRequiredField {
+                                field_name: "apple_pay_decrypted_data",
+                                context: Default::default(),
+                            })
+                            .attach_printable(
+                                "Fiserv EMEA requires pre-decrypted Apple Pay data; \
+                                 encrypted Apple Pay tokens are not supported.",
+                            )
+                        })?;
+
+                    let exp_month_raw = apple_pay_decrypted_data.get_expiry_month().expose();
+                    let formatted_exp_month = format!("{exp_month_raw:0>2}");
+                    let exp_year_full = apple_pay_decrypted_data
+                        .get_four_digit_expiry_year()
+                        .expose();
+                    let formatted_exp_year = if exp_year_full.len() == 4 {
+                        exp_year_full[2..].to_string()
+                    } else {
+                        exp_year_full.clone()
+                    };
+
+                    let card_number_string = apple_pay_decrypted_data
+                        .application_primary_account_number
+                        .get_card_no();
+                    // Convert String -> T::Inner via serde round-trip
+                    // (T::Inner is DeserializeOwned per PaymentMethodDataTypes).
+                    let inner: T::Inner =
+                        serde_json::from_value(serde_json::Value::String(card_number_string))
+                            .map_err(|e| {
+                                error_stack::report!(IntegrationError::InvalidDataFormat {
+                                    field_name: "apple_pay.application_primary_account_number",
+                                    context: Default::default(),
+                                })
+                                .attach_printable(format!(
+                                    "Failed to convert Apple Pay PAN to card number type: {e}"
+                                ))
+                            })?;
+                    let raw_card_number: RawCardNumber<T> = RawCardNumber(inner);
+
+                    let payment_card = PaymentCard {
+                        number: raw_card_number,
+                        expiry_date: ExpiryDate {
+                            month: Secret::new(formatted_exp_month),
+                            year: Secret::new(formatted_exp_year),
+                        },
+                        // Apple Pay decrypted data does not include CVV.
+                        security_code: None,
+                        holder: item.request.customer_name.clone().map(Secret::new),
+                    };
+                    PaymentMethod { payment_card }
+                }
+                _ => {
+                    return Err(error_stack::report!(IntegrationError::not_implemented(
+                        "Only Apple Pay (with decrypted token) wallet payments are supported \
+                         for Fiserv EMEA"
+                            .to_string()
+                    )))
+                }
+            },
             _ => {
                 return Err(error_stack::report!(IntegrationError::not_implemented(
-                    "Only card payments are supported".to_string()
+                    "Only card and Apple Pay payments are supported for Fiserv EMEA".to_string()
                 )))
             }
         };
