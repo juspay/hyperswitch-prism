@@ -915,34 +915,39 @@ pub fn verify_redirect_response_transformer(
     connector: domain_types::connector_types::ConnectorEnum,
     _connector_config: domain_types::router_data::ConnectorSpecificConfig,
     _metadata: &common_utils::metadata::MaskedMetadata,
-) -> Result<PaymentServiceVerifyRedirectResponseResponse, ConnectorError> {
+) -> Result<PaymentServiceVerifyRedirectResponseResponse, Box<ConnectorError>> {
     use domain_types::utils::ForeignTryFrom as _;
     use interfaces::verification::ConnectorSourceVerificationSecrets;
 
-    let request_details_proto = payload.request_details.ok_or_else(|| ConnectorError {
-        error_message: "Missing required field: request_details".to_string(),
-        error_code: "MISSING_REQUIRED_FIELD".to_string(),
-        http_status_code: None,
-        error_info: None,
+    let request_details_proto = payload.request_details.ok_or_else(|| {
+        Box::new(ConnectorError {
+            error_message: "Missing required field: request_details".to_string(),
+            error_code: "MISSING_REQUIRED_FIELD".to_string(),
+            http_status_code: None,
+            error_info: None,
+        })
     })?;
 
-    let request_details =
-        RequestDetails::foreign_try_from(request_details_proto).map_err(|e| ConnectorError {
+    let request_details = RequestDetails::foreign_try_from(request_details_proto).map_err(|e| {
+        Box::new(ConnectorError {
             error_message: format!("ForeignTryFrom failed: {e}"),
             error_code: "CONVERSION_FAILED".to_string(),
             http_status_code: None,
             error_info: None,
-        })?;
+        })
+    })?;
 
     let secrets = payload
         .redirect_response_secrets
         .map(|s| {
             domain_types::connector_types::ConnectorRedirectResponseSecrets::foreign_try_from(s)
-                .map_err(|e| ConnectorError {
-                    error_message: format!("ForeignTryFrom failed: {e}"),
-                    error_code: "CONVERSION_FAILED".to_string(),
-                    http_status_code: None,
-                    error_info: None,
+                .map_err(|e| {
+                    Box::new(ConnectorError {
+                        error_message: format!("ForeignTryFrom failed: {e}"),
+                        error_code: "CONVERSION_FAILED".to_string(),
+                        http_status_code: None,
+                        error_info: None,
+                    })
                 })
         })
         .transpose()?
@@ -973,22 +978,26 @@ pub fn verify_redirect_response_transformer(
     let redirect_details = connector_data
         .connector
         .process_redirect_response(&updated_request_details)
-        .map_err(|e| ConnectorError {
-            error_message: format!("{e}"),
-            error_code: "PROCESS_REDIRECT_ERROR".to_string(),
-            http_status_code: None,
-            error_info: None,
+        .map_err(|e| {
+            Box::new(ConnectorError {
+                error_message: format!("{e}"),
+                error_code: "PROCESS_REDIRECT_ERROR".to_string(),
+                http_status_code: None,
+                error_info: None,
+            })
         })?;
 
     PaymentServiceVerifyRedirectResponseResponse::foreign_try_from((
         source_verified,
         redirect_details,
     ))
-    .map_err(|e| ConnectorError {
-        error_message: format!("ForeignTryFrom failed: {e}"),
-        error_code: "CONVERSION_FAILED".to_string(),
-        http_status_code: None,
-        error_info: None,
+    .map_err(|e| {
+        Box::new(ConnectorError {
+            error_message: format!("ForeignTryFrom failed: {e}"),
+            error_code: "CONVERSION_FAILED".to_string(),
+            http_status_code: None,
+            error_info: None,
+        })
     })
 }
 

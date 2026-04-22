@@ -34,10 +34,14 @@ impl From<InterfaceError> for Status {
 
         let msg = integration_error.error_message.clone();
         let mut buf = Vec::new();
-        integration_error
-            .encode(&mut buf)
-            .expect("IntegrationError encoding should not fail");
+        if let Err(e) = integration_error.encode(&mut buf) {
+            return Self::with_details(
+                Code::Internal,
+                format!("Failed to encode error: {}", e),
+                Vec::new().into(),
+            );
+        }
 
-        Status::with_details(Code::InvalidArgument, msg, buf.into())
+        Self::with_details(Code::InvalidArgument, msg, buf.into())
     }
 }

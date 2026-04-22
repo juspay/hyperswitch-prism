@@ -58,7 +58,7 @@ macro_rules! impl_flow_handlers {
                 request: FfiRequestData<$req_type>,
                 response: domain_types::router_response_types::Response,
                 environment: Option<Environment>,
-            ) -> Result<$res_type, grpc_api_types::payments::ConnectorError> {
+            ) -> Result<$res_type, Box<grpc_api_types::payments::ConnectorError>> {
                 let config = get_config(environment).map_err(|e| ConnectorError {
                     error_message: e.error_message,
                     error_code: e.error_code,

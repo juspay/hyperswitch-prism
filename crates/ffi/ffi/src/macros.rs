@@ -155,7 +155,7 @@ macro_rules! res_transformer {
             connector_config: domain_types::router_data::ConnectorSpecificConfig,
             metadata: &common_utils::metadata::MaskedMetadata,
             response: domain_types::router_response_types::Response,
-        ) -> Result<$response_type, grpc_api_types::payments::ConnectorError> {
+        ) -> Result<$response_type, Box<grpc_api_types::payments::ConnectorError>> {
             let connector_data: connector_integration::types::ConnectorData<$connector_data_type> =
                 connector_integration::types::ConnectorData::get_connector_by_name(&connector);
 
@@ -173,12 +173,12 @@ macro_rules! res_transformer {
             )
             .map_err(|e: error_stack::Report<domain_types::errors::IntegrationError>| {
                 let ctx = e.current_context();
-                grpc_api_types::payments::ConnectorError {
+                Box::new(grpc_api_types::payments::ConnectorError {
                     error_message: ctx.to_string(),
                     error_code: ctx.error_code().to_string(),
                     http_status_code: None,
                     error_info: None,
-                }
+                })
             })?;
 
             let flow_data: $resource_common_data_type =
@@ -189,24 +189,24 @@ macro_rules! res_transformer {
                 ))
                 .map_err(|e: error_stack::Report<domain_types::errors::IntegrationError>| {
                     let ctx = e.current_context();
-                    grpc_api_types::payments::ConnectorError {
+                    Box::new(grpc_api_types::payments::ConnectorError {
                         error_message: ctx.to_string(),
                         error_code: ctx.error_code().to_string(),
                         http_status_code: None,
                         error_info: None,
-                    }
+                    })
                 })?;
 
             let build_request_data = $request_data_fn;
             let payment_request_data: $request_data_type = build_request_data(&payload)
                 .map_err(|e: error_stack::Report<domain_types::errors::IntegrationError>| {
                     let ctx = e.current_context();
-                    grpc_api_types::payments::ConnectorError {
+                    Box::new(grpc_api_types::payments::ConnectorError {
                         error_message: ctx.to_string(),
                         error_code: ctx.error_code().to_string(),
                         http_status_code: None,
                         error_info: None,
-                    }
+                    })
                 })?;
 
             let router_data = domain_types::router_data_v2::RouterDataV2 {
@@ -232,13 +232,12 @@ macro_rules! res_transformer {
                 None,
             )
             .map_err(|e: error_stack::Report<domain_types::errors::ConnectorError>| {
-                common_utils::errors::ErrorSwitch::switch(e.current_context())
+                Box::new(common_utils::errors::ErrorSwitch::<grpc_api_types::payments::ConnectorError>::switch(e.current_context()))
             })?;
 
             domain_types::types::$generate_response_fn(response)
-                .map_err(|e| {
-                    use common_utils::errors::ErrorSwitch;
-                    ErrorSwitch::switch(e.current_context())
+                .map_err(|e: error_stack::Report<domain_types::errors::ConnectorError>| {
+                    Box::new(common_utils::errors::ErrorSwitch::<grpc_api_types::payments::ConnectorError>::switch(e.current_context()))
                 })
         }
     };
@@ -381,7 +380,7 @@ macro_rules! payout_res_transformer {
             connector_config: domain_types::router_data::ConnectorSpecificConfig,
             metadata: &common_utils::metadata::MaskedMetadata,
             response: domain_types::router_response_types::Response,
-        ) -> Result<$response_type, grpc_api_types::payments::ConnectorError> {
+        ) -> Result<$response_type, Box<grpc_api_types::payments::ConnectorError>> {
             let connector_data: connector_integration::types::ConnectorData<T> =
                 connector_integration::types::ConnectorData::get_connector_by_name(&connector);
 
@@ -399,12 +398,12 @@ macro_rules! payout_res_transformer {
             )
             .map_err(|e: error_stack::Report<domain_types::errors::IntegrationError>| {
                 let ctx = e.current_context();
-                grpc_api_types::payments::ConnectorError {
+                Box::new(grpc_api_types::payments::ConnectorError {
                     error_message: ctx.to_string(),
                     error_code: ctx.error_code().to_string(),
                     http_status_code: None,
                     error_info: None,
-                }
+                })
             })?;
 
             let flow_data: $resource_common_data_type =
@@ -415,24 +414,24 @@ macro_rules! payout_res_transformer {
                 ))
                 .map_err(|e: error_stack::Report<domain_types::errors::IntegrationError>| {
                     let ctx = e.current_context();
-                    grpc_api_types::payments::ConnectorError {
+                    Box::new(grpc_api_types::payments::ConnectorError {
                         error_message: ctx.to_string(),
                         error_code: ctx.error_code().to_string(),
                         http_status_code: None,
                         error_info: None,
-                    }
+                    })
                 })?;
 
             let payment_request_data: $request_data_type =
                 domain_types::utils::ForeignTryFrom::foreign_try_from(payload.clone())
                 .map_err(|e: error_stack::Report<domain_types::errors::IntegrationError>| {
                     let ctx = e.current_context();
-                    grpc_api_types::payments::ConnectorError {
+                    Box::new(grpc_api_types::payments::ConnectorError {
                         error_message: ctx.to_string(),
                         error_code: ctx.error_code().to_string(),
                         http_status_code: None,
                         error_info: None,
-                    }
+                    })
                 })?;
 
             let router_data = domain_types::router_data_v2::RouterDataV2 {
@@ -460,12 +459,12 @@ macro_rules! payout_res_transformer {
                 None,
             )
             .map_err(|e: error_stack::Report<domain_types::errors::ConnectorError>| {
-                common_utils::errors::ErrorSwitch::switch(e.current_context())
+                Box::new(common_utils::errors::ErrorSwitch::<grpc_api_types::payments::ConnectorError>::switch(e.current_context()))
             })?;
 
             domain_types::payouts::types::$generate_response_fn(response)
                 .map_err(|e: error_stack::Report<domain_types::errors::ConnectorError>| {
-                    common_utils::errors::ErrorSwitch::switch(e.current_context())
+                    Box::new(common_utils::errors::ErrorSwitch::<grpc_api_types::payments::ConnectorError>::switch(e.current_context()))
                 })
         }
     };
