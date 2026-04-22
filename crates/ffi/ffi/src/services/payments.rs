@@ -680,12 +680,14 @@ pub fn handle_event_transformer(
         error_message: "Missing required field: request_details".to_string(),
         error_code: "MISSING_REQUIRED_FIELD".to_string(),
         http_status_code: None,
+        error_info: None,
     })?;
     let request_details =
         RequestDetails::foreign_try_from(request_details).map_err(|e| ConnectorError {
             error_message: format!("ForeignTryFrom failed: {e}"),
             error_code: "CONVERSION_FAILED".to_string(),
             http_status_code: None,
+            error_info: None,
         })?;
 
     let webhook_secrets = payload
@@ -695,6 +697,7 @@ pub fn handle_event_transformer(
                 error_message: format!("ForeignTryFrom failed: {e}"),
                 error_code: "CONVERSION_FAILED".to_string(),
                 http_status_code: None,
+                error_info: None,
             })
         })
         .transpose()?;
@@ -727,6 +730,7 @@ pub fn handle_event_transformer(
                 error_message: ctx.to_string(),
                 error_code: ctx.as_ref().to_string(),
                 http_status_code: None,
+                error_info: None,
             }
         },
     )
@@ -871,6 +875,7 @@ pub fn verify_redirect_response_transformer(
         error_message: "Missing required field: request_details".to_string(),
         error_code: "MISSING_REQUIRED_FIELD".to_string(),
         http_status_code: None,
+        error_info: None,
     })?;
 
     let request_details =
@@ -878,6 +883,7 @@ pub fn verify_redirect_response_transformer(
             error_message: format!("ForeignTryFrom failed: {e}"),
             error_code: "CONVERSION_FAILED".to_string(),
             http_status_code: None,
+            error_info: None,
         })?;
 
     let secrets = payload
@@ -888,6 +894,7 @@ pub fn verify_redirect_response_transformer(
                     error_message: format!("ForeignTryFrom failed: {e}"),
                     error_code: "CONVERSION_FAILED".to_string(),
                     http_status_code: None,
+                    error_info: None,
                 })
         })
         .transpose()?
@@ -922,6 +929,7 @@ pub fn verify_redirect_response_transformer(
             error_message: format!("{e}"),
             error_code: "PROCESS_REDIRECT_ERROR".to_string(),
             http_status_code: None,
+            error_info: None,
         })?;
 
     PaymentServiceVerifyRedirectResponseResponse::foreign_try_from((
@@ -932,6 +940,7 @@ pub fn verify_redirect_response_transformer(
         error_message: format!("ForeignTryFrom failed: {e}"),
         error_code: "CONVERSION_FAILED".to_string(),
         http_status_code: None,
+        error_info: None,
     })
 }
 

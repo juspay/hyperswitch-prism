@@ -177,6 +177,7 @@ macro_rules! res_transformer {
                     error_message: ctx.to_string(),
                     error_code: ctx.error_code().to_string(),
                     http_status_code: None,
+                    error_info: None,
                 }
             })?;
 
@@ -192,6 +193,7 @@ macro_rules! res_transformer {
                         error_message: ctx.to_string(),
                         error_code: ctx.error_code().to_string(),
                         http_status_code: None,
+                        error_info: None,
                     }
                 })?;
 
@@ -203,6 +205,7 @@ macro_rules! res_transformer {
                         error_message: ctx.to_string(),
                         error_code: ctx.error_code().to_string(),
                         http_status_code: None,
+                        error_info: None,
                     }
                 })?;
 
@@ -400,6 +403,7 @@ macro_rules! payout_res_transformer {
                     error_message: ctx.to_string(),
                     error_code: ctx.error_code().to_string(),
                     http_status_code: None,
+                    error_info: None,
                 }
             })?;
 
@@ -415,6 +419,7 @@ macro_rules! payout_res_transformer {
                         error_message: ctx.to_string(),
                         error_code: ctx.error_code().to_string(),
                         http_status_code: None,
+                        error_info: None,
                     }
                 })?;
 
@@ -426,6 +431,7 @@ macro_rules! payout_res_transformer {
                         error_message: ctx.to_string(),
                         error_code: ctx.error_code().to_string(),
                         http_status_code: None,
+                        error_info: None,
                     }
                 })?;
 

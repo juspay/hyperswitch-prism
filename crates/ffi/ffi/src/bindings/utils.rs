@@ -57,6 +57,7 @@ pub fn build_domain_response(response_bytes: Vec<u8>) -> Result<Response, Connec
             error_message: format!("ConnectorHttpResponse decode failed: {e}"),
             error_code: "DECODE_FAILED".to_string(),
             http_status_code: None,
+            error_info: None,
         }
     })?;
 
@@ -84,6 +85,7 @@ pub fn build_domain_response(response_bytes: Vec<u8>) -> Result<Response, Connec
                 error_message: format!("Invalid HTTP status code: {e}"),
                 error_code: "INVALID_STATUS_CODE".to_string(),
                 http_status_code: None,
+                error_info: None,
             })?,
     })
 }
@@ -115,12 +117,14 @@ pub fn parse_ffi_options_for_res(options_bytes: Vec<u8>) -> Result<FfiOptions, C
             error_message: "Empty options bytes".to_string(),
             error_code: "EMPTY_OPTIONS".to_string(),
             http_status_code: None,
+            error_info: None,
         });
     }
     FfiOptions::decode(Bytes::from(options_bytes)).map_err(|e| ConnectorError {
         error_message: format!("Options decode failed: {e}"),
         error_code: "DECODE_FAILED".to_string(),
         http_status_code: None,
+        error_info: None,
     })
 }
 

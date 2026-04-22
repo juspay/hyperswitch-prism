@@ -55,6 +55,7 @@ macro_rules! impl_flow_handlers {
                     error_message: e.error_message,
                     error_code: e.error_code,
                     http_status_code: None,
+                    error_info: None,
                 })?;
                 $res_svc::<DefaultPCIHolder>(
                     request.payload,
@@ -90,6 +91,7 @@ pub fn handle_event_handler(
         error_message: e.error_message,
         error_code: e.error_code,
         http_status_code: None,
+        error_info: None,
     })?;
     crate::services::payments::handle_event_transformer(
         request.payload,

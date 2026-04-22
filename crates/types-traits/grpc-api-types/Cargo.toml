@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 prost = { workspace = true }
 prost-types = "0.13"
+bytes = "1.6"
 tonic = { workspace = true }
 tonic-prost = { workspace = true }
 axum = "0.8.3"

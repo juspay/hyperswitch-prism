@@ -176,6 +176,7 @@ mod uniffi_bindings_inner {
                         error_message: format!("Request payload decode failed: {e}"),
                         error_code: "DECODE_FAILED".to_string(),
                         http_status_code: None,
+                        error_info: None,
                     })),
                 }
                 .encode_to_vec();
@@ -202,6 +203,7 @@ mod uniffi_bindings_inner {
                         error_message: e.error_message,
                         error_code: e.error_code,
                         http_status_code: None,
+                        error_info: None,
                     })),
                 }
                 .encode_to_vec()
@@ -283,6 +285,7 @@ mod uniffi_bindings_inner {
                         error_message: format!("EventServiceHandleRequest decode failed: {e}"),
                         error_code: "DECODE_FAILED".to_string(),
                         http_status_code: None,
+                        error_info: None,
                     })),
                 }
                 .encode_to_vec();
@@ -309,6 +312,7 @@ mod uniffi_bindings_inner {
                         error_message: e.error_message,
                         error_code: e.error_code,
                         http_status_code: None,
+                        error_info: None,
                     })),
                 }
                 .encode_to_vec()
@@ -371,6 +375,7 @@ mod uniffi_bindings_inner {
                             ),
                             error_code: "DECODE_FAILED".to_string(),
                             http_status_code: None,
+                            error_info: None,
                         })),
                     }
                     .encode_to_vec();
@@ -397,6 +402,7 @@ mod uniffi_bindings_inner {
                         error_message: e.error_message,
                         error_code: e.error_code,
                         http_status_code: None,
+                        error_info: None,
                     })),
                 }
                 .encode_to_vec()
@@ -416,6 +422,7 @@ mod uniffi_bindings_inner {
                         error_message: format!("Failed to load config: {e}"),
                         error_code: "CONFIG_LOAD_FAILED".to_string(),
                         http_status_code: None,
+                        error_info: None,
                     })),
                 }
                 .encode_to_vec()
