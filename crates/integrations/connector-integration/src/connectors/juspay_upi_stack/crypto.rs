@@ -400,6 +400,138 @@ pub fn decrypt_jwe_response(
         .attach_printable("JWE decryption result is not valid UTF-8")
 }
 
+// ============================================
+// JWE RESPONSE PREPROCESSING (SHARED ACROSS ALL UPI STACK BANKS)
+// ============================================
+
+use crate::connectors::juspay_upi_stack::types::JweResponse;
+use domain_types::errors::ConnectorError;
+use tracing::debug;
+
+/// Preprocess a potentially JWE-encrypted response.
+///
+/// This function is shared across all banks in the Juspay UPI Merchant Stack family
+/// (Axis Bank, YES Bank, Kotak Bank, RBL, AU Bank, etc.).
+///
+/// The pipeline:
+/// 1. Check if response is JWE-encrypted (by looking for JWE fields)
+/// 2. If not JWE, return as-is
+/// 3. Parse JWE envelope
+/// 4. Decrypt JWE using merchant's RSA private key (RSA-OAEP-256 + A256GCM)
+/// 5. Parse the decrypted JWS object
+/// 6. Base64url-decode the JWS payload
+/// 7. Extract nested response structure and reconstruct flat response
+///
+/// Following Newton Gateway approach: JWS signature verification is skipped
+/// because JWE with AEAD (A256GCM) already provides integrity protection.
+///
+/// # Arguments
+/// * `response_bytes` - Raw response bytes from the bank API
+/// * `merchant_private_key` - Merchant's RSA private key for JWE decryption
+///
+/// # Returns
+/// Decrypted plaintext response bytes (ready for JSON deserialization)
+pub fn preprocess_jwe_response(
+    response_bytes: bytes::Bytes,
+    merchant_private_key: &Secret<String>,
+) -> Result<bytes::Bytes, ConnectorError> {
+    use domain_types::errors::ResponseTransformationErrorContext;
+
+    // Check if this is a JWE-encrypted response
+    if !JweResponse::is_jwe_response(&response_bytes) {
+        // Not a JWE response (possibly error response), return as-is
+        return Ok(response_bytes);
+    }
+
+    // Parse the JWE response
+    let jwe_response: JweResponse = serde_json::from_slice(&response_bytes)
+        .map_err(|e| {
+            ConnectorError::ResponseDeserializationFailed {
+                context: ResponseTransformationErrorContext {
+                    http_status_code: None,
+                    additional_context: Some(format!("Could not parse JWE JSON envelope: {}", e)),
+                },
+            }
+        })?;
+
+    // Decrypt the JWE to get the inner JWS
+    // Following Newton Gateway approach: JWE AEAD (A256GCM) provides integrity,
+    // so JWS signature verification is skipped after decryption.
+    let jws_json = decrypt_jwe_response(
+        &jwe_response.cipher_text,
+        &jwe_response.encrypted_key,
+        &jwe_response.iv,
+        &jwe_response.protected,
+        &jwe_response.tag,
+        merchant_private_key,
+    )
+    .map_err(|e| {
+        ConnectorError::ResponseDeserializationFailed {
+            context: ResponseTransformationErrorContext {
+                http_status_code: None,
+                additional_context: Some(format!("JWE decryption failed: {}", e)),
+            },
+        }
+    })?;
+
+    // Parse the decrypted JWS object
+    let jws_obj: JwsObject =
+        serde_json::from_str(&jws_json).map_err(|e| {
+            ConnectorError::ResponseDeserializationFailed {
+                context: ResponseTransformationErrorContext {
+                    http_status_code: None,
+                    additional_context: Some(format!("Could not parse JWS JSON structure: {}", e)),
+                },
+            }
+        })?;
+
+    // Decode the JWS payload (base64url-encoded)
+    let payload_bytes = BASE64_ENGINE_URL_SAFE_NO_PAD
+        .decode(&jws_obj.payload)
+        .map_err(|e| {
+            ConnectorError::ResponseDeserializationFailed {
+                context: ResponseTransformationErrorContext {
+                    http_status_code: None,
+                    additional_context: Some(format!("Could not base64url-decode JWS payload: {}", e)),
+                },
+            }
+        })?;
+
+    // The JWS payload contains a nested structure with the actual response:
+    // {"payload": {...}, "responseCode": "...", "responseMessage": "...", "status": "..."}
+    let payload_json: serde_json::Value = serde_json::from_slice(&payload_bytes).map_err(|e| {
+        ConnectorError::ResponseDeserializationFailed {
+            context: ResponseTransformationErrorContext {
+                http_status_code: None,
+                additional_context: Some(format!("Could not parse JWS payload as JSON: {}", e)),
+            },
+        }
+    })?;
+
+    debug!(
+        decrypted_response = %String::from_utf8_lossy(&payload_bytes),
+        "Juspay UPI Stack decrypted response"
+    );
+
+    let final_response = serde_json::json!({
+        "status": payload_json.get("status").cloned().unwrap_or(serde_json::json!("UNKNOWN")),
+        "responseCode": payload_json.get("responseCode").cloned().unwrap_or(serde_json::json!("UNKNOWN")),
+        "responseMessage": payload_json.get("responseMessage").cloned().unwrap_or(serde_json::json!("Unknown")),
+        "payload": payload_json.get("payload").cloned()
+    });
+
+    let final_bytes = serde_json::to_vec(&final_response).map_err(|e| {
+        ConnectorError::ResponseDeserializationFailed {
+            context: ResponseTransformationErrorContext {
+                http_status_code: None,
+                additional_context: Some(format!("Could not serialize final response: {}", e)),
+            },
+        }
+    })?;
+
+    Ok(bytes::Bytes::from(final_bytes))
+}
+
 /// Get the current Unix timestamp in milliseconds as a string
 pub fn get_current_timestamp_ms() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};

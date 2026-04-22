@@ -246,11 +246,11 @@ macros::create_all_prerequisites!(
         amount_converter: StringMajorUnit
     ],
     member_functions: {
-        /// Preprocess JWE-encrypted responses from Axis Bank
+        /// Preprocess JWE-encrypted responses from Axis Bank.
         ///
-        /// Axis Bank encrypts responses using JWE (RSA-OAEP-256 + A256GCM).
-        /// This function decrypts the JWE to reveal the inner JWS, then verifies
-        /// the JWS signature using Juspay's public key, and returns the plaintext payload.
+        /// Delegates to the shared Juspay UPI Stack preprocessing function.
+        /// All banks in the Juspay UPI Merchant Stack family (Axis, YES, Kotak, RBL, AU)
+        /// share the same JWE/JWS handling pipeline.
         pub fn preprocess_response_bytes<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
@@ -260,106 +260,23 @@ macros::create_all_prerequisites!(
         where
             Self: ConnectorIntegrationV2<F, FCD, Req, Res>,
         {
-            use crate::connectors::juspay_upi_stack::{
-                crypto::decrypt_jwe_response,
-                types::JweResponse,
-            };
-            use base64::Engine;
-            use common_utils::consts::BASE64_ENGINE_URL_SAFE_NO_PAD;
+            use domain_types::errors::ResponseTransformationErrorContext;
 
-            // Check if this is a JWE-encrypted response
-            if !JweResponse::is_jwe_response(&response_bytes) {
-                // Not a JWE response (possibly error response), return as-is
-                return Ok(response_bytes);
-            }
-
-            // Parse the JWE response
-            let jwe_response: JweResponse = serde_json::from_slice(&response_bytes)
-                .map_err(|e| {
-                    error!(error = %e, "Could not parse JWE JSON envelope");
-                    error!(raw_response = %String::from_utf8_lossy(&response_bytes), "Raw JWE response");
-                    ConnectorError::ResponseDeserializationFailed {
-                        context: Default::default(),
-                    }
-                })?;
-
-            // Get auth config for private key
             let auth_config = AxisbankAuthConfig::try_from(&req.connector_config)
                 .map_err(|e| {
                     error!(error = %e, "Could not extract Axisbank auth config");
                     ConnectorError::ResponseDeserializationFailed {
-                        context: Default::default(),
+                        context: ResponseTransformationErrorContext {
+                            http_status_code: None,
+                            additional_context: Some("Failed to extract Axisbank auth config".to_string()),
+                        },
                     }
                 })?;
 
-            // Decrypt the JWE to get the inner JWS
-            // Following Newton Gateway approach: JWE AEAD (A256GCM) provides integrity,
-            // so JWS signature verification is skipped after decryption.
-            let jws_json = decrypt_jwe_response(
-                &jwe_response.cipher_text,
-                &jwe_response.encrypted_key,
-                &jwe_response.iv,
-                &jwe_response.protected,
-                &jwe_response.tag,
+            crate::connectors::juspay_upi_stack::crypto::preprocess_jwe_response(
+                response_bytes,
                 &auth_config.merchant_private_key,
             )
-            .map_err(|e| {
-                error!(error = %e, "JWE decryption failed");
-                error!(protected_header = %jwe_response.protected, "JWE protected header (base64url)");
-                if let Ok(header_bytes) = BASE64_ENGINE_URL_SAFE_NO_PAD.decode(&jwe_response.protected) {
-                    error!(decoded_header = %String::from_utf8_lossy(&header_bytes), "JWE protected header (decoded)");
-                }
-                ConnectorError::ResponseDeserializationFailed {
-                    context: Default::default(),
-                }
-            })?;
-
-            // Parse the decrypted JWS object
-            let jws_obj: crate::connectors::juspay_upi_stack::types::JwsObject =
-                serde_json::from_str(&jws_json)
-                    .map_err(|e| {
-                        error!(error = %e, "Could not parse JWS JSON structure");
-                        ConnectorError::ResponseDeserializationFailed {
-                            context: Default::default(),
-                        }
-                    })?;
-
-            // Decode the JWS payload (base64url-encoded)
-            let payload_bytes = BASE64_ENGINE_URL_SAFE_NO_PAD
-                .decode(&jws_obj.payload)
-                .map_err(|e| {
-                    error!(error = %e, "Could not base64url-decode JWS payload");
-                    ConnectorError::ResponseDeserializationFailed {
-                        context: Default::default(),
-                    }
-                })?;
-
-            // The JWS payload contains a nested structure with the actual response:
-            // {"payload": {...}, "responseCode": "...", "responseMessage": "...", "status": "..."}
-            let payload_json: serde_json::Value = serde_json::from_slice(&payload_bytes)
-                .map_err(|e| {
-                    error!(error = %e, "Could not parse JWS payload as JSON");
-                    ConnectorError::ResponseDeserializationFailed {
-                        context: Default::default(),
-                    }
-                })?;
-
-            let final_response = serde_json::json!({
-                "status": payload_json.get("status").cloned().unwrap_or(serde_json::json!("UNKNOWN")),
-                "responseCode": payload_json.get("responseCode").cloned().unwrap_or(serde_json::json!("UNKNOWN")),
-                "responseMessage": payload_json.get("responseMessage").cloned().unwrap_or(serde_json::json!("Unknown")),
-                "payload": payload_json.get("payload").cloned()
-            });
-
-            let final_bytes = serde_json::to_vec(&final_response)
-                .map_err(|e| {
-                    error!(error = %e, "Could not serialize final response");
-                    ConnectorError::ResponseDeserializationFailed {
-                        context: Default::default(),
-                    }
-                })?;
-
-            Ok(bytes::Bytes::from(final_bytes))
         }
 
         pub fn connector_base_url<'a, F, Req, Res>(
@@ -410,18 +327,12 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let auth = AxisbankAuthConfig::try_from(&req.connector_config)?;
-            let timestamp = axisbank::get_current_timestamp_ms();
             let merchant_request_id = req.resource_common_data.connector_request_reference_id.clone();
-
-            let headers = vec![
-                ("content-type".to_string(), "application/json".to_string().into()),
-                ("x-merchant-id".to_string(), auth.merchant_id.into()),
-                ("x-merchant-channel-id".to_string(), auth.merchant_channel_id.into()),
-                ("x-timestamp".to_string(), timestamp.into()),
-                ("jpupi-routing-id".to_string(), merchant_request_id.into()),
-            ];
-
-            Ok(headers)
+            crate::connectors::juspay_upi_stack::headers::build_request_headers(
+                &auth.merchant_id,
+                &auth.merchant_channel_id,
+                &merchant_request_id,
+            )
         }
 
         fn get_url(
@@ -454,22 +365,17 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let auth = AxisbankAuthConfig::try_from(&req.connector_config)?;
-            let timestamp = axisbank::get_current_timestamp_ms();
             let merchant_request_id = req
                 .request
                 .connector_transaction_id
                 .get_connector_transaction_id()
                 .unwrap_or_else(|_| req.resource_common_data.connector_request_reference_id.clone());
 
-            let headers = vec![
-                ("content-type".to_string(), "application/json".to_string().into()),
-                ("x-merchant-id".to_string(), auth.merchant_id.into()),
-                ("x-merchant-channel-id".to_string(), auth.merchant_channel_id.into()),
-                ("x-timestamp".to_string(), timestamp.into()),
-                ("jpupi-routing-id".to_string(), merchant_request_id.into()),
-            ];
-
-            Ok(headers)
+            crate::connectors::juspay_upi_stack::headers::build_request_headers(
+                &auth.merchant_id,
+                &auth.merchant_channel_id,
+                &merchant_request_id,
+            )
         }
 
         fn get_url(

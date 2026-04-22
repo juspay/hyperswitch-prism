@@ -16,8 +16,7 @@ use crate::connectors::{
             sanitize_merchant_request_id, sanitize_remarks,
         },
         types::{
-            Refund360Request, Refund360ResponsePayload, RegisterIntentRequest,
-            RegisterIntentResponsePayload, Status360Request, Status360ResponsePayload,
+            Refund360Request, Refund360ResponsePayload, RegisterIntentRequest, Status360Request,
         },
     },
 };
@@ -111,24 +110,12 @@ impl From<AxisbankAuthConfig> for SharedAuthConfig {
 // ============================================
 
 /// Request body for Register Intent API
-#[derive(Debug, Serialize)]
-pub struct AxisbankPaymentsRequest {
-    /// JWS signed payload (protected.payload.signature)
-    pub protected: String,
-    pub payload: String,
-    pub signature: String,
-}
+/// Alias to shared JwsObject (all flows use same JWS envelope structure)
+pub type AxisbankPaymentsRequest = crate::connectors::juspay_upi_stack::types::JwsObject;
 
 /// Response from Register Intent API
-#[derive(Debug, Deserialize, Serialize)]
-pub struct AxisbankPaymentsResponse {
-    pub status: String,
-    #[serde(rename = "responseCode")]
-    pub response_code: String,
-    #[serde(rename = "responseMessage")]
-    pub response_message: String,
-    pub payload: Option<RegisterIntentResponsePayload>,
-}
+/// Alias to shared generic response type
+pub type AxisbankPaymentsResponse = crate::connectors::juspay_upi_stack::types::RegisterIntentResponse;
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
@@ -331,23 +318,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static>
 // ============================================
 
 /// Request body for Status 360 API
-#[derive(Debug, Serialize)]
-pub struct AxisbankSyncRequest {
-    pub protected: String,
-    pub payload: String,
-    pub signature: String,
-}
+/// Alias to shared JwsObject
+pub type AxisbankSyncRequest = crate::connectors::juspay_upi_stack::types::JwsObject;
 
 /// Response from Status 360 API
-#[derive(Debug, Deserialize, Serialize)]
-pub struct AxisbankSyncResponse {
-    pub status: String,
-    #[serde(rename = "responseCode")]
-    pub response_code: String,
-    #[serde(rename = "responseMessage")]
-    pub response_message: String,
-    pub payload: Option<Status360ResponsePayload>,
-}
+/// Alias to shared generic response type
+pub type AxisbankSyncResponse = crate::connectors::juspay_upi_stack::types::Status360Response;
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
