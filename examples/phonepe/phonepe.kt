@@ -15,6 +15,7 @@ import payments.RefundClient
 import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.Currency
+import payments.HttpMethod
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
@@ -22,7 +23,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.PhonepeConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "refund", "refund_get", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "parse_event", "refund", "refund_get", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -140,10 +141,31 @@ fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
 fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = EventClient(config)
     val request = EventServiceHandleRequest.newBuilder().apply {
-
+        merchantEventId = "probe_event_001"  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        requestDetailsBuilder.apply {
+            method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
+            uri = "https://example.com/webhook"  // URI of the request.
+            putAllHeaders(mapOf())  // Headers of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("{}")  // Body of the HTTP request.
+        }
     }.build()
     val response = client.handle_event(request)
-    println("Event status: ${response.eventStatus.name}")
+    println("Webhook: type=${response.eventType.name} verified=${response.sourceVerified}")
+}
+
+// Flow: EventService.ParseEvent
+fun parseEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = EventClient(config)
+    val request = EventServiceParseRequest.newBuilder().apply {
+        requestDetailsBuilder.apply {
+            method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
+            uri = "https://example.com/webhook"  // URI of the request.
+            putAllHeaders(mapOf())  // Headers of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("{}")  // Body of the HTTP request.
+        }
+    }.build()
+    val response = client.parse_event(request)
+    println("Webhook parsed: type=${response.eventType.name}")
 }
 
 // Flow: PaymentService.Refund
@@ -187,9 +209,10 @@ fun main(args: Array<String>) {
         "capture" -> capture(txnId)
         "get" -> get(txnId)
         "handleEvent" -> handleEvent(txnId)
+        "parseEvent" -> parseEvent(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: authorize, capture, get, handleEvent, refund, refundGet, void")
+        else -> System.err.println("Unknown flow: $flow. Available: authorize, capture, get, handleEvent, parseEvent, refund, refundGet, void")
     }
 }

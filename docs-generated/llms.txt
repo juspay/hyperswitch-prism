@@ -467,7 +467,7 @@ connector_id: phonepe
 doc: docs/connectors/phonepe.md
 scenarios: none
 payment_methods: UpiCollect, UpiIntent, UpiQr
-flows: authorize, capture, get, handle_event, refund, refund_get, void
+flows: authorize, capture, get, handle_event, parse_event, refund, refund_get, void
 examples_python: none
 
 ## Pinelabsonline

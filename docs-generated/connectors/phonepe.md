@@ -123,6 +123,7 @@ let config = ConnectorConfig {
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
 | [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
@@ -142,97 +143,97 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 | Payment Method | Supported |
 |----------------|:---------:|
-| Card | ⚠ |
-| Bancontact | ⚠ |
-| Apple Pay | ⚠ |
-| Apple Pay Dec | ⚠ |
-| Apple Pay SDK | ⚠ |
-| Google Pay | ⚠ |
-| Google Pay Dec | ⚠ |
-| Google Pay SDK | ⚠ |
-| PayPal SDK | ⚠ |
-| Amazon Pay | ⚠ |
-| Cash App | ⚠ |
-| PayPal | ⚠ |
-| WeChat Pay | ⚠ |
-| Alipay | ⚠ |
-| Revolut Pay | ⚠ |
-| MiFinity | ⚠ |
-| Bluecode | ⚠ |
+| Card | x |
+| Bancontact | x |
+| Apple Pay | x |
+| Apple Pay Dec | x |
+| Apple Pay SDK | x |
+| Google Pay | x |
+| Google Pay Dec | x |
+| Google Pay SDK | x |
+| PayPal SDK | x |
+| Amazon Pay | x |
+| Cash App | x |
+| PayPal | x |
+| WeChat Pay | x |
+| Alipay | x |
+| Revolut Pay | x |
+| MiFinity | x |
+| Bluecode | x |
 | Paze | x |
-| Samsung Pay | ⚠ |
-| MB Way | ⚠ |
-| Satispay | ⚠ |
-| Wero | ⚠ |
-| Affirm | ⚠ |
-| Afterpay | ⚠ |
-| Klarna | ⚠ |
+| Samsung Pay | x |
+| MB Way | x |
+| Satispay | x |
+| Wero | x |
+| Affirm | x |
+| Afterpay | x |
+| Klarna | x |
 | UPI Collect | ✓ |
 | UPI Intent | ✓ |
 | UPI QR | ✓ |
-| Thailand | ⚠ |
-| Czech | ⚠ |
-| Finland | ⚠ |
-| FPX | ⚠ |
-| Poland | ⚠ |
-| Slovakia | ⚠ |
-| UK | ⚠ |
+| Thailand | x |
+| Czech | x |
+| Finland | x |
+| FPX | x |
+| Poland | x |
+| Slovakia | x |
+| UK | x |
 | PIS | x |
-| Generic | ⚠ |
-| Local | ⚠ |
-| iDEAL | ⚠ |
-| Sofort | ⚠ |
-| Trustly | ⚠ |
-| Giropay | ⚠ |
-| EPS | ⚠ |
-| Przelewy24 | ⚠ |
-| PSE | ⚠ |
-| BLIK | ⚠ |
-| Interac | ⚠ |
-| Bizum | ⚠ |
-| EFT | ⚠ |
+| Generic | x |
+| Local | x |
+| iDEAL | x |
+| Sofort | x |
+| Trustly | x |
+| Giropay | x |
+| EPS | x |
+| Przelewy24 | x |
+| PSE | x |
+| BLIK | x |
+| Interac | x |
+| Bizum | x |
+| EFT | x |
 | DuitNow | x |
-| ACH | ⚠ |
-| SEPA | ⚠ |
-| BACS | ⚠ |
-| Multibanco | ⚠ |
-| Instant | ⚠ |
-| Instant FI | ⚠ |
-| Instant PL | ⚠ |
-| Pix | ⚠ |
-| Permata | ⚠ |
-| BCA | ⚠ |
-| BNI VA | ⚠ |
-| BRI VA | ⚠ |
-| CIMB VA | ⚠ |
-| Danamon VA | ⚠ |
-| Mandiri VA | ⚠ |
-| Local | ⚠ |
-| Indonesian | ⚠ |
-| ACH | ⚠ |
-| SEPA | ⚠ |
-| BACS | ⚠ |
-| BECS | ⚠ |
-| SEPA Guaranteed | ⚠ |
+| ACH | x |
+| SEPA | x |
+| BACS | x |
+| Multibanco | x |
+| Instant | x |
+| Instant FI | x |
+| Instant PL | x |
+| Pix | x |
+| Permata | x |
+| BCA | x |
+| BNI VA | x |
+| BRI VA | x |
+| CIMB VA | x |
+| Danamon VA | x |
+| Mandiri VA | x |
+| Local | x |
+| Indonesian | x |
+| ACH | x |
+| SEPA | x |
+| BACS | x |
+| BECS | x |
+| SEPA Guaranteed | x |
 | Crypto | x |
-| Reward | ⚠ |
+| Reward | x |
 | Givex | x |
 | PaySafeCard | x |
-| E-Voucher | ⚠ |
-| Boleto | ⚠ |
-| Efecty | ⚠ |
-| Pago Efectivo | ⚠ |
-| Red Compra | ⚠ |
-| Red Pagos | ⚠ |
-| Alfamart | ⚠ |
-| Indomaret | ⚠ |
-| Oxxo | ⚠ |
-| 7-Eleven | ⚠ |
-| Lawson | ⚠ |
-| Mini Stop | ⚠ |
-| Family Mart | ⚠ |
-| Seicomart | ⚠ |
-| Pay Easy | ⚠ |
+| E-Voucher | x |
+| Boleto | x |
+| Efecty | x |
+| Pago Efectivo | x |
+| Red Compra | x |
+| Red Pagos | x |
+| Alfamart | x |
+| Indomaret | x |
+| Oxxo | x |
+| 7-Eleven | x |
+| Lawson | x |
+| Mini Stop | x |
+| Family Mart | x |
+| Seicomart | x |
+| Pay Easy | x |
 
 **Payment method objects** — use these in the `payment_method` field of the Authorize request.
 
@@ -246,7 +247,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L109) · [Kotlin](../../examples/phonepe/phonepe.kt#L110) · [Rust](../../examples/phonepe/phonepe.rs)
+**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L129) · [Kotlin](../../examples/phonepe/phonepe.kt#L111) · [Rust](../../examples/phonepe/phonepe.rs)
 
 #### PaymentService.Capture
 
@@ -257,7 +258,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L118) · [Kotlin](../../examples/phonepe/phonepe.kt#L122) · [Rust](../../examples/phonepe/phonepe.rs)
+**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L138) · [Kotlin](../../examples/phonepe/phonepe.kt#L123) · [Rust](../../examples/phonepe/phonepe.rs)
 
 #### PaymentService.Get
 
@@ -268,7 +269,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L127) · [Kotlin](../../examples/phonepe/phonepe.kt#L132) · [Rust](../../examples/phonepe/phonepe.rs)
+**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L147) · [Kotlin](../../examples/phonepe/phonepe.kt#L133) · [Rust](../../examples/phonepe/phonepe.rs)
 
 #### PaymentService.Refund
 
@@ -279,7 +280,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L145) · [Kotlin](../../examples/phonepe/phonepe.kt#L150) · [Rust](../../examples/phonepe/phonepe.rs)
+**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L174) · [Kotlin](../../examples/phonepe/phonepe.kt#L172) · [Rust](../../examples/phonepe/phonepe.rs)
 
 #### PaymentService.Void
 
@@ -290,7 +291,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts) · [Kotlin](../../examples/phonepe/phonepe.kt#L172) · [Rust](../../examples/phonepe/phonepe.rs)
+**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts) · [Kotlin](../../examples/phonepe/phonepe.kt#L194) · [Rust](../../examples/phonepe/phonepe.rs)
 
 ### Refunds
 
@@ -303,4 +304,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L154) · [Kotlin](../../examples/phonepe/phonepe.kt#L160) · [Rust](../../examples/phonepe/phonepe.rs)
+**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L183) · [Kotlin](../../examples/phonepe/phonepe.kt#L182) · [Rust](../../examples/phonepe/phonepe.rs)
