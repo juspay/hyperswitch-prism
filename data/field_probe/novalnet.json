@@ -704,7 +704,26 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_authorization_id": "probe_auth_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1100,
+            "currency": "USD"
+          },
+          "reason": "incremental_auth_probe"
+        },
+        "sample": {
+          "url": "https://payport.novalnet.de/v2/transaction/update",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-nn-access-key": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA=="
+          },
+          "body": "{\"transaction\":{\"tid\":\"probe_connector_txn_001\",\"amount\":\"1100\"},\"custom\":{\"lang\":\"en\"}}"
+        }
       }
     },
     "parse_event": {

@@ -131,7 +131,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L237) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L123) · [Rust](../../examples/novalnet/novalnet.rs#L304)
+**Examples:** [Python](../../examples/novalnet/novalnet.py#L248) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L123) · [Rust](../../examples/novalnet/novalnet.rs#L317)
 
 ### Card Payment (Authorize + Capture)
 
@@ -145,25 +145,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L256) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L139) · [Rust](../../examples/novalnet/novalnet.rs#L320)
+**Examples:** [Python](../../examples/novalnet/novalnet.py#L267) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L139) · [Rust](../../examples/novalnet/novalnet.rs#L333)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L281) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L161) · [Rust](../../examples/novalnet/novalnet.rs#L343)
+**Examples:** [Python](../../examples/novalnet/novalnet.py#L292) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L161) · [Rust](../../examples/novalnet/novalnet.rs#L356)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L306) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L183) · [Rust](../../examples/novalnet/novalnet.rs#L366)
+**Examples:** [Python](../../examples/novalnet/novalnet.py#L317) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L183) · [Rust](../../examples/novalnet/novalnet.rs#L379)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L328) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L202) · [Rust](../../examples/novalnet/novalnet.rs#L385)
+**Examples:** [Python](../../examples/novalnet/novalnet.py#L339) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L202) · [Rust](../../examples/novalnet/novalnet.rs#L398)
 
 ## API Reference
 
@@ -173,6 +173,7 @@ Retrieve current payment status from the connector.
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
+| [PaymentService.IncrementalAuthorization](#paymentserviceincrementalauthorization) | Payments | `PaymentServiceIncrementalAuthorizationRequest` |
 | [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 | [PaymentService.ProxySetupRecurring](#paymentserviceproxysetuprecurring) | Payments | `PaymentServiceProxySetupRecurringRequest` |
@@ -377,7 +378,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L372) · [Kotlin](../../examples/novalnet/novalnet.kt#L220) · [Rust](../../examples/novalnet/novalnet.rs)
+**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L384) · [Kotlin](../../examples/novalnet/novalnet.kt#L220) · [Rust](../../examples/novalnet/novalnet.rs)
 
 #### PaymentService.Capture
 
@@ -388,7 +389,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L381) · [Kotlin](../../examples/novalnet/novalnet.kt#L232) · [Rust](../../examples/novalnet/novalnet.rs)
+**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L393) · [Kotlin](../../examples/novalnet/novalnet.kt#L232) · [Rust](../../examples/novalnet/novalnet.rs)
 
 #### PaymentService.Get
 
@@ -399,7 +400,18 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L390) · [Kotlin](../../examples/novalnet/novalnet.kt#L242) · [Rust](../../examples/novalnet/novalnet.rs)
+**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L402) · [Kotlin](../../examples/novalnet/novalnet.kt#L242) · [Rust](../../examples/novalnet/novalnet.rs)
+
+#### PaymentService.IncrementalAuthorization
+
+Increase the authorized amount for an existing payment. Enables you to capture additional funds when the transaction amount changes after initial authorization.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceIncrementalAuthorizationRequest` |
+| **Response** | `PaymentServiceIncrementalAuthorizationResponse` |
+
+**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L420) · [Kotlin](../../examples/novalnet/novalnet.kt#L266) · [Rust](../../examples/novalnet/novalnet.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -410,7 +422,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L417) · [Kotlin](../../examples/novalnet/novalnet.kt#L281) · [Rust](../../examples/novalnet/novalnet.rs)
+**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L438) · [Kotlin](../../examples/novalnet/novalnet.kt#L297) · [Rust](../../examples/novalnet/novalnet.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -421,7 +433,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L426) · [Kotlin](../../examples/novalnet/novalnet.kt#L314) · [Rust](../../examples/novalnet/novalnet.rs)
+**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L447) · [Kotlin](../../examples/novalnet/novalnet.kt#L330) · [Rust](../../examples/novalnet/novalnet.rs)
 
 #### PaymentService.Refund
 
@@ -432,7 +444,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L444) · [Kotlin](../../examples/novalnet/novalnet.kt#L384) · [Rust](../../examples/novalnet/novalnet.rs)
+**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L465) · [Kotlin](../../examples/novalnet/novalnet.kt#L400) · [Rust](../../examples/novalnet/novalnet.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -443,7 +455,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L462) · [Kotlin](../../examples/novalnet/novalnet.kt#L406) · [Rust](../../examples/novalnet/novalnet.rs)
+**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L483) · [Kotlin](../../examples/novalnet/novalnet.kt#L422) · [Rust](../../examples/novalnet/novalnet.rs)
 
 #### PaymentService.Void
 
@@ -454,7 +466,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts) · [Kotlin](../../examples/novalnet/novalnet.kt#L450) · [Rust](../../examples/novalnet/novalnet.rs)
+**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts) · [Kotlin](../../examples/novalnet/novalnet.kt#L466) · [Rust](../../examples/novalnet/novalnet.rs)
 
 ### Refunds
 
@@ -467,7 +479,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L453) · [Kotlin](../../examples/novalnet/novalnet.kt#L394) · [Rust](../../examples/novalnet/novalnet.rs)
+**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L474) · [Kotlin](../../examples/novalnet/novalnet.kt#L410) · [Rust](../../examples/novalnet/novalnet.rs)
 
 ### Mandates
 
@@ -480,4 +492,4 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L435) · [Kotlin](../../examples/novalnet/novalnet.kt#L351) · [Rust](../../examples/novalnet/novalnet.rs)
+**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L456) · [Kotlin](../../examples/novalnet/novalnet.kt#L367) · [Rust](../../examples/novalnet/novalnet.rs)
