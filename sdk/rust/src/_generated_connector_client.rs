@@ -178,8 +178,7 @@ macro_rules! impl_flow_method {
                         doc_url: None,
                     }
                 })?;
-            $res_handler(ffi_request_for_res, response, environment)
-                .map_err(|e: Box<grpc_api_types::payments::ConnectorError>| SdkError::from(*e))
+            $res_handler(ffi_request_for_res, response, environment).map_err(SdkError::from)
         }
     };
 }
