@@ -199,8 +199,8 @@ pub struct Refund360ResponsePayload {
     pub merchant_channel_id: String,
     #[serde(rename = "refundRequestId")]
     pub refund_request_id: String,
-    #[serde(rename = "originalMerchantRequestId")]
-    pub original_merchant_request_id: String,
+    #[serde(rename = "originalMerchantRequestId", skip_serializing_if = "Option::is_none")]
+    pub original_merchant_request_id: Option<String>,
     #[serde(rename = "gatewayResponseCode")]
     pub gateway_response_code: String,
     #[serde(rename = "gatewayResponseStatus")]
@@ -209,12 +209,14 @@ pub struct Refund360ResponsePayload {
     pub gateway_response_message: String,
     #[serde(rename = "gatewayTransactionId")]
     pub gateway_transaction_id: String,
-    #[serde(rename = "gatewayRefundTransactionId")]
-    pub gateway_refund_transaction_id: String,
-    #[serde(rename = "gatewayRefundReferenceId")]
+    #[serde(rename = "gatewayRefundTransactionId", skip_serializing_if = "Option::is_none")]
+    pub gateway_refund_transaction_id: Option<String>,
+    #[serde(rename = "gatewayRefundReferenceId", skip_serializing_if = "Option::is_none")]
     pub gateway_refund_reference_id: Option<String>,
     #[serde(rename = "refundAmount")]
     pub refund_amount: String,
+    #[serde(rename = "transactionAmount", skip_serializing_if = "Option::is_none")]
+    pub transaction_amount: Option<String>,
     #[serde(rename = "refundType")]
     pub refund_type: String,
     #[serde(rename = "refundTimestamp")]

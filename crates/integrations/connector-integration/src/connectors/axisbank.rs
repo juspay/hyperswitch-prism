@@ -51,7 +51,7 @@ use self::transformers::{
 };
 use super::macros;
 use crate::types::ResponseRouterData;
-use domain_types::errors::{ConnectorError, IntegrationError};
+use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
 use tracing::error;
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -268,7 +268,7 @@ macros::create_all_prerequisites!(
                     ConnectorError::ResponseDeserializationFailed {
                         context: ResponseTransformationErrorContext {
                             http_status_code: None,
-                            additional_context: Some("Failed to extract Axisbank auth config".to_string()),
+                            additional_context: Some("Failed to extract AxisbankAuthConfig from connector_config. Verify all required fields are present: merchant_id, merchant_channel_id, merchant_kid, juspay_kid, merchant_private_key, juspay_public_key. See documentation: https://juspay.io/in/docs/upi-merchant-stack/docs/transactions".to_string()),
                         },
                     }
                 })?;
@@ -328,7 +328,7 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let auth = AxisbankAuthConfig::try_from(&req.connector_config)?;
             let merchant_request_id = req.resource_common_data.connector_request_reference_id.clone();
-            crate::connectors::juspay_upi_stack::headers::build_request_headers(
+            crate::connectors::juspay_upi_stack::transformers::build_request_headers(
                 &auth.merchant_id,
                 &auth.merchant_channel_id,
                 &merchant_request_id,
@@ -369,9 +369,16 @@ macros::macro_connector_implementation!(
                 .request
                 .connector_transaction_id
                 .get_connector_transaction_id()
-                .unwrap_or_else(|_| req.resource_common_data.connector_request_reference_id.clone());
+                .map_err(|_| IntegrationError::MissingRequiredField {
+                    field_name: "connector_transaction_id",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some("connector_transaction_id must be set before calling PSync".to_string()),
+                        doc_url: Some("https://juspay.io/in/docs/upi-merchant-stack/docs/transactions/transaction-status-360".to_string()),
+                        additional_context: Some("PSync requires the merchantRequestId returned from Register Intent. Ensure the payment was initialized successfully before querying status.".to_string()),
+                    },
+                })?;
 
-            crate::connectors::juspay_upi_stack::headers::build_request_headers(
+            crate::connectors::juspay_upi_stack::transformers::build_request_headers(
                 &auth.merchant_id,
                 &auth.merchant_channel_id,
                 &merchant_request_id,

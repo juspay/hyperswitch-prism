@@ -28,7 +28,7 @@ use domain_types::{
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundsData, RefundsResponseData, RefundSyncData, ResponseId,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{PaymentMethodDataTypes},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -77,7 +77,11 @@ impl TryFrom<&ConnectorSpecificConfig> for AxisbankAuthConfig {
                 base_url: base_url.clone().unwrap_or_default(),
             }),
             _ => Err(IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some("Check connector_specific_config in merchant connector account configuration".to_string()),
+                    doc_url: Some("https://juspay.io/in/docs/upi-merchant-stack/docs/transactions/register-intent".to_string()),
+                    additional_context: Some("Expected Axisbank variant with fields: merchant_id, merchant_channel_id, merchant_kid, juspay_kid, merchant_private_key, juspay_public_key".to_string()),
+                },
             }
             .into()),
         }
@@ -145,7 +149,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some("Verify amount and currency values are valid".to_string()),
+                    doc_url: Some("https://juspay.io/in/docs/upi-merchant-stack/docs/transactions/register-intent".to_string()),
+                    additional_context: Some("Amount must be a positive integer in minor units (paise). Currency should be INR for UPI transactions.".to_string()),
+                },
             })?;
 
         // Get intent expiry from metadata or use default
@@ -197,7 +205,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Serialize payload to JSON
         let payload_json = serde_json::to_string(&register_intent).change_context(
             IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some("Verify all request fields have valid formats and lengths".to_string()),
+                    doc_url: Some("https://juspay.io/in/docs/upi-merchant-stack/docs/transactions/register-intent".to_string()),
+                    additional_context: Some("upi_request_id must be max 35 alphanumeric characters (hyphens/dots stripped). merchant_request_id should be unique per transaction. Amount must be string formatted.".to_string()),
+                },
             },
         )?;
 
@@ -351,7 +363,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .get_connector_transaction_id()
             .change_context(IntegrationError::MissingRequiredField {
                 field_name: "connector_transaction_id",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some("Verify connector_transaction_id is provided in the PSync request".to_string()),
+                    doc_url: Some("https://juspay.io/in/docs/upi-merchant-stack/docs/transactions/transaction-status-360".to_string()),
+                    additional_context: Some("connector_transaction_id must be the original merchant_request_id from the Register Intent response. Used to query transaction status.".to_string()),
+                },
             })?;
 
         // Build status request
@@ -365,7 +381,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Serialize and sign
         let payload_json = serde_json::to_string(&status_request)
             .change_context(IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some("Verify merchant_request_id is valid and transaction_type is correctly set".to_string()),
+                    doc_url: Some("https://juspay.io/in/docs/upi-merchant-stack/docs/transactions/transaction-status-360".to_string()),
+                    additional_context: Some("transaction_type should be 'PAY' for payment status queries. merchant_request_id must match the original transaction request ID. iat is auto-generated timestamp.".to_string()),
+                },
             })?;
 
         let jws_object = sign_jws(&payload_json, &auth.merchant_private_key, &auth.merchant_kid)?;
@@ -530,7 +550,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let payload_json = serde_json::to_string(&refund_request).change_context(
             IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some("Verify refund fields are valid: original_merchant_request_id, refund_amount, and refund_type".to_string()),
+                    doc_url: Some("https://juspay.io/in/docs/upi-merchant-stack/docs/transactions/refund-360".to_string()),
+                    additional_context: Some("refund_type can be 'ONLINE', 'OFFLINE', or 'UDIR'. For UDIR, adj_code and adj_flag are required. refund_amount must be in rupees with 2 decimal places (e.g., '100.00').".to_string()),
+                },
             },
         )?;
 
@@ -583,7 +607,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let payload_json = serde_json::to_string(&refund_sync).change_context(
             IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some("Verify connector_refund_id is provided for refund status query".to_string()),
+                    doc_url: Some("https://juspay.io/in/docs/upi-merchant-stack/docs/transactions/refund-360".to_string()),
+                    additional_context: Some("For RSync, connector_refund_id is the refund_request_id from the original Refund request. original_merchant_request_id is the parent transaction ID.".to_string()),
+                },
             },
         )?;
 

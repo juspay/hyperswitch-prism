@@ -10,9 +10,12 @@ use crate::connectors::juspay_upi_stack::{
     types::*,
 };
 use common_enums as enums;
+use common_utils::errors::CustomResult;
 use domain_types::{
+    errors::IntegrationError,
     router_data::ErrorResponse,
 };
+use hyperswitch_masking::Maskable;
 
 /// Construct a UPI deeplink from register intent response parameters
 /// 
@@ -163,4 +166,39 @@ pub fn build_error_response(
         network_advice_code: None,
         network_error_message: None,
     }
+}
+
+/// Build the standard request headers for Juspay UPI Merchant Stack APIs.
+///
+/// This function constructs the common headers shared across all banks in the UPI Stack
+/// (Axis Bank, YES Bank, Kotak, RBL, AU Bank, etc.). The headers are:
+/// - content-type: application/json
+/// - x-merchant-id
+/// - x-merchant-channel-id
+/// - x-timestamp: current Unix timestamp in milliseconds
+/// - jpupi-routing-id: the transaction/request ID (value differs per flow)
+///
+/// Banks can use this function and optionally add additional headers (e.g., signature headers).
+pub fn build_request_headers(
+    merchant_id: &str,
+    merchant_channel_id: &str,
+    routing_id: &str,
+) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+    use crate::connectors::juspay_upi_stack::constants::*;
+    use crate::connectors::juspay_upi_stack::crypto::get_current_timestamp_ms;
+
+    let headers = vec![
+        (
+            CONTENT_TYPE.to_string(),
+            "application/json".to_string().into(),
+        ),
+        (X_MERCHANT_ID.to_string(), merchant_id.to_string().into()),
+        (
+            X_MERCHANT_CHANNEL_ID.to_string(),
+            merchant_channel_id.to_string().into(),
+        ),
+        (X_TIMESTAMP.to_string(), get_current_timestamp_ms().into()),
+        (JPUP_ROUTING_ID.to_string(), routing_id.to_string().into()),
+    ];
+    Ok(headers)
 }
