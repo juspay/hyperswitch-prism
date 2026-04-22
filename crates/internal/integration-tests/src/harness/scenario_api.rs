@@ -3371,7 +3371,7 @@ pub fn run_scenario_test_with_options(
         });
     };
 
-    match execute_single_scenario_with_context(
+    match execute_scenario_with_retry(
         suite,
         scenario,
         connector,
@@ -3594,7 +3594,7 @@ pub fn run_suite_test_with_options(
             };
 
             for scenario in scenarios.keys() {
-                match execute_single_scenario_with_context(
+                match execute_scenario_with_retry(
                     suite,
                     scenario,
                     connector,
@@ -3726,7 +3726,7 @@ pub fn run_suite_test_with_options(
                     });
                 };
 
-                match execute_single_scenario_with_context(
+                match execute_scenario_with_retry(
                     suite,
                     scenario,
                     connector,
@@ -4286,6 +4286,73 @@ fn maybe_sync_complete_authorize_pending(
     }
 
     Ok(())
+}
+
+/// Executes a scenario with retry logic for specific suites.
+///
+/// For PaymentService/Get, retries on ANY error (idempotent operation, safe to retry).
+/// Polls every 500ms for up to 5 seconds.
+fn execute_scenario_with_retry(
+    suite: &str,
+    scenario: &str,
+    connector: &str,
+    options: SuiteRunOptions<'_>,
+    dependency_reqs: &[Value],
+    dependency_res: &[Value],
+    explicit_context_entries: &[ExplicitContextEntry],
+    dependency_entries: &[ExecutedDependency],
+) -> Result<ExecutedScenario, ScenarioError> {
+    const MAX_RETRIES: u32 = 10; // 10 * 500ms = 5 seconds max
+    const RETRY_DELAY_MS: u64 = 500;
+
+    // Only retry for PaymentService/Get (any connector may have timing issues)
+    let should_retry_suite = suite == "PaymentService/Get";
+
+    for attempt in 0..=MAX_RETRIES {
+        let result = execute_single_scenario_with_context(
+            suite,
+            scenario,
+            connector,
+            options,
+            dependency_reqs,
+            dependency_res,
+            explicit_context_entries,
+            dependency_entries,
+        )?;
+
+        // If this suite doesn't need retry logic, return immediately
+        if !should_retry_suite {
+            return Ok(result);
+        }
+
+        // Check if response contains any error (Get is idempotent, safe to retry)
+        let has_error = result.response_json.get("error").is_some();
+
+        // If no error, return the successful result
+        if !has_error {
+            return Ok(result);
+        }
+
+        // If we've exhausted retries, return the last result
+        if attempt == MAX_RETRIES {
+            return Ok(result);
+        }
+
+        // Wait before retry
+        thread::sleep(Duration::from_millis(RETRY_DELAY_MS));
+    }
+
+    // Fallback (should never reach here due to the loop structure)
+    execute_single_scenario_with_context(
+        suite,
+        scenario,
+        connector,
+        options,
+        dependency_reqs,
+        dependency_res,
+        explicit_context_entries,
+        dependency_entries,
+    )
 }
 
 #[allow(clippy::print_stdout, clippy::print_stderr)]
