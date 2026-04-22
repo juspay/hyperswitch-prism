@@ -8280,6 +8280,7 @@ dependencies = [
  "hyperswitch_masking",
  "interfaces",
  "log_utils",
+ "prost 0.14.3",
  "serde",
  "serde_json",
  "serde_path_to_error",
