@@ -67,6 +67,10 @@
         "status": "not_supported",
         "error": "Payment method  is not supported by Getnet"
       },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by Getnet"
+      },
       "Bizum": {
         "status": "not_supported",
         "error": "Payment method  is not supported by Getnet"
@@ -138,6 +142,10 @@
         "status": "not_supported",
         "error": "Payment method  is not supported by Getnet"
       },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by Getnet"
+      },
       "CimbVaBankTransfer": {
         "status": "not_supported",
         "error": "Payment method  is not supported by Getnet"
@@ -148,7 +156,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
@@ -156,9 +164,13 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by Getnet"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_supported",
         "error": "Payment method  is not supported by Getnet"
       },
@@ -184,7 +196,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GooglePay": {
         "status": "not_supported",
@@ -234,6 +246,10 @@
         "status": "not_supported",
         "error": "Payment method  is not supported by Getnet"
       },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by Getnet"
+      },
       "LocalBankRedirect": {
         "status": "not_supported",
         "error": "Payment method  is not supported by Getnet"
@@ -259,6 +275,10 @@
         "error": "Payment method  is not supported by Getnet"
       },
       "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by Getnet"
+      },
+      "Netbanking": {
         "status": "not_supported",
         "error": "Payment method  is not supported by Getnet"
       },
@@ -292,7 +312,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
         "status": "not_supported",
@@ -312,7 +332,11 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by Getnet"
       },
       "PaypalRedirect": {
         "status": "not_supported",
@@ -324,9 +348,13 @@
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method  is not supported by Getnet"
+      },
+      "PhonePeRedirect": {
         "status": "not_supported",
         "error": "Payment method  is not supported by Getnet"
       },
@@ -540,6 +568,11 @@
       }
     },
     "incremental_authorization": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "parse_event": {
       "default": {
         "status": "not_implemented"
       }

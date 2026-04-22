@@ -377,6 +377,60 @@ pub(crate) fn wero_method() -> PaymentMethod {
     }
 }
 
+pub(crate) fn lazypay_redirect_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::LazypayRedirect(
+            proto::LazyPayRedirectWallet::default(),
+        )),
+    }
+}
+
+pub(crate) fn phonepe_redirect_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::PhonepeRedirect(
+            proto::PhonePeRedirectWallet::default(),
+        )),
+    }
+}
+
+pub(crate) fn billdesk_redirect_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::BilldeskRedirect(
+            proto::BillDeskRedirectWallet::default(),
+        )),
+    }
+}
+
+pub(crate) fn cashfree_redirect_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::CashfreeRedirect(
+            proto::CashfreeRedirectWallet::default(),
+        )),
+    }
+}
+
+pub(crate) fn payu_redirect_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::PayuRedirect(proto::PayURedirectWallet::default())),
+    }
+}
+
+pub(crate) fn easebuzz_redirect_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::EasebuzzRedirect(
+            proto::EaseBuzzRedirectWallet::default(),
+        )),
+    }
+}
+
+pub(crate) fn netbanking_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::Netbanking(proto::NetbankingPayment {
+            issuer: proto::BankNames::HdfcBank as i32,
+        })),
+    }
+}
+
 pub(crate) fn upi_intent_method() -> PaymentMethod {
     PaymentMethod {
         payment_method: Some(PmVariant::UpiIntent(proto::UpiIntent::default())),
@@ -521,7 +575,7 @@ pub(crate) fn bizum_method() -> PaymentMethod {
 
 pub(crate) fn eft_method() -> PaymentMethod {
     PaymentMethod {
-        payment_method: Some(PmVariant::Eft(proto::Eft {
+        payment_method: Some(PmVariant::EftBankRedirect(proto::EftBankRedirect {
             provider: "ozow".to_string(),
         })),
     }

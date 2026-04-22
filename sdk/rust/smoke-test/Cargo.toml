@@ -8,6 +8,10 @@ default-run = "hyperswitch-smoke-test"
 name = "grpc-smoke-test"
 path = "src/grpc_smoke_test.rs"
 
+[[bin]]
+name = "smoke-test-webhook"
+path = "src/smoke_test_webhook.rs"
+
 [dependencies]
 hyperswitch-payments-client = { path = ".." }
 grpc-api-types = { path = "../../../crates/types-traits/grpc-api-types" }

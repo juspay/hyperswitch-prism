@@ -217,10 +217,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let card_data = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card) => card,
             _ => {
-                return Err(IntegrationError::not_implemented(
-                    "Only card payments are supported".to_string(),
-                )
-                .into())
+                return Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "Only card payments are supported".to_string(),
+                    connector: "Silverflow",
+                    context: Default::default(),
+                }))
             }
         };
 

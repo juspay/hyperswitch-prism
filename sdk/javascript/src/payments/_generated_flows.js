@@ -112,8 +112,11 @@ const FLOWS = {
 
 // Single-step flows: no HTTP round-trip.
 const SINGLE_FLOWS = {
-  // handle_event: EventService.HandleEvent — Process webhook notifications from connectors. Translates connector events into standardized responses for asynchronous payment state updates.
+  // handle_event: EventService.HandleEvent — Verify webhook source and return a unified typed response. Response mirrors PaymentService.Get / RefundService.Get / DisputeService.Get.
   handle_event             : { request: "EventServiceHandleRequest", response: "EventServiceHandleResponse" },
+
+  // parse_event: EventService.ParseEvent — Parse a raw webhook payload without credentials. Returns resource reference and event type — sufficient to resolve secrets or early-exit.
+  parse_event              : { request: "EventServiceParseRequest", response: "EventServiceParseResponse" },
 
   // verify_redirect_response: PaymentService.VerifyRedirectResponse — Verify and process redirect responses from 3D Secure or other external flows. Validates authentication results and updates payment state accordingly.
   verify_redirect_response : { request: "PaymentServiceVerifyRedirectResponseRequest", response: "PaymentServiceVerifyRedirectResponseResponse" },

@@ -392,8 +392,9 @@ pub fn get_card_issuer(
             return Ok(*k);
         }
     }
-    Err(error_stack::Report::new(IntegrationError::not_implemented(
-        "Card Type",
+    Err(error_stack::Report::new(IntegrationError::NotImplemented(
+        ("Card Type").into(),
+        Default::default(),
     )))
 }
 
@@ -636,5 +637,28 @@ pub fn convert_spain_state_to_code(state: &str) -> Result<String, crate::errors:
             field_name: "address.state",
             context: Default::default(),
         })?,
+    }
+}
+
+/// Split a full name into (first_name, last_name) on the last whitespace.
+/// Single-token names go to first_name only. `None` / empty / whitespace-only input
+/// returns `(None, None)`.
+pub fn split_full_name(
+    full_name: Option<hyperswitch_masking::Secret<String>>,
+) -> (
+    Option<hyperswitch_masking::Secret<String>>,
+    Option<hyperswitch_masking::Secret<String>>,
+) {
+    use hyperswitch_masking::{ExposeInterface, Secret};
+    let trimmed = full_name.map(|name| name.expose().trim().to_string());
+    match trimmed {
+        Some(name) if !name.is_empty() => match name.rsplit_once(' ') {
+            Some((first, last)) => (
+                Some(Secret::new(first.to_string())),
+                Some(Secret::new(last.to_string())),
+            ),
+            None => (Some(Secret::new(name)), None),
+        },
+        _ => (None, None),
     }
 }

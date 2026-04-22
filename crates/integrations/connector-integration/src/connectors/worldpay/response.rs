@@ -492,3 +492,30 @@ pub type WorldpayAuthenticateResponse = WorldpayPaymentsResponse;
 pub type WorldpayPreAuthenticateResponse = WorldpayPaymentsResponse;
 pub type WorldpayPostAuthenticateResponse = WorldpayPaymentsResponse;
 pub type WorldpayRepeatPaymentResponse = WorldpayPaymentsResponse;
+/// Response for POST /payments/authorizations/incrementalAuthorizations/{linkData}
+/// (Access Worldpay Card Payments API). Shape differs from the orchestrated
+/// `WorldpayPaymentsResponse` in that it returns a HAL body with action links
+/// keyed as `cardPayments:increaseAuthorizedAmount`, `cardPayments:cancel`,
+/// etc., and an `amounts.totalAuthorized` balance — no `_links.self`.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayIncrementalAuthResponse {
+    pub outcome: PaymentOutcome,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub amounts: Option<IncrementalAuthAmounts>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub issuer: Option<Issuer>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scheme: Option<PaymentsResponseScheme>,
+    /// Raw link map. We only care about extracting the increased-amount href
+    /// for reconstructing the connector_authorization_id.
+    #[serde(rename = "_links", skip_serializing_if = "Option::is_none")]
+    pub links: Option<serde_json::Value>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IncrementalAuthAmounts {
+    pub total_authorized: Option<common_utils::types::MinorUnit>,
+    pub currency: Option<common_enums::Currency>,
+}

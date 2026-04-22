@@ -1,19 +1,23 @@
-use common_enums::{self, AttemptStatus, Currency};
+use common_enums::{self, AttemptStatus, Currency, RefundStatus};
 use common_utils::{pii::IpAddress, Email};
 use domain_types::{
-    connector_flow::{Authorize, PSync},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, ResponseId,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, ResponseId,
     },
-    errors::{ConnectorError, IntegrationError},
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, UpiData},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    payment_method_data::{
+        BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, UpiData, WalletData,
+    },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_request_types::AuthoriseIntegrityObject,
     router_response_types::RedirectForm,
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::types::ResponseRouterData;
@@ -89,7 +93,17 @@ impl TryFrom<&ConnectorSpecificConfig> for PayuAuthType {
                 api_secret: api_secret.to_owned(),
             }),
             _ => Err(IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Provide a PayuConfig with api_key and api_secret in the connector configuration."
+                            .to_owned(),
+                    ),
+                    doc_url: Some("https://docs.payu.in/docs/server-to-server-integration".to_owned()),
+                    additional_context: Some(
+                        "PayU requires body-key authentication with a merchant key (api_key) and salt (api_secret)."
+                            .to_owned(),
+                    ),
+                },
             }
             .into()),
         }
@@ -129,9 +143,10 @@ pub struct PayuPaymentRequest {
     pub vpa: Option<Secret<String>>, // UPI VPA (for collect)
 
     // UPI specific fields
-    pub txn_s2s_flow: String, // S2S flow type ("2" for UPI)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub txn_s2s_flow: Option<String>, // S2S flow type ("2" for UPI); None for redirect flows
     pub s2s_client_ip: Secret<String, IpAddress>, // Client IP
-    pub s2s_device_info: String, // Device info
+    pub s2s_device_info: String,                  // Device info
     #[serde(skip_serializing_if = "Option::is_none")]
     pub api_version: Option<String>, // API version ("2.0")
 
@@ -237,8 +252,18 @@ pub struct PayuPaymentResponse {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PayuResult {
-    pub status: String,   // UPI Collect Status
-    pub mihpayid: String, // ID
+    // Common fields present in both UPI-collect and wallet/netbanking redirect responses
+    pub status: String,           // e.g. "pending", "failure", "success"
+    pub mihpayid: Option<String>, // PayU payment ID (may be absent on hard failures)
+    // Fields present in redirect wallet/netbanking responses
+    #[serde(rename = "error_Message")]
+    pub error_message: Option<String>, // Human-readable error description
+    pub error: Option<String>,          // PayU error code, e.g. "E312"
+    pub mode: Option<String>,           // Payment mode, e.g. "CASH"
+    pub payment_source: Option<String>, // e.g. "payuPureS2S"
+    #[serde(rename = "PG_TYPE")]
+    pub pg_type: Option<String>, // e.g. "CASH-PG"
+    pub bankcode: Option<String>,       // e.g. "PHONEPE"
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -301,7 +326,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "PayU expects amount in string major units (e.g. \"10.00\"). Conversion from minor units failed."
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
             })?;
 
         // Extract authentication
@@ -337,7 +368,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .get_billing_first_name()
                 .change_context(IntegrationError::MissingRequiredField {
                     field_name: "billing.first_name",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        suggested_action: Some("Provide the customer's first name in the billing address.".to_owned()),
+                        additional_context: Some("PayU requires firstname as a mandatory field in the payment request hash.".to_owned()),
+                        ..Default::default()
+                    },
                 })?,
             lastname: router_data
                 .resource_common_data
@@ -347,27 +382,43 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .get_billing_email()
                 .change_context(IntegrationError::MissingRequiredField {
                     field_name: "billing.email",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        suggested_action: Some("Provide the customer's email in the billing address.".to_owned()),
+                        additional_context: Some("PayU requires email as a mandatory field in the payment request hash.".to_owned()),
+                        ..Default::default()
+                    },
                 })?,
             phone: router_data
                 .resource_common_data
                 .get_billing_phone_number()
                 .change_context(IntegrationError::MissingRequiredField {
                     field_name: "billing.phone_number",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        suggested_action: Some("Provide the customer's phone number with country code in the billing address.".to_owned()),
+                        additional_context: Some("PayU requires phone number as a mandatory field in the payment request.".to_owned()),
+                        ..Default::default()
+                    },
                 })?,
 
             // URLs - use router return URL if available
             surl: router_data.request.get_router_return_url().map_err(|_| {
                 IntegrationError::MissingRequiredField {
-                    field_name: "router_return_url",
-                    context: Default::default(),
+                    field_name: "return_url",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some("Provide a return_url for PayU to redirect after payment completion.".to_owned()),
+                        additional_context: Some("PayU requires surl (success URL) and furl (failure URL) for all payment flows.".to_owned()),
+                        ..Default::default()
+                    },
                 }
             })?,
             furl: router_data.request.get_router_return_url().map_err(|_| {
                 IntegrationError::MissingRequiredField {
-                    field_name: "router_return_url",
-                    context: Default::default(),
+                    field_name: "return_url",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some("Provide a return_url for PayU to redirect after payment completion.".to_owned()),
+                        additional_context: Some("PayU requires surl (success URL) and furl (failure URL) for all payment flows.".to_owned()),
+                        ..Default::default()
+                    },
                 }
             })?,
 
@@ -383,8 +434,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .get_ip_address_as_optional()
                 .ok_or_else(|| {
                     report!(IntegrationError::MissingRequiredField {
-                        field_name: "IP address",
-                        context: Default::default()
+                        field_name: "browser_info.ip_address",
+                        context: IntegrationErrorContext {
+                            suggested_action: Some("Provide the customer's IP address in browser_info.ip_address.".to_owned()),
+                            additional_context: Some("PayU requires s2s_client_ip for all S2S payment flows.".to_owned()),
+                            ..Default::default()
+                        },
                     })
                 })?,
             s2s_device_info: constants::DEVICE_INFO.to_string(),
@@ -498,15 +553,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Extract authentication
         let auth = PayuAuthType::try_from(&router_data.connector_config)?;
 
-        // Extract transaction ID from connector_transaction_id
+        // PayU verify_payment expects var1 = merchant txnid, not mihpayid.
+        // The connector_request_reference_id carries the merchant's original txnid.
         let transaction_id = router_data
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(IntegrationError::MissingRequiredField {
-                field_name: "connector_transaction_id",
-                context: Default::default(),
-            })?;
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
 
         let command = constants::COMMAND;
 
@@ -641,12 +693,13 @@ fn determine_upi_app_name<
                     // TODO: Extract bank code from metadata if available
                     Ok(None)
                 }
-                UpiData::UpiCollect(upi_collect_data) => {
-                    // UPI Collect doesn't typically use app name
-                    Ok(upi_collect_data.vpa_id.clone().map(|vpa| vpa.expose()))
+                UpiData::UpiCollect(_) => {
+                    // UPI Collect doesn't use app name
+                    Ok(None)
                 }
             }
         }
+        PaymentMethodData::Wallet(_) | PaymentMethodData::BankRedirect(_) => Ok(None),
         _ => Ok(None),
     }
 }
@@ -657,52 +710,132 @@ fn determine_upi_flow<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 >(
     request: &PaymentsAuthorizeData<T>,
-) -> Result<(Option<String>, Option<String>, Option<String>, String), IntegrationError> {
-    // Based on Haskell implementation:
-    // getTxnS2SType :: Bool -> Bool -> Bool -> Bool -> Bool -> Maybe Text
-    // getTxnS2SType isTxnS2SFlow4Enabled s2sEnabled isDirectOTPTxn isEmandateRegister isDirectAuthorization
-
+) -> Result<
+    (
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    ),
+    IntegrationError,
+> {
     match &request.payment_method_data {
         PaymentMethodData::Upi(upi_data) => {
             match upi_data {
                 UpiData::UpiCollect(collect_data) => {
                     if let Some(vpa) = &collect_data.vpa_id {
-                        // UPI Collect flow - based on Haskell implementation
-                        // For UPI Collect: pg = UPI, bankcode = UPI, VPA required
-                        // The key is that VPA must be populated for sourceObject == "UPI_COLLECT"
                         Ok((
                             Some(constants::UPI_PG.to_string()),
                             Some(constants::UPI_COLLECT_BANKCODE.to_string()),
                             Some(vpa.peek().to_string()),
-                            constants::UPI_S2S_FLOW.to_string(), // UPI Collect typically uses S2S flow "2"
+                            Some(constants::UPI_S2S_FLOW.to_string()),
                         ))
                     } else {
-                        // Missing VPA for UPI Collect - this should be an error
                         Err(IntegrationError::MissingRequiredField {
                             field_name: "vpa_id",
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                suggested_action: Some("Provide a VPA (Virtual Payment Address) for UPI Collect, e.g. \"user@upi\".".to_owned()),
+                                additional_context: Some("UPI Collect requires a valid VPA to send the collect request to the customer's UPI app.".to_owned()),
+                                ..Default::default()
+                            },
                         })
                     }
                 }
                 UpiData::UpiIntent(_) | UpiData::UpiQr(_) => {
-                    // UPI Intent flow - uses S2S flow "2" for intent-based transactions
-                    // pg=UPI, bankcode=INTENT for intent flows
                     Ok((
                         Some(constants::UPI_PG.to_string()),
                         Some(constants::UPI_INTENT_BANKCODE.to_string()),
                         None,
-                        constants::UPI_S2S_FLOW.to_string(),
+                        Some(constants::UPI_S2S_FLOW.to_string()),
                     ))
                 }
             }
         }
+        PaymentMethodData::Wallet(wallet_data) => {
+            let (pg, bankcode) = match wallet_data {
+                WalletData::PayURedirect(_) => ("BNPL".to_string(), "LAZYPAY".to_string()),
+                WalletData::PhonePeRedirect(_) => ("CASH".to_string(), "PHONEPE".to_string()),
+                WalletData::LazyPayRedirect(_) => ("BNPL".to_string(), "LAZYPAY".to_string()),
+                WalletData::BillDeskRedirect(_) => ("CASH".to_string(), "BILLDESK".to_string()),
+                WalletData::CashfreeRedirect(_) => ("CASH".to_string(), "CASHFREE".to_string()),
+                WalletData::EaseBuzzRedirect(_) => ("CASH".to_string(), "EASEBUZZ".to_string()),
+                _ => {
+                    return Err(IntegrationError::NotSupported {
+                        message: "Wallet type not supported by PayU".to_string(),
+                        connector: "payu",
+                        context: IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Use one of the supported wallet types: PhonePe, LazyPay, PayU, BillDesk, Cashfree, or EaseBuzz."
+                                    .to_owned(),
+                            ),
+                            additional_context: Some(
+                                "PayU only supports specific Indian wallet redirect flows."
+                                    .to_owned(),
+                            ),
+                            ..Default::default()
+                        },
+                    });
+                }
+            };
+            Ok((Some(pg), Some(bankcode), None, None))
+        }
+        PaymentMethodData::BankRedirect(BankRedirectData::Netbanking { issuer }) => {
+            let bankcode = map_bank_name_to_payu_code(issuer)?;
+            Ok((Some("NB".to_string()), Some(bankcode), None, None))
+        }
         _ => Err(IntegrationError::NotSupported {
-            message: "Payment method not supported by PayU. Only UPI payments are supported"
+            message: "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported"
                 .to_string(),
-            connector: "PayU",
-            context: Default::default(),
+            connector: "payu",
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Use UPI (Collect/Intent/QR), a supported wallet (PhonePe, LazyPay, etc.), or Netbanking."
+                        .to_owned(),
+                ),
+                doc_url: Some("https://docs.payu.in/docs/server-to-server-integration".to_owned()),
+                additional_context: None,
+            },
         }),
     }
+}
+
+// Map BankNames enum to PayU netbanking bank codes
+// Reference: https://docs.payu.in/docs/net-banking-codes
+fn map_bank_name_to_payu_code(bank: &common_enums::BankNames) -> Result<String, IntegrationError> {
+    use common_enums::BankNames;
+    let code = match bank {
+        BankNames::AxisBank => "AXIB",
+        BankNames::StateBank => "SBIB",
+        BankNames::HdfcBank => "HDFB",
+        BankNames::IciciBank => "ICIB",
+        BankNames::KotakMahindraBank => "162B",
+        BankNames::YesBank => "YESB",
+        BankNames::PunjabNationalBank => "PNBB",
+        BankNames::BankOfBaroda => "BBRB",
+        BankNames::UnionBankOfIndia => "UNIB",
+        BankNames::CanaraBank => "CABB",
+        BankNames::IndusIndBank => "INDB",
+        BankNames::FederalBank => "FDEB",
+        BankNames::IndianOverseasBank => "IOBB",
+        other => {
+            return Err(IntegrationError::NotSupported {
+                message: format!("Bank {:?} is not mapped to a PayU netbanking code", other),
+                connector: "payu",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use one of the supported banks: Axis, SBI, HDFC, ICICI, Kotak, Yes, PNB, BoB, Union, Canara, IndusInd, Federal, IOB."
+                            .to_owned(),
+                    ),
+                    doc_url: Some("https://docs.payu.in/docs/net-banking-codes".to_owned()),
+                    additional_context: Some(format!(
+                        "PayU netbanking requires a specific bank code; '{:?}' has no mapping.",
+                        other
+                    )),
+                },
+            });
+        }
+    };
+    Ok(code.to_string())
 }
 
 pub fn is_upi_collect_flow<
@@ -714,6 +847,29 @@ pub fn is_upi_collect_flow<
     matches!(
         request.payment_method_data,
         PaymentMethodData::Upi(UpiData::UpiCollect(_))
+    )
+}
+
+/// Returns true if the payment is a wallet redirect flow (not UPI, not card).
+/// For wallet redirect flows, PayU responds with an HTML page, not JSON.
+pub fn is_wallet_redirect_flow<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    request: &PaymentsAuthorizeData<T>,
+) -> bool {
+    matches!(request.payment_method_data, PaymentMethodData::Wallet(_))
+}
+
+/// Returns true if the payment is a netbanking redirect flow.
+/// For netbanking redirect flows, PayU also responds with an HTML page.
+pub fn is_netbanking_redirect_flow<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    request: &PaymentsAuthorizeData<T>,
+) -> bool {
+    matches!(
+        request.payment_method_data,
+        PaymentMethodData::BankRedirect(BankRedirectData::Netbanking { .. })
     )
 }
 
@@ -847,20 +1003,30 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )
             }
             Some(PayuStatusValue::StringStatus(s)) if s == "success" => {
-                // UPI Collect success - PayU returns status="success" with result object
+                // PayU returns status="success" with a result object for both:
+                // 1. UPI Collect: result.status = "pending" while awaiting customer approval
+                // 2. Wallet/netbanking redirect (S2S failure case): result.status = "failure"
+                //    with result.error and result.error_Message populated
                 let (status, transaction_id) = response
                     .result
                     .map(|result| {
-                        if result.status == "pending" {
-                            (
-                                AttemptStatus::AuthenticationPending,
-                                result.mihpayid.clone(),
-                            )
-                        } else {
-                            (AttemptStatus::Failure, result.mihpayid.clone())
+                        let txn_id = result
+                            .mihpayid
+                            .clone()
+                            .unwrap_or_else(|| upi_transaction_id.clone());
+                        match result.status.as_str() {
+                            "pending" => (AttemptStatus::AuthenticationPending, txn_id),
+                            "success" => (AttemptStatus::Charged, txn_id),
+                            _ => {
+                                // "failure" or any other terminal status from the result wrapper
+                                (AttemptStatus::Failure, txn_id)
+                            }
                         }
                     })
-                    .unwrap_or((AttemptStatus::Failure, "".to_owned()));
+                    .unwrap_or((
+                        AttemptStatus::AuthenticationPending,
+                        upi_transaction_id.clone(),
+                    ));
                 (status, transaction_id, None)
             }
             _ => {
@@ -1017,6 +1183,792 @@ fn map_payu_sync_status(payu_status: &str, txn_detail: &PayuTransactionDetail) -
         _ => {
             // Unknown status - treat as failure for safety
             AttemptStatus::Failure
+        }
+    }
+}
+
+// ============================================================
+// Capture Flow
+// ============================================================
+
+// PayU Capture Request structure
+// Spec: key | command="capture_transaction" | var1=mihpayid | var2=amount | hash
+#[derive(Debug, Serialize)]
+pub struct PayuCaptureRequest {
+    pub key: String,     // Merchant key
+    pub command: String, // "capture_transaction"
+    pub var1: String,    // PayU payment ID (mihpayid / connector_transaction_id)
+    pub var2: String,    // Amount to capture
+    pub hash: String,    // SHA-512 signature: SHA512(key|command|var1|salt)
+}
+
+// PayU Capture Response structure
+// Based on spec section 4.2 / Flow.hs:1453 — capture returns a simple status
+// Note: PayU returns status as integer (0) in error responses and string ("success") in success responses
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PayuCaptureResponse {
+    #[serde(default, deserialize_with = "deserialize_payu_status")]
+    pub status: Option<PayuStatusValue>, // e.g. "success" (string) or 0 (integer for error)
+    pub message: Option<String>,           // Status message
+    pub msg: Option<String>,               // Alternative message field used in error responses
+    pub mihpayid: Option<String>,          // PayU payment ID
+    pub error_code: Option<String>,        // Error code if failed
+    pub error_description: Option<String>, // Error description if failed
+}
+
+// Hash generation for PayU capture request
+// Formula: SHA512(key|command|var1|salt)  (standard makePayuHash)
+fn generate_payu_capture_hash(
+    request: &PayuCaptureRequest,
+    merchant_salt: &Secret<String>,
+) -> Result<String, IntegrationError> {
+    use sha2::{Digest, Sha512};
+
+    // PayU standard hash format: key|command|var1|salt
+    let hash_string = format!(
+        "{}|{}|{}|{}",
+        request.key,
+        request.command,
+        request.var1,
+        merchant_salt.peek()
+    );
+
+    let mut hasher = Sha512::new();
+    hasher.update(hash_string.as_bytes());
+    let result = hasher.finalize();
+    Ok(hex::encode(result))
+}
+
+// RouterDataV2 → PayuCaptureRequest
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::PayuRouterData<
+            RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+            T,
+        >,
+    > for PayuCaptureRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: super::PayuRouterData<
+            RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        // Extract auth
+        let auth = PayuAuthType::try_from(&router_data.connector_config)?;
+
+        // Purpose: API requires original PayU payment ID (mihpayid) for capture
+        let connector_transaction_id = router_data
+            .request
+            .get_connector_transaction_id()
+            .change_context(IntegrationError::MissingConnectorTransactionID {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "PayU capture requires the mihpayid (connector_transaction_id) from the original authorize response."
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
+
+        // Convert amount using the amount converter
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(
+                router_data.request.minor_amount_to_capture,
+                router_data.request.currency,
+            )
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "PayU capture expects amount in string major units (e.g. \"10.00\")."
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
+
+        let command = "capture_transaction".to_string();
+
+        let mut request = Self {
+            key: auth.api_key.peek().to_string(),
+            command: command.clone(),
+            var1: connector_transaction_id,
+            var2: amount.get_amount_as_string(),
+            hash: String::new(), // Computed below
+        };
+
+        // Generate hash: SHA512(key|command|var1|salt)
+        request.hash = generate_payu_capture_hash(&request, &auth.api_secret)?;
+
+        Ok(request)
+    }
+}
+
+// PayuCaptureResponse → RouterDataV2
+// Note: PaymentsCaptureData is not generic over T, so no T parameter here
+impl TryFrom<ResponseRouterData<PayuCaptureResponse, Self>>
+    for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(item: ResponseRouterData<PayuCaptureResponse, Self>) -> Result<Self, Self::Error> {
+        let response = &item.response;
+
+        // Map connector status to internal status
+        // Per spec Flow.hs:1453: success → CHARGED, error → CAPTURE_PROCESSING_FAILED
+        // PayU returns status as string "success" on success, or integer 0 on error
+        let is_success = match &response.status {
+            Some(PayuStatusValue::StringStatus(s)) => s.as_str() == "success",
+            Some(PayuStatusValue::IntStatus(0)) => false, // 0 = error/failure
+            Some(PayuStatusValue::IntStatus(_)) => false, // any other int = treat as non-success
+            None => false,
+        };
+
+        let attempt_status = if is_success {
+            AttemptStatus::Charged
+        } else {
+            AttemptStatus::CaptureFailed
+        };
+
+        // Check for error response: integer status 0 or error_code present
+        let has_error = matches!(&response.status, Some(PayuStatusValue::IntStatus(0)))
+            || response.error_code.is_some();
+
+        // Get the error message — check both `msg` and `message` fields
+        let error_msg = response
+            .msg
+            .clone()
+            .or_else(|| response.error_description.clone())
+            .or_else(|| response.message.clone());
+
+        if has_error {
+            let error_code = response
+                .error_code
+                .clone()
+                .unwrap_or_else(|| "CAPTURE_PROCESSING_FAILED".to_string());
+            let error_response = ErrorResponse {
+                status_code: item.http_code,
+                code: error_code,
+                message: error_msg.unwrap_or_default(),
+                reason: None,
+                attempt_status: Some(AttemptStatus::CaptureFailed),
+                connector_transaction_id: response.mihpayid.clone(),
+                network_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+            };
+
+            return Ok(Self {
+                response: Err(error_response),
+                resource_common_data: PaymentFlowData {
+                    status: AttemptStatus::CaptureFailed,
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            });
+        }
+
+        let connector_transaction_id = response.mihpayid.clone().unwrap_or_else(|| {
+            item.router_data
+                .request
+                .get_connector_transaction_id()
+                .unwrap_or_default()
+        });
+
+        let payment_response_data = PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id.clone()),
+            redirection_data: None,
+            mandate_reference: None,
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: Some(connector_transaction_id),
+            incremental_authorization_allowed: None,
+            status_code: item.http_code,
+        };
+
+        Ok(Self {
+            response: Ok(payment_response_data),
+            resource_common_data: PaymentFlowData {
+                status: attempt_status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// ============================================================
+// Void Flow
+// Spec section 3.7: PayuVoidRequest
+// command = "cancel_refund_transaction", var1 = payuId (mihpayid)
+// Hash: SHA512(key|command|var1|salt)
+// ============================================================
+
+#[derive(Debug, Serialize)]
+pub struct PayuVoidRequest {
+    pub key: String,     // Merchant key
+    pub command: String, // "cancel_refund_transaction"
+    pub var1: String,    // PayU payment ID (mihpayid / connector_transaction_id)
+    pub hash: String,    // SHA-512 signature: SHA512(key|command|var1|salt)
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PayuVoidResponse {
+    #[serde(default, deserialize_with = "deserialize_payu_status")]
+    pub status: Option<PayuStatusValue>, // e.g. "success" (string) or 0 (integer for error)
+    pub message: Option<String>,           // Status message
+    pub msg: Option<String>,               // Alternative message field used in error responses
+    pub mihpayid: Option<String>,          // PayU payment ID
+    pub error_code: Option<String>,        // Error code if failed
+    pub error_description: Option<String>, // Error description if failed
+}
+
+fn generate_payu_void_hash(
+    request: &PayuVoidRequest,
+    merchant_salt: &Secret<String>,
+) -> Result<String, IntegrationError> {
+    use sha2::{Digest, Sha512};
+
+    // PayU void hash format: key|command|var1|salt
+    let hash_string = format!(
+        "{}|{}|{}|{}",
+        request.key,
+        request.command,
+        request.var1,
+        merchant_salt.peek()
+    );
+
+    let mut hasher = Sha512::new();
+    hasher.update(hash_string.as_bytes());
+    let result = hasher.finalize();
+    Ok(hex::encode(result))
+}
+
+// RouterDataV2 → PayuVoidRequest
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::PayuRouterData<
+            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+            T,
+        >,
+    > for PayuVoidRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: super::PayuRouterData<
+            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        // Extract auth
+        let auth = PayuAuthType::try_from(&router_data.connector_config)?;
+
+        // Purpose: API requires original PayU payment ID (mihpayid) for void
+        let connector_transaction_id = router_data.request.connector_transaction_id.clone();
+
+        let command = "cancel_refund_transaction".to_string();
+
+        let mut request = Self {
+            key: auth.api_key.peek().to_string(),
+            command: command.clone(),
+            var1: connector_transaction_id,
+            hash: String::new(), // Computed below
+        };
+
+        // Generate hash: SHA512(key|command|var1|salt)
+        request.hash = generate_payu_void_hash(&request, &auth.api_secret)?;
+
+        Ok(request)
+    }
+}
+
+// PayuVoidResponse → RouterDataV2
+impl TryFrom<ResponseRouterData<PayuVoidResponse, Self>>
+    for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(item: ResponseRouterData<PayuVoidResponse, Self>) -> Result<Self, Self::Error> {
+        let response = &item.response;
+
+        // Map connector status to internal status
+        // Per spec Flow.hs:1478: success → VOIDED, error → VOID_PROCESSING_FAILED
+        let attempt_status = match &response.status {
+            Some(PayuStatusValue::StringStatus(s)) if s.as_str() == "success" => {
+                AttemptStatus::Voided
+            }
+            Some(PayuStatusValue::StringStatus(s))
+                if matches!(s.as_str(), "failure" | "failed" | "error") =>
+            {
+                AttemptStatus::VoidFailed
+            }
+            Some(PayuStatusValue::IntStatus(0)) => AttemptStatus::VoidFailed, // 0 = error
+            Some(PayuStatusValue::IntStatus(_)) => AttemptStatus::VoidFailed, // any other int = non-success
+            _ => {
+                if item.http_code >= 200 && item.http_code < 300 {
+                    AttemptStatus::Voided
+                } else {
+                    AttemptStatus::VoidFailed
+                }
+            }
+        };
+
+        // Check for error response: integer status 0 or error_code present
+        let has_void_error = matches!(&response.status, Some(PayuStatusValue::IntStatus(0)))
+            || response.error_code.is_some();
+
+        if has_void_error {
+            let error_code = response
+                .error_code
+                .clone()
+                .unwrap_or_else(|| "PAYU_VOID_ERROR".to_string());
+            let error_message = response
+                .error_description
+                .clone()
+                .or_else(|| response.msg.clone())
+                .or_else(|| response.message.clone())
+                .unwrap_or_else(|| "PayU void error".to_string());
+            let error_response = ErrorResponse {
+                status_code: item.http_code,
+                code: error_code,
+                message: error_message,
+                reason: None,
+                attempt_status: Some(AttemptStatus::VoidFailed),
+                connector_transaction_id: response.mihpayid.clone(),
+                network_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+            };
+
+            return Ok(Self {
+                response: Err(error_response),
+                resource_common_data: PaymentFlowData {
+                    status: AttemptStatus::VoidFailed,
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            });
+        }
+
+        let connector_transaction_id = response
+            .mihpayid
+            .clone()
+            .unwrap_or_else(|| item.router_data.request.connector_transaction_id.clone());
+
+        let payment_response_data = PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id.clone()),
+            redirection_data: None,
+            mandate_reference: None,
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: Some(connector_transaction_id),
+            incremental_authorization_allowed: None,
+            status_code: item.http_code,
+        };
+
+        Ok(Self {
+            response: Ok(payment_response_data),
+            resource_common_data: PaymentFlowData {
+                status: attempt_status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// ============================================================
+// Refund Flow
+// Spec section 3.5: PayuRefundRequest
+// command = "cancel_refund_transaction"
+// var1 = mihpayid (connector_transaction_id)
+// var2 = refund amount
+// var3 = txnid (merchant transaction id / refund_id)
+// Hash: SHA512(key|command|var1|salt)
+// ============================================================
+
+#[derive(Debug, Serialize)]
+pub struct PayuRefundRequest {
+    pub key: String,
+    pub command: String,
+    pub var1: String,
+    pub var2: String,
+    pub var3: String,
+    pub hash: String,
+}
+
+// PayU Refund Response - Techspec 4.6: SuccessRefundFetch | SplitRefundFetch | FailureRefundResponse
+#[allow(non_snake_case)]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PayuRefundResponse {
+    #[serde(default, deserialize_with = "deserialize_payu_status")]
+    pub status: Option<PayuStatusValue>, // e.g. "success" (string) or 0 (integer for error)
+    pub message: Option<String>, // Status message
+    pub msg: Option<String>,     // Alternative message field used in error responses
+    pub mihpayid: Option<String>,
+    pub refundId: Option<String>,
+    pub error_code: Option<String>,
+    pub error_description: Option<String>,
+}
+
+fn generate_payu_refund_hash(
+    request: &PayuRefundRequest,
+    merchant_salt: &Secret<String>,
+) -> Result<String, IntegrationError> {
+    use sha2::{Digest, Sha512};
+    let hash_string = format!(
+        "{}|{}|{}|{}",
+        request.key,
+        request.command,
+        request.var1,
+        merchant_salt.peek()
+    );
+    let mut hasher = Sha512::new();
+    hasher.update(hash_string.as_bytes());
+    let result = hasher.finalize();
+    Ok(hex::encode(result))
+}
+
+// RouterDataV2 -> PayuRefundRequest
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::PayuRouterData<
+            RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+            T,
+        >,
+    > for PayuRefundRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: super::PayuRouterData<
+            RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let auth = PayuAuthType::try_from(&router_data.connector_config)?;
+        let connector_transaction_id = router_data.request.connector_transaction_id.clone();
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(
+                router_data.request.minor_refund_amount,
+                router_data.request.currency,
+            )
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "PayU refund expects amount in string major units (e.g. \"10.00\")."
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
+        let txnid = router_data.request.refund_id.clone();
+        let command = "cancel_refund_transaction".to_string();
+        let mut request = Self {
+            key: auth.api_key.peek().to_string(),
+            command,
+            var1: connector_transaction_id,
+            var2: amount.get_amount_as_string(),
+            var3: txnid,
+            hash: String::new(),
+        };
+        request.hash = generate_payu_refund_hash(&request, &auth.api_secret)?;
+        Ok(request)
+    }
+}
+
+/// Techspec section 7.11: Refund Status Mapping
+fn map_payu_refund_status(status: &PayuStatusValue) -> RefundStatus {
+    match status {
+        PayuStatusValue::IntStatus(0) => RefundStatus::Failure,
+        PayuStatusValue::IntStatus(_) => RefundStatus::Pending,
+        PayuStatusValue::StringStatus(s) => match s.to_lowercase().as_str() {
+            "success" => RefundStatus::Success,
+            "failure" | "failed" => RefundStatus::Failure,
+            "od_hit" => RefundStatus::Pending,
+            _ => RefundStatus::Pending,
+        },
+    }
+}
+
+// PayuRefundResponse -> RouterDataV2
+impl TryFrom<ResponseRouterData<PayuRefundResponse, Self>>
+    for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(item: ResponseRouterData<PayuRefundResponse, Self>) -> Result<Self, Self::Error> {
+        let response = &item.response;
+
+        // FailureRefundResponse: has error_code or integer status 0
+        let has_refund_error = matches!(&response.status, Some(PayuStatusValue::IntStatus(0)))
+            || response.error_code.is_some();
+
+        if has_refund_error {
+            let error_code = response
+                .error_code
+                .clone()
+                .unwrap_or_else(|| "PAYU_REFUND_ERROR".to_string());
+            let error_message = response
+                .error_description
+                .clone()
+                .or_else(|| response.msg.clone())
+                .or_else(|| response.message.clone())
+                .unwrap_or_else(|| "PayU refund error".to_string());
+            let error_response = ErrorResponse {
+                status_code: item.http_code,
+                code: error_code,
+                message: error_message,
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: response.mihpayid.clone(),
+                network_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+            };
+            return Ok(Self {
+                response: Err(error_response),
+                resource_common_data: RefundFlowData {
+                    status: RefundStatus::Failure,
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            });
+        }
+
+        let refund_status = response
+            .status
+            .as_ref()
+            .map(map_payu_refund_status)
+            .unwrap_or(RefundStatus::Pending);
+
+        let connector_refund_id = response
+            .refundId
+            .clone()
+            .or_else(|| response.mihpayid.clone())
+            .unwrap_or_else(|| item.router_data.request.refund_id.clone());
+
+        Ok(Self {
+            response: Ok(RefundsResponseData {
+                connector_refund_id,
+                refund_status,
+                status_code: item.http_code,
+            }),
+            resource_common_data: RefundFlowData {
+                status: refund_status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// ============================================================
+// RSync (Refund Sync) Flow
+// Spec section 3.4: PayuVerifyPaymentRequest
+// command = "verify_payment", var1 = connector_transaction_id (original txnId)
+// Hash: SHA512(key|command|var1|salt)
+// The response (PayuSyncResponse) includes transaction_details with refund status
+// ============================================================
+
+#[derive(Debug, Serialize)]
+pub struct PayuRefundSyncRequest {
+    pub key: String,     // Merchant key
+    pub command: String, // "verify_payment"
+    pub var1: String,    // Transaction ID (connector_transaction_id)
+    pub hash: String,    // SHA-512 signature: SHA512(key|command|var1|salt)
+}
+
+// PayU Refund Sync Response — same structure as verify_payment response
+// The transaction_details map includes refund status info
+#[allow(non_snake_case)]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PayuRefundSyncResponse {
+    #[serde(default, deserialize_with = "deserialize_payu_status")]
+    pub status: Option<PayuStatusValue>, // 0 (integer) = error, 1 (integer) = success
+    pub msg: Option<String>, // Status message (used in error responses)
+    pub transaction_details: Option<std::collections::HashMap<String, PayuTransactionDetail>>,
+    pub result: Option<serde_json::Value>,
+    pub error_code: Option<String>,
+    pub error_description: Option<String>,
+    pub message: Option<String>,
+}
+
+fn generate_payu_refund_sync_hash(
+    request: &PayuRefundSyncRequest,
+    merchant_salt: &Secret<String>,
+) -> Result<String, IntegrationError> {
+    use sha2::{Digest, Sha512};
+
+    // PayU verify hash format: key|command|var1|salt
+    let hash_string = format!(
+        "{}|{}|{}|{}",
+        request.key,
+        request.command,
+        request.var1,
+        merchant_salt.peek()
+    );
+
+    let mut hasher = Sha512::new();
+    hasher.update(hash_string.as_bytes());
+    let result = hasher.finalize();
+    Ok(hex::encode(result))
+}
+
+// RouterDataV2 -> PayuRefundSyncRequest
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::PayuRouterData<
+            RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+            T,
+        >,
+    > for PayuRefundSyncRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: super::PayuRouterData<
+            RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        // Extract auth
+        let auth = PayuAuthType::try_from(&router_data.connector_config)?;
+
+        // Use connector_transaction_id (original payment txn ID) for verify_payment
+        let transaction_id = router_data.request.connector_transaction_id.clone();
+
+        let command = "verify_payment".to_string();
+
+        let mut request = Self {
+            key: auth.api_key.peek().to_string(),
+            command,
+            var1: transaction_id,
+            hash: String::new(), // Computed below
+        };
+
+        // Generate hash: SHA512(key|command|var1|salt)
+        request.hash = generate_payu_refund_sync_hash(&request, &auth.api_secret)?;
+
+        Ok(request)
+    }
+}
+
+// PayuRefundSyncResponse -> RouterDataV2
+// Maps PayU transaction verify response to refund sync status
+impl TryFrom<ResponseRouterData<PayuRefundSyncResponse, Self>>
+    for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<PayuRefundSyncResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+        let error_message = response
+            .msg
+            .clone()
+            .or_else(|| response.message.clone())
+            .unwrap_or_else(|| "PayU RSync error".to_string());
+
+        // Check PayU status field - IntStatus(0) means error, IntStatus(1) means success
+        let is_rsync_success = matches!(
+            &response.status,
+            Some(PayuStatusValue::IntStatus(n)) if *n != 0
+        );
+        match (is_rsync_success, response.transaction_details) {
+            (true, Some(transaction_details)) => {
+                // PayU returned success status with transaction details
+                // Find the refund entry in transaction details
+                let txn_detail = transaction_details.values().next();
+
+                match txn_detail {
+                    Some(txn_detail) => {
+                        // Map the refund status from transaction detail status
+                        // Techspec 7.11: "success" -> SUCCESS, "failure"/"failed" -> FAILURE,
+                        // "od_hit" -> PENDING, other -> PENDING
+                        let refund_status = match txn_detail.status.to_lowercase().as_str() {
+                            "success" => RefundStatus::Success,
+                            "failure" | "failed" => RefundStatus::Failure,
+                            _ => RefundStatus::Pending,
+                        };
+
+                        let connector_refund_id =
+                            txn_detail.mihpayid.clone().unwrap_or_else(|| {
+                                item.router_data.request.connector_refund_id.clone()
+                            });
+
+                        Ok(Self {
+                            response: Ok(RefundsResponseData {
+                                connector_refund_id,
+                                refund_status,
+                                status_code: item.http_code,
+                            }),
+                            resource_common_data: RefundFlowData {
+                                status: refund_status,
+                                ..item.router_data.resource_common_data
+                            },
+                            ..item.router_data
+                        })
+                    }
+                    None => {
+                        // Transaction details not found — treat as pending
+                        let connector_refund_id =
+                            item.router_data.request.connector_refund_id.clone();
+                        Ok(Self {
+                            response: Ok(RefundsResponseData {
+                                connector_refund_id,
+                                refund_status: RefundStatus::Pending,
+                                status_code: item.http_code,
+                            }),
+                            resource_common_data: RefundFlowData {
+                                status: RefundStatus::Pending,
+                                ..item.router_data.resource_common_data
+                            },
+                            ..item.router_data
+                        })
+                    }
+                }
+            }
+            _ => {
+                // PayU returned error status - return error response
+                let error_response = ErrorResponse {
+                    status_code: item.http_code,
+                    code: response
+                        .error_code
+                        .unwrap_or_else(|| "PAYU_RSYNC_ERROR".to_string()),
+                    message: error_message,
+                    reason: None,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                };
+
+                Ok(Self {
+                    response: Err(error_response),
+                    resource_common_data: RefundFlowData {
+                        status: RefundStatus::Failure,
+                        ..item.router_data.resource_common_data
+                    },
+                    ..item.router_data
+                })
+            }
         }
     }
 }

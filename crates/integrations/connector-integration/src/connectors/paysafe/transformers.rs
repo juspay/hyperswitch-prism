@@ -167,11 +167,19 @@ impl From<PaysafeRefundStatus> for enums::RefundStatus {
     }
 }
 
-impl From<&enums::BankType> for PaysafeAchAccountType {
-    fn from(bank_type: &enums::BankType) -> Self {
+impl TryFrom<&enums::BankType> for PaysafeAchAccountType {
+    type Error = IntegrationError;
+    fn try_from(bank_type: &enums::BankType) -> Result<Self, Self::Error> {
         match bank_type {
-            enums::BankType::Checking => Self::Checking,
-            enums::BankType::Savings => Self::Savings,
+            enums::BankType::Checking => Ok(Self::Checking),
+            enums::BankType::Savings => Ok(Self::Savings),
+            _ => Err(IntegrationError::NotImplemented(
+                format!(
+                    "Bank type {:?} is not supported for ACH bank debit",
+                    bank_type
+                ),
+                Default::default(),
+            )),
         }
     }
 }
@@ -260,12 +268,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             field_name: "bank_account_holder_name",
                             context: Default::default(),
                         })?;
-                    let account_type = bank_type.as_ref().map(PaysafeAchAccountType::from).ok_or(
-                        IntegrationError::MissingRequiredField {
+                    let account_type = bank_type
+                        .as_ref()
+                        .map(PaysafeAchAccountType::try_from)
+                        .transpose()?
+                        .ok_or(IntegrationError::MissingRequiredField {
                             field_name: "bank_type (ach.accountType)",
                             context: Default::default(),
-                        },
-                    )?;
+                        })?;
                     let ach = PaysafeAch {
                         account_holder_name,
                         account_number: account_number.clone(),
@@ -382,13 +392,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     )
                 }
                 _ => {
-                    return Err(IntegrationError::NotSupported {
-                        message:
-                            "Only card, ACH, and GooglePay payment methods are supported for PaymentMethodToken"
-                                .to_string(),
-                        connector: "Paysafe",
-                        context: Default::default(),
-                    }
+                    return Err(IntegrationError::NotImplemented("Only card, ACH, and GooglePay payment methods are supported for PaymentMethodToken"
+                            .to_string() , Default::default())
                     .into())
                 }
             };

@@ -67,6 +67,10 @@
         "status": "not_supported",
         "error": "payment method becs is not supported by PPRO is not supported by ppro"
       },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "payment method bill_desk is not supported by PPRO is not supported by ppro"
+      },
       "Bizum": {
         "status": "not_supported",
         "error": "payment method bizum is not supported by PPRO is not supported by ppro"
@@ -99,6 +103,10 @@
         "status": "not_supported",
         "error": "payment method cashapp is not supported by PPRO is not supported by ppro"
       },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "payment method cashfree is not supported by PPRO is not supported by ppro"
+      },
       "CimbVaBankTransfer": {
         "status": "not_supported",
         "error": "payment method cimb_va is not supported by PPRO is not supported by ppro"
@@ -109,7 +117,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
@@ -117,11 +125,15 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
         "status": "not_supported",
         "error": "payment method evoucher is not supported by PPRO is not supported by ppro"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_supported",
+        "error": "payment method ease_buzz is not supported by PPRO is not supported by ppro"
       },
       "Efecty": {
         "status": "not_supported",
@@ -145,7 +157,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GooglePay": {
         "status": "not_supported",
@@ -195,6 +207,10 @@
         "status": "not_supported",
         "error": "payment method lawson is not supported by PPRO is not supported by ppro"
       },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "payment method lazy_pay is not supported by PPRO is not supported by ppro"
+      },
       "LocalBankRedirect": {
         "status": "not_supported",
         "error": "payment method local_bank_redirect is not supported by PPRO is not supported by ppro"
@@ -222,6 +238,10 @@
       "MultibancoBankTransfer": {
         "status": "not_supported",
         "error": "payment method multibanco is not supported by PPRO is not supported by ppro"
+      },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "payment method netbanking is not supported by PPRO is not supported by ppro"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_supported",
@@ -253,7 +273,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
         "status": "not_supported",
@@ -273,7 +293,11 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "payment method pay_u is not supported by PPRO is not supported by ppro"
       },
       "PaypalRedirect": {
         "status": "not_supported",
@@ -285,11 +309,15 @@
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
         "status": "not_supported",
         "error": "payment method permata_bank_transfer is not supported by PPRO is not supported by ppro"
+      },
+      "PhonePeRedirect": {
+        "status": "not_supported",
+        "error": "payment method phone_pe is not supported by PPRO is not supported by ppro"
       },
       "Pix": {
         "status": "not_supported",
@@ -473,12 +501,46 @@
     },
     "handle_event": {
       "default": {
-        "status": "supported"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"specversion\":\"1.0\",\"type\":\"PAYMENT_CHARGE_SUCCESS\",\"source\":\"probe_source\",\"id\":\"probe_event_001\",\"time\":\"2024-01-01T00:00:00Z\",\"data\":{\"charge\":{\"id\":\"probe_txn_001\",\"status\":\"SUCCEEDED\",\"amount\":1000,\"currency\":\"EUR\"}}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"specversion\":\"1.0\",\"type\":\"PAYMENT_CHARGE_SUCCESS\",\"source\":\"probe_source\",\"id\":\"probe_event_001\",\"time\":\"2024-01-01T00:00:00Z\",\"data\":{\"charge\":{\"id\":\"probe_txn_001\",\"status\":\"SUCCEEDED\",\"amount\":1000,\"currency\":\"EUR\"}}}"
+        }
       }
     },
     "incremental_authorization": {
       "default": {
         "status": "not_implemented"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"specversion\":\"1.0\",\"type\":\"PAYMENT_CHARGE_SUCCESS\",\"source\":\"probe_source\",\"id\":\"probe_event_001\",\"time\":\"2024-01-01T00:00:00Z\",\"data\":{\"charge\":{\"id\":\"probe_txn_001\",\"status\":\"SUCCEEDED\",\"amount\":1000,\"currency\":\"EUR\"}}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"specversion\":\"1.0\",\"type\":\"PAYMENT_CHARGE_SUCCESS\",\"source\":\"probe_source\",\"id\":\"probe_event_001\",\"time\":\"2024-01-01T00:00:00Z\",\"data\":{\"charge\":{\"id\":\"probe_txn_001\",\"status\":\"SUCCEEDED\",\"amount\":1000,\"currency\":\"EUR\"}}}"
+        }
       }
     },
     "post_authenticate": {

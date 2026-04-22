@@ -575,8 +575,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             // Connector supports these but not yet implemented
             PaymentMethodData::Wallet(_)
             | PaymentMethodData::PaymentMethodToken(_)
-            | PaymentMethodData::NetworkToken(_) => Err(IntegrationError::not_implemented(
+            | PaymentMethodData::NetworkToken(_) => Err(IntegrationError::NotImplemented(
                 "Payment method supported by connector but not yet implemented".to_string(),
+                Default::default(),
             ))?,
             // Connector does not support these payment methods
             PaymentMethodData::CardDetailsForNetworkTransactionId(_)
@@ -1109,10 +1110,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 }))
             }
             _ => {
-                return Err(IntegrationError::not_implemented(
-                    "Payment method not supported for SetupMandate".to_string(),
-                )
-                .into());
+                return Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "Payment method not supported for SetupMandate".to_string(),
+                    connector: "Wellsfargo",
+                    context: Default::default(),
+                }));
             }
         };
 

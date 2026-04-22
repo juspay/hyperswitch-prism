@@ -6,8 +6,8 @@
 // Run a scenario:  npx tsx cashtocode.ts checkout_autocapture
 
 import { EventClient, types } from 'hyperswitch-prism';
-const { Environment } = types;
-export const SUPPORTED_FLOWS = [];
+const { Environment, HttpMethod } = types;
+export const SUPPORTED_FLOWS = ["parse_event"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -23,6 +23,26 @@ const _defaultConfig: types.IConnectorConfig = {
 
 function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
     return {
+        "merchantEventId": "probe_event_001",  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{\"amount\":10.0,\"currency\":\"EUR\",\"foreignTransactionId\":\"probe_foreign_001\",\"type\":\"payment\",\"transactionId\":\"probe_txn_001\"}", "utf-8"))  // Body of the HTTP request.
+        }
+    };
+}
+
+function _buildParseEventRequest(): types.IEventServiceParseRequest {
+    return {
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{\"amount\":10.0,\"currency\":\"EUR\",\"foreignTransactionId\":\"probe_foreign_001\",\"type\":\"payment\",\"transactionId\":\"probe_txn_001\"}", "utf-8"))  // Body of the HTTP request.
+        }
     };
 }
 
@@ -37,10 +57,19 @@ async function handleEvent(merchantTransactionId: string, config: types.IConnect
     return handleResponse;
 }
 
+// Flow: EventService.ParseEvent
+async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const parseResponse = await eventClient.parseEvent(_buildParseEventRequest());
+
+    return parseResponse;
+}
+
 
 // Export all process* functions for the smoke test
 export {
-    handleEvent, _buildHandleEventRequest
+    handleEvent, parseEvent, _buildHandleEventRequest, _buildParseEventRequest
 };
 
 // CLI runner

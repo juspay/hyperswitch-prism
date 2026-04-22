@@ -933,8 +933,12 @@ def _annotate_inline_lines(
             # Scalar stored in probe data, but proto field is a wrapper message — needs {"value": ...}
             lines.append(f'{pad}"{out_key}": {{"value": {_json_scalar(val, js=camel_keys)}}}{trailing}{cmt_part}')
         elif child_msg and not isinstance(val, (dict, list)):
-            # Scalar for a non-wrapper message — check if msg has one field that is itself a wrapper
-            if ts_mode and _is_proto_enum(child_msg) and isinstance(val, str):
+            # Scalar for a non-wrapper message — handle bytes, enums, and single-field wrappers
+            if ts_mode and child_msg == "bytes" and isinstance(val, list):
+                lines.append(f'{pad}"{out_key}": new Uint8Array({json.dumps(val)}){trailing}{cmt_part}')
+            elif ts_mode and child_msg == "bytes" and isinstance(val, str):
+                lines.append(f'{pad}"{out_key}": new Uint8Array(Buffer.from({json.dumps(val)}, "utf-8")){trailing}{cmt_part}')
+            elif ts_mode and _is_proto_enum(child_msg) and isinstance(val, str):
                 lines.append(f'{pad}"{out_key}": {child_msg}.{val}{trailing}{cmt_part}')
             else:
                 _sfwk = db.single_field_wrapper_key(child_msg)
@@ -946,6 +950,8 @@ def _annotate_inline_lines(
         else:
             if ts_mode and child_msg == "bytes" and isinstance(val, list):
                 lines.append(f'{pad}"{out_key}": new Uint8Array({json.dumps(val)}){trailing}{cmt_part}')
+            elif ts_mode and child_msg == "bytes" and isinstance(val, str):
+                lines.append(f'{pad}"{out_key}": new Uint8Array(Buffer.from({json.dumps(val)}, "utf-8")){trailing}{cmt_part}')
             else:
                 lines.append(f'{pad}"{out_key}": {_json_scalar(val, js=camel_keys)}{trailing}{cmt_part}')
 
@@ -1711,7 +1717,11 @@ def _js_builder_fn(flow_key: str, proto_req: dict, grpc_req: str, db: "_SchemaDB
                 lines.append(f'            }}{item_trailing}')
             lines.append(f'        ]{trailing}')
         elif child_msg and not isinstance(val, (dict, list)):
-            if ts_mode and _is_proto_enum(child_msg) and isinstance(val, str):
+            if ts_mode and child_msg == "bytes" and isinstance(val, list):
+                lines.append(f'        "{js_key}": new Uint8Array({json.dumps(val)}){trailing}{cmt_part}')
+            elif ts_mode and child_msg == "bytes" and isinstance(val, str):
+                lines.append(f'        "{js_key}": new Uint8Array(Buffer.from({json.dumps(val)}, "utf-8")){trailing}{cmt_part}')
+            elif ts_mode and _is_proto_enum(child_msg) and isinstance(val, str):
                 lines.append(f'        "{js_key}": {child_msg}.{val}{trailing}{cmt_part}')
             else:
                 sfwk      = db.single_field_wrapper_key(child_msg)
@@ -1723,6 +1733,8 @@ def _js_builder_fn(flow_key: str, proto_req: dict, grpc_req: str, db: "_SchemaDB
         else:
             if ts_mode and child_msg == "bytes" and isinstance(val, list):
                 lines.append(f'        "{js_key}": new Uint8Array({json.dumps(val)}){trailing}{cmt_part}')
+            elif ts_mode and child_msg == "bytes" and isinstance(val, str):
+                lines.append(f'        "{js_key}": new Uint8Array(Buffer.from({json.dumps(val)}, "utf-8")){trailing}{cmt_part}')
             else:
                 lines.append(f'        "{js_key}": {_json_scalar(val, js=True)}{trailing}{cmt_part}')
     lines.append("    };")
@@ -1770,7 +1782,11 @@ def _js_builder_fn_no_param(flow_key: str, proto_req: dict, grpc_req: str, db: "
                 lines.append(f'            }}{item_trailing}')
             lines.append(f'        ]{trailing}')
         elif child_msg and not isinstance(val, (dict, list)):
-            if ts_mode and _is_proto_enum(child_msg) and isinstance(val, str):
+            if ts_mode and child_msg == "bytes" and isinstance(val, list):
+                lines.append(f'        "{js_key}": new Uint8Array({json.dumps(val)}){trailing}{cmt_part}')
+            elif ts_mode and child_msg == "bytes" and isinstance(val, str):
+                lines.append(f'        "{js_key}": new Uint8Array(Buffer.from({json.dumps(val)}, "utf-8")){trailing}{cmt_part}')
+            elif ts_mode and _is_proto_enum(child_msg) and isinstance(val, str):
                 lines.append(f'        "{js_key}": {child_msg}.{val}{trailing}{cmt_part}')
             else:
                 sfwk      = db.single_field_wrapper_key(child_msg)
@@ -1782,6 +1798,8 @@ def _js_builder_fn_no_param(flow_key: str, proto_req: dict, grpc_req: str, db: "
         else:
             if ts_mode and child_msg == "bytes" and isinstance(val, list):
                 lines.append(f'        "{js_key}": new Uint8Array({json.dumps(val)}){trailing}{cmt_part}')
+            elif ts_mode and child_msg == "bytes" and isinstance(val, str):
+                lines.append(f'        "{js_key}": new Uint8Array(Buffer.from({json.dumps(val)}, "utf-8")){trailing}{cmt_part}')
             else:
                 lines.append(f'        "{js_key}": {_json_scalar(val, js=True)}{trailing}{cmt_part}')
     lines.append("    };")
@@ -2503,8 +2521,10 @@ _KT_FLOW_STATUS_BLOCK: dict[str, str] = {
     "create_server_session_authentication_token":       '    println("Session token: ${response.sessionToken} (statusCode=${response.statusCode})")',
     "create_client_authentication_token":               '    println("StatusCode: ${response.statusCode}")',
     "create_order":                         '    println("Order: ${response.connectorOrderId}")',
-    # EventServiceHandleResponse has event_status, not status
-    "handle_event":                         '    println("Event status: ${response.eventStatus.name}")',
+    # EventServiceHandleResponse: event_type + source_verified (no legacy event_status)
+    "handle_event":                         '    println("Webhook: type=${response.eventType.name} verified=${response.sourceVerified}")',
+    # EventServiceParseResponse: event_type + reference (no status field)
+    "parse_event":                          '    println("Webhook parsed: type=${response.eventType.name}")',
     # VerifyRedirectResponseResponse has no status field — report source_verified
     "verify_redirect":                      '    println("Source verified: ${response.sourceVerified}")',
 }
@@ -2648,7 +2668,11 @@ def _kotlin_payload_lines(
         elif isinstance(val, float):
             lines.append(f"{pad}{camel} = {val}{cmt_part}")
         elif isinstance(val, str):
-            if child_msg and db.is_wrapper(child_msg):
+            if child_msg == "bytes":
+                lines.append(
+                    f"{pad}{camel} = com.google.protobuf.ByteString.copyFromUtf8({json.dumps(val)}){cmt_part}"
+                )
+            elif child_msg and db.is_wrapper(child_msg):
                 # Wrapper message (e.g. SecretString) — uses Builder.value
                 lines.append(f'{pad}{camel}Builder.value = {json.dumps(val)}{cmt_part}')
             elif child_msg and child_msg not in _KOTLIN_PRIMITIVES and child_msg not in _PROTO_FIELD_TYPES:

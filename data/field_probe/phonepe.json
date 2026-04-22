@@ -8,348 +8,376 @@
     },
     "authorize": {
       "Ach": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "AchBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Affirm": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Afterpay": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Alfamart": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "AliPayRedirect": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "AmazonPayRedirect": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "ApplePay": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "ApplePayDecrypted": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Bacs": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "BacsBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "BancontactCard": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "BcaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Becs": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Bizum": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Blik": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Bluecode": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "BniVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Boleto": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "BriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Card": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "CashappQr": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "CimbVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "ClassicReward": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Efecty": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Eft": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Eps": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "FamilyMart": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Giropay": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GooglePay": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "GooglePayDecrypted": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Ideal": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Indomaret": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "IndonesianBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "InstantBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "InstantBankTransferFinland": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "InstantBankTransferPoland": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Interac": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Klarna": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Lawson": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "LocalBankRedirect": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "LocalBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "MbWay": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Mifinity": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "MiniStop": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "MultibancoBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "OnlineBankingFinland": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "OnlineBankingFpx": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "OnlineBankingPoland": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "OnlineBankingThailand": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "OpenBanking": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Oxxo": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "PagoEfectivo": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "PayEasy": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "PaypalRedirect": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "PaypalSdk": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Pix": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Przelewy24": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Pse": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "RedCompra": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "RedPagos": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "RevolutPay": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "SamsungPay": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Satispay": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Seicomart": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Sepa": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "SepaBankTransfer": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "SevenEleven": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Sofort": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Trustly": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "UpiCollect": {
         "status": "supported",
@@ -453,12 +481,12 @@
         }
       },
       "WeChatPayQr": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       },
       "Wero": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       }
     },
     "capture": {
@@ -570,6 +598,11 @@
         "status": "not_implemented"
       }
     },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "post_authenticate": {
       "default": {
         "status": "not_implemented"
@@ -582,8 +615,8 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       }
     },
     "proxy_setup_recurring": {
@@ -660,8 +693,8 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by Phonepe"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Phonepe currently implements UPI payment methods only"
       }
     },
     "token_setup_recurring": {
