@@ -7765,8 +7765,7 @@ impl TryFrom<ResponseRouterData<AdyenIncrementalAuthResponse, Self>>
     fn try_from(
         item: ResponseRouterData<AdyenIncrementalAuthResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let authorization_status =
-            map_incremental_auth_status(item.response.status.as_deref());
+        let authorization_status = map_incremental_auth_status(item.response.status.as_deref());
 
         Ok(Self {
             response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
