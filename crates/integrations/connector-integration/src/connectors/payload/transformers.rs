@@ -19,7 +19,7 @@ use domain_types::{
         ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
-    payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes, WalletData},
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorResponseData, ConnectorSpecificConfig,
         ErrorResponse,
@@ -389,8 +389,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             // Payload connector supports GooglePay and ApplePay wallets, but not yet integrated
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                domain_types::payment_method_data::WalletData::GooglePay(_)
-                | domain_types::payment_method_data::WalletData::ApplePay(_) => {
+                // ApplePayThirdPartySdk is handled directly in build_request_v2 (PUT /transactions/{token}).
+                // get_request_body is never called for this payment method in the Authorize flow.
+                WalletData::ApplePayThirdPartySdk(_) => Err(IntegrationError::not_implemented(
+                    "ApplePayThirdPartySdk request body: handled via build_request_v2".to_string(),
+                )
+                .into()),
+                WalletData::GooglePay(_) | WalletData::ApplePay(_) => {
                     Err(IntegrationError::not_implemented("Payment method".to_string()).into())
                 }
                 _ => Err(IntegrationError::NotSupported {

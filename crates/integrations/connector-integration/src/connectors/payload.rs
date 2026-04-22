@@ -4,8 +4,13 @@ pub mod transformers;
 
 use base64::Engine;
 use common_enums::CurrencyUnit;
+use common_utils::request::RequestContent;
 use common_utils::{
-    crypto::VerifySignature, errors::CustomResult, events, ext_traits::ByteSliceExt,
+    crypto::VerifySignature,
+    errors::CustomResult,
+    events,
+    ext_traits::ByteSliceExt,
+    request::{Method, RequestBuilder},
 };
 use domain_types::{
     connector_flow::{
@@ -386,6 +391,88 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/transactions", self.connector_base_url_payments(req)))
         }
+        fn build_request_v2(
+            &self,
+            req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Option<common_utils::request::Request>, IntegrationError> {
+            use domain_types::payment_method_data::{PaymentMethodData, WalletData};
+
+            match &req.request.payment_method_data {
+                // Apple Pay via Payload.js SDK: the transaction is already created and authorized
+                // on Payload's side. The token is the pl_transaction_id. We issue a GET to
+                // /transactions/{pl_transaction_id} to fetch and confirm the authorized state.
+                PaymentMethodData::Wallet(WalletData::ApplePayThirdPartySdk(sdk_data)) => {
+                    let token = sdk_data
+                        .token
+                        .clone()
+                        .ok_or(IntegrationError::MissingRequiredField {
+                            field_name: "apple_pay_third_party_sdk.token (pl_transaction_id)",
+                            context: Default::default(),
+                        })?;
+                    let url = format!(
+                        "{}/transactions/{}",
+                        self.connector_base_url_payments(req),
+                        token.expose()
+                    );
+                    let is_manual = matches!(
+                        req.request.capture_method,
+                        Some(common_enums::CaptureMethod::Manual)
+                            | Some(common_enums::CaptureMethod::ManualMultiple)
+                    );
+                    if is_manual {
+                        // Manual capture: GET to confirm the authorized state.
+                        // Payload returns 404 if Content-Type is included in GET requests,
+                        // so only send the Authorization header.
+                        let auth_headers = self.get_auth_header(&req.connector_config)?;
+                        Ok(Some(
+                            RequestBuilder::new()
+                                .method(Method::Get)
+                                .url(&url)
+                                .attach_default_headers()
+                                .headers(auth_headers)
+                                .build(),
+                        ))
+                    } else {
+                        // Automatic capture: PUT with status=processed to capture inline,
+                        // mirroring how Google Pay connectors fully charge in the Authorize step.
+                        // Payload.js already authorized the transaction on the frontend for the
+                        // exact amount the user approved via Apple Pay — the amount is locked by
+                        // the SDK at session creation time and cannot differ here. We do not
+                        // re-send the amount; we only flip the transaction status to `processed`
+                        // so /confirm returns `succeeded` in one shot.
+                        let body = RequestContent::FormUrlEncoded(Box::new(
+                            PayloadCaptureRequest {
+                                status: responses::PayloadPaymentStatus::Processed,
+                            },
+                        ));
+                        Ok(Some(
+                            RequestBuilder::new()
+                                .method(Method::Put)
+                                .url(&url)
+                                .attach_default_headers()
+                                .headers(self.build_headers(req)?)
+                                .set_body(body)
+                                .build(),
+                        ))
+                    }
+                }
+                // All other payment methods: standard POST to /transactions with form body
+                _ => {
+                    let body = self.get_request_body(req)?;
+                    let url = self.get_url(req)?;
+                    let headers = self.get_headers(req)?;
+                    Ok(Some(
+                        RequestBuilder::new()
+                            .method(Method::Post)
+                            .url(&url)
+                            .attach_default_headers()
+                            .headers(headers)
+                            .set_optional_body(body)
+                            .build(),
+                    ))
+                }
+            }
+        }
     }
 );
 
@@ -718,6 +805,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::PaymentMethodTokenResponse,
     > for Payload<T>
 {
+    fn build_request_v2(
+        &self,
+        _req: &RouterDataV2<
+            domain_types::connector_flow::PaymentMethodToken,
+            PaymentFlowData,
+            domain_types::connector_types::PaymentMethodTokenizationData<T>,
+            domain_types::connector_types::PaymentMethodTokenResponse,
+        >,
+    ) -> CustomResult<Option<common_utils::request::Request>, IntegrationError> {
+        Ok(None)
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
