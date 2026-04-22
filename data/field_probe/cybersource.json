@@ -286,7 +286,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",

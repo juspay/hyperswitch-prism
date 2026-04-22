@@ -109,7 +109,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "payment method crypto_currency is not supported by PPRO is not supported by ppro"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",

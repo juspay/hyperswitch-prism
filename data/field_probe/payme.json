@@ -144,7 +144,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Payment method not yet implemented for Payme is not supported by Payme"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",

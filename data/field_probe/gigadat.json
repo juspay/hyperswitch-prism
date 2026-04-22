@@ -109,7 +109,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",

@@ -109,7 +109,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Selected payment method through Sanlam is not supported by Sanlam"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",

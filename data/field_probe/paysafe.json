@@ -108,8 +108,8 @@
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "status": "error",
+        "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "DanamonVaBankTransfer": {
         "status": "error",

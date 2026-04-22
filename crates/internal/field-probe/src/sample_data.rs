@@ -674,7 +674,10 @@ pub(crate) fn sepa_guaranteed_debit_method() -> PaymentMethod {
 
 pub(crate) fn crypto_method() -> PaymentMethod {
     PaymentMethod {
-        payment_method: Some(PmVariant::Crypto(proto::CryptoCurrency::default())),
+        payment_method: Some(PmVariant::Crypto(proto::CryptoCurrency {
+            pay_currency: Some("LTC".to_string()),
+            network: Some("litecoin".to_string()),
+        })),
     }
 }
 

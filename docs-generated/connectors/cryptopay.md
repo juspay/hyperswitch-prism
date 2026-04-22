@@ -115,11 +115,119 @@ let config = ConnectorConfig {
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
+| [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
 | [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 
 ### Payments
+
+#### PaymentService.Authorize
+
+Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceAuthorizeRequest` |
+| **Response** | `PaymentServiceAuthorizeResponse` |
+
+**Supported payment method types:**
+
+| Payment Method | Supported |
+|----------------|:---------:|
+| Card | x |
+| Bancontact | x |
+| Apple Pay | x |
+| Apple Pay Dec | x |
+| Apple Pay SDK | x |
+| Google Pay | x |
+| Google Pay Dec | x |
+| Google Pay SDK | x |
+| PayPal SDK | x |
+| Amazon Pay | x |
+| Cash App | x |
+| PayPal | x |
+| WeChat Pay | x |
+| Alipay | x |
+| Revolut Pay | x |
+| MiFinity | x |
+| Bluecode | x |
+| Paze | x |
+| Samsung Pay | x |
+| MB Way | x |
+| Satispay | x |
+| Wero | x |
+| Affirm | x |
+| Afterpay | x |
+| Klarna | x |
+| UPI Collect | x |
+| UPI Intent | x |
+| UPI QR | x |
+| Thailand | x |
+| Czech | x |
+| Finland | x |
+| FPX | x |
+| Poland | x |
+| Slovakia | x |
+| UK | x |
+| PIS | x |
+| Generic | x |
+| Local | x |
+| iDEAL | x |
+| Sofort | x |
+| Trustly | x |
+| Giropay | x |
+| EPS | x |
+| Przelewy24 | x |
+| PSE | x |
+| BLIK | x |
+| Interac | x |
+| Bizum | x |
+| EFT | x |
+| DuitNow | x |
+| ACH | x |
+| SEPA | x |
+| BACS | x |
+| Multibanco | x |
+| Instant | x |
+| Instant FI | x |
+| Instant PL | x |
+| Pix | x |
+| Permata | x |
+| BCA | x |
+| BNI VA | x |
+| BRI VA | x |
+| CIMB VA | x |
+| Danamon VA | x |
+| Mandiri VA | x |
+| Local | x |
+| Indonesian | x |
+| ACH | x |
+| SEPA | x |
+| BACS | x |
+| BECS | x |
+| SEPA Guaranteed | x |
+| Crypto | ✓ |
+| Reward | x |
+| Givex | x |
+| PaySafeCard | x |
+| E-Voucher | x |
+| Boleto | x |
+| Efecty | x |
+| Pago Efectivo | x |
+| Red Compra | x |
+| Red Pagos | x |
+| Alfamart | x |
+| Indomaret | x |
+| Oxxo | x |
+| 7-Eleven | x |
+| Lawson | x |
+| Mini Stop | x |
+| Family Mart | x |
+| Seicomart | x |
+| Pay Easy | x |
+
+**Examples:** [Python](../../examples/cryptopay/cryptopay.py) · [TypeScript](../../examples/cryptopay/cryptopay.ts) · [Kotlin](../../examples/cryptopay/cryptopay.kt) · [Rust](../../examples/cryptopay/cryptopay.rs)
 
 #### PaymentService.Get
 
