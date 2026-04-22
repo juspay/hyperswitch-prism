@@ -826,7 +826,7 @@ fn get_card_details<
     Ok(CardDetails {
         card_number: req_card.card_number.clone(),
         expiry_month: req_card.card_exp_month.clone(),
-        expiry_year: req_card.card_exp_year.clone(),
+        expiry_year: req_card.get_card_expiry_year_2_digit()?,
         verification: req_card.card_cvc.clone(),
     })
 }
