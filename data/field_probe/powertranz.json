@@ -67,6 +67,10 @@
         "status": "not_supported",
         "error": "Payment method is not supported by powertranz"
       },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
       "Bizum": {
         "status": "not_supported",
         "error": "Payment method is not supported by powertranz"
@@ -131,6 +135,10 @@
         "status": "not_supported",
         "error": "Payment method is not supported by powertranz"
       },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
       "CimbVaBankTransfer": {
         "status": "not_supported",
         "error": "Payment method is not supported by powertranz"
@@ -141,7 +149,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
@@ -149,9 +157,13 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_supported",
         "error": "Payment method is not supported by powertranz"
       },
@@ -177,7 +189,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GooglePay": {
         "status": "not_supported",
@@ -227,6 +239,10 @@
         "status": "not_supported",
         "error": "Payment method is not supported by powertranz"
       },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
       "LocalBankRedirect": {
         "status": "not_supported",
         "error": "Payment method is not supported by powertranz"
@@ -252,6 +268,10 @@
         "error": "Payment method is not supported by powertranz"
       },
       "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
+      "Netbanking": {
         "status": "not_supported",
         "error": "Payment method is not supported by powertranz"
       },
@@ -285,7 +305,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
         "status": "not_supported",
@@ -305,7 +325,11 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
       },
       "PaypalRedirect": {
         "status": "not_supported",
@@ -317,9 +341,13 @@
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
+      "PhonePeRedirect": {
         "status": "not_supported",
         "error": "Payment method is not supported by powertranz"
       },

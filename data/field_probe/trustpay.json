@@ -67,6 +67,10 @@
         "status": "not_supported",
         "error": "Selected payment method through trustpay is not supported by trustpay"
       },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
       "Bizum": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through trustpay"
@@ -193,6 +197,10 @@
         "status": "not_supported",
         "error": "Selected payment method through trustpay is not supported by trustpay"
       },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
       "CimbVaBankTransfer": {
         "status": "not_supported",
         "error": "Selected payment method through trustpay is not supported by trustpay"
@@ -203,7 +211,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
@@ -211,9 +219,13 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_supported",
         "error": "Selected payment method through trustpay is not supported by trustpay"
       },
@@ -315,7 +327,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GooglePay": {
         "status": "not_supported",
@@ -526,6 +538,10 @@
         "status": "not_supported",
         "error": "Selected payment method through trustpay is not supported by trustpay"
       },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
       "LocalBankRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through trustpay"
@@ -553,6 +569,10 @@
       "MultibancoBankTransfer": {
         "status": "not_supported",
         "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through trustpay"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
@@ -584,7 +604,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -604,7 +624,11 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "PaypalRedirect": {
         "status": "not_supported",
@@ -616,9 +640,13 @@
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "PhonePeRedirect": {
         "status": "not_supported",
         "error": "Selected payment method through trustpay is not supported by trustpay"
       },
