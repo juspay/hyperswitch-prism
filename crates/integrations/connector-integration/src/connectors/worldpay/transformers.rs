@@ -664,6 +664,28 @@ impl From<PaymentOutcome> for enums::AttemptStatus {
     }
 }
 
+// Maps Worldpay Card Payments outcomes on the incremental-authorization endpoint
+// to UCS AuthorizationStatus. Refund-related outcomes are not part of the
+// documented response set for this flow; if the connector ever surfaces one,
+// treat it as a terminal failure rather than in-flight processing.
+impl From<PaymentOutcome> for enums::AuthorizationStatus {
+    fn from(item: PaymentOutcome) -> Self {
+        match item {
+            PaymentOutcome::Authorized | PaymentOutcome::SentForSettlement => Self::Success,
+            PaymentOutcome::Refused
+            | PaymentOutcome::FraudHighRisk
+            | PaymentOutcome::ThreeDsAuthenticationFailed
+            | PaymentOutcome::ThreeDsUnavailable
+            | PaymentOutcome::SentForCancellation
+            | PaymentOutcome::SentForRefund
+            | PaymentOutcome::SentForPartialRefund => Self::Failure,
+            PaymentOutcome::ThreeDsDeviceDataRequired | PaymentOutcome::ThreeDsChallenged => {
+                Self::Processing
+            }
+        }
+    }
+}
+
 impl From<PaymentOutcome> for enums::RefundStatus {
     fn from(item: PaymentOutcome) -> Self {
         match item {
@@ -1605,26 +1627,7 @@ impl TryFrom<ResponseRouterData<WorldpayIncrementalAuthResponse, Self>>
     fn try_from(
         item: ResponseRouterData<WorldpayIncrementalAuthResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        // Map Worldpay PaymentOutcome to AuthorizationStatus (success/processing/failure).
-        // Refund-related outcomes (`sentForRefund`, `sentForPartialRefund`) are not part of
-        // the documented outcome set for the Card Payments incremental-authorization endpoint,
-        // but if the connector ever returns one on this flow it indicates the increase did
-        // not take effect — treat as a terminal failure rather than Processing.
-        let authorization_status = match &item.response.outcome {
-            PaymentOutcome::Authorized | PaymentOutcome::SentForSettlement => {
-                enums::AuthorizationStatus::Success
-            }
-            PaymentOutcome::Refused
-            | PaymentOutcome::FraudHighRisk
-            | PaymentOutcome::ThreeDsAuthenticationFailed
-            | PaymentOutcome::ThreeDsUnavailable
-            | PaymentOutcome::SentForCancellation
-            | PaymentOutcome::SentForRefund
-            | PaymentOutcome::SentForPartialRefund => enums::AuthorizationStatus::Failure,
-            PaymentOutcome::ThreeDsDeviceDataRequired | PaymentOutcome::ThreeDsChallenged => {
-                enums::AuthorizationStatus::Processing
-            }
-        };
+        let authorization_status = enums::AuthorizationStatus::from(item.response.outcome.clone());
 
         // connector_authorization_id is derived from the
         // `cardPayments:increaseAuthorizedAmount` action link's trailing
