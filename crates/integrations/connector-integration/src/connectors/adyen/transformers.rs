@@ -7739,18 +7739,12 @@ pub struct AdyenIncrementalAuthResponse {
 //
 // Adyen's /amountUpdates synchronous body carries only `status: "received"`
 // (see doc link above). Final Authorised/Refused outcomes arrive asynchronously
-// via the AUTHORISATION_ADJUSTMENT webhook. Therefore:
-//   - 2xx + status = "received"  -> Success (adjustment accepted)
-//   - 2xx + any other / missing  -> Processing (Adyen changed API; fall back
-//                                   to Processing and rely on the webhook)
-//   - non-2xx                     -> Failure (handled by caller)
-fn map_incremental_auth_status(
-    http_code: u16,
-    status: Option<&str>,
-) -> common_enums::AuthorizationStatus {
-    if !(200..300).contains(&http_code) {
-        return common_enums::AuthorizationStatus::Failure;
-    }
+// via the AUTHORISATION_ADJUSTMENT webhook. Non-2xx responses are handled
+// upstream by get_error_response_v2, so this only runs on 2xx.
+//   - status = "received"  -> Success (adjustment accepted)
+//   - any other / missing  -> Processing (Adyen changed API; fall back
+//                              to Processing and rely on the webhook)
+fn map_incremental_auth_status(status: Option<&str>) -> common_enums::AuthorizationStatus {
     match status {
         Some(s) if s == ADYEN_INCREMENTAL_AUTH_STATUS_RECEIVED => {
             common_enums::AuthorizationStatus::Success
@@ -7772,7 +7766,7 @@ impl TryFrom<ResponseRouterData<AdyenIncrementalAuthResponse, Self>>
         item: ResponseRouterData<AdyenIncrementalAuthResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let authorization_status =
-            map_incremental_auth_status(item.http_code, item.response.status.as_deref());
+            map_incremental_auth_status(item.response.status.as_deref());
 
         Ok(Self {
             response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
