@@ -54,8 +54,8 @@ struct PhonepePaymentRequestPayload {
     #[serde(rename = "merchantUserId", skip_serializing_if = "Option::is_none")]
     merchant_user_id: Option<Secret<String>>,
     amount: MinorUnit,
-    #[serde(rename = "callbackUrl")]
-    callback_url: String,
+    #[serde(rename = "callbackUrl", skip_serializing_if = "Option::is_none")]
+    callback_url: Option<String>,
     #[serde(rename = "mobileNumber", skip_serializing_if = "Option::is_none")]
     mobile_number: Option<Secret<String>>,
     #[serde(rename = "paymentInstrument")]
@@ -329,7 +329,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone()
                 .map(|id| Secret::new(id.get_string_repr().to_string())),
             amount: amount_in_minor_units,
-            callback_url: router_data.request.get_webhook_url()?,
+            callback_url: router_data.request.get_webhook_url().ok(),
             mobile_number,
             payment_instrument,
             device_context,
@@ -485,7 +485,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone()
                 .map(|id| Secret::new(id.get_string_repr().to_string())),
             amount: amount_in_minor_units,
-            callback_url: router_data.request.get_webhook_url()?,
+            callback_url: router_data.request.get_webhook_url().ok(),
             mobile_number,
             payment_instrument,
             device_context,
@@ -598,7 +598,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         ..item.router_data
                     })
                 } else {
-                    // Success but no instrument response
+                    // Success but no instrument response — treat as pending (awaiting UPI completion)
                     Ok(Self {
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: match &data.transaction_id {
@@ -616,6 +616,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             status_code: item.http_code,
                         }),
                         resource_common_data: PaymentFlowData {
+                            status: common_enums::AttemptStatus::AuthenticationPending,
                             raw_connector_response: raw_response_json.clone(),
                             ..item.router_data.resource_common_data
                         },
