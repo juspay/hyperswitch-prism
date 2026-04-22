@@ -242,20 +242,6 @@ impl IntegrationError {
         }
     }
 
-    /// Connector feature not implemented; uses default empty [`IntegrationErrorContext`].
-    pub fn not_implemented(message: impl Into<String>) -> Self {
-        Self::not_implemented_with_context(message, IntegrationErrorContext::default())
-    }
-
-    /// Like [`Self::not_implemented`], but allows connector-specific [`IntegrationErrorContext`]
-    /// (merged with central defaults in `ucs_env`).
-    pub fn not_implemented_with_context(
-        message: impl Into<String>,
-        context: IntegrationErrorContext,
-    ) -> Self {
-        Self::NotImplemented(message.into(), context)
-    }
-
     /// Optional connector-specific guidance for gRPC [`IntegrationError`] (overrides merged in `ucs_env`).
     pub fn integration_context(&self) -> &IntegrationErrorContext {
         match self {

@@ -171,7 +171,7 @@ connector_id: cybersource
 doc: docs/connectors/cybersource.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: ApplePay, ApplePayDecrypted, Card, GooglePay, GooglePayDecrypted, SamsungPay
-flows: authenticate, authorize, capture, get, post_authenticate, pre_authenticate, proxy_authorize, recurring_charge, recurring_revoke, refund, refund_get, token_authorize, void
+flows: authenticate, authorize, capture, get, incremental_authorization, post_authenticate, pre_authenticate, proxy_authorize, recurring_charge, recurring_revoke, refund, refund_get, token_authorize, void
 examples_python: examples/cybersource/cybersource.py
 
 ## Datatrans
@@ -387,7 +387,7 @@ connector_id: novalnet
 doc: docs/connectors/novalnet.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Ach, ApplePay, Card, GooglePay, PaypalRedirect, Sepa
-flows: authorize, capture, get, handle_event, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
+flows: authorize, capture, get, handle_event, incremental_authorization, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
 examples_python: examples/novalnet/novalnet.py
 
 ## Nuvei
@@ -618,8 +618,8 @@ examples_python: examples/trustpay/trustpay.py
 connector_id: trustpayments
 doc: docs/connectors/trustpayments.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: Card, GooglePayDecrypted
-flows: authorize, capture, get, proxy_authorize, refund, refund_get, void
+payment_methods: ApplePayDecrypted, Card, GooglePayDecrypted
+flows: authorize, capture, get, incremental_authorization, proxy_authorize, refund, refund_get, void
 examples_python: examples/trustpayments/trustpayments.py
 
 ## Tsys
@@ -651,7 +651,7 @@ connector_id: worldpay
 doc: docs/connectors/worldpay.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: ApplePay, Card, GooglePay
-flows: authorize, capture, get, proxy_authorize, recurring_charge, refund, refund_get, void
+flows: authorize, capture, get, incremental_authorization, proxy_authorize, recurring_charge, refund, refund_get, void
 examples_python: examples/worldpay/worldpay.py
 
 ## Worldpayvantiv

@@ -162,7 +162,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"initialAmount\":1000,\"currency\":\"USD\",\"channel\":\"ECOM\",\"product\":\"creditcard\",\"payment\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"verification\":\"737\",\"cofContract\":null},\"async\":{\"successUrl\":\"https://example.com/return\",\"cancelUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\"},\"merchantOrderId\":\"probe_txn_001\"}"
+          "body": "{\"initialAmount\":1000,\"currency\":\"USD\",\"channel\":\"ECOM\",\"product\":\"creditcard\",\"payment\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"30\",\"verification\":\"737\",\"cofContract\":null},\"async\":{\"successUrl\":\"https://example.com/return\",\"cancelUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\"},\"merchantOrderId\":\"probe_txn_001\"}"
         }
       },
       "CashappQr": {
@@ -749,7 +749,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"initialAmount\":1000,\"currency\":\"USD\",\"channel\":\"ECOM\",\"product\":\"creditcard\",\"payment\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"verification\":\"123\",\"cofContract\":null},\"async\":{\"successUrl\":\"https://example.com/return\",\"cancelUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\"},\"merchantOrderId\":\"probe_proxy_txn_001\"}"
+          "body": "{\"initialAmount\":1000,\"currency\":\"USD\",\"channel\":\"ECOM\",\"product\":\"creditcard\",\"payment\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"30\",\"verification\":\"123\",\"cofContract\":null},\"async\":{\"successUrl\":\"https://example.com/return\",\"cancelUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\"},\"merchantOrderId\":\"probe_proxy_txn_001\"}"
         }
       }
     },

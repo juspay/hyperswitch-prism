@@ -293,14 +293,16 @@ impl<T: PaymentMethodDataTypes>
                 },
             },
             PaymentMethodData::BankDebit(_bank_debit_data) => {
-                return Err(IntegrationError::not_implemented(
+                return Err(IntegrationError::NotImplemented(
                     "ACH payments not yet implemented".to_string(),
+                    Default::default(),
                 )
                 .into())
             }
             _ => {
-                return Err(IntegrationError::not_implemented(
+                return Err(IntegrationError::NotImplemented(
                     "Payment method not supported".to_string(),
+                    Default::default(),
                 )
                 .into())
             }
