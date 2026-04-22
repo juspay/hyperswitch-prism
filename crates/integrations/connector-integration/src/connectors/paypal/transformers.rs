@@ -1207,8 +1207,8 @@ fn build_paypal_apple_pay_source<
                 .clone()
                 .unwrap_or_else(|| {
                     tracing::warn!(
-                        "device_manufacturer_identifier missing from Apple Pay decrypted token; \
-                        falling back to Apple standard identifier '040010030273'"
+                        device_manufacturer_identifier_fallback = "040010030273",
+                        "device_manufacturer_identifier missing from Apple Pay decrypted token"
                     );
                     "040010030273".to_string()
                 }),
