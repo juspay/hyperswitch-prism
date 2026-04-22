@@ -83,12 +83,10 @@ fn cybersource_flow_not_supported(flow: &str) -> Report<IntegrationError> {
         context: Default::default(),
     })
 }
-fn cybersource_not_implemented(
-    flow: &str,
-) -> Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(
-        format!("{flow} flow for cybersource")
-    ))
+fn cybersource_not_implemented(flow: &str) -> Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for cybersource"
+    )))
 }
 
 // Trait implementations with generic type parameters

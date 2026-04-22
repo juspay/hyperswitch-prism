@@ -68,12 +68,10 @@ fn placetopay_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationE
         context: Default::default(),
     })
 }
-fn placetopay_not_implemented(
-    flow: &str,
-) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(
-        format!("{flow} flow for placetopay")
-    ))
+fn placetopay_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for placetopay"
+    )))
 }
 
 // Simplified macro usage to avoid duplicate type definitions

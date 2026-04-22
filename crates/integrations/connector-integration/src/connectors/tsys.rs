@@ -63,9 +63,9 @@ fn tsys_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationError> 
     })
 }
 fn tsys_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(
-        format!("{flow} flow for tsys")
-    ))
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for tsys"
+    )))
 }
 
 // ===== CONNECTOR COMMON IMPLEMENTATION - Must be defined before macros =====

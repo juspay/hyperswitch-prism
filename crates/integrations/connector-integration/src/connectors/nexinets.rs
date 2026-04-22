@@ -66,12 +66,10 @@ fn nexinets_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationErr
         context: Default::default(),
     })
 }
-fn nexinets_not_implemented(
-    flow: &str,
-) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(
-        format!("{flow} flow for nexinets")
-    ))
+fn nexinets_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for nexinets"
+    )))
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

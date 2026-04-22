@@ -64,12 +64,10 @@ fn silverflow_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationE
         context: Default::default(),
     })
 }
-fn silverflow_not_implemented(
-    flow: &str,
-) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(
-        format!("{flow} flow for silverflow")
-    ))
+fn silverflow_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for silverflow"
+    )))
 }
 
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;

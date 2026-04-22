@@ -46,12 +46,10 @@ fn loonio_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationError
         context: Default::default(),
     })
 }
-fn loonio_not_implemented(
-    flow: &str,
-) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(
-        format!("{flow} flow for loonio")
-    ))
+fn loonio_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for loonio"
+    )))
 }
 
 // ===== MACRO PREREQUISITES =====

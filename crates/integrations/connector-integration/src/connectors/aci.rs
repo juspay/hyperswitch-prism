@@ -66,9 +66,9 @@ fn aci_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationError> {
     })
 }
 fn aci_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(
-        format!("{flow} flow for aci")
-    ))
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for aci"
+    )))
 }
 
 // Trait implementations with generic type parameters

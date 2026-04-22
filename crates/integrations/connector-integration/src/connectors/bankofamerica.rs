@@ -73,12 +73,10 @@ pub(crate) mod headers {
     pub(crate) const CONNECTOR_UNAUTHORIZED_ERROR: &str = "Authentication Error from the connector";
 }
 
-fn bankofamerica_not_implemented(
-    flow: &str,
-) -> Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(
-        format!("{flow} flow for bankofamerica")
-    ))
+fn bankofamerica_not_implemented(flow: &str) -> Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for bankofamerica"
+    )))
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<

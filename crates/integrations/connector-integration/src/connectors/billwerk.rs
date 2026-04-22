@@ -72,12 +72,10 @@ fn billwerk_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationErr
         context: Default::default(),
     })
 }
-fn billwerk_not_implemented(
-    flow: &str,
-) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(
-        format!("{flow} flow for billwerk")
-    ))
+fn billwerk_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for billwerk"
+    )))
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

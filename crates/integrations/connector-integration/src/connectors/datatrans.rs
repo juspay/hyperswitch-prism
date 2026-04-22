@@ -58,12 +58,10 @@ pub(crate) mod headers {
 // ===== CONNECTOR SERVICE TRAIT IMPLEMENTATIONS =====
 // Main service trait - aggregates all other traits
 
-fn datatrans_not_implemented(
-    flow: &str,
-) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(
-        format!("{flow} flow for datatrans")
-    ))
+fn datatrans_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for datatrans"
+    )))
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<

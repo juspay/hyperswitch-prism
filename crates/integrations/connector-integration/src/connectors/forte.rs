@@ -64,12 +64,10 @@ fn forte_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationError>
         context: Default::default(),
     })
 }
-fn forte_not_implemented(
-    flow: &str,
-) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(
-        format!("{flow} flow for forte")
-    ))
+fn forte_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for forte"
+    )))
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

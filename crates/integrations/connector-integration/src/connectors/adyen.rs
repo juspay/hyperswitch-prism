@@ -94,12 +94,10 @@ fn adyen_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationError>
         context: Default::default(),
     })
 }
-fn adyen_not_implemented(
-    flow: &str,
-) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(
-        format!("{flow} flow for adyen")
-    ))
+fn adyen_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for adyen"
+    )))
 }
 
 // Type alias for non-generic trait implementations

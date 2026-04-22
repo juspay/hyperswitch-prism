@@ -69,12 +69,10 @@ fn nexixpay_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationErr
         context: Default::default(),
     })
 }
-fn nexixpay_not_implemented(
-    flow: &str,
-) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(
-        format!("{flow} flow for nexixpay")
-    ))
+fn nexixpay_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for nexixpay"
+    )))
 }
 
 // ===== MACRO-BASED STRUCT AND BRIDGE SETUP =====

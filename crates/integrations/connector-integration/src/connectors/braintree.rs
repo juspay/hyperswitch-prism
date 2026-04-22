@@ -70,12 +70,10 @@ pub(crate) mod headers {
 pub const BRAINTREE_VERSION: &str = "Braintree-Version";
 pub const BRAINTREE_VERSION_VALUE: &str = "2019-01-01";
 
-fn braintree_not_implemented(
-    flow: &str,
-) -> Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(
-        format!("{flow} flow for braintree")
-    ))
+fn braintree_not_implemented(flow: &str) -> Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for braintree"
+    )))
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<

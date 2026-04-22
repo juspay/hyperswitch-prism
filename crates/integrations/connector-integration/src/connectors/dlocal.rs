@@ -67,12 +67,10 @@ fn dlocal_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationError
         context: Default::default(),
     })
 }
-fn dlocal_not_implemented(
-    flow: &str,
-) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(
-        format!("{flow} flow for dlocal")
-    ))
+fn dlocal_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for dlocal"
+    )))
 }
 
 // Trait implementations with generic type parameters

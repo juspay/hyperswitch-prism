@@ -78,12 +78,10 @@ fn fiserv_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationError
         context: Default::default(),
     })
 }
-fn fiserv_not_implemented(
-    flow: &str,
-) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(
-        format!("{flow} flow for fiserv")
-    ))
+fn fiserv_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for fiserv"
+    )))
 }
 
 // Type alias for non-generic trait implementations

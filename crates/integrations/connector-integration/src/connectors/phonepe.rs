@@ -58,12 +58,10 @@ fn phonepe_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationErro
         context: Default::default(),
     })
 }
-fn phonepe_not_implemented(
-    flow: &str,
-) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(
-        format!("{flow} flow for phonepe")
-    ))
+fn phonepe_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for phonepe"
+    )))
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>

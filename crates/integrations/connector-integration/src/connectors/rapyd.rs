@@ -65,12 +65,10 @@ fn rapyd_flow_not_supported(flow: &str) -> Report<IntegrationError> {
         context: Default::default(),
     })
 }
-fn rapyd_not_implemented(
-    flow: &str,
-) -> Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(
-        format!("{flow} flow for rapyd")
-    ))
+fn rapyd_not_implemented(flow: &str) -> Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for rapyd"
+    )))
 }
 
 pub const BASE64_ENGINE_URL_SAFE: base64::engine::GeneralPurpose =

@@ -70,12 +70,10 @@ fn helcim_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationError
         context: Default::default(),
     })
 }
-fn helcim_not_implemented(
-    flow: &str,
-) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(
-        format!("{flow} flow for helcim")
-    ))
+fn helcim_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for helcim"
+    )))
 }
 
 // Trait implementations with generic type parameters

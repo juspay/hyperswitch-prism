@@ -66,12 +66,10 @@ fn mollie_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationError
         context: Default::default(),
     })
 }
-fn mollie_not_implemented(
-    flow: &str,
-) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(
-        format!("{flow} flow for mollie")
-    ))
+fn mollie_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for mollie"
+    )))
 }
 
 macros::create_all_prerequisites!(

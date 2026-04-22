@@ -67,12 +67,10 @@ fn nuvei_flow_not_supported(flow: &str) -> Report<IntegrationError> {
         context: Default::default(),
     })
 }
-fn nuvei_not_implemented(
-    flow: &str,
-) -> Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(
-        format!("{flow} flow for nuvei")
-    ))
+fn nuvei_not_implemented(flow: &str) -> Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for nuvei"
+    )))
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

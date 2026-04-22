@@ -60,12 +60,10 @@ fn barclaycard_flow_not_supported(flow: &str) -> error_stack::Report<Integration
         context: Default::default(),
     })
 }
-fn barclaycard_not_implemented(
-    flow: &str,
-) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(
-        format!("{flow} flow for barclaycard")
-    ))
+fn barclaycard_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for barclaycard"
+    )))
 }
 
 macros::create_amount_converter_wrapper!(connector_name: Barclaycard, amount_type: StringMajorUnit);

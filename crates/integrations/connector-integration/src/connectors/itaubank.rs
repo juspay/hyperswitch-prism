@@ -37,21 +37,17 @@ pub(crate) mod headers {
     pub(crate) const AUTHORIZATION: &str = "Authorization";
 }
 
-fn itaubank_flow_not_supported(
-    flow: &str,
-) -> error_stack::Report<errors::IntegrationError> {
+fn itaubank_flow_not_supported(flow: &str) -> error_stack::Report<errors::IntegrationError> {
     error_stack::report!(errors::IntegrationError::FlowNotSupported {
         flow: flow.to_string(),
         connector: "Itaubank".to_string(),
         context: Default::default(),
     })
 }
-fn itaubank_not_implemented(
-    flow: &str,
-) -> error_stack::Report<errors::IntegrationError> {
-    error_stack::report!(errors::IntegrationError::not_implemented(
-        format!("{flow} flow for itaubank")
-    ))
+fn itaubank_not_implemented(flow: &str) -> error_stack::Report<errors::IntegrationError> {
+    error_stack::report!(errors::IntegrationError::not_implemented(format!(
+        "{flow} flow for itaubank"
+    )))
 }
 
 use std::fmt::Debug;

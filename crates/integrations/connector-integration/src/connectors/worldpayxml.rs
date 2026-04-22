@@ -54,12 +54,10 @@ pub(crate) mod headers {
 
 macros::create_amount_converter_wrapper!(connector_name: Worldpayxml, amount_type: StringMinorUnit);
 
-fn worldpayxml_not_implemented(
-    flow: &str,
-) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(
-        format!("{flow} flow for worldpayxml")
-    ))
+fn worldpayxml_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for worldpayxml"
+    )))
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<

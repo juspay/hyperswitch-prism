@@ -64,12 +64,10 @@ fn razorpayv2_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationE
         context: Default::default(),
     })
 }
-fn razorpayv2_not_implemented(
-    flow: &str,
-) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(
-        format!("{flow} flow for razorpayv2")
-    ))
+fn razorpayv2_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for razorpayv2"
+    )))
 }
 
 #[derive(Clone)]

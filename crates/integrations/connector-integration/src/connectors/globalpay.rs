@@ -250,12 +250,10 @@ macros::create_all_prerequisites!(
 // ===== CONNECTOR SERVICE TRAIT IMPLEMENTATIONS =====
 // Main service trait - aggregates all other traits
 
-fn globalpay_not_implemented(
-    flow: &str,
-) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(
-        format!("{flow} flow for globalpay")
-    ))
+fn globalpay_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for globalpay"
+    )))
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<

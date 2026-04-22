@@ -65,12 +65,10 @@ fn trustpayments_flow_not_supported(flow: &str) -> error_stack::Report<Integrati
         context: Default::default(),
     })
 }
-fn trustpayments_not_implemented(
-    flow: &str,
-) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(
-        format!("{flow} flow for trustpayments")
-    ))
+fn trustpayments_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for trustpayments"
+    )))
 }
 
 // ===== CONNECTOR SERVICE TRAIT IMPLEMENTATIONS =====
