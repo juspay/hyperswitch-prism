@@ -158,7 +158,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"initialAmount\":1000,\"currency\":\"USD\",\"channel\":\"ECOM\",\"product\":\"creditcard\",\"payment\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"verification\":\"737\",\"cofContract\":null},\"async\":{\"successUrl\":\"https://example.com/return\",\"cancelUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\"},\"merchantOrderId\":\"probe_txn_001\"}"
+          "body": "{\"initialAmount\":1000,\"currency\":\"USD\",\"channel\":\"ECOM\",\"product\":\"creditcard\",\"payment\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"30\",\"verification\":\"737\",\"cofContract\":null},\"async\":{\"successUrl\":\"https://example.com/return\",\"cancelUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\"},\"merchantOrderId\":\"probe_txn_001\"}"
         }
       },
       "CashappQr": {
@@ -675,6 +675,11 @@
         "status": "not_implemented"
       }
     },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "post_authenticate": {
       "default": {
         "status": "not_implemented"
@@ -716,18 +721,51 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"initialAmount\":1000,\"currency\":\"USD\",\"channel\":\"ECOM\",\"product\":\"creditcard\",\"payment\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"verification\":\"123\",\"cofContract\":null},\"async\":{\"successUrl\":\"https://example.com/return\",\"cancelUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\"},\"merchantOrderId\":\"probe_proxy_txn_001\"}"
+          "body": "{\"initialAmount\":1000,\"currency\":\"USD\",\"channel\":\"ECOM\",\"product\":\"creditcard\",\"payment\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"30\",\"verification\":\"123\",\"cofContract\":null},\"async\":{\"successUrl\":\"https://example.com/return\",\"cancelUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\"},\"merchantOrderId\":\"probe_proxy_txn_001\"}"
         }
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "SetupMandate with NoThreeDs flow not supported by Nexinets connector"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://apitest.payengine.de/v1/orders/debit",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfbWVyY2hhbnQ6cHJvYmVfa2V5",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"initialAmount\":1000,\"currency\":\"USD\",\"channel\":\"ECOM\",\"product\":\"creditcard\",\"payment\":{\"paymentInstrumentId\":\"probe-mandate-123\",\"cofContract\":{\"type\":\"UNSCHEDULED\"}},\"async\":{\"successUrl\":\"https://example.com/recurring-return\",\"cancelUrl\":\"https://example.com/recurring-return\",\"failureUrl\":\"https://example.com/recurring-return\"},\"merchantOrderId\":\"\"}"
+        }
       }
     },
     "recurring_revoke": {
@@ -773,7 +811,8 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "SetupMandate with NoThreeDs flow not supported by Nexinets connector"
       }
     },
     "token_authorize": {
@@ -784,7 +823,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "SetupMandate with NoThreeDs flow not supported by Nexinets connector"
       }
     },
     "tokenize": {

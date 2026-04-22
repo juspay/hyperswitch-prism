@@ -287,7 +287,7 @@ This is the current recommended approach using the macro framework for maximum c
 // In the imports section, ensure Capture flow is included:
 use domain_types::{
     connector_flow::{
-        Accept, Authorize, Capture, CreateOrder, CreateSessionToken, DefendDispute, PSync, RSync,
+        Accept, Authorize, Capture, CreateOrder, ServerSessionAuthenticationToken, DefendDispute, PSync, RSync,
         Refund, RepeatPayment, SetupMandate, SubmitEvidence, Void,
     },
     connector_types::{

@@ -233,8 +233,9 @@ impl<T: PaymentMethodDataTypes>
                 PaymentMethod { payment_card }
             }
             _ => {
-                return Err(error_stack::report!(IntegrationError::not_implemented(
-                    "Only card payments are supported".to_string()
+                return Err(error_stack::report!(IntegrationError::NotImplemented(
+                    "Only card payments are supported".to_string(),
+                    Default::default()
                 )))
             }
         };
@@ -836,13 +837,11 @@ fn map_refund_status(
     // Check transaction_state first (most reliable)
     if let Some(state) = transaction_state {
         match state {
-            AuthipayTransactionState::Captured | AuthipayTransactionState::Settled => {
-                // Verify result/status is also success
+            AuthipayTransactionState::Captured | AuthipayTransactionState::Settled
                 if matches!(transaction_result, Some(AuthipayPaymentResult::Approved))
-                    || matches!(transaction_status, Some(AuthipayPaymentStatus::Approved))
-                {
-                    return RefundStatus::Success;
-                }
+                    || matches!(transaction_status, Some(AuthipayPaymentStatus::Approved)) =>
+            {
+                return RefundStatus::Success;
             }
             AuthipayTransactionState::Declined => return RefundStatus::Failure,
             AuthipayTransactionState::Pending | AuthipayTransactionState::Waiting => {

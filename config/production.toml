@@ -24,6 +24,7 @@ mitm_proxy_enabled = false
 peachpayments.base_url = "https://api.bankint.peachpayments.com/v/1"
 finix.base_url = "https://finix.live-payments-api.com"
 fiservcommercehub.base_url = "https://connect.fiservapis.com/ch/"
+sanlam.base_url = "live"
 revolv3.base_url = "https://api.revolv3.com"
 ppro.base_url = "https://api.eu.ppro.com"
 mollie.base_url = "https://api.mollie.com/v2"
@@ -115,6 +116,7 @@ truelayer.base_url = "https://api.truelayer.com"
 truelayer.secondary_base_url = "https://auth.truelayer.com"
 trustly.base_url = "https://api.trustly.com/1"
 itaubank.base_url = "https://api.itau.com.br"
+pinelabs_online.base_url = "https://api.pluralpay.in/api/pay/v1"
 easebuzz.base_url = "https://pay.easebuzz.in"
 easebuzz.secondary_base_url = "https://dashboard.easebuzz.in"
 
@@ -124,6 +126,18 @@ enabled = false
 brokers = ["localhost:9092"]
 topic = "audit-trail-events"
 partition_key_field = "request_id"
+
+[connector_request_kafka]
+enabled = false
+brokers = ["localhost:9092"]
+acks = "all"
+request_timeout_ms = 30000
+message_timeout_ms = 30000
+enqueue_timeout_ms = 5000
+# security_protocol = "SASL_SSL"
+# sasl_mechanism = "PLAIN"
+# sasl_username = ""
+# sasl_password = ""
 
 [unmasked_headers]
 keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-connector","x-tenant-id","x-shadow-mode"]

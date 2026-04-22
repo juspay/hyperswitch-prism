@@ -717,6 +717,16 @@ pub enum ConnectorSpecificConfig {
         client_secret: Secret<String>,
         base_url: Option<String>,
     },
+    Sanlam {
+        api_key: Secret<String>,
+        merchant_id: Secret<String>,
+        base_url: Option<String>,
+    },
+    PinelabsOnline {
+        client_id: Secret<String>,
+        client_secret: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -831,6 +841,7 @@ impl ConnectorSpecificConfig {
                 merchant_account,
                 api_secret
             },
+            Sanlam { api_key, base_url },
             Bamboraapac {
                 username,
                 password,
@@ -1017,7 +1028,11 @@ impl ConnectorSpecificConfig {
             Itaubank {
                 client_id,
                 client_secret
-            }
+            },
+            PinelabsOnline {
+                client_id,
+                client_secret
+            },
         )
     }
 
@@ -1314,6 +1329,7 @@ impl ConnectorSpecificConfig {
                     api_secret,
                     merchant_acceptor_key
                 },
+                Sanlam { api_key, base_url },
                 Trustpay {
                     api_key,
                     project_id,
@@ -1407,6 +1423,10 @@ impl ConnectorSpecificConfig {
                     private_key
                 },
                 Itaubank {
+                    client_id,
+                    client_secret
+                },
+                PinelabsOnline {
                     client_id,
                     client_secret
                 }
@@ -1658,6 +1678,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 access_key: rapyd.access_key.ok_or_else(err)?,
                 secret_key: rapyd.secret_key.ok_or_else(err)?,
                 base_url: rapyd.base_url,
+            }),
+            AuthType::Sanlam(sanlam) => Ok(Self::Sanlam {
+                api_key: sanlam.api_key.ok_or_else(err)?,
+                merchant_id: sanlam.merchant_id.ok_or_else(err)?,
+                base_url: sanlam.base_url,
             }),
             AuthType::Redsys(redsys) => Ok(Self::Redsys {
                 merchant_id: redsys.merchant_id.ok_or_else(err)?,
@@ -1913,6 +1938,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 merchant_id: ppro.merchant_id.ok_or_else(err)?,
                 base_url: ppro.base_url,
             }),
+            AuthType::PinelabsOnline(pinelabs_online) => Ok(Self::PinelabsOnline {
+                client_id: pinelabs_online.client_id.ok_or_else(err)?,
+                client_secret: pinelabs_online.client_secret.ok_or_else(err)?,
+                base_url: pinelabs_online.base_url,
+            }),
             AuthType::Easebuzz(easebuzz) => Ok(Self::Easebuzz {
                 api_key: easebuzz.api_key.ok_or_else(err)?,
                 api_salt: easebuzz.api_salt.ok_or_else(err)?,
@@ -2158,6 +2188,15 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                     product_name: None,
                     merchant_purchase_description: None,
                     statement_descriptor: None,
+                }),
+                _ => Err(err().into()),
+            },
+
+            ConnectorEnum::Sanlam => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Sanlam {
+                    api_key: api_key.clone(),
+                    merchant_id: key1.clone(),
+                    base_url: None,
                 }),
                 _ => Err(err().into()),
             },
@@ -2918,6 +2957,14 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
             },
             ConnectorEnum::Itaubank => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Itaubank {
+                    client_id: api_key.clone(),
+                    client_secret: key1.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err().into()),
+            },
+            ConnectorEnum::PinelabsOnline => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::PinelabsOnline {
                     client_id: api_key.clone(),
                     client_secret: key1.clone(),
                     base_url: None,

@@ -28,6 +28,8 @@ use grpc_api_types::payments::{
     DisputeServiceSubmitEvidenceResponse,
     EventServiceHandleRequest,
     EventServiceHandleResponse,
+    EventServiceParseRequest,
+    EventServiceParseResponse,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
@@ -185,6 +187,12 @@ impl_grpc_client!(
 impl_grpc_client!(
     GrpcEventClient,
     EventServiceClient,
+    (
+        parse_event,
+        parse_event,
+        EventServiceParseRequest,
+        EventServiceParseResponse
+    ),
     (
         handle_event,
         handle_event,
@@ -442,7 +450,7 @@ impl_grpc_client!(
 ///
 /// let _ = client.customer.create(Default::default()).await;
 /// let _ = client.dispute.submit_evidence(Default::default()).await;
-/// let _ = client.event.handle_event(Default::default()).await;
+/// let _ = client.event.parse_event(Default::default()).await;
 /// let _ = client.merchant_authentication.create_server_authentication_token(Default::default()).await;
 /// # Ok(()) }
 /// ```

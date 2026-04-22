@@ -6,6 +6,7 @@
     "capture",
     "client_authentication_token",
     "get",
+    "incremental_authorization",
     "post_authenticate",
     "pre_authenticate",
     "recurring_charge",
