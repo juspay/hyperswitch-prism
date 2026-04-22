@@ -778,7 +778,7 @@ impl<F, Req> TryFrom<ResponseRouterData<PproPaymentsResponse, Self>>
             .response
             .captures
             .as_ref()
-            .and_then(|c| c.first())
+            .and_then(|c| c.last())
             .map(|c| c.amount)
             .or_else(|| {
                 item.response
@@ -811,7 +811,7 @@ impl<F, Req> TryFrom<ResponseRouterData<PproPaymentsResponse, Self>>
             .response
             .captures
             .as_ref()
-            .and_then(|c| c.first())
+            .and_then(|c| c.last())
             .and_then(|c| c.merchant_capture_reference.clone())
             .or_else(|| {
                 item.response
@@ -825,7 +825,7 @@ impl<F, Req> TryFrom<ResponseRouterData<PproPaymentsResponse, Self>>
             .response
             .captures
             .as_ref()
-            .and_then(|c| c.first())
+            .and_then(|c| c.last())
             .map(|c| c.amount.get_amount_as_i64());
 
         let response = if let Some(err) = error_response {
