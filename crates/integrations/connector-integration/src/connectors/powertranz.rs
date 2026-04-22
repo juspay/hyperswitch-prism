@@ -67,6 +67,11 @@ fn powertranz_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationE
         context: Default::default(),
     })
 }
+fn powertranz_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for powertranz"
+    )))
+}
 
 // ============================================================================
 // Connector Service Trait Implementations (Macros Framework)
@@ -256,6 +261,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Powertranz<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            VoidPC,
+            PaymentFlowData,
+            PaymentsCancelPostCaptureData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(powertranz_not_implemented("void_post_capture"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -266,6 +282,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         MandateRevokeResponseData,
     > for Powertranz<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            MandateRevoke,
+            PaymentFlowData,
+            MandateRevokeRequestData,
+            MandateRevokeResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(powertranz_not_implemented("mandate_revoke"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -339,18 +366,41 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
     for Powertranz<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(powertranz_not_implemented("accept_dispute"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
     for Powertranz<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(powertranz_not_implemented("defend_dispute"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>
     for Powertranz<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            SubmitEvidence,
+            DisputeFlowData,
+            SubmitEvidenceData,
+            DisputeResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(powertranz_not_implemented("submit_evidence"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -361,6 +411,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentMethodTokenResponse,
     > for Powertranz<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            PaymentMethodToken,
+            PaymentFlowData,
+            PaymentMethodTokenizationData<T>,
+            PaymentMethodTokenResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(powertranz_not_implemented("payment_method_token"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -380,7 +441,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ServerAuthenticationTokenResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(powertranz_flow_not_supported("create_server_authentication_token"))
+        Err(powertranz_flow_not_supported(
+            "create_server_authentication_token",
+        ))
     }
 }
 
@@ -392,6 +455,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Powertranz<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            PreAuthenticate,
+            PaymentFlowData,
+            PaymentsPreAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(powertranz_not_implemented("pre_authenticate"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -402,6 +476,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Powertranz<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            Authenticate,
+            PaymentFlowData,
+            PaymentsAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(powertranz_not_implemented("authenticate"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -412,6 +497,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Powertranz<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            PostAuthenticate,
+            PaymentFlowData,
+            PaymentsPostAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(powertranz_not_implemented("post_authenticate"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

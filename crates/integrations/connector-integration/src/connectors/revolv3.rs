@@ -44,6 +44,13 @@ fn revolv3_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationErro
         context: Default::default(),
     })
 }
+fn revolv3_not_implemented(
+    flow: &str,
+) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(
+        format!("{flow} flow for revolv3")
+    ))
+}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
     for Revolv3<T>
@@ -258,6 +265,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         DisputeResponseData,
     > for Revolv3<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            connector_flow::Accept,
+            DisputeFlowData,
+            AcceptDisputeData,
+            DisputeResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(revolv3_not_implemented("accept_dispute"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -268,6 +286,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ConnectorCustomerResponse,
     > for Revolv3<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            connector_flow::CreateConnectorCustomer,
+            PaymentFlowData,
+            ConnectorCustomerData,
+            ConnectorCustomerResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(revolv3_not_implemented("create_connector_customer"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -278,6 +307,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         DisputeResponseData,
     > for Revolv3<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            connector_flow::DefendDispute,
+            DisputeFlowData,
+            DisputeDefendData,
+            DisputeResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(revolv3_not_implemented("defend_dispute"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -288,6 +328,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         MandateRevokeResponseData,
     > for Revolv3<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            connector_flow::MandateRevoke,
+            PaymentFlowData,
+            MandateRevokeRequestData,
+            MandateRevokeResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(revolv3_not_implemented("mandate_revoke"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -298,6 +349,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ServerAuthenticationTokenResponseData,
     > for Revolv3<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            connector_flow::ServerAuthenticationToken,
+            PaymentFlowData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(revolv3_not_implemented(
+            "create_server_authentication_token",
+        ))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -329,6 +393,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Revolv3<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            connector_flow::IncrementalAuthorization,
+            PaymentFlowData,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(revolv3_not_implemented("incremental_authorization"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -339,6 +414,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentCreateOrderResponse,
     > for Revolv3<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            connector_flow::CreateOrder,
+            PaymentFlowData,
+            PaymentCreateOrderData,
+            PaymentCreateOrderResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(revolv3_not_implemented("create_order"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -391,6 +477,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ServerSessionAuthenticationTokenResponseData,
     > for Revolv3<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            connector_flow::ServerSessionAuthenticationToken,
+            PaymentFlowData,
+            ServerSessionAuthenticationTokenRequestData,
+            ServerSessionAuthenticationTokenResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(revolv3_not_implemented(
+            "create_server_session_authentication_token",
+        ))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -401,6 +500,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentMethodTokenResponse,
     > for Revolv3<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            connector_flow::PaymentMethodToken,
+            PaymentFlowData,
+            PaymentMethodTokenizationData<T>,
+            PaymentMethodTokenResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(revolv3_not_implemented("payment_method_token"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -411,6 +521,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Revolv3<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            connector_flow::VoidPC,
+            PaymentFlowData,
+            PaymentsCancelPostCaptureData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(revolv3_not_implemented("void_post_capture"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -430,7 +551,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(revolv3_flow_not_supported("create_client_authentication_token"))
+        Err(revolv3_flow_not_supported(
+            "create_client_authentication_token",
+        ))
     }
 }
 
@@ -442,6 +565,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         DisputeResponseData,
     > for Revolv3<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            connector_flow::SubmitEvidence,
+            DisputeFlowData,
+            SubmitEvidenceData,
+            DisputeResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(revolv3_not_implemented("submit_evidence"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

@@ -65,6 +65,13 @@ fn rapyd_flow_not_supported(flow: &str) -> Report<IntegrationError> {
         context: Default::default(),
     })
 }
+fn rapyd_not_implemented(
+    flow: &str,
+) -> Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(
+        format!("{flow} flow for rapyd")
+    ))
+}
 
 pub const BASE64_ENGINE_URL_SAFE: base64::engine::GeneralPurpose =
     base64::engine::general_purpose::URL_SAFE;
@@ -79,6 +86,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Rapyd<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            IncrementalAuthorization,
+            PaymentFlowData,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(rapyd_not_implemented("incremental_authorization"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -290,6 +308,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentMethodTokenResponse,
     > for Rapyd<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            PaymentMethodToken,
+            PaymentFlowData,
+            PaymentMethodTokenizationData<T>,
+            PaymentMethodTokenResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(rapyd_not_implemented("payment_method_token"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -314,7 +343,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ServerAuthenticationTokenResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(rapyd_flow_not_supported("create_server_authentication_token"))
+        Err(rapyd_flow_not_supported(
+            "create_server_authentication_token",
+        ))
     }
 }
 
@@ -688,24 +719,47 @@ macros::macro_connector_implementation!(
     }
 );
 
-// Stub implementations for unsupported flows
+// Explicit not implemented flow placeholders
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>
     for Rapyd<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            SubmitEvidence,
+            DisputeFlowData,
+            SubmitEvidenceData,
+            DisputeResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(rapyd_not_implemented("submit_evidence"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
     for Rapyd<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(rapyd_not_implemented("defend_dispute"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
     for Rapyd<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(rapyd_not_implemented("accept_dispute"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -716,6 +770,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Rapyd<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            SetupMandate,
+            PaymentFlowData,
+            SetupMandateRequestData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(rapyd_not_implemented("setup_mandate"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -726,6 +791,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Rapyd<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            RepeatPayment,
+            PaymentFlowData,
+            RepeatPaymentData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(rapyd_not_implemented("repeat_payment"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -759,6 +835,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ConnectorCustomerResponse,
     > for Rapyd<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            CreateConnectorCustomer,
+            PaymentFlowData,
+            ConnectorCustomerData,
+            ConnectorCustomerResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(rapyd_not_implemented("create_connector_customer"))
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
@@ -768,6 +855,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Rapyd<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            PreAuthenticate,
+            PaymentFlowData,
+            PaymentsPreAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(rapyd_not_implemented("pre_authenticate"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -778,6 +876,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Rapyd<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            Authenticate,
+            PaymentFlowData,
+            PaymentsAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(rapyd_not_implemented("authenticate"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -788,6 +897,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Rapyd<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            PostAuthenticate,
+            PaymentFlowData,
+            PaymentsPostAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(rapyd_not_implemented("post_authenticate"))
+    }
 }
 
 macros::macro_connector_implementation!(
@@ -832,5 +952,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         MandateRevokeResponseData,
     > for Rapyd<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            MandateRevoke,
+            PaymentFlowData,
+            MandateRevokeRequestData,
+            MandateRevokeResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(rapyd_not_implemented("mandate_revoke"))
+    }
 }
 // SourceVerification implementations for all flows

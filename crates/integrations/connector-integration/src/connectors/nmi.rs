@@ -74,6 +74,11 @@ fn nmi_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationError> {
         context: Default::default(),
     })
 }
+fn nmi_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for nmi"
+    )))
+}
 
 // ===== CONNECTOR SERVICE TRAIT IMPLEMENTATIONS =====
 
@@ -792,6 +797,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentMethodTokenResponse,
     > for Nmi<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            PaymentMethodToken,
+            PaymentFlowData,
+            PaymentMethodTokenizationData<T>,
+            PaymentMethodTokenResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(nmi_not_implemented("payment_method_token"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -802,6 +818,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Nmi<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            Authenticate,
+            PaymentFlowData,
+            PaymentsAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(nmi_not_implemented("authenticate"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -812,6 +839,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Nmi<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            PostAuthenticate,
+            PaymentFlowData,
+            PaymentsPostAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(nmi_not_implemented("post_authenticate"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -863,6 +901,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ConnectorCustomerResponse,
     > for Nmi<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            domain_types::connector_flow::CreateConnectorCustomer,
+            PaymentFlowData,
+            ConnectorCustomerData,
+            ConnectorCustomerResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(nmi_not_implemented("create_connector_customer"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -894,4 +943,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         MandateRevokeResponseData,
     > for Nmi<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            MandateRevoke,
+            PaymentFlowData,
+            MandateRevokeRequestData,
+            MandateRevokeResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(nmi_not_implemented("mandate_revoke"))
+    }
 }

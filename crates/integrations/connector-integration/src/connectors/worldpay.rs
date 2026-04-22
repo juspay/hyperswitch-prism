@@ -64,6 +64,13 @@ fn worldpay_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationErr
         context: Default::default(),
     })
 }
+fn worldpay_not_implemented(
+    flow: &str,
+) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(
+        format!("{flow} flow for worldpay")
+    ))
+}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
@@ -694,7 +701,7 @@ macros::macro_connector_implementation!(
     }
 );
 
-// Stub implementations for unsupported flows - removed conflicting ones that are now macro-generated
+// Explicit not implemented flow placeholders - removed conflicting ones that are now macro-generated
 
 // Authenticate flow is replaced by PreAuthenticate and PostAuthenticate, but we need this stub for trait bounds
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -705,6 +712,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Worldpay<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            domain_types::connector_flow::Authenticate,
+            PaymentFlowData,
+            domain_types::connector_types::PaymentsAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(worldpay_not_implemented("authenticate"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -751,12 +769,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
     fn get_url(
         &self,
-        _req: &RouterDataV2<
-            DefendDispute,
-            DisputeFlowData,
-            DisputeDefendData,
-            DisputeResponseData,
-        >,
+        _req: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
     ) -> CustomResult<String, IntegrationError> {
         Err(worldpay_flow_not_supported("defend_dispute"))
     }
@@ -782,6 +795,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Worldpay<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            SetupMandate,
+            PaymentFlowData,
+            SetupMandateRequestData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(worldpay_not_implemented("setup_mandate"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -792,6 +816,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ServerSessionAuthenticationTokenResponseData,
     > for Worldpay<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            ServerSessionAuthenticationToken,
+            PaymentFlowData,
+            ServerSessionAuthenticationTokenRequestData,
+            ServerSessionAuthenticationTokenResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(worldpay_not_implemented(
+            "create_server_session_authentication_token",
+        ))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -802,6 +839,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::PaymentMethodTokenResponse,
     > for Worldpay<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            domain_types::connector_flow::PaymentMethodToken,
+            PaymentFlowData,
+            domain_types::connector_types::PaymentMethodTokenizationData<T>,
+            domain_types::connector_types::PaymentMethodTokenResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(worldpay_not_implemented("payment_method_token"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -812,6 +860,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::ServerAuthenticationTokenResponseData,
     > for Worldpay<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            domain_types::connector_flow::ServerAuthenticationToken,
+            PaymentFlowData,
+            domain_types::connector_types::ServerAuthenticationTokenRequestData,
+            domain_types::connector_types::ServerAuthenticationTokenResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(worldpay_not_implemented(
+            "create_server_authentication_token",
+        ))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -843,6 +904,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Worldpay<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            VoidPC,
+            PaymentFlowData,
+            PaymentsCancelPostCaptureData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(worldpay_not_implemented("void_post_capture"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -853,6 +925,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Worldpay<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            ClientAuthenticationToken,
+            PaymentFlowData,
+            ClientAuthenticationTokenRequestData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(worldpay_not_implemented(
+            "create_client_authentication_token",
+        ))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

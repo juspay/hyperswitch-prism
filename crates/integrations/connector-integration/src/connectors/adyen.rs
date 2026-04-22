@@ -94,6 +94,13 @@ fn adyen_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationError>
         context: Default::default(),
     })
 }
+fn adyen_not_implemented(
+    flow: &str,
+) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(
+        format!("{flow} flow for adyen")
+    ))
+}
 
 // Type alias for non-generic trait implementations
 
@@ -105,6 +112,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Adyen<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            IncrementalAuthorization,
+            PaymentFlowData,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(adyen_not_implemented("incremental_authorization"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -229,6 +247,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Adyen<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            VoidPC,
+            PaymentFlowData,
+            PaymentsCancelPostCaptureData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(adyen_not_implemented("void_post_capture"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -695,6 +724,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
     for Adyen<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(adyen_not_implemented("refund_sync"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -714,7 +749,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ServerSessionAuthenticationTokenResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(adyen_flow_not_supported("server_session_authentication_token"))
+        Err(adyen_flow_not_supported(
+            "server_session_authentication_token",
+        ))
     }
 }
 
@@ -775,6 +812,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Adyen<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            PreAuthenticate,
+            PaymentFlowData,
+            PaymentsPreAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(adyen_not_implemented("pre_authenticate"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -785,6 +833,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Adyen<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            Authenticate,
+            PaymentFlowData,
+            PaymentsAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(adyen_not_implemented("authenticate"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -795,6 +854,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Adyen<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            PostAuthenticate,
+            PaymentFlowData,
+            PaymentsPostAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(adyen_not_implemented("post_authenticate"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -805,6 +875,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         MandateRevokeResponseData,
     > for Adyen<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            MandateRevoke,
+            PaymentFlowData,
+            MandateRevokeRequestData,
+            MandateRevokeResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(adyen_not_implemented("mandate_revoke"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -1408,4 +1489,15 @@ impl<
         PaymentMethodTokenResponse,
     > for Adyen<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            PaymentMethodToken,
+            PaymentFlowData,
+            PaymentMethodTokenizationData<T>,
+            PaymentMethodTokenResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(adyen_not_implemented("payment_method_token"))
+    }
 }

@@ -66,6 +66,13 @@ fn nexinets_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationErr
         context: Default::default(),
     })
 }
+fn nexinets_not_implemented(
+    flow: &str,
+) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(
+        format!("{flow} flow for nexinets")
+    ))
+}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
@@ -75,6 +82,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Nexinets<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            IncrementalAuthorization,
+            PaymentFlowData,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(nexinets_not_implemented("incremental_authorization"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
@@ -688,6 +706,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentCreateOrderResponse,
     > for Nexinets<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            CreateOrder,
+            PaymentFlowData,
+            PaymentCreateOrderData,
+            PaymentCreateOrderResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(nexinets_not_implemented("create_order"))
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
@@ -741,6 +770,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ConnectorCustomerResponse,
     > for Nexinets<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            CreateConnectorCustomer,
+            PaymentFlowData,
+            ConnectorCustomerData,
+            ConnectorCustomerResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(nexinets_not_implemented("create_connector_customer"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -766,12 +806,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
     fn get_url(
         &self,
-        _req: &RouterDataV2<
-            DefendDispute,
-            DisputeFlowData,
-            DisputeDefendData,
-            DisputeResponseData,
-        >,
+        _req: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
     ) -> CustomResult<String, IntegrationError> {
         Err(nexinets_flow_not_supported("defend_dispute"))
     }
@@ -797,6 +832,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         MandateRevokeResponseData,
     > for Nexinets<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            MandateRevoke,
+            PaymentFlowData,
+            MandateRevokeRequestData,
+            MandateRevokeResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(nexinets_not_implemented("mandate_revoke"))
+    }
 }
 // SourceVerification implementations for all flows
 
@@ -808,6 +854,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentMethodTokenResponse,
     > for Nexinets<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            PaymentMethodToken,
+            PaymentFlowData,
+            PaymentMethodTokenizationData<T>,
+            PaymentMethodTokenResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(nexinets_not_implemented("payment_method_token"))
+    }
 }
 
 // RepeatPayment (MIT / Merchant-Initiated Transaction) uses the same Nexinets
@@ -860,6 +917,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Nexinets<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            PreAuthenticate,
+            PaymentFlowData,
+            PaymentsPreAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(nexinets_not_implemented("pre_authenticate"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -870,6 +938,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Nexinets<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            Authenticate,
+            PaymentFlowData,
+            PaymentsAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(nexinets_not_implemented("authenticate"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -880,6 +959,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Nexinets<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            PostAuthenticate,
+            PaymentFlowData,
+            PaymentsPostAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(nexinets_not_implemented("post_authenticate"))
+    }
 }
 
 // SourceVerification implementations for authentication flows

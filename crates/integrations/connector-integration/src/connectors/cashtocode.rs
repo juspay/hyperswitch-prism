@@ -59,6 +59,11 @@ fn cashtocode_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationE
         context: Default::default(),
     })
 }
+fn cashtocode_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for cashtocode"
+    )))
+}
 
 // Trait implementations with generic type parameters
 
@@ -325,7 +330,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(cashtocode_flow_not_supported("create_client_authentication_token"))
+        Err(cashtocode_flow_not_supported(
+            "create_client_authentication_token",
+        ))
     }
 }
 
@@ -471,7 +478,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 }
 
-// Stub implementations for unsupported flows
+// Explicit not implemented flow placeholders
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
     for Cashtocode<T>
@@ -488,6 +495,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
     for Cashtocode<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(cashtocode_not_implemented("payment_sync"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -506,12 +519,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
     for Cashtocode<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(cashtocode_not_implemented("refund"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
     for Cashtocode<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(cashtocode_not_implemented("refund_sync"))
+    }
 }
 
 // Authentication flow implementations
@@ -675,6 +700,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Cashtocode<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            SetupMandate,
+            PaymentFlowData,
+            SetupMandateRequestData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(cashtocode_not_implemented("setup_mandate"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -685,6 +721,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Cashtocode<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            RepeatPayment,
+            PaymentFlowData,
+            RepeatPaymentData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(cashtocode_not_implemented("repeat_payment"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -727,7 +774,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ServerAuthenticationTokenResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(cashtocode_flow_not_supported("create_server_authentication_token"))
+        Err(cashtocode_flow_not_supported(
+            "create_server_authentication_token",
+        ))
     }
 }
 

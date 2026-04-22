@@ -64,6 +64,13 @@ fn iatapay_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationErro
         context: Default::default(),
     })
 }
+fn iatapay_not_implemented(
+    flow: &str,
+) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(
+        format!("{flow} flow for iatapay")
+    ))
+}
 
 // ===== CONNECTOR SERVICE TRAIT IMPLEMENTATIONS =====
 
@@ -672,6 +679,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Iatapay<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            SetupMandate,
+            PaymentFlowData,
+            SetupMandateRequestData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(iatapay_not_implemented("setup_mandate"))
+    }
 }
 
 // Repeat Payment
@@ -683,6 +701,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Iatapay<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            RepeatPayment,
+            PaymentFlowData,
+            RepeatPaymentData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(iatapay_not_implemented("repeat_payment"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -715,6 +744,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentCreateOrderResponse,
     > for Iatapay<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            CreateOrder,
+            PaymentFlowData,
+            PaymentCreateOrderData,
+            PaymentCreateOrderResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(iatapay_not_implemented("create_order"))
+    }
 }
 
 // Session Token
@@ -726,6 +766,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ServerSessionAuthenticationTokenResponseData,
     > for Iatapay<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            ServerSessionAuthenticationToken,
+            PaymentFlowData,
+            ServerSessionAuthenticationTokenRequestData,
+            ServerSessionAuthenticationTokenResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(iatapay_not_implemented(
+            "create_server_session_authentication_token",
+        ))
+    }
 }
 
 // Dispute Accept
@@ -748,12 +801,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
     fn get_url(
         &self,
-        _req: &RouterDataV2<
-            DefendDispute,
-            DisputeFlowData,
-            DisputeDefendData,
-            DisputeResponseData,
-        >,
+        _req: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
     ) -> CustomResult<String, IntegrationError> {
         Err(iatapay_flow_not_supported("defend_dispute"))
     }
@@ -786,6 +834,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentMethodTokenResponse,
     > for Iatapay<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            PaymentMethodToken,
+            PaymentFlowData,
+            PaymentMethodTokenizationData<T>,
+            PaymentMethodTokenResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(iatapay_not_implemented("payment_method_token"))
+    }
 }
 
 // ===== AUTHENTICATION FLOW CONNECTOR INTEGRATIONS =====
@@ -894,4 +953,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Iatapay<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            ClientAuthenticationToken,
+            PaymentFlowData,
+            ClientAuthenticationTokenRequestData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(iatapay_not_implemented(
+            "create_client_authentication_token",
+        ))
+    }
 }

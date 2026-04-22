@@ -53,6 +53,13 @@ fn finix_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationError>
         context: Default::default(),
     })
 }
+fn finix_not_implemented(
+    flow: &str,
+) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(
+        format!("{flow} flow for finix")
+    ))
+}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
     for Finix<T>
@@ -302,6 +309,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         DisputeResponseData,
     > for Finix<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            connector_flow::Accept,
+            DisputeFlowData,
+            AcceptDisputeData,
+            DisputeResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(finix_not_implemented("accept_dispute"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -312,6 +330,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         DisputeResponseData,
     > for Finix<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            connector_flow::DefendDispute,
+            DisputeFlowData,
+            DisputeDefendData,
+            DisputeResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(finix_not_implemented("defend_dispute"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -352,7 +381,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ServerAuthenticationTokenResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(finix_flow_not_supported("create_server_authentication_token"))
+        Err(finix_flow_not_supported(
+            "create_server_authentication_token",
+        ))
     }
 }
 
@@ -492,6 +523,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Finix<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            connector_flow::VoidPC,
+            PaymentFlowData,
+            PaymentsCancelPostCaptureData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(finix_not_implemented("void_post_capture"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -511,7 +553,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(finix_flow_not_supported("create_client_authentication_token"))
+        Err(finix_flow_not_supported(
+            "create_client_authentication_token",
+        ))
     }
 }
 
@@ -523,6 +567,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         DisputeResponseData,
     > for Finix<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            connector_flow::SubmitEvidence,
+            DisputeFlowData,
+            SubmitEvidenceData,
+            DisputeResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(finix_not_implemented("submit_evidence"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

@@ -70,6 +70,13 @@ fn helcim_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationError
         context: Default::default(),
     })
 }
+fn helcim_not_implemented(
+    flow: &str,
+) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(
+        format!("{flow} flow for helcim")
+    ))
+}
 
 // Trait implementations with generic type parameters
 
@@ -145,6 +152,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Helcim<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            VoidPC,
+            PaymentFlowData,
+            PaymentsCancelPostCaptureData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(helcim_not_implemented("void_post_capture"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -578,7 +596,7 @@ macros::macro_connector_implementation!(
     }
 );
 
-// Stub implementations for unsupported flows
+// Explicit not implemented flow placeholders
 impl<
         T: PaymentMethodDataTypes
             + Debug
@@ -594,6 +612,17 @@ impl<
         PaymentsResponseData,
     > for Helcim<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            SetupMandate,
+            PaymentFlowData,
+            SetupMandateRequestData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(helcim_not_implemented("setup_mandate"))
+    }
 }
 
 impl<
@@ -699,6 +728,17 @@ impl<
         PaymentsResponseData,
     > for Helcim<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            RepeatPayment,
+            PaymentFlowData,
+            RepeatPaymentData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(helcim_not_implemented("repeat_payment"))
+    }
 }
 
 impl<
@@ -716,6 +756,19 @@ impl<
         ServerSessionAuthenticationTokenResponseData,
     > for Helcim<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            ServerSessionAuthenticationToken,
+            PaymentFlowData,
+            ServerSessionAuthenticationTokenRequestData,
+            ServerSessionAuthenticationTokenResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(helcim_not_implemented(
+            "create_server_session_authentication_token",
+        ))
+    }
 }
 
 impl<
@@ -733,6 +786,17 @@ impl<
         domain_types::connector_types::PaymentMethodTokenResponse,
     > for Helcim<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            domain_types::connector_flow::PaymentMethodToken,
+            PaymentFlowData,
+            domain_types::connector_types::PaymentMethodTokenizationData<T>,
+            domain_types::connector_types::PaymentMethodTokenResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(helcim_not_implemented("payment_method_token"))
+    }
 }
 
 impl<
@@ -750,6 +814,17 @@ impl<
         domain_types::connector_types::ServerAuthenticationTokenResponseData,
     > for Helcim<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            domain_types::connector_flow::ServerAuthenticationToken,
+            PaymentFlowData,
+            domain_types::connector_types::ServerAuthenticationTokenRequestData,
+            domain_types::connector_types::ServerAuthenticationTokenResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(helcim_not_implemented("create_server_authentication_token"))
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
@@ -822,6 +897,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ConnectorCustomerResponse,
     > for Helcim<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            CreateConnectorCustomer,
+            PaymentFlowData,
+            ConnectorCustomerData,
+            ConnectorCustomerResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(helcim_not_implemented("create_connector_customer"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -832,6 +918,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Helcim<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            ClientAuthenticationToken,
+            PaymentFlowData,
+            ClientAuthenticationTokenRequestData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(helcim_not_implemented("create_client_authentication_token"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -842,6 +939,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         MandateRevokeResponseData,
     > for Helcim<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            MandateRevoke,
+            PaymentFlowData,
+            MandateRevokeRequestData,
+            MandateRevokeResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(helcim_not_implemented("mandate_revoke"))
+    }
 }
 
 // SourceVerification implementations for all flows

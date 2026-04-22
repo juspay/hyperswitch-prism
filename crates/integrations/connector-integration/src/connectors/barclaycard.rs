@@ -60,6 +60,13 @@ fn barclaycard_flow_not_supported(flow: &str) -> error_stack::Report<Integration
         context: Default::default(),
     })
 }
+fn barclaycard_not_implemented(
+    flow: &str,
+) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(
+        format!("{flow} flow for barclaycard")
+    ))
+}
 
 macros::create_amount_converter_wrapper!(connector_name: Barclaycard, amount_type: StringMajorUnit);
 
@@ -71,6 +78,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Barclaycard<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            IncrementalAuthorization,
+            PaymentFlowData,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(barclaycard_not_implemented("incremental_authorization"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -232,6 +250,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Barclaycard<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            domain_types::connector_flow::PostAuthenticate,
+            PaymentFlowData,
+            domain_types::connector_types::PaymentsPostAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(barclaycard_not_implemented("post_authenticate"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -242,6 +271,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Barclaycard<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            domain_types::connector_flow::Authenticate,
+            PaymentFlowData,
+            domain_types::connector_types::PaymentsAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(barclaycard_not_implemented("authenticate"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -252,6 +292,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Barclaycard<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            domain_types::connector_flow::PreAuthenticate,
+            PaymentFlowData,
+            domain_types::connector_types::PaymentsPreAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(barclaycard_not_implemented("pre_authenticate"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -325,6 +376,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Barclaycard<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            domain_types::connector_flow::RepeatPayment,
+            PaymentFlowData,
+            domain_types::connector_types::RepeatPaymentData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(barclaycard_not_implemented("repeat_payment"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -335,6 +397,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Barclaycard<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            domain_types::connector_flow::SetupMandate,
+            PaymentFlowData,
+            domain_types::connector_types::SetupMandateRequestData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(barclaycard_not_implemented("setup_mandate"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -345,6 +418,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Barclaycard<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            domain_types::connector_flow::VoidPC,
+            PaymentFlowData,
+            domain_types::connector_types::PaymentsCancelPostCaptureData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(barclaycard_not_implemented("void_post_capture"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -355,6 +439,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::PaymentMethodTokenResponse,
     > for Barclaycard<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            domain_types::connector_flow::PaymentMethodToken,
+            PaymentFlowData,
+            domain_types::connector_types::PaymentMethodTokenizationData<T>,
+            domain_types::connector_types::PaymentMethodTokenResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(barclaycard_not_implemented("payment_method_token"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -365,6 +460,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::ConnectorCustomerResponse,
     > for Barclaycard<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            domain_types::connector_flow::CreateConnectorCustomer,
+            PaymentFlowData,
+            domain_types::connector_types::ConnectorCustomerData,
+            domain_types::connector_types::ConnectorCustomerResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(barclaycard_not_implemented("create_connector_customer"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -375,6 +481,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::ServerAuthenticationTokenResponseData,
     > for Barclaycard<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            domain_types::connector_flow::ServerAuthenticationToken,
+            PaymentFlowData,
+            domain_types::connector_types::ServerAuthenticationTokenRequestData,
+            domain_types::connector_types::ServerAuthenticationTokenResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(barclaycard_not_implemented(
+            "create_server_authentication_token",
+        ))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -385,6 +504,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::ServerSessionAuthenticationTokenResponseData,
     > for Barclaycard<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            domain_types::connector_flow::ServerSessionAuthenticationToken,
+            PaymentFlowData,
+            domain_types::connector_types::ServerSessionAuthenticationTokenRequestData,
+            domain_types::connector_types::ServerSessionAuthenticationTokenResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(barclaycard_not_implemented(
+            "create_server_session_authentication_token",
+        ))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -395,6 +527,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Barclaycard<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            domain_types::connector_flow::ClientAuthenticationToken,
+            PaymentFlowData,
+            domain_types::connector_types::ClientAuthenticationTokenRequestData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(barclaycard_not_implemented(
+            "create_client_authentication_token",
+        ))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

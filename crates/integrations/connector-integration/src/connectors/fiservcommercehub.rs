@@ -488,6 +488,12 @@ macros::create_all_prerequisites!(
 // =============================================================================
 // CONNECTOR COMMON IMPLEMENTATION
 // =============================================================================
+
+fn fiservcommercehub_not_implemented(flow: &str) -> error_stack::Report<errors::IntegrationError> {
+    error_stack::report!(errors::IntegrationError::not_implemented(format!(
+        "{flow} flow for fiservcommercehub"
+    )))
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
     for Fiservcommercehub<T>
 {
@@ -814,7 +820,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ConnectorCustomerResponse,
         >,
     ) -> CustomResult<String, errors::IntegrationError> {
-        Err(fiservcommercehub_flow_not_supported("create_connector_customer"))
+        Err(fiservcommercehub_flow_not_supported(
+            "create_connector_customer",
+        ))
     }
 }
 
@@ -942,6 +950,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
     for Fiservcommercehub<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+    ) -> CustomResult<String, errors::IntegrationError> {
+        Err(fiservcommercehub_not_implemented("capture"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -961,7 +975,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, errors::IntegrationError> {
-        Err(fiservcommercehub_flow_not_supported("incremental_authorization"))
+        Err(fiservcommercehub_flow_not_supported(
+            "incremental_authorization",
+        ))
     }
 }
 
@@ -1233,6 +1249,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Fiservcommercehub<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            RepeatPayment,
+            PaymentFlowData,
+            RepeatPaymentData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, errors::IntegrationError> {
+        Err(fiservcommercehub_not_implemented("repeat_payment"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -1266,6 +1293,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Fiservcommercehub<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            SetupMandate,
+            PaymentFlowData,
+            SetupMandateRequestData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, errors::IntegrationError> {
+        Err(fiservcommercehub_not_implemented("setup_mandate"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

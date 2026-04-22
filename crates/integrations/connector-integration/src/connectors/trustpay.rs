@@ -1363,7 +1363,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(trustpay_flow_not_supported("create_client_authentication_token"))
+        Err(trustpay_flow_not_supported(
+            "create_client_authentication_token",
+        ))
     }
 }
 

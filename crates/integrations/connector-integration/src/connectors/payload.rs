@@ -59,6 +59,11 @@ fn payload_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationErro
         context: Default::default(),
     })
 }
+fn payload_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::not_implemented(format!(
+        "{flow} flow for payload"
+    )))
+}
 
 // Trait implementations with generic type parameters
 
@@ -612,7 +617,7 @@ macros::macro_connector_implementation!(
     }
 );
 
-// Stub implementations for unsupported flows
+// Explicit not implemented flow placeholders
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
         CreateOrder,
@@ -839,6 +844,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::PaymentMethodTokenResponse,
     > for Payload<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            domain_types::connector_flow::PaymentMethodToken,
+            PaymentFlowData,
+            domain_types::connector_types::PaymentMethodTokenizationData<T>,
+            domain_types::connector_types::PaymentMethodTokenResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(payload_not_implemented("payment_method_token"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -849,6 +865,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::ConnectorCustomerResponse,
     > for Payload<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            domain_types::connector_flow::CreateConnectorCustomer,
+            PaymentFlowData,
+            domain_types::connector_types::ConnectorCustomerData,
+            domain_types::connector_types::ConnectorCustomerResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(payload_not_implemented("create_connector_customer"))
+    }
 }
 
 // ClientAuthenticationToken flow implementation
@@ -906,7 +933,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             domain_types::connector_types::ServerAuthenticationTokenResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(payload_flow_not_supported("create_server_authentication_token"))
+        Err(payload_flow_not_supported(
+            "create_server_authentication_token",
+        ))
     }
 }
 

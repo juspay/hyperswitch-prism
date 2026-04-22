@@ -41,14 +41,17 @@ pub(crate) mod headers {
     pub(crate) const AUTHORIZATION: &str = "Authorization";
 }
 
-fn pinelabs_online_flow_not_supported(
-    flow: &str,
-) -> error_stack::Report<errors::IntegrationError> {
+fn pinelabs_online_flow_not_supported(flow: &str) -> error_stack::Report<errors::IntegrationError> {
     error_stack::report!(errors::IntegrationError::FlowNotSupported {
         flow: flow.to_string(),
         connector: "PinelabsOnline".to_string(),
         context: Default::default(),
     })
+}
+fn pinelabs_online_not_implemented(flow: &str) -> error_stack::Report<errors::IntegrationError> {
+    error_stack::report!(errors::IntegrationError::not_implemented(format!(
+        "{flow} flow for pinelabs_online"
+    )))
 }
 
 // ========== Marker trait implementations ==========
@@ -845,7 +848,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, errors::IntegrationError> {
-        Err(pinelabs_online_flow_not_supported("incremental_authorization"))
+        Err(pinelabs_online_flow_not_supported(
+            "incremental_authorization",
+        ))
     }
 }
 
@@ -857,6 +862,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentMethodTokenResponse,
     > for PinelabsOnline<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            PaymentMethodToken,
+            PaymentFlowData,
+            PaymentMethodTokenizationData<T>,
+            PaymentMethodTokenResponse,
+        >,
+    ) -> CustomResult<String, errors::IntegrationError> {
+        Err(pinelabs_online_not_implemented("payment_method_token"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -867,6 +883,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for PinelabsOnline<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            PreAuthenticate,
+            PaymentFlowData,
+            PaymentsPreAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, errors::IntegrationError> {
+        Err(pinelabs_online_not_implemented("pre_authenticate"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -877,6 +904,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for PinelabsOnline<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            Authenticate,
+            PaymentFlowData,
+            PaymentsAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, errors::IntegrationError> {
+        Err(pinelabs_online_not_implemented("authenticate"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -887,6 +925,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for PinelabsOnline<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            PostAuthenticate,
+            PaymentFlowData,
+            PaymentsPostAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, errors::IntegrationError> {
+        Err(pinelabs_online_not_implemented("post_authenticate"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -906,7 +955,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ConnectorCustomerResponse,
         >,
     ) -> CustomResult<String, errors::IntegrationError> {
-        Err(pinelabs_online_flow_not_supported("create_connector_customer"))
+        Err(pinelabs_online_flow_not_supported(
+            "create_connector_customer",
+        ))
     }
 }
 
@@ -939,6 +990,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         MandateRevokeResponseData,
     > for PinelabsOnline<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            MandateRevoke,
+            PaymentFlowData,
+            MandateRevokeRequestData,
+            MandateRevokeResponseData,
+        >,
+    ) -> CustomResult<String, errors::IntegrationError> {
+        Err(pinelabs_online_not_implemented("mandate_revoke"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -949,6 +1011,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for PinelabsOnline<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            SetupMandate,
+            PaymentFlowData,
+            SetupMandateRequestData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, errors::IntegrationError> {
+        Err(pinelabs_online_not_implemented("setup_mandate"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -959,6 +1032,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for PinelabsOnline<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            RepeatPayment,
+            PaymentFlowData,
+            RepeatPaymentData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, errors::IntegrationError> {
+        Err(pinelabs_online_not_implemented("repeat_payment"))
+    }
 }
 
 macros::macro_connector_payout_implementation!(

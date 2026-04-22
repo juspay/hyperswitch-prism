@@ -37,12 +37,21 @@ pub(crate) mod headers {
     pub(crate) const AUTHORIZATION: &str = "Authorization";
 }
 
-fn itaubank_flow_not_supported(flow: &str) -> error_stack::Report<errors::IntegrationError> {
+fn itaubank_flow_not_supported(
+    flow: &str,
+) -> error_stack::Report<errors::IntegrationError> {
     error_stack::report!(errors::IntegrationError::FlowNotSupported {
         flow: flow.to_string(),
         connector: "Itaubank".to_string(),
         context: Default::default(),
     })
+}
+fn itaubank_not_implemented(
+    flow: &str,
+) -> error_stack::Report<errors::IntegrationError> {
+    error_stack::report!(errors::IntegrationError::not_implemented(
+        format!("{flow} flow for itaubank")
+    ))
 }
 
 use std::fmt::Debug;
@@ -449,6 +458,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Itaubank<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            Authorize,
+            PaymentFlowData,
+            PaymentsAuthorizeData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, errors::IntegrationError> {
+        Err(itaubank_not_implemented("authorize"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -460,6 +480,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
     for Itaubank<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+    ) -> CustomResult<String, errors::IntegrationError> {
+        Err(itaubank_not_implemented("payment_sync"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -531,6 +557,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
     for Itaubank<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+    ) -> CustomResult<String, errors::IntegrationError> {
+        Err(itaubank_not_implemented("refund"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -542,6 +574,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
     for Itaubank<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+    ) -> CustomResult<String, errors::IntegrationError> {
+        Err(itaubank_not_implemented("refund_sync"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -557,6 +595,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Itaubank<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            SetupMandate,
+            PaymentFlowData,
+            SetupMandateRequestData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, errors::IntegrationError> {
+        Err(itaubank_not_implemented("setup_mandate"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -572,6 +621,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Itaubank<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            RepeatPayment,
+            PaymentFlowData,
+            RepeatPaymentData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, errors::IntegrationError> {
+        Err(itaubank_not_implemented("repeat_payment"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -596,7 +656,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, errors::IntegrationError> {
-        Err(itaubank_flow_not_supported("create_client_authentication_token"))
+        Err(itaubank_flow_not_supported(
+            "create_client_authentication_token",
+        ))
     }
 }
 
@@ -905,6 +967,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         VerifyWebhookSourceResponseData,
     > for Itaubank<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            VerifyWebhookSource,
+            VerifyWebhookSourceFlowData,
+            VerifyWebhookSourceRequestData,
+            VerifyWebhookSourceResponseData,
+        >,
+    ) -> CustomResult<String, errors::IntegrationError> {
+        Err(itaubank_not_implemented("verify_webhook_source"))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
