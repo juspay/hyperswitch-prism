@@ -32,6 +32,10 @@ pub fn create_router(state: AppState) -> Router {
             "/composite/payments/capture",
             post(handlers::composite::payments::capture),
         )
+        .route(
+            "/composite/events/handle",
+            post(handlers::composite::events::handle_event),
+        )
         .route("/payments/authorize", post(handlers::payments::authorize))
         // .route(
         //     "/payments/authorize_only",
@@ -95,6 +99,9 @@ pub fn create_router(state: AppState) -> Router {
             "/payments/verify_redirect_response",
             post(handlers::payments::verify_redirect_response),
         )
+        // EventService routes
+        .route("/events/parse", post(handlers::payments::parse_event))
+        .route("/events/handle", post(handlers::payments::handle_event))
         // RefundService routes
         .route("/refunds/get", post(handlers::refunds::get_refund))
         .route(

@@ -322,7 +322,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   RequestDetails: { "headers": "HeadersEntry" },
   EventServiceHandleResponse: { "eventContent": "EventContent", "eventAckResponse": "EventAckResponse" },
   EventAckResponse: { "headers": "HeadersEntry" },
-  EventContent: { "paymentsResponse": "PaymentServiceGetResponse", "refundsResponse": "RefundResponse", "disputesResponse": "DisputeResponse", "incompleteTransformation": "IncompleteTransformationResponse" },
+  EventContent: { "paymentsResponse": "PaymentServiceGetResponse", "refundsResponse": "RefundResponse", "disputesResponse": "DisputeResponse" },
   InteracCustomerInfo: { "customerInfo": "CustomerInfo" },
   BankRedirectConnectorResponse: { "interac": "InteracCustomerInfo" },
   AdditionalPaymentMethodConnectorResponse: { "card": "CardConnectorResponse", "upi": "UpiConnectorResponse", "googlePay": "GooglePayConnectorResponse", "applePay": "ApplePayConnectorResponse", "bankRedirect": "BankRedirectConnectorResponse" },
@@ -377,7 +377,11 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   PaymentMethodAuthenticationServicePostAuthenticateResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "redirectionData": "RedirectForm", "authenticationData": "AuthenticationData", "state": "ConnectorState" },
   PaymentServiceIncrementalAuthorizationRequest: { "amount": "Money", "state": "ConnectorState" },
   PaymentServiceIncrementalAuthorizationResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "state": "ConnectorState" },
-  EventServiceHandleRequest: { "requestDetails": "RequestDetails", "webhookSecrets": "WebhookSecrets", "state": "ConnectorState" },
+  EventReference: { "payment": "PaymentEventReference", "refund": "RefundEventReference", "dispute": "DisputeEventReference", "mandate": "MandateEventReference", "payout": "PayoutEventReference" },
+  EventServiceParseRequest: { "requestDetails": "RequestDetails" },
+  EventServiceParseResponse: { "reference": "EventReference" },
+  EventContext: { "payment": "PaymentEventContext", "refund": "RefundEventContext", "dispute": "DisputeEventContext", "mandate": "MandateEventContext", "payout": "PayoutEventContext" },
+  EventServiceHandleRequest: { "requestDetails": "RequestDetails", "webhookSecrets": "WebhookSecrets", "accessToken": "AccessToken", "eventContext": "EventContext" },
   PaymentServiceVerifyRedirectResponseRequest: { "requestDetails": "RequestDetails", "redirectResponseSecrets": "RedirectResponseSecrets" },
   PaymentServiceVerifyRedirectResponseResponse: { "responseAmount": "Money", "error": "ErrorInfo" },
   RefundServiceGetRequest: { "browserInfo": "BrowserInformation", "state": "ConnectorState" },
@@ -531,7 +535,12 @@ export class GrpcDisputeClient {
 export class GrpcEventClient {
   constructor(private ffi: GrpcFfi, private config: GrpcConfig) {}
 
-  /** EventService.HandleEvent — Process webhook notifications from connectors. Translates connector events into standardized responses for asynchronous payment state updates. */
+  /** EventService.ParseEvent — Parse a raw webhook payload without credentials. Returns resource reference and event type — sufficient to resolve secrets or early-exit. */
+  async parseEvent(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "event/parse_event",
+      req, types.EventServiceParseRequest, types.EventServiceParseResponse);
+  }
+  /** EventService.HandleEvent — Verify webhook source and return a unified typed response. Response mirrors PaymentService.Get / RefundService.Get / DisputeService.Get. */
   async handleEvent(req: unknown): Promise<unknown> {
     return callGrpc(this.ffi, this.config, "event/handle_event",
       req, types.EventServiceHandleRequest, types.EventServiceHandleResponse);

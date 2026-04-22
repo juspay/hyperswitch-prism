@@ -507,12 +507,46 @@
     },
     "handle_event": {
       "default": {
-        "status": "supported"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"webhookId\":\"probe_wh_001\",\"webhookType\":\"PAYMENT\",\"transaction\":{\"transactionId\":\"probe_txn_001\",\"referenceId\":\"probe_ref_001\",\"transactionResult\":\"ACK\",\"transactionType\":\"DEBIT\",\"paymentMethod\":\"probe_pm\"}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"webhookId\":\"probe_wh_001\",\"webhookType\":\"PAYMENT\",\"transaction\":{\"transactionId\":\"probe_txn_001\",\"referenceId\":\"probe_ref_001\",\"transactionResult\":\"ACK\",\"transactionType\":\"DEBIT\",\"paymentMethod\":\"probe_pm\"}}"
+        }
       }
     },
     "incremental_authorization": {
       "default": {
         "status": "not_implemented"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"webhookId\":\"probe_wh_001\",\"webhookType\":\"PAYMENT\",\"transaction\":{\"transactionId\":\"probe_txn_001\",\"referenceId\":\"probe_ref_001\",\"transactionResult\":\"ACK\",\"transactionType\":\"DEBIT\",\"paymentMethod\":\"probe_pm\"}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"webhookId\":\"probe_wh_001\",\"webhookType\":\"PAYMENT\",\"transaction\":{\"transactionId\":\"probe_txn_001\",\"referenceId\":\"probe_ref_001\",\"transactionResult\":\"ACK\",\"transactionType\":\"DEBIT\",\"paymentMethod\":\"probe_pm\"}}"
+        }
       }
     },
     "post_authenticate": {

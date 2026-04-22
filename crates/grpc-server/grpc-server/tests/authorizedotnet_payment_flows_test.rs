@@ -393,7 +393,6 @@ fn create_payment_get_request(transaction_id: &str) -> PaymentServiceGetRequest 
         connector_transaction_id: transaction_id.to_string(),
         encoded_data: None,
         capture_method: None,
-        handle_response: None,
         merchant_transaction_id: None,
         amount: Some(grpc_api_types::payments::Money {
             minor_amount: TEST_AMOUNT,

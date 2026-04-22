@@ -116,8 +116,6 @@ use common_utils::events::{Event, EventConfig, FlowName};
 // TokenData is now imported from hyperswitch_injector
 use common_utils::{consts, emit_event_with_config};
 use error_stack::{report, ResultExt};
-#[cfg(feature = "injector-client")]
-use hyperswitch_masking::ErasedMaskSerialize;
 use hyperswitch_masking::Maskable;
 #[cfg(feature = "injector-client")]
 use injector::{injector_core, HttpMethod, TokenData};
@@ -290,6 +288,7 @@ pub struct EventProcessingParams<'a> {
     pub reference_id: &'a Option<String>,
     pub resource_id: &'a Option<String>,
     pub shadow_mode: bool,
+    pub tenant_id: &'a str,
 }
 
 #[cfg(feature = "injector-client")]
@@ -336,46 +335,18 @@ where
     let start = tokio::time::Instant::now();
     let transport_type = connector.get_transport_type();
     let result = match (call_connector_action, transport_type) {
-        (common_enums::CallConnectorAction::HandleResponse(res), _) => {
-            let body = Response {
-                headers: None,
-                response: res.into(),
-                status_code: 200,
-            };
-
-            let status_code = body.status_code;
-            tracing::Span::current().record("status_code", tracing::field::display(status_code));
-            if let Ok(response) = parse_json_with_bom_handling(&body.response) {
-                tracing::Span::current().record(
-                    "response.body",
-                    tracing::field::display(response.masked_serialize().unwrap_or(
-                        json!({ "error": "failed to mask serialize connector response"}),
-                    )),
-                );
-            }
-
-            // Set raw_connector_response BEFORE calling the transformer
-            let mut updated_router_data = router_data.clone();
-            if all_keys_required.unwrap_or(true) {
-                let raw_response_string = strip_bom_and_convert_to_string(&body.response);
-                updated_router_data
-                    .resource_common_data
-                    .set_raw_connector_response(raw_response_string.map(Into::into));
-            }
-
-            let handle_response_result =
-                connector.handle_response_v2(&updated_router_data, None, body.clone());
-
-            let response = match handle_response_result {
-                Ok(data) => {
-                    tracing::info!("Transformer completed successfully");
-                    Ok(data)
+        // handle_response removed from proto (PaymentServiceGetRequest field 5 reserved)
+        (common_enums::CallConnectorAction::HandleResponse(_), _) => {
+            return Err(error_stack::report!(ConnectorFlowError::from(
+                IntegrationError::NotSupported {
+                    message:
+                        "The handle_response field has been removed from PaymentServiceGetRequest \
+                              (proto field 5 reserved). This flow is no longer supported."
+                            .into(),
+                    connector: "N/A",
+                    context: Default::default(),
                 }
-                Err(err) => Err(err),
-            }
-            .map_err(report_connector_response_to_flow)?;
-
-            Ok(response)
+            )));
         }
         (common_enums::CallConnectorAction::Trigger, TransportType::Http) => {
             let mut connector_request = connector
@@ -785,7 +756,7 @@ fn create_event(
 
     let mut event = Event {
         request_id: request_id.to_string(),
-        timestamp: chrono::Utc::now().timestamp().into(),
+        timestamp: chrono::Utc::now().timestamp_millis().into(),
         flow_type: event_params.flow_name,
         connector: event_params.connector_name.to_string(),
         url,
@@ -805,6 +776,7 @@ fn create_event(
     event.add_resource_id(event_params.resource_id.as_deref());
     event.add_service_type(event_params.service_type);
     event.add_service_name(event_params.service_name);
+    event.add_tenant_id(event_params.tenant_id);
 
     event
 }
@@ -1335,28 +1307,6 @@ fn extract_raw_connector_request(connector_request: &Request) -> String {
         "body": body_content
     })
     .to_string()
-}
-
-#[cfg(feature = "injector-client")]
-/// Helper function to parse JSON from response bytes with BOM handling
-fn parse_json_with_bom_handling(
-    response_bytes: &[u8],
-) -> Result<serde_json::Value, serde_json::Error> {
-    // Try direct parsing first (most common case)
-    match serde_json::from_slice::<serde_json::Value>(response_bytes) {
-        Ok(value) => Ok(value),
-        Err(_) => {
-            // If direct parsing fails, try after removing BOM
-            let cleaned_response = if response_bytes.starts_with(&[0xEF, 0xBB, 0xBF]) {
-                // UTF-8 BOM detected, remove it
-                #[allow(clippy::indexing_slicing)]
-                &response_bytes[3..]
-            } else {
-                response_bytes
-            };
-            serde_json::from_slice::<serde_json::Value>(cleaned_response)
-        }
-    }
 }
 
 pub(super) trait HeaderExt {

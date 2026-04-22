@@ -1,11 +1,11 @@
-use common_enums::WebhookTransformationStatus;
 use domain_types::{
-    errors::WebhookError, payment_method_data::PaymentMethodDataTypes,
-    router_data::ConnectorSpecificConfig, utils::ForeignTryFrom,
+    connector_types::EventContext, errors::WebhookError,
+    payment_method_data::PaymentMethodDataTypes, router_data::ConnectorSpecificConfig,
+    utils::ForeignTryFrom,
 };
 use error_stack::ResultExt;
 use grpc_api_types::payments::{
-    DisputeResponse, EventContent, EventServiceHandleResponse, EventStatus,
+    DisputeResponse, EventContent, EventServiceHandleResponse, EventServiceParseResponse,
     PaymentServiceGetResponse, RefundResponse, WebhookEventType,
 };
 
@@ -37,12 +37,12 @@ pub fn process_webhook_event<
     webhook_secrets: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
     connector_config: Option<ConnectorSpecificConfig>,
     source_verified: bool,
+    merchant_event_id: Option<String>,
+    event_context: Option<EventContext>,
 ) -> error_stack::Result<EventServiceHandleResponse, WebhookError> {
-    let event_type = connector_data.connector.get_event_type(
-        request_details.clone(),
-        webhook_secrets.clone(),
-        connector_config.clone(),
-    )?;
+    let event_type = connector_data
+        .connector
+        .get_event_type(request_details.clone())?;
 
     let api_event_type = WebhookEventType::foreign_try_from(event_type.clone())
         .change_context(WebhookError::WebhookProcessingFailed)?;
@@ -53,6 +53,7 @@ pub fn process_webhook_event<
             request_details,
             webhook_secrets,
             connector_config,
+            event_context.clone(),
         )?
     } else if event_type.is_refund_event() {
         get_refunds_webhook_content(
@@ -75,23 +76,40 @@ pub fn process_webhook_event<
             request_details,
             webhook_secrets,
             connector_config,
+            event_context,
         )?
-    };
-
-    let webhook_status = match event_content.content {
-        Some(grpc_api_types::payments::event_content::Content::IncompleteTransformation(_)) => {
-            EventStatus::Incomplete
-        }
-        _ => EventStatus::Complete,
     };
 
     Ok(EventServiceHandleResponse {
         event_type: api_event_type.into(),
         event_content: Some(event_content),
         source_verified,
-        merchant_event_id: None,
-        event_status: webhook_status.into(),
+        merchant_event_id,
         event_ack_response: None,
+    })
+}
+
+pub fn parse_webhook_event<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Default + Send + Sync + 'static,
+>(
+    connector_data: ConnectorData<T>,
+    request_details: domain_types::connector_types::RequestDetails,
+) -> error_stack::Result<EventServiceParseResponse, WebhookError> {
+    let event_type = connector_data
+        .connector
+        .get_event_type(request_details.clone())?;
+
+    let api_event_type = WebhookEventType::foreign_try_from(event_type)
+        .change_context(WebhookError::WebhookProcessingFailed)?;
+
+    let domain_reference = connector_data
+        .connector
+        .get_webhook_event_reference(request_details)
+        .attach_printable("Failed to extract event reference from webhook payload")?;
+
+    Ok(EventServiceParseResponse {
+        reference: domain_reference.map(Into::into),
+        event_type: Some(api_event_type.into()),
     })
 }
 
@@ -102,42 +120,24 @@ pub fn get_payments_webhook_content<
     request_details: domain_types::connector_types::RequestDetails,
     webhook_secrets: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
     connector_config: Option<ConnectorSpecificConfig>,
+    event_context: Option<EventContext>,
 ) -> error_stack::Result<EventContent, WebhookError> {
     let webhook_details = connector_data
         .connector
-        .process_payment_webhook(request_details.clone(), webhook_secrets, connector_config)
+        .process_payment_webhook(
+            request_details.clone(),
+            webhook_secrets,
+            connector_config,
+            event_context,
+        )
         .attach_printable("Failed to process payment webhook from connector")?;
 
-    match webhook_details.transformation_status {
-        WebhookTransformationStatus::Complete => {
-            let response = PaymentServiceGetResponse::foreign_try_from(webhook_details)
-                .change_context(WebhookError::WebhookProcessingFailed)?;
+    let response = PaymentServiceGetResponse::foreign_try_from(webhook_details)
+        .change_context(WebhookError::WebhookProcessingFailed)?;
 
-            Ok(EventContent {
-                content: Some(
-                    grpc_api_types::payments::event_content::Content::PaymentsResponse(response),
-                ),
-            })
-        }
-        WebhookTransformationStatus::Incomplete => {
-            let resource_object = connector_data
-                .connector
-                .get_webhook_resource_object(request_details)?;
-            let resource_object_vec = serde_json::to_vec(&resource_object)
-                .change_context(WebhookError::WebhookProcessingFailed)?;
-
-            Ok(EventContent {
-                content: Some(
-                    grpc_api_types::payments::event_content::Content::IncompleteTransformation(
-                        grpc_api_types::payments::IncompleteTransformationResponse {
-                            resource_object: resource_object_vec,
-                            reason: "Payment information required".to_string(),
-                        },
-                    ),
-                ),
-            })
-        }
-    }
+    Ok(EventContent {
+        content: Some(grpc_api_types::payments::event_content::Content::PaymentsResponse(response)),
+    })
 }
 
 pub fn get_refunds_webhook_content<

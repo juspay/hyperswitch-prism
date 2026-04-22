@@ -4,8 +4,9 @@ use external_services::shared_metrics as metrics;
 use grpc_api_types::{
     health_check::health_server,
     payments::{
-        composite_payment_service_server, composite_refund_service_server, customer_service_server,
-        dispute_service_server, event_service_server, merchant_authentication_service_server,
+        composite_event_service_server, composite_payment_service_server,
+        composite_refund_service_server, customer_service_server, dispute_service_server,
+        event_service_server, merchant_authentication_service_server,
         payment_method_authentication_service_server, payment_method_service_server,
         payment_service_server, recurring_payment_service_server, refund_service_server,
     },
@@ -106,6 +107,8 @@ pub struct Service {
         crate::server::payments::Customer,
         crate::server::refunds::Refunds,
     >,
+    pub composite_event_service:
+        composite_service::events::CompositeEvents<crate::server::events::EventServiceImpl>,
     pub payments_service: crate::server::payments::Payments,
     pub refunds_service: crate::server::refunds::Refunds,
     pub disputes_service: crate::server::disputes::Disputes,
@@ -156,14 +159,19 @@ impl Service {
             refunds_service.clone(),
         );
 
+        let event_service = crate::server::events::EventServiceImpl;
+        let composite_event_service =
+            composite_service::events::CompositeEvents::new(event_service.clone());
+
         Self {
             health_check_service: crate::server::health_check::HealthCheck,
             composite_payments_service,
+            composite_event_service,
             payments_service,
             refunds_service,
             disputes_service: crate::server::disputes::Disputes,
             recurring_payment_service: crate::server::payments::RecurringPayments,
-            event_service: crate::server::events::EventServiceImpl,
+            event_service,
             payment_method_service: crate::server::payments::PaymentMethod,
             merchant_authentication_service,
             customer_service,
@@ -205,6 +213,7 @@ impl Service {
         let config_override_layer = HttpRequestExtensionsLayer::new(base_config.clone());
         let app_state = crate::http::AppState::new(
             self.composite_payments_service,
+            self.composite_event_service,
             self.payments_service,
             self.refunds_service,
             self.disputes_service,
@@ -284,6 +293,11 @@ impl Service {
             .add_service(dispute_service_server::DisputeServiceServer::new(
                 self.disputes_service,
             ))
+            .add_service(
+                composite_event_service_server::CompositeEventServiceServer::new(
+                    self.composite_event_service,
+                ),
+            )
             .add_service(event_service_server::EventServiceServer::new(
                 self.event_service,
             ))

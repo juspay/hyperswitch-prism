@@ -20,6 +20,7 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "create_client_authentication_token",
     "create_customer",
     "get",
+    "incremental_authorization",
     "proxy_authorize",
     "proxy_setup_recurring",
     "recurring_charge",
@@ -128,6 +129,20 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
             minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
         }),
+        ..Default::default()
+    }
+}
+
+pub fn build_incremental_authorization_request() -> PaymentServiceIncrementalAuthorizationRequest {
+    PaymentServiceIncrementalAuthorizationRequest {
+        merchant_authorization_id: Some("probe_auth_001".to_string()), // Identification.
+        connector_transaction_id: "probe_connector_txn_001".to_string(),
+        amount: Some(Money {
+            // new amount to be authorized (in minor currency units).
+            minor_amount: 1100, // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        reason: Some("incremental_auth_probe".to_string()), // Optional Fields.
         ..Default::default()
     }
 }
@@ -586,6 +601,22 @@ pub async fn process_get(
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: PaymentService.IncrementalAuthorization
+#[allow(dead_code)]
+pub async fn process_incremental_authorization(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .incremental_authorization(
+            build_incremental_authorization_request(),
+            &HashMap::new(),
+            None,
+        )
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: PaymentService.ProxyAuthorize
 #[allow(dead_code)]
 pub async fn process_proxy_authorize(
@@ -698,6 +729,9 @@ async fn main() {
         }
         "process_create_customer" => process_create_customer(&client, "txn_001").await,
         "process_get" => process_get(&client, "txn_001").await,
+        "process_incremental_authorization" => {
+            process_incremental_authorization(&client, "txn_001").await
+        }
         "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
         "process_proxy_setup_recurring" => process_proxy_setup_recurring(&client, "txn_001").await,
         "process_recurring_charge" => process_recurring_charge(&client, "txn_001").await,
@@ -706,7 +740,7 @@ async fn main() {
         "process_token_authorize" => process_token_authorize(&client, "txn_001").await,
         "process_token_setup_recurring" => process_token_setup_recurring(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_get_payment, process_authorize, process_capture, process_create_client_authentication_token, process_create_customer, process_get, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_refund_get, process_setup_recurring, process_token_authorize, process_token_setup_recurring", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_get_payment, process_authorize, process_capture, process_create_client_authentication_token, process_create_customer, process_get, process_incremental_authorization, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_refund_get, process_setup_recurring, process_token_authorize, process_token_setup_recurring", flow);
             return;
         }
     };
