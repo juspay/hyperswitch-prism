@@ -276,8 +276,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn get_event_type(
         &self,
         request: RequestDetails,
-        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
         let payload = phonepe::decode_phonepe_webhook_payload(&request.body)?;
         Ok(phonepe::map_phonepe_webhook_state_to_event_type(
@@ -290,6 +288,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<domain_types::connector_types::EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
         let payload = phonepe::decode_phonepe_webhook_payload(&request.body)?;
 
@@ -316,7 +315,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
             status_code: 200,
             response_headers: None,
-            transformation_status: enums::WebhookTransformationStatus::Complete,
             amount_captured: None,
             minor_amount_captured: None,
             network_txn_id: None,
