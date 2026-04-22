@@ -392,8 +392,9 @@ pub fn get_card_issuer(
             return Ok(*k);
         }
     }
-    Err(error_stack::Report::new(IntegrationError::not_implemented(
-        "Card Type",
+    Err(error_stack::Report::new(IntegrationError::NotImplemented(
+        ("Card Type").into(),
+        Default::default(),
     )))
 }
 

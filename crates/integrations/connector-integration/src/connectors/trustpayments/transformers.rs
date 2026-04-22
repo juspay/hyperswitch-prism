@@ -421,8 +421,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 }))
             }
             _ => {
-                return Err(error_stack::report!(IntegrationError::not_implemented(
-                    "Payment method not supported".to_string()
+                return Err(error_stack::report!(IntegrationError::NotImplemented(
+                    "Payment method not supported".to_string(),
+                    Default::default()
                 )))
             }
         };
