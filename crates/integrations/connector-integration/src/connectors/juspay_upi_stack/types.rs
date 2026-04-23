@@ -159,6 +159,7 @@ pub struct RegisterIntentResponsePayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Status360ResponsePayload {
+    pub merchant_request_id: String,
     pub gateway_transaction_id: String,
     pub gateway_response_code: String,
 }

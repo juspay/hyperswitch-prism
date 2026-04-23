@@ -215,20 +215,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth = AxisbankAuthConfig::try_from(&router_data.connector_config)?;
         let shared_auth: SharedAuthConfig = auth.into();
 
-        let connector_transaction_id = router_data
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(IntegrationError::MissingRequiredField {
-                field_name: "connector_transaction_id",
-                context: IntegrationErrorContext {
-                    suggested_action: Some("Verify connector_transaction_id is provided in the PSync request".to_string()),
-                    doc_url: Some("https://juspay.io/in/docs/upi-merchant-stack/docs/transactions/transaction-status-360".to_string()),
-                    additional_context: Some("connector_transaction_id must be the original merchant_request_id from the Register Intent response. Used to query transaction status.".to_string()),
-                },
-            })?;
+        let merchant_transaction_id = router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
 
-        build_psync_request(connector_transaction_id, &shared_auth)
+        build_psync_request(merchant_transaction_id, &shared_auth)
     }
 }
 

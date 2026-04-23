@@ -361,13 +361,13 @@ pub fn build_authorize_request<T: PaymentMethodDataTypes + serde::Serialize>(
 
 /// Build a JWS-signed PSync (Status 360) request body.
 pub fn build_psync_request(
-    connector_transaction_id: String,
+    merchant_request_id: String,
     auth: &JuspayUpiAuthConfig,
 ) -> Result<JwsObject, error_stack::Report<IntegrationError>> {
     use crate::connectors::juspay_upi_stack::crypto::get_current_timestamp_ms;
 
     let status_request = Status360Request {
-        merchant_request_id: connector_transaction_id,
+        merchant_request_id,
         transaction_type: Status360TransactionType::MerchantCreditedViaPay,
         iat: get_current_timestamp_ms(),
     };
@@ -667,7 +667,11 @@ pub fn handle_psync_response(
     };
 
     let response_data = PaymentsResponseData::TransactionResponse {
-        resource_id: ResponseId::NoResponseId,
+        resource_id: response
+            .payload
+            .as_ref()
+            .map(|p| ResponseId::ConnectorTransactionId(p.gateway_transaction_id.clone()))
+            .unwrap_or(ResponseId::NoResponseId),
         redirection_data: None,
         connector_metadata: None,
         mandate_reference: None,
@@ -675,7 +679,7 @@ pub fn handle_psync_response(
         connector_response_reference_id: response
             .payload
             .as_ref()
-            .map(|p| p.gateway_transaction_id.clone()),
+            .map(|p| p.merchant_request_id.clone()),
         incremental_authorization_allowed: None,
         status_code: http_code,
     };
