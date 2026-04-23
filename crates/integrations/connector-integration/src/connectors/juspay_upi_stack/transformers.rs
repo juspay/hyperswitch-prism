@@ -6,17 +6,14 @@
 //! - Building request/response structures
 //! - Generic request builders and response handlers shared across all UPI bank connectors supported by Juspay UPI Stack
 
-use crate::connectors::juspay_upi_stack::{
-    constants::*,
-    crypto::sign_jws,
-    types::*,
-};
+use crate::connectors::juspay_upi_stack::{constants::*, crypto::sign_jws, types::*};
 use common_enums as enums;
 use common_utils::errors::CustomResult;
+use common_utils::SecretSerdeValue;
 use domain_types::{
     connector_types::{
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundsData, RefundsResponseData, RefundSyncData, ResponseId,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::PaymentMethodDataTypes,
@@ -24,12 +21,11 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
-use common_utils::SecretSerdeValue;
 use error_stack::ResultExt;
 use hyperswitch_masking::{Maskable, PeekInterface};
 
 /// Construct a UPI deeplink from register intent response parameters
-/// 
+///
 /// Keys are sorted alphabetically as per UPI specification.
 /// Template: upi://pay?am=<amount>&cu=<currency>&mc=<payeeMcc>&mode=<mode>&pa=<payeeVpa>&pn=<payeeName>&tid=<gatewayTransactionId>&tn=<remarks>&tr=<orderId>&url=<refUrl>
 pub fn construct_upi_deeplink(params: &RegisterIntentResponsePayload) -> String {
@@ -37,7 +33,7 @@ pub fn construct_upi_deeplink(params: &RegisterIntentResponsePayload) -> String 
     use urlencoding::encode;
 
     let mut params_map: BTreeMap<&str, String> = BTreeMap::new();
-    
+
     // Required parameters (sorted alphabetically by key)
     params_map.insert("am", params.amount.clone());
     params_map.insert("cu", params.currency.clone());
@@ -46,29 +42,35 @@ pub fn construct_upi_deeplink(params: &RegisterIntentResponsePayload) -> String 
     params_map.insert("pn", params.payee_name.clone());
     params_map.insert("tid", params.gateway_transaction_id.clone());
     params_map.insert("tr", params.order_id.clone());
-    
+
     // Mode (default to "00" if not present)
-    params_map.insert("mode", params.txn_initiation_mode.clone().unwrap_or_else(|| DEFAULT_TXN_INITIATION_MODE.to_string()));
-    
+    params_map.insert(
+        "mode",
+        params
+            .txn_initiation_mode
+            .clone()
+            .unwrap_or_else(|| DEFAULT_TXN_INITIATION_MODE.to_string()),
+    );
+
     // Optional parameters - only add if present
     if let Some(ref remarks) = params.remarks {
         if !remarks.is_empty() {
             params_map.insert("tn", remarks.clone());
         }
     }
-    
+
     if let Some(ref ref_url) = params.ref_url {
         if !ref_url.is_empty() {
             params_map.insert("url", ref_url.clone());
         }
     }
-    
+
     // Build query string with URL-encoded values
     let query: Vec<String> = params_map
         .iter()
         .map(|(k, v)| format!("{}={}", k, encode(v)))
         .collect();
-    
+
     format!("upi://pay?{}", query.join("&"))
 }
 
@@ -104,7 +106,7 @@ pub fn map_transaction_status(
         // Success - need to check gateway code for final status
         OuterResponseCode::Success => {
             if let Some(code) = gateway_response_code {
-                let gateway = GatewayResponseCode::from_str(code);
+                let gateway = GatewayResponseCode::parse(code);
                 match gateway {
                     GatewayResponseCode::Success => enums::AttemptStatus::Charged,
                     GatewayResponseCode::Pending
@@ -143,7 +145,7 @@ pub fn map_refund_status(
     } else {
         RefundStatus::from_offline_gateway_code(gateway_response_code, gateway_response_status)
     };
-    
+
     match refund_status {
         RefundStatus::Success => enums::RefundStatus::Success,
         RefundStatus::Pending => enums::RefundStatus::Pending,
@@ -159,7 +161,7 @@ pub fn sanitize_merchant_request_id(id: &str) -> String {
         .chars()
         .filter(|c| c.is_alphanumeric() || *c == '-' || *c == '.' || *c == '_')
         .collect();
-    
+
     if sanitized.len() > 35 {
         sanitized[..35].to_string()
     } else {
@@ -169,10 +171,7 @@ pub fn sanitize_merchant_request_id(id: &str) -> String {
 
 /// Truncate remarks to max 50 alphanumeric characters
 pub fn sanitize_remarks(remarks: &str) -> String {
-    let alphanumeric_only: String = remarks
-        .chars()
-        .take(50)
-        .collect();
+    let alphanumeric_only: String = remarks.chars().take(50).collect();
     alphanumeric_only
 }
 
@@ -215,7 +214,7 @@ pub fn build_error_response(
         // Any other unknown code defaults to failure
         _ => Some(enums::AttemptStatus::Failure),
     };
-    
+
     ErrorResponse {
         status_code,
         code: response_code.to_string(),
@@ -281,9 +280,7 @@ pub fn extract_merchant_identifiers_from_metadata(
         .ok_or_else(|| IntegrationError::MissingRequiredField {
             field_name: "metadata.merchant_id",
             context: IntegrationErrorContext {
-                suggested_action: Some(
-                    "Add 'merchant_id' field to request metadata".to_string(),
-                ),
+                suggested_action: Some("Add 'merchant_id' field to request metadata".to_string()),
                 doc_url: Some("https://juspay.io/in/docs/upi-merchant-stack".to_string()),
                 additional_context: Some(
                     "merchant_id is required for all Juspay UPI Stack bank connectors".to_string(),
@@ -346,7 +343,9 @@ pub fn build_authorize_request<T: PaymentMethodDataTypes + serde::Serialize>(
 
     // Sanitize merchant request ID
     let merchant_request_id = sanitize_merchant_request_id(
-        &router_data.resource_common_data.connector_request_reference_id,
+        &router_data
+            .resource_common_data
+            .connector_request_reference_id,
     );
     // UPI Request ID — must be strictly alphanumeric (max 35 chars, no hyphens/dots/underscores)
     let upi_request_id: String = merchant_request_id
@@ -375,24 +374,28 @@ pub fn build_authorize_request<T: PaymentMethodDataTypes + serde::Serialize>(
         iat: get_current_timestamp_ms(),
     };
 
-    let payload_json =
-        serde_json::to_string(&register_intent).change_context(IntegrationError::RequestEncodingFailed {
-            context: IntegrationErrorContext {
-                suggested_action: Some(
-                    "Verify all request fields have valid formats and lengths".to_string(),
-                ),
-                doc_url: Some(
-                    "https://juspay.io/in/docs/upi-merchant-stack/docs/transactions/register-intent"
-                        .to_string(),
-                ),
-                additional_context: Some(
-                    "upi_request_id must be max 35 alphanumeric characters. Amount must be a string."
-                        .to_string(),
-                ),
-            },
-        })?;
+    let payload_json = serde_json::to_string(&register_intent)
+        .change_context(IntegrationError::RequestEncodingFailed {
+        context: IntegrationErrorContext {
+            suggested_action: Some(
+                "Verify all request fields have valid formats and lengths".to_string(),
+            ),
+            doc_url: Some(
+                "https://juspay.io/in/docs/upi-merchant-stack/docs/transactions/register-intent"
+                    .to_string(),
+            ),
+            additional_context: Some(
+                "upi_request_id must be max 35 alphanumeric characters. Amount must be a string."
+                    .to_string(),
+            ),
+        },
+    })?;
 
-    sign_jws(&payload_json, &auth.merchant_private_key, &auth.merchant_kid)
+    sign_jws(
+        &payload_json,
+        &auth.merchant_private_key,
+        &auth.merchant_kid,
+    )
 }
 
 /// Build a JWS-signed PSync (Status 360) request body.
@@ -426,7 +429,11 @@ pub fn build_psync_request(
             },
         })?;
 
-    sign_jws(&payload_json, &auth.merchant_private_key, &auth.merchant_kid)
+    sign_jws(
+        &payload_json,
+        &auth.merchant_private_key,
+        &auth.merchant_kid,
+    )
 }
 
 /// Build a JWS-signed Refund (Refund 360) request body.
@@ -454,9 +461,9 @@ pub fn build_refund_request(
         (None, None)
     };
 
-    // Convert minor units (paise) to rupees with 2 decimal places
-    let amount_in_rupees = (refunds_data.minor_refund_amount.get_amount_as_i64() as f64) / 100.0;
-    let refund_amount = format!("{:.2}", amount_in_rupees);
+    // Convert minor units (paise) to rupees with 2 decimal places using integer arithmetic
+    let amount_minor = refunds_data.minor_refund_amount.get_amount_as_i64();
+    let refund_amount = minor_to_major_amount(amount_minor);
 
     let refund_request = Refund360Request {
         original_merchant_request_id: refunds_data.connector_transaction_id.clone(),
@@ -492,7 +499,11 @@ pub fn build_refund_request(
             },
         })?;
 
-    sign_jws(&payload_json, &auth.merchant_private_key, &auth.merchant_kid)
+    sign_jws(
+        &payload_json,
+        &auth.merchant_private_key,
+        &auth.merchant_kid,
+    )
 }
 
 /// Build a JWS-signed RSync (Refund Status 360) request body.
@@ -533,7 +544,11 @@ pub fn build_rsync_request(
             },
         })?;
 
-    sign_jws(&payload_json, &auth.merchant_private_key, &auth.merchant_kid)
+    sign_jws(
+        &payload_json,
+        &auth.merchant_private_key,
+        &auth.merchant_kid,
+    )
 }
 
 // ============================================================
@@ -543,7 +558,9 @@ pub fn build_rsync_request(
 // ============================================================
 
 /// Handle Authorize (Register Intent) response — shared across all UPI bank connectors.
-pub fn handle_authorize_response<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static>(
+pub fn handle_authorize_response<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static,
+>(
     response: RegisterIntentResponse,
     http_code: u16,
     router_data: RouterDataV2<
@@ -586,9 +603,7 @@ pub fn handle_authorize_response<T: PaymentMethodDataTypes + std::fmt::Debug + S
         let redirect_form = RedirectForm::Uri { uri: deeplink };
 
         let response_data = PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::ConnectorTransactionId(
-                payload.gateway_transaction_id.clone(),
-            ),
+            resource_id: ResponseId::ConnectorTransactionId(payload.gateway_transaction_id.clone()),
             redirection_data: Some(Box::new(redirect_form)),
             connector_metadata: None,
             mandate_reference: None,

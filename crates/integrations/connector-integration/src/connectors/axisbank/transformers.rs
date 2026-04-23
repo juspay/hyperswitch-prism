@@ -16,10 +16,10 @@ use crate::connectors::{
 };
 use crate::types::ResponseRouterData;
 use domain_types::{
-    connector_flow::{Authorize, PSync, Refund, RSync},
+    connector_flow::{Authorize, PSync, RSync, Refund},
     connector_types::{
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundsData, RefundsResponseData, RefundSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::PaymentMethodDataTypes,
@@ -86,7 +86,7 @@ impl From<AxisbankAuthConfig> for SharedAuthConfig {
             juspay_kid: config.juspay_kid,
             merchant_private_key: config.merchant_private_key,
             juspay_public_key: config.juspay_public_key,
-            use_jwe: true,  // Axis Bank uses JWE encryption for responses
+            use_jwe: true, // Axis Bank uses JWE encryption for responses
             jwe_kid: Some(jwe_kid),
             juspay_jwe_public_key: None,
             merchant_jwe_private_key: Some(merchant_private_key),
@@ -135,7 +135,12 @@ pub type AxisbankRefundSyncResponse = Refund360Response;
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         AxisbankRouterData<
-            RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     > for AxisbankPaymentsRequest
@@ -144,7 +149,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
     fn try_from(
         wrapper: AxisbankRouterData<
-            RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     ) -> Result<Self, Self::Error> {
@@ -173,7 +183,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static>
     TryFrom<
         ResponseRouterData<
             AxisbankPaymentsResponse,
-            RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+            Self,
         >,
     > for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
@@ -182,12 +192,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static>
     fn try_from(
         resp: ResponseRouterData<
             AxisbankPaymentsResponse,
-            RouterDataV2<
-                Authorize,
-                PaymentFlowData,
-                PaymentsAuthorizeData<T>,
-                PaymentsResponseData,
-            >,
+            Self,
         >,
     ) -> Result<Self, Self::Error> {
         handle_authorize_response(resp.response, resp.http_code, resp.router_data)
@@ -235,13 +240,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-impl TryFrom<ResponseRouterData<AxisbankSyncResponse, RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>>>
-    for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
+impl
+    TryFrom<
+        ResponseRouterData<
+            AxisbankSyncResponse,
+            Self,
+        >,
+    > for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        resp: ResponseRouterData<AxisbankSyncResponse, RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>>,
+        resp: ResponseRouterData<
+            AxisbankSyncResponse,
+            Self,
+        >,
     ) -> Result<Self, Self::Error> {
         handle_psync_response(resp.response, resp.http_code, resp.router_data)
     }
@@ -279,7 +292,7 @@ impl
     TryFrom<
         ResponseRouterData<
             AxisbankRefundResponse,
-            RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+            Self,
         >,
     > for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
@@ -288,7 +301,7 @@ impl
     fn try_from(
         resp: ResponseRouterData<
             AxisbankRefundResponse,
-            RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+            Self,
         >,
     ) -> Result<Self, Self::Error> {
         handle_refund_response(resp.response, resp.http_code, resp.router_data)
@@ -330,7 +343,7 @@ impl
     TryFrom<
         ResponseRouterData<
             AxisbankRefundSyncResponse,
-            RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+            Self,
         >,
     > for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
@@ -339,7 +352,7 @@ impl
     fn try_from(
         resp: ResponseRouterData<
             AxisbankRefundSyncResponse,
-            RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+            Self,
         >,
     ) -> Result<Self, Self::Error> {
         handle_rsync_response(resp.response, resp.http_code, resp.router_data)

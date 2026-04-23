@@ -2924,7 +2924,12 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                 _ => Err(err().into()),
             },
             ConnectorEnum::Axisbank => match auth {
-                ConnectorAuthType::MultiAuthKey { api_key, key1, api_secret, key2 } => Ok(Self::Axisbank {
+                ConnectorAuthType::MultiAuthKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                    key2,
+                } => Ok(Self::Axisbank {
                     merchant_kid: api_key.clone(),
                     juspay_kid: key1.clone(),
                     merchant_private_key: api_secret.clone(),

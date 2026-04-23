@@ -22,8 +22,6 @@ pub const ADJ_CODE_DUPLICATE_TXN: &str = "1084";
 pub const ADJ_CODE_ALTERNATE_PAYMENT: &str = "1063";
 pub const ADJ_CODE_RETURNED_GOODS: &str = "1061";
 
-/// Reference category for payments
-
 /// Default intent expiry minutes
 pub const DEFAULT_INTENT_EXPIRY_MINUTES: &str = "5";
 

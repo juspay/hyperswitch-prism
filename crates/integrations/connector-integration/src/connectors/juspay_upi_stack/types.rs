@@ -91,7 +91,10 @@ pub struct Refund360Request {
     pub adj_flag: Option<String>,
     #[serde(rename = "merchantRefundVpa", skip_serializing_if = "Option::is_none")]
     pub merchant_refund_vpa: Option<String>,
-    #[serde(rename = "originalTransactionTimestamp", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "originalTransactionTimestamp",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub original_transaction_timestamp: Option<String>,
     pub iat: String,
 }
@@ -162,11 +165,17 @@ pub struct Status360ResponsePayload {
     #[serde(rename = "gatewayResponseStatus")]
     pub gateway_response_status: String,
     pub amount: String,
-    #[serde(rename = "bankAccountUniqueId", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "bankAccountUniqueId",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub bank_account_unique_id: Option<String>,
     #[serde(rename = "bankCode", skip_serializing_if = "Option::is_none")]
     pub bank_code: Option<String>,
-    #[serde(rename = "transactionTimestamp", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "transactionTimestamp",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub transaction_timestamp: Option<String>,
     #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
     pub transaction_type: Option<String>,
@@ -185,7 +194,10 @@ pub struct Refund360ResponsePayload {
     pub merchant_channel_id: String,
     #[serde(rename = "refundRequestId")]
     pub refund_request_id: String,
-    #[serde(rename = "originalMerchantRequestId", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "originalMerchantRequestId",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub original_merchant_request_id: Option<String>,
     #[serde(rename = "gatewayResponseCode")]
     pub gateway_response_code: String,
@@ -195,9 +207,15 @@ pub struct Refund360ResponsePayload {
     pub gateway_response_message: String,
     #[serde(rename = "gatewayTransactionId")]
     pub gateway_transaction_id: String,
-    #[serde(rename = "gatewayRefundTransactionId", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "gatewayRefundTransactionId",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub gateway_refund_transaction_id: Option<String>,
-    #[serde(rename = "gatewayRefundReferenceId", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "gatewayRefundReferenceId",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub gateway_refund_reference_id: Option<String>,
     #[serde(rename = "refundAmount")]
     pub refund_amount: String,
@@ -325,10 +343,10 @@ impl OuterResponseCode {
     pub fn is_terminal(&self) -> bool {
         matches!(
             self,
-            OuterResponseCode::Success
-                | OuterResponseCode::Failure
-                | OuterResponseCode::RequestExpired
-                | OuterResponseCode::Dropout
+            Self::Success
+                | Self::Failure
+                | Self::RequestExpired
+                | Self::Dropout
         )
     }
 
@@ -336,10 +354,10 @@ impl OuterResponseCode {
     pub fn is_pending(&self) -> bool {
         matches!(
             self,
-            OuterResponseCode::RequestPending
-                | OuterResponseCode::RequestNotFound
-                | OuterResponseCode::ServiceUnavailable
-                | OuterResponseCode::GatewayTimeout
+            Self::RequestPending
+                | Self::RequestNotFound
+                | Self::ServiceUnavailable
+                | Self::GatewayTimeout
         )
     }
 
@@ -347,17 +365,17 @@ impl OuterResponseCode {
     pub fn is_failure(&self) -> bool {
         matches!(
             self,
-            OuterResponseCode::Failure
-                | OuterResponseCode::BadRequest
-                | OuterResponseCode::InvalidData
-                | OuterResponseCode::Unauthorized
-                | OuterResponseCode::InvalidMerchant
-                | OuterResponseCode::DeviceFingerprintMismatch
-                | OuterResponseCode::InternalServerError
-                | OuterResponseCode::InvalidTransactionId
-                | OuterResponseCode::UninitiatedRequest
-                | OuterResponseCode::InvalidRefundAmount
-                | OuterResponseCode::DuplicateRequest
+            Self::Failure
+                | Self::BadRequest
+                | Self::InvalidData
+                | Self::Unauthorized
+                | Self::InvalidMerchant
+                | Self::DeviceFingerprintMismatch
+                | Self::InternalServerError
+                | Self::InvalidTransactionId
+                | Self::UninitiatedRequest
+                | Self::InvalidRefundAmount
+                | Self::DuplicateRequest
         )
     }
 }
@@ -397,23 +415,24 @@ pub enum GatewayResponseCode {
 }
 
 impl GatewayResponseCode {
-    /// Parse gateway response code
-    pub fn from_str(code: &str) -> Self {
+    /// Parse gateway response code from a string
+    #[must_use]
+    pub fn parse(code: &str) -> Self {
         match code {
-            "00" => GatewayResponseCode::Success,
-            "01" => GatewayResponseCode::Pending,
-            "RB" => GatewayResponseCode::Deemed,
-            "ZA" => GatewayResponseCode::Declined,
-            "U69" => GatewayResponseCode::Expired,
-            "ZH" => GatewayResponseCode::BeneAddrIncorrect,
-            "X1" => GatewayResponseCode::IntentExpired,
-            "YG" => GatewayResponseCode::ValidationError,
-            "JPMR" => GatewayResponseCode::MandateRevoked,
-            "JPMP" => GatewayResponseCode::MandatePaused,
-            "JPMC" => GatewayResponseCode::MandateCompleted,
-            "JPMD" => GatewayResponseCode::MandateDeclined,
-            "JPMX" => GatewayResponseCode::MandateExpired,
-            unknown => GatewayResponseCode::Unknown(unknown.to_string()),
+            "00" => Self::Success,
+            "01" => Self::Pending,
+            "RB" => Self::Deemed,
+            "ZA" => Self::Declined,
+            "U69" => Self::Expired,
+            "ZH" => Self::BeneAddrIncorrect,
+            "X1" => Self::IntentExpired,
+            "YG" => Self::ValidationError,
+            "JPMR" => Self::MandateRevoked,
+            "JPMP" => Self::MandatePaused,
+            "JPMC" => Self::MandateCompleted,
+            "JPMD" => Self::MandateDeclined,
+            "JPMX" => Self::MandateExpired,
+            unknown => Self::Unknown(unknown.to_string()),
         }
     }
 }
@@ -442,11 +461,11 @@ impl RefundStatus {
     /// Parse refund status from UDIR gateway response code
     /// Uses GatewayResponseCode enum for exhaustive matching
     pub fn from_udir_gateway_code(code: &str, _status: &str) -> Self {
-        let gateway = GatewayResponseCode::from_str(code);
+        let gateway = GatewayResponseCode::parse(code);
         match gateway {
-            GatewayResponseCode::Success => RefundStatus::Success,
-            GatewayResponseCode::Pending => RefundStatus::Pending,
-            GatewayResponseCode::Deemed => RefundStatus::Deemed,
+            GatewayResponseCode::Success => Self::Success,
+            GatewayResponseCode::Pending => Self::Pending,
+            GatewayResponseCode::Deemed => Self::Deemed,
             GatewayResponseCode::Declined
             | GatewayResponseCode::Expired
             | GatewayResponseCode::BeneAddrIncorrect
@@ -457,18 +476,18 @@ impl RefundStatus {
             | GatewayResponseCode::MandateCompleted
             | GatewayResponseCode::MandateDeclined
             | GatewayResponseCode::MandateExpired
-            | GatewayResponseCode::Unknown(_) => RefundStatus::Failed,
+            | GatewayResponseCode::Unknown(_) => Self::Failed,
         }
     }
 
     /// Parse refund status from offline/online gateway response code
     /// Uses GatewayResponseCode enum for exhaustive matching
     pub fn from_offline_gateway_code(code: &str, _status: &str) -> Self {
-        let gateway = GatewayResponseCode::from_str(code);
+        let gateway = GatewayResponseCode::parse(code);
         match gateway {
             GatewayResponseCode::Success
             | GatewayResponseCode::Pending
-            | GatewayResponseCode::Deemed => RefundStatus::Pending,
+            | GatewayResponseCode::Deemed => Self::Pending,
             GatewayResponseCode::Declined
             | GatewayResponseCode::Expired
             | GatewayResponseCode::BeneAddrIncorrect
@@ -479,7 +498,7 @@ impl RefundStatus {
             | GatewayResponseCode::MandateCompleted
             | GatewayResponseCode::MandateDeclined
             | GatewayResponseCode::MandateExpired
-            | GatewayResponseCode::Unknown(_) => RefundStatus::Failed,
+            | GatewayResponseCode::Unknown(_) => Self::Failed,
         }
     }
 }

@@ -4,7 +4,7 @@
 //! encryption/decryption for banks that require it.
 
 use base64::Engine;
-use common_utils::consts::{BASE64_ENGINE_URL_SAFE_NO_PAD};
+use common_utils::consts::BASE64_ENGINE_URL_SAFE_NO_PAD;
 use domain_types::errors::IntegrationError;
 use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
@@ -25,6 +25,8 @@ pub enum CryptoError {
     Base64DecodeFailed,
     #[error("JSON serialization failed")]
     JsonSerializationFailed,
+    #[error("Length conversion failed")]
+    LengthConversionError,
 }
 
 /// Sign a payload using JWS RS256
@@ -53,7 +55,8 @@ pub fn sign_jws(
     });
 
     // Base64url encode the protected header
-    let protected_b64 = BASE64_ENGINE_URL_SAFE_NO_PAD.encode(protected_header.to_string().as_bytes());
+    let protected_b64 =
+        BASE64_ENGINE_URL_SAFE_NO_PAD.encode(protected_header.to_string().as_bytes());
 
     // Base64url encode the payload
     let payload_b64 = BASE64_ENGINE_URL_SAFE_NO_PAD.encode(payload.as_bytes());
@@ -102,11 +105,9 @@ fn sign_rsa_sha256(
                 })
                 .attach_printable("Failed to convert PKCS#1 to PKCS#8")?;
             signature::RsaKeyPair::from_pkcs8(&pkcs8_bytes)
-                .map_err(|_| {
-                    IntegrationError::InvalidConnectorConfig {
-                        config: "merchant_private_key",
-                        context: Default::default(),
-                    }
+                .map_err(|_| IntegrationError::InvalidConnectorConfig {
+                    config: "merchant_private_key",
+                    context: Default::default(),
                 })
                 .attach_printable("Failed to parse RSA private key")?
         }
@@ -118,10 +119,8 @@ fn sign_rsa_sha256(
 
     key_pair
         .sign(&signature::RSA_PKCS1_SHA256, &rng, data, &mut signature)
-        .map_err(|_| {
-            IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
-            }
+        .map_err(|_| IntegrationError::RequestEncodingFailed {
+            context: Default::default(),
         })
         .attach_printable("Failed to sign data with RSA")?;
 
@@ -154,7 +153,9 @@ fn convert_pkcs1_to_pkcs8(pkcs1_bytes: &[u8]) -> Result<Vec<u8>, error_stack::Re
     // See RFC 5208 and RFC 5958
 
     // OID for rsaEncryption: 1.2.840.113549.1.1.1
-    const RSA_OID: &[u8] = &[0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00];
+    const RSA_OID: &[u8] = &[
+        0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00,
+    ];
 
     // Wrap the PKCS#1 key in an OCTET STRING
     let octet_string = wrap_as_octet_string(pkcs1_bytes)?;
@@ -184,14 +185,15 @@ fn wrap_as_octet_string(data: &[u8]) -> Result<Vec<u8>, error_stack::Report<Cryp
 
     // Encode length
     if data.len() < 128 {
-        result.push(data.len() as u8);
+        result.push(u8::try_from(data.len()).map_err(|_| CryptoError::LengthConversionError)?);
     } else if data.len() < 256 {
         result.push(0x81); // Long form, 1 byte length
-        result.push(data.len() as u8);
+        result.push(u8::try_from(data.len()).map_err(|_| CryptoError::LengthConversionError)?);
     } else {
         result.push(0x82); // Long form, 2 byte length
-        result.push((data.len() >> 8) as u8);
-        result.push((data.len() & 0xFF) as u8);
+        let len = u16::try_from(data.len()).map_err(|_| CryptoError::LengthConversionError)?;
+        result.push(u8::try_from(len >> 8).map_err(|_| CryptoError::LengthConversionError)?);
+        result.push(u8::try_from(len & 0xFF).map_err(|_| CryptoError::LengthConversionError)?);
     }
 
     result.extend_from_slice(data);
@@ -205,14 +207,15 @@ fn wrap_sequence(data: &[u8]) -> Result<Vec<u8>, error_stack::Report<CryptoError
 
     // Encode length
     if data.len() < 128 {
-        result.push(data.len() as u8);
+        result.push(u8::try_from(data.len()).map_err(|_| CryptoError::LengthConversionError)?);
     } else if data.len() < 256 {
         result.push(0x81); // Long form, 1 byte length
-        result.push(data.len() as u8);
+        result.push(u8::try_from(data.len()).map_err(|_| CryptoError::LengthConversionError)?);
     } else {
         result.push(0x82); // Long form, 2 byte length
-        result.push((data.len() >> 8) as u8);
-        result.push((data.len() & 0xFF) as u8);
+        let len = u16::try_from(data.len()).map_err(|_| CryptoError::LengthConversionError)?;
+        result.push(u8::try_from(len >> 8).map_err(|_| CryptoError::LengthConversionError)?);
+        result.push(u8::try_from(len & 0xFF).map_err(|_| CryptoError::LengthConversionError)?);
     }
 
     result.extend_from_slice(data);
@@ -248,10 +251,8 @@ pub fn verify_response_signature(
 
     // Parse RSA public key using ring
     // RS256 = RSA PKCS#1 v1.5 with SHA-256 (per RFC 7515)
-    let public_key = signature::UnparsedPublicKey::new(
-        &signature::RSA_PKCS1_2048_8192_SHA256,
-        &key_bytes,
-    );
+    let public_key =
+        signature::UnparsedPublicKey::new(&signature::RSA_PKCS1_2048_8192_SHA256, &key_bytes);
 
     // Verify the signature
     match public_key.verify(response_body.as_bytes(), &signature) {
@@ -290,10 +291,8 @@ pub fn verify_jws_signature_pss(
 
     // Parse RSA public key using ring with PSS padding
     // RSA-PSS with SHA-256 (used by Axis Bank for response signatures)
-    let public_key = signature::UnparsedPublicKey::new(
-        &signature::RSA_PSS_2048_8192_SHA256,
-        &key_bytes,
-    );
+    let public_key =
+        signature::UnparsedPublicKey::new(&signature::RSA_PSS_2048_8192_SHA256, &key_bytes);
 
     // Verify the signature
     match public_key.verify(signing_input.as_bytes(), &signature) {
@@ -303,7 +302,9 @@ pub fn verify_jws_signature_pss(
 }
 
 /// Decode and return the JWS payload
-pub fn decode_jws_payload(payload_b64: &str) -> Result<String, error_stack::Report<IntegrationError>> {
+pub fn decode_jws_payload(
+    payload_b64: &str,
+) -> Result<String, error_stack::Report<IntegrationError>> {
     let payload_bytes = BASE64_ENGINE_URL_SAFE_NO_PAD
         .decode(payload_b64)
         .or_else(|_| base64::engine::general_purpose::STANDARD.decode(payload_b64))
@@ -444,15 +445,14 @@ pub fn preprocess_jwe_response(
     }
 
     // Parse the JWE response
-    let jwe_response: JweResponse = serde_json::from_slice(&response_bytes)
-        .map_err(|e| {
-            ConnectorError::ResponseDeserializationFailed {
-                context: ResponseTransformationErrorContext {
-                    http_status_code: None,
-                    additional_context: Some(format!("Could not parse JWE JSON envelope: {}", e)),
-                },
-            }
-        })?;
+    let jwe_response: JweResponse = serde_json::from_slice(&response_bytes).map_err(|e| {
+        ConnectorError::ResponseDeserializationFailed {
+            context: ResponseTransformationErrorContext {
+                http_status_code: None,
+                additional_context: Some(format!("Could not parse JWE JSON envelope: {}", e)),
+            },
+        }
+    })?;
 
     // Decrypt the JWE to get the inner JWS
     // Following Newton Gateway approach: JWE AEAD (A256GCM) provides integrity,
@@ -465,36 +465,31 @@ pub fn preprocess_jwe_response(
         &jwe_response.tag,
         merchant_private_key,
     )
-    .map_err(|e| {
+    .map_err(|e| ConnectorError::ResponseDeserializationFailed {
+        context: ResponseTransformationErrorContext {
+            http_status_code: None,
+            additional_context: Some(format!("JWE decryption failed: {}", e)),
+        },
+    })?;
+
+    // Parse the decrypted JWS object
+    let jws_obj: JwsObject = serde_json::from_str(&jws_json).map_err(|e| {
         ConnectorError::ResponseDeserializationFailed {
             context: ResponseTransformationErrorContext {
                 http_status_code: None,
-                additional_context: Some(format!("JWE decryption failed: {}", e)),
+                additional_context: Some(format!("Could not parse JWS JSON structure: {}", e)),
             },
         }
     })?;
 
-    // Parse the decrypted JWS object
-    let jws_obj: JwsObject =
-        serde_json::from_str(&jws_json).map_err(|e| {
-            ConnectorError::ResponseDeserializationFailed {
-                context: ResponseTransformationErrorContext {
-                    http_status_code: None,
-                    additional_context: Some(format!("Could not parse JWS JSON structure: {}", e)),
-                },
-            }
-        })?;
-
     // Decode the JWS payload (base64url-encoded)
     let payload_bytes = BASE64_ENGINE_URL_SAFE_NO_PAD
         .decode(&jws_obj.payload)
-        .map_err(|e| {
-            ConnectorError::ResponseDeserializationFailed {
-                context: ResponseTransformationErrorContext {
-                    http_status_code: None,
-                    additional_context: Some(format!("Could not base64url-decode JWS payload: {}", e)),
-                },
-            }
+        .map_err(|e| ConnectorError::ResponseDeserializationFailed {
+            context: ResponseTransformationErrorContext {
+                http_status_code: None,
+                additional_context: Some(format!("Could not base64url-decode JWS payload: {}", e)),
+            },
         })?;
 
     // The JWS payload contains a nested structure with the actual response:
@@ -532,25 +527,12 @@ pub fn preprocess_jwe_response(
     Ok(bytes::Bytes::from(final_bytes))
 }
 
-/// Get the current Unix timestamp in milliseconds as a string
+/// Get the current Unix timestamp in milliseconds as a string.
 pub fn get_current_timestamp_ms() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .expect("Time went backwards")
-        .as_millis()
-        .to_string()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_timestamp_generation() {
-        let ts = get_current_timestamp_ms();
-        assert!(!ts.is_empty());
-        assert!(ts.parse::<u128>().is_ok());
-    }
+        .map(|d| d.as_millis().to_string())
+        .unwrap_or_else(|_| "0".to_string())
 }

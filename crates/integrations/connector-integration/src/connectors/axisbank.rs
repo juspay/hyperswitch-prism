@@ -1,58 +1,54 @@
 pub mod transformers;
 pub use transformers as axisbank;
 
+use self::transformers::{
+    extract_merchant_identifiers_from_metadata, AxisbankAuthConfig, AxisbankPaymentsRequest,
+    AxisbankPaymentsResponse, AxisbankRefundRequest, AxisbankRefundResponse,
+    AxisbankRefundSyncRequest, AxisbankRefundSyncResponse, AxisbankSyncRequest,
+    AxisbankSyncResponse,
+};
+use super::macros;
+use crate::types::ResponseRouterData;
 use common_enums as enums;
 use common_utils::{errors::CustomResult, events, ext_traits::BytesExt, types::StringMajorUnit};
+use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
 use domain_types::{
     connector_flow::{
         Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,
         CreateConnectorCustomer, CreateOrder, DefendDispute, IncrementalAuthorization,
-        MandateRevoke, PaymentMethodToken, PostAuthenticate, PreAuthenticate,
-        PSync, RSync, Refund, RepeatPayment, ServerAuthenticationToken,
-        ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence, Void, VoidPC,
-        VerifyWebhookSource,
+        MandateRevoke, PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund,
+        RepeatPayment, ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate,
+        SubmitEvidence, VerifyWebhookSource, Void, VoidPC,
     },
     connector_types::{
-        ConnectorSpecifications,
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, PaymentVoidData,
-        RefundFlowData, RefundsData, RefundsResponseData, RefundSyncData,
-        SetupMandateRequestData, PaymentsAuthenticateData, PaymentsPreAuthenticateData,
-        PaymentsPostAuthenticateData, RepeatPaymentData, ConnectorCustomerData,
-        ConnectorCustomerResponse, PaymentCreateOrderData, PaymentCreateOrderResponse,
-        PaymentMethodTokenResponse, PaymentMethodTokenizationData,
-        AcceptDisputeData, DisputeDefendData, DisputeFlowData, DisputeResponseData,
-        SubmitEvidenceData, MandateRevokeRequestData, MandateRevokeResponseData,
+        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
+        ConnectorCustomerResponse, ConnectorSpecifications, DisputeDefendData, DisputeFlowData,
+        DisputeResponseData, MandateRevokeRequestData, MandateRevokeResponseData,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
+        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
         ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        ClientAuthenticationTokenRequestData,
-        PaymentsIncrementalAuthorizationData,
-        VerifyWebhookSourceFlowData,
+        SetupMandateRequestData, SubmitEvidenceData, VerifyWebhookSourceFlowData,
     },
-    router_request_types::VerifyWebhookSourceRequestData,
-    router_response_types::VerifyWebhookSourceResponseData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
+    router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::Response,
+    router_response_types::VerifyWebhookSourceResponseData,
     types::Connectors,
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::Maskable;
 use interfaces::{
-    api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2,
-    connector_types, decode::BodyDecoding, verification::SourceVerification,
+    api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
+    decode::BodyDecoding, verification::SourceVerification,
 };
 use serde::Serialize;
-use self::transformers::{
-    AxisbankAuthConfig, AxisbankPaymentsRequest, AxisbankPaymentsResponse,
-    AxisbankSyncRequest, AxisbankSyncResponse, AxisbankRefundRequest, AxisbankRefundResponse,
-    AxisbankRefundSyncRequest, AxisbankRefundSyncResponse,
-    extract_merchant_identifiers_from_metadata,
-};
-use super::macros;
-use crate::types::ResponseRouterData;
-use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
 use tracing::error;
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -327,7 +323,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let (merchant_id, merchant_channel_id) = 
+            let (merchant_id, merchant_channel_id) =
                 extract_merchant_identifiers_from_metadata(&req.request.metadata)?;
             let merchant_request_id = req.resource_common_data.connector_request_reference_id.clone();
             crate::connectors::juspay_upi_stack::transformers::build_request_headers(
@@ -366,7 +362,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let (merchant_id, merchant_channel_id) = 
+            let (merchant_id, merchant_channel_id) =
                 extract_merchant_identifiers_from_metadata(&req.resource_common_data.connector_feature_data)?;
             let merchant_request_id = req
                 .request
@@ -417,7 +413,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let (merchant_id, merchant_channel_id) = 
+            let (merchant_id, merchant_channel_id) =
                 extract_merchant_identifiers_from_metadata(&req.resource_common_data.connector_feature_data)?;
             let timestamp = axisbank::get_current_timestamp_ms();
             let refund_request_id = req.request.refund_id.clone();
@@ -462,7 +458,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let (merchant_id, merchant_channel_id) = 
+            let (merchant_id, merchant_channel_id) =
                 extract_merchant_identifiers_from_metadata(&req.resource_common_data.connector_feature_data)?;
             let timestamp = axisbank::get_current_timestamp_ms();
             let refund_request_id = req.request.connector_refund_id.clone();
@@ -519,17 +515,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         res: Response,
         _event_builder: Option<&mut events::Event>,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let error_response = if let Ok(error) = res.response.parse_struct::<axisbank::AxisbankErrorResponse>("Axisbank ErrorResponse") {
-            axisbank::build_error_response(res.status_code, &error.response_code, &error.response_message)
-        } else {
-            let raw_response = String::from_utf8_lossy(&res.response);
+        let error_response = if let Ok(error) = res
+            .response
+            .parse_struct::<axisbank::AxisbankErrorResponse>("Axisbank ErrorResponse")
+        {
             axisbank::build_error_response(
                 res.status_code,
-                "UNKNOWN",
-                &raw_response,
+                &error.response_code,
+                &error.response_message,
             )
+        } else {
+            let raw_response = String::from_utf8_lossy(&res.response);
+            axisbank::build_error_response(res.status_code, "UNKNOWN", &raw_response)
         };
-        
+
         Ok(error_response)
     }
 }
@@ -550,12 +549,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 // Stub implementations for unsupported flows
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        Capture,
-        PaymentFlowData,
-        PaymentsCaptureData,
-        PaymentsResponseData,
-    > for Axisbank<T>
+    ConnectorIntegrationV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
+    for Axisbank<T>
 {
 }
 
