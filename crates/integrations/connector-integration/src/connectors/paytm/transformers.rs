@@ -824,8 +824,9 @@ pub fn determine_upi_flow<T: domain_types::payment_method_data::PaymentMethodDat
                 UpiData::UpiIntent(_) | UpiData::UpiQr(_) => Ok(UpiFlowType::Intent),
             }
         }
-        _ => Err(IntegrationError::not_implemented(
+        _ => Err(IntegrationError::NotImplemented(
             "Only UPI payment methods are supported by this Paytm transformer".to_string(),
+            Default::default(),
         )
         .into()),
     }

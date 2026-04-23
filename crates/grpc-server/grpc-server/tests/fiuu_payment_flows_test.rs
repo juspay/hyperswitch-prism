@@ -234,6 +234,7 @@ fn create_refund_sync_request(transaction_id: &str, refund_id: &str) -> RefundSe
     RefundServiceGetRequest {
         connector_transaction_id: transaction_id.to_string(),
         refund_id: refund_id.to_string(),
+        connector_refund_id: refund_id.to_string(),
         refund_reason: None,
         merchant_refund_id: None,
         browser_info: None,

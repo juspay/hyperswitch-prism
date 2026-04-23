@@ -8,10 +8,9 @@
 import asyncio
 import sys
 from payments import PaymentClient
-from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "get", "proxy_authorize", "refund", "refund_get", "void"]
+SUPPORTED_FLOWS = ["authorize", "capture", "get", "proxy_authorize", "refund", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -127,13 +126,6 @@ def _build_refund_request(connector_transaction_id: str):
             currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
         ),
         reason="customer_request",  # Reason for the refund.
-    )
-
-def _build_refund_get_request():
-    return payment_pb2.RefundServiceGetRequest(
-        merchant_refund_id="probe_refund_001",  # Identification.
-        connector_transaction_id="12345",
-        refund_id="probe_refund_id_001",
     )
 
 def _build_void_request(connector_transaction_id: str):
@@ -288,15 +280,6 @@ async def process_proxy_authorize(merchant_transaction_id: str, config: sdk_conf
     proxy_response = await payment_client.proxy_authorize(_build_proxy_authorize_request())
 
     return {"status": proxy_response.status}
-
-
-async def process_refund_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: RefundService.Get"""
-    refund_client = RefundClient(config)
-
-    refund_response = await refund_client.refund_get(_build_refund_get_request())
-
-    return {"status": refund_response.status}
 
 
 async def process_void(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

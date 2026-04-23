@@ -491,6 +491,7 @@ fn create_refund_get_request(transaction_id: &str, refund_id: &str) -> RefundSer
         merchant_refund_id: Some(generate_unique_request_ref_id("refund_get")),
         connector_transaction_id: transaction_id.to_string(),
         refund_id: refund_id.to_string(),
+        connector_refund_id: refund_id.to_string(),
         browser_info: None,
         refund_reason: None,
         test_mode: Some(true),

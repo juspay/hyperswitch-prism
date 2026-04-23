@@ -4,6 +4,7 @@
     "authorize",
     "capture",
     "get",
+    "incremental_authorization",
     "recurring_charge",
     "refund",
     "refund_sync",

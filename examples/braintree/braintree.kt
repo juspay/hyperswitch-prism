@@ -11,7 +11,6 @@ import types.Payment.*
 import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.MerchantAuthenticationClient
-import payments.RefundClient
 import payments.PaymentMethodClient
 import payments.Currency
 import payments.ConnectorConfig
@@ -21,7 +20,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.BraintreeConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("capture", "create_client_authentication_token", "get", "refund", "refund_get", "tokenize", "void")
+val SUPPORTED_FLOWS = listOf<String>("capture", "create_client_authentication_token", "get", "refund", "tokenize", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -135,19 +134,6 @@ fun refund(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Done: ${response.status.name}")
 }
 
-// Flow: RefundService.Get
-fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = RefundClient(config)
-    val request = RefundServiceGetRequest.newBuilder().apply {
-        merchantRefundId = "probe_refund_001"  // Identification.
-        connectorTransactionId = "probe_connector_txn_001"
-        refundId = "probe_refund_id_001"
-        refundMetadataBuilder.value = "{\"currency\":\"USD\"}"  // Metadata specific to the refund sync.
-    }.build()
-    val response = client.refund_get(request)
-    println("Status: ${response.status.name}")
-}
-
 // Flow: PaymentMethodService.Tokenize
 fun tokenize(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentMethodClient(config)
@@ -193,9 +179,8 @@ fun main(args: Array<String>) {
         "createClientAuthenticationToken" -> createClientAuthenticationToken(txnId)
         "get" -> get(txnId)
         "refund" -> refund(txnId)
-        "refundGet" -> refundGet(txnId)
         "tokenize" -> tokenize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, createClientAuthenticationToken, get, refund, refundGet, tokenize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: capture, createClientAuthenticationToken, get, refund, tokenize, void")
     }
 }

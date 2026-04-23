@@ -374,14 +374,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ))
                 }
                 _ => {
-                    return Err(error_stack::report!(IntegrationError::not_implemented(
+                    return Err(error_stack::report!(IntegrationError::NotImplemented(
                         "Bank Redirect Payment Method".to_string(),
+                        Default::default()
                     )))
                 }
             },
             _ => {
-                return Err(error_stack::report!(IntegrationError::not_implemented(
+                return Err(error_stack::report!(IntegrationError::NotImplemented(
                     "Payment Method".to_string(),
+                    Default::default()
                 )))
             }
         };
@@ -1134,14 +1136,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ))
                 }
                 _ => {
-                    return Err(error_stack::report!(IntegrationError::not_implemented(
+                    return Err(error_stack::report!(IntegrationError::NotImplemented(
                         "Bank Redirect Payment Method".to_string(),
+                        Default::default()
                     )))
                 }
             },
             _ => {
-                return Err(error_stack::report!(IntegrationError::not_implemented(
+                return Err(error_stack::report!(IntegrationError::NotImplemented(
                     "Payment Method".to_string(),
+                    Default::default()
                 )))
             }
         };
