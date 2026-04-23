@@ -5,6 +5,48 @@ use serde_json::Value;
 
 use crate::harness::{scenario_loader::connector_specs_root, scenario_types::ScenarioError};
 
+/// Polling configuration for retry logic.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct PollingConfig {
+    /// Maximum number of retries for polling operations.
+    pub max_retries: Option<u32>,
+    /// Delay in milliseconds between retry attempts.
+    pub retry_delay_ms: Option<u64>,
+}
+
+impl PollingConfig {
+    /// Merges this config with another, where the other takes precedence.
+    fn merge_with(self, override_config: Self) -> Self {
+        Self {
+            max_retries: override_config.max_retries.or(self.max_retries),
+            retry_delay_ms: override_config.retry_delay_ms.or(self.retry_delay_ms),
+        }
+    }
+}
+
+/// Suite or scenario configuration options.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct SuiteConfig {
+    /// Delay in milliseconds to wait before/during suite execution.
+    pub delay_ms: Option<u64>,
+    /// Polling configuration for retry operations.
+    pub polling_config: Option<PollingConfig>,
+}
+
+impl SuiteConfig {
+    /// Merges this config with another, where the other takes precedence.
+    fn merge_with(self, override_config: Self) -> Self {
+        Self {
+            delay_ms: override_config.delay_ms.or(self.delay_ms),
+            polling_config: match (self.polling_config, override_config.polling_config) {
+                (Some(base), Some(override_cfg)) => Some(base.merge_with(override_cfg)),
+                (config @ Some(_), None) | (None, config @ Some(_)) => config,
+                (None, None) => None,
+            },
+        }
+    }
+}
+
 /// Override patch payload for one specific `(suite, scenario)` pair.
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct ScenarioOverridePatch {
@@ -12,6 +54,9 @@ pub struct ScenarioOverridePatch {
     pub grpc_req: Option<Value>,
     #[serde(rename = "assert", default)]
     pub assert_rules: Option<BTreeMap<String, Value>>,
+    /// Configuration options using __config__ key.
+    #[serde(rename = "__config__", default)]
+    pub config: Option<SuiteConfig>,
 }
 
 type SuiteOverrideFile = BTreeMap<String, ScenarioOverridePatch>;
@@ -62,6 +107,69 @@ pub fn load_scenario_override_patch(
     }
 
     Ok(None)
+}
+
+/// Loads suite-level configuration from the `__config__` key in override.json.
+///
+/// This provides default configuration for all scenarios in the suite.
+/// Individual scenarios can override this with their own `__config__` key.
+pub fn load_suite_config(
+    connector: &str,
+    suite: &str,
+) -> Result<Option<SuiteConfig>, ScenarioError> {
+    // We need to load the raw JSON because suite-level __config__ is stored
+    // as a raw config object, not wrapped in ScenarioOverridePatch
+    let path = connector_override_file_path(connector);
+    if !path.exists() {
+        return Ok(None);
+    }
+
+    let content = fs::read_to_string(&path).map_err(|source| {
+        ScenarioError::ConnectorOverrideRead {
+            path: path.clone(),
+            source,
+        }
+    })?;
+
+    let parsed: Value = serde_json::from_str(&content).map_err(|source| {
+        ScenarioError::ConnectorOverrideParse {
+            path: path.clone(),
+            source,
+        }
+    })?;
+
+    // Navigate to suite -> __config__
+    let suite_config_value = parsed
+        .get(suite)
+        .and_then(|suite_obj| suite_obj.get("__config__"));
+
+    if let Some(config_value) = suite_config_value {
+        let config = serde_json::from_value::<SuiteConfig>(config_value.clone()).map_err(
+            |source| ScenarioError::ConnectorOverrideParse {
+                path: path.clone(),
+                source,
+            },
+        )?;
+        return Ok(Some(config));
+    }
+
+    Ok(None)
+}
+
+/// Loads merged configuration for a specific scenario, combining suite-level
+/// and scenario-level configs. Scenario-level config takes precedence.
+pub fn load_scenario_config(
+    connector: &str,
+    suite: &str,
+    scenario: &str,
+) -> Result<SuiteConfig, ScenarioError> {
+    let suite_config = load_suite_config(connector, suite)?.unwrap_or_default();
+    let scenario_config = load_scenario_override_patch(connector, suite, scenario)?
+        .and_then(|patch| patch.config)
+        .unwrap_or_default();
+
+    // Merge configs: scenario-level overrides suite-level
+    Ok(suite_config.merge_with(scenario_config))
 }
 
 /// Path to `<connector>/webhook_payload.json` under connector override root.
@@ -279,6 +387,63 @@ mod tests {
 
         let computed_path = connector_override_file_path("stripe");
         assert_eq!(computed_path, override_path);
+
+        match previous {
+            Some(value) => std::env::set_var("UCS_CONNECTOR_OVERRIDE_ROOT", value),
+            None => std::env::remove_var("UCS_CONNECTOR_OVERRIDE_ROOT"),
+        }
+        drop(env_lock);
+        let _ = fs::remove_dir_all(temp_root);
+    }
+
+    #[test]
+    fn loads_suite_and_scenario_config_with_merge() {
+        use super::load_scenario_config;
+
+        let env_lock = ENV_LOCK.lock().expect("env lock should acquire");
+        let temp_root = unique_temp_dir();
+        let connector_dir = temp_root.join("testconnector");
+        fs::create_dir_all(&connector_dir).expect("connector directory should be created");
+
+        let override_path = connector_dir.join("override.json");
+        let file_content = json!({
+            "PaymentService/Get": {
+                "__config__": {
+                    "delay_ms": 1000,
+                    "polling_config": {
+                        "max_retries": 10,
+                        "retry_delay_ms": 500
+                    }
+                },
+                "get_payment": {
+                    "__config__": {
+                        "polling_config": {
+                            "max_retries": 20
+                        }
+                    },
+                    "grpc_req": {}
+                }
+            }
+        });
+        fs::write(
+            &override_path,
+            serde_json::to_string_pretty(&file_content).expect("override content should serialize"),
+        )
+        .expect("override file should be written");
+
+        let previous = std::env::var("UCS_CONNECTOR_OVERRIDE_ROOT").ok();
+        std::env::set_var("UCS_CONNECTOR_OVERRIDE_ROOT", &temp_root);
+
+        // Load scenario config - should merge suite and scenario levels
+        let config = load_scenario_config("testconnector", "PaymentService/Get", "get_payment")
+            .expect("loading config should succeed");
+
+        // Verify merged config
+        assert_eq!(config.delay_ms, Some(1000)); // From suite level
+        assert!(config.polling_config.is_some());
+        let polling = config.polling_config.unwrap();
+        assert_eq!(polling.max_retries, Some(20)); // Overridden by scenario level
+        assert_eq!(polling.retry_delay_ms, Some(500)); // From suite level (not overridden)
 
         match previous {
             Some(value) => std::env::set_var("UCS_CONNECTOR_OVERRIDE_ROOT", value),

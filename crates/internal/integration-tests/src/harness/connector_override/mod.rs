@@ -11,6 +11,9 @@ mod helcim;
 mod json_merge;
 mod loader;
 
+// Re-export config types and loading function for external use
+pub use loader::{load_scenario_config, PollingConfig, SuiteConfig};
+
 /// Connector-specific behavior extension points.
 ///
 /// The default implementation is file-driven via JSON patches, but this trait

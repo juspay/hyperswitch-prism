@@ -23,8 +23,8 @@ use uuid::Uuid;
 use crate::harness::{
     auto_gen::resolve_auto_generate,
     connector_override::{
-        apply_connector_overrides, normalize_tonic_request_for_connector,
-        transform_response_for_connector,
+        apply_connector_overrides, load_scenario_config, normalize_tonic_request_for_connector,
+        transform_response_for_connector, SuiteConfig,
     },
     credentials::{creds_file_path, load_connector_config},
     metadata::add_connector_metadata,
@@ -4288,10 +4288,19 @@ fn maybe_sync_complete_authorize_pending(
     Ok(())
 }
 
-/// Executes a scenario with retry logic for specific suites.
+/// Executes a scenario with optional retry logic based on configuration.
 ///
-/// For PaymentService/Get, retries on ANY error (idempotent operation, safe to retry).
-/// Polls every 500ms for up to 5 seconds.
+/// Configuration is read from override.json:
+/// - Suite-level `__config__` applies to all scenarios in the suite
+/// - Scenario-level `__config__` overrides suite-level settings
+///
+/// Configuration options:
+/// - `delay_ms`: Sleep time before/during scenario execution
+/// - `polling_config.max_retries`: Maximum number of retry attempts
+/// - `polling_config.retry_delay_ms`: Delay between retry attempts
+///
+/// If no configuration is provided, defaults to legacy behavior:
+/// - PaymentService/Get retries on errors (idempotent operation)
 fn execute_scenario_with_retry(
     suite: &str,
     scenario: &str,
@@ -4302,13 +4311,33 @@ fn execute_scenario_with_retry(
     explicit_context_entries: &[ExplicitContextEntry],
     dependency_entries: &[ExecutedDependency],
 ) -> Result<ExecutedScenario, ScenarioError> {
-    const MAX_RETRIES: u32 = 10; // 10 * 500ms = 5 seconds max
-    const RETRY_DELAY_MS: u64 = 500;
+    // Load configuration from override.json (suite + scenario merged)
+    let config = load_scenario_config(connector, suite, scenario)?;
 
-    // Only retry for PaymentService/Get (any connector may have timing issues)
-    let should_retry_suite = suite == "PaymentService/Get";
+    // Apply delay if configured
+    if let Some(delay_ms) = config.delay_ms {
+        thread::sleep(Duration::from_millis(delay_ms));
+    }
 
-    for attempt in 0..=MAX_RETRIES {
+    // Determine retry parameters
+    let retry_params = resolve_retry_params(&config, suite);
+
+    // If no retries, execute once and return
+    if retry_params.max_retries == 0 {
+        return execute_single_scenario_with_context(
+            suite,
+            scenario,
+            connector,
+            options,
+            dependency_reqs,
+            dependency_res,
+            explicit_context_entries,
+            dependency_entries,
+        );
+    }
+
+    // Execute with retry logic
+    for attempt in 0..=retry_params.max_retries {
         let result = execute_single_scenario_with_context(
             suite,
             scenario,
@@ -4320,39 +4349,54 @@ fn execute_scenario_with_retry(
             dependency_entries,
         )?;
 
-        // If this suite doesn't need retry logic, return immediately
-        if !should_retry_suite {
-            return Ok(result);
-        }
-
-        // Check if response contains any error (Get is idempotent, safe to retry)
+        // Check if response contains an error
         let has_error = result.response_json.get("error").is_some();
 
-        // If no error, return the successful result
-        if !has_error {
-            return Ok(result);
-        }
-
-        // If we've exhausted retries, return the last result
-        if attempt == MAX_RETRIES {
+        // Success or last attempt - return the result
+        if !has_error || attempt == retry_params.max_retries {
             return Ok(result);
         }
 
         // Wait before retry
-        thread::sleep(Duration::from_millis(RETRY_DELAY_MS));
+        thread::sleep(Duration::from_millis(retry_params.retry_delay_ms));
     }
 
-    // Fallback (should never reach here due to the loop structure)
-    execute_single_scenario_with_context(
-        suite,
-        scenario,
-        connector,
-        options,
-        dependency_reqs,
-        dependency_res,
-        explicit_context_entries,
-        dependency_entries,
-    )
+    unreachable!("Loop should always return via early exit")
+}
+
+/// Retry parameters for scenario execution.
+struct RetryParams {
+    max_retries: u32,
+    retry_delay_ms: u64,
+}
+
+/// Resolves retry parameters from configuration, with legacy defaults.
+fn resolve_retry_params(
+    config: &SuiteConfig,
+    suite: &str,
+) -> RetryParams {
+    const DEFAULT_RETRY_DELAY_MS: u64 = 500;
+    const LEGACY_GET_MAX_RETRIES: u32 = 10;
+
+    if let Some(ref polling_config) = config.polling_config {
+        return RetryParams {
+            max_retries: polling_config.max_retries.unwrap_or(0),
+            retry_delay_ms: polling_config.retry_delay_ms.unwrap_or(DEFAULT_RETRY_DELAY_MS),
+        };
+    }
+
+    // Legacy defaults: only retry for PaymentService/Get
+    if suite == "PaymentService/Get" {
+        RetryParams {
+            max_retries: LEGACY_GET_MAX_RETRIES,
+            retry_delay_ms: DEFAULT_RETRY_DELAY_MS,
+        }
+    } else {
+        RetryParams {
+            max_retries: 0,
+            retry_delay_ms: 0,
+        }
+    }
 }
 
 #[allow(clippy::print_stdout, clippy::print_stderr)]
@@ -5973,6 +6017,11 @@ grpc-status: 0
                 };
 
                 for scenario in scenario_obj.keys() {
+                    // Skip special __config__ key (suite-level configuration)
+                    if scenario == "__config__" {
+                        continue;
+                    }
+
                     if !suite_scenarios.contains_key(scenario) {
                         failures.push(format!(
                             "{connector}/{suite}/{scenario}: override references missing scenario in suite file"

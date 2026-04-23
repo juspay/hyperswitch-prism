@@ -1,4 +1,12 @@
 {
+  "PaymentService/Get": {
+    "__config__": {
+      "polling_config": {
+        "max_retries": 12,
+        "retry_delay_ms": 400
+      }
+    }
+  },
   "PaymentService/Void": {
     "void_authorized_payment": {
       "grpc_req": {
