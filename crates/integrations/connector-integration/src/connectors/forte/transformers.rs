@@ -491,7 +491,7 @@ pub struct ResponseStatus {
     pub cvv_result: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ForteAction {
     Sale,
@@ -954,6 +954,141 @@ impl<F> TryFrom<ResponseRouterData<RefundSyncResponse, Self>>
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.transaction_id,
                 refund_status: enums::RefundStatus::from(item.response.status),
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
+}
+
+// RepeatPayment (MIT) types and transformers
+
+#[derive(Debug, Serialize)]
+pub struct ForteRepeatPaymentRequest {
+    action: ForteAction,
+    authorization_amount: FloatMajorUnit,
+    customer_token: String,
+    paymethod_token: String,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        ForteRouterData<
+            RouterDataV2<
+                domain_types::connector_flow::RepeatPayment,
+                PaymentFlowData,
+                domain_types::connector_types::RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for ForteRepeatPaymentRequest
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ForteRouterData<
+            RouterDataV2<
+                domain_types::connector_flow::RepeatPayment,
+                PaymentFlowData,
+                domain_types::connector_types::RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        // Extract mandate reference which contains the tokens
+        let mandate_ref = &item.router_data.request.mandate_reference;
+
+        // Forte stores tokens as "customer_token:paymethod_token" format in connector_mandate_id
+        let (customer_token, paymethod_token) = match mandate_ref {
+            domain_types::connector_types::MandateReferenceId::ConnectorMandateId(
+                connector_mandate_ref,
+            ) => {
+                let token_str = connector_mandate_ref.get_connector_mandate_id().ok_or(
+                    ConnectorError::MissingRequiredField {
+                        field_name: "connector_mandate_id",
+                    },
+                )?;
+
+                // Parse the token string - expected format: "cst_xxx:mth_xxx"
+                let parts: Vec<&str> = token_str.split(':').collect();
+                match parts.as_slice() {
+                    [first, second] => (first.to_string(), second.to_string()),
+                    _ => {
+                        return Err(ConnectorError::InvalidDataFormat {
+                            field_name: "connector_mandate_id (expected format: customer_token:paymethod_token)",
+                        }
+                        .into());
+                    }
+                }
+            }
+            _ => {
+                return Err(ConnectorError::MissingRequiredField {
+                    field_name: "connector_mandate_id for RepeatPayment",
+                }
+                .into())
+            }
+        };
+
+        // Determine action based on capture method
+        let action = match item.router_data.request.capture_method {
+            Some(common_enums::CaptureMethod::Automatic) => ForteAction::Sale,
+            _ => ForteAction::Authorize,
+        };
+
+        let authorization_amount = item
+            .connector
+            .amount_converter
+            .convert(
+                item.router_data.request.minor_amount,
+                item.router_data.request.currency,
+            )
+            .change_context(ConnectorError::RequestEncodingFailed)?;
+
+        Ok(Self {
+            action,
+            authorization_amount,
+            customer_token,
+            paymethod_token,
+        })
+    }
+}
+
+// RepeatPayment uses the same response structure as regular payments
+pub type ForteRepeatPaymentResponse = FortePaymentsResponse;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<ForteRepeatPaymentResponse, Self>>
+    for RouterDataV2<
+        domain_types::connector_flow::RepeatPayment,
+        PaymentFlowData,
+        domain_types::connector_types::RepeatPaymentData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<ForteRepeatPaymentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response_code = item.response.response.response_code.clone();
+        let action = item.response.action.clone();
+        let transaction_id = &item.response.transaction_id;
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status: get_status(response_code, action),
+                ..item.router_data.resource_common_data
+            },
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(transaction_id.to_string()),
+                redirection_data: None,
+                mandate_reference: None, // No new mandate reference for repeat payment
+                connector_metadata: Some(serde_json::json!(ForteMeta {
+                    auth_id: item.response.authorization_code.clone(),
+                })),
+                network_txn_id: None,
+                connector_response_reference_id: Some(transaction_id.to_string()),
+                incremental_authorization_allowed: None,
                 status_code: item.http_code,
             }),
             ..item.router_data
