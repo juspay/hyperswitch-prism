@@ -11,6 +11,7 @@ pub type RedsysAuthorizeResponse = RedsysResponse;
 pub type RedsysCaptureResponse = RedsysResponse;
 pub type RedsysVoidResponse = RedsysResponse;
 pub type RedsysRefundResponse = RedsysResponse;
+pub type RedsysRepeatPaymentResponse = RedsysResponse;
 
 /// Main response enum that handles both success and error responses
 #[derive(Debug, Serialize, Deserialize)]
