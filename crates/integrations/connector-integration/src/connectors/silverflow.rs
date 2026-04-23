@@ -57,18 +57,57 @@ pub(crate) mod headers {
 
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
+/// Stub a flow that is planned but not yet implemented.
+/// Calling the flow returns `ConnectorError::NotImplemented` at dispatch time
+/// instead of silently hitting an empty URL via the trait default.
+macro_rules! flow_not_implemented {
+    ($flow:ty, $fcd:ty, $req:ty, $resp:ty, $name:literal) => {
+        impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+            ConnectorIntegrationV2<$flow, $fcd, $req, $resp> for Silverflow<T>
+        {
+            fn get_url(
+                &self,
+                _req: &RouterDataV2<$flow, $fcd, $req, $resp>,
+            ) -> CustomResult<String, errors::ConnectorError> {
+                Err(errors::ConnectorError::NotImplemented(
+                    format!("silverflow {} flow", $name),
+                )
+                .into())
+            }
+        }
+    };
+}
+
+/// Stub a flow that the Silverflow API does not support.
+macro_rules! flow_not_supported {
+    ($flow:ty, $fcd:ty, $req:ty, $resp:ty, $name:literal) => {
+        impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+            ConnectorIntegrationV2<$flow, $fcd, $req, $resp> for Silverflow<T>
+        {
+            fn get_url(
+                &self,
+                _req: &RouterDataV2<$flow, $fcd, $req, $resp>,
+            ) -> CustomResult<String, errors::ConnectorError> {
+                Err(errors::ConnectorError::FlowNotSupported {
+                    flow: $name.to_string(),
+                    connector: "silverflow".to_string(),
+                }
+                .into())
+            }
+        }
+    };
+}
+
 // ===== CONNECTOR SERVICE TRAIT IMPLEMENTATIONS =====
 // Main service trait - aggregates all other traits
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Silverflow<T>
-{
-}
+flow_not_implemented!(
+    IncrementalAuthorization,
+    PaymentFlowData,
+    PaymentsIncrementalAuthorizationData,
+    PaymentsResponseData,
+    "IncrementalAuthorization"
+);
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Silverflow<T>
@@ -381,15 +420,13 @@ macros::macro_connector_implementation!(
 );
 
 // Payment Void Post Capture
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        VoidPC,
-        PaymentFlowData,
-        PaymentsCancelPostCaptureData,
-        PaymentsResponseData,
-    > for Silverflow<T>
-{
-}
+flow_not_implemented!(
+    VoidPC,
+    PaymentFlowData,
+    PaymentsCancelPostCaptureData,
+    PaymentsResponseData,
+    "VoidPostCapture"
+);
 
 // Payment Capture
 macros::macro_connector_implementation!(
@@ -489,158 +526,114 @@ macros::macro_connector_implementation!(
     }
 );
 
-// Setup Mandate
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
-        PaymentsResponseData,
-    > for Silverflow<T>
-{
-}
+// ===== FLOWS SILVERFLOW'S API DOES NOT SUPPORT =====
+flow_not_supported!(
+    SetupMandate,
+    PaymentFlowData,
+    SetupMandateRequestData<T>,
+    PaymentsResponseData,
+    "SetupMandate"
+);
+flow_not_supported!(
+    RepeatPayment,
+    PaymentFlowData,
+    RepeatPaymentData<T>,
+    PaymentsResponseData,
+    "RepeatPayment"
+);
+flow_not_supported!(
+    CreateOrder,
+    PaymentFlowData,
+    PaymentCreateOrderData,
+    PaymentCreateOrderResponse,
+    "CreateOrder"
+);
+flow_not_supported!(
+    CreateSessionToken,
+    PaymentFlowData,
+    SessionTokenRequestData,
+    SessionTokenResponseData,
+    "CreateSessionToken"
+);
+flow_not_supported!(
+    SdkSessionToken,
+    PaymentFlowData,
+    PaymentsSdkSessionTokenData,
+    PaymentsResponseData,
+    "SdkSessionToken"
+);
+flow_not_supported!(
+    PaymentMethodToken,
+    PaymentFlowData,
+    PaymentMethodTokenizationData<T>,
+    PaymentMethodTokenResponse,
+    "PaymentMethodToken"
+);
+flow_not_supported!(
+    CreateAccessToken,
+    PaymentFlowData,
+    AccessTokenRequestData,
+    AccessTokenResponseData,
+    "CreateAccessToken"
+);
+flow_not_supported!(
+    MandateRevoke,
+    PaymentFlowData,
+    MandateRevokeRequestData,
+    MandateRevokeResponseData,
+    "MandateRevoke"
+);
+flow_not_supported!(
+    domain_types::connector_flow::CreateConnectorCustomer,
+    PaymentFlowData,
+    ConnectorCustomerData,
+    ConnectorCustomerResponse,
+    "CreateConnectorCustomer"
+);
 
-// Repeat Payment
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
-    > for Silverflow<T>
-{
-}
-
-// Order Create
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        CreateOrder,
-        PaymentFlowData,
-        PaymentCreateOrderData,
-        PaymentCreateOrderResponse,
-    > for Silverflow<T>
-{
-}
-
-// Session Token
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        CreateSessionToken,
-        PaymentFlowData,
-        SessionTokenRequestData,
-        SessionTokenResponseData,
-    > for Silverflow<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        SdkSessionToken,
-        PaymentFlowData,
-        PaymentsSdkSessionTokenData,
-        PaymentsResponseData,
-    > for Silverflow<T>
-{
-}
-
-// Dispute Accept
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
-    for Silverflow<T>
-{
-}
-
-// Dispute Defend
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
-    for Silverflow<T>
-{
-}
-
-// Submit Evidence
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>
-    for Silverflow<T>
-{
-}
-
-// Payment Token (required by PaymentTokenV2 trait)
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PaymentMethodToken,
-        PaymentFlowData,
-        PaymentMethodTokenizationData<T>,
-        PaymentMethodTokenResponse,
-    > for Silverflow<T>
-{
-}
-
-// Access Token (required by PaymentAccessToken trait)
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        CreateAccessToken,
-        PaymentFlowData,
-        AccessTokenRequestData,
-        AccessTokenResponseData,
-    > for Silverflow<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        MandateRevoke,
-        PaymentFlowData,
-        MandateRevokeRequestData,
-        MandateRevokeResponseData,
-    > for Silverflow<T>
-{
-}
-
-// ===== AUTHENTICATION FLOW CONNECTOR INTEGRATIONS =====
-// Pre Authentication
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PreAuthenticate,
-        PaymentFlowData,
-        PaymentsPreAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Silverflow<T>
-{
-}
-
-// Authentication
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        Authenticate,
-        PaymentFlowData,
-        PaymentsAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Silverflow<T>
-{
-}
-
-// Post Authentication
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PostAuthenticate,
-        PaymentFlowData,
-        PaymentsPostAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Silverflow<T>
-{
-}
-
-// ===== CONNECTOR CUSTOMER CONNECTOR INTEGRATIONS =====
-// Create Connector Customer
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        domain_types::connector_flow::CreateConnectorCustomer,
-        PaymentFlowData,
-        ConnectorCustomerData,
-        ConnectorCustomerResponse,
-    > for Silverflow<T>
-{
-}
+// ===== PLANNED FLOWS (NOT YET IMPLEMENTED) =====
+flow_not_implemented!(
+    Accept,
+    DisputeFlowData,
+    AcceptDisputeData,
+    DisputeResponseData,
+    "AcceptDispute"
+);
+flow_not_implemented!(
+    DefendDispute,
+    DisputeFlowData,
+    DisputeDefendData,
+    DisputeResponseData,
+    "DefendDispute"
+);
+flow_not_implemented!(
+    SubmitEvidence,
+    DisputeFlowData,
+    SubmitEvidenceData,
+    DisputeResponseData,
+    "SubmitEvidence"
+);
+flow_not_implemented!(
+    PreAuthenticate,
+    PaymentFlowData,
+    PaymentsPreAuthenticateData<T>,
+    PaymentsResponseData,
+    "PreAuthenticate"
+);
+flow_not_implemented!(
+    Authenticate,
+    PaymentFlowData,
+    PaymentsAuthenticateData<T>,
+    PaymentsResponseData,
+    "Authenticate"
+);
+flow_not_implemented!(
+    PostAuthenticate,
+    PaymentFlowData,
+    PaymentsPostAuthenticateData<T>,
+    PaymentsResponseData,
+    "PostAuthenticate"
+);
 
 // ===== SOURCE VERIFICATION IMPLEMENTATIONS =====
 
