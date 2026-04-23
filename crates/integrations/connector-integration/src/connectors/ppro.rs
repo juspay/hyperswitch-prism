@@ -469,7 +469,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         Ok(WebhookDetailsResponse {
-            resource_id: Some(ResponseId::ConnectorTransactionId(charge.payment_charge_id.clone())),
+            resource_id: Some(ResponseId::ConnectorTransactionId(
+                charge.payment_charge_id.clone(),
+            )),
             status,
             connector_response_reference_id: Some(charge.payment_charge_id),
             error_code,
