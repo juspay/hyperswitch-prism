@@ -94,16 +94,15 @@ pub fn map_transaction_status(
         | OuterResponseCode::InternalServerError
         | OuterResponseCode::InvalidTransactionId
         | OuterResponseCode::UninitiatedRequest
-        | OuterResponseCode::InvalidRefundAmount => enums::AttemptStatus::Failure,
+        | OuterResponseCode::InvalidRefundAmount
+        | OuterResponseCode::BadRequest => enums::AttemptStatus::Failure,
 
-        // Pending states - may transition to success/failure
         OuterResponseCode::RequestNotFound
         | OuterResponseCode::RequestPending
         | OuterResponseCode::ServiceUnavailable
         | OuterResponseCode::GatewayTimeout
         | OuterResponseCode::DuplicateRequest => enums::AttemptStatus::Pending,
 
-        // Success - need to check gateway code for final status
         OuterResponseCode::Success => {
             if let Some(code) = gateway_response_code {
                 let gateway = GatewayResponseCode::parse(code);
@@ -128,9 +127,6 @@ pub fn map_transaction_status(
                 enums::AttemptStatus::Pending
             }
         }
-
-        // Bad request is a failure
-        OuterResponseCode::BadRequest => enums::AttemptStatus::Failure,
     }
 }
 
@@ -167,12 +163,6 @@ pub fn sanitize_merchant_request_id(id: &str) -> String {
     } else {
         sanitized
     }
-}
-
-/// Truncate remarks to max 50 alphanumeric characters
-pub fn sanitize_remarks(remarks: &str) -> String {
-    let alphanumeric_only: String = remarks.chars().take(50).collect();
-    alphanumeric_only
 }
 
 /// Convert minor units (paise) to major units (rupees) with 2 decimal places
@@ -225,30 +215,6 @@ pub fn build_error_response(
         network_decline_code: None,
         network_advice_code: None,
         network_error_message: None,
-    }
-}
-
-/// Map outer response code to AttemptStatus (shared across all UPI bank connectors)
-pub fn map_outer_response_code(response_code: OuterResponseCode) -> enums::AttemptStatus {
-    match response_code {
-        OuterResponseCode::RequestNotFound => enums::AttemptStatus::Pending,
-        OuterResponseCode::RequestExpired
-        | OuterResponseCode::Dropout
-        | OuterResponseCode::Failure
-        | OuterResponseCode::BadRequest
-        | OuterResponseCode::InvalidData
-        | OuterResponseCode::Unauthorized
-        | OuterResponseCode::InvalidMerchant
-        | OuterResponseCode::DeviceFingerprintMismatch
-        | OuterResponseCode::InternalServerError
-        | OuterResponseCode::InvalidTransactionId
-        | OuterResponseCode::UninitiatedRequest
-        | OuterResponseCode::InvalidRefundAmount
-        | OuterResponseCode::Success
-        | OuterResponseCode::RequestPending
-        | OuterResponseCode::ServiceUnavailable
-        | OuterResponseCode::GatewayTimeout
-        | OuterResponseCode::DuplicateRequest => enums::AttemptStatus::Failure,
     }
 }
 
@@ -354,12 +320,7 @@ pub fn build_authorize_request<T: PaymentMethodDataTypes + serde::Serialize>(
         .collect();
 
     // Build remarks from description
-    let remarks = router_data
-        .resource_common_data
-        .description
-        .as_ref()
-        .map(|d| sanitize_remarks(d))
-        .or_else(|| Some("Payment".to_string()));
+    let remarks = router_data.resource_common_data.description.clone();
 
     let ref_url = router_data.request.router_return_url.clone();
 
@@ -589,7 +550,7 @@ pub fn handle_authorize_response<
     error_stack::Report<ConnectorError>,
 > {
     if response.response_code.is_failure() {
-        let status = map_outer_response_code(response.response_code.clone());
+        let status = enums::AttemptStatus::Failure;
         Ok(RouterDataV2 {
             response: Err(ErrorResponse {
                 code: format!("{:?}", response.response_code),
@@ -632,8 +593,8 @@ pub fn handle_authorize_response<
             ..router_data
         })
     } else {
-        // Success outer code but no payload — treat as failure
-        let status = map_outer_response_code(response.response_code.clone());
+        // Success outer code but no payload — treat as pending
+        let status = enums::AttemptStatus::Pending;
         let response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::NoResponseId,
             redirection_data: None,
@@ -675,7 +636,7 @@ pub fn handle_psync_response(
     error_stack::Report<ConnectorError>,
 > {
     if response.response_code.is_failure() {
-        let status = map_outer_response_code(response.response_code.clone());
+        let status = enums::AttemptStatus::Failure;
         return Ok(RouterDataV2 {
             response: Err(ErrorResponse {
                 code: format!("{:?}", response.response_code),

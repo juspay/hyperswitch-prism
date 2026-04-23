@@ -34,7 +34,6 @@ use serde::Serialize;
 pub use crate::connectors::juspay_upi_stack::crypto::get_current_timestamp_ms;
 pub use crate::connectors::juspay_upi_stack::transformers::build_error_response;
 pub use crate::connectors::juspay_upi_stack::transformers::extract_merchant_identifiers_from_metadata;
-pub use crate::connectors::juspay_upi_stack::transformers::map_outer_response_code;
 
 /// Auth configuration for Axis Bank.
 /// This struct extracts Axis-specific fields from ConnectorSpecificConfig.

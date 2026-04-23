@@ -244,25 +244,6 @@ pub enum OuterResponseCode {
 }
 
 impl OuterResponseCode {
-    /// Check if this is a terminal status (no further state changes expected)
-    pub fn is_terminal(&self) -> bool {
-        matches!(
-            self,
-            Self::Success | Self::Failure | Self::RequestExpired | Self::Dropout
-        )
-    }
-
-    /// Check if this represents a pending/in-progress transaction
-    pub fn is_pending(&self) -> bool {
-        matches!(
-            self,
-            Self::RequestPending
-                | Self::RequestNotFound
-                | Self::ServiceUnavailable
-                | Self::GatewayTimeout
-        )
-    }
-
     /// Check if this represents a failure response code
     pub fn is_failure(&self) -> bool {
         matches!(
