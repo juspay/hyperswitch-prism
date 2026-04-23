@@ -13,8 +13,8 @@ use domain_types::{
         RefundsResponseData, ResponseId, ServerAuthenticationTokenRequestData,
         ServerAuthenticationTokenResponseData,
     },
-    payment_method_data::{BankDebitData, CardToken, PaymentMethodData, PaymentMethodDataTypes},
-    router_data::{ConnectorSpecificConfig, PaymentMethodToken},
+    payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes},
+    router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -30,8 +30,6 @@ type ResponseError = error_stack::Report<ConnectorError>;
 
 const JPMORGAN_GETTING_STARTED_DOC: &str =
     "https://developer.payments.jpmorgan.com/docs/commerce-solutions/online-payments/guides/getting-started";
-const JPMORGAN_PAYMENTS_API_DOC: &str =
-    "https://developer.payments.jpmorgan.com/api/commerce-solutions/online-payments/payment-requests/create-a-payment";
 
 /// Build an `IntegrationErrorContext` for a missing JPMorgan connector config field.
 fn jpmorgan_missing_field_context(field_name: &str) -> IntegrationErrorContext {
@@ -175,7 +173,11 @@ fn map_capture_method(
         Some(CaptureMethod::Scheduled)
         | Some(CaptureMethod::ManualMultiple)
         | Some(CaptureMethod::SequentialAutomatic) => {
-            Err(IntegrationError::not_implemented("Capture Method".to_string()).into())
+            Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "Capture Method".to_string(),
+                connector: "Jpmorgan",
+                context: Default::default(),
+            }))
         }
     }
 }
@@ -234,18 +236,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
 
-        // JPMorgan doesn't support 3DS payments
-        if router_data.resource_common_data.auth_type == common_enums::AuthenticationType::ThreeDs {
-            return Err(IntegrationError::NotSupported {
-                message: "3DS payments".to_string(),
-                connector: "JPMorgan",
-                context: Default::default(),
-            }
-            .into());
-        }
-
         match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card_data) => {
+                // JPMorgan doesn't support 3DS for card payments
+                if router_data.resource_common_data.auth_type
+                    == common_enums::AuthenticationType::ThreeDs
+                {
+                    return Err(IntegrationError::NotImplemented(
+                        "3DS payments".to_string(),
+                        Default::default(),
+                    )
+                    .into());
+                }
                 let capture_method = map_capture_method(router_data.request.capture_method)?;
 
                 let auth = JpmorganAuthType::try_from(&router_data.connector_config)?;
@@ -306,6 +308,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let payment_method_type = requests::JpmorganPaymentMethodType {
                     card: Some(card),
                     ach: None,
+                    googlepay: None,
                     token: None,
                 };
 
@@ -314,22 +317,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     router_data.request.currency,
                 )?;
 
-                // Card payments don't use account_holder or statement_descriptor
-                // Using placeholder values to satisfy mandatory fields
-                let account_holder = requests::JpmorganAccountHolder {
-                    first_name: Secret::new("NA".to_string()),
-                    last_name: Secret::new("NA".to_string()),
-                };
-                let statement_descriptor = Secret::new("Statement Descriptor".to_string());
-
                 Ok(Self {
                     capture_method,
                     currency: router_data.request.currency,
                     amount,
                     merchant,
                     payment_method_type,
-                    account_holder,
-                    statement_descriptor,
+                    account_holder: None,
+                    statement_descriptor: None,
                 })
             }
             PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
@@ -395,6 +390,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let payment_method_type = requests::JpmorganPaymentMethodType {
                     card: None,
                     ach: Some(ach),
+                    googlepay: None,
                     token: None,
                 };
 
@@ -417,41 +413,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     amount,
                     merchant,
                     payment_method_type,
-                    account_holder,
-                    statement_descriptor,
+                    account_holder: Some(account_holder),
+                    statement_descriptor: Some(statement_descriptor),
                 })
             }
-            PaymentMethodData::CardToken(CardToken { .. }) => {
-                // CardToken flow uses the payment_method_token obtained from
-                // CreateClientAuthenticationToken to make the payment without raw card details.
-                let token = item
-                    .router_data
-                    .resource_common_data
-                    .payment_method_token
-                    .as_ref()
-                    .map(|t| match t {
-                        PaymentMethodToken::Token(s) => s.clone(),
-                    })
-                    .ok_or_else(|| {
-                        error_stack::report!(IntegrationError::MissingRequiredField {
-                            field_name: "payment_method_token",
-                            context: IntegrationErrorContext {
-                                suggested_action: Some(
-                                    "The CardToken flow requires a payment_method_token obtained \
-                                     from the ClientAuthenticationToken step. Ensure the client-side \
-                                     SDK tokenisation completed before submitting the payment."
-                                        .to_owned(),
-                                ),
-                                doc_url: Some(JPMORGAN_PAYMENTS_API_DOC.to_owned()),
-                                additional_context: Some(
-                                    "JPMorgan CardToken payments use a tokenised card reference \
-                                     instead of raw card details; the token is missing from the \
-                                     payment method data."
-                                        .to_owned(),
-                                ),
-                            },
-                        })
-                    })?;
+            PaymentMethodData::PaymentMethodToken(token_data) => {
+                let token = token_data.token.clone();
 
                 let capture_method = map_capture_method(router_data.request.capture_method)?;
 
@@ -491,6 +458,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let payment_method_type = requests::JpmorganPaymentMethodType {
                     card: None,
                     ach: None,
+                    googlepay: None,
                     token: Some(token),
                 };
 
@@ -511,18 +479,150 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     amount,
                     merchant,
                     payment_method_type,
-                    account_holder,
-                    statement_descriptor,
+                    account_holder: Some(account_holder),
+                    statement_descriptor: Some(statement_descriptor),
                 })
             }
-            PaymentMethodData::BankDebit(_) => Err(IntegrationError::not_implemented(
-                "Only ACH Bank Debit is supported".to_string(),
-            )
-            .into()),
-            _ => Err(
-                IntegrationError::not_implemented("Payment method not supported".to_string())
-                    .into(),
-            ),
+            PaymentMethodData::BankDebit(_) => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "Only ACH Bank Debit is supported".to_string(),
+                    connector: "Jpmorgan",
+                    context: Default::default(),
+                }))
+            }
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                domain_types::payment_method_data::WalletData::GooglePay(google_pay_data) => {
+                    match &google_pay_data.tokenization_data {
+                        domain_types::payment_method_data::GpayTokenizationData::Encrypted(
+                            encrypted_data,
+                        ) => {
+                            let capture_method =
+                                map_capture_method(router_data.request.capture_method)?;
+
+                            let auth = JpmorganAuthType::try_from(&router_data.connector_config)?;
+
+                            let merchant = requests::JpmorganMerchant {
+                                merchant_software: requests::JpmorganMerchantSoftware {
+                                    company_name: auth.company_name.clone().ok_or(
+                                        IntegrationError::MissingRequiredField {
+                                            field_name: "company_name",
+                                            context: Default::default(),
+                                        },
+                                    )?,
+                                    product_name: auth.product_name.clone().ok_or(
+                                        IntegrationError::MissingRequiredField {
+                                            field_name: "product_name",
+                                            context: Default::default(),
+                                        },
+                                    )?,
+                                },
+                                soft_merchant: requests::JpmorganSoftMerchant {
+                                    merchant_purchase_description: auth
+                                        .merchant_purchase_description
+                                        .clone()
+                                        .ok_or(IntegrationError::MissingRequiredField {
+                                            field_name: "merchant_purchase_description",
+                                            context: Default::default(),
+                                        })?,
+                                },
+                            };
+
+                            let amount = JpmorganAmountConvertor::convert(
+                                router_data.request.minor_amount,
+                                router_data.request.currency,
+                            )?;
+
+                            // Parse the Google Pay token string into its component fields.
+                            // The token is a JSON string containing protocolVersion, signature,
+                            // optionally intermediateSigningKey, and signedMessage.
+                            let gpay_token: requests::GooglePayToken =
+                                serde_json::from_str(&encrypted_data.token).change_context(
+                                    IntegrationError::RequestEncodingFailed {
+                                        context: Default::default(),
+                                    },
+                                )?;
+
+                            // Parse signedMessage to extract ephemeralPublicKey.
+                            // signedMessage is itself a JSON string.
+                            let signed_message: requests::GooglePaySignedMessage =
+                                serde_json::from_str(gpay_token.signed_message.peek())
+                                    .change_context(
+                                        IntegrationError::RequestEncodingFailed {
+                                            context: Default::default(),
+                                        },
+                                    )?;
+
+                            // For ECv2, signature comes from intermediateSigningKey.signatures[0].
+                            // For ECv1, signature comes from the top-level signature field.
+                            let signature =
+                                if let Some(isk) = &gpay_token.intermediate_signing_key {
+                                    isk.signatures
+                                        .first()
+                                        .cloned()
+                                        .ok_or(IntegrationError::MissingRequiredField {
+                                            field_name: "intermediateSigningKey.signatures[0]",
+                                            context: Default::default(),
+                                        })?
+                                } else {
+                                    gpay_token.signature.clone()
+                                };
+
+                            let googlepay = requests::JpmorganGooglePay {
+                                // latLong is required by JPMorgan; use "0,0" when not available
+                                lat_long: "0,0".to_string(),
+                                encrypted_payment_bundle: requests::JpmorganEncryptedPaymentBundle {
+                                    // encryptedPayload is the raw signedMessage JSON string
+                                    encrypted_payload: gpay_token.signed_message.clone(),
+                                    encrypted_payment_header:
+                                        requests::JpmorganEncryptedPaymentHeader {
+                                            ephemeral_public_key: signed_message
+                                                .ephemeral_public_key,
+                                        },
+                                    signature,
+                                    protocol_version: gpay_token.protocol_version,
+                                },
+                            };
+
+                            let payment_method_type = requests::JpmorganPaymentMethodType {
+                                card: None,
+                                ach: None,
+                                googlepay: Some(googlepay),
+                                token: None,
+                            };
+
+                            Ok(Self {
+                                capture_method,
+                                currency: router_data.request.currency,
+                                amount,
+                                merchant,
+                                payment_method_type,
+                                // account_holder and statement_descriptor are not required
+                                // for Google Pay encrypted flow
+                                account_holder: None,
+                                statement_descriptor: None,
+                            })
+                        }
+                        domain_types::payment_method_data::GpayTokenizationData::Decrypted(_) => {
+                            Err(IntegrationError::NotSupported {
+                                message: "Decrypted Google Pay token is not supported for JPMorgan; use encrypted flow".to_string(),
+                                connector: "jpmorgan",
+                                context: Default::default(),
+                            }
+                            .into())
+                        }
+                    }
+                }
+                _ => Err(IntegrationError::NotImplemented(
+                    "Wallet not supported".to_string(),
+                    Default::default(),
+                )
+                .into()),
+            },
+            _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "Payment method not supported".to_string(),
+                connector: "Jpmorgan",
+                context: Default::default(),
+            })),
         }
     }
 }

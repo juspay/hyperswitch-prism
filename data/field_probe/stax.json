@@ -67,6 +67,10 @@
         "status": "error",
         "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token (from PaymentMethodToken flow) or connector_mandate_id (for saved payment methods)"
       },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
+      },
       "Bizum": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
@@ -99,6 +103,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
+      },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
@@ -109,7 +117,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
@@ -117,9 +125,13 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
@@ -145,7 +157,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GooglePay": {
         "status": "not_implemented",
@@ -195,6 +207,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
+      },
       "LocalBankRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
@@ -220,6 +236,10 @@
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
       "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
+      },
+      "Netbanking": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
@@ -253,7 +273,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -273,7 +293,11 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
       "PaypalRedirect": {
         "status": "not_implemented",
@@ -285,9 +309,13 @@
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
+      },
+      "PhonePeRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
@@ -493,6 +521,11 @@
         "status": "not_implemented"
       }
     },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "post_authenticate": {
       "default": {
         "status": "not_implemented"
@@ -580,8 +613,30 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_tokenized_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://apiprod.fattlabs.com/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"total\":10.0,\"payment_method_id\":\"pm_1AbcXyzStripeTestToken\",\"is_refundable\":true,\"pre_auth\":false,\"meta\":{\"tax\":0},\"idempotency_id\":\"probe_tokenized_txn_001\"}"
+        }
       }
     },
     "token_setup_recurring": {

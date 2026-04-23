@@ -7,11 +7,16 @@ use common_utils::{
     types::FloatMajorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, RSync, Refund, SetupMandate, Void},
+    connector_flow::{
+        Authorize, Capture, ClientAuthenticationToken, RSync, Refund, SetupMandate, Void,
+    },
     connector_types::{
-        MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId, SetupMandateRequestData,
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        ConnectorSpecificClientAuthenticationResponse, MandateReference,
+        PayloadClientAuthenticationResponse as PayloadClientAuthenticationResponseDomain,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes},
@@ -215,6 +220,19 @@ fn build_payload_bank_account_request_data(
                 Some(enums::BankType::Checking) | None => {
                     requests::PayloadBankAccountType::Checking
                 }
+                Some(enums::BankType::Transmission)
+                | Some(enums::BankType::Current)
+                | Some(enums::BankType::Bond)
+                | Some(enums::BankType::SubscriptionShare) => {
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: format!(
+                            "Bank type {:?} is not supported for ACH bank debit",
+                            bank_type
+                        ),
+                        connector: "Payload",
+                        context: Default::default(),
+                    }))?
+                }
             };
 
             let bank_account = requests::PayloadBankAccount {
@@ -243,6 +261,7 @@ fn build_payload_bank_account_request_data(
         BankDebitData::SepaBankDebit { .. }
         | BankDebitData::SepaGuaranteedBankDebit { .. }
         | BankDebitData::BecsBankDebit { .. }
+        | BankDebitData::EftBankDebit { .. }
         | BankDebitData::BacsBankDebit { .. } => Err(IntegrationError::NotImplemented(
             domain_types::utils::get_unimplemented_payment_method_error_message("Payload"),
             Default::default(),
@@ -372,7 +391,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 domain_types::payment_method_data::WalletData::GooglePay(_)
                 | domain_types::payment_method_data::WalletData::ApplePay(_) => {
-                    Err(IntegrationError::not_implemented("Payment method".to_string()).into())
+                    Err(IntegrationError::NotImplemented(
+                        "Payment method".to_string(),
+                        Default::default(),
+                    )
+                    .into())
                 }
                 _ => Err(IntegrationError::NotSupported {
                     message: "Wallet".to_string(),
@@ -381,6 +404,28 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
                 .into()),
             },
+            // Payload.js Secure Inputs return a payment_method_id (pm_xxx) that is
+            // sent server-side to /transactions as a top-level `payment_method_id`
+            // form field — same wire shape as the repeat-payment path.
+            // Docs: https://docs.payload.com/ui/payloadjs/secure-input/handle-results/
+            PaymentMethodData::PaymentMethodToken(t) => {
+                let token = t.token.clone();
+
+                let status = if is_manual_capture(router_data.request.capture_method) {
+                    Some(responses::PayloadPaymentStatus::Authorized)
+                } else {
+                    None
+                };
+
+                Ok(Self::PayloadCardTokenRequest(Box::new(
+                    requests::PayloadCardTokenRequestData {
+                        amount,
+                        transaction_types: requests::TransactionTypes::Payment,
+                        payment_method_id: token,
+                        status,
+                    },
+                )))
+            }
             _ => Err(IntegrationError::NotSupported {
                 message: "Payment method".to_string(),
                 connector: "Payload",
@@ -814,7 +859,10 @@ pub fn parse_webhook_event(
     body: &[u8],
 ) -> Result<PayloadWebhookEvent, error_stack::Report<IntegrationError>> {
     serde_json::from_slice::<PayloadWebhookEvent>(body).change_context(
-        IntegrationError::not_implemented("webhook body decoding failed".to_string()),
+        IntegrationError::NotImplemented(
+            "webhook body decoding failed".to_string(),
+            Default::default(),
+        ),
     )
 }
 
@@ -882,5 +930,118 @@ pub fn get_event_type_from_trigger(
         | PayloadWebhooksTrigger::TransactionOperationClear => {
             domain_types::connector_types::EventType::PaymentIntentProcessing
         }
+    }
+}
+
+// ClientAuthenticationToken request — POST /access_tokens
+#[derive(Debug, Serialize)]
+pub struct PayloadClientAuthRequest {
+    #[serde(rename = "type")]
+    pub token_type: String,
+    pub intent: PayloadClientAuthIntent,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PayloadClientAuthIntent {
+    pub payment_form: PayloadClientAuthPaymentForm,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PayloadClientAuthPaymentForm {
+    pub payment: PayloadClientAuthPayment,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PayloadClientAuthPayment {
+    pub amount: FloatMajorUnit,
+    pub description: String,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PayloadRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for PayloadClientAuthRequest
+{
+    type Error = Error;
+    fn try_from(
+        item: PayloadRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+
+        let amount = PayloadAmountConvertor::convert(
+            router_data.request.amount,
+            router_data.request.currency,
+        )?;
+
+        let description = router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+
+        Ok(Self {
+            token_type: "client".to_string(),
+            intent: PayloadClientAuthIntent {
+                payment_form: PayloadClientAuthPaymentForm {
+                    payment: PayloadClientAuthPayment {
+                        amount,
+                        description,
+                    },
+                },
+            },
+        })
+    }
+}
+
+// ClientAuthenticationToken response
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PayloadClientAuthResponse {
+    pub id: Secret<String>,
+}
+
+impl TryFrom<ResponseRouterData<PayloadClientAuthResponse, Self>>
+    for RouterDataV2<
+        ClientAuthenticationToken,
+        PaymentFlowData,
+        ClientAuthenticationTokenRequestData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<PayloadClientAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        let session_data = ClientAuthenticationTokenData::ConnectorSpecific(Box::new(
+            ConnectorSpecificClientAuthenticationResponse::Payload(
+                PayloadClientAuthenticationResponseDomain {
+                    client_token: response.id,
+                },
+            ),
+        ));
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::ClientAuthenticationTokenResponse {
+                session_data,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
     }
 }

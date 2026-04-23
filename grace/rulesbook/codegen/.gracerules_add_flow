@@ -23,7 +23,6 @@
 #
 # This file defines the workflow for adding SPECIFIC FLOWS to EXISTING connectors.
 # Use this when a connector already exists and you need to add one or more missing flows.
-
 # ============================================================================
 # MAIN WORKFLOW CONTROLLER
 # ============================================================================
@@ -140,11 +139,85 @@ Some flows have dependencies that must be implemented first:
 | PSync | Authorize |
 | Capture | Authorize |
 | Void | Authorize |
+| VoidPC | Authorize |
 | Refund | Authorize (needs captured payment) |
 | RSync | Refund |
 | SetupMandate | Authorize |
 | RepeatPayment | SetupMandate |
+| MandateRevoke | SetupMandate |
+| IncrementalAuthorization | Authorize |
 | IncomingWebhook | PSync (for fallback polling) |
+| VerifyWebhookSource | IncomingWebhook |
+| CreateOrder | - |
+| SessionToken | - |
+| ServerAuthenticationToken | - |
+| ServerSessionAuthenticationToken | ServerAuthenticationToken |
+| ClientAuthenticationToken | ServerAuthenticationToken |
+| CreateConnectorCustomer | - |
+| PaymentMethodToken | - |
+| PreAuthenticate | - |
+| Authenticate | PreAuthenticate |
+| PostAuthenticate | Authenticate |
+| AcceptDispute | - |
+| SubmitEvidence | AcceptDispute |
+| DefendDispute | - |
+| DSync | - |
+| PayoutCreate | - |
+| PayoutTransfer | PayoutCreate |
+| PayoutGet | PayoutCreate |
+| PayoutVoid | PayoutCreate |
+| PayoutStage | PayoutCreate |
+| PayoutCreateLink | PayoutCreate |
+| PayoutCreateRecipient | - |
+| PayoutEnrollDisburseAccount | PayoutCreateRecipient |
+
+## FLOW-MARKER → PATTERN MAP (Authoritative)
+
+Every flow marker in `crates/types-traits/domain_types/src/connector_flow.rs`
+(both `pub struct` markers and `FlowName` enum variants) maps to exactly one
+pattern file below. Subagents MUST read the listed pattern before
+implementing the flow.
+
+| connector_flow.rs Marker              | Pattern File                                                    |
+|---------------------------------------|-----------------------------------------------------------------|
+| `Authorize`                           | `guides/patterns/pattern_authorize.md`                          |
+| `PSync`                               | `guides/patterns/pattern_psync.md`                              |
+| `Capture`                             | `guides/patterns/pattern_capture.md`                            |
+| `Void`                                | `guides/patterns/pattern_void.md`                               |
+| `VoidPC`                              | `guides/patterns/pattern_void_pc.md`                            |
+| `Refund`                              | `guides/patterns/pattern_refund.md`                             |
+| `RSync`                               | `guides/patterns/pattern_rsync.md`                              |
+| `SetupMandate`                        | `guides/patterns/pattern_setup_mandate.md`                      |
+| `RepeatPayment` / `FlowName::RepeatPayment` | `guides/patterns/pattern_repeat_payment_flow.md`          |
+| `MandateRevoke`                       | `guides/patterns/pattern_mandate_revoke.md`                     |
+| `IncrementalAuthorization`            | `guides/patterns/pattern_IncrementalAuthorization_flow.md`      |
+| `CreateOrder`                         | `guides/patterns/pattern_createorder.md`                        |
+| `CreateConnectorCustomer`             | `guides/patterns/pattern_create_connector_customer.md`          |
+| `PaymentMethodToken`                  | `guides/patterns/pattern_payment_method_token.md`               |
+| _(SessionToken; FlowName-only)_       | `guides/patterns/pattern_server_session_authentication_token.md` |
+| `ServerSessionAuthenticationToken`    | `guides/patterns/pattern_server_session_authentication_token.md` — canonical source (see "Mapping to connector_flow.rs token markers" section in `pattern_server_authentication_token.md`) |
+| `ServerAuthenticationToken`           | `guides/patterns/pattern_server_authentication_token.md` — canonical source (see "Mapping to connector_flow.rs token markers" section) |
+| `ClientAuthenticationToken`           | `guides/patterns/pattern_server_authentication_token.md` — canonical source (see "Mapping to connector_flow.rs token markers" section); companion: `guides/patterns/pattern_client_authentication_token.md` |
+| `PreAuthenticate`                     | `guides/patterns/pattern_preauthenticate.md`                    |
+| `Authenticate`                        | `guides/patterns/pattern_authenticate.md`                       |
+| `PostAuthenticate`                    | `guides/patterns/pattern_postauthenticate.md`                   |
+| `Accept` / `FlowName::AcceptDispute`  | `guides/patterns/pattern_accept_dispute.md`                     |
+| `SubmitEvidence`                      | `guides/patterns/pattern_submit_evidence.md`                    |
+| `DefendDispute`                       | `guides/patterns/pattern_defend_dispute.md`                     |
+| _(FlowName::Dsync)_                   | `guides/patterns/pattern_dsync.md`                              |
+| _(FlowName::IncomingWebhook)_         | `guides/patterns/pattern_IncomingWebhook_flow.md`               |
+| `VerifyWebhookSource`                 | `guides/patterns/pattern_verify_webhook_source.md`              |
+| `PayoutCreate`                        | `guides/patterns/pattern_payout_create.md`                      |
+| `PayoutTransfer`                      | `guides/patterns/pattern_payout_transfer.md`                    |
+| `PayoutGet`                           | `guides/patterns/pattern_payout_get.md`                         |
+| `PayoutVoid`                          | `guides/patterns/pattern_payout_void.md`                        |
+| `PayoutStage`                         | `guides/patterns/pattern_payout_stage.md`                       |
+| `PayoutCreateLink`                    | `guides/patterns/pattern_payout_create_link.md`                 |
+| `PayoutCreateRecipient`               | `guides/patterns/pattern_payout_create_recipient.md`            |
+| `PayoutEnrollDisburseAccount`         | `guides/patterns/pattern_payout_enroll_disburse_account.md`     |
+
+**Coverage:** 33/33 `FlowName` enum variants covered; additionally the
+`VerifyWebhookSource` `pub struct` marker (not in `FlowName`) is mapped.
 
 ## MULTIPLE FLOW PARSING & DEPENDENCY RESOLUTION
 
@@ -182,11 +255,37 @@ FLOW_DEPENDENCIES = {
     "PSync": ["Authorize"],
     "Capture": ["Authorize"],
     "Void": ["Authorize"],
+    "VoidPC": ["Authorize"],
     "Refund": ["Capture"],
     "RSync": ["Refund"],
     "SetupMandate": ["Authorize"],
     "RepeatPayment": ["SetupMandate"],
-    "IncomingWebhook": ["PSync"]
+    "MandateRevoke": ["SetupMandate"],
+    "IncrementalAuthorization": ["Authorize"],
+    "IncomingWebhook": ["PSync"],
+    "VerifyWebhookSource": ["IncomingWebhook"],
+    "CreateOrder": [],
+    "SessionToken": [],
+    "ServerAuthenticationToken": [],
+    "ServerSessionAuthenticationToken": ["ServerAuthenticationToken"],
+    "ClientAuthenticationToken": ["ServerAuthenticationToken"],
+    "CreateConnectorCustomer": [],
+    "PaymentMethodToken": [],
+    "PreAuthenticate": [],
+    "Authenticate": ["PreAuthenticate"],
+    "PostAuthenticate": ["Authenticate"],
+    "AcceptDispute": [],
+    "SubmitEvidence": ["AcceptDispute"],
+    "DefendDispute": [],
+    "DSync": [],
+    "PayoutCreate": [],
+    "PayoutTransfer": ["PayoutCreate"],
+    "PayoutGet": ["PayoutCreate"],
+    "PayoutVoid": ["PayoutCreate"],
+    "PayoutStage": ["PayoutCreate"],
+    "PayoutCreateLink": ["PayoutCreate"],
+    "PayoutCreateRecipient": [],
+    "PayoutEnrollDisburseAccount": ["PayoutCreateRecipient"],
 }
 
 function resolve_dependencies(requested_flows):

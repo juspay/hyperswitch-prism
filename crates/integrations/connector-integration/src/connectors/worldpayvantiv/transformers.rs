@@ -3,15 +3,18 @@ use std::borrow::Cow;
 use common_enums::{self, CountryAlpha2, Currency};
 use common_utils::{id_type::CustomerId, types::MinorUnit, StringMajorUnit};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void, VoidPC},
+    connector_flow::{
+        Authorize, Capture, IncrementalAuthorization, PSync, RSync, Refund, Void, VoidPC,
+    },
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        ResponseId,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
-    router_data::{ConnectorSpecificConfig, ErrorResponse, PaymentMethodToken},
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     ResponseTransformationErrorContext,
 };
@@ -187,15 +190,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         &item.router_data.resource_common_data.customer_id,
                     )
                     .map(Secret::new),
-                    order_id: merchant_txn_id.clone(),
+                    cnp_txn_id: None,
+                    order_id: Some(merchant_txn_id.clone()),
                     amount,
-                    order_source,
+                    order_source: Some(order_source),
                     bill_to_address,
                     ship_to_address,
-                    payment_info,
+                    payment_info: Some(payment_info),
                     enhanced_data: None,
                     processing_instructions: None,
                     cardholder_authentication: None,
+                    auth_indicator: None,
                 };
                 (Some(authorization), None)
             };
@@ -218,7 +223,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 pub(super) mod worldpayvantiv_constants {
-    pub const WORLDPAYVANTIV_VERSION: &str = "12.23";
+    pub const WORLDPAYVANTIV_VERSION: &str = "12.30";
     #[allow(dead_code)]
     pub const XML_VERSION: &str = "1.0";
     #[allow(dead_code)]
@@ -312,21 +317,37 @@ pub struct Authorization<T: PaymentMethodDataTypes> {
     pub report_group: String,
     #[serde(rename = "@customerId", skip_serializing_if = "Option::is_none")]
     pub customer_id: Option<Secret<String>>,
-    pub order_id: String,
+    // For incremental auth, use cnp_txn_id referencing the original auth.
+    // Vantiv requires this to come BEFORE order_id in XML serialization order.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cnp_txn_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order_id: Option<String>,
     pub amount: MinorUnit,
-    pub order_source: OrderSource,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order_source: Option<OrderSource>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bill_to_address: Option<BillToAddress>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ship_to_address: Option<ShipToAddress>,
-    #[serde(flatten)]
-    pub payment_info: PaymentInfo<T>,
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub payment_info: Option<PaymentInfo<T>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enhanced_data: Option<EnhancedData>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub processing_instructions: Option<ProcessingInstructions>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cardholder_authentication: Option<CardholderAuthentication>,
+    /// Indicates the type of authorization: "Estimated" or "Incremental".
+    /// Required for incremental auth flow.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auth_indicator: Option<VantivAuthIndicator>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq)]
+pub enum VantivAuthIndicator {
+    Estimated,
+    Incremental,
 }
 
 #[derive(Debug, Serialize)]
@@ -1479,7 +1500,6 @@ where
 #[allow(dead_code)]
 fn get_payment_info<T: PaymentMethodDataTypes>(
     payment_method_data: &PaymentMethodData<T>,
-    _payment_method_token: Option<PaymentMethodToken>,
 ) -> Result<PaymentInfo<T>, Report<IntegrationError>>
 where
     T::Inner: From<String> + Clone,
@@ -2527,6 +2547,185 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
             Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status: common_enums::AttemptStatus::VoidFailed,
+                    ..item.router_data.resource_common_data
+                },
+                response: Err(error_response),
+                ..item.router_data
+            })
+        }
+    }
+}
+
+// TryFrom for IncrementalAuthorization request
+// Worldpay Vantiv incremental auth sends a new authorization referencing the
+// original transaction via originalNetworkTransactionId with the updated total amount.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        WorldpayvantivRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for WorldpayvantivPaymentsRequest<T>
+{
+    type Error = Report<IntegrationError>;
+
+    fn try_from(
+        item: WorldpayvantivRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let auth = WorldpayvantivAuthType::try_from(&item.router_data.connector_config)?;
+
+        let authentication = Authentication {
+            user: auth.user,
+            password: auth.password,
+        };
+
+        let connector_transaction_id = item
+            .router_data
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(IntegrationError::MissingConnectorTransactionID {
+                context: Default::default(),
+            })?;
+
+        let merchant_txn_id = item
+            .router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+
+        let report_group = extract_report_group(&item.router_data.connector_config)
+            .unwrap_or_else(|| "rtpGrp".to_string());
+
+        // Vantiv CNP schema requires id attribute to be <= 36 characters.
+        // Prefer a short prefix + merchant_txn_id (truncate as needed).
+        let id_prefix = "IA_";
+        let max_txn_id_len = 36usize.saturating_sub(id_prefix.len());
+        let truncated_txn = if merchant_txn_id.len() > max_txn_id_len {
+            merchant_txn_id[..max_txn_id_len].to_string()
+        } else {
+            merchant_txn_id.clone()
+        };
+        // Worldpay Vantiv Incremental Auth schema (12.30+):
+        // Requires only cnpTxnId, amount, and authIndicator=Incremental.
+        // The `amount` is the INCREMENT (delta) to add, not the new total.
+        let incremental_auth = Authorization {
+            id: format!("{}{}", id_prefix, truncated_txn),
+            report_group,
+            customer_id: None,
+            cnp_txn_id: Some(connector_transaction_id),
+            order_id: None,
+            amount: item.router_data.request.minor_amount,
+            order_source: None,
+            bill_to_address: None,
+            ship_to_address: None,
+            payment_info: None,
+            enhanced_data: None,
+            processing_instructions: None,
+            cardholder_authentication: None,
+            auth_indicator: Some(VantivAuthIndicator::Incremental),
+        };
+
+        let cnp_request = CnpOnlineRequest {
+            version: worldpayvantiv_constants::WORLDPAYVANTIV_VERSION.to_string(),
+            xmlns: worldpayvantiv_constants::XMLNS.to_string(),
+            merchant_id: auth.merchant_id,
+            authentication,
+            authorization: Some(incremental_auth),
+            sale: None,
+            capture: None,
+            auth_reversal: None,
+            void: None,
+            credit: None,
+        };
+
+        Ok(Self { cnp_request })
+    }
+}
+
+// TryFrom for IncrementalAuthorization response
+// Re-uses the CnpOnlineResponse which contains an authorization_response field.
+// Unlike regular Authorize, this returns PaymentsResponseData::IncrementalAuthorizationResponse.
+impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
+    for RouterDataV2<
+        IncrementalAuthorization,
+        PaymentFlowData,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    >
+{
+    type Error = Report<ConnectorError>;
+    fn try_from(item: ResponseRouterData<CnpOnlineResponse, Self>) -> Result<Self, Self::Error> {
+        if let Some(auth_response) = item.response.authorization_response {
+            let attempt_status =
+                get_attempt_status(WorldpayvantivPaymentFlow::Auth, auth_response.response)?;
+
+            if is_payment_failure(attempt_status) {
+                let error_response = ErrorResponse {
+                    code: auth_response.response.to_string(),
+                    message: auth_response.message.clone(),
+                    reason: Some(auth_response.message.clone()),
+                    status_code: item.http_code,
+                    attempt_status: Some(attempt_status),
+                    connector_transaction_id: Some(auth_response.cnp_txn_id.clone()),
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                };
+
+                Ok(Self {
+                    resource_common_data: PaymentFlowData {
+                        status: attempt_status,
+                        ..item.router_data.resource_common_data
+                    },
+                    response: Err(error_response),
+                    ..item.router_data
+                })
+            } else {
+                let payments_response = PaymentsResponseData::IncrementalAuthorizationResponse {
+                    status: common_enums::AuthorizationStatus::Success,
+                    connector_authorization_id: Some(auth_response.cnp_txn_id.clone()),
+                    status_code: item.http_code,
+                };
+
+                Ok(Self {
+                    resource_common_data: PaymentFlowData {
+                        status: attempt_status,
+                        ..item.router_data.resource_common_data
+                    },
+                    response: Ok(payments_response),
+                    ..item.router_data
+                })
+            }
+        } else {
+            let error_response = ErrorResponse {
+                code: item.response.response_code,
+                message: item.response.message.clone(),
+                reason: Some(item.response.message.clone()),
+                status_code: item.http_code,
+                attempt_status: Some(common_enums::AttemptStatus::AuthorizationFailed),
+                connector_transaction_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            };
+
+            Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status: common_enums::AttemptStatus::AuthorizationFailed,
                     ..item.router_data.resource_common_data
                 },
                 response: Err(error_response),

@@ -413,15 +413,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::MobilePayment(_) => Err(errors::IntegrationError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Trustly"),
-                Default::default(),
-            )
-            .into()),
+            | PaymentMethodData::MobilePayment(_) => Err(error_stack::report!(
+                errors::IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("Trustly"),
+                    connector: "Trustly",
+                    context: Default::default(),
+                }
+            )),
         }
     }
 }

@@ -15,7 +15,7 @@ use domain_types::{
         ResponseId,
     },
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
-    router_data::{ConnectorSpecificConfig, PaymentMethodToken as PaymentMethodTokenType},
+    router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -328,7 +328,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
                 .to_string()
             }
-            PaymentMethodData::CardToken(_) => {
+            PaymentMethodData::PaymentMethodToken(_) => {
                 // For tokenized cards, use connector_customer field which contains
                 // the payment product/domestic_network from tokenization response
                 item.router_data
@@ -338,11 +338,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .unwrap_or_default() // Empty string fallback
             }
             _ => {
-                return Err(IntegrationError::not_implemented(
+                return Err(IntegrationError::NotImplemented(
                     "Payment method not supported".to_string(),
+                    Default::default(),
                 ))
-                .change_context(IntegrationError::not_implemented(
+                .change_context(IntegrationError::NotImplemented(
                     "Payment method".to_string(),
+                    Default::default(),
                 ))
             }
         };
@@ -367,20 +369,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Extract card token from payment_method_token if present,
         // or from connector_customer as fallback (when token is passed via gRPC)
-        let cardtoken = item
-            .router_data
-            .resource_common_data
-            .payment_method_token
-            .as_ref()
-            .map(|pmt| match pmt {
-                PaymentMethodTokenType::Token(token) => token.peek().to_string(),
-            })
-            .or_else(|| {
-                item.router_data
-                    .resource_common_data
-                    .connector_customer
-                    .clone()
-            });
+        let cardtoken = match &item.router_data.request.payment_method_data {
+            PaymentMethodData::PaymentMethodToken(t) => Some(t.token.peek().to_string()),
+            _ => item
+                .router_data
+                .resource_common_data
+                .connector_customer
+                .clone(),
+        };
 
         // Build callback URLs matching HS implementation
         // Use /redirect/response/hipay path (not /redirect/complete/hipay)
@@ -591,16 +587,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
+                Err(IntegrationError::NotImplemented(
                     "Payment method not supported for tokenization".to_string(),
+                    Default::default(),
                 ))
-                .change_context(IntegrationError::not_implemented(
+                .change_context(IntegrationError::NotImplemented(
                     "Payment method".to_string(),
+                    Default::default(),
                 ))
             }
         }

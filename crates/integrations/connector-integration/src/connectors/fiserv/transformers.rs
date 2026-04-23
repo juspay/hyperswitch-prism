@@ -464,11 +464,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         if item.router_data.resource_common_data.is_three_ds() {
-            Err(IntegrationError::NotSupported {
-                message: "Cards 3DS".to_string(),
-                connector: "Fiserv",
-                context: Default::default(),
-            })?
+            Err(error_stack::report!(IntegrationError::NotImplemented(
+                "Cards 3DS".to_string(),
+                Default::default()
+            )))?
         }
 
         let auth: FiservAuthType = FiservAuthType::try_from(&item.router_data.connector_config)?;
@@ -546,12 +545,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(error_stack::report!(IntegrationError::not_implemented(
+                Err(error_stack::report!(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("fiserv"),
+                    Default::default()
                 )))
             }
         }?;

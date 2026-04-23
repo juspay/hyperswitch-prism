@@ -30,18 +30,19 @@ use domain_types::{
     connector_types::{
         AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, ConnectorSpecifications, ConnectorWebhookSecrets,
-        DisputeDefendData, DisputeFlowData, DisputeResponseData, MandateRevokeRequestData,
-        MandateRevokeResponseData, PaymentCreateOrderData, PaymentCreateOrderResponse,
-        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
-        PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
-        RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
+        DisputeDefendData, DisputeFlowData, DisputeResponseData, DisputeWebhookReference,
+        EventContext, MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
+        PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
+        PaymentMethodTokenizationData, PaymentVoidData, PaymentWebhookReference,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundWebhookDetailsResponse, RefundWebhookReference, RefundsData,
+        RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
         ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
         SetupMandateRequestData, SubmitEvidenceData, SupportedPaymentMethodsExt,
-        WebhookDetailsResponse,
+        WebhookDetailsResponse, WebhookResourceReference,
     },
     payment_method_data::{DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -69,17 +70,18 @@ use transformers::{
     self as adyen, AdyenCaptureRequest, AdyenCaptureResponse, AdyenClientAuthRequest,
     AdyenClientAuthResponse, AdyenDefendDisputeRequest, AdyenDefendDisputeResponse,
     AdyenDisputeAcceptRequest, AdyenDisputeAcceptResponse, AdyenDisputeSubmitEvidenceRequest,
-    AdyenNotificationRequestItemWH, AdyenOrderCreateRequest, AdyenOrderCreateResponse,
-    AdyenPSyncResponse, AdyenPaymentRequest, AdyenPaymentResponse, AdyenRedirectRequest,
-    AdyenRefundRequest, AdyenRefundResponse, AdyenRepeatPaymentRequest, AdyenRepeatPaymentResponse,
-    AdyenSubmitEvidenceResponse, AdyenVoidRequest, AdyenVoidResponse, SetupMandateRequest,
-    SetupMandateResponse,
+    AdyenIncrementalAuthRequest, AdyenIncrementalAuthResponse, AdyenNotificationRequestItemWH,
+    AdyenOrderCreateRequest, AdyenOrderCreateResponse, AdyenPSyncResponse, AdyenPaymentRequest,
+    AdyenPaymentResponse, AdyenRedirectRequest, AdyenRefundRequest, AdyenRefundResponse,
+    AdyenRepeatPaymentRequest, AdyenRepeatPaymentResponse, AdyenSubmitEvidenceResponse,
+    AdyenVoidRequest, AdyenVoidResponse, SetupMandateRequest, SetupMandateResponse,
 };
 
 use super::macros;
 use crate::{types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
+use domain_types::errors::IntegrationErrorContext;
 use domain_types::errors::WebhookError;
 
 pub(crate) mod headers {
@@ -88,16 +90,6 @@ pub(crate) mod headers {
 }
 
 // Type alias for non-generic trait implementations
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Adyen<T>
-{
-}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ClientAuthentication for Adyen<T>
@@ -305,6 +297,12 @@ macros::create_all_prerequisites!(
             request_body: AdyenOrderCreateRequest,
             response_body: AdyenOrderCreateResponse,
             router_data: RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+        ),
+        (
+            flow: IncrementalAuthorization,
+            request_body: AdyenIncrementalAuthRequest,
+            response_body: AdyenIncrementalAuthResponse,
+            router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -433,6 +431,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 }
 
 const ADYEN_API_VERSION: &str = "v68";
+const ADYEN_AMOUNT_UPDATES_DOC_URL: &str =
+    "https://docs.adyen.com/api-explorer/Checkout/68/post/payments/-paymentPspReference-/amountUpdates";
 
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
@@ -504,6 +504,33 @@ macros::macro_connector_implementation!(
             )?;
             Ok(format!("{endpoint}{ADYEN_API_VERSION}/payments/details"))
         }
+        fn build_request_v2(
+            &self,
+            req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+        ) -> CustomResult<Option<common_utils::request::Request>, IntegrationError> {
+            // For wallet redirects, encoded_data may be None
+            // In such cases, gracefully skip the psync request
+            if req.request.encoded_data.clone().is_some() {
+                // Build the request normally if encoded_data is present
+                let url = self.get_url(req)?;
+                let headers = self.get_headers(req)?;
+                let body = ConnectorIntegrationV2::<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>::get_request_body(self, req)?;
+
+                Ok(Some(
+                    common_utils::request::RequestBuilder::new()
+                        .method(common_utils::request::Method::Post)
+                        .url(&url)
+                        .attach_default_headers()
+                        .headers(headers)
+                        .set_optional_body(body)
+                        .build(),
+                ))
+            } else {
+                // For wallet redirects without encoded_data, return None
+                // This allows the system to rely on webhooks for payment status
+                Ok(None)
+            }
+        }
     }
 );
 
@@ -544,6 +571,58 @@ macros::macro_connector_implementation!(
                 &req.connector_config,
             )?;
             Ok(format!("{endpoint}{ADYEN_API_VERSION}/payments/{id}/captures"))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Adyen,
+    curl_request: Json(AdyenIncrementalAuthRequest),
+    curl_response: AdyenIncrementalAuthResponse,
+    flow_name: IncrementalAuthorization,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsIncrementalAuthorizationData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let id = req
+                .request
+                .connector_transaction_id
+                .get_connector_transaction_id()
+                .change_context(IntegrationError::MissingConnectorTransactionID {
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Propagate the original authorization's connector_transaction_id \
+                             (Adyen pspReference) to the IncrementalAuthorization request."
+                                .to_string(),
+                        ),
+                        doc_url: Some(ADYEN_AMOUNT_UPDATES_DOC_URL.to_string()),
+                        additional_context: Some(
+                            "connector_transaction_id is required as the paymentPspReference path \
+                             segment for the /amountUpdates endpoint."
+                                .to_string(),
+                        ),
+                    },
+                })?;
+            let endpoint = build_env_specific_endpoint(
+                self.connector_base_url_payments(req),
+                req.resource_common_data.test_mode,
+                &req.connector_config,
+            )?;
+            Ok(format!("{endpoint}{ADYEN_API_VERSION}/payments/{id}/amountUpdates"))
         }
     }
 );
@@ -830,11 +909,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(computed_signature_b64 == received_signature_str)
     }
 
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"notificationItems":[{"NotificationRequestItem":{"pspReference":"probe_ref_001","merchantReference":"probe_order_001","merchantAccountCode":"ProbeAccount","eventCode":"AUTHORISATION","success":"true","amount":{"currency":"USD","value":1000},"additionalData":{}}}]}"#
+    }
+
     fn get_event_type(
         &self,
         request: RequestDetails,
-        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<domain_types::connector_types::EventType, error_stack::Report<WebhookError>> {
         let notif: AdyenNotificationRequestItemWH =
             transformers::get_webhook_object_from_body(request.body).map_err(|err| {
@@ -844,11 +925,76 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         transformers::get_adyen_webhook_event_type(notif.event_code).map_err(|e| report!(e))
     }
 
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
+        use transformers::WebhookEventCode;
+
+        let notif: AdyenNotificationRequestItemWH =
+            transformers::get_webhook_object_from_body(request.body).map_err(|err| {
+                report!(WebhookError::WebhookBodyDecodingFailed)
+                    .attach_printable(format!("error while decoding webhook body {err}"))
+            })?;
+
+        let reference = match notif.event_code {
+            // Capture/cancellation/adjustment events: psp_reference is the event's own PSP ref;
+            // original_reference is the parent authorisation's PSP ref — that's the lookup key.
+            WebhookEventCode::Capture
+            | WebhookEventCode::CaptureFailed
+            | WebhookEventCode::Cancellation
+            | WebhookEventCode::AuthorisationAdjustment => {
+                WebhookResourceReference::Payment(PaymentWebhookReference {
+                    connector_transaction_id: notif.original_reference,
+                    merchant_transaction_id: Some(notif.merchant_reference),
+                })
+            }
+            // Authorisation and OfferClosed: psp_reference is the payment PSP ref.
+            WebhookEventCode::Authorisation
+            | WebhookEventCode::OfferClosed
+            | WebhookEventCode::RecurringContract => {
+                WebhookResourceReference::Payment(PaymentWebhookReference {
+                    connector_transaction_id: Some(notif.psp_reference),
+                    merchant_transaction_id: Some(notif.merchant_reference),
+                })
+            }
+            // Refund events: psp_reference is the refund's own PSP ref;
+            // original_reference is the parent payment's PSP ref.
+            WebhookEventCode::Refund
+            | WebhookEventCode::CancelOrRefund
+            | WebhookEventCode::RefundFailed
+            | WebhookEventCode::RefundReversed => {
+                WebhookResourceReference::Refund(RefundWebhookReference {
+                    connector_refund_id: Some(notif.psp_reference),
+                    merchant_refund_id: Some(notif.merchant_reference),
+                    connector_transaction_id: notif.original_reference,
+                })
+            }
+            // Dispute events: psp_reference is the dispute ID; original_reference is the parent payment.
+            WebhookEventCode::NotificationOfChargeback
+            | WebhookEventCode::Chargeback
+            | WebhookEventCode::ChargebackReversed
+            | WebhookEventCode::PrearbitrationWon
+            | WebhookEventCode::SecondChargeback
+            | WebhookEventCode::PrearbitrationLost => {
+                WebhookResourceReference::Dispute(DisputeWebhookReference {
+                    connector_dispute_id: Some(notif.psp_reference),
+                    connector_transaction_id: notif.original_reference,
+                })
+            }
+            // Unknown: no actionable reference.
+            WebhookEventCode::Unknown => return Ok(None),
+        };
+
+        Ok(Some(reference))
+    }
+
     fn process_payment_webhook(
         &self,
         request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
         let request_body_copy = request.body.clone();
         let notif: AdyenNotificationRequestItemWH =
@@ -889,7 +1035,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&request_body_copy).to_string()),
             status_code: 200,
             response_headers: None,
-            transformation_status: common_enums::WebhookTransformationStatus::Complete,
             minor_amount_captured: None,
             amount_captured: None,
             error_reason,

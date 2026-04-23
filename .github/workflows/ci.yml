@@ -5,6 +5,7 @@ on:
     branches:
       - main
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
 
   merge_group:
     types:
@@ -17,9 +18,116 @@ concurrency:
 permissions:
   contents: read
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Job dependency graph:
+#
+#   changes ─┬─ typos              (always, ~8s)
+#            ├─ auto-fix           (PR only: format + generate + docs → bot commit if needed)
+#            │   ├─ check          (if rust changed AND auto-fix didn't push, ~11min)
+#            │   ├─ test           (parallel with check, ~15min)
+#            │   └─ sdk-test       (if sdk/rust-core/proto changed: FFI+gRPC tests, ~25min)
+#            └─ ci-gate            (always — single required status check)
+#
+# Auto-fix runs first on PRs: formats code + generates docs. If changes are
+# found, it commits them and the remaining jobs SKIP (a new CI run triggers
+# on the bot commit with clean code). If no changes needed, checks proceed.
+# check and test run in PARALLEL with separate caches (faster wall clock).
+# sdk-test runs FFI and gRPC tests sequentially in one job: ffi binaries are
+# built first so Cargo caches external-services (no injector-client), then
+# grpc-server is built (with injector-client) as a separate artifact — no
+# recompile when switching between test suites.
+# For connector-only PRs, tests are scoped to changed connectors.
+# ─────────────────────────────────────────────────────────────────────────────
+
 jobs:
+
+  # ── Change Detection ──────────────────────────────────────────────────────
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      rust-core: ${{ steps.filter.outputs.rust-core }}
+      connector: ${{ steps.filter.outputs.connector }}
+      any-rust: ${{ steps.filter.outputs.any-rust }}
+      sdk: ${{ steps.filter.outputs.sdk }}
+      proto: ${{ steps.filter.outputs.proto }}
+      docs-trigger: ${{ steps.filter.outputs.docs-trigger }}
+      any-rs: ${{ steps.filter.outputs.any-rs }}
+      ci: ${{ steps.filter.outputs.ci }}
+      connector-names: ${{ steps.connector-names.outputs.list }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          list-files: json
+          filters: |
+            rust-core:
+              - 'crates/common/**'
+              - 'crates/types-traits/**'
+              - 'crates/grpc-server/**'
+              - 'crates/ffi/**'
+              - 'crates/internal/composite-service/**'
+              - 'crates/internal/field-probe/**'
+              - 'crates/internal/uniffi-bindgen/**'
+              - 'crates/internal/integration-tests/src/harness/**'
+              - 'crates/internal/integration-tests/src/global_suites/**'
+              - 'crates/internal/integration-tests/src/lib.rs'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            connector:
+              - 'crates/integrations/**'
+              - 'crates/internal/integration-tests/src/connector_specs/**'
+            any-rust:
+              - 'crates/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            sdk:
+              - 'sdk/**'
+              - 'crates/ffi/**'
+            proto:
+              - 'crates/types-traits/grpc-api-types/proto/**'
+            docs-trigger:
+              - 'crates/integrations/**'
+              - 'crates/types-traits/**'
+              - 'crates/internal/field-probe/**'
+              - 'docs/**'
+              - 'docs-generated/**'
+              - 'examples/**'
+              - 'scripts/**'
+            stripe:
+              - 'crates/integrations/connector-integration/src/connectors/stripe.rs'
+              - 'crates/integrations/connector-integration/src/connectors/stripe/transformers.rs'
+            any-rs:
+              - '**/*.rs'
+            ci:
+              - '.github/**'
+
+      - name: Extract changed connector names
+        id: connector-names
+        if: steps.filter.outputs.connector == 'true'
+        shell: bash
+        run: |
+          names=$(echo '${{ steps.filter.outputs.connector_files }}' | \
+            jq -r '.[]' | \
+            grep -oE '(connectors|connector_specs)/[^/]+' | \
+            sed 's|^connectors/||;s|^connector_specs/||;s|\.rs$||' | \
+            sort -u | paste -sd ',' -)
+          echo "list=$names" >> $GITHUB_OUTPUT
+          echo "Changed connectors: $names"
+
+  # ── Fast Checks ───────────────────────────────────────────────────────────
+
   typos:
     name: Spell check
+    if: "!github.event.pull_request.draft"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -30,8 +138,250 @@ jobs:
         with:
           config: ./.typos.toml
 
+  clippy:
+    name: Clippy check
+    needs: changes
+    if: "!github.event.pull_request.draft && (needs.changes.outputs.any-rust == 'true' || needs.changes.outputs.proto == 'true')"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: clippy
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: Swatinem/rust-cache@v2.7.8
+        with:
+          shared-key: "ci-clippy"
+
+      - name: Run Clippy
+        env:
+          RUSTFLAGS: "-D warnings"
+        run: cargo +stable clippy --all-features --all-targets --profile release-fast
+
+  # ── Auto-fix (formatting + docs) ─────────────────────────────────────────
+  # On PRs: auto-format code and regenerate docs, commit if changes found.
+  # If a commit is pushed, remaining jobs skip — the new push triggers fresh CI.
+  # On push/merge_group: not applicable (code should already be clean from PR).
+  auto-fix:
+    name: Auto-fix (format + docs + generate)
+    needs: changes
+    if: >-
+      github.event_name == 'pull_request' &&
+      !github.event.pull_request.draft &&
+      github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name &&
+      (needs.changes.outputs.any-rs == 'true' ||
+       needs.changes.outputs.docs-trigger == 'true' ||
+       needs.changes.outputs.sdk == 'true' ||
+       needs.changes.outputs.proto == 'true')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      pushed: ${{ steps.commit.outputs.pushed }}
+    steps:
+      - name: Generate bot token
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ steps.generate_token.outputs.token }}
+
+      - name: Install Rust (nightly for fmt)
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: rustfmt
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Set stable as default toolchain
+        run: rustup default stable
+
+      - uses: Swatinem/rust-cache@v2.7.8
+        with:
+          shared-key: "ci-release-fast"
+          cache-targets: true
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: sdk/javascript/package-lock.json
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install jinja2 google-cloud-vision python-dotenv requests types-requests grpcio-tools mypy
+
+      - name: Install SDK codegen dependencies
+        run: |
+          pip install -r sdk/python/requirements.txt grpcio-tools protobuf
+          make -C sdk install-deps
+          cd sdk/javascript && npm ci && cd ../..
+
+      - name: Format Rust code
+        run: cargo +nightly fmt --all
+
+      - name: Generate SDK bindings
+        env:
+          RUSTUP_TOOLCHAIN: stable
+        run: make -C sdk generate PROFILE=release-fast
+
+      - name: Restore docs binaries cache
+        id: field-probe-cache-restore
+        if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            target/x86_64-unknown-linux-gnu/release-fast/field-probe
+            target/x86_64-unknown-linux-gnu/release-fast/libconnector_service_ffi.so
+            target/x86_64-unknown-linux-gnu/release-fast/uniffi-bindgen
+          key: docs-binaries-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml', 'crates/**/*.rs', 'crates/**/*.proto') }}
+
+      - name: Build field-probe + FFI + uniffi-bindgen (cache miss)
+        if: >-
+          (needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true') &&
+          steps.field-probe-cache-restore.outputs.cache-hit != 'true'
+        env:
+          RUSTUP_TOOLCHAIN: stable
+        run: |
+          cargo build -p field-probe -p ffi -p uniffi-bindgen \
+            --target x86_64-unknown-linux-gnu --profile release-fast
+
+      - name: Save docs binaries cache
+        if: >-
+          (needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true') &&
+          steps.field-probe-cache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            target/x86_64-unknown-linux-gnu/release-fast/field-probe
+            target/x86_64-unknown-linux-gnu/release-fast/libconnector_service_ffi.so
+            target/x86_64-unknown-linux-gnu/release-fast/uniffi-bindgen
+          key: docs-binaries-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml', 'crates/**/*.rs', 'crates/**/*.proto') }}
+
+      - name: Generate UniFFI Kotlin bindings
+        if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true'
+        env:
+          RUSTUP_TOOLCHAIN: stable
+        run: make -C sdk/java generate-bindings PROFILE=release-fast
+
+      - name: Publish Java SDK to Maven Local
+        if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true'
+        run: cd sdk/java && ./gradlew publishToMavenLocal -q
+
+      - name: Generate documentation
+        if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true'
+        env:
+          RUSTUP_TOOLCHAIN: stable
+        run: |
+          ./target/x86_64-unknown-linux-gnu/release-fast/field-probe || true
+          make docs SKIP_PROBE=1
+
+      - name: Check for changes and commit
+        id: commit
+        run: |
+          git config user.name 'hyperswitch-bot[bot]'
+          git config user.email '148525504+hyperswitch-bot[bot]@users.noreply.github.com'
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "✅ No auto-fix changes needed"
+            echo "pushed=false" >> $GITHUB_OUTPUT
+          else
+            echo "📝 Auto-fix changes detected:"
+            git diff --cached --stat
+
+            git commit -m "chore: auto-fix formatting and generated code
+
+          Auto-applied by CI:
+          - cargo +nightly fmt --all
+          - make -C sdk generate (if applicable)
+          - make docs (if applicable)
+
+          This commit was automatically generated by GitHub Actions."
+
+            git push
+            echo "✅ Auto-fix committed — new CI run will trigger on clean code"
+            echo "pushed=true" >> $GITHUB_OUTPUT
+          fi
+
+  # ── Formatting Check (non-PR events only) ──────────────────────────────
+  # On push/merge_group, auto-fix doesn't run (no PR branch to commit to).
+  # This lightweight check ensures unformatted code never lands on main.
+  formatting:
+    name: Check formatting
+    needs: changes
+    if: >-
+      github.event_name != 'pull_request' &&
+      (needs.changes.outputs.any-rs == 'true' ||
+       needs.changes.outputs.ci == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: rustfmt
+
+      - name: Check formatting
+        run: cargo +nightly fmt --all --check
+
+  # ── Compilation & Lint ────────────────────────────────────────────────────
+
   check:
     name: Compilation Check
+    needs: [changes, auto-fix]
+    # Run if rust/proto/CI files changed AND auto-fix succeeded without pushing.
+    # Skip if auto-fix pushed (new CI run incoming) or if auto-fix failed.
+    # 'success() || skipped' handles non-PR events where auto-fix is skipped.
+    if: >-
+      !github.event.pull_request.draft &&
+      (success() || needs.auto-fix.result == 'skipped') &&
+      needs.auto-fix.outputs.pushed != 'true' &&
+      (needs.changes.outputs.any-rust == 'true' ||
+       needs.changes.outputs.proto == 'true' ||
+       needs.changes.outputs.ci == 'true')
     runs-on: ubuntu-latest
 
     env:
@@ -45,13 +395,6 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-          components: clippy
-
-      - name: Install Rust (nightly for fmt)
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: nightly
-          components: rustfmt
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
@@ -59,21 +402,32 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: Swatinem/rust-cache@v2.7.8
-
-      - name: Run Clippy
-        run: cargo +stable clippy --all-features --all-targets
+        with:
+          shared-key: "ci-rust"
 
       - name: Run Composite Request Schema Checks
-        run: cargo test -p composite-service --test composite_request_schema_check
+        run: cargo test -p composite-service --all-features --test composite_request_schema_check
 
       - name: Run UCS Connector Schema Compatibility Check
-        run: cargo test -p integration-tests --lib harness::scenario_api::tests::all_supported_scenarios_match_proto_schema_for_all_connectors -- --exact
+        run: cargo test -p integration-tests --all-features --lib harness::scenario_api::tests::all_supported_scenarios_match_proto_schema_for_all_connectors -- --exact
 
       - name: Run Connector Specs Coverage Check
-        run: cargo run --bin check_connector_specs
+        run: cargo run --all-features --bin check_connector_specs
+
+  # ── Tests ─────────────────────────────────────────────────────────────────
 
   test:
     name: Run Tests
+    needs: [changes, auto-fix]
+    # Run if rust/proto/CI files changed AND auto-fix succeeded without pushing.
+    # Skip if auto-fix pushed (new CI run incoming) or if auto-fix failed.
+    if: >-
+      !github.event.pull_request.draft &&
+      (success() || needs.auto-fix.result == 'skipped') &&
+      needs.auto-fix.outputs.pushed != 'true' &&
+      (needs.changes.outputs.any-rust == 'true' ||
+       needs.changes.outputs.proto == 'true' ||
+       needs.changes.outputs.ci == 'true')
     runs-on: ubuntu-latest
 
     env:
@@ -105,7 +459,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2.7.8
         if: ${{ env.RUN_TESTS == 'true' }}
         with:
-          cache-on-failure: true
+          shared-key: "ci-rust"
 
       - name: Install nextest
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -135,7 +489,6 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         run: |
-          # Only set the environment variable if the credentials file exists
           if [[ -f ".github/test/creds.json" ]]; then
             echo "CONNECTOR_AUTH_FILE_PATH=${{ github.workspace }}/.github/test/creds.json" >> $GITHUB_ENV
             echo "Connector credentials available for tests"
@@ -143,37 +496,85 @@ jobs:
             echo "No connector credentials available - tests will use default values"
           fi
 
+      - name: Free up disk space
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          echo "Before cleanup:"
+          df -h
+          du -sh target 2>/dev/null || echo "No target dir"
+          # Aggressive target cleanup - keep only essentials
+          rm -rf target/debug
+          rm -rf target/incremental
+          find target -name "*.rlib" -size +50M -delete 2>/dev/null || true
+          # System cleanup
+          sudo apt-get clean
+          sudo rm -rf /var/cache/apt/archives
+          npm cache clean --force 2>/dev/null || true
+          echo "After cleanup:"
+          df -h
+          du -sh target 2>/dev/null || echo "No target dir"
+
       - name: Run Tests
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
-        run: cargo nextest run --config-file .nextest.toml --profile ci
+        run: |
+          CONNECTOR_NAMES="${{ needs.changes.outputs.connector-names }}"
+          CORE_CHANGED="${{ needs.changes.outputs.rust-core }}"
+          PROTO_CHANGED="${{ needs.changes.outputs.proto }}"
+          CI_CHANGED="${{ needs.changes.outputs.ci }}"
 
-  formatting:
-    name: Check formatting
-    runs-on: ubuntu-latest
+          SCHEMA_EXCLUDE='not test(=all_supported_scenarios_match_proto_schema_for_all_connectors)'
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+          # Scoped tests only on pull_request for connector-only changes.
+          # push (main) and merge_group always run the full suite as a safety net.
+          EVENT="${{ github.event_name }}"
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: nightly
-          components: rustfmt
+          if [[ "$EVENT" == "pull_request" && -n "$CONNECTOR_NAMES" && "$CORE_CHANGED" != "true" && "$PROTO_CHANGED" != "true" && "$CI_CHANGED" != "true" ]]; then
+            FILTER=""
+            IFS=',' read -ra CONNECTORS <<< "$CONNECTOR_NAMES"
+            for c in "${CONNECTORS[@]}"; do
+              [[ -n "$FILTER" ]] && FILTER="$FILTER | "
+              FILTER="${FILTER}test(/${c}/)"
+            done
+            echo "🔍 Connector-only PR — scoping tests to: $CONNECTOR_NAMES"
+            cargo nextest run \
+              --config-file .nextest.toml \
+              --profile ci \
+              --no-tests=warn \
+              -E "($FILTER) & ($SCHEMA_EXCLUDE)"
+          else
+            echo "🔍 Running full test suite (event=$EVENT)"
+            cargo nextest run \
+              --config-file .nextest.toml \
+              --profile ci \
+              -E "$SCHEMA_EXCLUDE"
+          fi
 
-      - name: Check formatting
-        shell: bash
-        run: cargo +nightly fmt --all --check
+  # ── SDK Tests (FFI + gRPC) ────────────────────────────────────────────────
+  # Builds all SDK binaries then runs gRPC tests first, followed by FFI tests
+  # and mock tests. Running in a single job avoids the external-services feature
+  # recompile that occurs when ffi (no injector-client) and grpc-server (with
+  # injector-client) are built in separate jobs with separate Rust caches.
+  # Build order: ffi first → grpc-server second, so Cargo stores both
+  # external-services feature variants before any tests run.
 
   sdk-test:
     name: SDK Tests
-    runs-on: ubuntu-latest  # OPTIMIZATION: Use Ubuntu instead of macOS (2-3x faster, cheaper)
+    needs: [changes, auto-fix]
+    if: >-
+      !github.event.pull_request.draft &&
+      (success() || needs.auto-fix.result == 'skipped') &&
+      needs.auto-fix.outputs.pushed != 'true' &&
+      (needs.changes.outputs.sdk == 'true' ||
+       needs.changes.outputs.rust-core == 'true' ||
+       needs.changes.outputs.proto == 'true' ||
+       needs.changes.outputs.ci == 'true' ||
+       needs.changes.outputs.stripe == 'true')
+    runs-on: ubuntu-latest
 
     env:
       RUSTFLAGS: "-D warnings"
-      PROFILE: dev  # OPTIMIZATION: Use debug profile instead of release (5x faster compilation)
-      CARGO_INCREMENTAL: 1  # OPTIMIZATION: Enable incremental compilation for dev profile
+      PROFILE: release-fast
 
     steps:
       - name: Checkout code
@@ -204,33 +605,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'  # OPTIMIZATION: Cache npm dependencies
+          cache: 'npm'
           cache-dependency-path: |
             sdk/javascript/package-lock.json
             sdk/tests/package.json
 
-      - name: Cache pip dependencies  # OPTIMIZATION: Cache Python dependencies
+      - name: Cache pip dependencies
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('sdk/python/requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
-
-      - uses: Swatinem/rust-cache@v2.7.8
-        with:
-          cache-on-failure: true
-          key: sdk-test-${{ runner.os }}  # OPTIMIZATION: Separate cache key for SDK tests
-
-      - name: Cache FFI library  # OPTIMIZATION: Cache compiled FFI library
-        uses: actions/cache@v4
-        with:
-          path: |
-            target/*/*/libconnector_service_ffi.so
-            target/*/*/libconnector_service_ffi.dylib
-          key: ffi-lib-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'crates/ffi/**/Cargo.toml', 'Cargo.lock') }}
-          restore-keys: |
-            ffi-lib-${{ runner.os }}-
 
       - name: Install Python codegen dependencies
         run: |
@@ -242,146 +628,127 @@ jobs:
           cd sdk/javascript && npm ci && cd ../..
           cd sdk/tests && npm install && cd ../..
 
-      - name: Create connector credentials for SDK tests
+      - uses: Swatinem/rust-cache@v2.7.8
+        with:
+          shared-key: "ci-release-fast"
+          cache-targets: true
+
+      - name: Generate flows.json
+        run: python3 scripts/generators/code/generate.py --lang rust
+
+      - name: Restore SDK binaries cache
+        id: sdk-cache-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            target/*/*/libconnector_service_ffi.so
+            target/*/*/libconnector_service_ffi.dylib
+            target/*/*/libhyperswitch_grpc_ffi.so
+            target/*/*/libhyperswitch_grpc_ffi.dylib
+            target/*/*/grpc-server
+            target/*/*/uniffi-bindgen
+            target/*/*/hyperswitch-smoke-test
+            target/*/*/grpc-smoke-test
+          key: sdk-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs', 'crates/grpc-server/**/*.rs', 'crates/types-traits/grpc-api-types/proto/**') }}
+
+      - name: Build SDK binaries (cache miss)
+        if: steps.sdk-cache-restore.outputs.cache-hit != 'true'
+        env:
+          RUSTUP_TOOLCHAIN: stable
+        run: |
+          cargo build -p grpc-server -p hyperswitch-grpc-ffi -p ffi -p hyperswitch-smoke-test -p uniffi-bindgen \
+            --profile release-fast --target x86_64-unknown-linux-gnu
+
+      - name: Save SDK binaries cache
+        if: steps.sdk-cache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            target/*/*/libconnector_service_ffi.so
+            target/*/*/libconnector_service_ffi.dylib
+            target/*/*/libhyperswitch_grpc_ffi.so
+            target/*/*/libhyperswitch_grpc_ffi.dylib
+            target/*/*/grpc-server
+            target/*/*/uniffi-bindgen
+            target/*/*/hyperswitch-smoke-test
+            target/*/*/grpc-smoke-test
+          key: sdk-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs', 'crates/grpc-server/**/*.rs', 'crates/types-traits/grpc-api-types/proto/**') }}
+
+      - name: Create connector credentials
         shell: bash
         env:
           CONNECTOR_SPECIFIC_AUTH: ${{ secrets.CONNECTOR_SPECIFIC_AUTH }}
         run: |
           if [[ -n "${CONNECTOR_SPECIFIC_AUTH}" ]]; then
             echo "${CONNECTOR_SPECIFIC_AUTH}" > creds.json
-            echo "Connector credentials created for SDK tests"
+            echo "Connector credentials created"
           else
-            echo "No CONNECTOR_SPECIFIC_AUTH secret found, will run in dry-run mode"
+            echo "No CONNECTOR_SPECIFIC_AUTH secret found, running in dry-run mode"
           fi
 
-      - name: Build FFI library once  # OPTIMIZATION: Build FFI once and reuse
-        run: |
-          # Determine target triple (matches PLATFORM detection in common.mk)
-          ARCH=$(uname -m)
-          if [ "$ARCH" = "aarch64" ]; then
-            PLATFORM="aarch64-unknown-linux-gnu"
-          else
-            PLATFORM="x86_64-unknown-linux-gnu"
-          fi
-          # PROFILE=dev maps to 'debug' output directory in Cargo
-          PROFILE_DIR="debug"
-          LIB_PATH="target/${PLATFORM}/${PROFILE_DIR}/libconnector_service_ffi.so"
-          if [ ! -f "$LIB_PATH" ]; then
-            echo "Building FFI library (cache miss)..."
-            cargo build -p ffi --no-default-features --features uniffi \
-              --profile dev --target "$PLATFORM"
-          else
-            echo "Using cached FFI library: $LIB_PATH"
-          fi
-
-      - name: Generate SDK code (flows.json and harnesses)
+      - name: Run SDK gRPC Tests
         shell: bash
-        run: make -C sdk generate FFI_SKIP_BUILD=1
+        run: |
+          echo "Running SDK gRPC tests"
+          GRPC_SKIP_BUILD=1 make -C sdk test-grpc PROFILE=release-fast
 
-      - name: Run SDK Tests
+      - name: Run SDK FFI Tests
         shell: bash
         run: |
           if [[ -f "creds.json" ]]; then
-            echo "Running SDK tests with connector credentials"
+            echo "Running SDK FFI tests with connector credentials"
           else
-            echo "Running SDK tests without connector credentials (dry-run mode)"
+            echo "Running SDK FFI tests without connector credentials (dry-run mode)"
           fi
-          # Skip FFI rebuild during test - already built above
-          # Note: flows.json must be generated before running tests
-          make -C sdk test FFI_SKIP_BUILD=1
+          FFI_SKIP_BUILD=1 make -C sdk test PROFILE=release-fast
 
-      - name: Verify SDK code regeneration produces no changes
-        shell: bash
-        run: make -C sdk generate FFI_SKIP_BUILD=1
-
-      - name: Check for uncommitted changes
+      - name: Run SDK Mock Tests
         shell: bash
         run: |
-          git diff --exit-code || (echo "ERROR: Generated SDK code is out of date. Run 'make -C sdk generate' and commit the changes." && exit 1)
+          echo "Running SDK mock tests (no real HTTP calls)"
+          python3 scripts/run_smoke_tests_parallel.py --mock --connectors stripe --sdks python,javascript,kotlin,rust
 
-  docs-update:
-    name: Auto-update Connector Documentation
+  # ── CI Gate ───────────────────────────────────────────────────────────────
+  # Single required status check. Passes if all jobs succeeded, were skipped,
+  # or if auto-fix pushed a commit (new CI run will validate clean code).
+  ci-gate:
+    name: CI Result
+    if: always()
+    needs: [typos, clippy, formatting, auto-fix, check, test, sdk-test]
     runs-on: ubuntu-latest
-    # Only run on PRs (not push or merge_group), and only for human authors
-    if: github.event_name == 'pull_request' && github.event.pull_request.user.login != 'github-actions[bot]'
-    permissions:
-      contents: write
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          # Checkout the PR branch so we can commit to it
-          ref: ${{ github.event.pull_request.head.ref }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install Rust (stable)
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-
-      - name: Install Rust (nightly for fmt)
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: nightly
-          components: rustfmt
-
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v3
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: Swatinem/rust-cache@v2.7.8
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install Python dependencies
+      - name: Evaluate CI results
         run: |
-          python3 -m pip install --upgrade pip
-          pip3 install jinja2 google-cloud-vision python-dotenv requests types-requests grpcio-tools
+          echo "Job results:"
+          echo "  typos:       ${{ needs.typos.result }}"
+          echo "  formatting:  ${{ needs.formatting.result }}"
+          echo "  auto-fix:    ${{ needs.auto-fix.result }}"
+          echo "  check:       ${{ needs.check.result }}"
+          echo "  test:        ${{ needs.test.result }}"
+          echo "  sdk-test:    ${{ needs.sdk-test.result }}"
+          echo "  auto-fix pushed: ${{ needs.auto-fix.outputs.pushed }}"
+          echo ""
 
-      - name: Generate documentation
-        run: |
-          echo "Generating connector documentation..."
-          make docs CONNECTORS=all 2>&1 | tail -20
-
-      - name: Format Rust code
-        run: |
-          echo "Formatting Rust code..."
-          cargo +nightly fmt --all
-
-      - name: Check for doc changes
-        id: check_doc_changes
-        run: |
-          if git diff --quiet data/field_probe/ docs-generated/ examples/; then
-            echo "No documentation changes detected"
-            echo "has_doc_changes=false" >> $GITHUB_OUTPUT
-          else
-            echo "Documentation changes detected"
-            git diff --stat data/field_probe/ docs-generated/ examples/
-            echo "has_doc_changes=true" >> $GITHUB_OUTPUT
+          # If auto-fix pushed a commit, this run is stale — pass unconditionally.
+          # The new CI run on the bot commit will validate everything.
+          if [[ "${{ needs.auto-fix.outputs.pushed }}" == "true" ]]; then
+            echo "✅ Auto-fix committed changes — new CI run will validate clean code"
+            exit 0
           fi
 
-      - name: Commit and push doc changes
-        if: steps.check_doc_changes.outputs.has_doc_changes == 'true'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          git add data/field_probe/ docs-generated/ examples/
-          git commit -m "docs: auto-update connector documentation
+          results=(
+            "${{ needs.typos.result }}"
+            "${{ needs.formatting.result }}"
+            "${{ needs.auto-fix.result }}"
+            "${{ needs.check.result }}"
+            "${{ needs.test.result }}"
+            "${{ needs.sdk-test.result }}"
+          )
+          for result in "${results[@]}"; do
+            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+              echo "❌ CI failed — one or more jobs returned: $result"
+              exit 1
+            fi
+          done
+          echo "✅ All CI checks passed (or were skipped due to path filtering)"
 
-          Regenerated field probe data, documentation, and examples.
-          
-          - Updated data/field_probe/*.json
-          - Updated docs-generated/
-          - Updated examples/ (Python, TypeScript, Kotlin, Rust)
-          - Formatted Rust code with cargo +nightly fmt
-          
-          This commit was automatically generated by GitHub Actions."
-          
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
-          echo "✓ Documentation changes committed to PR #${{ github.event.pull_request.number }}"

@@ -8,6 +8,7 @@ use responses::{JpmorganClientAuthResponse, *};
 use std::fmt::Debug;
 
 use base64::Engine;
+use bytes::Bytes;
 use common_enums::CurrencyUnit;
 use common_utils::{consts, errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
@@ -220,6 +221,58 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 macros::create_amount_converter_wrapper!(connector_name: Jpmorgan, amount_type: MinorUnit);
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Jpmorgan<T> {
+    /// JPMorgan returns malformed JSON for wallet payments where expiry fields are empty
+    /// e.g. `"month": ,` instead of `"month": null`. This sanitizes those cases.
+    pub fn preprocess_response_bytes<F, FCD, Req, Res>(
+        &self,
+        _req: &RouterDataV2<F, FCD, Req, Res>,
+        response_bytes: Bytes,
+        _status_code: u16,
+    ) -> Result<Bytes, ConnectorError> {
+        let raw = String::from_utf8(response_bytes.to_vec()).map_err(|_| {
+            ConnectorError::ResponseDeserializationFailed {
+                context: Default::default(),
+            }
+        })?;
+        // Replace patterns like `": ,` and `": \r\n` (empty JSON values) with `": null`
+        let sanitized = regex_replace_empty_json_values(&raw);
+        Ok(Bytes::from(sanitized))
+    }
+}
+
+/// Replace bare empty values in JSON (e.g. `"key": ,` or `"key": \n`) with `"key": null`.
+fn regex_replace_empty_json_values(input: &str) -> String {
+    let mut result = String::with_capacity(input.len());
+    let chars: Vec<char> = input.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+    while i < len {
+        let Some(&c) = chars.get(i) else { break };
+        result.push(c);
+        // After a colon, check if the next non-whitespace char is `,` or `}`
+        if c == ':' {
+            let mut j = i + 1;
+            // consume whitespace
+            while chars
+                .get(j)
+                .is_some_and(|&ch| matches!(ch, ' ' | '\t' | '\r' | '\n'))
+            {
+                j += 1;
+            }
+            if chars.get(j).is_some_and(|&ch| ch == ',' || ch == '}') {
+                // empty value — insert null and advance past the whitespace we consumed
+                result.push_str(" null");
+                i = j; // will push chars[j] on next iteration
+                continue;
+            }
+        }
+        i += 1;
+    }
+    result
+}
+
 macros::create_all_prerequisites!(
     connector_name: Jpmorgan,
     generic_type: T,
@@ -638,6 +691,7 @@ macros::macro_connector_implementation!(
     flow_request: PaymentsAuthorizeData<T>,
     flow_response: PaymentsResponseData,
     http_method: Post,
+    preprocess_response: true,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {

@@ -282,12 +282,13 @@ where
             | Some(PaymentMethodData::MobilePayment(..))
             | Some(PaymentMethodData::Upi(..))
             | Some(PaymentMethodData::OpenBanking(_))
-            | Some(PaymentMethodData::CardToken(..))
+            | Some(PaymentMethodData::PaymentMethodToken(..))
             | Some(PaymentMethodData::NetworkToken(..))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_))
-            | None => Err(IntegrationError::not_implemented(
+            | None => Err(IntegrationError::NotImplemented(
                 domain_types::utils::get_unimplemented_payment_method_error_message("redsys"),
+                Default::default(),
             )
             .into()),
         }

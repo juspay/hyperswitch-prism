@@ -8,84 +8,88 @@
     },
     "authorize": {
       "Ach": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "AchBankTransfer": {
         "status": "error",
         "error": "Stuck on field: metadata for ACH details — Missing required field: metadata for ACH details"
       },
       "Affirm": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Afterpay": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Alfamart": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "AliPayRedirect": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "AmazonPayRedirect": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "ApplePay": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "ApplePayDecrypted": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Bacs": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "BacsBankTransfer": {
         "status": "not_supported",
         "error": "BacsBankTransfer is not supported for Nuvei is not supported by nuvei"
       },
       "BancontactCard": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "BcaBankTransfer": {
         "status": "not_supported",
         "error": "BcaBankTransfer is not supported for Nuvei is not supported by nuvei"
       },
       "Becs": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Bizum": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Blik": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Bluecode": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "BniVaBankTransfer": {
         "status": "not_supported",
         "error": "BniVaBankTransfer is not supported for Nuvei is not supported by nuvei"
       },
       "Boleto": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "BriVaBankTransfer": {
         "status": "not_supported",
@@ -145,20 +149,24 @@
         }
       },
       "CashappQr": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "CimbVaBankTransfer": {
         "status": "not_supported",
         "error": "CimbVaBankTransfer is not supported for Nuvei is not supported by nuvei"
       },
       "ClassicReward": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
@@ -166,55 +174,59 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Efecty": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Eft": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Eps": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "FamilyMart": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Giropay": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GooglePay": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "GooglePayDecrypted": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Ideal": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Indomaret": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "IndonesianBankTransfer": {
         "status": "not_supported",
@@ -233,20 +245,24 @@
         "error": "InstantBankTransferPoland is not supported for Nuvei is not supported by nuvei"
       },
       "Interac": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Klarna": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Lawson": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "LocalBankRedirect": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "LocalBankTransfer": {
         "status": "not_supported",
@@ -257,168 +273,180 @@
         "error": "MandiriVaBankTransfer is not supported for Nuvei is not supported by nuvei"
       },
       "MbWay": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Mifinity": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "MiniStop": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "MultibancoBankTransfer": {
         "status": "not_supported",
         "error": "MultibancoBankTransfer is not supported for Nuvei is not supported by nuvei"
       },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
       "OnlineBankingCzechRepublic": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "OnlineBankingFinland": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "OnlineBankingFpx": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "OnlineBankingPoland": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "OnlineBankingThailand": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "OpenBanking": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Oxxo": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "PagoEfectivo": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "PayEasy": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "PaypalRedirect": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "PaypalSdk": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
         "status": "not_supported",
         "error": "PermataBankTransfer is not supported for Nuvei is not supported by nuvei"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Pix": {
         "status": "not_supported",
         "error": "Pix { pix_key: None, cpf: None, cnpj: None, source_bank_account_id: None, destination_bank_account_id: None, expiry_date: None } is not supported for Nuvei is not supported by nuvei"
       },
       "Przelewy24": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Pse": {
         "status": "not_supported",
         "error": "Pse is not supported for Nuvei is not supported by nuvei"
       },
       "RedCompra": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "RedPagos": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "RevolutPay": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "SamsungPay": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Satispay": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Seicomart": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Sepa": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "SepaBankTransfer": {
         "status": "not_supported",
         "error": "SepaBankTransfer is not supported for Nuvei is not supported by nuvei"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "SevenEleven": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Sofort": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Trustly": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "UpiCollect": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "UpiIntent": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "UpiQr": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "WeChatPayQr": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Wero": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       }
     },
     "capture": {
@@ -475,7 +503,23 @@
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_order_id": "probe_order_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://ppp-test.nuvei.com/ppp/api/v1/openOrder.do",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientUniqueId\":\"probe_order_001\",\"clientRequestId\":\"probe_order_001\",\"currency\":\"USD\",\"amount\":\"10.00\",\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\",\"transactionType\":\"Auth\"}"
+        }
       }
     },
     "create_server_authentication_token": {
@@ -564,6 +608,11 @@
         "status": "not_implemented"
       }
     },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "post_authenticate": {
       "default": {
         "status": "not_implemented"
@@ -582,12 +631,14 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: billing_address.first_name and billing_address.last_name — Missing required field: billing_address.first_name and billing_address.last_name"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: state.access_token — Missing required field: state.access_token"
       }
     },
     "recurring_revoke": {
@@ -645,7 +696,8 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: billing_address.first_name and billing_address.last_name — Missing required field: billing_address.first_name and billing_address.last_name"
       }
     },
     "token_authorize": {
@@ -656,7 +708,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "Payment method not supported for SetupMandate is not supported by nuvei"
       }
     },
     "tokenize": {

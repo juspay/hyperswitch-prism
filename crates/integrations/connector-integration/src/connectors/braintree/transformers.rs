@@ -26,7 +26,7 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
-    router_data::{ConnectorSpecificConfig, PaymentMethodToken as PaymentMethodTokenFlow},
+    router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_request_types,
     router_response_types::RedirectForm,
@@ -588,10 +588,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             },
                         }))
                     }
-                    _ => Err(IntegrationError::not_implemented(
-                        utils::get_unimplemented_payment_method_error_message("braintree"),
-                    )
-                    .into()),
+                    _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: utils::get_unimplemented_payment_method_error_message("braintree"),
+                        connector: "Braintree",
+                        context: Default::default(),
+                    })),
                 }
             }
             PaymentMethodData::MandatePayment
@@ -608,14 +609,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("braintree"),
-                )
-                .into())
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("braintree"),
+                    connector: "Braintree",
+                    context: Default::default(),
+                }))
             }
         }
     }
@@ -751,13 +753,9 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 })
             }
             BraintreeAuthResponse::ClientTokenResponse(client_token_data) => {
-                let payment_method_token = match item
-                    .router_data
-                    .resource_common_data
-                    .get_payment_method_token()
-                {
-                    Ok(t) => t,
-                    Err(_) => {
+                let payment_method_token = match &item.router_data.request.payment_method_data {
+                    PaymentMethodData::PaymentMethodToken(t) => t.token.clone(),
+                    _ => {
                         return Err(utils::response_handling_fail_for_connector(
                             item.http_code,
                             "braintree",
@@ -1009,13 +1007,9 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 })
             }
             BraintreePaymentsResponse::ClientTokenResponse(client_token_data) => {
-                let payment_method_token = match item
-                    .router_data
-                    .resource_common_data
-                    .get_payment_method_token()
-                {
-                    Ok(t) => t,
-                    Err(_) => {
+                let payment_method_token = match &item.router_data.request.payment_method_data {
+                    PaymentMethodData::PaymentMethodToken(t) => t.token.clone(),
+                    _ => {
                         return Err(utils::response_handling_fail_for_connector(
                             item.http_code,
                             "braintree",
@@ -1603,14 +1597,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("braintree"),
-                )
-                .into())
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("braintree"),
+                    connector: "Braintree",
+                    context: Default::default(),
+                }))
             }
         }
     }
@@ -2432,7 +2427,11 @@ where
                 .collect::<String>();
             Ok(cleaned_number)
         }
-        _ => Err(IntegrationError::not_implemented("given payment method".to_owned()).into()),
+        _ => Err(error_stack::report!(IntegrationError::NotSupported {
+            message: "given payment method".to_owned(),
+            connector: "Braintree",
+            context: Default::default(),
+        })),
     }
 }
 
@@ -2562,12 +2561,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             query,
             variables: VariablePaymentInput {
                 input: PaymentInput {
-                    payment_method_id: match item
-                        .router_data
-                        .resource_common_data
-                        .get_payment_method_token()?
-                    {
-                        PaymentMethodTokenFlow::Token(token) => token,
+                    payment_method_id: match &item.router_data.request.payment_method_data {
+                        PaymentMethodData::PaymentMethodToken(t) => t.token.clone(),
+                        _ => {
+                            return Err(IntegrationError::MissingRequiredField {
+                                field_name: "payment_method_token",
+                                context: Default::default(),
+                            }
+                            .into())
+                        }
                     },
                     transaction: transaction_body,
                     options,
@@ -2581,7 +2583,7 @@ fn get_braintree_redirect_form<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 >(
     client_token_data: ClientTokenResponse,
-    payment_method_token: PaymentMethodTokenFlow,
+    payment_method_token: Secret<String>,
     card_details: PaymentMethodData<T>,
     complete_authorize_url: String,
 ) -> Result<RedirectForm, Report<ConnectorError>> {
@@ -2591,9 +2593,7 @@ fn get_braintree_redirect_form<
             .create_client_token
             .client_token
             .expose(),
-        card_token: match payment_method_token {
-            PaymentMethodTokenFlow::Token(token) => token.expose(),
-        },
+        card_token: payment_method_token.expose(),
         bin: match card_details {
             PaymentMethodData::Card(_) => {
                 match get_card_isin_from_payment_method_data(&card_details) {
@@ -2620,7 +2620,7 @@ fn get_braintree_redirect_form<
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
@@ -2800,14 +2800,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("braintree"),
-                )
-                .into())
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("braintree"),
+                    connector: "Braintree",
+                    context: Default::default(),
+                }))
             }
         }
     }

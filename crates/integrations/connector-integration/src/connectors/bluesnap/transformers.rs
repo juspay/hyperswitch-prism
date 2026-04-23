@@ -10,8 +10,8 @@ use domain_types::{
         PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
         RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
-    payment_method_data::{BankDebitData, CardToken, PaymentMethodData, PaymentMethodDataTypes},
-    router_data::{ConnectorSpecificConfig, PaymentMethodToken},
+    payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes},
+    router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -100,8 +100,8 @@ fn get_payer_info(
 fn map_ecp_account_type(
     bank_type: Option<common_enums::BankType>,
     bank_holder_type: Option<common_enums::BankHolderType>,
-) -> String {
-    match (bank_holder_type, bank_type) {
+) -> CustomResult<String, IntegrationError> {
+    let account_type = match (bank_holder_type, bank_type) {
         (Some(common_enums::BankHolderType::Business), Some(common_enums::BankType::Checking)) => {
             "CORPORATE_CHECKING"
         }
@@ -113,8 +113,26 @@ fn map_ecp_account_type(
         (Some(common_enums::BankHolderType::Personal), Some(common_enums::BankType::Checking))
         | (None, Some(common_enums::BankType::Checking))
         | (_, None) => "CONSUMER_CHECKING",
-    }
-    .to_string()
+        (_, Some(common_enums::BankType::Transmission))
+        | (_, Some(common_enums::BankType::Current))
+        | (_, Some(common_enums::BankType::Bond))
+        | (_, Some(common_enums::BankType::SubscriptionShare)) => {
+            Err(IntegrationError::NotSupported {
+                message: format!("Bank type {bank_type:?} is not supported by BlueSnap"),
+                connector: "bluesnap",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use `BankType::Checking` or `BankType::Savings`".to_owned(),
+                    ),
+                    doc_url: None,
+                    additional_context: Some(format!(
+                        "Received BankType::{bank_type:?}, which does not map to any BlueSnap ECP account type. Only `Checking` and `Savings` are accepted by the BlueSnap."
+                    )),
+                },
+            })?
+        }
+    };
+    Ok(account_type.to_string())
 }
 
 // Auth Type
@@ -347,8 +365,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             },
                         }
                     }
-                    _ => Err(IntegrationError::not_implemented(
+                    _ => Err(IntegrationError::NotImplemented(
                         "Selected wallet type is not supported".to_string(),
+                        Default::default(),
                     ))?,
                 };
 
@@ -410,7 +429,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     let payer_info = get_payer_info(address_details)?;
 
                     // Map to BlueSnap ECP account type format
-                    let account_type = map_ecp_account_type(*bank_type, *bank_holder_type);
+                    let account_type = map_ecp_account_type(*bank_type, *bank_holder_type)?;
 
                     let amount = super::BluesnapAmountConvertor::convert(
                         router_data.request.minor_amount,
@@ -489,41 +508,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         transaction_fraud_info,
                     }))
                 }
-                _ => Err(IntegrationError::not_implemented(
+                _ => Err(IntegrationError::NotImplemented(
                     "Only ACH and SEPA Bank Debit are supported".to_string(),
+                    Default::default(),
                 ))?,
             },
-            // TODO: Refactor CardToken to use a more descriptive name (e.g., PaymentMethodToken)
-            // and add the token field directly to the struct instead of relying on payment_method_token
-            PaymentMethodData::CardToken(CardToken { .. }) => {
-                let token = router_data
-                    .resource_common_data
-                    .payment_method_token
-                    .as_ref()
-                    .map(|t| match t {
-                        PaymentMethodToken::Token(s) => s.clone(),
-                    })
-                    .ok_or_else(|| {
-                        error_stack::report!(IntegrationError::MissingRequiredField {
-                            field_name: "payment_method_token",
-                            context: IntegrationErrorContext {
-                                suggested_action: Some(
-                                    "Ensure the ClientAuthenticationToken flow runs before \
-                                     Authorize so a pfToken is available as payment_method_token."
-                                        .to_owned(),
-                                ),
-                                doc_url: Some(
-                                    "https://developers.bluesnap.com/v8976-JSON/docs/hosted-payment-fields"
-                                        .to_owned(),
-                                ),
-                                additional_context: Some(
-                                    "Bluesnap CardToken payments require a pfToken obtained from \
-                                     the Hosted Payment Fields token endpoint."
-                                        .to_owned(),
-                                ),
-                            },
-                        })
-                    })?;
+            PaymentMethodData::PaymentMethodToken(token_data) => {
+                let token = token_data.token.clone();
 
                 let card_transaction_type = match router_data.request.capture_method {
                     Some(common_enums::CaptureMethod::Manual) => BluesnapTxnType::AuthOnly,
@@ -577,8 +568,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     transaction_meta_data,
                 }))
             }
-            _ => Err(IntegrationError::not_implemented(
+            _ => Err(IntegrationError::NotImplemented(
                 "Selected payment method is not supported".to_string(),
+                Default::default(),
             ))?,
         }
     }

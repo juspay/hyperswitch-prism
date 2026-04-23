@@ -8,368 +8,396 @@
     },
     "authorize": {
       "Ach": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "AchBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Affirm": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Afterpay": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Alfamart": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "AliPayRedirect": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "AmazonPayRedirect": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "ApplePay": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "ApplePayDecrypted": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "ApplePayThirdPartySdk": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Bacs": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "BacsBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "BancontactCard": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "BcaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Becs": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Bizum": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Blik": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Bluecode": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "BniVaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Boleto": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "BriVaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Card": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "CashappQr": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "CimbVaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "ClassicReward": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "DanamonVaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Efecty": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Eft": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Eps": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "FamilyMart": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Giropay": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GooglePay": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "GooglePayDecrypted": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "GooglePayThirdPartySdk": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Ideal": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Indomaret": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "IndonesianBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "InstantBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "InstantBankTransferFinland": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "InstantBankTransferPoland": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Interac": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Klarna": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Lawson": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "LocalBankRedirect": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "LocalBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "MandiriVaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "MbWay": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Mifinity": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "MiniStop": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "MultibancoBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "OnlineBankingCzechRepublic": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "OnlineBankingFinland": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "OnlineBankingFpx": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "OnlineBankingPoland": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "OnlineBankingSlovakia": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "OnlineBankingThailand": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "OpenBanking": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Oxxo": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "PagoEfectivo": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "PayEasy": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "PaypalRedirect": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "PaypalSdk": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
+      },
+      "PhonePeRedirect": {
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Pix": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Przelewy24": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Pse": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "RedCompra": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "RedPagos": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "RevolutPay": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "SamsungPay": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Satispay": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Seicomart": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Sepa": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "SepaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "SepaGuaranteedDebit": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "SevenEleven": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Sofort": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Trustly": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "UpiCollect": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "UpiIntent": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "UpiQr": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "WeChatPayQr": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Wero": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       }
     },
     "capture": {
@@ -480,6 +508,11 @@
         "status": "not_implemented"
       }
     },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "post_authenticate": {
       "default": {
         "status": "not_implemented"
@@ -492,14 +525,14 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       }
     },
     "recurring_charge": {
@@ -596,8 +629,8 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+        "status": "not_supported",
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       }
     },
     "token_authorize": {

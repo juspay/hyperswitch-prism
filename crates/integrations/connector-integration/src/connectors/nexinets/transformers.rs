@@ -1,19 +1,28 @@
 use base64::Engine;
 use common_enums::{enums, AttemptStatus};
-use common_utils::{errors::CustomResult, request::Method};
+use common_utils::{
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    errors::CustomResult,
+    request::Method,
+};
 use domain_types::{
-    connector_flow::{Authorize, Capture, Void},
+    connector_flow::{
+        Authorize, Capture, ClientAuthenticationToken, RepeatPayment, SetupMandate, Void,
+    },
     connector_types::{
-        MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        ConnectorSpecificClientAuthenticationResponse, MandateReference, MandateReferenceId,
+        NexinetsClientAuthenticationResponse as NexinetsClientAuthenticationResponseDomain,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{
         ApplePayWalletData, BankRedirectData, Card, PaymentMethodData, PaymentMethodDataTypes,
         RawCardNumber, WalletData,
     },
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
     utils,
@@ -303,6 +312,16 @@ fn get_status(status: NexinetsPaymentStatus, method: NexinetsTransactionType) ->
     }
 }
 
+fn is_nexinets_failure_status(status: &NexinetsPaymentStatus) -> bool {
+    matches!(
+        status,
+        NexinetsPaymentStatus::Declined
+            | NexinetsPaymentStatus::Failure
+            | NexinetsPaymentStatus::Expired
+            | NexinetsPaymentStatus::Aborted
+    )
+}
+
 impl TryFrom<&enums::BankNames> for NexinetsBIC {
     type Error = error_stack::Report<IntegrationError>;
     fn try_from(bank: &enums::BankNames) -> Result<Self, Self::Error> {
@@ -345,6 +364,10 @@ pub struct NexinetsTransaction {
     pub transaction_type: NexinetsTransactionType,
     pub currency: enums::Currency,
     pub status: NexinetsPaymentStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason_code: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -721,8 +744,9 @@ fn get_payment_details_and_product<
             | BankRedirectData::OnlineBankingThailand { .. }
             | BankRedirectData::LocalBankRedirect {}
             | BankRedirectData::OpenBanking {}
-            | BankRedirectData::Netbanking { .. } => Err(IntegrationError::not_implemented(
+            | BankRedirectData::Netbanking { .. } => Err(IntegrationError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("nexinets"),
+                Default::default(),
             ))?,
         },
         PaymentMethodData::CardRedirect(_)
@@ -738,12 +762,13 @@ fn get_payment_details_and_product<
         | PaymentMethodData::Voucher(_)
         | PaymentMethodData::GiftCard(_)
         | PaymentMethodData::OpenBanking(_)
-        | PaymentMethodData::CardToken(_)
+        | PaymentMethodData::PaymentMethodToken(_)
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-            Err(IntegrationError::not_implemented(
+            Err(IntegrationError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("nexinets"),
+                Default::default(),
             ))?
         }
     }
@@ -803,7 +828,7 @@ fn get_card_details<
     Ok(CardDetails {
         card_number: req_card.card_number.clone(),
         expiry_month: req_card.card_exp_month.clone(),
-        expiry_year: req_card.card_exp_year.clone(),
+        expiry_year: req_card.get_card_expiry_year_2_digit()?,
         verification: req_card.card_cvc.clone(),
     })
 }
@@ -858,8 +883,15 @@ fn get_wallet_details<
         | WalletData::RevolutPay(_)
         | WalletData::MbWay(_)
         | WalletData::Satispay(_)
-        | WalletData::Wero(_) => Err(IntegrationError::not_implemented(
+        | WalletData::Wero(_)
+        | WalletData::LazyPayRedirect(_)
+        | WalletData::PhonePeRedirect(_)
+        | WalletData::BillDeskRedirect(_)
+        | WalletData::CashfreeRedirect(_)
+        | WalletData::PayURedirect(_)
+        | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("nexinets"),
+            Default::default(),
         ))?,
     }
 }
@@ -900,4 +932,545 @@ fn is_mandate_payment<
             .as_ref()
             .and_then(|mandate_ids| mandate_ids.mandate_reference_id.as_ref())
             .is_some()
+}
+
+// ===== CLIENT AUTHENTICATION TOKEN FLOW STRUCTURES =====
+
+/// Request to create a Nexinets order for client-side hosted payment page initialization.
+/// Returns an orderId that serves as a client authentication token.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NexinetsClientAuthRequest {
+    pub initial_amount: i64,
+    pub currency: enums::Currency,
+    pub channel: NexinetsChannel,
+    pub transaction_type: NexinetsTransactionType,
+    #[serde(rename = "async")]
+    pub nexinets_async: NexinetsAsyncDetails,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        NexinetsRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for NexinetsClientAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: NexinetsRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let return_url = router_data.resource_common_data.return_url.clone();
+        let nexinets_async = NexinetsAsyncDetails {
+            success_url: return_url.clone(),
+            cancel_url: return_url.clone(),
+            failure_url: return_url,
+        };
+
+        Ok(Self {
+            initial_amount: router_data.request.amount.get_amount_as_i64(),
+            currency: router_data.request.currency,
+            channel: NexinetsChannel::Ecom,
+            transaction_type: NexinetsTransactionType::Preauth,
+            nexinets_async,
+        })
+    }
+}
+
+/// Nexinets order creation response — contains the orderId
+/// used as a client authentication token for hosted checkout.
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NexinetsClientAuthResponse {
+    pub order_id: String,
+}
+
+impl TryFrom<ResponseRouterData<NexinetsClientAuthResponse, Self>>
+    for RouterDataV2<
+        ClientAuthenticationToken,
+        PaymentFlowData,
+        ClientAuthenticationTokenRequestData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<NexinetsClientAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        let session_data = ClientAuthenticationTokenData::ConnectorSpecific(Box::new(
+            ConnectorSpecificClientAuthenticationResponse::Nexinets(
+                NexinetsClientAuthenticationResponseDomain {
+                    order_id: response.order_id,
+                },
+            ),
+        ));
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::ClientAuthenticationTokenResponse {
+                session_data,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
+}
+
+// ============================================================================
+// SetupMandate Flow
+// ============================================================================
+//
+// Nexinets does not expose a dedicated mandate-setup endpoint. The idiomatic
+// card-on-file pattern is to issue a PREAUTH against `/orders/preauth` with a
+// `cofContract` block of type `UNSCHEDULED`, which instructs Nexinets to
+// persist the payment instrument and return a reusable
+// `paymentInstrument.paymentInstrumentId` used as the `connector_mandate_id`
+// for subsequent RepeatPayment (MIT) calls. Zero-amount preauths are not
+// universally accepted, so a caller-supplied amount is preferred and we fall
+// back to a minimum unit amount when none is provided.
+
+/// SetupMandate request — reuses the same wire shape as the standard Nexinets
+/// payments request. We always send card + cofContract(UNSCHEDULED) so the
+/// resulting preauth returns a persistable `paymentInstrumentId`.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NexinetsSetupMandateRequest<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
+    initial_amount: i64,
+    currency: enums::Currency,
+    channel: NexinetsChannel,
+    product: NexinetsProduct,
+    payment: NexinetsPaymentDetails<T>,
+    #[serde(rename = "async")]
+    nexinets_async: NexinetsAsyncDetails,
+    merchant_order_id: Option<String>,
+}
+
+/// SetupMandate response — reuses the standard Nexinets preauth/debit
+/// response which already carries `paymentInstrument.paymentInstrumentId`.
+pub type NexinetsSetupMandateResponse = NexinetsPreAuthOrDebitResponse;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        NexinetsRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for NexinetsSetupMandateRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: NexinetsRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let request = &router_data.request;
+
+        // Nexinets SetupMandate performs a PREAUTH with cofContract=UNSCHEDULED,
+        // which triggers the 3DS/SCA challenge required by PSD2 for
+        // stored-credential enrollment. Non-3DS SetupMandate is not supported.
+        if router_data.resource_common_data.auth_type == common_enums::AuthenticationType::NoThreeDs
+        {
+            return Err(IntegrationError::FlowNotSupported {
+                flow: "SetupMandate with NoThreeDs".to_string(),
+                connector: "Nexinets".to_string(),
+                context: Default::default(),
+            }
+            .into());
+        }
+
+        // Prefer request-level return URLs (SetupMandateRequestData.return_url
+        // / router_return_url) over the flow-data return_url, which is often
+        // None for SetupMandate.
+        let return_url = request
+            .return_url
+            .clone()
+            .or_else(|| request.router_return_url.clone())
+            .or_else(|| router_data.resource_common_data.return_url.clone());
+        let nexinets_async = NexinetsAsyncDetails {
+            success_url: return_url.clone(),
+            cancel_url: return_url.clone(),
+            failure_url: return_url,
+        };
+
+        let (payment, product) = match &request.payment_method_data {
+            PaymentMethodData::Card(card) => {
+                let card_details = get_card_details(card)?;
+                let nexi_card = NexiCardDetails {
+                    card_data: CardDataDetails::CardDetails(Box::new(card_details)),
+                    cof_contract: Some(CofContract {
+                        recurring_type: RecurringType::Unscheduled,
+                    }),
+                };
+                (
+                    NexinetsPaymentDetails::Card(Box::new(nexi_card)),
+                    NexinetsProduct::Creditcard,
+                )
+            }
+            _ => {
+                return Err(IntegrationError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("nexinets"),
+                    Default::default(),
+                ))?;
+            }
+        };
+
+        // Nexinets requires a positive initialAmount. Error upfront when
+        // the caller omits amount instead of silently defaulting.
+        let initial_amount = request
+            .amount
+            .or_else(|| request.minor_amount.map(|m| m.get_amount_as_i64()))
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "amount",
+                context: Default::default(),
+            })?;
+
+        let merchant_order_id = Some(
+            router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+        );
+
+        Ok(Self {
+            initial_amount,
+            currency: request.currency,
+            channel: NexinetsChannel::Ecom,
+            product,
+            payment,
+            nexinets_async,
+            merchant_order_id,
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<NexinetsSetupMandateResponse, Self>>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<NexinetsSetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response,
+            router_data,
+            http_code,
+        } = item;
+
+        let transaction = response.transactions.first().ok_or_else(|| {
+            crate::utils::response_handling_fail_for_connector(http_code, "nexinets")
+        })?;
+
+        let nexinets_metadata = NexinetsPaymentsMetadata {
+            transaction_id: Some(transaction.transaction_id.clone()),
+            order_id: Some(response.order_id.clone()),
+            psync_flow: response.transaction_type.clone(),
+        };
+        let connector_metadata = serde_json::to_value(&nexinets_metadata).change_context(
+            crate::utils::response_handling_fail_for_connector(http_code, "nexinets"),
+        )?;
+
+        let redirection_data = response
+            .redirect_url
+            .map(|url| RedirectForm::from((url, Method::Get)));
+
+        // For SetupMandate, surface the connector `paymentInstrumentId` as
+        // the connector_mandate_id for subsequent RepeatPayment (MIT) calls.
+        let mandate_reference =
+            response
+                .payment_instrument
+                .payment_instrument_id
+                .map(|id| MandateReference {
+                    connector_mandate_id: Some(id.expose()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                });
+
+        // Promote Authorized to Charged so the zero/low-amount mandate setup
+        // reaches a terminal state for downstream consumers.
+        let mut status = get_status(
+            transaction.status.clone(),
+            response.transaction_type.clone(),
+        );
+        if status == AttemptStatus::Authorized {
+            status = AttemptStatus::Charged;
+        }
+
+        let response_result = if is_nexinets_failure_status(&transaction.status) {
+            Err(ErrorResponse {
+                code: transaction
+                    .reason_code
+                    .clone()
+                    .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                message: transaction
+                    .reason
+                    .clone()
+                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                reason: transaction.reason.clone(),
+                status_code: http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: Some(transaction.transaction_id.clone()),
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(transaction.transaction_id.clone()),
+                redirection_data: redirection_data.map(Box::new),
+                mandate_reference: mandate_reference.map(Box::new),
+                connector_metadata: Some(connector_metadata),
+                network_txn_id: None,
+                connector_response_reference_id: Some(response.order_id),
+                incremental_authorization_allowed: None,
+                status_code: http_code,
+            })
+        };
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                ..router_data.resource_common_data
+            },
+            response: response_result,
+            ..router_data
+        })
+    }
+}
+
+// ============================================================================
+// RepeatPayment Flow (MIT / Merchant-Initiated Transaction)
+// ============================================================================
+//
+// Nexinets MIT reuses the standard `/orders/debit` (auto-capture) or
+// `/orders/preauth` (manual-capture) payment endpoints, replacing the card
+// panel with a `paymentInstrument.paymentInstrumentId` reference that was
+// returned by the prior SetupMandate (UNSCHEDULED COF) call. No 3DS is
+// required because the transaction is off-session. The request still carries
+// a `cofContract` of type UNSCHEDULED to flag the payment as a subsequent
+// MIT in the stored-credential lifecycle.
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NexinetsRepeatPaymentRequest {
+    initial_amount: i64,
+    currency: enums::Currency,
+    channel: NexinetsChannel,
+    product: NexinetsProduct,
+    payment: NexinetsRepeatPaymentDetails,
+    #[serde(rename = "async")]
+    nexinets_async: NexinetsAsyncDetails,
+    merchant_order_id: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NexinetsRepeatPaymentDetails {
+    payment_instrument_id: Secret<String>,
+    cof_contract: CofContract,
+}
+
+pub type NexinetsRepeatPaymentResponse = NexinetsPreAuthOrDebitResponse;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        NexinetsRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for NexinetsRepeatPaymentRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: NexinetsRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let request = &router_data.request;
+
+        let payment_instrument_id = match &request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(mandate_data) => mandate_data
+                .get_connector_mandate_id()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "connector_mandate_id",
+                    context: Default::default(),
+                })?,
+            MandateReferenceId::NetworkMandateId(_)
+            | MandateReferenceId::NetworkTokenWithNTI(_) => {
+                return Err(IntegrationError::MissingRequiredField {
+                    field_name: "connector_mandate_id",
+                    context: Default::default(),
+                }
+                .into());
+            }
+        };
+
+        let return_url = request
+            .router_return_url
+            .clone()
+            .or_else(|| router_data.resource_common_data.return_url.clone());
+        let nexinets_async = NexinetsAsyncDetails {
+            success_url: return_url.clone(),
+            cancel_url: return_url.clone(),
+            failure_url: return_url,
+        };
+
+        let payment = NexinetsRepeatPaymentDetails {
+            payment_instrument_id: Secret::new(payment_instrument_id),
+            cof_contract: CofContract {
+                recurring_type: RecurringType::Unscheduled,
+            },
+        };
+
+        let merchant_order_id = Some(
+            router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+        );
+
+        Ok(Self {
+            initial_amount: request.amount,
+            currency: request.currency,
+            channel: NexinetsChannel::Ecom,
+            product: NexinetsProduct::Creditcard,
+            payment,
+            nexinets_async,
+            merchant_order_id,
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<NexinetsRepeatPaymentResponse, Self>>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<NexinetsRepeatPaymentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response,
+            router_data,
+            http_code,
+        } = item;
+
+        let transaction = response.transactions.first().ok_or_else(|| {
+            crate::utils::response_handling_fail_for_connector(http_code, "nexinets")
+        })?;
+
+        let nexinets_metadata = NexinetsPaymentsMetadata {
+            transaction_id: Some(transaction.transaction_id.clone()),
+            order_id: Some(response.order_id.clone()),
+            psync_flow: response.transaction_type.clone(),
+        };
+        let connector_metadata = serde_json::to_value(&nexinets_metadata).change_context(
+            crate::utils::response_handling_fail_for_connector(http_code, "nexinets"),
+        )?;
+
+        let mandate_reference =
+            response
+                .payment_instrument
+                .payment_instrument_id
+                .map(|id| MandateReference {
+                    connector_mandate_id: Some(id.expose()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                });
+
+        let status = get_status(
+            transaction.status.clone(),
+            response.transaction_type.clone(),
+        );
+
+        let response_result = if is_nexinets_failure_status(&transaction.status) {
+            Err(ErrorResponse {
+                code: transaction
+                    .reason_code
+                    .clone()
+                    .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                message: transaction
+                    .reason
+                    .clone()
+                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                reason: transaction.reason.clone(),
+                status_code: http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: Some(transaction.transaction_id.clone()),
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(transaction.transaction_id.clone()),
+                redirection_data: None,
+                mandate_reference: mandate_reference.map(Box::new),
+                connector_metadata: Some(connector_metadata),
+                network_txn_id: None,
+                connector_response_reference_id: Some(response.order_id),
+                incremental_authorization_allowed: None,
+                status_code: http_code,
+            })
+        };
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                ..router_data.resource_common_data
+            },
+            response: response_result,
+            ..router_data
+        })
+    }
 }

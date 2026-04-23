@@ -9,7 +9,7 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{
         BankDebitData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
     },
@@ -91,22 +91,43 @@ pub enum ForteCardType {
 #[derive(Debug, Serialize)]
 pub struct ForteEcheck {
     sec_code: ForteSecCode,
-    #[serde(serialize_with = "serialize_bank_type_pascal")]
-    account_type: BankType,
+    account_type: ForteBankType,
     routing_number: Secret<String>,
     account_number: Secret<String>,
     account_holder: Secret<String>,
 }
 
-fn serialize_bank_type_pascal<S>(bank_type: &BankType, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    let s = match bank_type {
-        BankType::Checking => "Checking",
-        BankType::Savings => "Savings",
-    };
-    serializer.serialize_str(s)
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub enum ForteBankType {
+    Checking,
+    Savings,
+}
+
+impl TryFrom<BankType> for ForteBankType {
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(bank: BankType) -> Result<Self, Self::Error> {
+        match bank {
+            BankType::Checking => Ok(Self::Checking),
+            BankType::Savings => Ok(Self::Savings),
+            BankType::Bond
+            | BankType::Transmission
+            | BankType::Current
+            | BankType::SubscriptionShare => Err(IntegrationError::NotSupported {
+                message: format!("Bank type {bank:?} is not supported by Forte"),
+                connector: "forte",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use `BankType::Checking` or `BankType::Savings`".to_owned(),
+                    ),
+                    doc_url: None,
+                    additional_context: Some(format!(
+                        "Received BankType::{bank:?}, which does not map to any supported ACH payments account type. Only `Checking` and `Savings` are accepted for Forte ACH payments."
+                    ),),
+                },
+            })?
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -128,10 +149,11 @@ impl TryFrom<utils::CardIssuer> for ForteCardType {
             utils::CardIssuer::Visa => Ok(Self::Visa),
             utils::CardIssuer::DinersClub => Ok(Self::DinersClub),
             utils::CardIssuer::JCB => Ok(Self::Jcb),
-            _ => Err(IntegrationError::not_implemented(
-                utils::get_unimplemented_payment_method_error_message("Forte"),
-            )
-            .into()),
+            _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: utils::get_unimplemented_payment_method_error_message("Forte"),
+                connector: "forte",
+                context: Default::default(),
+            })),
         }
     }
 }
@@ -238,7 +260,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default()
                         })?;
 
-                    let account_type = bank_type.unwrap_or(BankType::Checking);
+                    let account_type = ForteBankType::try_from(bank_type.unwrap_or(BankType::Checking))?;
 
                     let echeck = ForteEcheck {
                         sec_code: ForteSecCode::WEB,
@@ -275,24 +297,39 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 })
                 }
                 BankDebitData::SepaBankDebit { .. } => {
-                    Err(IntegrationError::not_implemented(
-                        "SEPA bank debit is not supported by Forte. Only ACH (US) bank debits are supported.".to_string(),
-                    ))?
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: "SEPA bank debit is not supported by Forte. Only ACH (US) bank debits are supported.".to_string(),
+                        connector: "forte",
+                        context: Default::default(),
+                    }))?
                 }
                 BankDebitData::BecsBankDebit { .. } => {
-                    Err(IntegrationError::not_implemented(
-                        "BECS bank debit is not supported by Forte. Only ACH (US) bank debits are supported.".to_string(),
-                    ))?
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: "BECS bank debit is not supported by Forte. Only ACH (US) bank debits are supported.".to_string(),
+                        connector: "forte",
+                        context: Default::default(),
+                    }))?
                 }
                 BankDebitData::BacsBankDebit { .. } => {
-                    Err(IntegrationError::not_implemented(
-                        "BACS bank debit is not supported by Forte. Only ACH (US) bank debits are supported.".to_string(),
-                    ))?
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: "BACS bank debit is not supported by Forte. Only ACH (US) bank debits are supported.".to_string(),
+                        connector: "forte",
+                        context: Default::default(),
+                    }))?
+                }
+                BankDebitData::EftBankDebit { .. } => {
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: "EFT bank debit is not supported by Forte. Only ACH (US) bank debits are supported.".to_string(),
+                        connector: "forte",
+                        context: Default::default(),
+                    }))?
                 }
                 BankDebitData::SepaGuaranteedBankDebit { .. } => {
-                    Err(IntegrationError::not_implemented(
-                        "SEPA Guaranteed bank debit is not supported by Forte. Only ACH (US) bank debits are supported.".to_string(),
-                    ))?
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: "SEPA Guaranteed bank debit is not supported by Forte. Only ACH (US) bank debits are supported.".to_string(),
+                        connector: "forte",
+                        context: Default::default(),
+                    }))?
                 }
             },
             PaymentMethodData::CardRedirect(_)
@@ -309,13 +346,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("Forte"),
-                ))?
+                Err(IntegrationError::NotImplemented(utils::get_unimplemented_payment_method_error_message("Forte") , Default::default()))?
             }
         }
     }

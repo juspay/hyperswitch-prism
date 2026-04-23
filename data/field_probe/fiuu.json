@@ -98,8 +98,8 @@
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "BancontactCard": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
@@ -109,13 +109,17 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
-      "Bizum": {
+      "BillDeskRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
+      },
       "Blik": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "Bluecode": {
         "status": "not_implemented",
@@ -171,6 +175,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through fiuu"
+      },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through fiuu"
@@ -181,7 +189,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
@@ -189,9 +197,13 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through fiuu"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
@@ -200,24 +212,24 @@
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "Eft": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "Eps": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "FamilyMart": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "Giropay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GooglePay": {
         "status": "supported",
@@ -269,8 +281,8 @@
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "Ideal": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "Indomaret": {
         "status": "not_implemented",
@@ -293,8 +305,8 @@
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "Interac": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "Klarna": {
         "status": "not_implemented",
@@ -304,9 +316,13 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
-      "LocalBankRedirect": {
+      "LazyPayRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through fiuu"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
@@ -332,13 +348,17 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
+      },
       "OnlineBankingCzechRepublic": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "OnlineBankingFinland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "OnlineBankingFpx": {
         "status": "supported",
@@ -371,28 +391,28 @@
         }
       },
       "OnlineBankingPoland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "OnlineBankingThailand": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "OpenBanking": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "Oxxo": {
         "status": "not_implemented",
@@ -408,7 +428,11 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "PaypalRedirect": {
         "status": "not_implemented",
@@ -420,9 +444,13 @@
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through fiuu"
+      },
+      "PhonePeRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
@@ -431,8 +459,8 @@
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "Przelewy24": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "Pse": {
         "status": "not_implemented",
@@ -479,12 +507,12 @@
         "error": "This feature is not implemented: Selected payment method through fiuu"
       },
       "Sofort": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "Trustly": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through fiuu"
+        "status": "not_supported",
+        "error": "Selected payment method through fiuu is not supported by Fiuu"
       },
       "UpiCollect": {
         "status": "not_implemented",
@@ -601,12 +629,46 @@
     },
     "handle_event": {
       "default": {
-        "status": "supported"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "tranID=probe_txn_001&orderid=probe_order_001&status=00&domain=probe_domain&amount=10.00&currency=USD&channel=Credit&skey=probe_skey&appcode=probe_appcode&error_code=&error_desc="
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "tranID=probe_txn_001&orderid=probe_order_001&status=00&domain=probe_domain&amount=10.00&currency=USD&channel=Credit&skey=probe_skey&appcode=probe_appcode&error_code=&error_desc="
+        }
       }
     },
     "incremental_authorization": {
       "default": {
         "status": "not_implemented"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "tranID=probe_txn_001&orderid=probe_order_001&status=00&domain=probe_domain&amount=10.00&currency=USD&channel=Credit&skey=probe_skey&appcode=probe_appcode&error_code=&error_desc="
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "tranID=probe_txn_001&orderid=probe_order_001&status=00&domain=probe_domain&amount=10.00&currency=USD&channel=Credit&skey=probe_skey&appcode=probe_appcode&error_code=&error_desc="
+        }
       }
     },
     "post_authenticate": {

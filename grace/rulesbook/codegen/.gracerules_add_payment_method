@@ -210,16 +210,25 @@ Use these exact category names with the prefix syntax:
 | Category | Types | Pattern Directory |
 |----------|-------|-------------------|
 | `Card` | Credit, Debit | `authorize/card/` |
+| `Card:NTID` | Card MIT via NTID | `authorize/card/` (sub-pattern `pattern_authorize_card_ntid.md`) |
+| `CardRedirect` | CarteBancaire, Knet, Benefit (card-redirect) | `authorize/card_redirect/` |
+| `CardToken` | Pre-tokenized card reference | `authorize/card_token/` |
+| `NetworkToken` | VTS / MDES network tokens | `authorize/network_token/` |
 | `Wallet` | Apple Pay, Google Pay, PayPal, WeChat Pay, Alipay | `authorize/wallet/` |
+| `Wallet:NTID` | Wallet MIT via decrypted network token | `authorize/wallet/` (sub-pattern `pattern_authorize_wallet_ntid.md`) |
 | `BankTransfer` | SEPA, ACH, Wire | `authorize/bank_transfer/` |
 | `BankDebit` | SEPA Direct Debit, ACH Debit, BACS Debit | `authorize/bank_debit/` |
 | `BankRedirect` | iDEAL, Sofort, Giropay | `authorize/bank_redirect/` |
-| `UPI` | Collect, Intent | `authorize/upi/` |
+| `OpenBanking` | TrueLayer, Plaid OBIE PIS | `authorize/open_banking/` |
+| `UPI` | Collect, Intent, QR | `authorize/upi/` |
 | `BNPL` | Klarna, Afterpay, Affirm | `authorize/bnpl/` |
 | `Crypto` | Bitcoin, Ethereum | `authorize/crypto/` |
 | `GiftCard` | Generic Gift Card | `authorize/gift_card/` |
 | `MobilePayment` | Carrier Billing | `authorize/mobile_payment/` |
 | `Reward` | Loyalty Points | `authorize/reward/` |
+| `Voucher` | Boleto, OXXO, PayCash, Efecty | `authorize/voucher/` |
+| `RealTimePayment` | Pix, PromptPay, DuitNow, FedNow | `authorize/real_time_payment/` |
+| `MandatePayment` | Mandate / CIT-based recurring | `authorize/mandate_payment/` |
 
 ### Payment Method Name to Category Mapping
 
@@ -289,16 +298,58 @@ function detect_category(payment_method_name):
 
 | Payment Method | Pattern File | Typical Flows |
 |----------------|--------------|---------------|
-| Card | flows/authorize/card.md | All flows |
-| Wallet (Apple Pay, Google Pay) | flows/authorize/wallet.md | Authorize, Refund |
-| Bank Transfer | flows/authorize/bank_transfer.md | Authorize, Refund |
-| Bank Debit | flows/authorize/bank_debit.md | Authorize, Refund |
-| Bank Redirect | flows/authorize/bank_redirect.md | Authorize |
-| UPI | flows/authorize/upi.md | Authorize, Refund |
-| BNPL | flows/authorize/bnpl.md | Authorize, Refund |
-| Crypto | flows/authorize/crypto.md | Authorize |
-| Gift Card | flows/authorize/gift_card.md | Authorize |
-| Mobile Payment | flows/authorize/mobile_payment.md | Authorize, Refund |
+| Card | authorize/card/pattern_authorize_card.md | All flows |
+| Card MIT (NTID) | authorize/card/pattern_authorize_card_ntid.md | Authorize (MIT), RepeatPayment |
+| Card Redirect | authorize/card_redirect/pattern_authorize_card_redirect.md | Authorize |
+| Card Token | authorize/card_token/pattern_authorize_card_token.md | Authorize |
+| Network Token | authorize/network_token/pattern_authorize_network_token.md | Authorize |
+| Wallet (Apple Pay, Google Pay) | authorize/wallet/pattern_authorize_wallet.md | Authorize, Refund |
+| Wallet MIT (NTID) | authorize/wallet/pattern_authorize_wallet_ntid.md | Authorize (MIT), RepeatPayment |
+| Bank Transfer | authorize/bank_transfer/pattern_authorize_bank_transfer.md | Authorize, Refund |
+| Bank Debit | authorize/bank_debit/pattern_authorize_bank_debit.md | Authorize, Refund |
+| Bank Redirect | authorize/bank_redirect/pattern_authorize_bank_redirect.md | Authorize |
+| Open Banking | authorize/open_banking/pattern_authorize_open_banking.md | Authorize |
+| UPI | authorize/upi/pattern_authorize_upi.md | Authorize, Refund |
+| BNPL | authorize/bnpl/pattern_authorize_bnpl.md | Authorize, Refund |
+| Crypto | authorize/crypto/pattern_authorize_crypto.md | Authorize |
+| Gift Card | authorize/gift_card/pattern_authorize_gift_card.md | Authorize |
+| Mobile Payment | authorize/mobile_payment/pattern_authorize_mobile_payment.md | Authorize, Refund |
+| Reward | authorize/reward/pattern_authorize_reward.md | Authorize |
+| Voucher | authorize/voucher/pattern_authorize_voucher.md | Authorize |
+| Real-Time Payment | authorize/real_time_payment/pattern_authorize_real_time_payment.md | Authorize |
+| Mandate Payment | authorize/mandate_payment/pattern_authorize_mandate_payment.md | Authorize (MIT), RepeatPayment |
+
+## PAYMENTMETHODDATA → PATTERN MAP (Authoritative)
+
+Every variant of the `PaymentMethodData` enum in
+`crates/types-traits/domain_types/src/payment_method_data.rs` maps to exactly
+one authorize pattern directory / file below. Subagents MUST read the listed
+pattern before implementing the payment method.
+
+| PaymentMethodData Variant                                | Authorize Directory          | Pattern File                                                           |
+|----------------------------------------------------------|------------------------------|-----------------------------------------------------------------------|
+| `Card`                                                   | `authorize/card/`            | `authorize/card/pattern_authorize_card.md`                            |
+| `CardDetailsForNetworkTransactionId`                     | `authorize/card/`            | `authorize/card/pattern_authorize_card_ntid.md`                       |
+| `DecryptedWalletTokenDetailsForNetworkTransactionId`     | `authorize/wallet/`          | `authorize/wallet/pattern_authorize_wallet_ntid.md`                   |
+| `CardRedirect`                                           | `authorize/card_redirect/`   | `authorize/card_redirect/pattern_authorize_card_redirect.md`          |
+| `Wallet`                                                 | `authorize/wallet/`          | `authorize/wallet/pattern_authorize_wallet.md`                        |
+| `PayLater`                                               | `authorize/bnpl/`            | `authorize/bnpl/pattern_authorize_bnpl.md`                            |
+| `BankRedirect`                                           | `authorize/bank_redirect/`   | `authorize/bank_redirect/pattern_authorize_bank_redirect.md`          |
+| `BankDebit`                                              | `authorize/bank_debit/`      | `authorize/bank_debit/pattern_authorize_bank_debit.md`                |
+| `BankTransfer`                                           | `authorize/bank_transfer/`   | `authorize/bank_transfer/pattern_authorize_bank_transfer.md`          |
+| `Crypto`                                                 | `authorize/crypto/`          | `authorize/crypto/pattern_authorize_crypto.md`                        |
+| `MandatePayment`                                         | `authorize/mandate_payment/` | `authorize/mandate_payment/pattern_authorize_mandate_payment.md`      |
+| `Reward`                                                 | `authorize/reward/`          | `authorize/reward/pattern_authorize_reward.md`                        |
+| `RealTimePayment`                                        | `authorize/real_time_payment/` | `authorize/real_time_payment/pattern_authorize_real_time_payment.md` |
+| `Upi`                                                    | `authorize/upi/`             | `authorize/upi/pattern_authorize_upi.md`                              |
+| `Voucher`                                                | `authorize/voucher/`         | `authorize/voucher/pattern_authorize_voucher.md`                      |
+| `GiftCard`                                               | `authorize/gift_card/`       | `authorize/gift_card/pattern_authorize_gift_card.md`                  |
+| `CardToken`                                              | `authorize/card_token/`      | `authorize/card_token/pattern_authorize_card_token.md`                |
+| `OpenBanking`                                            | `authorize/open_banking/`    | `authorize/open_banking/pattern_authorize_open_banking.md`            |
+| `NetworkToken`                                           | `authorize/network_token/`   | `authorize/network_token/pattern_authorize_network_token.md`          |
+| `MobilePayment`                                          | `authorize/mobile_payment/`  | `authorize/mobile_payment/pattern_authorize_mobile_payment.md`        |
+
+**Coverage:** 20/20 `PaymentMethodData` variants covered (100%).
 
 ## MULTIPLE PAYMENT METHOD PARSING & BATCH IMPLEMENTATION
 
@@ -561,16 +612,25 @@ You are a Payment Method Implementation Subagent responsible for adding ONE spec
 # MANDATORY: Read the corresponding pattern file BEFORE implementing
 # Pattern file location based on payment method category:
 # - Card: guides/patterns/authorize/card/pattern_authorize_card.md
+# - Card (NTID / MIT): guides/patterns/authorize/card/pattern_authorize_card_ntid.md
+# - CardRedirect: guides/patterns/authorize/card_redirect/pattern_authorize_card_redirect.md
+# - CardToken: guides/patterns/authorize/card_token/pattern_authorize_card_token.md
+# - NetworkToken: guides/patterns/authorize/network_token/pattern_authorize_network_token.md
 # - Wallet: guides/patterns/authorize/wallet/pattern_authorize_wallet.md
+# - Wallet (NTID / MIT): guides/patterns/authorize/wallet/pattern_authorize_wallet_ntid.md
 # - BankTransfer: guides/patterns/authorize/bank_transfer/pattern_authorize_bank_transfer.md
 # - BankDebit: guides/patterns/authorize/bank_debit/pattern_authorize_bank_debit.md
 # - BankRedirect: guides/patterns/authorize/bank_redirect/pattern_authorize_bank_redirect.md
+# - OpenBanking: guides/patterns/authorize/open_banking/pattern_authorize_open_banking.md
 # - UPI: guides/patterns/authorize/upi/pattern_authorize_upi.md
 # - BNPL: guides/patterns/authorize/bnpl/pattern_authorize_bnpl.md
 # - Crypto: guides/patterns/authorize/crypto/pattern_authorize_crypto.md
 # - GiftCard: guides/patterns/authorize/gift_card/pattern_authorize_gift_card.md
 # - MobilePayment: guides/patterns/authorize/mobile_payment/pattern_authorize_mobile_payment.md
 # - Reward: guides/patterns/authorize/reward/pattern_authorize_reward.md
+# - Voucher: guides/patterns/authorize/voucher/pattern_authorize_voucher.md
+# - RealTimePayment: guides/patterns/authorize/real_time_payment/pattern_authorize_real_time_payment.md
+# - MandatePayment: guides/patterns/authorize/mandate_payment/pattern_authorize_mandate_payment.md
 #
 # CRITICAL: You MUST read the pattern file before implementing any code
 # The pattern file contains essential implementation details, code templates,

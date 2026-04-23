@@ -13,9 +13,8 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId,
     },
-    payment_method_data::{CardToken, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
+    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::ConnectorSpecificConfig,
-    router_data::PaymentMethodToken,
     router_data_v2::RouterDataV2,
 };
 use hyperswitch_masking::{PeekInterface, Secret};
@@ -185,22 +184,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             // When the client SDK collects card data via Secure Fields, the transactionId
             // from secureFieldsInit is used as an alias. The authorize-split endpoint
             // (POST /v1/transactions/{transactionId}/authorize) should be called instead
-            // of the regular authorize endpoint. The payment_method_token carries the
+            // of the regular authorize endpoint. The PaymentMethodToken carries the
             // transactionId from the client authentication token response.
-            PaymentMethodData::CardToken(CardToken { .. }) => {
-                let token = router_data
-                    .resource_common_data
-                    .payment_method_token
-                    .as_ref()
-                    .map(|t| match t {
-                        PaymentMethodToken::Token(s) => s.clone(),
-                    })
-                    .ok_or_else(|| {
-                        error_stack::report!(IntegrationError::MissingRequiredField {
-                            field_name: "payment_method_token",
-                            context: Default::default(),
-                        })
-                    })?;
+            PaymentMethodData::PaymentMethodToken(token_data) => {
+                let token = token_data.token.clone();
 
                 DatatransCard {
                     alias: Some(token),
@@ -211,8 +198,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     card_type: None,
                 }
             }
-            _ => Err(IntegrationError::not_implemented(
+            _ => Err(IntegrationError::NotImplemented(
                 UNSUPPORTED_PAYMENT_METHOD_ERROR.to_string(),
+                Default::default(),
             ))?,
         };
 

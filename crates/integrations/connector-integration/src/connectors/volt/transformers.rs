@@ -223,9 +223,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     | BankRedirectData::OnlineBankingThailand { .. }
                     | BankRedirectData::LocalBankRedirect {}
                     | BankRedirectData::Netbanking { .. } => {
-                        Err(IntegrationError::not_implemented(
-                            utils::get_unimplemented_payment_method_error_message("Volt"),
-                        ))
+                        Err(error_stack::report!(IntegrationError::NotSupported {
+                            message: utils::get_unimplemented_payment_method_error_message("Volt"),
+                            connector: "Volt",
+                            context: Default::default(),
+                        }))
                     }
                 }?;
 
@@ -293,14 +295,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("Volt"),
-                )
-                .into())
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("Volt"),
+                    connector: "Volt",
+                    context: Default::default(),
+                }))
             }
         }
     }

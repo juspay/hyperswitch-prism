@@ -38,8 +38,9 @@ use serde::Serialize;
 use std::fmt::Debug;
 use transformers::{
     self as payload, PayloadAuthorizeResponse, PayloadCaptureRequest, PayloadCaptureResponse,
-    PayloadCardsRequestData, PayloadErrorResponse, PayloadPSyncResponse, PayloadPaymentsRequest,
-    PayloadRSyncResponse, PayloadRefundRequest, PayloadRefundResponse, PayloadRepeatPaymentRequest,
+    PayloadCardsRequestData, PayloadClientAuthRequest, PayloadClientAuthResponse,
+    PayloadErrorResponse, PayloadPSyncResponse, PayloadPaymentsRequest, PayloadRSyncResponse,
+    PayloadRefundRequest, PayloadRefundResponse, PayloadRepeatPaymentRequest,
     PayloadRepeatPaymentResponse, PayloadSetupMandateResponse, PayloadVoidRequest,
     PayloadVoidResponse,
 };
@@ -238,6 +239,12 @@ macros::create_all_prerequisites!(
             request_body: PayloadRepeatPaymentRequest<T>,
             response_body: PayloadRepeatPaymentResponse,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: ClientAuthenticationToken,
+            request_body: PayloadClientAuthRequest,
+            response_body: PayloadClientAuthResponse,
+            router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -723,15 +730,43 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ClientAuthenticationToken,
-        PaymentFlowData,
-        ClientAuthenticationTokenRequestData,
-        PaymentsResponseData,
-    > for Payload<T>
-{
-}
+// ClientAuthenticationToken flow implementation
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_error_response_v2],
+    connector: Payload,
+    curl_request: Json(PayloadClientAuthRequest),
+    curl_response: PayloadClientAuthResponse,
+    flow_name: ClientAuthenticationToken,
+    resource_common_data: PaymentFlowData,
+    flow_request: ClientAuthenticationTokenRequestData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_content_type(&self) -> &'static str {
+            "application/json"
+        }
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let mut header = vec![(
+                headers::CONTENT_TYPE.to_string(),
+                "application/json".to_string().into(),
+            )];
+            let mut api_key = self.get_auth_header(&req.connector_config)?;
+            header.append(&mut api_key);
+            Ok(header)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/access_tokens", self.connector_base_url_payments(req)))
+        }
+    }
+);
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
@@ -797,11 +832,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(WebhookError::WebhookSourceVerificationFailed)
     }
 
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"object":"transaction","trigger":"payment","webhook_id":"probe_wh_001","triggered_at":"2024-01-01T00:00:00Z","triggered_on":{"id":"probe_txn_001","object":"transaction"},"url":"https://example.com/webhook"}"#
+    }
+
     fn get_event_type(
         &self,
         request: domain_types::connector_types::RequestDetails,
-        _connector_webhook_secret: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<domain_types::connector_types::EventType, error_stack::Report<WebhookError>> {
         let webhook_body: transformers::PayloadWebhookEvent = request
             .body

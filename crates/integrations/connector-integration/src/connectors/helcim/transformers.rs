@@ -142,7 +142,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 card_number: card.card_number.clone(),
                 card_c_v_v: card.card_cvc.clone(),
             },
-            _ => return Err(IntegrationError::not_implemented("payment method").into()),
+            _ => {
+                return Err(IntegrationError::NotImplemented(
+                    ("payment method").into(),
+                    Default::default(),
+                )
+                .into())
+            }
         };
 
         let req_address = item
@@ -573,7 +579,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 card_number: card.card_number.clone(),
                 card_c_v_v: card.card_cvc.clone(),
             },
-            _ => return Err(IntegrationError::not_implemented("payment method").into()),
+            _ => {
+                return Err(IntegrationError::NotImplemented(
+                    ("payment method").into(),
+                    Default::default(),
+                )
+                .into())
+            }
         };
 
         let req_address = item

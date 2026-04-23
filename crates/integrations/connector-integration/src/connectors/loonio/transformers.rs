@@ -224,9 +224,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     webhook_url: Some(item.router_data.request.get_webhook_url()?),
                 })
             }
-            PaymentMethodData::BankRedirect(_) => Err(IntegrationError::not_implemented(
-                utils::get_unimplemented_payment_method_error_message("Loonio"),
-            ))?,
+            PaymentMethodData::BankRedirect(_) => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("Loonio"),
+                    connector: "Loonio",
+                    context: Default::default(),
+                }))?
+            }
             PaymentMethodData::Card(_)
             | PaymentMethodData::Wallet(_)
             | PaymentMethodData::CardRedirect(_)
@@ -240,13 +244,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::MobilePayment(_) => Err(IntegrationError::not_implemented(
+            | PaymentMethodData::MobilePayment(_) => Err(IntegrationError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Loonio"),
+                Default::default(),
             ))?,
         }
     }

@@ -83,10 +83,10 @@ impl PaymentMethodDataTypes for DefaultPCIHolder {
 }
 
 impl PaymentMethodDataTypes for VaultTokenHolder {
-    type Inner = String; //Token
+    type Inner = Secret<String>; //Token
 
     fn peek_inner(inner: &Self::Inner) -> &str {
-        inner
+        inner.peek()
     }
 
     fn is_cobadged_inner(_inner: &Self::Inner) -> Result<bool, IntegrationError> {
@@ -174,6 +174,21 @@ impl<T: PaymentMethodDataTypes> Card<T> {
             .map(Secret::new)
     }
 
+    pub fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error> {
+        self.card_exp_year
+            .peek()
+            .clone()
+            .parse::<i32>()
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "payment_method_data.card.card_exp_year",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Expected format: YY or YYYY".to_owned()),
+                    ..Default::default()
+                },
+            })
+            .map(Secret::new)
+    }
+
     pub fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String> {
         let year = self.get_expiry_year_4_digit();
         Secret::new(format!(
@@ -188,6 +203,12 @@ impl<T: PaymentMethodDataTypes> Card<T> {
         let year = self.get_card_expiry_year_2_digit()?;
         let month = self.get_card_expiry_month_2_digit()?;
         Ok(Secret::new(format!("{}{}", month.peek(), year.peek())))
+    }
+
+    pub fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, IntegrationError> {
+        let year = self.get_card_expiry_year_2_digit()?;
+        let month = self.get_card_expiry_month_2_digit()?;
+        Ok(Secret::new(format!("{}{}", year.peek(), month.peek())))
     }
 
     pub fn get_card_expiry_year_month_2_digit_with_delimiter(
@@ -223,25 +244,6 @@ impl Card<DefaultPCIHolder> {
             year.peek()
         ))
     }
-    pub fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, IntegrationError> {
-        let year = self.get_card_expiry_year_2_digit()?.expose();
-        let month = self.card_exp_month.clone().expose();
-        Ok(Secret::new(format!("{year}{month}")))
-    }
-    pub fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error> {
-        self.card_exp_year
-            .peek()
-            .clone()
-            .parse::<i32>()
-            .change_context(IntegrationError::InvalidDataFormat {
-                field_name: "payment_method_data.card.card_exp_year",
-                context: IntegrationErrorContext {
-                    additional_context: Some("Expected format: YY or YYYY".to_owned()),
-                    ..Default::default()
-                },
-            })
-            .map(Secret::new)
-    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -264,7 +266,7 @@ pub enum PaymentMethodData<T: PaymentMethodDataTypes> {
     Upi(UpiData),
     Voucher(VoucherData),
     GiftCard(Box<GiftCardData>),
-    CardToken(CardToken),
+    PaymentMethodToken(PaymentMethodToken),
     OpenBanking(OpenBankingData),
     NetworkToken(NetworkTokenData),
     MobilePayment(MobilePaymentData),
@@ -378,16 +380,10 @@ pub struct GiftCardDetails {
     pub cvc: Secret<String>,
 }
 
-// TODO: Add payment method token field and also rename the struct to PaymentMethodToken since it is not being used anywhere
-#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, Default)]
+#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(rename_all = "snake_case")]
-// TODO: Add payment method token field and also rename the struct to PaymentMethodToken since it is not being used anywhere
-pub struct CardToken {
-    /// The card holder's name
-    pub card_holder_name: Option<Secret<String>>,
-
-    /// The CVC number for the card
-    pub card_cvc: Option<Secret<String>>,
+pub struct PaymentMethodToken {
+    pub token: Secret<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -584,6 +580,13 @@ pub enum BankDebitData {
         bank_type: Option<common_enums::BankType>,
         bank_holder_type: Option<common_enums::BankHolderType>,
     },
+    EftBankDebit {
+        account_number: Secret<String>,
+        branch_code: Secret<String>,
+        bank_account_holder_name: Option<Secret<String>>,
+        bank_name: Option<common_enums::BankNames>,
+        bank_type: Option<common_enums::BankType>,
+    },
     SepaBankDebit {
         iban: Secret<String>,
         bank_account_holder_name: Option<Secret<String>>,
@@ -722,6 +725,12 @@ pub enum WalletData {
     MbWay(MbWayData),
     Satispay(SatispayData),
     Wero(WeroData),
+    LazyPayRedirect(LazyPayRedirection),
+    PhonePeRedirect(PhonePeRedirection),
+    BillDeskRedirect(BillDeskRedirection),
+    CashfreeRedirect(CashfreeRedirection),
+    PayURedirect(PayURedirection),
+    EaseBuzzRedirect(EaseBuzzRedirection),
 }
 
 impl WalletData {
@@ -762,9 +771,11 @@ impl WalletData {
                 let encoded_token = base64::engine::general_purpose::STANDARD.encode(token_as_vec);
                 Ok(encoded_token)
             }
-            _ => {
-                Err(IntegrationError::not_implemented("SELECTED PAYMENT METHOD".to_owned()).into())
-            }
+            _ => Err(IntegrationError::NotImplemented(
+                "SELECTED PAYMENT METHOD".to_owned(),
+                Default::default(),
+            )
+            .into()),
         }
     }
 }
@@ -780,6 +791,24 @@ pub struct SatispayData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct WeroData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct LazyPayRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PhonePeRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct BillDeskRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct CashfreeRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PayURedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct EaseBuzzRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MifinityData {
@@ -1211,6 +1240,20 @@ impl ApplePayDecryptedData {
         let year = self.get_two_digit_expiry_year()?.expose();
         let month = self.application_expiration_month.clone().expose();
         Ok(Secret::new(format!("{month}{year}")))
+    }
+
+    /// Get the expiry date in YYYY{separator}MM format from the Apple Pay pre-decrypt data
+    pub fn get_expiry_date_as_yyyymm(&self, separator: &str) -> Secret<String> {
+        let year = self.get_four_digit_expiry_year();
+        let month = self.application_expiration_month.clone().expose();
+        Secret::new(format!("{}{}{:0>2}", year.peek(), separator, month))
+    }
+
+    /// Get the expiry date in MM{separator}YYYY format from the Apple Pay pre-decrypt data
+    pub fn get_expiry_date_as_mmyyyy(&self, separator: &str) -> Secret<String> {
+        let year = self.get_four_digit_expiry_year();
+        let month = self.application_expiration_month.clone().expose();
+        Secret::new(format!("{month}{separator}{}", year.peek()))
     }
 }
 
