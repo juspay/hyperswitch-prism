@@ -31,10 +31,8 @@ mod tests {
                 "id": "evt_test_001",
                 "time": "2024-01-01T00:00:00Z",
                 "data": {{
-                    "charge": {{
-                        "id": "pc_test_123",
-                        "status": "{status}"
-                    }}
+                    "paymentChargeId": "pc_test_123",
+                    "paymentChargeStatus": "{status}"
                 }}
             }}"#
         )
@@ -50,10 +48,8 @@ mod tests {
                 "id": "evt_test_001",
                 "time": "2024-01-01T00:00:00Z",
                 "data": {{
-                    "agreement": {{
-                        "id": "agr_test_123",
-                        "status": "{status}"
-                    }}
+                    "paymentAgreementId": "agr_test_123",
+                    "paymentAgreementStatus": "{status}"
                 }}
             }}"#
         )
@@ -286,14 +282,12 @@ mod tests {
             "id": "evt_test_002",
             "time": "2024-01-01T00:00:00Z",
             "data": {
-                "charge": {
-                    "id": "pc_test_456",
-                    "status": "FAILED",
-                    "failure": {
-                        "failureType": "AUTHORIZATION",
-                        "failureCode": "CARD_DECLINED",
-                        "failureMessage": "Card was declined"
-                    }
+                "paymentChargeId": "pc_test_456",
+                "paymentChargeStatus": "FAILED",
+                "failure": {
+                    "failureType": "AUTHORIZATION",
+                    "failureCode": "CARD_DECLINED",
+                    "failureMessage": "Card was declined"
                 }
             }
         }"#
@@ -322,10 +316,8 @@ mod tests {
             "id": "evt_test_003",
             "time": "2024-01-01T00:00:00Z",
             "data": {
-                "agreement": {
-                    "id": "pa_test_789",
-                    "status": "ACTIVE"
-                }
+                "paymentAgreementId": "pa_test_789",
+                "paymentAgreementStatus": "ACTIVE"
             }
         }"#
         .as_bytes();
@@ -370,13 +362,16 @@ mod tests {
 
     // ── Webhook: verify_webhook_source ───────────────────────────────────────
 
-    /// Helper: compute HMAC-SHA256 and return hex-encoded signature.
+    /// Helper: compute SHA256(body + "." + secret) and return hex-encoded signature.
     fn sign_body(secret: &[u8], body: &[u8]) -> Result<String, Box<dyn std::error::Error>> {
-        use common_utils::crypto::SignMessage;
-        let sig = common_utils::crypto::HmacSha256
-            .sign_message(secret, body)
-            .map_err(|e| format!("HMAC signing failed: {e:?}"))?;
-        Ok(hex::encode(sig))
+        use common_utils::crypto::GenerateDigest;
+        let mut message = body.to_vec();
+        message.push(b'.');
+        message.extend_from_slice(secret);
+        let digest = common_utils::crypto::Sha256
+            .generate_digest(&message)
+            .map_err(|e| format!("SHA256 digest failed: {e:?}"))?;
+        Ok(hex::encode(digest))
     }
 
     fn make_signed_request(body: &[u8], signature: &str) -> RequestDetails {
@@ -405,7 +400,7 @@ mod tests {
         };
 
         let result = connector.verify_webhook_source(request, Some(secrets), None)?;
-        ensure!(result, "valid HMAC signature should verify as true");
+        ensure!(result, "valid SHA256 signature should verify as true");
         Ok(())
     }
 
@@ -424,7 +419,7 @@ mod tests {
         };
 
         let result = connector.verify_webhook_source(request, Some(secrets), None)?;
-        ensure!(!result, "invalid HMAC signature should verify as false");
+        ensure!(!result, "invalid SHA256 signature should verify as false");
         Ok(())
     }
 
@@ -559,14 +554,12 @@ mod tests {
             "id": "evt_test_cap_fail",
             "time": "2024-01-01T00:00:00Z",
             "data": {
-                "charge": {
-                    "id": "pc_cap_fail",
-                    "status": "FAILED",
-                    "failure": {
-                        "failureType": "CAPTURE",
-                        "failureCode": "CAPTURE_TIMEOUT",
-                        "failureMessage": "Capture timed out"
-                    }
+                "paymentChargeId": "pc_cap_fail",
+                "paymentChargeStatus": "FAILED",
+                "failure": {
+                    "failureType": "CAPTURE",
+                    "failureCode": "CAPTURE_TIMEOUT",
+                    "failureMessage": "Capture timed out"
                 }
             }
         }"#
@@ -604,14 +597,12 @@ mod tests {
             "id": "evt_test_void_fail",
             "time": "2024-01-01T00:00:00Z",
             "data": {
-                "charge": {
-                    "id": "pc_void_fail",
-                    "status": "FAILED",
-                    "failure": {
-                        "failureType": "VOID",
-                        "failureCode": "VOID_NOT_ALLOWED",
-                        "failureMessage": "Void not allowed"
-                    }
+                "paymentChargeId": "pc_void_fail",
+                "paymentChargeStatus": "FAILED",
+                "failure": {
+                    "failureType": "VOID",
+                    "failureCode": "VOID_NOT_ALLOWED",
+                    "failureMessage": "Void not allowed"
                 }
             }
         }"#
@@ -670,14 +661,12 @@ mod tests {
             "id": "evt_test_refund_fail_detail",
             "time": "2024-01-01T00:00:00Z",
             "data": {
-                "charge": {
-                    "id": "pc_refund_fail_detail",
-                    "status": "FAILED",
-                    "failure": {
-                        "failureType": "REFUND",
-                        "failureCode": "REFUND_LIMIT_EXCEEDED",
-                        "failureMessage": "Refund amount exceeds limit"
-                    }
+                "paymentChargeId": "pc_refund_fail_detail",
+                "paymentChargeStatus": "FAILED",
+                "failure": {
+                    "failureType": "REFUND",
+                    "failureCode": "REFUND_LIMIT_EXCEEDED",
+                    "failureMessage": "Refund amount exceeds limit"
                 }
             }
         }"#
