@@ -62,33 +62,63 @@ pub fn construct_upi_deeplink(params: &RegisterIntentResponsePayload) -> String 
 }
 
 /// Map transaction status from gateway response to internal AttemptStatus
+/// Uses explicit exhaustive matching on OuterResponseCode and GatewayResponseCode enums
 pub fn map_transaction_status(
-    outer_response_code: &str,
+    outer_response_code: OuterResponseCode,
     gateway_response_code: Option<&str>,
 ) -> enums::AttemptStatus {
-    // First check outer response code
+    use crate::connectors::juspay_upi_stack::types::GatewayResponseCode;
+
     match outer_response_code {
-        RESPONSE_CODE_REQUEST_NOT_FOUND => return enums::AttemptStatus::Pending,
-        RESPONSE_CODE_REQUEST_EXPIRED => return enums::AttemptStatus::Failure,
-        RESPONSE_CODE_DROPOUT => return enums::AttemptStatus::Failure,
-        RESPONSE_CODE_FAILURE => return enums::AttemptStatus::Failure,
-        _ => {}
-    }
-    
-    // If SUCCESS, check gateway response code
-    if outer_response_code == RESPONSE_CODE_SUCCESS {
-        if let Some(code) = gateway_response_code {
-            match code {
-                GATEWAY_RESPONSE_CODE_SUCCESS => return enums::AttemptStatus::Charged,
-                GATEWAY_RESPONSE_CODE_PENDING => return enums::AttemptStatus::Pending,
-                _ => return enums::AttemptStatus::Failure,
+        // Terminal failure states
+        OuterResponseCode::Failure
+        | OuterResponseCode::RequestExpired
+        | OuterResponseCode::Dropout
+        | OuterResponseCode::InvalidData
+        | OuterResponseCode::Unauthorized
+        | OuterResponseCode::InvalidMerchant
+        | OuterResponseCode::DeviceFingerprintMismatch
+        | OuterResponseCode::InternalServerError
+        | OuterResponseCode::InvalidTransactionId
+        | OuterResponseCode::UninitiatedRequest
+        | OuterResponseCode::InvalidRefundAmount => enums::AttemptStatus::Failure,
+
+        // Pending states - may transition to success/failure
+        OuterResponseCode::RequestNotFound
+        | OuterResponseCode::RequestPending
+        | OuterResponseCode::ServiceUnavailable
+        | OuterResponseCode::GatewayTimeout
+        | OuterResponseCode::DuplicateRequest => enums::AttemptStatus::Pending,
+
+        // Success - need to check gateway code for final status
+        OuterResponseCode::Success => {
+            if let Some(code) = gateway_response_code {
+                let gateway = GatewayResponseCode::from_str(code);
+                match gateway {
+                    GatewayResponseCode::Success => enums::AttemptStatus::Charged,
+                    GatewayResponseCode::Pending
+                    | GatewayResponseCode::Deemed
+                    | GatewayResponseCode::MandatePaused
+                    | GatewayResponseCode::MandateCompleted => enums::AttemptStatus::Pending,
+                    GatewayResponseCode::Declined
+                    | GatewayResponseCode::Expired
+                    | GatewayResponseCode::BeneAddrIncorrect
+                    | GatewayResponseCode::IntentExpired
+                    | GatewayResponseCode::ValidationError
+                    | GatewayResponseCode::MandateRevoked
+                    | GatewayResponseCode::MandateDeclined
+                    | GatewayResponseCode::MandateExpired
+                    | GatewayResponseCode::Unknown(_) => enums::AttemptStatus::Failure,
+                }
+            } else {
+                // No gateway code yet - still pending
+                enums::AttemptStatus::Pending
             }
         }
-        // If no gateway code, treat as pending (waiting for webhook/psync)
-        return enums::AttemptStatus::Pending;
+
+        // Bad request is a failure
+        OuterResponseCode::BadRequest => enums::AttemptStatus::Failure,
     }
-    
-    enums::AttemptStatus::Failure
 }
 
 /// Map refund status from gateway response
@@ -148,11 +178,31 @@ pub fn build_error_response(
     response_code: &str,
     response_message: &str,
 ) -> ErrorResponse {
+    use crate::connectors::juspay_upi_stack::constants::*;
+
     let attempt_status = match response_code {
-        RESPONSE_CODE_UNAUTHORIZED => Some(enums::AttemptStatus::Failure),
-        RESPONSE_CODE_REQUEST_EXPIRED => Some(enums::AttemptStatus::Failure),
-        RESPONSE_CODE_DROPOUT => Some(enums::AttemptStatus::Failure),
-        _ => None,
+        // Failure cases
+        RESPONSE_CODE_UNAUTHORIZED
+        | RESPONSE_CODE_REQUEST_EXPIRED
+        | RESPONSE_CODE_DROPOUT
+        | RESPONSE_CODE_FAILURE
+        | RESPONSE_CODE_BAD_REQUEST
+        | RESPONSE_CODE_INVALID_DATA
+        | RESPONSE_CODE_INVALID_MERCHANT
+        | RESPONSE_CODE_DEVICE_FINGERPRINT_MISMATCH
+        | RESPONSE_CODE_INTERNAL_SERVER_ERROR
+        | RESPONSE_CODE_INVALID_TRANSACTION_ID
+        | RESPONSE_CODE_UNINITIATED_REQUEST
+        | RESPONSE_CODE_INVALID_REFUND_AMOUNT => Some(enums::AttemptStatus::Failure),
+        // Non-terminal / pending cases - no attempt_status override
+        RESPONSE_CODE_SUCCESS
+        | RESPONSE_CODE_REQUEST_NOT_FOUND
+        | RESPONSE_CODE_REQUEST_PENDING
+        | RESPONSE_CODE_SERVICE_UNAVAILABLE
+        | RESPONSE_CODE_GATEWAY_TIMEOUT
+        | RESPONSE_CODE_DUPLICATE_REQUEST => None,
+        // Any other unknown code defaults to failure
+        _ => Some(enums::AttemptStatus::Failure),
     };
     
     ErrorResponse {

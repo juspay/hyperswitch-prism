@@ -1,11 +1,3 @@
-//! Transformers for Axis Bank UPI Merchant Stack
-//!
-//! This module handles:
-//! - Request/response type definitions
-//! - TryFrom conversions from RouterData to connector types
-//! - Status mapping functions
-//! - UPI deeplink construction
-
 use crate::connectors::{
     axisbank::AxisbankRouterData,
     juspay_upi_stack::{
@@ -16,7 +8,8 @@ use crate::connectors::{
             sanitize_merchant_request_id, sanitize_remarks,
         },
         types::{
-            Refund360Request, Refund360ResponsePayload, RegisterIntentRequest, Status360Request,
+            OuterResponseCode, Refund360Request, Refund360ResponsePayload, RegisterIntentRequest,
+            Status360Request,
         },
     },
 };
@@ -113,12 +106,7 @@ impl From<AxisbankAuthConfig> for SharedAuthConfig {
 // AUTHORIZE FLOW - Register Intent
 // ============================================
 
-/// Request body for Register Intent API
-/// Alias to shared JwsObject (all flows use same JWS envelope structure)
 pub type AxisbankPaymentsRequest = crate::connectors::juspay_upi_stack::types::JwsObject;
-
-/// Response from Register Intent API
-/// Alias to shared generic response type
 pub type AxisbankPaymentsResponse = crate::connectors::juspay_upi_stack::types::RegisterIntentResponse;
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -197,9 +185,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             intent_request_expiry_minutes: Some(intent_expiry),
             remarks,
             ref_url,
-            ref_category: Some(REF_CATEGORY_INVOICE.to_string()),
             iat: get_current_timestamp_ms(),
-            udf_parameters: None,
         };
 
         // Serialize payload to JSON
@@ -250,59 +236,57 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static>
         let http_code = resp.http_code;
         let router_data = resp.router_data;
 
-        if response.status == RESPONSE_CODE_SUCCESS {
-            if let Some(payload) = response.payload {
-                // Construct UPI deeplink
-                let deeplink = construct_upi_deeplink(&payload);
-
-                let redirect_form = RedirectForm::Uri { uri: deeplink };
-
-                let response_data = PaymentsResponseData::TransactionResponse {
-                    resource_id: ResponseId::ConnectorTransactionId(
-                        payload.merchant_request_id.clone(),
-                    ),
-                    redirection_data: Some(Box::new(redirect_form)),
-                    connector_metadata: None,
-                    mandate_reference: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: Some(payload.gateway_transaction_id.clone()),
-                    incremental_authorization_allowed: None,
-                    status_code: http_code,
-                };
-
-                Ok(RouterDataV2 {
-                    response: Ok(response_data),
-                    resource_common_data: PaymentFlowData {
-                        status: enums::AttemptStatus::AuthenticationPending,
-                        ..router_data.resource_common_data
-                    },
-                    ..router_data
-                })
-            } else {
-                // Success outer code but no payload - treat as failure
-                let status = map_outer_response_code(&response.response_code);
-                let response_data = PaymentsResponseData::TransactionResponse {
-                    resource_id: ResponseId::NoResponseId,
-                    redirection_data: None,
-                    connector_metadata: None,
-                    mandate_reference: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: None,
-                    incremental_authorization_allowed: None,
-                    status_code: http_code,
-                };
-                Ok(RouterDataV2 {
-                    response: Ok(response_data),
-                    resource_common_data: PaymentFlowData {
-                        status,
-                        ..router_data.resource_common_data
-                    },
-                    ..router_data
-                })
-            }
-        } else {
+        if response.response_code.is_failure() {
             // Failed outer response
-            let status = map_outer_response_code(&response.response_code);
+            let status = map_outer_response_code(response.response_code.clone());
+            Ok(RouterDataV2 {
+                response: Err(ErrorResponse {
+                    code: format!("{:?}", response.response_code),
+                    message: response.status.clone(),
+                    reason: Some(response.status.clone()),
+                    status_code: http_code,
+                    attempt_status: Some(status),
+                    connector_transaction_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }),
+                resource_common_data: PaymentFlowData {
+                    status,
+                    ..router_data.resource_common_data
+                },
+                ..router_data
+            })
+        } else if let Some(payload) = response.payload {
+            // Construct UPI deeplink
+            let deeplink = construct_upi_deeplink(&payload);
+
+            let redirect_form = RedirectForm::Uri { uri: deeplink };
+
+            let response_data = PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(
+                    payload.gateway_transaction_id.clone()
+                ),
+                redirection_data: Some(Box::new(redirect_form)),
+                connector_metadata: None,
+                mandate_reference: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(payload.merchant_request_id.clone()),
+                incremental_authorization_allowed: None,
+                status_code: http_code,
+            };
+
+            Ok(RouterDataV2 {
+                response: Ok(response_data),
+                resource_common_data: PaymentFlowData {
+                    status: enums::AttemptStatus::AuthenticationPending,
+                    ..router_data.resource_common_data
+                },
+                ..router_data
+            })
+        } else {
+            // Success outer code but no payload - treat as failure
+            let status = map_outer_response_code(response.response_code.clone());
             let response_data = PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::NoResponseId,
                 redirection_data: None,
@@ -329,12 +313,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static>
 // PSYNC FLOW - Status 360
 // ============================================
 
-/// Request body for Status 360 API
-/// Alias to shared JwsObject
 pub type AxisbankSyncRequest = crate::connectors::juspay_upi_stack::types::JwsObject;
-
-/// Response from Status 360 API
-/// Alias to shared generic response type
 pub type AxisbankSyncResponse = crate::connectors::juspay_upi_stack::types::Status360Response;
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -374,7 +353,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let status_request = Status360Request {
             merchant_request_id,
             transaction_type: TRANSACTION_TYPE_PAY.to_string(),
-            transaction_timestamp: None,
             iat: get_current_timestamp_ms(),
         };
 
@@ -410,11 +388,34 @@ impl TryFrom<ResponseRouterData<AxisbankSyncResponse, RouterDataV2<PSync, Paymen
         let http_code = resp.http_code;
         let router_data = resp.router_data;
 
+        // Check for failure response code
+        if response.response_code.is_failure() {
+            let status = map_outer_response_code(response.response_code.clone());
+            return Ok(RouterDataV2 {
+                response: Err(ErrorResponse {
+                    code: format!("{:?}", response.response_code),
+                    message: response.status.clone(),
+                    reason: Some(response.status.clone()),
+                    status_code: http_code,
+                    attempt_status: Some(status),
+                    connector_transaction_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }),
+                resource_common_data: PaymentFlowData {
+                    status,
+                    ..router_data.resource_common_data
+                },
+                ..router_data
+            });
+        }
+
         // Map status
         let status = if let Some(ref payload) = response.payload {
-            map_transaction_status(&response.response_code, Some(&payload.gateway_response_code))
+            map_transaction_status(response.response_code.clone(), Some(&payload.gateway_response_code))
         } else {
-            map_transaction_status(&response.response_code, None)
+            map_transaction_status(response.response_code.clone(), None)
         };
 
         let response_data = PaymentsResponseData::TransactionResponse {
@@ -523,7 +524,6 @@ fn build_refund_request(
         merchant_refund_vpa: None,
         original_transaction_timestamp: None,
         iat: get_current_timestamp_ms(),
-        udf_parameters: None,
     })
 }
 
@@ -602,7 +602,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             merchant_refund_vpa: None,
             original_transaction_timestamp: None,
             iat: get_current_timestamp_ms(),
-            udf_parameters: None,
         };
 
         let payload_json = serde_json::to_string(&refund_sync).change_context(
@@ -735,13 +734,26 @@ pub struct AxisbankErrorResponse {
 }
 
 /// Map outer response code (when no payload or outer failure)
-pub fn map_outer_response_code(response_code: &str) -> enums::AttemptStatus {
+pub fn map_outer_response_code(response_code: OuterResponseCode) -> enums::AttemptStatus {
     match response_code {
-        RESPONSE_CODE_REQUEST_NOT_FOUND => enums::AttemptStatus::Pending,
-        RESPONSE_CODE_REQUEST_EXPIRED => enums::AttemptStatus::Failure,
-        RESPONSE_CODE_DROPOUT => enums::AttemptStatus::Failure,
-        RESPONSE_CODE_FAILURE => enums::AttemptStatus::Failure,
-        _ => enums::AttemptStatus::Failure,
+        OuterResponseCode::RequestNotFound => enums::AttemptStatus::Pending,
+        OuterResponseCode::RequestExpired
+        | OuterResponseCode::Dropout
+        | OuterResponseCode::Failure
+        | OuterResponseCode::BadRequest
+        | OuterResponseCode::InvalidData
+        | OuterResponseCode::Unauthorized
+        | OuterResponseCode::InvalidMerchant
+        | OuterResponseCode::DeviceFingerprintMismatch
+        | OuterResponseCode::InternalServerError
+        | OuterResponseCode::InvalidTransactionId
+        | OuterResponseCode::UninitiatedRequest
+        | OuterResponseCode::InvalidRefundAmount
+        | OuterResponseCode::Success
+        | OuterResponseCode::RequestPending
+        | OuterResponseCode::ServiceUnavailable
+        | OuterResponseCode::GatewayTimeout
+        | OuterResponseCode::DuplicateRequest => enums::AttemptStatus::Failure,
     }
 }
 

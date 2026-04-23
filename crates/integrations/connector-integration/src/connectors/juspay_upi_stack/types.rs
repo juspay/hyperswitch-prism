@@ -64,11 +64,7 @@ pub struct RegisterIntentRequest {
     pub remarks: Option<String>,
     #[serde(rename = "refUrl", skip_serializing_if = "Option::is_none")]
     pub ref_url: Option<String>,
-    #[serde(rename = "refCategory", skip_serializing_if = "Option::is_none")]
-    pub ref_category: Option<String>,
     pub iat: String,
-    #[serde(rename = "udfParameters", skip_serializing_if = "Option::is_none")]
-    pub udf_parameters: Option<String>,
 }
 
 /// Request payload for Status 360 API (PSync flow)
@@ -78,8 +74,6 @@ pub struct Status360Request {
     pub merchant_request_id: String,
     #[serde(rename = "transactionType")]
     pub transaction_type: String,
-    #[serde(rename = "transactionTimestamp", skip_serializing_if = "Option::is_none")]
-    pub transaction_timestamp: Option<String>,
     pub iat: String,
 }
 
@@ -104,8 +98,6 @@ pub struct Refund360Request {
     #[serde(rename = "originalTransactionTimestamp", skip_serializing_if = "Option::is_none")]
     pub original_transaction_timestamp: Option<String>,
     pub iat: String,
-    #[serde(rename = "udfParameters", skip_serializing_if = "Option::is_none")]
-    pub udf_parameters: Option<String>,
 }
 
 // ============================================
@@ -117,7 +109,7 @@ pub struct Refund360Request {
 pub struct JuspayUpiApiResponse<T> {
     pub status: String,
     #[serde(rename = "responseCode")]
-    pub response_code: String,
+    pub response_code: OuterResponseCode,
     #[serde(rename = "responseMessage")]
     pub response_message: String,
     pub payload: Option<T>,
@@ -150,8 +142,6 @@ pub struct RegisterIntentResponsePayload {
     pub flow: Option<String>,
     #[serde(rename = "refUrl", skip_serializing_if = "Option::is_none")]
     pub ref_url: Option<String>,
-    #[serde(rename = "refCategory", skip_serializing_if = "Option::is_none")]
-    pub ref_category: Option<String>,
     #[serde(rename = "TxnInitiationMode", skip_serializing_if = "Option::is_none")]
     pub txn_initiation_mode: Option<String>,
 }
@@ -291,6 +281,147 @@ pub type Refund360Response = JuspayUpiApiResponse<Refund360ResponsePayload>;
 // ENUMS
 // ============================================
 
+/// Outer API response codes from Juspay UPI Merchant Stack
+/// Covers all documented responseCode values from the Codes Guide
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum OuterResponseCode {
+    /// Transaction/payment was successful
+    Success,
+    /// Transaction/payment failed
+    Failure,
+    /// Transaction not found in system
+    RequestNotFound,
+    /// Transaction expired (user dropout)
+    RequestExpired,
+    /// User dropped out during UPI flow
+    Dropout,
+    /// Transaction still pending (not terminal state)
+    RequestPending,
+    /// Bad request - missing mandatory parameter or regex mismatch
+    BadRequest,
+    /// Invalid data - mandatory keys present but incorrect values
+    InvalidData,
+    /// Unauthorized - signature validation failed
+    Unauthorized,
+    /// Invalid merchant ID or channel ID
+    InvalidMerchant,
+    /// Third-party services unreachable (NPCI, bank systems)
+    ServiceUnavailable,
+    /// Timeout from NPCI
+    GatewayTimeout,
+    /// Duplicate merchantRequestId or upiRequestId
+    DuplicateRequest,
+    /// Device fingerprint validation failed
+    DeviceFingerprintMismatch,
+    /// Internal server error
+    InternalServerError,
+    /// Invalid transaction ID for refund
+    InvalidTransactionId,
+    /// Original transaction was not successful
+    UninitiatedRequest,
+    /// Refund amount exceeds original transaction
+    InvalidRefundAmount,
+}
+
+impl OuterResponseCode {
+    /// Check if this is a terminal status (no further state changes expected)
+    pub fn is_terminal(&self) -> bool {
+        matches!(
+            self,
+            OuterResponseCode::Success
+                | OuterResponseCode::Failure
+                | OuterResponseCode::RequestExpired
+                | OuterResponseCode::Dropout
+        )
+    }
+
+    /// Check if this represents a pending/in-progress transaction
+    pub fn is_pending(&self) -> bool {
+        matches!(
+            self,
+            OuterResponseCode::RequestPending
+                | OuterResponseCode::RequestNotFound
+                | OuterResponseCode::ServiceUnavailable
+                | OuterResponseCode::GatewayTimeout
+        )
+    }
+
+    /// Check if this represents a failure response code
+    pub fn is_failure(&self) -> bool {
+        matches!(
+            self,
+            OuterResponseCode::Failure
+                | OuterResponseCode::BadRequest
+                | OuterResponseCode::InvalidData
+                | OuterResponseCode::Unauthorized
+                | OuterResponseCode::InvalidMerchant
+                | OuterResponseCode::DeviceFingerprintMismatch
+                | OuterResponseCode::InternalServerError
+                | OuterResponseCode::InvalidTransactionId
+                | OuterResponseCode::UninitiatedRequest
+                | OuterResponseCode::InvalidRefundAmount
+                | OuterResponseCode::DuplicateRequest
+        )
+    }
+}
+
+/// Gateway response codes from NPCI/PSP
+/// These are the gatewayResponseCode values in the payload
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum GatewayResponseCode {
+    /// Transaction successful
+    Success,
+    /// Transaction pending
+    Pending,
+    /// Deemed success (RB code)
+    Deemed,
+    /// Transaction declined
+    Declined,
+    /// Collect request expired
+    Expired,
+    /// Beneficiary payment address incorrect
+    BeneAddrIncorrect,
+    /// Merchant intent expired
+    IntentExpired,
+    /// Validation error (amount mismatch, tid/tr change)
+    ValidationError,
+    /// Mandate revoked
+    MandateRevoked,
+    /// Mandate paused
+    MandatePaused,
+    /// Mandate completed
+    MandateCompleted,
+    /// Mandate declined by payer
+    MandateDeclined,
+    /// Mandate expired
+    MandateExpired,
+    /// Unknown gateway code
+    Unknown(String),
+}
+
+impl GatewayResponseCode {
+    /// Parse gateway response code
+    pub fn from_str(code: &str) -> Self {
+        match code {
+            "00" => GatewayResponseCode::Success,
+            "01" => GatewayResponseCode::Pending,
+            "RB" => GatewayResponseCode::Deemed,
+            "ZA" => GatewayResponseCode::Declined,
+            "U69" => GatewayResponseCode::Expired,
+            "ZH" => GatewayResponseCode::BeneAddrIncorrect,
+            "X1" => GatewayResponseCode::IntentExpired,
+            "YG" => GatewayResponseCode::ValidationError,
+            "JPMR" => GatewayResponseCode::MandateRevoked,
+            "JPMP" => GatewayResponseCode::MandatePaused,
+            "JPMC" => GatewayResponseCode::MandateCompleted,
+            "JPMD" => GatewayResponseCode::MandateDeclined,
+            "JPMX" => GatewayResponseCode::MandateExpired,
+            unknown => GatewayResponseCode::Unknown(unknown.to_string()),
+        }
+    }
+}
+
 /// Transaction status from gateway response
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TransactionStatus {
@@ -300,27 +431,6 @@ pub enum TransactionStatus {
     Expired,
     Dropout,
     RequestNotFound,
-}
-
-impl TransactionStatus {
-    pub fn from_gateway_code(code: &str) -> Self {
-        match code {
-            "00" => TransactionStatus::Charged,
-            "01" => TransactionStatus::Pending,
-            _ => TransactionStatus::Failed,
-        }
-    }
-
-    pub fn from_outer_code(code: &str) -> Self {
-        match code {
-            "SUCCESS" => TransactionStatus::Pending,
-            "FAILURE" => TransactionStatus::Failed,
-            "REQUEST_NOT_FOUND" => TransactionStatus::RequestNotFound,
-            "REQUEST_EXPIRED" => TransactionStatus::Expired,
-            "DROPOUT" => TransactionStatus::Dropout,
-            _ => TransactionStatus::Failed,
-        }
-    }
 }
 
 /// Refund status
@@ -333,20 +443,47 @@ pub enum RefundStatus {
 }
 
 impl RefundStatus {
+    /// Parse refund status from UDIR gateway response code
+    /// Uses GatewayResponseCode enum for exhaustive matching
     pub fn from_udir_gateway_code(code: &str, _status: &str) -> Self {
-        match code {
-            "00" => RefundStatus::Success,
-            "01" => RefundStatus::Pending,
-            "JPREFD" => RefundStatus::Success,
-            _ => RefundStatus::Failed,
+        let gateway = GatewayResponseCode::from_str(code);
+        match gateway {
+            GatewayResponseCode::Success => RefundStatus::Success,
+            GatewayResponseCode::Pending => RefundStatus::Pending,
+            GatewayResponseCode::Deemed => RefundStatus::Deemed,
+            GatewayResponseCode::Declined
+            | GatewayResponseCode::Expired
+            | GatewayResponseCode::BeneAddrIncorrect
+            | GatewayResponseCode::IntentExpired
+            | GatewayResponseCode::ValidationError
+            | GatewayResponseCode::MandateRevoked
+            | GatewayResponseCode::MandatePaused
+            | GatewayResponseCode::MandateCompleted
+            | GatewayResponseCode::MandateDeclined
+            | GatewayResponseCode::MandateExpired
+            | GatewayResponseCode::Unknown(_) => RefundStatus::Failed,
         }
     }
 
+    /// Parse refund status from offline/online gateway response code
+    /// Uses GatewayResponseCode enum for exhaustive matching
     pub fn from_offline_gateway_code(code: &str, _status: &str) -> Self {
-        match code {
-            "00" | "01" => RefundStatus::Pending,
-            "RB" | "BT" => RefundStatus::Pending,
-            _ => RefundStatus::Failed,
+        let gateway = GatewayResponseCode::from_str(code);
+        match gateway {
+            GatewayResponseCode::Success
+            | GatewayResponseCode::Pending
+            | GatewayResponseCode::Deemed => RefundStatus::Pending,
+            GatewayResponseCode::Declined
+            | GatewayResponseCode::Expired
+            | GatewayResponseCode::BeneAddrIncorrect
+            | GatewayResponseCode::IntentExpired
+            | GatewayResponseCode::ValidationError
+            | GatewayResponseCode::MandateRevoked
+            | GatewayResponseCode::MandatePaused
+            | GatewayResponseCode::MandateCompleted
+            | GatewayResponseCode::MandateDeclined
+            | GatewayResponseCode::MandateExpired
+            | GatewayResponseCode::Unknown(_) => RefundStatus::Failed,
         }
     }
 }
