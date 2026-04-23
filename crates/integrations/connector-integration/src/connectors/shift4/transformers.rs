@@ -1038,11 +1038,17 @@ impl<T: PaymentMethodDataTypes>
         };
 
         // Determine Shift4 transaction type based on MIT category
+        // Recurring/Installment/Resubmission are all subsequent recurring per Shift4 API;
+        // Unscheduled and unknown categories default to merchant_initiated.
         let transaction_type = match item.request.mit_category {
-            Some(common_enums::MitCategory::Recurring) => {
+            Some(common_enums::MitCategory::Recurring)
+            | Some(common_enums::MitCategory::Installment)
+            | Some(common_enums::MitCategory::Resubmission) => {
                 Shift4TransactionType::SubsequentRecurring
             }
-            _ => Shift4TransactionType::MerchantInitiated,
+            Some(common_enums::MitCategory::Unscheduled) | None => {
+                Shift4TransactionType::MerchantInitiated
+            }
         };
 
         let captured = item.request.is_auto_capture();
