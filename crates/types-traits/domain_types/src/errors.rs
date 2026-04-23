@@ -1,6 +1,7 @@
 #![allow(unused_variables, unused_assignments)]
 
 use crate::router_data::ErrorResponse;
+use crate::utils::ForeignFrom;
 use common_enums;
 use common_utils::errors::ErrorSwitch;
 use error_stack::Report;
@@ -501,7 +502,7 @@ impl ErrorSwitch<grpc_api_types::payments::ConnectorError> for ConnectorError {
         match self {
             Self::ConnectorErrorResponse(error_response) => {
                 // Build structured ErrorInfo from available error data
-                let error_info = build_error_info_from_response(error_response);
+                let error_info = ForeignFrom::foreign_from(error_response);
 
                 // Pack all fields that cannot be surfaced in proto into error_message,
                 // since proto ConnectorError has no dedicated fields for them.
@@ -555,51 +556,52 @@ impl ErrorSwitch<grpc_api_types::payments::ConnectorError> for ConnectorError {
     }
 }
 
-/// Builds ErrorInfo from ErrorResponse data when structured error details are available.
-fn build_error_info_from_response(
-    error_response: &crate::router_data::ErrorResponse,
-) -> Option<grpc_api_types::payments::ErrorInfo> {
-    // Only build ErrorInfo if we have meaningful structured data
-    let has_connector_details = error_response.code != common_utils::consts::NO_ERROR_CODE
-        || error_response.reason.is_some();
-    let has_network_details = error_response.network_decline_code.is_some()
-        || error_response.network_advice_code.is_some()
-        || error_response.network_error_message.is_some();
+impl ForeignFrom<&crate::router_data::ErrorResponse>
+    for Option<grpc_api_types::payments::ErrorInfo>
+{
+    fn foreign_from(error_response: &crate::router_data::ErrorResponse) -> Self {
+        // Only build ErrorInfo if we have meaningful structured data
+        let has_connector_details = error_response.code != common_utils::consts::NO_ERROR_CODE
+            || error_response.reason.is_some();
+        let has_network_details = error_response.network_decline_code.is_some()
+            || error_response.network_advice_code.is_some()
+            || error_response.network_error_message.is_some();
 
-    if !has_connector_details && !has_network_details {
-        return None;
-    }
+        if !has_connector_details && !has_network_details {
+            return None;
+        }
 
-    let connector_details =
-        has_connector_details.then(|| grpc_api_types::payments::ConnectorErrorDetails {
-            code: (error_response.code != common_utils::consts::NO_ERROR_CODE)
-                .then(|| error_response.code.clone()),
-            message: Some(error_response.message.clone()),
-            reason: error_response.reason.clone(),
+        let connector_details =
+            has_connector_details.then(|| grpc_api_types::payments::ConnectorErrorDetails {
+                code: (error_response.code != common_utils::consts::NO_ERROR_CODE)
+                    .then(|| error_response.code.clone()),
+                message: Some(error_response.message.clone()),
+                reason: error_response.reason.clone(),
+            });
+
+        let issuer_details = has_network_details.then(|| {
+            grpc_api_types::payments::IssuerErrorDetails {
+                code: None, // Card scheme not directly available in ErrorResponse
+                message: error_response.network_error_message.clone(),
+                network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
+                    advice_code: error_response.network_advice_code.clone(),
+                    decline_code: error_response.network_decline_code.clone(),
+                    error_message: error_response.network_error_message.clone(),
+                }),
+            }
         });
 
-    let issuer_details = has_network_details.then(|| {
-        grpc_api_types::payments::IssuerErrorDetails {
-            code: None, // Card scheme not directly available in ErrorResponse
-            message: error_response.network_error_message.clone(),
-            network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
-                advice_code: error_response.network_advice_code.clone(),
-                decline_code: error_response.network_decline_code.clone(),
-                error_message: error_response.network_error_message.clone(),
+        Some(grpc_api_types::payments::ErrorInfo {
+            unified_details: Some(grpc_api_types::payments::UnifiedErrorDetails {
+                code: Some(error_response.code.clone()),
+                message: Some(error_response.message.clone()),
+                description: error_response.reason.clone(),
+                user_guidance_message: None, // Could be populated from connector config
             }),
-        }
-    });
-
-    Some(grpc_api_types::payments::ErrorInfo {
-        unified_details: Some(grpc_api_types::payments::UnifiedErrorDetails {
-            code: Some(error_response.code.clone()),
-            message: Some(error_response.message.clone()),
-            description: error_response.reason.clone(),
-            user_guidance_message: None, // Could be populated from connector config
-        }),
-        issuer_details,
-        connector_details,
-    })
+            issuer_details,
+            connector_details,
+        })
+    }
 }
 
 /// Errors that occur during webhook processing
