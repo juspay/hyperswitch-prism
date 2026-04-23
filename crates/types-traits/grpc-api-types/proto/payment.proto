@@ -743,6 +743,7 @@ enum Connector {
   TRUSTLY = 115;
   SANLAM = 116;
   PINELABS_ONLINE = 117;
+  IMERCHANTSOLUTIONS = 118;
 }
 
 // Payment method types
@@ -4156,6 +4157,11 @@ message PinelabsOnlineConfig {
   optional string base_url = 50;
 }
 
+message ImerchantsolutionsConfig {
+  SecretString api_key = 1;
+  optional string base_url = 2;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -4403,6 +4409,9 @@ message ConnectorSpecificConfig {
 
     // PINELABS_ONLINE = 117
     PinelabsOnlineConfig pinelabs_online = 117;
+
+    // IMERCHANTSOLUTIONS = 118
+    ImerchantsolutionsConfig imerchantsolutions = 118;
   }
 }
 

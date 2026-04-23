@@ -3,7 +3,7 @@ use std::{borrow::Cow, collections::HashMap, fmt::Debug, str::FromStr};
 
 use crate::{
     connector_flow::MandateRevoke,
-    connector_types::{self, ConnectorEnum},
+    connector_types::{self, CaptureSyncResponse, ConnectorEnum},
     payment_method_data::SamsungPayWalletCredentials,
     utils::extract_connector_request_reference_id,
 };
@@ -390,6 +390,7 @@ pub struct Connectors {
     pub itaubank: ConnectorParams,
     pub sanlam: ConnectorParams,
     pub pinelabs_online: ConnectorParams,
+    pub imerchantsolutions: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -6128,6 +6129,97 @@ pub fn generate_payment_sync_response(
                     raw_connector_request,
                     connector_response,
                     incremental_authorization_allowed,
+                    payment_method_update: None,
+                })
+            }
+            PaymentsResponseData::MultipleCaptureResponse {
+                capture_sync_response_list,
+                status_code,
+            } => {
+                let status = router_data_v2.resource_common_data.status;
+                let grpc_status = grpc_api_types::payments::PaymentStatus::foreign_from(status);
+
+                let (resource_id, connector_response_reference_id) =
+                    match capture_sync_response_list.values().next() {
+                        Some(CaptureSyncResponse::Success {
+                            resource_id,
+                            connector_response_reference_id,
+                            ..
+                        }) => (
+                            Some(
+                                resource_id.get_connector_transaction_id().change_context(
+                                    ConnectorError::ResponseHandlingFailed {
+                                        context: ResponseTransformationErrorContext {
+                                            http_status_code: None,
+                                            additional_context: Some(
+                                                "Expected connector transaction ID not found"
+                                                    .to_string(),
+                                            ),
+                                        },
+                                    },
+                                )?,
+                            ),
+                            connector_response_reference_id.clone(),
+                        ),
+                        Some(CaptureSyncResponse::Error { .. }) => (None, None),
+                        _ => {
+                            return Err(ConnectorError::ResponseHandlingFailed {
+                                context: ResponseTransformationErrorContext {
+                                    http_status_code: None,
+                                    additional_context: Some(
+                                        "Expected capture sync response not found".to_string(),
+                                    ),
+                                },
+                            }
+                            .into())
+                        }
+                    };
+
+                let amount = router_data_v2
+                    .resource_common_data
+                    .amount
+                    .as_ref()
+                    .map(|money| {
+                        grpc_api_types::payments::Currency::foreign_try_from(money.currency).map(
+                            |currency| grpc_api_types::payments::Money {
+                                minor_amount: money.amount.get_amount_as_i64(),
+                                currency: currency as i32,
+                            },
+                        )
+                    })
+                    .transpose()?;
+
+                Ok(PaymentServiceGetResponse {
+                    connector_transaction_id: resource_id.unwrap_or_default(),
+                    merchant_transaction_id: connector_response_reference_id,
+                    redirection_data: None,
+                    status: grpc_status as i32,
+                    mandate_reference: None,
+                    error: None,
+                    network_transaction_id: None,
+                    amount,
+                    captured_amount: router_data_v2.resource_common_data.amount_captured,
+                    payment_method_type: None,
+                    capture_method: None,
+                    auth_type: None,
+                    created_at: None,
+                    updated_at: None,
+                    authorized_at: None,
+                    captured_at: None,
+                    customer_name: None,
+                    email: None,
+                    connector_customer_id: None,
+                    merchant_order_id: None,
+                    metadata: None,
+                    status_code: status_code as u32,
+                    raw_connector_response,
+                    response_headers: router_data_v2
+                        .resource_common_data
+                        .get_connector_response_headers_as_map(),
+                    state,
+                    raw_connector_request,
+                    connector_response,
+                    incremental_authorization_allowed: None,
                     payment_method_update: None,
                 })
             }
