@@ -113,17 +113,19 @@ pub struct PeachpaymentsConnectorMetadataObject {
 
 /// Determines routing fields based on whether the route ID is a UUID or a route name.
 /// Peach Payments API accepts either:
-/// - `routingReference.merchantPaymentMethodRouteId` (UUID format)
+/// - `routingReference.merchantPaymentMethodRouteId` (UUID format, hyphenated or simple)
 /// - `routing.route` (route name string)
+///
+/// Uses `uuid::Uuid::parse_str` to accept any format supported by the `uuid` crate
+/// (hyphenated, simple 32-char, mixed case, urn-prefixed), falling back to the route-name
+/// field for anything that is not a valid UUID.
 fn build_routing_fields(
     route_id: Secret<String>,
 ) -> (
     Option<requests::PeachpaymentsRoutingReference>,
     Option<requests::PeachpaymentsRouting>,
 ) {
-    let value = route_id.peek().clone();
-    // UUID format: 36 chars with dashes (e.g., "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
-    if value.len() == 36 && value.contains('-') {
+    if uuid::Uuid::parse_str(route_id.peek()).is_ok() {
         (
             Some(requests::PeachpaymentsRoutingReference {
                 merchant_payment_method_route_id: route_id,
