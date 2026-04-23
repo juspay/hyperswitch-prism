@@ -174,6 +174,7 @@ pub enum Shift4PaymentMethod<T: PaymentMethodDataTypes> {
     Card(Shift4CardPayment<T>),
     TokenPayment(Shift4TokenPayment),
     BankRedirect(Shift4BankRedirectPayment),
+    Crypto(Shift4CryptoPayment),
 }
 
 /// Token-based payment — the `card` field carries a token ID from Shift4 Components SDK
@@ -235,6 +236,48 @@ pub struct Shift4Address {
     pub state: Option<Secret<String>>,
     pub zip: Option<Secret<String>>,
     pub country: Option<String>,
+}
+
+// Crypto Payment Structures
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shift4CryptoPayment {
+    pub payment_method: Shift4CryptoMethod,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub flow: Option<Shift4FlowRequest>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Shift4CryptoMethod {
+    #[serde(rename = "type")]
+    pub payment_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing: Option<Shift4CryptoBilling>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Shift4CryptoBilling {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<pii::Email>,
+}
+
+// Crypto Payment Structures
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shift4CryptoPayment {
+    pub payment_method: Shift4CryptoMethod,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub flow: Option<Shift4FlowRequest>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Shift4CryptoMethod {
+    #[serde(rename = "type")]
+    pub payment_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing: Option<Shift4Billing>,
 }
 
 // BankRedirect Data Transformation
@@ -317,6 +360,54 @@ impl<T: PaymentMethodDataTypes>
     }
 }
 
+// Crypto Data Transformation
+impl<T: PaymentMethodDataTypes>
+    TryFrom<
+        &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+    > for Shift4CryptoMethod
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        router_data: &RouterDataV2<
+            Authorize,
+            PaymentFlowData,
+            PaymentsAuthorizeData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        // Extract billing information
+        let billing = router_data
+            .resource_common_data
+            .address
+            .get_payment_method_billing();
+        let name = billing.as_ref().and_then(|b| b.get_optional_full_name());
+
+        // Extract email from request - prioritize from payment data, fallback to address
+        let email = router_data
+            .request
+            .email
+            .as_ref()
+            .cloned()
+            .or_else(|| billing.as_ref().and_then(|b| b.email.as_ref()).cloned());
+
+        let billing_info = if name.is_some() || email.is_some() {
+            Some(Shift4Billing {
+                name,
+                email,
+                address: None,
+            })
+        } else {
+            None
+        };
+
+        Ok(Self {
+            payment_type: "bitpay".to_string(),
+            billing: billing_info,
+        })
+    }
+}
+
 impl<T: PaymentMethodDataTypes>
     TryFrom<
         &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
@@ -380,6 +471,20 @@ impl<T: PaymentMethodDataTypes>
 
                 Shift4PaymentMethod::BankRedirect(Shift4BankRedirectPayment {
                     payment_method: bank_redirect_method,
+                    flow: Some(Shift4FlowRequest { return_url }),
+                })
+            }
+            PaymentMethodData::Crypto(_crypto_data) => {
+                let crypto_method = Shift4CryptoMethod::try_from(item)?;
+                let return_url = item.request.get_router_return_url().change_context(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "return_url",
+                        context: Default::default(),
+                    },
+                )?;
+
+                Shift4PaymentMethod::Crypto(Shift4CryptoPayment {
+                    payment_method: crypto_method,
                     flow: Some(Shift4FlowRequest { return_url }),
                 })
             }
