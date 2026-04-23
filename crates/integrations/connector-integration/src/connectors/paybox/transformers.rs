@@ -12,7 +12,10 @@ use domain_types::payment_method_data::RawCardNumber;
 use domain_types::{
     connector_flow::*,
     connector_types::*,
-    errors::{ConnectorError, IntegrationError},
+    errors::{
+        ConnectorError, IntegrationError, IntegrationErrorContext,
+        ResponseTransformationErrorContext,
+    },
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -1243,21 +1246,41 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxSetupMandateRes
             });
 
             // Pack PORTEUR (stored card token) and card expiry into connector_mandate_id
-            // using "::" delimiter so MIT can extract both PORTEUR and DATEVAL.
-            // REFABONNE (customer_id) = subscriber reference for connector_mandate_request_reference_id.
-            let carrier_with_expiry = item.response.carrier_id.as_ref().map(|carrier| {
-                let card_expiry = match &item.router_data.request.payment_method_data {
-                    PaymentMethodData::Card(card) => card
-                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_owned())
-                        .ok()
-                        .map(|s| s.peek().to_string()),
-                    _ => None,
-                };
-                match card_expiry {
-                    Some(expiry) => format!("{}::{}", carrier.peek(), expiry),
-                    None => carrier.peek().to_string(),
+            // using "::" delimiter so MIT (RepeatPayment) can extract both PORTEUR and DATEVAL.
+            // Paybox requires a valid DATEVAL for subscriber auth (TYPE=00051/00053), so if
+            // we cannot extract expiry from the card data, surface the error rather than
+            // storing a mandate that will fail on first use.
+            let carrier_with_expiry = match item.response.carrier_id.as_ref() {
+                Some(carrier) => {
+                    let expiry = match &item.router_data.request.payment_method_data {
+                        PaymentMethodData::Card(card) => card
+                            .get_card_expiry_month_year_2_digit_with_delimiter("".to_owned())
+                            .map_err(|_| ConnectorError::ResponseHandlingFailed {
+                                context: ResponseTransformationErrorContext {
+                                    http_status_code: Some(item.http_code),
+                                    additional_context: Some(
+                                        "Failed to extract card expiry for mandate storage"
+                                            .to_string(),
+                                    ),
+                                },
+                            })?,
+                        _ => {
+                            return Err(ConnectorError::ResponseHandlingFailed {
+                                context: ResponseTransformationErrorContext {
+                                    http_status_code: Some(item.http_code),
+                                    additional_context: Some(
+                                        "SetupMandate requires card payment data to pack expiry into mandate id"
+                                            .to_string(),
+                                    ),
+                                },
+                            }
+                            .into());
+                        }
+                    };
+                    Some(format!("{}::{}", carrier.peek(), expiry.peek()))
                 }
-            });
+                None => None,
+            };
             let mandate_reference = Some(Box::new(MandateReference {
                 connector_mandate_id: carrier_with_expiry,
                 payment_method_id: None,
@@ -1398,7 +1421,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 context: Default::default(),
             })?;
 
-        // connector_mandate_id is packed as "PORTEUR::DATEVAL" (e.g. "CMDLpSqLLDS::1228")
+        // connector_mandate_id is packed as "PORTEUR::DATEVAL" by the SetupMandate response
+        // (e.g. "CMDLpSqLLDS::1228"). Both parts are required by Paybox for TYPE=00051/00053.
         let packed_mandate_id = router_data.request.connector_mandate_id().ok_or(
             IntegrationError::MissingRequiredField {
                 field_name: "connector_mandate_id",
@@ -1406,27 +1430,61 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             },
         )?;
 
-        // Split packed mandate id into PORTEUR (stored card token) and DATEVAL (card expiry)
-        let (porteur, expiry_str) = if let Some(idx) = packed_mandate_id.find("::") {
-            (
-                packed_mandate_id[..idx].to_string(),
-                packed_mandate_id[idx + 2..].to_string(),
-            )
-        } else {
-            (packed_mandate_id.clone(), "0000".to_string())
-        };
+        // Split on "::" into PORTEUR (stored card token) and DATEVAL (card expiry MMYY).
+        // A missing delimiter means the mandate id was not produced by our SetupMandate flow;
+        // falling back to a placeholder expiry would cause the MIT to be rejected by Paybox.
+        let (porteur, expiry_str) =
+            packed_mandate_id
+                .split_once("::")
+                .ok_or(IntegrationError::InvalidDataFormat {
+                    field_name: "connector_mandate_id",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Expected format 'PORTEUR::DATEVAL' from Paybox SetupMandate"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                })?;
+        let porteur = porteur.to_string();
+        let expiry_str = expiry_str.to_string();
 
-        // REFABONNE = connector_mandate_request_reference_id (subscriber reference)
+        // REFABONNE = connector_mandate_request_reference_id (subscriber reference).
+        // PORTEUR (card token) and REFABONNE (subscriber ref) are distinct Paybox fields,
+        // so we cannot silently fall back from one to the other - require REFABONNE explicitly.
         let refabonne = match &router_data.request.mandate_reference {
             MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => connector_mandate_ids
                 .get_connector_mandate_request_reference_id()
-                .unwrap_or_else(|| porteur.clone()),
-            _ => porteur.clone(),
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "connector_mandate_request_reference_id",
+                    context: Default::default(),
+                })?,
+            _ => {
+                return Err(IntegrationError::NotSupported {
+                    message: "Only ConnectorMandateId is supported for Paybox RepeatPayment"
+                        .to_string(),
+                    connector: "Paybox",
+                    context: Default::default(),
+                }
+                .into());
+            }
         };
 
         let expiration_date = Secret::new(expiry_str);
 
         let transaction_type = get_subscriber_transaction_type(router_data.request.capture_method);
+
+        // Paybox requires REFERENCE to be non-empty. connector_request_reference_id comes from
+        // merchant_charge_id which is proto-optional - fall back to REFABONNE to guarantee
+        // a non-empty value rather than risking a connector-side rejection.
+        let connector_ref = &router_data
+            .resource_common_data
+            .connector_request_reference_id;
+        let reference = if connector_ref.is_empty() {
+            refabonne.clone()
+        } else {
+            connector_ref.clone()
+        };
 
         Ok(Self {
             version: VERSION_PAYBOX.to_string(),
@@ -1437,10 +1495,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             paybox_request_number: generate_request_id()?,
             amount,
             currency: router_data.request.currency.iso_4217().to_string(),
-            reference: router_data
-                .resource_common_data
-                .connector_request_reference_id
-                .clone(),
+            reference,
             date: generate_date_time()?,
             subscriber_number: porteur,
             expiration_date,
@@ -1471,14 +1526,25 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxRepeatPaymentRe
                 connector_request_id: item.response.transaction_number.clone()
             });
 
-            // Preserve the mandate reference from the subscriber
-            let mandate_reference = item.response.customer_id.as_ref().map(|subscriber_id| {
-                Box::new(MandateReference {
-                    connector_mandate_id: Some(subscriber_id.peek().to_string()),
-                    payment_method_id: None,
-                    connector_mandate_request_reference_id: None,
-                })
-            });
+            // Preserve the "PORTEUR::DATEVAL" format so chained RepeatPayments can re-split it.
+            // The request's connector_mandate_id is already in this format (it's what we just
+            // used to build the MIT), so reuse it verbatim. REFABONNE (response.customer_id)
+            // maps to connector_mandate_request_reference_id - distinct from PORTEUR.
+            let mandate_reference =
+                item.router_data
+                    .request
+                    .connector_mandate_id()
+                    .map(|packed_mandate_id| {
+                        Box::new(MandateReference {
+                            connector_mandate_id: Some(packed_mandate_id),
+                            payment_method_id: None,
+                            connector_mandate_request_reference_id: item
+                                .response
+                                .customer_id
+                                .as_ref()
+                                .map(|id| id.peek().to_string()),
+                        })
+                    });
 
             Ok(Self {
                 response: Ok(PaymentsResponseData::TransactionResponse {
