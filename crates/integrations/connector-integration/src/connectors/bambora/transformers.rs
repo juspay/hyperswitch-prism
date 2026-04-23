@@ -280,31 +280,12 @@ pub struct BamboraSetupMandateRequest<T: PaymentMethodDataTypes> {
 // RepeatPayment (MIT) Request Types
 
 #[derive(Debug, Serialize)]
-pub struct BamboraRepeatPaymentRequest {
+pub struct BamboraRepeatPaymentRequest<T: PaymentMethodDataTypes> {
     pub order_number: String,
     pub amount: FloatMajorUnit,
     pub payment_method: PaymentMethodType,
     pub card_on_file: BamboraCardOnFileRequest,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub card: Option<BamboraRepeatPaymentCard>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub payment_profile: Option<BamboraPaymentProfile>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct BamboraRepeatPaymentCard {
-    pub name: Secret<String>,
-    pub number: Secret<String>,
-    pub expiry_month: Secret<String>,
-    pub expiry_year: Secret<String>,
-    pub complete: bool,
-}
-
-#[derive(Debug, Serialize)]
-pub struct BamboraPaymentProfile {
-    pub customer_code: Secret<String>,
-    pub card_id: i32,
-    pub complete: bool,
+    pub card: BamboraCard<T>,
 }
 
 // Request Transformation
@@ -866,7 +847,7 @@ impl TryFrom<ResponseRouterData<BamboraPaymentsResponse, Self>>
 // Macro Wrapper Type Implementations
 
 use crate::connectors::bambora::BamboraRouterData;
-use domain_types::errors::{ConnectorError, IntegrationError};
+use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
 
 // Authorize - wrapper to RouterDataV2
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -1001,13 +982,20 @@ impl<T: PaymentMethodDataTypes>
 
                 let expiry_year = card_data.get_card_expiry_year_2_digit()?;
 
+                let is_auto_capture = !matches!(
+                    item.request.capture_method,
+                    Some(common_enums::CaptureMethod::Manual)
+                        | Some(common_enums::CaptureMethod::ManualMultiple)
+                        | Some(common_enums::CaptureMethod::Scheduled)
+                );
+
                 BamboraCard {
                     name: cardholder_name,
                     number: card_data.card_number.clone(),
                     expiry_month: card_data.card_exp_month.clone(),
                     expiry_year,
                     cvd: card_data.card_cvc.clone(),
-                    complete: true, // SetupMandate uses complete=true for purchase/auth
+                    complete: is_auto_capture,
                 }
             }
             _ => {
@@ -1020,11 +1008,13 @@ impl<T: PaymentMethodDataTypes>
             }
         };
 
-        // Use minor_amount from request if available, otherwise zero
-        let minor_amount = item
-            .request
-            .minor_amount
-            .unwrap_or_else(|| common_utils::types::MinorUnit::new(0));
+        let minor_amount =
+            item.request
+                .minor_amount
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "minor_amount",
+                    context: Default::default(),
+                })?;
 
         let converter = FloatMajorUnitForConnector;
         let amount = converter
@@ -1173,7 +1163,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<BamboraPaymentsRespon
 impl<T: PaymentMethodDataTypes>
     TryFrom<
         &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
-    > for BamboraRepeatPaymentRequest
+    > for BamboraRepeatPaymentRequest<T>
 {
     type Error = error_stack::Report<IntegrationError>;
 
@@ -1185,7 +1175,8 @@ impl<T: PaymentMethodDataTypes>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        // Get the series_id from connector_mandate_id
+        // Bambora's MIT API requires the series_id (an i64) that was returned in the
+        // card_on_file response during SetupMandate. We store that as connector_mandate_id.
         let connector_mandate_id =
             item.request
                 .connector_mandate_id()
@@ -1194,14 +1185,17 @@ impl<T: PaymentMethodDataTypes>
                     context: Default::default(),
                 })?;
 
-        let series_id: i64 =
-            connector_mandate_id
-                .parse()
-                .map_err(|_| IntegrationError::RequestEncodingFailed {
-                    context: Default::default(),
-                })?;
+        let series_id: i64 = connector_mandate_id.parse().map_err(|_| {
+            IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "connector_mandate_id '{connector_mandate_id}' is not a valid Bambora series_id (expected i64)"
+                    )),
+                    ..Default::default()
+                },
+            }
+        })?;
 
-        // Convert amount
         let converter = FloatMajorUnitForConnector;
         let amount = converter
             .convert(item.request.minor_amount, item.request.currency)
@@ -1209,28 +1203,38 @@ impl<T: PaymentMethodDataTypes>
                 context: Default::default(),
             })?;
 
-        let is_auto_capture = item.request.is_auto_capture();
-
-        // For MIT with Bambora, we need to re-send card details with card_on_file
-        // Check if card data is available in payment_method_data
-        let card = match &item.request.payment_method_data {
-            PaymentMethodData::Card(card_data) => {
-                let cardholder_name = item
-                    .resource_common_data
-                    .get_optional_billing_full_name()
-                    .unwrap_or_else(|| Secret::new("Card Holder".to_string()));
-
-                let expiry_year = card_data.get_card_expiry_year_2_digit()?;
-
-                Some(BamboraRepeatPaymentCard {
-                    name: cardholder_name,
-                    number: Secret::new(card_data.card_number.peek().to_string()),
-                    expiry_month: card_data.card_exp_month.clone(),
-                    expiry_year,
-                    complete: is_auto_capture,
-                })
+        // Bambora's RepeatPayment API needs card details alongside card_on_file.series_id.
+        // The payment_profile alternative (customer_code + card_id) would require storing
+        // those fields during SetupMandate, which UCS does not currently do.
+        let card_data = match &item.request.payment_method_data {
+            PaymentMethodData::Card(card_data) => card_data,
+            _ => {
+                return Err(IntegrationError::NotSupported {
+                    message: "Only card payments are supported for RepeatPayment".to_string(),
+                    connector: "bambora",
+                    context: Default::default(),
+                }
+                .into());
             }
-            _ => None,
+        };
+
+        let cardholder_name = item
+            .resource_common_data
+            .get_optional_billing_full_name()
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "billing.first_name or billing.last_name",
+                context: Default::default(),
+            })?;
+
+        let expiry_year = card_data.get_card_expiry_year_2_digit()?;
+
+        let card = BamboraCard {
+            name: cardholder_name,
+            number: card_data.card_number.clone(),
+            expiry_month: card_data.card_exp_month.clone(),
+            expiry_year,
+            cvd: card_data.card_cvc.clone(),
+            complete: item.request.is_auto_capture(),
         };
 
         Ok(Self {
@@ -1245,7 +1249,6 @@ impl<T: PaymentMethodDataTypes>
                 series_id: Some(series_id),
             },
             card,
-            payment_profile: None,
         })
     }
 }
@@ -1262,7 +1265,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             >,
             T,
         >,
-    > for BamboraRepeatPaymentRequest
+    > for BamboraRepeatPaymentRequest<T>
 {
     type Error = error_stack::Report<IntegrationError>;
 
@@ -1299,10 +1302,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<BamboraPaymentsRespon
                 BamboraPaymentType::PreAuthCompletion => AttemptStatus::Charged,
                 _ => AttemptStatus::Pending,
             }
-        } else if item.router_data.request.is_auto_capture() {
-            AttemptStatus::Failure
         } else {
-            AttemptStatus::AuthorizationFailed
+            AttemptStatus::Failure
         };
 
         Ok(Self {

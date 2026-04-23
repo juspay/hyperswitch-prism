@@ -103,7 +103,7 @@ macros::create_all_prerequisites!(
         ),
         (
             flow: RepeatPayment,
-            request_body: BamboraRepeatPaymentRequest,
+            request_body: BamboraRepeatPaymentRequest<T>,
             response_body: BamboraRepeatPaymentResponse,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
@@ -641,7 +641,7 @@ macros::macro_connector_implementation!(
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Bambora,
-    curl_request: Json(BamboraRepeatPaymentRequest),
+    curl_request: Json(BamboraRepeatPaymentRequest<T>),
     curl_response: BamboraRepeatPaymentResponse,
     flow_name: RepeatPayment,
     resource_common_data: PaymentFlowData,
