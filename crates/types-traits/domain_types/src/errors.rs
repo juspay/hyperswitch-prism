@@ -556,10 +556,8 @@ impl ErrorSwitch<grpc_api_types::payments::ConnectorError> for ConnectorError {
     }
 }
 
-impl ForeignFrom<&crate::router_data::ErrorResponse>
-    for Option<grpc_api_types::payments::ErrorInfo>
-{
-    fn foreign_from(error_response: &crate::router_data::ErrorResponse) -> Self {
+impl ForeignFrom<&ErrorResponse> for Option<grpc_api_types::payments::ErrorInfo> {
+    fn foreign_from(error_response: &ErrorResponse) -> Self {
         // Only build ErrorInfo if we have meaningful structured data
         let has_connector_details = error_response.code != common_utils::consts::NO_ERROR_CODE
             || error_response.reason.is_some();
