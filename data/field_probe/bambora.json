@@ -633,7 +633,7 @@
     "recurring_charge": {
       "default": {
         "status": "error",
-        "error": "Failed to encode connector request"
+        "error": "Failed to encode connector request. connector_mandate_id 'probe-mandate-123' is not a valid Bambora series_id (expected i64)"
       }
     },
     "recurring_revoke": {
