@@ -127,6 +127,12 @@ impl From<grpc_api_types::payments::ConnectorError> for SdkError {
     }
 }
 
+impl From<Box<grpc_api_types::payments::ConnectorError>> for SdkError {
+    fn from(e: Box<grpc_api_types::payments::ConnectorError>) -> Self {
+        SdkError::from(*e)
+    }
+}
+
 impl From<crate::http_client::NetworkError> for SdkError {
     fn from(e: crate::http_client::NetworkError) -> Self {
         SdkError::NetworkError {
