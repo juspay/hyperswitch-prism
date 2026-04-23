@@ -712,8 +712,6 @@ pub enum ConnectorSpecificConfig {
         base_url: Option<String>,
     },
     Axisbank {
-        merchant_id: Secret<String>,
-        merchant_channel_id: Secret<String>,
         merchant_kid: Secret<String>,
         juspay_kid: Secret<String>,
         merchant_private_key: Secret<String>,
@@ -1021,8 +1019,6 @@ impl ConnectorSpecificConfig {
                 client_secret
             },
             Axisbank {
-                merchant_id,
-                merchant_channel_id,
                 merchant_kid,
                 juspay_kid,
                 merchant_private_key,
@@ -1417,8 +1413,6 @@ impl ConnectorSpecificConfig {
                     client_secret
                 },
                 Axisbank {
-                    merchant_id,
-                    merchant_channel_id,
                     merchant_kid,
                     juspay_kid,
                     merchant_private_key,
@@ -1902,8 +1896,6 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 base_url: trustly.base_url,
             }),
             AuthType::Axisbank(axisbank) => Ok(Self::Axisbank {
-                merchant_id: axisbank.merchant_id.ok_or_else(err)?,
-                merchant_channel_id: axisbank.merchant_channel_id.ok_or_else(err)?,
                 merchant_kid: axisbank.merchant_kid.ok_or_else(err)?,
                 juspay_kid: axisbank.juspay_kid.ok_or_else(err)?,
                 merchant_private_key: axisbank.merchant_private_key.ok_or_else(err)?,
@@ -2933,12 +2925,10 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
             },
             ConnectorEnum::Axisbank => match auth {
                 ConnectorAuthType::MultiAuthKey { api_key, key1, api_secret, key2 } => Ok(Self::Axisbank {
-                    merchant_id: api_key.clone(),
-                    merchant_channel_id: key1.clone(),
-                    merchant_kid: api_secret.clone(),
-                    juspay_kid: key2.clone(),
-                    merchant_private_key: Secret::new(String::new()),
-                    juspay_public_key: Secret::new(String::new()),
+                    merchant_kid: api_key.clone(),
+                    juspay_kid: key1.clone(),
+                    merchant_private_key: api_secret.clone(),
+                    juspay_public_key: key2.clone(),
                     base_url: None,
                 }),
                 _ => Err(err().into()),

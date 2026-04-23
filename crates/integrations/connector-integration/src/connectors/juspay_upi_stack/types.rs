@@ -9,10 +9,6 @@ use serde::{Deserialize, Serialize};
 /// Authentication configuration for Juspay UPI Stack connectors
 #[derive(Debug, Clone)]
 pub struct JuspayUpiAuthConfig {
-    /// Merchant ID for x-merchant-id header
-    pub merchant_id: String,
-    /// Merchant channel ID for x-merchant-channel-id header
-    pub merchant_channel_id: String,
     /// Key ID for JWS signing (merchant's key identifier)
     pub merchant_kid: String,
     /// Juspay's key ID for response verification

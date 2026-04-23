@@ -48,6 +48,7 @@ use self::transformers::{
     AxisbankAuthConfig, AxisbankPaymentsRequest, AxisbankPaymentsResponse,
     AxisbankSyncRequest, AxisbankSyncResponse, AxisbankRefundRequest, AxisbankRefundResponse,
     AxisbankRefundSyncRequest, AxisbankRefundSyncResponse,
+    extract_merchant_identifiers_from_metadata,
 };
 use super::macros;
 use crate::types::ResponseRouterData;
@@ -326,11 +327,12 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let auth = AxisbankAuthConfig::try_from(&req.connector_config)?;
+            let (merchant_id, merchant_channel_id) = 
+                extract_merchant_identifiers_from_metadata(&req.request.metadata)?;
             let merchant_request_id = req.resource_common_data.connector_request_reference_id.clone();
             crate::connectors::juspay_upi_stack::transformers::build_request_headers(
-                &auth.merchant_id,
-                &auth.merchant_channel_id,
+                &merchant_id,
+                &merchant_channel_id,
                 &merchant_request_id,
             )
         }
@@ -364,7 +366,8 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let auth = AxisbankAuthConfig::try_from(&req.connector_config)?;
+            let (merchant_id, merchant_channel_id) = 
+                extract_merchant_identifiers_from_metadata(&req.resource_common_data.connector_feature_data)?;
             let merchant_request_id = req
                 .request
                 .connector_transaction_id
@@ -379,8 +382,8 @@ macros::macro_connector_implementation!(
                 })?;
 
             crate::connectors::juspay_upi_stack::transformers::build_request_headers(
-                &auth.merchant_id,
-                &auth.merchant_channel_id,
+                &merchant_id,
+                &merchant_channel_id,
                 &merchant_request_id,
             )
         }
@@ -414,14 +417,15 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let auth = AxisbankAuthConfig::try_from(&req.connector_config)?;
+            let (merchant_id, merchant_channel_id) = 
+                extract_merchant_identifiers_from_metadata(&req.resource_common_data.connector_feature_data)?;
             let timestamp = axisbank::get_current_timestamp_ms();
             let refund_request_id = req.request.refund_id.clone();
 
             let headers = vec![
                 ("content-type".to_string(), "application/json".to_string().into()),
-                ("x-merchant-id".to_string(), auth.merchant_id.into()),
-                ("x-merchant-channel-id".to_string(), auth.merchant_channel_id.into()),
+                ("x-merchant-id".to_string(), merchant_id.into()),
+                ("x-merchant-channel-id".to_string(), merchant_channel_id.into()),
                 ("x-timestamp".to_string(), timestamp.into()),
                 ("jpupi-routing-id".to_string(), refund_request_id.into()),
             ];
@@ -458,14 +462,15 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let auth = AxisbankAuthConfig::try_from(&req.connector_config)?;
+            let (merchant_id, merchant_channel_id) = 
+                extract_merchant_identifiers_from_metadata(&req.resource_common_data.connector_feature_data)?;
             let timestamp = axisbank::get_current_timestamp_ms();
             let refund_request_id = req.request.connector_refund_id.clone();
 
             let headers = vec![
                 ("content-type".to_string(), "application/json".to_string().into()),
-                ("x-merchant-id".to_string(), auth.merchant_id.into()),
-                ("x-merchant-channel-id".to_string(), auth.merchant_channel_id.into()),
+                ("x-merchant-id".to_string(), merchant_id.into()),
+                ("x-merchant-channel-id".to_string(), merchant_channel_id.into()),
                 ("x-timestamp".to_string(), timestamp.into()),
                 ("jpupi-routing-id".to_string(), refund_request_id.into()),
             ];

@@ -27,6 +27,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
+use common_utils::SecretSerdeValue;
 use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -38,8 +39,6 @@ pub use crate::connectors::juspay_upi_stack::crypto::get_current_timestamp_ms;
 /// Auth configuration for Axis Bank
 #[derive(Debug, Clone)]
 pub struct AxisbankAuthConfig {
-    pub merchant_id: String,
-    pub merchant_channel_id: String,
     pub merchant_kid: String,
     pub juspay_kid: String,
     pub merchant_private_key: Secret<String>,
@@ -53,16 +52,12 @@ impl TryFrom<&ConnectorSpecificConfig> for AxisbankAuthConfig {
     fn try_from(config: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match config {
             ConnectorSpecificConfig::Axisbank {
-                merchant_id,
-                merchant_channel_id,
                 merchant_kid,
                 juspay_kid,
                 merchant_private_key,
                 juspay_public_key,
                 base_url,
             } => Ok(Self {
-                merchant_id: merchant_id.peek().clone(),
-                merchant_channel_id: merchant_channel_id.peek().clone(),
                 merchant_kid: merchant_kid.peek().clone(),
                 juspay_kid: juspay_kid.peek().clone(),
                 merchant_private_key: merchant_private_key.clone(),
@@ -73,7 +68,7 @@ impl TryFrom<&ConnectorSpecificConfig> for AxisbankAuthConfig {
                 context: IntegrationErrorContext {
                     suggested_action: Some("Check connector_specific_config in merchant connector account configuration".to_string()),
                     doc_url: Some("https://juspay.io/in/docs/upi-merchant-stack/docs/transactions/register-intent".to_string()),
-                    additional_context: Some("Expected Axisbank variant with fields: merchant_id, merchant_channel_id, merchant_kid, juspay_kid, merchant_private_key, juspay_public_key".to_string()),
+                    additional_context: Some("Expected Axisbank variant with fields: merchant_kid, juspay_kid, merchant_private_key, juspay_public_key".to_string()),
                 },
             }
             .into()),
@@ -88,8 +83,6 @@ impl From<AxisbankAuthConfig> for SharedAuthConfig {
         let jwe_kid = config.merchant_kid.clone();
         let merchant_private_key = config.merchant_private_key.clone();
         Self {
-            merchant_id: config.merchant_id,
-            merchant_channel_id: config.merchant_channel_id,
             merchant_kid: config.merchant_kid,
             juspay_kid: config.juspay_kid,
             merchant_private_key: config.merchant_private_key,
@@ -100,6 +93,51 @@ impl From<AxisbankAuthConfig> for SharedAuthConfig {
             merchant_jwe_private_key: Some(merchant_private_key),
         }
     }
+}
+
+/// Extract merchant_id and merchant_channel_id from metadata
+pub fn extract_merchant_identifiers_from_metadata(
+    metadata: &Option<SecretSerdeValue>,
+) -> Result<(String, String), error_stack::Report<IntegrationError>> {
+    let metadata_value = metadata
+        .as_ref()
+        .ok_or_else(|| IntegrationError::MissingRequiredField {
+            field_name: "metadata",
+            context: IntegrationErrorContext {
+                suggested_action: Some("Provide merchant_id and merchant_channel_id in request".to_string()),
+                doc_url: Some("https://juspay.io/in/docs/upi-merchant-stack".to_string()),
+                additional_context: Some("metadata must contain 'merchant_id' and 'merchant_channel_id' fields".to_string()),
+            },
+        })?
+        .peek();
+
+    let merchant_id = metadata_value
+        .get("merchant_id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| IntegrationError::MissingRequiredField {
+            field_name: "metadata.merchant_id",
+            context: IntegrationErrorContext {
+                suggested_action: Some("Add 'merchant_id' field to request metadata".to_string()),
+                doc_url: Some("https://juspay.io/in/docs/upi-merchant-stack".to_string()),
+                additional_context: Some("merchant_id is required for Axisbank connector".to_string()),
+            },
+        })?
+        .to_string();
+
+    let merchant_channel_id = metadata_value
+        .get("merchant_channel_id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| IntegrationError::MissingRequiredField {
+            field_name: "metadata.merchant_channel_id",
+            context: IntegrationErrorContext {
+                suggested_action: Some("Add 'merchant_channel_id' field to request metadata".to_string()),
+                doc_url: Some("https://juspay.io/in/docs/upi-merchant-stack".to_string()),
+                additional_context: Some("merchant_channel_id is required for Axisbank connector".to_string()),
+            },
+        })?
+        .to_string();
+
+    Ok((merchant_id, merchant_channel_id))
 }
 
 // ============================================

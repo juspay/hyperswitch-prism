@@ -4051,8 +4051,6 @@ message TruelayerConfig {
 }
 
 message AxisbankConfig {
-  SecretString merchant_id = 1;
-  SecretString merchant_channel_id = 2;
   SecretString merchant_kid = 3;
   SecretString juspay_kid = 4;
   SecretString merchant_private_key = 5;
