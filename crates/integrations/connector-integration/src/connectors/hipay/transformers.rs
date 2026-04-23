@@ -7,12 +7,14 @@ use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{request::MultipartData, types::StringMajorUnit};
 use domain_types::errors::{ConnectorError, IntegrationError};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, PaymentMethodToken, RSync, Refund, Void},
+    connector_flow::{
+        Authorize, Capture, PSync, PaymentMethodToken, RSync, Refund, RepeatPayment, Void,
+    },
     connector_types::{
-        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
-        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        ResponseId,
+        MandateReferenceId, PaymentFlowData, PaymentMethodTokenResponse,
+        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
     },
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     router_data::ConnectorSpecificConfig,
@@ -1013,6 +1015,245 @@ impl TryFrom<ResponseRouterData<HipayVoidResponse, Self>>
             },
             ..item.router_data
         })
+    }
+}
+
+// ========================================================================================
+// REPEAT PAYMENT (MIT) REQUEST/RESPONSE TYPES
+// ========================================================================================
+// HiPay MIT uses the same /v1/order endpoint as Authorize, but with MIT-specific parameters:
+// - eci=9 (Recurring E-commerce)
+// - recurring_payment=1
+// - authentication_indicator=0 (bypass 3DS for merchant-initiated)
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct HipayRepeatPaymentRequest {
+    pub payment_product: String,
+    pub orderid: String,
+    pub operation: Operation,
+    pub description: String,
+    pub currency: common_enums::Currency,
+    pub amount: StringMajorUnit,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cardtoken: Option<String>,
+    /// ECI=9 for MIT (Recurring E-commerce)
+    pub eci: String,
+    /// Always "1" for recurring/MIT
+    pub recurring_payment: String,
+    /// Always "0" for MIT (bypass 3DS)
+    pub authentication_indicator: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notify_url: Option<String>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        HipayRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for HipayRepeatPaymentRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: HipayRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        // Extract card token from mandate reference (connector_mandate_id)
+        let cardtoken = match &item.router_data.request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(connector_mandate_ref) => {
+                connector_mandate_ref
+                    .get_connector_mandate_id()
+                    .ok_or_else(|| {
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "connector_mandate_id",
+                            context: Default::default()
+                        })
+                    })?
+            }
+            MandateReferenceId::NetworkMandateId(network_mandate_id) => {
+                network_mandate_id.clone()
+            }
+            MandateReferenceId::NetworkTokenWithNTI(_) => {
+                return Err(error_stack::report!(
+                    IntegrationError::NotImplemented(
+                        "Network token with NTI not supported for HiPay repeat payments"
+                            .to_string(),
+                        Default::default(),
+                    )
+                ));
+            }
+        };
+
+        // Determine payment_product from payment_method_data
+        let payment_product = match &item.router_data.request.payment_method_data {
+            PaymentMethodData::Card(card_data) => {
+                match card_data.card_network.as_ref() {
+                    Some(network) => match network {
+                        common_enums::CardNetwork::Visa => "visa",
+                        common_enums::CardNetwork::Mastercard => "mastercard",
+                        common_enums::CardNetwork::AmericanExpress => "american-express",
+                        common_enums::CardNetwork::JCB => "jcb",
+                        common_enums::CardNetwork::DinersClub => "diners",
+                        common_enums::CardNetwork::Discover => "discover",
+                        common_enums::CardNetwork::CartesBancaires => "cb",
+                        common_enums::CardNetwork::UnionPay => "unionpay",
+                        common_enums::CardNetwork::Interac => "interac",
+                        common_enums::CardNetwork::RuPay => "rupay",
+                        common_enums::CardNetwork::Maestro => "maestro",
+                        _ => "visa", // Default to visa for unsupported networks
+                    },
+                    None => "visa", // Default to visa when network unknown
+                }
+                .to_string()
+            }
+            PaymentMethodData::CardToken(_) => {
+                // For tokenized cards, use connector_customer field
+                item.router_data
+                    .resource_common_data
+                    .connector_customer
+                    .clone()
+                    .unwrap_or_else(|| "visa".to_string())
+            }
+            PaymentMethodData::MandatePayment => {
+                // For mandate payments, default to visa (HiPay requires payment_product)
+                "visa".to_string()
+            }
+            _ => {
+                return Err(IntegrationError::not_implemented(
+                    "Payment method not supported for repeat payment".to_string(),
+                ))
+                .change_context(IntegrationError::not_implemented(
+                    "Payment method".to_string(),
+                ))
+            }
+        };
+
+        // Convert amount to StringMajorUnit
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(
+                item.router_data.request.minor_amount,
+                item.router_data.request.currency,
+            )
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
+
+        // Determine operation based on capture method
+        let operation = match item.router_data.request.capture_method {
+            Some(common_enums::CaptureMethod::Manual) => Operation::Authorization,
+            _ => Operation::Sale,
+        };
+
+        let description = item
+            .router_data
+            .resource_common_data
+            .description
+            .clone()
+            .unwrap_or_else(|| "Recurring payment".to_string());
+
+        let notify_url = item.router_data.request.webhook_url.clone();
+
+        Ok(Self {
+            payment_product,
+            orderid: item
+                .router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            operation,
+            description,
+            currency: item.router_data.request.currency,
+            amount,
+            cardtoken: Some(cardtoken),
+            eci: "9".to_string(),
+            recurring_payment: "1".to_string(),
+            authentication_indicator: "0".to_string(),
+            notify_url,
+        })
+    }
+}
+
+// RepeatPayment response reuses the same Authorize response format
+pub type HipayRepeatPaymentResponse = HipayPaymentsResponse;
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<HipayRepeatPaymentResponse, Self>>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+
+    fn try_from(
+        item: ResponseRouterData<HipayRepeatPaymentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let status = AttemptStatus::from(item.response.status.clone());
+
+        let response = if status == AttemptStatus::Failure {
+            Err(domain_types::router_data::ErrorResponse {
+                code: "DECLINED".to_string(),
+                message: item.response.message.clone(),
+                reason: Some(item.response.message.clone()),
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.transaction_reference.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            })
+        } else {
+            let redirection_data = if !item.response.forward_url.is_empty() {
+                Some(Box::new(
+                    domain_types::router_response_types::RedirectForm::Uri {
+                        uri: item.response.forward_url.clone(),
+                    },
+                ))
+            } else {
+                None
+            };
+
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(
+                    item.response.transaction_reference.clone(),
+                ),
+                redirection_data,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(item.response.order.id.clone()),
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+            })
+        };
+
+        Ok(Self {
+            response,
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// GetFormData implementation for HipayRepeatPaymentRequest
+impl GetFormData for HipayRepeatPaymentRequest {
+    fn get_form_data(&self) -> MultipartData {
+        build_form_from_struct(self).unwrap_or_else(|_| MultipartData::new())
     }
 }
 
