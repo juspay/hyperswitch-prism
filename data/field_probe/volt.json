@@ -67,6 +67,10 @@
         "status": "not_supported",
         "error": "Selected payment method through Volt is not supported by Volt"
       },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Volt is not supported by Volt"
+      },
       "Bizum": {
         "status": "not_supported",
         "error": "Selected payment method through Volt is not supported by Volt"
@@ -99,6 +103,10 @@
         "status": "not_supported",
         "error": "Selected payment method through Volt is not supported by Volt"
       },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Volt is not supported by Volt"
+      },
       "CimbVaBankTransfer": {
         "status": "not_supported",
         "error": "Selected payment method through Volt is not supported by Volt"
@@ -109,7 +117,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
@@ -117,9 +125,13 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_supported",
+        "error": "Selected payment method through Volt is not supported by Volt"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_supported",
         "error": "Selected payment method through Volt is not supported by Volt"
       },
@@ -145,7 +157,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GooglePay": {
         "status": "not_supported",
@@ -195,6 +207,10 @@
         "status": "not_supported",
         "error": "Selected payment method through Volt is not supported by Volt"
       },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Volt is not supported by Volt"
+      },
       "LocalBankRedirect": {
         "status": "not_supported",
         "error": "Selected payment method through Volt is not supported by Volt"
@@ -220,6 +236,10 @@
         "error": "Selected payment method through Volt is not supported by Volt"
       },
       "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Volt is not supported by Volt"
+      },
+      "Netbanking": {
         "status": "not_supported",
         "error": "Selected payment method through Volt is not supported by Volt"
       },
@@ -294,7 +314,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
         "status": "supported",
@@ -355,7 +375,11 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Volt is not supported by Volt"
       },
       "PaypalRedirect": {
         "status": "not_supported",
@@ -367,9 +391,13 @@
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Volt is not supported by Volt"
+      },
+      "PhonePeRedirect": {
         "status": "not_supported",
         "error": "Selected payment method through Volt is not supported by Volt"
       },
