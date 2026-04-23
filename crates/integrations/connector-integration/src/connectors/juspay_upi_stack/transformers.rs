@@ -4,18 +4,29 @@
 //! - Constructing UPI deeplinks
 //! - Mapping response status codes
 //! - Building request/response structures
+//! - Generic request builders and response handlers shared across all UPI bank connectors supported by Juspay UPI Stack
 
 use crate::connectors::juspay_upi_stack::{
     constants::*,
+    crypto::sign_jws,
     types::*,
 };
 use common_enums as enums;
 use common_utils::errors::CustomResult;
 use domain_types::{
-    errors::IntegrationError,
+    connector_types::{
+        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundsData, RefundsResponseData, RefundSyncData, ResponseId,
+    },
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    payment_method_data::PaymentMethodDataTypes,
     router_data::ErrorResponse,
+    router_data_v2::RouterDataV2,
+    router_response_types::RedirectForm,
 };
-use hyperswitch_masking::Maskable;
+use common_utils::SecretSerdeValue;
+use error_stack::ResultExt;
+use hyperswitch_masking::{Maskable, PeekInterface};
 
 /// Construct a UPI deeplink from register intent response parameters
 /// 
@@ -216,6 +227,571 @@ pub fn build_error_response(
         network_advice_code: None,
         network_error_message: None,
     }
+}
+
+/// Map outer response code to AttemptStatus (shared across all UPI bank connectors)
+pub fn map_outer_response_code(response_code: OuterResponseCode) -> enums::AttemptStatus {
+    match response_code {
+        OuterResponseCode::RequestNotFound => enums::AttemptStatus::Pending,
+        OuterResponseCode::RequestExpired
+        | OuterResponseCode::Dropout
+        | OuterResponseCode::Failure
+        | OuterResponseCode::BadRequest
+        | OuterResponseCode::InvalidData
+        | OuterResponseCode::Unauthorized
+        | OuterResponseCode::InvalidMerchant
+        | OuterResponseCode::DeviceFingerprintMismatch
+        | OuterResponseCode::InternalServerError
+        | OuterResponseCode::InvalidTransactionId
+        | OuterResponseCode::UninitiatedRequest
+        | OuterResponseCode::InvalidRefundAmount
+        | OuterResponseCode::Success
+        | OuterResponseCode::RequestPending
+        | OuterResponseCode::ServiceUnavailable
+        | OuterResponseCode::GatewayTimeout
+        | OuterResponseCode::DuplicateRequest => enums::AttemptStatus::Failure,
+    }
+}
+
+/// Extract merchant_id and merchant_channel_id from metadata.
+/// Shared across all UPI bank connectors — every bank reads these from metadata.
+pub fn extract_merchant_identifiers_from_metadata(
+    metadata: &Option<SecretSerdeValue>,
+) -> Result<(String, String), error_stack::Report<IntegrationError>> {
+    let metadata_value = metadata
+        .as_ref()
+        .ok_or_else(|| IntegrationError::MissingRequiredField {
+            field_name: "metadata",
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Provide merchant_id and merchant_channel_id in request metadata".to_string(),
+                ),
+                doc_url: Some("https://juspay.io/in/docs/upi-merchant-stack".to_string()),
+                additional_context: Some(
+                    "metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+                        .to_string(),
+                ),
+            },
+        })?
+        .peek();
+
+    let merchant_id = metadata_value
+        .get("merchant_id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| IntegrationError::MissingRequiredField {
+            field_name: "metadata.merchant_id",
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Add 'merchant_id' field to request metadata".to_string(),
+                ),
+                doc_url: Some("https://juspay.io/in/docs/upi-merchant-stack".to_string()),
+                additional_context: Some(
+                    "merchant_id is required for all Juspay UPI Stack bank connectors".to_string(),
+                ),
+            },
+        })?
+        .to_string();
+
+    let merchant_channel_id = metadata_value
+        .get("merchant_channel_id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| IntegrationError::MissingRequiredField {
+            field_name: "metadata.merchant_channel_id",
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Add 'merchant_channel_id' field to request metadata".to_string(),
+                ),
+                doc_url: Some("https://juspay.io/in/docs/upi-merchant-stack".to_string()),
+                additional_context: Some(
+                    "merchant_channel_id is required for all Juspay UPI Stack bank connectors"
+                        .to_string(),
+                ),
+            },
+        })?
+        .to_string();
+
+    Ok((merchant_id, merchant_channel_id))
+}
+
+// ============================================================
+// GENERIC REQUEST BUILDERS
+// All UPI bank connectors share the same request structure.
+// Each bank calls these with its JuspayUpiAuthConfig extracted
+// from the bank-specific ConnectorSpecificConfig variant.
+// ============================================================
+
+/// Build a JWS-signed Authorize (Register Intent) request body.
+///
+/// Banks call this from their `TryFrom` impl after extracting their auth config.
+pub fn build_authorize_request<T: PaymentMethodDataTypes + serde::Serialize>(
+    router_data: &RouterDataV2<
+        domain_types::connector_flow::Authorize,
+        PaymentFlowData,
+        PaymentsAuthorizeData<T>,
+        PaymentsResponseData,
+    >,
+    auth: &JuspayUpiAuthConfig,
+    amount_str: String,
+) -> Result<JwsObject, error_stack::Report<IntegrationError>> {
+    use crate::connectors::juspay_upi_stack::crypto::get_current_timestamp_ms;
+
+    // Get intent expiry from metadata or use default
+    let intent_expiry = router_data
+        .request
+        .metadata
+        .as_ref()
+        .and_then(|m| m.peek().get("intent_expiry_minutes").cloned())
+        .and_then(|v| v.as_str().map(|s| s.to_string()))
+        .unwrap_or_else(|| DEFAULT_INTENT_EXPIRY_MINUTES.to_string());
+
+    // Sanitize merchant request ID
+    let merchant_request_id = sanitize_merchant_request_id(
+        &router_data.resource_common_data.connector_request_reference_id,
+    );
+    // UPI Request ID — must be strictly alphanumeric (max 35 chars, no hyphens/dots/underscores)
+    let upi_request_id: String = merchant_request_id
+        .chars()
+        .filter(|c| c.is_alphanumeric())
+        .collect();
+
+    // Build remarks from description
+    let remarks = router_data
+        .resource_common_data
+        .description
+        .as_ref()
+        .map(|d| sanitize_remarks(d))
+        .or_else(|| Some("Payment".to_string()));
+
+    let ref_url = router_data.request.router_return_url.clone();
+
+    let register_intent = RegisterIntentRequest {
+        merchant_request_id,
+        upi_request_id,
+        amount: amount_str,
+        flow: FLOW_TRANSACTION.to_string(),
+        intent_request_expiry_minutes: Some(intent_expiry),
+        remarks,
+        ref_url,
+        iat: get_current_timestamp_ms(),
+    };
+
+    let payload_json =
+        serde_json::to_string(&register_intent).change_context(IntegrationError::RequestEncodingFailed {
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Verify all request fields have valid formats and lengths".to_string(),
+                ),
+                doc_url: Some(
+                    "https://juspay.io/in/docs/upi-merchant-stack/docs/transactions/register-intent"
+                        .to_string(),
+                ),
+                additional_context: Some(
+                    "upi_request_id must be max 35 alphanumeric characters. Amount must be a string."
+                        .to_string(),
+                ),
+            },
+        })?;
+
+    sign_jws(&payload_json, &auth.merchant_private_key, &auth.merchant_kid)
+}
+
+/// Build a JWS-signed PSync (Status 360) request body.
+pub fn build_psync_request(
+    connector_transaction_id: String,
+    auth: &JuspayUpiAuthConfig,
+) -> Result<JwsObject, error_stack::Report<IntegrationError>> {
+    use crate::connectors::juspay_upi_stack::crypto::get_current_timestamp_ms;
+
+    let status_request = Status360Request {
+        merchant_request_id: connector_transaction_id,
+        transaction_type: TRANSACTION_TYPE_PAY.to_string(),
+        iat: get_current_timestamp_ms(),
+    };
+
+    let payload_json =
+        serde_json::to_string(&status_request).change_context(IntegrationError::RequestEncodingFailed {
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Verify merchant_request_id is valid and transaction_type is correctly set"
+                        .to_string(),
+                ),
+                doc_url: Some(
+                    "https://juspay.io/in/docs/upi-merchant-stack/docs/transactions/transaction-status-360"
+                        .to_string(),
+                ),
+                additional_context: Some(
+                    "transaction_type should be 'MERCHANT_CREDITED_VIA_PAY' for payment status queries."
+                        .to_string(),
+                ),
+            },
+        })?;
+
+    sign_jws(&payload_json, &auth.merchant_private_key, &auth.merchant_kid)
+}
+
+/// Build a JWS-signed Refund (Refund 360) request body.
+pub fn build_refund_request(
+    refunds_data: &RefundsData,
+    auth: &JuspayUpiAuthConfig,
+) -> Result<JwsObject, error_stack::Report<IntegrationError>> {
+    use crate::connectors::juspay_upi_stack::crypto::get_current_timestamp_ms;
+
+    // Determine refund type (default to OFFLINE for safety)
+    let refund_type = refunds_data
+        .refund_connector_metadata
+        .as_ref()
+        .and_then(|m| m.peek().get("refund_type").cloned())
+        .and_then(|v| v.as_str().map(|s| s.to_uppercase()))
+        .unwrap_or_else(|| REFUND_TYPE_OFFLINE.to_string());
+
+    // Get adjustment code and flag for UDIR refunds
+    let (adj_code, adj_flag) = if refund_type == REFUND_TYPE_UDIR {
+        (
+            Some(ADJ_CODE_GOODS_NOT_PROVIDED.to_string()),
+            Some(ADJ_FLAG_REF.to_string()),
+        )
+    } else {
+        (None, None)
+    };
+
+    // Convert minor units (paise) to rupees with 2 decimal places
+    let amount_in_rupees = (refunds_data.minor_refund_amount.get_amount_as_i64() as f64) / 100.0;
+    let refund_amount = format!("{:.2}", amount_in_rupees);
+
+    let refund_request = Refund360Request {
+        original_merchant_request_id: refunds_data.connector_transaction_id.clone(),
+        refund_request_id: refunds_data.refund_id.clone(),
+        refund_type,
+        refund_amount,
+        remarks: refunds_data
+            .reason
+            .clone()
+            .unwrap_or_else(|| "Refund".to_string()),
+        adj_code,
+        adj_flag,
+        merchant_refund_vpa: None,
+        original_transaction_timestamp: None,
+        iat: get_current_timestamp_ms(),
+    };
+
+    let payload_json =
+        serde_json::to_string(&refund_request).change_context(IntegrationError::RequestEncodingFailed {
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Verify refund fields are valid: original_merchant_request_id, refund_amount, and refund_type"
+                        .to_string(),
+                ),
+                doc_url: Some(
+                    "https://juspay.io/in/docs/upi-merchant-stack/docs/transactions/refund-360"
+                        .to_string(),
+                ),
+                additional_context: Some(
+                    "refund_type can be 'ONLINE', 'OFFLINE', or 'UDIR'. refund_amount must be in rupees with 2 decimal places (e.g., '100.00')."
+                        .to_string(),
+                ),
+            },
+        })?;
+
+    sign_jws(&payload_json, &auth.merchant_private_key, &auth.merchant_kid)
+}
+
+/// Build a JWS-signed RSync (Refund Status 360) request body.
+pub fn build_rsync_request(
+    connector_transaction_id: String,
+    connector_refund_id: String,
+    auth: &JuspayUpiAuthConfig,
+) -> Result<JwsObject, error_stack::Report<IntegrationError>> {
+    use crate::connectors::juspay_upi_stack::crypto::get_current_timestamp_ms;
+
+    let refund_sync = Refund360Request {
+        original_merchant_request_id: connector_transaction_id,
+        refund_request_id: connector_refund_id,
+        refund_type: REFUND_TYPE_OFFLINE.to_string(), // Default for sync
+        refund_amount: "0.00".to_string(),            // Not needed for status check
+        remarks: "Status check".to_string(),
+        adj_code: None,
+        adj_flag: None,
+        merchant_refund_vpa: None,
+        original_transaction_timestamp: None,
+        iat: get_current_timestamp_ms(),
+    };
+
+    let payload_json =
+        serde_json::to_string(&refund_sync).change_context(IntegrationError::RequestEncodingFailed {
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Verify connector_refund_id is provided for refund status query".to_string(),
+                ),
+                doc_url: Some(
+                    "https://juspay.io/in/docs/upi-merchant-stack/docs/transactions/refund-360"
+                        .to_string(),
+                ),
+                additional_context: Some(
+                    "For RSync, connector_refund_id is the refund_request_id from the original Refund request."
+                        .to_string(),
+                ),
+            },
+        })?;
+
+    sign_jws(&payload_json, &auth.merchant_private_key, &auth.merchant_kid)
+}
+
+// ============================================================
+// GENERIC RESPONSE HANDLERS
+// All UPI bank connectors produce the same RouterDataV2 shape
+// from the shared JuspayUpiApiResponse<T> types.
+// ============================================================
+
+/// Handle Authorize (Register Intent) response — shared across all UPI bank connectors.
+pub fn handle_authorize_response<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static>(
+    response: RegisterIntentResponse,
+    http_code: u16,
+    router_data: RouterDataV2<
+        domain_types::connector_flow::Authorize,
+        PaymentFlowData,
+        PaymentsAuthorizeData<T>,
+        PaymentsResponseData,
+    >,
+) -> Result<
+    RouterDataV2<
+        domain_types::connector_flow::Authorize,
+        PaymentFlowData,
+        PaymentsAuthorizeData<T>,
+        PaymentsResponseData,
+    >,
+    error_stack::Report<ConnectorError>,
+> {
+    if response.response_code.is_failure() {
+        let status = map_outer_response_code(response.response_code.clone());
+        Ok(RouterDataV2 {
+            response: Err(ErrorResponse {
+                code: format!("{:?}", response.response_code),
+                message: response.status.clone(),
+                reason: Some(response.status.clone()),
+                status_code: http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            }),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..router_data.resource_common_data
+            },
+            ..router_data
+        })
+    } else if let Some(payload) = response.payload {
+        let deeplink = construct_upi_deeplink(&payload);
+        let redirect_form = RedirectForm::Uri { uri: deeplink };
+
+        let response_data = PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(
+                payload.gateway_transaction_id.clone(),
+            ),
+            redirection_data: Some(Box::new(redirect_form)),
+            connector_metadata: None,
+            mandate_reference: None,
+            network_txn_id: None,
+            connector_response_reference_id: Some(payload.merchant_request_id.clone()),
+            incremental_authorization_allowed: None,
+            status_code: http_code,
+        };
+
+        Ok(RouterDataV2 {
+            response: Ok(response_data),
+            resource_common_data: PaymentFlowData {
+                status: enums::AttemptStatus::AuthenticationPending,
+                ..router_data.resource_common_data
+            },
+            ..router_data
+        })
+    } else {
+        // Success outer code but no payload — treat as failure
+        let status = map_outer_response_code(response.response_code.clone());
+        let response_data = PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::NoResponseId,
+            redirection_data: None,
+            connector_metadata: None,
+            mandate_reference: None,
+            network_txn_id: None,
+            connector_response_reference_id: None,
+            incremental_authorization_allowed: None,
+            status_code: http_code,
+        };
+        Ok(RouterDataV2 {
+            response: Ok(response_data),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..router_data.resource_common_data
+            },
+            ..router_data
+        })
+    }
+}
+
+/// Handle PSync (Status 360) response — shared across all UPI bank connectors.
+pub fn handle_psync_response(
+    response: Status360Response,
+    http_code: u16,
+    router_data: RouterDataV2<
+        domain_types::connector_flow::PSync,
+        PaymentFlowData,
+        PaymentsSyncData,
+        PaymentsResponseData,
+    >,
+) -> Result<
+    RouterDataV2<
+        domain_types::connector_flow::PSync,
+        PaymentFlowData,
+        PaymentsSyncData,
+        PaymentsResponseData,
+    >,
+    error_stack::Report<ConnectorError>,
+> {
+    if response.response_code.is_failure() {
+        let status = map_outer_response_code(response.response_code.clone());
+        return Ok(RouterDataV2 {
+            response: Err(ErrorResponse {
+                code: format!("{:?}", response.response_code),
+                message: response.status.clone(),
+                reason: Some(response.status.clone()),
+                status_code: http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            }),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..router_data.resource_common_data
+            },
+            ..router_data
+        });
+    }
+
+    let status = if let Some(ref payload) = response.payload {
+        map_transaction_status(
+            response.response_code.clone(),
+            Some(&payload.gateway_response_code),
+        )
+    } else {
+        map_transaction_status(response.response_code.clone(), None)
+    };
+
+    let response_data = PaymentsResponseData::TransactionResponse {
+        resource_id: ResponseId::NoResponseId,
+        redirection_data: None,
+        connector_metadata: None,
+        mandate_reference: None,
+        network_txn_id: None,
+        connector_response_reference_id: response
+            .payload
+            .as_ref()
+            .map(|p| p.gateway_transaction_id.clone()),
+        incremental_authorization_allowed: None,
+        status_code: http_code,
+    };
+
+    Ok(RouterDataV2 {
+        response: Ok(response_data),
+        resource_common_data: PaymentFlowData {
+            status,
+            ..router_data.resource_common_data
+        },
+        ..router_data
+    })
+}
+
+/// Handle Refund (Refund 360) response — shared across all UPI bank connectors.
+pub fn handle_refund_response(
+    response: Refund360Response,
+    http_code: u16,
+    router_data: RouterDataV2<
+        domain_types::connector_flow::Refund,
+        RefundFlowData,
+        RefundsData,
+        RefundsResponseData,
+    >,
+) -> Result<
+    RouterDataV2<
+        domain_types::connector_flow::Refund,
+        RefundFlowData,
+        RefundsData,
+        RefundsResponseData,
+    >,
+    error_stack::Report<ConnectorError>,
+> {
+    let status = if let Some(ref payload) = response.payload {
+        map_refund_status(
+            &payload.refund_type,
+            &payload.gateway_response_code,
+            &payload.gateway_response_status,
+        )
+    } else {
+        enums::RefundStatus::Failure
+    };
+
+    let response_data = RefundsResponseData {
+        connector_refund_id: response
+            .payload
+            .as_ref()
+            .map(|p| p.refund_request_id.clone())
+            .unwrap_or_default(),
+        refund_status: status,
+        status_code: http_code,
+    };
+
+    Ok(RouterDataV2 {
+        response: Ok(response_data),
+        ..router_data
+    })
+}
+
+/// Handle RSync (Refund Status 360) response — shared across all UPI bank connectors.
+pub fn handle_rsync_response(
+    response: Refund360Response,
+    http_code: u16,
+    router_data: RouterDataV2<
+        domain_types::connector_flow::RSync,
+        RefundFlowData,
+        RefundSyncData,
+        RefundsResponseData,
+    >,
+) -> Result<
+    RouterDataV2<
+        domain_types::connector_flow::RSync,
+        RefundFlowData,
+        RefundSyncData,
+        RefundsResponseData,
+    >,
+    error_stack::Report<ConnectorError>,
+> {
+    let status = if let Some(ref payload) = response.payload {
+        map_refund_status(
+            &payload.refund_type,
+            &payload.gateway_response_code,
+            &payload.gateway_response_status,
+        )
+    } else {
+        enums::RefundStatus::Failure
+    };
+
+    let response_data = RefundsResponseData {
+        connector_refund_id: response
+            .payload
+            .as_ref()
+            .map(|p| p.refund_request_id.clone())
+            .unwrap_or_default(),
+        refund_status: status,
+        status_code: http_code,
+    };
+
+    Ok(RouterDataV2 {
+        response: Ok(response_data),
+        ..router_data
+    })
 }
 
 /// Build the standard request headers for Juspay UPI Merchant Stack APIs.
