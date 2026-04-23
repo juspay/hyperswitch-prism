@@ -107,18 +107,15 @@ jobs:
           PR_NUMBER: ${{ steps.context.outputs.pr_number }}
         run: |
           set -euo pipefail
-          if [ ! -d "$SOURCE_REPO_LOCAL/.git" ]; then
-            echo "ERROR: prism clone missing at $SOURCE_REPO_LOCAL"
-            exit 1
-          fi
-          git -C "$SOURCE_REPO_LOCAL" fetch --quiet origin
+          cd "$SOURCE_REPO_LOCAL"
+          git fetch origin
           BRANCH=$(gh pr view "$PR_NUMBER" --repo "$SOURCE_REPO" --json headRefName --jq '.headRefName')
           if [ -z "$BRANCH" ]; then
             echo "ERROR: Could not resolve branch for PR #$PR_NUMBER"
             exit 1
           fi
-          git -C "$SOURCE_REPO_LOCAL" checkout --quiet "$BRANCH"
-          git -C "$SOURCE_REPO_LOCAL" reset --hard "origin/$BRANCH"
+          git checkout "$BRANCH"
+          git pull origin "$BRANCH"
           echo "Checked out PR branch: $BRANCH"
 
       - name: Sync prism reviewer skill
