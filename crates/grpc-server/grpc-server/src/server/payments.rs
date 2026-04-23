@@ -109,7 +109,7 @@ struct EventParams<'a> {
 #[derive(Debug, serde::Serialize)]
 struct CardTokenData {
     card_number: String,
-    card_cvv: String,
+    card_cvc: String,
     card_exp_month: String,
     card_exp_year: String,
 }
@@ -126,7 +126,7 @@ impl ToTokenData for grpc_api_types::payments::CardDetails {
                 .as_ref()
                 .map(|cn| cn.get_card_no())
                 .unwrap_or_default(),
-            card_cvv: self
+            card_cvc: self
                 .card_cvc
                 .as_ref()
                 .map(|cvc| cvc.clone().expose().to_string())
@@ -159,7 +159,7 @@ impl ToTokenData for grpc_api_types::payments::ProxyCardDetails {
                 .as_ref()
                 .map(|cn| cn.peek().to_owned())
                 .unwrap_or_default(),
-            card_cvv: self
+            card_cvc: self
                 .card_cvc
                 .as_ref()
                 .map(|cvc| cvc.clone().expose().to_string())
