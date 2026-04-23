@@ -4897,6 +4897,7 @@ pub fn get_webhook_response(
             error,
             payments_response_data: PaymentsResponseData::MultipleCaptureResponse {
                 capture_sync_response_list,
+                status_code,
             },
             txn_amount,
             connector_response,

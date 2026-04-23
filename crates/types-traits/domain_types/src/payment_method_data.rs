@@ -229,6 +229,10 @@ impl<T: PaymentMethodDataTypes> Card<T> {
             .clone()
             .ok_or_else(missing_field_err("card.card_holder_name"))
     }
+
+    pub fn get_optional_cardholder_name(&self) -> Option<Secret<String>> {
+        self.card_holder_name.clone()
+    }
 }
 
 impl Card<DefaultPCIHolder> {

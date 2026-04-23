@@ -110,6 +110,7 @@ pub enum ConnectorEnum {
     Globalpay,
     Nuvei,
     Iatapay,
+    Imerchantsolutions,
     Nmi,
     Shift4,
     Paybox,
@@ -228,6 +229,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Trustly => Ok(Self::Trustly),
             grpc_api_types::payments::Connector::Itaubank => Ok(Self::Itaubank),
             grpc_api_types::payments::Connector::PinelabsOnline => Ok(Self::PinelabsOnline),
+            grpc_api_types::payments::Connector::Imerchantsolutions => Ok(Self::Imerchantsolutions),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -1417,6 +1419,7 @@ pub enum PaymentsResponseData {
     },
     MultipleCaptureResponse {
         capture_sync_response_list: HashMap<String, CaptureSyncResponse>,
+        status_code: u16,
     },
     IncrementalAuthorizationResponse {
         status: AuthorizationStatus,
@@ -4207,6 +4210,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Authorizedotnet(_) => Ok(Self::Authorizedotnet),
             AuthType::Ppro(_) => Ok(Self::Ppro),
             AuthType::PinelabsOnline(_) => Ok(Self::PinelabsOnline),
+            AuthType::Imerchantsolutions(_) => Ok(Self::Imerchantsolutions),
         }
     }
 }
