@@ -390,6 +390,7 @@ pub struct Connectors {
     pub itaubank: ConnectorParams,
     pub sanlam: ConnectorParams,
     pub pinelabs_online: ConnectorParams,
+    pub easebuzz: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]

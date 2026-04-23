@@ -1,0 +1,611 @@
+{
+  "connector": "easebuzz",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Affirm": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Afterpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: unknown. Unsupported payment method"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Sepa": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "UpiCollect": {
+        "status": "error",
+        "error": "Stuck on field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/ — Missing required field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/"
+      },
+      "UpiIntent": {
+        "status": "error",
+        "error": "Stuck on field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/ — Missing required field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/"
+      },
+      "UpiQr": {
+        "status": "error",
+        "error": "Stuck on field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/ — Missing required field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      },
+      "Wero": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://testpay.easebuzz.in/payment/v1/capture/direct",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "key=probe_secret&txnid=probe_connector_txn_001&amount=10.00&hash=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3"
+        }
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_customer": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_order_id": "probe_order_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://testpay.easebuzz.in/payment/initiateLink",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "key=probe_secret&txnid=probe_order_001&amount=10.00&productinfo=Payment&firstname=Customer&phone=9999999999&email=customer%40example.com&surl=https%3A%2F%2Fexample.com%2Freturn&furl=https%3A%2F%2Fexample.com%2Freturn&hash=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3&request_flow=SEAMLESS"
+        }
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://testdashboard.easebuzz.in/transaction/v1/retrieve",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "txnid=probe_merchant_txn_001&amount=10.00&email=customer%40example.com&phone=9999999999&key=probe_secret&hash=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3"
+        }
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://testdashboard.easebuzz.in/transaction/v2/refund",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "key=probe_secret&merchant_refund_id=probe_refund_001&easebuzz_id=probe_connector_txn_001&refund_amount=10.00&hash=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3"
+        }
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://testdashboard.easebuzz.in/refund/v1/retrieve",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "key=probe_secret&easebuzz_id=probe_connector_txn_001&hash=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3&merchant_refund_id=probe_refund_id_001"
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_implemented"
+      }
+    }
+  }
+}

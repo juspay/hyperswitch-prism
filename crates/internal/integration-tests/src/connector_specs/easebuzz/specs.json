@@ -1,0 +1,11 @@
+{
+  "connector": "easebuzz",
+  "supported_suites": [
+    "create_order",
+    "authorize",
+    "get",
+    "capture",
+    "refund",
+    "refund_sync"
+  ]
+}
