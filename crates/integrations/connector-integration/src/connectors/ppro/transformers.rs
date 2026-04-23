@@ -679,10 +679,30 @@ pub struct PproWebhookEvent {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PproWebhookChargeData {
+    pub payment_charge_id: String,
+    pub payment_charge_status: PproPaymentStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub failure: Option<PproFailure>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refund_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PproWebhookAgreementData {
+    pub payment_agreement_id: String,
+    pub payment_agreement_status: PproAgreementStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub failure: Option<PproFailure>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum PproWebhookData {
-    Charge { charge: PproPaymentsResponse },
-    Agreement { agreement: PproAgreementResponse },
+    Charge(PproWebhookChargeData),
+    Agreement(PproWebhookAgreementData),
 }
 
 impl<F, Req> TryFrom<ResponseRouterData<PproPaymentsResponse, Self>>

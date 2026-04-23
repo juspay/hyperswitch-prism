@@ -4401,7 +4401,16 @@ impl
             amount_captured: None,
             minor_amount_captured: None,
             minor_amount_capturable: None,
-            amount: None,
+            amount: value
+                .amount
+                .as_ref()
+                .map(|money| {
+                    Ok::<_, error_stack::Report<IntegrationError>>(common_utils::types::Money {
+                        amount: common_utils::types::MinorUnit::new(money.minor_amount),
+                        currency: common_enums::Currency::foreign_try_from(money.currency())?,
+                    })
+                })
+                .transpose()?,
             access_token,
             session_token: None,
             reference_id: value.connector_order_reference_id.clone(),
@@ -6150,11 +6159,29 @@ pub fn generate_payment_sync_response(
                 }
                 None => grpc_api_types::payments::PaymentStatus::Unspecified,
             };
+            let amount = router_data_v2
+                .resource_common_data
+                .amount
+                .as_ref()
+                .map(|money| {
+                    grpc_api_types::payments::Currency::foreign_try_from(money.currency).map(
+                        |currency| grpc_api_types::payments::Money {
+                            minor_amount: money.amount.get_amount_as_i64(),
+                            currency: currency as i32,
+                        },
+                    )
+                })
+                .transpose()?;
             Ok(PaymentServiceGetResponse {
                 connector_transaction_id: extract_connector_request_reference_id(
                     &e.connector_transaction_id,
                 ),
-                merchant_transaction_id: None,
+                merchant_transaction_id: Some(
+                    router_data_v2
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone(),
+                ),
                 mandate_reference: None,
                 status: status as i32,
                 error: Some(grpc_api_types::payments::ErrorInfo {
@@ -6175,7 +6202,7 @@ pub fn generate_payment_sync_response(
                     }),
                 }),
                 network_transaction_id: None,
-                amount: None,
+                amount,
                 captured_amount: None,
                 payment_method_type: None,
                 capture_method: None,

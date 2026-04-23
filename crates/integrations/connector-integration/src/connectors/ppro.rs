@@ -445,15 +445,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(WebhookError::WebhookResourceObjectNotFound)?;
 
         let charge = match event.data {
-            PproWebhookData::Charge { charge } => charge,
-            PproWebhookData::Agreement { .. } => {
+            PproWebhookData::Charge(charge) => charge,
+            PproWebhookData::Agreement(_) => {
                 return Err(error_stack::report!(WebhookError::WebhooksNotImplemented {
                     operation: "process_payment_webhook",
                 }));
             }
         };
 
-        let status = common_enums::AttemptStatus::from(charge.status);
+        let status = common_enums::AttemptStatus::from(charge.payment_charge_status);
 
         let (error_code, error_message, error_reason) = match charge.failure.as_ref() {
             Some(failure) => (
@@ -469,9 +469,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         Ok(WebhookDetailsResponse {
-            resource_id: Some(ResponseId::ConnectorTransactionId(charge.id.clone())),
+            resource_id: Some(ResponseId::ConnectorTransactionId(charge.payment_charge_id.clone())),
             status,
-            connector_response_reference_id: Some(charge.id),
+            connector_response_reference_id: Some(charge.payment_charge_id),
             error_code,
             error_message,
             error_reason,
@@ -501,15 +501,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(WebhookError::WebhookResourceObjectNotFound)?;
 
         let charge = match event.data {
-            PproWebhookData::Charge { charge } => charge,
-            PproWebhookData::Agreement { .. } => {
+            PproWebhookData::Charge(charge) => charge,
+            PproWebhookData::Agreement(_) => {
                 return Err(error_stack::report!(WebhookError::WebhooksNotImplemented {
                     operation: "process_refund_webhook",
                 }));
             }
         };
 
-        let status = common_enums::RefundStatus::from(charge.status);
+        let status = common_enums::RefundStatus::from(charge.payment_charge_status);
 
         let (error_code, error_message) = match charge.failure.as_ref() {
             Some(failure) => (
@@ -519,11 +519,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             None => (None, None),
         };
 
+        let refund_id = charge
+            .refund_id
+            .clone()
+            .unwrap_or_else(|| charge.payment_charge_id.clone());
+
         Ok(
             domain_types::connector_types::RefundWebhookDetailsResponse {
-                connector_refund_id: Some(charge.id.clone()),
+                connector_refund_id: Some(refund_id.clone()),
                 status,
-                connector_response_reference_id: Some(charge.id),
+                connector_response_reference_id: Some(refund_id),
                 error_code,
                 error_message,
                 raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
@@ -557,21 +562,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .ok_or_else(|| error_stack::report!(WebhookError::WebhookVerificationSecretNotFound))
             .attach_printable("Connector webhook secret not configured")?;
 
-        let signature = request
+        let signature_header = request
             .headers
             .get("Webhook-Signature")
             .ok_or_else(|| error_stack::report!(WebhookError::WebhookSignatureNotFound))?;
 
-        let algorithm = crypto::HmacSha256;
-        let expected_signature =
-            hex::decode(signature).change_context(WebhookError::WebhookBodyDecodingFailed)?;
+        let expected_signature = hex::decode(signature_header)
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
-        algorithm
-            .verify_signature(
-                &connector_webhook_secrets.secret,
-                &expected_signature,
-                &request.body,
-            )
+        let mut message = request.body.to_vec();
+        message.push(b'.');
+        message.extend_from_slice(&connector_webhook_secrets.secret);
+
+        crypto::Sha256
+            .verify_signature(&[], &expected_signature, &message)
             .change_context(WebhookError::WebhookSourceVerificationFailed)
     }
 
@@ -586,8 +590,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(WebhookError::WebhookResourceObjectNotFound)?;
 
         match event.data {
-            PproWebhookData::Charge { charge } => Ok(Box::new(charge)),
-            PproWebhookData::Agreement { agreement } => Ok(Box::new(agreement)),
+            PproWebhookData::Charge(charge) => Ok(Box::new(charge)),
+            PproWebhookData::Agreement(agreement) => Ok(Box::new(agreement)),
         }
     }
 }
@@ -1176,8 +1180,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + Serialize + 'static> Inco
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
         match event.data {
-            PproWebhookData::Charge { charge } => Ok(Box::new(charge)),
-            PproWebhookData::Agreement { agreement } => Ok(Box::new(agreement)),
+            PproWebhookData::Charge(charge) => Ok(Box::new(charge)),
+            PproWebhookData::Agreement(agreement) => Ok(Box::new(agreement)),
         }
     }
 }
