@@ -54,11 +54,6 @@ pub(crate) mod headers {
 
 macros::create_amount_converter_wrapper!(connector_name: Worldpayxml, amount_type: StringMinorUnit);
 
-fn worldpayxml_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(format!(
-        "{flow} flow for worldpayxml"
-    )))
-}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
         IncrementalAuthorization,
@@ -76,7 +71,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayxml_not_implemented("incremental_authorization"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "incremental_authorization",
+        ))
     }
 }
 
@@ -248,7 +246,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayxml_not_implemented("post_authenticate"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "post_authenticate",
+        ))
     }
 }
 
@@ -269,7 +270,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayxml_not_implemented("authenticate"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "authenticate",
+        ))
     }
 }
 
@@ -290,7 +294,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayxml_not_implemented("pre_authenticate"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "pre_authenticate",
+        ))
     }
 }
 
@@ -311,7 +318,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             domain_types::connector_types::DisputeResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayxml_not_implemented("submit_evidence"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "submit_evidence",
+        ))
     }
 }
 
@@ -332,7 +342,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             domain_types::connector_types::DisputeResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayxml_not_implemented("defend_dispute"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "defend_dispute",
+        ))
     }
 }
 
@@ -378,7 +391,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayxml_not_implemented("repeat_payment"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "repeat_payment",
+        ))
     }
 }
 
@@ -399,7 +415,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayxml_not_implemented("setup_mandate"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "setup_mandate",
+        ))
     }
 }
 
@@ -420,7 +439,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayxml_not_implemented("void_post_capture"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "void_post_capture",
+        ))
     }
 }
 
@@ -441,7 +463,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             domain_types::connector_types::PaymentMethodTokenResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayxml_not_implemented("payment_method_token"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "payment_method_token",
+        ))
     }
 }
 
@@ -462,7 +487,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             domain_types::connector_types::ConnectorCustomerResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayxml_not_implemented("create_connector_customer"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "create_connector_customer",
+        ))
     }
 }
 
@@ -483,7 +511,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             domain_types::connector_types::ServerAuthenticationTokenResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayxml_not_implemented(
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
             "create_server_authentication_token",
         ))
     }
@@ -506,7 +535,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             domain_types::connector_types::ServerSessionAuthenticationTokenResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayxml_not_implemented(
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
             "create_server_session_authentication_token",
         ))
     }
@@ -529,7 +559,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayxml_not_implemented(
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
             "create_client_authentication_token",
         ))
     }
@@ -552,7 +583,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             MandateRevokeResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayxml_not_implemented("mandate_revoke"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "mandate_revoke",
+        ))
     }
 }
 
@@ -573,7 +607,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             domain_types::connector_types::PaymentCreateOrderResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayxml_not_implemented("create_order"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "create_order",
+        ))
     }
 }
 

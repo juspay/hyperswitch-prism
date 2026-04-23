@@ -70,19 +70,6 @@ pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
 }
 
-fn authorizedotnet_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationError> {
-    report!(IntegrationError::FlowNotSupported {
-        flow: flow.to_string(),
-        connector: "Authorizedotnet".to_string(),
-        context: Default::default(),
-    })
-}
-fn authorizedotnet_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(format!(
-        "{flow} flow for authorizedotnet"
-    )))
-}
-
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
         IncrementalAuthorization,
@@ -100,7 +87,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(authorizedotnet_not_implemented("incremental_authorization"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "incremental_authorization",
+        ))
     }
 }
 
@@ -900,7 +890,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentCreateOrderResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(authorizedotnet_not_implemented("create_order"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "create_order",
+        ))
     }
 }
 
@@ -921,7 +914,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ServerSessionAuthenticationTokenResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(authorizedotnet_not_implemented(
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
             "create_server_session_authentication_token",
         ))
     }
@@ -944,7 +938,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ServerAuthenticationTokenResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(authorizedotnet_not_implemented(
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
             "create_server_authentication_token",
         ))
     }
@@ -958,7 +953,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         _req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
     ) -> CustomResult<String, IntegrationError> {
-        Err(authorizedotnet_flow_not_supported("AcceptDispute"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "AcceptDispute",
+        ))
     }
 }
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -974,7 +972,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             DisputeResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(authorizedotnet_flow_not_supported("SubmitEvidence"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "SubmitEvidence",
+        ))
     }
 }
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -985,7 +986,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         _req: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
     ) -> CustomResult<String, IntegrationError> {
-        Err(authorizedotnet_flow_not_supported("DefendDispute"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "DefendDispute",
+        ))
     }
 }
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -1005,7 +1009,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodTokenResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(authorizedotnet_not_implemented("payment_method_token"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "payment_method_token",
+        ))
     }
 }
 
@@ -1026,7 +1033,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(authorizedotnet_flow_not_supported("PreAuthenticate"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "PreAuthenticate",
+        ))
     }
 }
 
@@ -1047,7 +1057,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(authorizedotnet_flow_not_supported("Authenticate"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "Authenticate",
+        ))
     }
 }
 
@@ -1068,7 +1081,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(authorizedotnet_flow_not_supported("PostAuthenticate"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "PostAuthenticate",
+        ))
     }
 }
 
@@ -1089,7 +1105,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(authorizedotnet_not_implemented(
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
             "create_client_authentication_token",
         ))
     }
@@ -1112,7 +1129,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             MandateRevokeResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(authorizedotnet_not_implemented("mandate_revoke"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "mandate_revoke",
+        ))
     }
 }
 
@@ -1133,7 +1153,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(authorizedotnet_not_implemented("void_post_capture"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "void_post_capture",
+        ))
     }
 }
 

@@ -57,19 +57,6 @@ pub(crate) mod headers {
     pub(crate) const AUTHORIZATION: &str = "Authorization";
 }
 
-fn silverflow_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::FlowNotSupported {
-        flow: flow.to_string(),
-        connector: "Silverflow".to_string(),
-        context: Default::default(),
-    })
-}
-fn silverflow_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(format!(
-        "{flow} flow for silverflow"
-    )))
-}
-
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
 // ===== CONNECTOR SERVICE TRAIT IMPLEMENTATIONS =====
@@ -92,7 +79,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(silverflow_not_implemented("incremental_authorization"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "incremental_authorization",
+        ))
     }
 }
 
@@ -430,7 +420,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(silverflow_flow_not_supported("void_post_capture"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "void_post_capture",
+        ))
     }
 }
 
@@ -550,7 +543,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(silverflow_not_implemented("setup_mandate"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "setup_mandate",
+        ))
     }
 }
 
@@ -572,7 +568,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(silverflow_not_implemented("repeat_payment"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "repeat_payment",
+        ))
     }
 }
 
@@ -594,7 +593,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentCreateOrderResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(silverflow_flow_not_supported("create_order"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "create_order",
+        ))
     }
 }
 
@@ -616,7 +618,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ServerSessionAuthenticationTokenResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(silverflow_not_implemented(
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
             "create_server_session_authentication_token",
         ))
     }
@@ -639,7 +642,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(silverflow_flow_not_supported(
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
             "create_client_authentication_token",
         ))
     }
@@ -654,7 +658,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
     ) -> CustomResult<String, IntegrationError> {
-        Err(silverflow_not_implemented("accept_dispute"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "accept_dispute",
+        ))
     }
 }
 
@@ -667,7 +674,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
     ) -> CustomResult<String, IntegrationError> {
-        Err(silverflow_not_implemented("defend_dispute"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "defend_dispute",
+        ))
     }
 }
 
@@ -685,7 +695,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             DisputeResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(silverflow_not_implemented("submit_evidence"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "submit_evidence",
+        ))
     }
 }
 
@@ -707,7 +720,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentMethodTokenResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(silverflow_not_implemented("payment_method_token"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "payment_method_token",
+        ))
     }
 }
 
@@ -729,7 +745,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ServerAuthenticationTokenResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(silverflow_not_implemented(
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
             "create_server_authentication_token",
         ))
     }
@@ -752,7 +769,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             MandateRevokeResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(silverflow_flow_not_supported("mandate_revoke"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "mandate_revoke",
+        ))
     }
 }
 
@@ -775,7 +795,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(silverflow_not_implemented("pre_authenticate"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "pre_authenticate",
+        ))
     }
 }
 
@@ -797,7 +820,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(silverflow_not_implemented("authenticate"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "authenticate",
+        ))
     }
 }
 
@@ -819,7 +845,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(silverflow_not_implemented("post_authenticate"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "post_authenticate",
+        ))
     }
 }
 
@@ -842,7 +871,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ConnectorCustomerResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(silverflow_flow_not_supported("create_connector_customer"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "create_connector_customer",
+        ))
     }
 }
 

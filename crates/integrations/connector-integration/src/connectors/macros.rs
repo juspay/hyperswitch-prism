@@ -1327,15 +1327,6 @@ pub(crate) use macro_connector_payout_implementation;
 /// It pattern-matches on the flow identifier and generates two trait implementations for
 /// the connector:
 ///
-/// 1. **Marker trait** (`Payout{Flow}V2`) from `::interfaces::connector_types` –
-///    Declares that the connector supports this particular payout flow.
-///
-/// 2. **Integration trait** (`ConnectorIntegrationV2<Flow, FlowData, Request, Response>`)
-///    from `::interfaces::connector_integration_v2` –
-///    Provides a default (empty) integration implementation. Because the impl body is `{}`,
-///    all methods fall back to the trait's default behaviour (typically returning
-///    `NotImplemented` errors). Connectors that actually support a flow override this with
-///    a concrete implementation elsewhere.
 macro_rules! expand_payout_implementation {
     (
         connector: $connector: ident,
@@ -1351,7 +1342,22 @@ macro_rules! expand_payout_implementation {
                 ::domain_types::payouts::payouts_types::PayoutCreateRequest,
                 ::domain_types::payouts::payouts_types::PayoutCreateResponse,
             > for $connector<$generic_type>
-        {}
+        {
+            fn get_url(
+                &self,
+                _req: &::domain_types::router_data_v2::RouterDataV2<
+                    ::domain_types::connector_flow::PayoutCreate,
+                    ::domain_types::payouts::payouts_types::PayoutFlowData,
+                    ::domain_types::payouts::payouts_types::PayoutCreateRequest,
+                    ::domain_types::payouts::payouts_types::PayoutCreateResponse,
+                >,
+            ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
+                Err($crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+                    self,
+                    <::domain_types::connector_flow::PayoutCreate as ::interfaces::connector_integration_v2::FlowDescriptor>::NAME,
+                ))
+            }
+        }
     };
     (
         connector: $connector: ident,
@@ -1367,7 +1373,22 @@ macro_rules! expand_payout_implementation {
                 ::domain_types::payouts::payouts_types::PayoutTransferRequest,
                 ::domain_types::payouts::payouts_types::PayoutTransferResponse,
             > for $connector<$generic_type>
-        {}
+        {
+            fn get_url(
+                &self,
+                _req: &::domain_types::router_data_v2::RouterDataV2<
+                    ::domain_types::connector_flow::PayoutTransfer,
+                    ::domain_types::payouts::payouts_types::PayoutFlowData,
+                    ::domain_types::payouts::payouts_types::PayoutTransferRequest,
+                    ::domain_types::payouts::payouts_types::PayoutTransferResponse,
+                >,
+            ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
+                Err($crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+                    self,
+                    <::domain_types::connector_flow::PayoutTransfer as ::interfaces::connector_integration_v2::FlowDescriptor>::NAME,
+                ))
+            }
+        }
     };
     (
         connector: $connector: ident,
@@ -1383,7 +1404,22 @@ macro_rules! expand_payout_implementation {
                 ::domain_types::payouts::payouts_types::PayoutGetRequest,
                 ::domain_types::payouts::payouts_types::PayoutGetResponse,
             > for $connector<$generic_type>
-        {}
+        {
+            fn get_url(
+                &self,
+                _req: &::domain_types::router_data_v2::RouterDataV2<
+                    ::domain_types::connector_flow::PayoutGet,
+                    ::domain_types::payouts::payouts_types::PayoutFlowData,
+                    ::domain_types::payouts::payouts_types::PayoutGetRequest,
+                    ::domain_types::payouts::payouts_types::PayoutGetResponse,
+                >,
+            ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
+                Err($crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+                    self,
+                    <::domain_types::connector_flow::PayoutGet as ::interfaces::connector_integration_v2::FlowDescriptor>::NAME,
+                ))
+            }
+        }
     };
     (
         connector: $connector: ident,
@@ -1399,7 +1435,22 @@ macro_rules! expand_payout_implementation {
                 ::domain_types::payouts::payouts_types::PayoutVoidRequest,
                 ::domain_types::payouts::payouts_types::PayoutVoidResponse,
             > for $connector<$generic_type>
-        {}
+        {
+            fn get_url(
+                &self,
+                _req: &::domain_types::router_data_v2::RouterDataV2<
+                    ::domain_types::connector_flow::PayoutVoid,
+                    ::domain_types::payouts::payouts_types::PayoutFlowData,
+                    ::domain_types::payouts::payouts_types::PayoutVoidRequest,
+                    ::domain_types::payouts::payouts_types::PayoutVoidResponse,
+                >,
+            ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
+                Err($crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+                    self,
+                    <::domain_types::connector_flow::PayoutVoid as ::interfaces::connector_integration_v2::FlowDescriptor>::NAME,
+                ))
+            }
+        }
     };
     (
         connector: $connector: ident,
@@ -1415,7 +1466,22 @@ macro_rules! expand_payout_implementation {
                 ::domain_types::payouts::payouts_types::PayoutStageRequest,
                 ::domain_types::payouts::payouts_types::PayoutStageResponse,
             > for $connector<$generic_type>
-        {}
+        {
+            fn get_url(
+                &self,
+                _req: &::domain_types::router_data_v2::RouterDataV2<
+                    ::domain_types::connector_flow::PayoutStage,
+                    ::domain_types::payouts::payouts_types::PayoutFlowData,
+                    ::domain_types::payouts::payouts_types::PayoutStageRequest,
+                    ::domain_types::payouts::payouts_types::PayoutStageResponse,
+                >,
+            ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
+                Err($crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+                    self,
+                    <::domain_types::connector_flow::PayoutStage as ::interfaces::connector_integration_v2::FlowDescriptor>::NAME,
+                ))
+            }
+        }
     };
     (
         connector: $connector: ident,
@@ -1431,7 +1497,22 @@ macro_rules! expand_payout_implementation {
                 ::domain_types::payouts::payouts_types::PayoutCreateLinkRequest,
                 ::domain_types::payouts::payouts_types::PayoutCreateLinkResponse,
             > for $connector<$generic_type>
-        {}
+        {
+            fn get_url(
+                &self,
+                _req: &::domain_types::router_data_v2::RouterDataV2<
+                    ::domain_types::connector_flow::PayoutCreateLink,
+                    ::domain_types::payouts::payouts_types::PayoutFlowData,
+                    ::domain_types::payouts::payouts_types::PayoutCreateLinkRequest,
+                    ::domain_types::payouts::payouts_types::PayoutCreateLinkResponse,
+                >,
+            ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
+                Err($crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+                    self,
+                    <::domain_types::connector_flow::PayoutCreateLink as ::interfaces::connector_integration_v2::FlowDescriptor>::NAME,
+                ))
+            }
+        }
     };
     (
         connector: $connector: ident,
@@ -1447,7 +1528,22 @@ macro_rules! expand_payout_implementation {
                 ::domain_types::payouts::payouts_types::PayoutCreateRecipientRequest,
                 ::domain_types::payouts::payouts_types::PayoutCreateRecipientResponse,
             > for $connector<$generic_type>
-        {}
+        {
+            fn get_url(
+                &self,
+                _req: &::domain_types::router_data_v2::RouterDataV2<
+                    ::domain_types::connector_flow::PayoutCreateRecipient,
+                    ::domain_types::payouts::payouts_types::PayoutFlowData,
+                    ::domain_types::payouts::payouts_types::PayoutCreateRecipientRequest,
+                    ::domain_types::payouts::payouts_types::PayoutCreateRecipientResponse,
+                >,
+            ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
+                Err($crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+                    self,
+                    <::domain_types::connector_flow::PayoutCreateRecipient as ::interfaces::connector_integration_v2::FlowDescriptor>::NAME,
+                ))
+            }
+        }
     };
     (
         connector: $connector: ident,
@@ -1463,7 +1559,22 @@ macro_rules! expand_payout_implementation {
                 ::domain_types::payouts::payouts_types::PayoutEnrollDisburseAccountRequest,
                 ::domain_types::payouts::payouts_types::PayoutEnrollDisburseAccountResponse,
             > for $connector<$generic_type>
-        {}
+        {
+            fn get_url(
+                &self,
+                _req: &::domain_types::router_data_v2::RouterDataV2<
+                    ::domain_types::connector_flow::PayoutEnrollDisburseAccount,
+                    ::domain_types::payouts::payouts_types::PayoutFlowData,
+                    ::domain_types::payouts::payouts_types::PayoutEnrollDisburseAccountRequest,
+                    ::domain_types::payouts::payouts_types::PayoutEnrollDisburseAccountResponse,
+                >,
+            ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
+                Err($crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+                    self,
+                    <::domain_types::connector_flow::PayoutEnrollDisburseAccount as ::interfaces::connector_integration_v2::FlowDescriptor>::NAME,
+                ))
+            }
+        }
     };
 }
 pub(crate) use expand_payout_implementation;

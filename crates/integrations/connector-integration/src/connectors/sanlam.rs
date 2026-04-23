@@ -53,19 +53,6 @@ pub(crate) mod headers {
     pub(crate) const MERCHANT_ID: &str = "Merchant-Id";
 }
 
-fn sanlam_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::FlowNotSupported {
-        flow: flow.to_string(),
-        connector: "Sanlam".to_string(),
-        context: Default::default(),
-    })
-}
-fn sanlam_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(format!(
-        "{flow} flow for sanlam"
-    )))
-}
-
 macros::macro_connector_payout_implementation!(
     connector: Sanlam,
     generic_type: T,
@@ -208,6 +195,7 @@ macros::create_all_prerequisites!(
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError>
         where
             Self: ConnectorIntegrationV2<F, FCD, Req, Res>,
+            F: interfaces::connector_integration_v2::FlowDescriptor,
         {
             let mut header = vec![(
                 headers::CONTENT_TYPE.to_string(),
@@ -251,6 +239,13 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            _req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            crate::utils::ConnectorFlowStatusExt::no_request_url(self, "authorize")
         }
 
         fn get_kafka_topic(
@@ -333,7 +328,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
     ) -> CustomResult<String, IntegrationError> {
-        Err(sanlam_flow_not_supported("void"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self, "void",
+        ))
     }
 }
 
@@ -345,7 +342,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
     ) -> CustomResult<String, IntegrationError> {
-        Err(sanlam_not_implemented("payment_sync"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "payment_sync",
+        ))
     }
 }
 
@@ -357,7 +357,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
     ) -> CustomResult<String, IntegrationError> {
-        Err(sanlam_not_implemented("capture"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self, "capture",
+        ))
     }
 }
 
@@ -368,7 +370,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
     ) -> CustomResult<String, IntegrationError> {
-        Err(sanlam_not_implemented("refund"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self, "refund",
+        ))
     }
 }
 
@@ -380,7 +384,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
     ) -> CustomResult<String, IntegrationError> {
-        Err(sanlam_not_implemented("refund_sync"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "refund_sync",
+        ))
     }
 }
 
@@ -401,7 +408,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(sanlam_not_implemented("pre_authenticate"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "pre_authenticate",
+        ))
     }
 }
 
@@ -422,7 +432,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(sanlam_not_implemented("authenticate"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "authenticate",
+        ))
     }
 }
 
@@ -443,7 +456,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(sanlam_not_implemented("post_authenticate"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "post_authenticate",
+        ))
     }
 }
 
@@ -464,7 +480,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             MandateRevokeResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(sanlam_not_implemented("mandate_revoke"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "mandate_revoke",
+        ))
     }
 }
 
@@ -485,7 +504,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentCreateOrderResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(sanlam_flow_not_supported("create_order"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "create_order",
+        ))
     }
 }
 
@@ -502,7 +524,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             DisputeResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(sanlam_flow_not_supported("submit_evidence"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "submit_evidence",
+        ))
     }
 }
 
@@ -514,7 +539,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
     ) -> CustomResult<String, IntegrationError> {
-        Err(sanlam_flow_not_supported("defend_dispute"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "defend_dispute",
+        ))
     }
 }
 
@@ -526,7 +554,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
     ) -> CustomResult<String, IntegrationError> {
-        Err(sanlam_flow_not_supported("accept_dispute"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "accept_dispute",
+        ))
     }
 }
 
@@ -547,7 +578,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(sanlam_not_implemented("setup_mandate"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "setup_mandate",
+        ))
     }
 }
 
@@ -568,7 +602,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(sanlam_not_implemented("repeat_payment"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "repeat_payment",
+        ))
     }
 }
 
@@ -589,7 +626,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ServerSessionAuthenticationTokenResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(sanlam_flow_not_supported(
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
             "server_session_authentication_token",
         ))
     }
@@ -612,7 +650,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ServerAuthenticationTokenResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(sanlam_flow_not_supported("server_authentication_token"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "server_authentication_token",
+        ))
     }
 }
 
@@ -633,7 +674,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(sanlam_flow_not_supported("void_post_capture"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "void_post_capture",
+        ))
     }
 }
 
@@ -654,7 +698,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(sanlam_flow_not_supported("client_authentication_token"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "client_authentication_token",
+        ))
     }
 }
 
@@ -675,7 +722,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ConnectorCustomerResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(sanlam_flow_not_supported("create_connector_customer"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "create_connector_customer",
+        ))
     }
 }
 
@@ -696,7 +746,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentMethodTokenResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(sanlam_not_implemented("payment_method_token"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "payment_method_token",
+        ))
     }
 }
 
@@ -717,6 +770,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(sanlam_flow_not_supported("incremental_authorization"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "incremental_authorization",
+        ))
     }
 }

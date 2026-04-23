@@ -74,14 +74,6 @@ mod headers {
     pub const X_API_KEY: &str = "X-Api-Key";
 }
 
-fn trustpay_flow_not_supported(flow: &str) -> Report<IntegrationError> {
-    error_stack::report!(IntegrationError::FlowNotSupported {
-        flow: flow.to_string(),
-        connector: "Trustpay".to_string(),
-        context: Default::default(),
-    })
-}
-
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
         IncrementalAuthorization,
@@ -99,7 +91,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(trustpay_flow_not_supported("incremental_authorization"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "incremental_authorization",
+        ))
     }
 }
 
@@ -534,6 +529,7 @@ macros::create_all_prerequisites!(
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError>
         where
             Self: ConnectorIntegrationV2<F, PaymentFlowData, Req, Res>,
+            F: interfaces::connector_integration_v2::FlowDescriptor,
         {
         match req.resource_common_data.payment_method {
             common_enums::PaymentMethod::BankRedirect | common_enums::PaymentMethod::BankTransfer => {
@@ -573,6 +569,7 @@ macros::create_all_prerequisites!(
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError>
         where
             Self: ConnectorIntegrationV2<F, RefundFlowData, Req, Res>,
+            F: interfaces::connector_integration_v2::FlowDescriptor,
         {
             match req.resource_common_data.payment_method {
             Some(common_enums::PaymentMethod::BankRedirect) | Some(common_enums::PaymentMethod::BankTransfer) => {
@@ -1156,7 +1153,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ConnectorCustomerResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(trustpay_flow_not_supported("create_connector_customer"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "create_connector_customer",
+        ))
     }
 }
 
@@ -1168,7 +1168,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
     ) -> CustomResult<String, IntegrationError> {
-        Err(trustpay_flow_not_supported("accept_dispute"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "accept_dispute",
+        ))
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -1184,7 +1187,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             DisputeResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(trustpay_flow_not_supported("submit_evidence"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "submit_evidence",
+        ))
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -1195,7 +1201,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
     ) -> CustomResult<String, IntegrationError> {
-        Err(trustpay_flow_not_supported("defend_dispute"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "defend_dispute",
+        ))
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -1215,7 +1224,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ServerSessionAuthenticationTokenResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(trustpay_flow_not_supported(
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
             "create_server_session_authentication_token",
         ))
     }
@@ -1228,7 +1238,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
     ) -> CustomResult<String, IntegrationError> {
-        Err(trustpay_flow_not_supported("void"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self, "void",
+        ))
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -1248,7 +1260,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(trustpay_flow_not_supported("void_post_capture"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "void_post_capture",
+        ))
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -1259,7 +1274,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
     ) -> CustomResult<String, IntegrationError> {
-        Err(trustpay_flow_not_supported("capture"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self, "capture",
+        ))
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -1279,7 +1296,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentMethodTokenResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(trustpay_flow_not_supported("payment_method_token"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "payment_method_token",
+        ))
     }
 }
 
@@ -1300,7 +1320,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(trustpay_flow_not_supported("pre_authenticate"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "pre_authenticate",
+        ))
     }
 }
 
@@ -1321,7 +1344,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(trustpay_flow_not_supported("authenticate"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "authenticate",
+        ))
     }
 }
 
@@ -1342,7 +1368,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(trustpay_flow_not_supported("post_authenticate"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "post_authenticate",
+        ))
     }
 }
 
@@ -1363,7 +1392,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(trustpay_flow_not_supported(
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
             "create_client_authentication_token",
         ))
     }
@@ -1386,7 +1416,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             MandateRevokeResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(trustpay_flow_not_supported("mandate_revoke"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "mandate_revoke",
+        ))
     }
 }
 // SourceVerification implementations for all flows

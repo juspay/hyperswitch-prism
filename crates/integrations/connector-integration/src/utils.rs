@@ -25,6 +25,7 @@ use domain_types::{
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+use interfaces::api::ConnectorCommon;
 use serde_json::Value;
 use std::{collections::HashMap, str::FromStr};
 pub use xml_utils::preprocess_xml_response_bytes;
@@ -100,6 +101,40 @@ pub fn missing_field_err(
         .into()
     })
 }
+
+pub trait ConnectorFlowStatusExt: ConnectorCommon {
+    fn flow_not_implemented(&self, flow: impl Into<String>) -> Report<IntegrationError> {
+        Report::new(IntegrationError::connector_flow_not_implemented(
+            self.id(),
+            flow.into(),
+        ))
+    }
+
+    fn flow_not_supported(&self, flow: impl Into<String>) -> Report<IntegrationError> {
+        Report::new(IntegrationError::connector_flow_not_supported(
+            self.id(),
+            flow.into(),
+        ))
+    }
+
+    fn feature_not_supported(&self, message: impl Into<String>) -> Report<IntegrationError> {
+        Report::new(IntegrationError::connector_feature_not_supported(
+            self.id(),
+            message.into(),
+        ))
+    }
+
+    #[allow(clippy::panic, clippy::panic_in_result_fn)]
+    fn no_request_url(&self, flow: impl Into<String>) -> CustomResult<String, IntegrationError> {
+        panic!(
+            "{}:{} does not build an HTTP URL; use the explicit no-request transport path",
+            self.id(),
+            flow.into()
+        )
+    }
+}
+
+impl<T: ConnectorCommon + ?Sized> ConnectorFlowStatusExt for T {}
 
 /// Build [`errors::IntegrationErrorContext`] with explicit `additional_context` and `suggested_action`
 /// at the call site (no hidden defaults).

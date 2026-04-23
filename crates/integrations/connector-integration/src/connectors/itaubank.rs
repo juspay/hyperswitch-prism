@@ -37,19 +37,6 @@ pub(crate) mod headers {
     pub(crate) const AUTHORIZATION: &str = "Authorization";
 }
 
-fn itaubank_flow_not_supported(flow: &str) -> error_stack::Report<errors::IntegrationError> {
-    error_stack::report!(errors::IntegrationError::FlowNotSupported {
-        flow: flow.to_string(),
-        connector: "Itaubank".to_string(),
-        context: Default::default(),
-    })
-}
-fn itaubank_not_implemented(flow: &str) -> error_stack::Report<errors::IntegrationError> {
-    error_stack::report!(errors::IntegrationError::not_implemented(format!(
-        "{flow} flow for itaubank"
-    )))
-}
-
 use std::fmt::Debug;
 
 use super::macros;
@@ -463,7 +450,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, errors::IntegrationError> {
-        Err(itaubank_not_implemented("authorize"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "authorize",
+        ))
     }
 }
 
@@ -480,7 +470,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
     ) -> CustomResult<String, errors::IntegrationError> {
-        Err(itaubank_not_implemented("payment_sync"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "payment_sync",
+        ))
     }
 }
 
@@ -497,7 +490,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
     ) -> CustomResult<String, errors::IntegrationError> {
-        Err(itaubank_flow_not_supported("void"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self, "void",
+        ))
     }
 }
 
@@ -523,7 +518,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, errors::IntegrationError> {
-        Err(itaubank_flow_not_supported("void_post_capture"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "void_post_capture",
+        ))
     }
 }
 
@@ -540,7 +538,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
     ) -> CustomResult<String, errors::IntegrationError> {
-        Err(itaubank_flow_not_supported("capture"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self, "capture",
+        ))
     }
 }
 
@@ -557,7 +557,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
     ) -> CustomResult<String, errors::IntegrationError> {
-        Err(itaubank_not_implemented("refund"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self, "refund",
+        ))
     }
 }
 
@@ -574,7 +576,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
     ) -> CustomResult<String, errors::IntegrationError> {
-        Err(itaubank_not_implemented("refund_sync"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "refund_sync",
+        ))
     }
 }
 
@@ -600,7 +605,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, errors::IntegrationError> {
-        Err(itaubank_not_implemented("setup_mandate"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "setup_mandate",
+        ))
     }
 }
 
@@ -626,7 +634,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, errors::IntegrationError> {
-        Err(itaubank_not_implemented("repeat_payment"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "repeat_payment",
+        ))
     }
 }
 
@@ -652,7 +663,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, errors::IntegrationError> {
-        Err(itaubank_flow_not_supported(
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
             "create_client_authentication_token",
         ))
     }
@@ -680,7 +692,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             MandateRevokeResponseData,
         >,
     ) -> CustomResult<String, errors::IntegrationError> {
-        Err(itaubank_flow_not_supported("mandate_revoke"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "mandate_revoke",
+        ))
     }
 }
 
@@ -706,7 +721,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentCreateOrderResponse,
         >,
     ) -> CustomResult<String, errors::IntegrationError> {
-        Err(itaubank_flow_not_supported("create_order"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "create_order",
+        ))
     }
 }
 
@@ -732,7 +750,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ServerSessionAuthenticationTokenResponseData,
         >,
     ) -> CustomResult<String, errors::IntegrationError> {
-        Err(itaubank_flow_not_supported(
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
             "create_server_session_authentication_token",
         ))
     }
@@ -760,7 +779,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, errors::IntegrationError> {
-        Err(itaubank_flow_not_supported("incremental_authorization"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "incremental_authorization",
+        ))
     }
 }
 
@@ -786,7 +808,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentMethodTokenResponse,
         >,
     ) -> CustomResult<String, errors::IntegrationError> {
-        Err(itaubank_flow_not_supported("payment_method_token"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "payment_method_token",
+        ))
     }
 }
 
@@ -812,7 +837,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, errors::IntegrationError> {
-        Err(itaubank_flow_not_supported("pre_authenticate"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "pre_authenticate",
+        ))
     }
 }
 
@@ -838,7 +866,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, errors::IntegrationError> {
-        Err(itaubank_flow_not_supported("authenticate"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "authenticate",
+        ))
     }
 }
 
@@ -864,7 +895,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, errors::IntegrationError> {
-        Err(itaubank_flow_not_supported("post_authenticate"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "post_authenticate",
+        ))
     }
 }
 
@@ -881,7 +915,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
     ) -> CustomResult<String, errors::IntegrationError> {
-        Err(itaubank_flow_not_supported("accept_dispute"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "accept_dispute",
+        ))
     }
 }
 
@@ -903,7 +940,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             DisputeResponseData,
         >,
     ) -> CustomResult<String, errors::IntegrationError> {
-        Err(itaubank_flow_not_supported("submit_evidence"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "submit_evidence",
+        ))
     }
 }
 
@@ -920,7 +960,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
     ) -> CustomResult<String, errors::IntegrationError> {
-        Err(itaubank_flow_not_supported("defend_dispute"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "defend_dispute",
+        ))
     }
 }
 
@@ -946,7 +989,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ConnectorCustomerResponse,
         >,
     ) -> CustomResult<String, errors::IntegrationError> {
-        Err(itaubank_flow_not_supported("create_connector_customer"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "create_connector_customer",
+        ))
     }
 }
 
@@ -972,7 +1018,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             VerifyWebhookSourceResponseData,
         >,
     ) -> CustomResult<String, errors::IntegrationError> {
-        Err(itaubank_not_implemented("verify_webhook_source"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "verify_webhook_source",
+        ))
     }
 }
 

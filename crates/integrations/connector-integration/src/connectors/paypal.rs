@@ -71,19 +71,6 @@ pub(crate) mod headers {
 
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
-fn paypal_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::FlowNotSupported {
-        flow: flow.to_string(),
-        connector: "Paypal".to_string(),
-        context: Default::default(),
-    })
-}
-fn paypal_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(format!(
-        "{flow} flow for paypal"
-    )))
-}
-
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
         IncrementalAuthorization,
@@ -101,7 +88,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(paypal_not_implemented("incremental_authorization"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "incremental_authorization",
+        ))
     }
 }
 
@@ -1301,7 +1291,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
     ) -> CustomResult<String, IntegrationError> {
-        Err(paypal_not_implemented("accept_dispute"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "accept_dispute",
+        ))
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -1317,7 +1310,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             DisputeResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(paypal_not_implemented("submit_evidence"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "submit_evidence",
+        ))
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -1328,7 +1324,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
     ) -> CustomResult<String, IntegrationError> {
-        Err(paypal_not_implemented("defend_dispute"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "defend_dispute",
+        ))
     }
 }
 macros::macro_connector_implementation!(
@@ -1399,7 +1398,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ServerSessionAuthenticationTokenResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(paypal_flow_not_supported(
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
             "server_session_authentication_token",
         ))
     }
@@ -1462,7 +1462,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ConnectorCustomerResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(paypal_not_implemented("create_connector_customer"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "create_connector_customer",
+        ))
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -1482,7 +1485,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentMethodTokenResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(paypal_not_implemented("payment_method_token"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "payment_method_token",
+        ))
     }
 }
 
@@ -1503,7 +1509,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(paypal_not_implemented("pre_authenticate"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "pre_authenticate",
+        ))
     }
 }
 
@@ -1524,7 +1533,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(paypal_not_implemented("authenticate"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "authenticate",
+        ))
     }
 }
 // PostAuthenticate implementation to fetch order details (like HS PreProcessing)
@@ -1674,7 +1686,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             MandateRevokeResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(paypal_not_implemented("mandate_revoke"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "mandate_revoke",
+        ))
     }
 }
 
@@ -1697,7 +1712,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(paypal_flow_not_supported("void_post_capture"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "void_post_capture",
+        ))
     }
 }
 

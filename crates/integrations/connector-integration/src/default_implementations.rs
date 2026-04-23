@@ -8,13 +8,14 @@
 //! If a connector needs a real implementation, add it in the connector's own file.
 
 use crate::connectors::*;
+use common_utils::{request::Request, CustomResult};
 use domain_types::{
     connector_flow::VerifyWebhookSource, connector_types::VerifyWebhookSourceFlowData,
-    payment_method_data::PaymentMethodDataTypes,
-    router_request_types::VerifyWebhookSourceRequestData,
+    errors::IntegrationError, payment_method_data::PaymentMethodDataTypes,
+    router_data_v2::RouterDataV2, router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::VerifyWebhookSourceResponseData,
 };
-use interfaces::connector_integration_v2::ConnectorIntegrationV2;
+use interfaces::connector_integration_v2::{ConnectorIntegrationV2, FlowDescriptor};
 use interfaces::connector_types::VerifyWebhookSourceV2;
 
 /// Macro to generate empty implementations of VerifyWebhookSourceV2 for connectors
@@ -40,6 +41,32 @@ macro_rules! default_impl_verify_webhook_source_v2 {
                     VerifyWebhookSourceResponseData,
                 > for $connector<T>
             {
+                fn get_url(
+                    &self,
+                    _req: &RouterDataV2<
+                        VerifyWebhookSource,
+                        VerifyWebhookSourceFlowData,
+                        VerifyWebhookSourceRequestData,
+                        VerifyWebhookSourceResponseData,
+                    >,
+                ) -> CustomResult<String, IntegrationError> {
+                    $crate::utils::ConnectorFlowStatusExt::no_request_url(
+                        self,
+                        VerifyWebhookSource::NAME,
+                    )
+                }
+
+                fn build_request_v2(
+                    &self,
+                    _req: &RouterDataV2<
+                        VerifyWebhookSource,
+                        VerifyWebhookSourceFlowData,
+                        VerifyWebhookSourceRequestData,
+                        VerifyWebhookSourceResponseData,
+                    >,
+                ) -> CustomResult<Option<Request>, IntegrationError> {
+                    Ok(None)
+                }
             }
         )*
     };

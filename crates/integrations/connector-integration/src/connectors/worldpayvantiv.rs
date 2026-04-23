@@ -69,19 +69,6 @@ pub(crate) mod headers {
     pub(crate) const AUTHORIZATION: &str = "Authorization";
 }
 
-fn worldpayvantiv_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::FlowNotSupported {
-        flow: flow.to_string(),
-        connector: "Worldpayvantiv".to_string(),
-        context: Default::default(),
-    })
-}
-fn worldpayvantiv_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(format!(
-        "{flow} flow for worldpayvantiv"
-    )))
-}
-
 /// Helper function to unwrap JSON-wrapped XML responses
 /// Helper function to unwrap JSON-wrapped XML responses.
 /// Some responses might come as a JSON string containing XML, this function handles that case.
@@ -254,7 +241,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayvantiv_not_implemented("pre_authenticate"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "pre_authenticate",
+        ))
     }
 }
 
@@ -275,7 +265,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayvantiv_not_implemented("authenticate"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "authenticate",
+        ))
     }
 }
 
@@ -296,7 +289,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayvantiv_not_implemented("post_authenticate"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "post_authenticate",
+        ))
     }
 }
 
@@ -1074,7 +1070,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayvantiv_not_implemented("setup_mandate"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "setup_mandate",
+        ))
     }
 }
 
@@ -1095,7 +1094,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayvantiv_not_implemented("repeat_payment"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "repeat_payment",
+        ))
     }
 }
 
@@ -1108,7 +1110,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         _req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayvantiv_not_implemented("accept_dispute"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "accept_dispute",
+        ))
     }
 }
 
@@ -1125,7 +1130,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             DisputeResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayvantiv_not_implemented("submit_evidence"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "submit_evidence",
+        ))
     }
 }
 
@@ -1137,7 +1145,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         _req: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayvantiv_not_implemented("defend_dispute"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "defend_dispute",
+        ))
     }
 }
 
@@ -1159,7 +1170,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentCreateOrderResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayvantiv_flow_not_supported("create_order"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "create_order",
+        ))
     }
 }
 
@@ -1180,7 +1194,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ServerSessionAuthenticationTokenResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayvantiv_not_implemented(
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
             "create_server_session_authentication_token",
         ))
     }
@@ -1203,7 +1218,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             domain_types::connector_types::ServerAuthenticationTokenResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayvantiv_flow_not_supported(
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
             "create_server_authentication_token",
         ))
     }
@@ -1226,7 +1242,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             domain_types::connector_types::PaymentMethodTokenResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayvantiv_not_implemented("payment_method_token"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "payment_method_token",
+        ))
     }
 }
 
@@ -1247,7 +1266,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayvantiv_not_implemented(
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
             "create_client_authentication_token",
         ))
     }
@@ -1270,7 +1290,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             MandateRevokeResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayvantiv_not_implemented("mandate_revoke"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "mandate_revoke",
+        ))
     }
 }
 
@@ -1291,7 +1314,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ConnectorCustomerResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(worldpayvantiv_flow_not_supported(
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
             "create_connector_customer",
         ))
     }

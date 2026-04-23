@@ -60,19 +60,6 @@ use domain_types::errors::IntegrationError;
 
 const VERSION: &str = "2.1";
 
-fn dlocal_flow_not_supported(flow: &str) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::FlowNotSupported {
-        flow: flow.to_string(),
-        connector: "Dlocal".to_string(),
-        context: Default::default(),
-    })
-}
-fn dlocal_not_implemented(flow: &str) -> error_stack::Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(format!(
-        "{flow} flow for dlocal"
-    )))
-}
-
 // Trait implementations with generic type parameters
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -92,7 +79,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(dlocal_flow_not_supported("incremental_authorization"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "incremental_authorization",
+        ))
     }
 }
 
@@ -161,7 +151,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(dlocal_flow_not_supported("void_post_capture"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "void_post_capture",
+        ))
     }
 }
 
@@ -314,6 +307,7 @@ macros::create_all_prerequisites!(
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError>
         where
             Self: ConnectorIntegrationV2<F, FCD, Req, Res>,
+            F: interfaces::connector_integration_v2::FlowDescriptor,
         {
             let date = date_time::date_as_yyyymmddthhmmssmmmz()
                 .change_context(IntegrationError::RequestEncodingFailed { context: Default::default() })?;
@@ -685,7 +679,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentCreateOrderResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(dlocal_flow_not_supported("create_order"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "create_order",
+        ))
     }
 }
 
@@ -702,7 +699,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             DisputeResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(dlocal_not_implemented("submit_evidence"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "submit_evidence",
+        ))
     }
 }
 
@@ -714,7 +714,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
     ) -> CustomResult<String, IntegrationError> {
-        Err(dlocal_not_implemented("defend_dispute"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "defend_dispute",
+        ))
     }
 }
 
@@ -726,7 +729,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
     ) -> CustomResult<String, IntegrationError> {
-        Err(dlocal_flow_not_supported("accept_dispute"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "accept_dispute",
+        ))
     }
 }
 
@@ -747,7 +753,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ServerSessionAuthenticationTokenResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(dlocal_flow_not_supported(
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
             "create_server_session_authentication_token",
         ))
     }
@@ -770,7 +777,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentMethodTokenResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(dlocal_not_implemented("payment_method_token"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "payment_method_token",
+        ))
     }
 }
 
@@ -791,7 +801,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(dlocal_flow_not_supported("pre_authenticate"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "pre_authenticate",
+        ))
     }
 }
 
@@ -812,7 +825,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(dlocal_flow_not_supported("authenticate"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "authenticate",
+        ))
     }
 }
 
@@ -833,7 +849,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(dlocal_flow_not_supported("post_authenticate"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "post_authenticate",
+        ))
     }
 }
 
@@ -854,7 +873,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ConnectorCustomerResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(dlocal_flow_not_supported("create_connector_customer"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "create_connector_customer",
+        ))
     }
 }
 
@@ -875,7 +897,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(dlocal_not_implemented("create_client_authentication_token"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "create_client_authentication_token",
+        ))
     }
 }
 
@@ -896,7 +921,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             MandateRevokeResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(dlocal_not_implemented("mandate_revoke"))
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "mandate_revoke",
+        ))
     }
 }
 
@@ -919,7 +947,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ServerAuthenticationTokenResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(dlocal_flow_not_supported(
+        Err(crate::utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
             "create_server_authentication_token",
         ))
     }

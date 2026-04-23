@@ -256,6 +256,75 @@ impl IntegrationError {
         Self::NotImplemented(message.into(), context)
     }
 
+    /// Connector flow not implemented; formats a canonical `{flow} flow for {connector}` message.
+    pub fn connector_flow_not_implemented(connector: &str, flow: impl Into<String>) -> Self {
+        Self::connector_flow_not_implemented_with_context(
+            connector,
+            flow,
+            IntegrationErrorContext::default(),
+        )
+    }
+
+    /// Like [`Self::connector_flow_not_implemented`], but allows connector-specific context.
+    pub fn connector_flow_not_implemented_with_context(
+        connector: &str,
+        flow: impl Into<String>,
+        context: IntegrationErrorContext,
+    ) -> Self {
+        let flow = flow.into();
+        Self::not_implemented_with_context(format!("{flow} flow for {connector}"), context)
+    }
+
+    /// Connector flow not supported; uses default empty [`IntegrationErrorContext`].
+    pub fn connector_flow_not_supported(
+        connector: impl Into<String>,
+        flow: impl Into<String>,
+    ) -> Self {
+        Self::connector_flow_not_supported_with_context(
+            connector,
+            flow,
+            IntegrationErrorContext::default(),
+        )
+    }
+
+    /// Like [`Self::connector_flow_not_supported`], but allows connector-specific context.
+    pub fn connector_flow_not_supported_with_context(
+        connector: impl Into<String>,
+        flow: impl Into<String>,
+        context: IntegrationErrorContext,
+    ) -> Self {
+        Self::FlowNotSupported {
+            flow: flow.into(),
+            connector: connector.into(),
+            context,
+        }
+    }
+
+    /// Connector feature not supported; uses default empty [`IntegrationErrorContext`].
+    pub fn connector_feature_not_supported(
+        connector: &'static str,
+        message: impl Into<String>,
+    ) -> Self {
+        Self::connector_feature_not_supported_with_context(
+            connector,
+            message,
+            IntegrationErrorContext::default(),
+        )
+    }
+
+    /// Like [`Self::connector_feature_not_supported`], but allows connector-specific context.
+    pub fn connector_feature_not_supported_with_context(
+        connector: &'static str,
+        message: impl Into<String>,
+        context: IntegrationErrorContext,
+    ) -> Self {
+        Self::NotSupported {
+            message: message.into(),
+            connector,
+            context,
+        }
+    }
+
     /// Optional connector-specific guidance for gRPC [`IntegrationError`] (overrides merged in `ucs_env`).
     pub fn integration_context(&self) -> &IntegrationErrorContext {
         match self {

@@ -6,6 +6,7 @@ use common_utils::{
     CustomResult,
 };
 use domain_types::{
+    connector_flow,
     errors::{ConnectorError, IntegrationError},
     router_data::ErrorResponse,
     router_data_v2::RouterDataV2,
@@ -14,6 +15,55 @@ use hyperswitch_masking::Maskable;
 use serde_json::json;
 
 use crate::api;
+
+pub trait FlowDescriptor {
+    const NAME: &'static str;
+}
+
+macro_rules! impl_flow_descriptor {
+    ($($flow:ty => $name:literal),+ $(,)?) => {
+        $(
+            impl FlowDescriptor for $flow {
+                const NAME: &'static str = $name;
+            }
+        )+
+    };
+}
+
+impl_flow_descriptor!(
+    connector_flow::CreateOrder => "create_order",
+    connector_flow::Authorize => "authorize",
+    connector_flow::PSync => "payment_sync",
+    connector_flow::Void => "void",
+    connector_flow::RSync => "refund_sync",
+    connector_flow::Refund => "refund",
+    connector_flow::Capture => "capture",
+    connector_flow::SetupMandate => "setup_mandate",
+    connector_flow::RepeatPayment => "repeat_payment",
+    connector_flow::Accept => "accept_dispute",
+    connector_flow::SubmitEvidence => "submit_evidence",
+    connector_flow::DefendDispute => "defend_dispute",
+    connector_flow::ServerSessionAuthenticationToken => "server_session_authentication_token",
+    connector_flow::ServerAuthenticationToken => "server_authentication_token",
+    connector_flow::CreateConnectorCustomer => "create_connector_customer",
+    connector_flow::PaymentMethodToken => "payment_method_token",
+    connector_flow::PreAuthenticate => "pre_authenticate",
+    connector_flow::Authenticate => "authenticate",
+    connector_flow::PostAuthenticate => "post_authenticate",
+    connector_flow::VoidPC => "void_post_capture",
+    connector_flow::ClientAuthenticationToken => "client_authentication_token",
+    connector_flow::IncrementalAuthorization => "incremental_authorization",
+    connector_flow::MandateRevoke => "mandate_revoke",
+    connector_flow::VerifyWebhookSource => "verify_webhook_source",
+    connector_flow::PayoutCreate => "payout_create",
+    connector_flow::PayoutTransfer => "payout_transfer",
+    connector_flow::PayoutGet => "payout_get",
+    connector_flow::PayoutVoid => "payout_void",
+    connector_flow::PayoutStage => "payout_stage",
+    connector_flow::PayoutCreateLink => "payout_create_link",
+    connector_flow::PayoutCreateRecipient => "payout_create_recipient",
+    connector_flow::PayoutEnrollDisburseAccount => "payout_enroll_disburse_account",
+);
 
 /// alias for Box of a type that implements trait ConnectorIntegrationV2
 pub type BoxedConnectorIntegrationV2<'a, Flow, ResourceCommonData, Req, Resp> =
@@ -29,7 +79,7 @@ pub trait ConnectorIntegrationAnyV2<Flow, ResourceCommonData, Req, Resp>:
     ) -> BoxedConnectorIntegrationV2<'_, Flow, ResourceCommonData, Req, Resp>;
 }
 
-impl<S, Flow, ResourceCommonData, Req, Resp>
+impl<S, Flow: FlowDescriptor, ResourceCommonData, Req, Resp>
     ConnectorIntegrationAnyV2<Flow, ResourceCommonData, Req, Resp> for S
 where
     S: ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp> + Send + Sync,
@@ -42,7 +92,7 @@ where
 }
 
 /// The new connector integration trait with an additional ResourceCommonData generic parameter
-pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
+pub trait ConnectorIntegrationV2<Flow: FlowDescriptor, ResourceCommonData, Req, Resp>:
     ConnectorIntegrationAnyV2<Flow, ResourceCommonData, Req, Resp> + Sync + api::ConnectorCommon
 {
     /// returns a vec of tuple of header key and value
@@ -67,11 +117,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     fn get_url(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
-    ) -> CustomResult<String, IntegrationError> {
-        // metrics::UNIMPLEMENTED_FLOW
-        //     .add(1, router_env::metric_attributes!(("connector", self.id()))); // TODO: discuss env
-        Ok(String::new())
-    }
+    ) -> CustomResult<String, IntegrationError>;
 
     /// returns request body
     fn get_request_body(
@@ -113,7 +159,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
     ) -> CustomResult<Option<KafkaRecord>, IntegrationError> {
-        Ok(None)
+        Err(IntegrationError::connector_flow_not_implemented(self.id(), Flow::NAME).into())
     }
 
     /// builds the request and returns it

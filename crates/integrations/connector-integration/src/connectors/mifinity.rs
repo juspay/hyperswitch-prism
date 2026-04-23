@@ -56,19 +56,6 @@ pub(crate) mod headers {
     pub(crate) const KEY: &str = "key";
 }
 
-fn mifinity_flow_not_supported(flow: &str) -> Report<IntegrationError> {
-    error_stack::report!(IntegrationError::FlowNotSupported {
-        flow: flow.to_string(),
-        connector: "Mifinity".to_string(),
-        context: Default::default(),
-    })
-}
-fn mifinity_not_implemented(flow: &str) -> Report<IntegrationError> {
-    error_stack::report!(IntegrationError::not_implemented(format!(
-        "{flow} flow for mifinity"
-    )))
-}
-
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
         IncrementalAuthorization,
@@ -86,7 +73,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(mifinity_flow_not_supported("incremental_authorization"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "incremental_authorization",
+        ))
     }
 }
 
@@ -344,7 +334,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
     ) -> CustomResult<String, IntegrationError> {
-        Err(mifinity_flow_not_supported("void"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self, "void",
+        ))
     }
 }
 
@@ -356,7 +348,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
     ) -> CustomResult<String, IntegrationError> {
-        Err(mifinity_not_implemented("refund_sync"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "refund_sync",
+        ))
     }
 }
 
@@ -368,7 +363,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
     ) -> CustomResult<String, IntegrationError> {
-        Err(mifinity_not_implemented("refund"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self, "refund",
+        ))
     }
 }
 
@@ -380,7 +377,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
     ) -> CustomResult<String, IntegrationError> {
-        Err(mifinity_flow_not_supported("capture"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self, "capture",
+        ))
     }
 }
 
@@ -401,7 +400,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(mifinity_not_implemented("setup_mandate"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "setup_mandate",
+        ))
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -412,7 +414,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
     ) -> CustomResult<String, IntegrationError> {
-        Err(mifinity_flow_not_supported("accept_dispute"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "accept_dispute",
+        ))
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -428,7 +433,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             DisputeResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(mifinity_flow_not_supported("submit_evidence"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "submit_evidence",
+        ))
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -439,7 +447,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
     ) -> CustomResult<String, IntegrationError> {
-        Err(mifinity_flow_not_supported("defend_dispute"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "defend_dispute",
+        ))
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -459,7 +470,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentCreateOrderResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(mifinity_flow_not_supported("create_order"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "create_order",
+        ))
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -479,7 +493,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ServerSessionAuthenticationTokenResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(mifinity_not_implemented(
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
             "create_server_session_authentication_token",
         ))
     }
@@ -502,7 +517,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ServerAuthenticationTokenResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(mifinity_flow_not_supported("server_authentication_token"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "server_authentication_token",
+        ))
     }
 }
 
@@ -523,7 +541,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ConnectorCustomerResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(mifinity_flow_not_supported("create_connector_customer"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "create_connector_customer",
+        ))
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -543,7 +564,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentMethodTokenResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(mifinity_flow_not_supported("payment_method_token"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "payment_method_token",
+        ))
     }
 }
 
@@ -564,7 +588,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(mifinity_flow_not_supported("pre_authenticate"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "pre_authenticate",
+        ))
     }
 }
 
@@ -585,7 +612,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(mifinity_flow_not_supported("authenticate"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "authenticate",
+        ))
     }
 }
 
@@ -606,7 +636,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(mifinity_flow_not_supported("post_authenticate"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "post_authenticate",
+        ))
     }
 }
 
@@ -627,7 +660,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(mifinity_flow_not_supported("client_authentication_token"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "client_authentication_token",
+        ))
     }
 }
 
@@ -648,7 +684,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             MandateRevokeResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(mifinity_flow_not_supported("mandate_revoke"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "mandate_revoke",
+        ))
     }
 }
 
@@ -671,7 +710,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(mifinity_not_implemented("repeat_payment"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_implemented(
+            self,
+            "repeat_payment",
+        ))
     }
 }
 
@@ -692,7 +734,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Err(mifinity_flow_not_supported("void_post_capture"))
+        Err(utils::ConnectorFlowStatusExt::flow_not_supported(
+            self,
+            "void_post_capture",
+        ))
     }
 }
 
