@@ -122,7 +122,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 email: item.router_data.request.email.clone(),
                 mid,
             }),
-            _ => Err(IntegrationError::not_implemented("Payment methods".to_string()).into()),
+            _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "Payment methods".to_string(),
+                connector: "Cashtocode",
+                context: Default::default(),
+            })),
         }
     }
 }

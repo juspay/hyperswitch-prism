@@ -19,7 +19,7 @@ use domain_types::{
     connector_types::{
         AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, ConnectorSpecifications, ConnectorWebhookSecrets,
-        DisputeDefendData, DisputeFlowData, DisputeResponseData, EventType,
+        DisputeDefendData, DisputeFlowData, DisputeResponseData, EventContext, EventType,
         MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
         PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
@@ -107,6 +107,95 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         PaymentsResponseData,
     > for Worldpayvantiv<T>
 {
+    fn get_headers(
+        &self,
+        req: &RouterDataV2<
+            IncrementalAuthorization,
+            PaymentFlowData,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+        self.build_headers(req)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &RouterDataV2<
+            IncrementalAuthorization,
+            PaymentFlowData,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Ok(self.connector_base_url_payments(req).to_string())
+    }
+
+    fn get_request_body(
+        &self,
+        req: &RouterDataV2<
+            IncrementalAuthorization,
+            PaymentFlowData,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+        let request = WorldpayvantivPaymentsRequest::try_from(WorldpayvantivRouterData {
+            router_data: req.clone(),
+            connector: self.clone(),
+        })?;
+        Ok(Some(RequestContent::Xml(Box::new(request))))
+    }
+
+    fn handle_response_v2(
+        &self,
+        data: &RouterDataV2<
+            IncrementalAuthorization,
+            PaymentFlowData,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+        event_builder: Option<&mut events::Event>,
+        res: Response,
+    ) -> CustomResult<
+        RouterDataV2<
+            IncrementalAuthorization,
+            PaymentFlowData,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+        ConnectorError,
+    > {
+        let xml_str = unwrap_json_wrapped_xml(&res.response, res.status_code)?;
+
+        let response: CnpOnlineResponse = deserialize_xml_to_struct(&xml_str).change_context(
+            utils::response_handling_fail_for_connector(res.status_code, "worldpayvantiv"),
+        )?;
+        if let Some(i) = event_builder {
+            i.set_connector_response(&response)
+        }
+        RouterDataV2::try_from(ResponseRouterData {
+            response,
+            router_data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response_v2(
+        &self,
+        res: Response,
+        event_builder: Option<&mut events::Event>,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_http_method(&self) -> common_utils::request::Method {
+        common_utils::request::Method::Post
+    }
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -220,8 +309,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn get_event_type(
         &self,
         _request: RequestDetails,
-        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
         Err(report!(WebhookError::WebhooksNotImplemented {
             operation: "get_event_type",
@@ -233,6 +320,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         _request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
         Err(report!(WebhookError::WebhooksNotImplemented {
             operation: "process_payment_webhook",

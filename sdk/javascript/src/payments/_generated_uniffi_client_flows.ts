@@ -607,6 +607,14 @@ export class UniffiClient extends _UniffiClientBase {
     return this.callDirect('handle_event', requestBytes, optionsBytes);
   }
 
+  /** Direct single-step transform for parse_event (no HTTP round-trip). */
+  parseEventDirect(
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callDirect('parse_event', requestBytes, optionsBytes);
+  }
+
   /** Direct single-step transform for verify_redirect_response (no HTTP round-trip). */
   verifyRedirectResponseDirect(
     requestBytes: Buffer | Uint8Array,

@@ -142,6 +142,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Aci"
       },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
       "Bizum": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method"
@@ -207,6 +211,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method"
       },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Aci"
@@ -217,7 +225,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
@@ -225,11 +233,15 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Aci"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "Efecty": {
         "status": "not_implemented",
@@ -244,7 +256,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "eft": {
+            "eft_bank_redirect": {
               "provider": "ozow"
             }
           },
@@ -336,7 +348,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GooglePay": {
         "status": "not_implemented",
@@ -468,6 +480,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Aci"
       },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
       "LocalBankRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method"
@@ -495,6 +511,10 @@
       "MultibancoBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Aci"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
@@ -526,7 +546,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -546,7 +566,11 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "PaypalRedirect": {
         "status": "not_implemented",
@@ -558,11 +582,15 @@
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Aci"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "Pix": {
         "status": "not_implemented",
@@ -831,6 +859,11 @@
       }
     },
     "incremental_authorization": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "parse_event": {
       "default": {
         "status": "not_implemented"
       }

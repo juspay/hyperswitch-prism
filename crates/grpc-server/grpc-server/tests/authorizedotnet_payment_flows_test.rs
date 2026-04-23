@@ -393,7 +393,6 @@ fn create_payment_get_request(transaction_id: &str) -> PaymentServiceGetRequest 
         connector_transaction_id: transaction_id.to_string(),
         encoded_data: None,
         capture_method: None,
-        handle_response: None,
         merchant_transaction_id: None,
         amount: Some(grpc_api_types::payments::Money {
             minor_amount: TEST_AMOUNT,
@@ -492,6 +491,7 @@ fn create_refund_get_request(transaction_id: &str, refund_id: &str) -> RefundSer
         merchant_refund_id: Some(generate_unique_request_ref_id("refund_get")),
         connector_transaction_id: transaction_id.to_string(),
         refund_id: refund_id.to_string(),
+        connector_refund_id: refund_id.to_string(),
         browser_info: None,
         refund_reason: None,
         test_mode: Some(true),

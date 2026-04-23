@@ -3,9 +3,12 @@
   "supported_suites": [
     "authorize",
     "capture",
+    "client_authentication_token",
     "get",
+    "recurring_charge",
     "refund",
     "refund_sync",
+    "setup_recurring",
     "void"
   ]
 }

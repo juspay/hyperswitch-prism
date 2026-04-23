@@ -43,7 +43,8 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
         },
         "sample": {
           "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
@@ -55,7 +56,7 @@
             "request-idempotency-key": "probe_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"paymentMethod\":\"ALIPAY\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}]}"
+          "body": "{\"paymentMethod\":\"ALIPAY\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
         }
       },
       "AmazonPayRedirect": {
@@ -103,7 +104,8 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
         },
         "sample": {
           "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
@@ -115,7 +117,7 @@
             "request-idempotency-key": "probe_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"paymentMethod\":\"BANCONTACT\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}]}"
+          "body": "{\"paymentMethod\":\"BANCONTACT\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
         }
       },
       "BcaBankTransfer": {
@@ -125,6 +127,10 @@
       "Becs": {
         "status": "not_supported",
         "error": "payment method becs is not supported by PPRO is not supported by ppro"
+      },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "payment method bill_desk is not supported by PPRO is not supported by ppro"
       },
       "Bizum": {
         "status": "not_supported",
@@ -148,7 +154,8 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
         },
         "sample": {
           "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
@@ -160,7 +167,7 @@
             "request-idempotency-key": "probe_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"paymentMethod\":\"BLIK\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}]}"
+          "body": "{\"paymentMethod\":\"BLIK\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
         }
       },
       "Bluecode": {
@@ -187,6 +194,10 @@
         "status": "not_supported",
         "error": "payment method cashapp is not supported by PPRO is not supported by ppro"
       },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "payment method cashfree is not supported by PPRO is not supported by ppro"
+      },
       "CimbVaBankTransfer": {
         "status": "not_supported",
         "error": "payment method cimb_va is not supported by PPRO is not supported by ppro"
@@ -197,7 +208,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
@@ -205,11 +216,15 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
         "status": "not_supported",
         "error": "payment method evoucher is not supported by PPRO is not supported by ppro"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_supported",
+        "error": "payment method ease_buzz is not supported by PPRO is not supported by ppro"
       },
       "Efecty": {
         "status": "not_supported",
@@ -233,7 +248,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GooglePay": {
         "status": "not_supported",
@@ -263,7 +278,8 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
         },
         "sample": {
           "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
@@ -275,7 +291,7 @@
             "request-idempotency-key": "probe_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"paymentMethod\":\"IDEAL\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}]}"
+          "body": "{\"paymentMethod\":\"IDEAL\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
         }
       },
       "Indomaret": {
@@ -310,6 +326,10 @@
         "status": "not_supported",
         "error": "payment method lawson is not supported by PPRO is not supported by ppro"
       },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "payment method lazy_pay is not supported by PPRO is not supported by ppro"
+      },
       "LocalBankRedirect": {
         "status": "not_supported",
         "error": "payment method local_bank_redirect is not supported by PPRO is not supported by ppro"
@@ -338,7 +358,8 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
         },
         "sample": {
           "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
@@ -350,7 +371,7 @@
             "request-idempotency-key": "probe_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"paymentMethod\":\"MBWAY\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}]}"
+          "body": "{\"paymentMethod\":\"MBWAY\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
         }
       },
       "Mifinity": {
@@ -364,6 +385,10 @@
       "MultibancoBankTransfer": {
         "status": "not_supported",
         "error": "payment method multibanco is not supported by PPRO is not supported by ppro"
+      },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "payment method netbanking is not supported by PPRO is not supported by ppro"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_supported",
@@ -395,7 +420,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
         "status": "not_supported",
@@ -415,7 +440,11 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "payment method pay_u is not supported by PPRO is not supported by ppro"
       },
       "PaypalRedirect": {
         "status": "not_supported",
@@ -427,11 +456,15 @@
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
         "status": "not_supported",
         "error": "payment method permata_bank_transfer is not supported by PPRO is not supported by ppro"
+      },
+      "PhonePeRedirect": {
+        "status": "not_supported",
+        "error": "payment method phone_pe is not supported by PPRO is not supported by ppro"
       },
       "Pix": {
         "status": "not_supported",
@@ -477,7 +510,8 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
         },
         "sample": {
           "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
@@ -489,7 +523,7 @@
             "request-idempotency-key": "probe_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"paymentMethod\":\"SATISPAY\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}]}"
+          "body": "{\"paymentMethod\":\"SATISPAY\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
         }
       },
       "Seicomart": {
@@ -517,35 +551,8 @@
         "error": "payment method sofort is not supported by PPRO is not supported by ppro"
       },
       "Trustly": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "trustly": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
-          "method": "Post",
-          "headers": {
-            "authorization": "Bearer probe_key",
-            "content-type": "application/json",
-            "merchant-id": "probe_merchant",
-            "request-idempotency-key": "probe_txn_001",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"paymentMethod\":\"TRUSTLY\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}]}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
       },
       "UpiCollect": {
         "status": "not_supported",
@@ -567,7 +574,8 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
         },
         "sample": {
           "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
@@ -579,7 +587,7 @@
             "request-idempotency-key": "probe_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"paymentMethod\":\"UPI\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}]}"
+          "body": "{\"paymentMethod\":\"UPI\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
         }
       },
       "UpiQr": {
@@ -598,7 +606,8 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
         },
         "sample": {
           "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
@@ -610,7 +619,7 @@
             "request-idempotency-key": "probe_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"paymentMethod\":\"UPI\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}]}"
+          "body": "{\"paymentMethod\":\"UPI\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
         }
       },
       "WeChatPayQr": {
@@ -629,7 +638,8 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
         },
         "sample": {
           "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
@@ -641,7 +651,7 @@
             "request-idempotency-key": "probe_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"paymentMethod\":\"WECHATPAY\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}]}"
+          "body": "{\"paymentMethod\":\"WECHATPAY\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
         }
       },
       "Wero": {
@@ -660,7 +670,8 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
         },
         "sample": {
           "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
@@ -672,7 +683,7 @@
             "request-idempotency-key": "probe_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"paymentMethod\":\"WERO\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}]}"
+          "body": "{\"paymentMethod\":\"WERO\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
         }
       }
     },
@@ -777,12 +788,46 @@
     },
     "handle_event": {
       "default": {
-        "status": "supported"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"specversion\":\"1.0\",\"type\":\"PAYMENT_CHARGE_SUCCESS\",\"source\":\"probe_source\",\"id\":\"probe_event_001\",\"time\":\"2024-01-01T00:00:00Z\",\"data\":{\"charge\":{\"id\":\"probe_txn_001\",\"status\":\"SUCCEEDED\",\"amount\":1000,\"currency\":\"EUR\"}}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"specversion\":\"1.0\",\"type\":\"PAYMENT_CHARGE_SUCCESS\",\"source\":\"probe_source\",\"id\":\"probe_event_001\",\"time\":\"2024-01-01T00:00:00Z\",\"data\":{\"charge\":{\"id\":\"probe_txn_001\",\"status\":\"SUCCEEDED\",\"amount\":1000,\"currency\":\"EUR\"}}}"
+        }
       }
     },
     "incremental_authorization": {
       "default": {
         "status": "not_implemented"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"specversion\":\"1.0\",\"type\":\"PAYMENT_CHARGE_SUCCESS\",\"source\":\"probe_source\",\"id\":\"probe_event_001\",\"time\":\"2024-01-01T00:00:00Z\",\"data\":{\"charge\":{\"id\":\"probe_txn_001\",\"status\":\"SUCCEEDED\",\"amount\":1000,\"currency\":\"EUR\"}}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"specversion\":\"1.0\",\"type\":\"PAYMENT_CHARGE_SUCCESS\",\"source\":\"probe_source\",\"id\":\"probe_event_001\",\"time\":\"2024-01-01T00:00:00Z\",\"data\":{\"charge\":{\"id\":\"probe_txn_001\",\"status\":\"SUCCEEDED\",\"amount\":1000,\"currency\":\"EUR\"}}}"
+        }
       }
     },
     "post_authenticate": {
@@ -886,7 +931,7 @@
           "refund_id": "probe_refund_id_001"
         },
         "sample": {
-          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges/probe_refund_id_001",
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges/probe_connector_txn_001",
           "method": "Get",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -928,7 +973,7 @@
     },
     "verify_redirect": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported"
       }
     },
     "void": {

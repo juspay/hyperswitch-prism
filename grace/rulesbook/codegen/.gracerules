@@ -24,7 +24,6 @@
 # This file defines the deterministic, step-by-step workflow for new UCS connector integrations
 # Each phase MUST complete successfully before proceeding to the next phase
 # ALL steps are mandatory and must be executed in the exact sequence specified
-
 # ============================================================================
 # MAIN WORKFLOW CONTROLLER
 # ============================================================================
@@ -78,11 +77,11 @@ This workflow is designed for NEW CONNECTOR INTEGRATIONS ONLY where:
 4. **MANDATORY**: Stop for user-approval if any gaps or issues found during validation
 5. **MANDATORY**: List out the flows to be implemented based on tech spec analysis
 6. **MANDATORY**: Detect pre-authorization flows required by the connector from tech spec:
-   - **CreateAccessToken**: Connector uses OAuth/token-based auth (e.g., POST /login, POST /oauth/token)
+   - **ServerAuthenticationToken**: Connector uses OAuth/token-based auth (e.g., POST /login, POST /oauth/token)
    - **CreateOrder**: Connector requires order/intent creation before payment confirmation
    - **CreateConnectorCustomer**: Connector requires customer creation before payment
    - **PaymentMethodToken**: Connector requires tokenizing payment method before authorization
-   - **CreateSessionToken**: Connector requires session initialization before payment
+   - **ServerSessionAuthenticationToken**: Connector requires session initialization before payment
    - Record which pre-auth flows are needed — these will be implemented BEFORE Authorize in Phase 3
 
 ### PHASE 2: FOUNDATION SETUP (Subagent Delegation)
@@ -106,11 +105,11 @@ This workflow is designed for NEW CONNECTOR INTEGRATIONS ONLY where:
 ### PHASE 3: FLOW IMPLEMENTATION (Sequential Subagent Delegation)
 Execute flows in EXACT sequence - each must complete before next begins.
 **Pre-Authorization flows** (only if detected in Phase 1 tech spec analysis):
-- IF CreateAccessToken needed: **DELEGATE TO**: CreateAccessToken Flow Subagent → **WAIT FOR COMPLETION**
+- IF ServerAuthenticationToken needed: **DELEGATE TO**: ServerAuthenticationToken Flow Subagent → **WAIT FOR COMPLETION**
 - IF CreateOrder needed: **DELEGATE TO**: CreateOrder Flow Subagent → **WAIT FOR COMPLETION**
 - IF CreateConnectorCustomer needed: **DELEGATE TO**: CreateConnectorCustomer Flow Subagent → **WAIT FOR COMPLETION**
 - IF PaymentMethodToken needed: **DELEGATE TO**: PaymentMethodToken Flow Subagent → **WAIT FOR COMPLETION**
-- IF CreateSessionToken needed: **DELEGATE TO**: CreateSessionToken Flow Subagent → **WAIT FOR COMPLETION**
+- IF ServerSessionAuthenticationToken needed: **DELEGATE TO**: ServerSessionAuthenticationToken Flow Subagent → **WAIT FOR COMPLETION**
 
 **Core flows** (always executed):
 1. **DELEGATE TO**: Authorize Flow Subagent → **WAIT FOR COMPLETION**
@@ -469,10 +468,10 @@ fn map_{connector_name}_status_to_attempt_status(
 #### PRE-AUTHORIZATION FLOW SUBAGENTS (conditional — only when detected in Phase 1):
 
 #### CREATEACCESSTOKEN FLOW SUBAGENT
-- **Flow Name**: CreateAccessToken
-- **Pattern File**: guides/patterns/pattern_CreateAccessToken_flow.md
+- **Flow Name**: ServerAuthenticationToken
+- **Pattern File**: guides/patterns/pattern_server_authentication_token.md
 - **Primary Responsibility**: OAuth/token acquisition before payment flows
-- **Key Implementation**: ConnectorIntegrationV2<CreateAccessToken, PaymentFlowData, AccessTokenRequestData, AccessTokenResponseData>
+- **Key Implementation**: ConnectorIntegrationV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>
 - **ValidationTrait**: Override `should_do_access_token()` to return `true`
 
 #### CREATEORDER FLOW SUBAGENT
@@ -484,7 +483,7 @@ fn map_{connector_name}_status_to_attempt_status(
 
 #### CREATECONNECTORCUSTOMER FLOW SUBAGENT
 - **Flow Name**: CreateConnectorCustomer
-- **Pattern File**: (no dedicated pattern — follow macro patterns and reference connectors like Stripe,Shift4)
+- **Pattern File**: guides/patterns/pattern_create_connector_customer.md
 - **Primary Responsibility**: Customer creation on connector side before payment
 - **Key Implementation**: ConnectorIntegrationV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>
 - **ValidationTrait**: Override `should_create_connector_customer()` to return `true`
@@ -497,11 +496,27 @@ fn map_{connector_name}_status_to_attempt_status(
 - **ValidationTrait**: Override `should_do_payment_method_token()` to return `true` (with appropriate PaymentMethod/PaymentMethodType conditions)
 
 #### CREATESESSIONTOKEN FLOW SUBAGENT
-- **Flow Name**: CreateSessionToken
-- **Pattern File**: guides/patterns/pattern_session_token.md
+- **Flow Name**: ServerSessionAuthenticationToken
+- **Pattern File**: guides/patterns/pattern_server_session_authentication_token.md
 - **Primary Responsibility**: Session initialization before payment
-- **Key Implementation**: ConnectorIntegrationV2<CreateSessionToken, PaymentFlowData, SessionTokenRequestData, SessionTokenResponseData>
+- **Key Implementation**: ConnectorIntegrationV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>
 - **ValidationTrait**: Override `should_do_session_token()` to return `true`
+
+#### CANONICAL PATTERN INDEX (for all flows and payment methods)
+
+For flow-marker → pattern-file mapping across all 33 `FlowName` variants
+(connector_flow.rs) see: `.gracerules_add_flow` → "Flow-Marker → Pattern Map"
+table.
+
+For `PaymentMethodData` variant → authorize-dir mapping across all 20
+variants (payment_method_data.rs) see: `.gracerules_add_payment_method` →
+"PaymentMethodData → Pattern Map" table.
+
+Token-marker note: `ServerSessionAuthenticationToken`,
+`ServerAuthenticationToken`, and `ClientAuthenticationToken` all use
+`guides/patterns/pattern_server_authentication_token.md` as their canonical
+implementation source — see its "Mapping to connector_flow.rs token markers"
+section.
 
 #### CORE FLOW SUBAGENTS (always executed):
 

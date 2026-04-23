@@ -20,7 +20,7 @@ use domain_types::{
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
         ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
         SetupMandateRequestData, SubmitEvidenceData, VerifyWebhookSourceFlowData,
-        WebhookDetailsResponse,
+        WebhookDetailsResponse, WebhookResourceReference,
     },
     errors::WebhookError,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
@@ -402,8 +402,6 @@ pub trait IncomingWebhook {
     fn get_event_type(
         &self,
         _request: RequestDetails,
-        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
         Err(WebhookError::WebhooksNotImplemented {
             operation: "get_event_type",
@@ -411,11 +409,19 @@ pub trait IncomingWebhook {
         .into())
     }
 
+    fn get_webhook_event_reference(
+        &self,
+        _request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
+        Ok(None)
+    }
+
     fn process_payment_webhook(
         &self,
         _request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<domain_types::connector_types::EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
         Err(WebhookError::WebhooksNotImplemented {
             operation: "process_payment_webhook",
@@ -456,6 +462,13 @@ pub trait IncomingWebhook {
             operation: "get_webhook_resource_object",
         }
         .into())
+    }
+
+    /// A minimal, structurally valid webhook body for this connector.
+    ///
+    /// Used by the field-probe to verify that webhook handling is implemented
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        b"{}"
     }
 
     /// fn get_webhook_api_response
@@ -500,8 +513,9 @@ pub trait VerifyRedirectResponse: SourceVerification + BodyDecoding {
         &self,
         _request: &RequestDetails,
     ) -> CustomResult<RedirectDetailsResponse, domain_types::errors::IntegrationError> {
-        Err(domain_types::errors::IntegrationError::not_implemented(
+        Err(domain_types::errors::IntegrationError::NotImplemented(
             "process_redirect_response".to_string(),
+            Default::default(),
         )
         .into())
     }

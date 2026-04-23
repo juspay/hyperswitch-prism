@@ -20,13 +20,13 @@ use domain_types::{
     connector_types::{
         AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, DisputeDefendData, DisputeFlowData, DisputeResponseData,
-        MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
+        EventContext, MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
         PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails,
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
         ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
         SetupMandateRequestData, SubmitEvidenceData, VerifyWebhookSourceFlowData,
@@ -51,11 +51,12 @@ use super::macros;
 use crate::{
     connectors::paypal::transformers::{
         self as paypal, auth_headers, PaypalAuthResponse, PaypalAuthUpdateRequest,
-        PaypalAuthUpdateResponse, PaypalCaptureResponse, PaypalOrderCreateRequest,
-        PaypalOrderCreateResponse, PaypalPaymentsCancelResponse, PaypalPaymentsCaptureRequest,
-        PaypalPaymentsRequest, PaypalRefundRequest, PaypalRepeatPaymentRequest,
-        PaypalRepeatPaymentResponse, PaypalSetupMandatesResponse, PaypalSyncResponse,
-        PaypalZeroMandateRequest, RefundResponse, RefundSyncResponse,
+        PaypalAuthUpdateResponse, PaypalCaptureResponse, PaypalClientAuthTokenRequest,
+        PaypalClientAuthTokenResponse, PaypalOrderCreateRequest, PaypalOrderCreateResponse,
+        PaypalPaymentsCancelResponse, PaypalPaymentsCaptureRequest, PaypalPaymentsRequest,
+        PaypalRefundRequest, PaypalRepeatPaymentRequest, PaypalRepeatPaymentResponse,
+        PaypalSetupMandatesResponse, PaypalSyncResponse, PaypalZeroMandateRequest, RefundResponse,
+        RefundSyncResponse,
     },
     types::ResponseRouterData,
     utils::{self, ConnectorErrorType, ConnectorErrorTypeMapping},
@@ -174,7 +175,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
     fn verify_webhook_source(
         &self,
-        _request: domain_types::connector_types::RequestDetails,
+        _request: RequestDetails,
         _connector_webhook_secret: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<bool, error_stack::Report<WebhookError>> {
@@ -188,11 +189,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         )
     }
 
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"event_type":"PAYMENT.CAPTURE.COMPLETED","resource":{"id":"probe_capture_001","status":"COMPLETED","amount":{"value":"10.00","currency_code":"USD"}}}"#
+    }
+
     fn get_event_type(
         &self,
-        request: domain_types::connector_types::RequestDetails,
-        _connector_webhook_secret: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
+        request: RequestDetails,
     ) -> Result<domain_types::connector_types::EventType, error_stack::Report<WebhookError>> {
         let payload: paypal::PaypalWebooksEventType = request
             .body
@@ -215,9 +218,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn process_payment_webhook(
         &self,
-        request: domain_types::connector_types::RequestDetails,
+        request: RequestDetails,
         _connector_webhook_secret: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
     ) -> Result<
         domain_types::connector_types::WebhookDetailsResponse,
         error_stack::Report<WebhookError>,
@@ -254,7 +258,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&request_body_copy).to_string()),
             status_code: 200,
             response_headers: None,
-            transformation_status: common_enums::WebhookTransformationStatus::Complete,
             amount_captured: None,
             minor_amount_captured: None,
             network_txn_id: None,
@@ -264,7 +267,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn process_refund_webhook(
         &self,
-        request: domain_types::connector_types::RequestDetails,
+        request: RequestDetails,
         _connector_webhook_secret: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<
@@ -307,7 +310,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn process_dispute_webhook(
         &self,
-        request: domain_types::connector_types::RequestDetails,
+        request: RequestDetails,
         _connector_webhook_secret: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<
@@ -385,7 +388,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn get_webhook_resource_object(
         &self,
-        request: domain_types::connector_types::RequestDetails,
+        request: RequestDetails,
     ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, error_stack::Report<WebhookError>>
     {
         let details: paypal::PaypalWebhooksBody =
@@ -549,6 +552,12 @@ macros::create_all_prerequisites!(
             request_body: PaypalRepeatPaymentRequest<T>,
             response_body: PaypalRepeatPaymentResponse,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: ClientAuthenticationToken,
+            request_body: PaypalClientAuthTokenRequest,
+            response_body: PaypalClientAuthTokenResponse,
+            router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -1338,15 +1347,45 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ClientAuthenticationToken,
-        PaymentFlowData,
-        ClientAuthenticationTokenRequestData,
-        PaymentsResponseData,
-    > for Paypal<T>
-{
-}
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Paypal,
+    curl_request: Json(PaypalClientAuthTokenRequest),
+    curl_response: PaypalClientAuthTokenResponse,
+    flow_name: ClientAuthenticationToken,
+    resource_common_data: PaymentFlowData,
+    flow_request: ClientAuthenticationTokenRequestData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            // Use Basic auth (client_id:client_secret) for v1/identity/generate-token
+            // since the ClientAuthenticationToken gRPC request does not carry a pre-obtained access token.
+            let auth = paypal::PaypalAuthType::try_from(&req.connector_config)?;
+            let credentials = auth.get_credentials()?;
+            let auth_val = credentials.generate_authorization_value();
+
+            Ok(vec![
+                (
+                    headers::CONTENT_TYPE.to_string(),
+                    "application/json".to_string().into(),
+                ),
+                (headers::AUTHORIZATION.to_string(), auth_val.into_masked()),
+            ])
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}v1/identity/generate-token", self.connector_base_url_payments(req)))
+        }
+    }
+);
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<

@@ -8,489 +8,396 @@
     },
     "authorize": {
       "Ach": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "AchBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Affirm": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Afterpay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Alfamart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "AliPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "AmazonPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Bacs": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "BacsBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "BancontactCard": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "BcaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Becs": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+      },
+      "BillDeskRedirect": {
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Bizum": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Blik": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Bluecode": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "BniVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Boleto": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "BriVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Card": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "customer": {
-            "email": "test@example.com"
-          },
-          "address": {
-            "billing_address": {
-              "phone_number": "4155552671"
-            }
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api.razorpay.com/v1/payments/create/json",
-          "method": "Post",
-          "headers": {
-            "accept": "application/json",
-            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "content-type": "application/x-www-form-urlencoded",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"contact\":\"4155552671\",\"email\":\"test@example.com\",\"order_id\":\"connector_order_id\",\"method\":\"card\",\"card\":{\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvv\":\"737\"},\"authentication\":{\"authentication_channel\":\"app\"},\"browser\":null,\"ip\":\"127.0.0.1\",\"referer\":\"https://example.com\",\"user_agent\":\"Mozilla/5.0\"}"
-        }
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "CashappQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+      },
+      "CashfreeRedirect": {
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "CimbVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "ClassicReward": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+      },
+      "EaseBuzzRedirect": {
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Efecty": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Eft": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Eps": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "FamilyMart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Giropay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GooglePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Ideal": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Indomaret": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "IndonesianBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "InstantBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "InstantBankTransferFinland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "InstantBankTransferPoland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Interac": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Klarna": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Lawson": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+      },
+      "LazyPayRedirect": {
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "LocalBankRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "LocalBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "MbWay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Mifinity": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "MiniStop": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "MultibancoBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+      },
+      "Netbanking": {
+        "status": "error",
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "OnlineBankingFinland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "OnlineBankingFpx": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "OnlineBankingPoland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "OnlineBankingThailand": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "OpenBanking": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Oxxo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "PagoEfectivo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "PayEasy": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "PaypalRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "PaypalSdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+      },
+      "PhonePeRedirect": {
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Pix": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Przelewy24": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Pse": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "RedCompra": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "RedPagos": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "RevolutPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "SamsungPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Satispay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Seicomart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Sepa": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "SepaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "SevenEleven": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Sofort": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Trustly": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "UpiCollect": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "upi_collect": {
-              "vpa_id": "test@upi"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api.razorpay.com/v1/payments/create/upi",
-          "method": "Post",
-          "headers": {
-            "accept": "application/json",
-            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "content-type": "application/x-www-form-urlencoded",
-            "via": "HyperSwitch"
-          },
-          "body": "currency=USD&amount=1000&order_id=connector_order_id&method=upi&vpa=test%40upi&callback_url=https%3A%2F%2Fexample.com%2Freturn&ip=127.0.0.1&referer=https%3A%2F%2Fexample.com&user_agent=Mozilla%2F5.0&description="
-        }
+        "status": "error",
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "UpiIntent": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "upi_intent": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api.razorpay.com/v1/payments/create/upi",
-          "method": "Post",
-          "headers": {
-            "accept": "application/json",
-            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "content-type": "application/x-www-form-urlencoded",
-            "via": "HyperSwitch"
-          },
-          "body": "currency=USD&amount=1000&order_id=connector_order_id&method=upi&callback_url=https%3A%2F%2Fexample.com%2Freturn&ip=127.0.0.1&referer=https%3A%2F%2Fexample.com&user_agent=Mozilla%2F5.0&description=&flow=intent"
-        }
+        "status": "error",
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "UpiQr": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "upi_qr": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api.razorpay.com/v1/payments/create/upi",
-          "method": "Post",
-          "headers": {
-            "accept": "application/json",
-            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "content-type": "application/x-www-form-urlencoded",
-            "via": "HyperSwitch"
-          },
-          "body": "currency=USD&amount=1000&order_id=connector_order_id&method=upi&callback_url=https%3A%2F%2Fexample.com%2Freturn&ip=127.0.0.1&referer=https%3A%2F%2Fexample.com&user_agent=Mozilla%2F5.0&description=&flow=intent"
-        }
+        "status": "error",
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "WeChatPayQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Wero": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       }
     },
     "capture": {
@@ -609,12 +516,46 @@
     },
     "handle_event": {
       "default": {
-        "status": "supported"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"account_id\":\"probe_acct\",\"contains\":[\"payment\"],\"entity\":\"event\",\"event\":\"payment.captured\",\"payload\":{\"payment\":{\"entity\":{\"id\":\"pay_probe001\",\"entity\":\"payment\",\"amount\":1000,\"currency\":\"USD\",\"status\":\"captured\",\"order_id\":\"order_probe001\"}}}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"account_id\":\"probe_acct\",\"contains\":[\"payment\"],\"entity\":\"event\",\"event\":\"payment.captured\",\"payload\":{\"payment\":{\"entity\":{\"id\":\"pay_probe001\",\"entity\":\"payment\",\"amount\":1000,\"currency\":\"USD\",\"status\":\"captured\",\"order_id\":\"order_probe001\"}}}}"
+        }
       }
     },
     "incremental_authorization": {
       "default": {
         "status": "not_implemented"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"account_id\":\"probe_acct\",\"contains\":[\"payment\"],\"entity\":\"event\",\"event\":\"payment.captured\",\"payload\":{\"payment\":{\"entity\":{\"id\":\"pay_probe001\",\"entity\":\"payment\",\"amount\":1000,\"currency\":\"USD\",\"status\":\"captured\",\"order_id\":\"order_probe001\"}}}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"account_id\":\"probe_acct\",\"contains\":[\"payment\"],\"entity\":\"event\",\"event\":\"payment.captured\",\"payload\":{\"payment\":{\"entity\":{\"id\":\"pay_probe001\",\"entity\":\"payment\",\"amount\":1000,\"currency\":\"USD\",\"status\":\"captured\",\"order_id\":\"order_probe001\"}}}}"
+        }
       }
     },
     "post_authenticate": {
@@ -629,44 +570,8 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_proxy_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "card_proxy": {
-            "card_number": "4111111111111111",
-            "card_exp_month": "03",
-            "card_exp_year": "2030",
-            "card_cvc": "123",
-            "card_holder_name": "John Doe"
-          },
-          "customer": {
-            "email": "test@example.com"
-          },
-          "address": {
-            "billing_address": {
-              "phone_number": "4155552671"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api.razorpay.com/v1/payments/create/json",
-          "method": "Post",
-          "headers": {
-            "accept": "application/json",
-            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "content-type": "application/x-www-form-urlencoded",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"contact\":\"4155552671\",\"email\":\"test@example.com\",\"order_id\":\"connector_order_id\",\"method\":\"card\",\"card\":{\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvv\":\"123\"},\"authentication\":{\"authentication_channel\":\"app\"},\"browser\":null,\"ip\":\"127.0.0.1\",\"referer\":\"https://example.com\",\"user_agent\":\"Mozilla/5.0\"}"
-        }
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       }
     },
     "proxy_setup_recurring": {
@@ -741,8 +646,8 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       }
     },
     "token_setup_recurring": {
