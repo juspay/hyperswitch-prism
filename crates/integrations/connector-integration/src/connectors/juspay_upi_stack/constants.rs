@@ -5,23 +5,6 @@ pub const REGISTER_INTENT_PATH: &str = "merchants/transactions/registerIntent";
 pub const STATUS_360_PATH: &str = "merchants/transactions/status360";
 pub const REFUND_360_PATH: &str = "merchants/transactions/refund360";
 
-/// Transaction types
-pub const TRANSACTION_TYPE_PAY: &str = "MERCHANT_CREDITED_VIA_PAY";
-
-/// Flow types
-pub const FLOW_TRANSACTION: &str = "TRANSACTION";
-
-/// Refund types
-pub const REFUND_TYPE_UDIR: &str = "UDIR";
-pub const REFUND_TYPE_OFFLINE: &str = "OFFLINE";
-
-/// UDIR adjustment codes and flags
-pub const ADJ_FLAG_REF: &str = "REF";
-pub const ADJ_CODE_GOODS_NOT_PROVIDED: &str = "1064";
-pub const ADJ_CODE_DUPLICATE_TXN: &str = "1084";
-pub const ADJ_CODE_ALTERNATE_PAYMENT: &str = "1063";
-pub const ADJ_CODE_RETURNED_GOODS: &str = "1061";
-
 /// Default intent expiry minutes
 pub const DEFAULT_INTENT_EXPIRY_MINUTES: &str = "5";
 

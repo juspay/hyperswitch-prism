@@ -140,7 +140,7 @@ pub fn map_refund_status(
     gateway_response_code: &str,
     gateway_response_status: &str,
 ) -> enums::RefundStatus {
-    let refund_status = if refund_type == REFUND_TYPE_UDIR {
+    let refund_status = if refund_type.eq_ignore_ascii_case("UDIR") {
         RefundStatus::from_udir_gateway_code(gateway_response_code, gateway_response_status)
     } else {
         RefundStatus::from_offline_gateway_code(gateway_response_code, gateway_response_status)
@@ -367,7 +367,7 @@ pub fn build_authorize_request<T: PaymentMethodDataTypes + serde::Serialize>(
         merchant_request_id,
         upi_request_id,
         amount: amount_str,
-        flow: FLOW_TRANSACTION.to_string(),
+        flow: RegisterIntentFlowType::Transaction,
         intent_request_expiry_minutes: Some(intent_expiry),
         remarks,
         ref_url,
@@ -407,7 +407,7 @@ pub fn build_psync_request(
 
     let status_request = Status360Request {
         merchant_request_id: connector_transaction_id,
-        transaction_type: TRANSACTION_TYPE_PAY.to_string(),
+        transaction_type: Status360TransactionType::MerchantCreditedViaPay,
         iat: get_current_timestamp_ms(),
     };
 
@@ -442,20 +442,29 @@ pub fn build_refund_request(
     auth: &JuspayUpiAuthConfig,
 ) -> Result<JwsObject, error_stack::Report<IntegrationError>> {
     use crate::connectors::juspay_upi_stack::crypto::get_current_timestamp_ms;
+    use crate::connectors::juspay_upi_stack::types::{
+        AdjustmentCode, AdjustmentFlag, Refund360Type,
+    };
 
-    // Determine refund type (default to OFFLINE for safety)
+    // Determine refund type (default to Offline for safety)
     let refund_type = refunds_data
         .refund_connector_metadata
         .as_ref()
         .and_then(|m| m.peek().get("refund_type").cloned())
-        .and_then(|v| v.as_str().map(|s| s.to_uppercase()))
-        .unwrap_or_else(|| REFUND_TYPE_OFFLINE.to_string());
+        .and_then(|v| {
+            v.as_str().map(|s| match s.to_uppercase().as_str() {
+                "UDIR" => Refund360Type::Udir,
+                "ONLINE" => Refund360Type::Online,
+                _ => Refund360Type::Offline,
+            })
+        })
+        .unwrap_or(Refund360Type::Offline);
 
     // Get adjustment code and flag for UDIR refunds
-    let (adj_code, adj_flag) = if refund_type == REFUND_TYPE_UDIR {
+    let (adj_code, adj_flag) = if matches!(refund_type, Refund360Type::Udir) {
         (
-            Some(ADJ_CODE_GOODS_NOT_PROVIDED.to_string()),
-            Some(ADJ_FLAG_REF.to_string()),
+            Some(AdjustmentCode::GoodsNotProvided),
+            Some(AdjustmentFlag::Ref),
         )
     } else {
         (None, None)
@@ -513,12 +522,13 @@ pub fn build_rsync_request(
     auth: &JuspayUpiAuthConfig,
 ) -> Result<JwsObject, error_stack::Report<IntegrationError>> {
     use crate::connectors::juspay_upi_stack::crypto::get_current_timestamp_ms;
+    use crate::connectors::juspay_upi_stack::types::Refund360Type;
 
     let refund_sync = Refund360Request {
         original_merchant_request_id: connector_transaction_id,
         refund_request_id: connector_refund_id,
-        refund_type: REFUND_TYPE_OFFLINE.to_string(), // Default for sync
-        refund_amount: "0.00".to_string(),            // Not needed for status check
+        refund_type: Refund360Type::Offline, // Default for sync
+        refund_amount: "0.00".to_string(),   // Not needed for status check
         remarks: "Status check".to_string(),
         adj_code: None,
         adj_flag: None,

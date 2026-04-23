@@ -1,8 +1,3 @@
-//! Type definitions for Juspay UPI Merchant Stack
-//!
-//! This module defines all shared types, structs, and enums used across
-//! bank connectors in the Juspay UPI Merchant Stack.
-
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -38,251 +33,179 @@ pub struct JwsObject {
     pub signature: String,
 }
 
-// ============================================
-// REQUEST TYPES
-// ============================================
+/// Flow type for Register Intent API
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum RegisterIntentFlowType {
+    Transaction,
+    Mandate,
+}
 
 /// Request payload for Register Intent API (Authorize flow)
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RegisterIntentRequest {
-    #[serde(rename = "merchantRequestId")]
     pub merchant_request_id: String,
-    /// UPI Request ID - required for Multibank API requests
-    /// Typically same as merchantRequestId
-    #[serde(rename = "upiRequestId")]
     pub upi_request_id: String,
     pub amount: String,
-    pub flow: String,
-    #[serde(rename = "intentRequestExpiryMinutes")]
+    pub flow: RegisterIntentFlowType,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub intent_request_expiry_minutes: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub remarks: Option<String>,
-    #[serde(rename = "refUrl", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub ref_url: Option<String>,
     pub iat: String,
 }
 
+/// Transaction type for Status 360 API
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum Status360TransactionType {
+    MerchantCreditedViaPay,
+    MerchantCreditedViaCollect,
+}
+
 /// Request payload for Status 360 API (PSync flow)
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Status360Request {
-    #[serde(rename = "merchantRequestId")]
     pub merchant_request_id: String,
-    #[serde(rename = "transactionType")]
-    pub transaction_type: String,
+    pub transaction_type: Status360TransactionType,
     pub iat: String,
+}
+
+/// Refund type for Refund 360 API
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum Refund360Type {
+    Udir,
+    Online,
+    Offline,
+}
+
+/// Adjustment code for UDIR refunds
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum AdjustmentCode {
+    #[serde(rename = "1064")]
+    GoodsNotProvided,
+    #[serde(rename = "1084")]
+    DuplicateTxn,
+    #[serde(rename = "1063")]
+    AlternatePayment,
+    #[serde(rename = "1061")]
+    ReturnedGoods,
+}
+
+/// Adjustment flag for UDIR refunds
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum AdjustmentFlag {
+    Ref,
 }
 
 /// Request payload for Refund 360 API (Refund/RSync flow)
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Refund360Request {
-    #[serde(rename = "originalMerchantRequestId")]
     pub original_merchant_request_id: String,
-    #[serde(rename = "refundRequestId")]
     pub refund_request_id: String,
-    #[serde(rename = "refundType")]
-    pub refund_type: String,
-    #[serde(rename = "refundAmount")]
+    pub refund_type: Refund360Type,
     pub refund_amount: String,
     pub remarks: String,
-    #[serde(rename = "adjCode", skip_serializing_if = "Option::is_none")]
-    pub adj_code: Option<String>,
-    #[serde(rename = "adjFlag", skip_serializing_if = "Option::is_none")]
-    pub adj_flag: Option<String>,
-    #[serde(rename = "merchantRefundVpa", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub adj_code: Option<AdjustmentCode>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub adj_flag: Option<AdjustmentFlag>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub merchant_refund_vpa: Option<String>,
-    #[serde(
-        rename = "originalTransactionTimestamp",
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub original_transaction_timestamp: Option<String>,
     pub iat: String,
 }
 
-// ============================================
-// RESPONSE TYPES
-// ============================================
-
 /// Generic outer response structure for all APIs
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct JuspayUpiApiResponse<T> {
     pub status: String,
-    #[serde(rename = "responseCode")]
     pub response_code: OuterResponseCode,
-    #[serde(rename = "responseMessage")]
     pub response_message: String,
     pub payload: Option<T>,
 }
 
 /// Payload for Register Intent response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RegisterIntentResponsePayload {
-    #[serde(rename = "merchantId")]
-    pub merchant_id: String,
-    #[serde(rename = "merchantChannelId")]
-    pub merchant_channel_id: String,
-    #[serde(rename = "merchantRequestId")]
     pub merchant_request_id: String,
-    #[serde(rename = "gatewayTransactionId")]
     pub gateway_transaction_id: String,
-    #[serde(rename = "orderId")]
     pub order_id: String,
-    #[serde(rename = "payeeVpa")]
     pub payee_vpa: String,
-    #[serde(rename = "payeeName")]
     pub payee_name: String,
-    #[serde(rename = "payeeMcc")]
     pub payee_mcc: String,
     pub amount: String,
     pub currency: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub remarks: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub flow: Option<String>,
-    #[serde(rename = "refUrl", skip_serializing_if = "Option::is_none")]
     pub ref_url: Option<String>,
+    /// TxnInitiationMode is PascalCase, not camelCase
     #[serde(rename = "TxnInitiationMode", skip_serializing_if = "Option::is_none")]
     pub txn_initiation_mode: Option<String>,
 }
 
 /// Payload for Status 360 response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Status360ResponsePayload {
-    #[serde(rename = "merchantId")]
-    pub merchant_id: String,
-    #[serde(rename = "merchantChannelId")]
-    pub merchant_channel_id: String,
-    #[serde(rename = "merchantRequestId")]
-    pub merchant_request_id: String,
-    #[serde(rename = "gatewayTransactionId")]
     pub gateway_transaction_id: String,
-    #[serde(rename = "gatewayReferenceId")]
-    pub gateway_reference_id: Option<String>,
-    #[serde(rename = "gatewayResponseCode")]
     pub gateway_response_code: String,
-    #[serde(rename = "gatewayResponseMessage")]
-    pub gateway_response_message: String,
-    #[serde(rename = "gatewayResponseStatus")]
-    pub gateway_response_status: String,
-    pub amount: String,
-    #[serde(
-        rename = "bankAccountUniqueId",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub bank_account_unique_id: Option<String>,
-    #[serde(rename = "bankCode", skip_serializing_if = "Option::is_none")]
-    pub bank_code: Option<String>,
-    #[serde(
-        rename = "transactionTimestamp",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub transaction_timestamp: Option<String>,
-    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
-    pub transaction_type: Option<String>,
-    #[serde(rename = "payeeVpa", skip_serializing_if = "Option::is_none")]
-    pub payee_vpa: Option<String>,
-    #[serde(rename = "customResponse", skip_serializing_if = "Option::is_none")]
-    pub custom_response: Option<String>,
 }
 
 /// Payload for Refund 360 response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Refund360ResponsePayload {
-    #[serde(rename = "merchantId")]
-    pub merchant_id: String,
-    #[serde(rename = "merchantChannelId")]
-    pub merchant_channel_id: String,
-    #[serde(rename = "refundRequestId")]
     pub refund_request_id: String,
-    #[serde(
-        rename = "originalMerchantRequestId",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub original_merchant_request_id: Option<String>,
-    #[serde(rename = "gatewayResponseCode")]
     pub gateway_response_code: String,
-    #[serde(rename = "gatewayResponseStatus")]
     pub gateway_response_status: String,
-    #[serde(rename = "gatewayResponseMessage")]
-    pub gateway_response_message: String,
-    #[serde(rename = "gatewayTransactionId")]
-    pub gateway_transaction_id: String,
-    #[serde(
-        rename = "gatewayRefundTransactionId",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub gateway_refund_transaction_id: Option<String>,
-    #[serde(
-        rename = "gatewayRefundReferenceId",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub gateway_refund_reference_id: Option<String>,
-    #[serde(rename = "refundAmount")]
-    pub refund_amount: String,
-    #[serde(rename = "transactionAmount", skip_serializing_if = "Option::is_none")]
-    pub transaction_amount: Option<String>,
-    #[serde(rename = "refundType")]
     pub refund_type: String,
-    #[serde(rename = "refundTimestamp")]
-    pub refund_timestamp: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub remarks: Option<String>,
-    #[serde(rename = "adjFlag", skip_serializing_if = "Option::is_none")]
-    pub adj_flag: Option<String>,
-    #[serde(rename = "adjCode", skip_serializing_if = "Option::is_none")]
-    pub adj_code: Option<String>,
-    #[serde(rename = "reqAdjFlag", skip_serializing_if = "Option::is_none")]
-    pub req_adj_flag: Option<String>,
-    #[serde(rename = "reqAdjCode", skip_serializing_if = "Option::is_none")]
-    pub req_adj_code: Option<String>,
 }
 
 /// Callback payload for payment completion
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PayCallbackPayload {
-    #[serde(rename = "merchantId")]
     pub merchant_id: String,
-    #[serde(rename = "merchantChannelId")]
     pub merchant_channel_id: String,
-    #[serde(rename = "merchantRequestId")]
     pub merchant_request_id: String,
-    #[serde(rename = "gatewayTransactionId")]
     pub gateway_transaction_id: String,
-    #[serde(rename = "gatewayReferenceId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub gateway_reference_id: Option<String>,
-    #[serde(rename = "gatewayResponseCode")]
     pub gateway_response_code: String,
-    #[serde(rename = "gatewayResponseMessage")]
     pub gateway_response_message: String,
     pub amount: String,
-    #[serde(rename = "bankCode", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bank_code: Option<String>,
-    #[serde(rename = "transactionTimestamp")]
     pub transaction_timestamp: String,
+    /// 'type' is a reserved keyword
     #[serde(rename = "type")]
     pub transaction_type: String,
 }
 
 /// Refund callback payload
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RefundCallbackPayload {
-    #[serde(rename = "merchantId")]
     pub merchant_id: String,
-    #[serde(rename = "merchantChannelId")]
     pub merchant_channel_id: String,
-    #[serde(rename = "refundRequestId")]
     pub refund_request_id: String,
-    #[serde(rename = "originalMerchantRequestId")]
     pub original_merchant_request_id: String,
-    #[serde(rename = "gatewayResponseCode")]
     pub gateway_response_code: String,
-    #[serde(rename = "gatewayResponseStatus")]
     pub gateway_response_status: String,
-    #[serde(rename = "refundAmount")]
     pub refund_amount: String,
-    #[serde(rename = "refundType")]
     pub refund_type: String,
-    #[serde(rename = "refundTimestamp")]
     pub refund_timestamp: String,
 }
 
@@ -300,42 +223,24 @@ pub type Refund360Response = JuspayUpiApiResponse<Refund360ResponsePayload>;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum OuterResponseCode {
-    /// Transaction/payment was successful
-    Success,
-    /// Transaction/payment failed
-    Failure,
-    /// Transaction not found in system
-    RequestNotFound,
-    /// Transaction expired (user dropout)
-    RequestExpired,
-    /// User dropped out during UPI flow
-    Dropout,
-    /// Transaction still pending (not terminal state)
-    RequestPending,
-    /// Bad request - missing mandatory parameter or regex mismatch
-    BadRequest,
-    /// Invalid data - mandatory keys present but incorrect values
-    InvalidData,
-    /// Unauthorized - signature validation failed
-    Unauthorized,
-    /// Invalid merchant ID or channel ID
-    InvalidMerchant,
-    /// Third-party services unreachable (NPCI, bank systems)
-    ServiceUnavailable,
-    /// Timeout from NPCI
-    GatewayTimeout,
-    /// Duplicate merchantRequestId or upiRequestId
-    DuplicateRequest,
-    /// Device fingerprint validation failed
-    DeviceFingerprintMismatch,
-    /// Internal server error
-    InternalServerError,
-    /// Invalid transaction ID for refund
-    InvalidTransactionId,
-    /// Original transaction was not successful
-    UninitiatedRequest,
-    /// Refund amount exceeds original transaction
-    InvalidRefundAmount,
+    Success,                   // Transaction/payment was successful
+    Failure,                   // Transaction/payment failed
+    RequestNotFound,           // Transaction not found in system
+    RequestExpired,            // Transaction expired (user dropout)
+    Dropout,                   // User dropped out during UPI flow
+    RequestPending,            // Transaction still pending (not terminal state)
+    BadRequest,                // Bad request - missing mandatory parameter or regex mismatch
+    InvalidData,               // Invalid data - mandatory keys present but incorrect values
+    Unauthorized,              // Unauthorized - signature validation failed
+    InvalidMerchant,           // Invalid merchant ID or channel ID
+    ServiceUnavailable,        // Third-party services unreachable (NPCI, bank systems)
+    GatewayTimeout,            // Timeout from NPCI
+    DuplicateRequest,          // Duplicate merchantRequestId or upiRequestId
+    DeviceFingerprintMismatch, // Device fingerprint validation failed
+    InternalServerError,       // Internal server error
+    InvalidTransactionId,      // Invalid transaction ID for refund
+    UninitiatedRequest,        // Original transaction was not successful
+    InvalidRefundAmount,       // Refund amount exceeds original transaction
 }
 
 impl OuterResponseCode {
@@ -343,10 +248,7 @@ impl OuterResponseCode {
     pub fn is_terminal(&self) -> bool {
         matches!(
             self,
-            Self::Success
-                | Self::Failure
-                | Self::RequestExpired
-                | Self::Dropout
+            Self::Success | Self::Failure | Self::RequestExpired | Self::Dropout
         )
     }
 
@@ -384,34 +286,20 @@ impl OuterResponseCode {
 /// These are the gatewayResponseCode values in the payload
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum GatewayResponseCode {
-    /// Transaction successful
-    Success,
-    /// Transaction pending
-    Pending,
-    /// Deemed success (RB code)
-    Deemed,
-    /// Transaction declined
-    Declined,
-    /// Collect request expired
-    Expired,
-    /// Beneficiary payment address incorrect
-    BeneAddrIncorrect,
-    /// Merchant intent expired
-    IntentExpired,
-    /// Validation error (amount mismatch, tid/tr change)
-    ValidationError,
-    /// Mandate revoked
-    MandateRevoked,
-    /// Mandate paused
-    MandatePaused,
-    /// Mandate completed
-    MandateCompleted,
-    /// Mandate declined by payer
-    MandateDeclined,
-    /// Mandate expired
-    MandateExpired,
-    /// Unknown gateway code
-    Unknown(String),
+    Success,           // Transaction successful
+    Pending,           // Transaction pending
+    Deemed,            // Deemed success (RB code)
+    Declined,          // Transaction declined
+    Expired,           // Collect request expired
+    BeneAddrIncorrect, // Beneficiary payment address incorrect
+    IntentExpired,     // Merchant intent expired
+    ValidationError,   // Validation error (amount mismatch, tid/tr change)
+    MandateRevoked,    // Mandate revoked
+    MandatePaused,     // Mandate paused
+    MandateCompleted,  // Mandate completed
+    MandateDeclined,   // Mandate declined by payer
+    MandateExpired,    // Mandate expired
+    Unknown(String),   // Unknown gateway code
 }
 
 impl GatewayResponseCode {

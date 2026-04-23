@@ -415,18 +415,14 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let (merchant_id, merchant_channel_id) =
                 extract_merchant_identifiers_from_metadata(&req.resource_common_data.connector_feature_data)?;
-            let timestamp = axisbank::get_current_timestamp_ms();
+
             let refund_request_id = req.request.refund_id.clone();
 
-            let headers = vec![
-                ("content-type".to_string(), "application/json".to_string().into()),
-                ("x-merchant-id".to_string(), merchant_id.into()),
-                ("x-merchant-channel-id".to_string(), merchant_channel_id.into()),
-                ("x-timestamp".to_string(), timestamp.into()),
-                ("jpupi-routing-id".to_string(), refund_request_id.into()),
-            ];
-
-            Ok(headers)
+            crate::connectors::juspay_upi_stack::transformers::build_request_headers(
+                &merchant_id,
+                &merchant_channel_id,
+                &refund_request_id,
+            )
         }
 
         fn get_url(
@@ -460,18 +456,14 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let (merchant_id, merchant_channel_id) =
                 extract_merchant_identifiers_from_metadata(&req.resource_common_data.connector_feature_data)?;
-            let timestamp = axisbank::get_current_timestamp_ms();
+
             let refund_request_id = req.request.connector_refund_id.clone();
 
-            let headers = vec![
-                ("content-type".to_string(), "application/json".to_string().into()),
-                ("x-merchant-id".to_string(), merchant_id.into()),
-                ("x-merchant-channel-id".to_string(), merchant_channel_id.into()),
-                ("x-timestamp".to_string(), timestamp.into()),
-                ("jpupi-routing-id".to_string(), refund_request_id.into()),
-            ];
-
-            Ok(headers)
+            crate::connectors::juspay_upi_stack::transformers::build_request_headers(
+                &merchant_id,
+                &merchant_channel_id,
+                &refund_request_id,
+            )
         }
 
         fn get_url(

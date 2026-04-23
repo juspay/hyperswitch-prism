@@ -180,20 +180,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static>
-    TryFrom<
-        ResponseRouterData<
-            AxisbankPaymentsResponse,
-            Self,
-        >,
-    > for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
+    TryFrom<ResponseRouterData<AxisbankPaymentsResponse, Self>>
+    for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        resp: ResponseRouterData<
-            AxisbankPaymentsResponse,
-            Self,
-        >,
+        resp: ResponseRouterData<AxisbankPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
         handle_authorize_response(resp.response, resp.http_code, resp.router_data)
     }
@@ -240,22 +233,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            AxisbankSyncResponse,
-            Self,
-        >,
-    > for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
+impl TryFrom<ResponseRouterData<AxisbankSyncResponse, Self>>
+    for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
-    fn try_from(
-        resp: ResponseRouterData<
-            AxisbankSyncResponse,
-            Self,
-        >,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(resp: ResponseRouterData<AxisbankSyncResponse, Self>) -> Result<Self, Self::Error> {
         handle_psync_response(resp.response, resp.http_code, resp.router_data)
     }
 }
@@ -288,21 +271,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            AxisbankRefundResponse,
-            Self,
-        >,
-    > for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
+impl TryFrom<ResponseRouterData<AxisbankRefundResponse, Self>>
+    for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        resp: ResponseRouterData<
-            AxisbankRefundResponse,
-            Self,
-        >,
+        resp: ResponseRouterData<AxisbankRefundResponse, Self>,
     ) -> Result<Self, Self::Error> {
         handle_refund_response(resp.response, resp.http_code, resp.router_data)
     }
@@ -339,21 +314,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            AxisbankRefundSyncResponse,
-            Self,
-        >,
-    > for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
+impl TryFrom<ResponseRouterData<AxisbankRefundSyncResponse, Self>>
+    for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        resp: ResponseRouterData<
-            AxisbankRefundSyncResponse,
-            Self,
-        >,
+        resp: ResponseRouterData<AxisbankRefundSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
         handle_rsync_response(resp.response, resp.http_code, resp.router_data)
     }
