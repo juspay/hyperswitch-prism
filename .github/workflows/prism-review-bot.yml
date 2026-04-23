@@ -28,6 +28,7 @@ env:
   AGENT_FILE: /home/phoenix/.config/opencode/agents/hyperswitch-prism-reviewer.md
   OPENCODE_SKILLS_DIR: /home/phoenix/.config/opencode/skills
   SPECS_LOCAL: /home/phoenix/repos/hyperswitch-specs
+  SOURCE_REPO_LOCAL: /home/phoenix/repos/hyperswitch-prism
 
 jobs:
   agent:
@@ -102,12 +103,23 @@ jobs:
           git -C "$SPECS_LOCAL" reset --hard origin/main
 
       - name: Checkout PR branch
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.SOURCE_REPO }}
-          ref: refs/pull/${{ steps.context.outputs.pr_number }}/head
-          path: hyperswitch-prism
-          fetch-depth: 0
+        env:
+          PR_NUMBER: ${{ steps.context.outputs.pr_number }}
+        run: |
+          set -euo pipefail
+          if [ ! -d "$SOURCE_REPO_LOCAL/.git" ]; then
+            echo "ERROR: prism clone missing at $SOURCE_REPO_LOCAL"
+            exit 1
+          fi
+          git -C "$SOURCE_REPO_LOCAL" fetch --quiet origin
+          BRANCH=$(gh pr view "$PR_NUMBER" --repo "$SOURCE_REPO" --json headRefName --jq '.headRefName')
+          if [ -z "$BRANCH" ]; then
+            echo "ERROR: Could not resolve branch for PR #$PR_NUMBER"
+            exit 1
+          fi
+          git -C "$SOURCE_REPO_LOCAL" checkout --quiet "$BRANCH"
+          git -C "$SOURCE_REPO_LOCAL" reset --hard "origin/$BRANCH"
+          echo "Checked out PR branch: $BRANCH"
 
       - name: Sync prism reviewer skill
         run: |
@@ -158,7 +170,6 @@ jobs:
         env:
           PR_NUMBER: ${{ steps.context.outputs.pr_number }}
           EVENT_NAME: ${{ github.event_name }}
-          SOURCE_REPO_LOCAL: ${{ github.workspace }}/hyperswitch-prism
         run: |
           set -euo pipefail
 
