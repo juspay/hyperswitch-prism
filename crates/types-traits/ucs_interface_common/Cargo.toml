@@ -15,6 +15,7 @@ hyperswitch_masking = { version = "0.0.1", default-features = false, features = 
 # Third-party dependencies
 base64 = "0.21.2"
 error-stack = "0.4.1"
+prost = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tonic = { workspace = true }
