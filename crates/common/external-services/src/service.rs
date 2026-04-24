@@ -580,7 +580,7 @@ where
                             .response
                             .get("status_code")
                             .and_then(|v| v.as_u64())
-                            .map(|v| v as u16)
+                            .and_then(|v| u16::try_from(v).ok())
                             .unwrap_or(injector_response.status_code);
 
                         // Convert headers from HashMap<String, String> to reqwest::HeaderMap if present
@@ -1415,6 +1415,7 @@ impl RequestBuilderExt for reqwest::RequestBuilder {
 /// The header value is expected to be a **base64-encoded** JSON string representing
 /// an [`ExternalVaultProxyConfig`]. This function decodes the base64 payload, converts
 /// it to a UTF-8 string, and then deserializes the JSON.
+#[cfg(feature = "injector-client")]
 fn parse_external_vault_config(
     vault_headers: Option<&HashMap<String, Secret<String>>>,
 ) -> Option<ExternalVaultProxyConfig> {
@@ -1444,6 +1445,7 @@ fn parse_external_vault_config(
         })
 }
 
+#[cfg(feature = "injector-client")]
 /// Apply parsed external vault proxy config to the injector request's connection config.
 fn apply_vault_config_to_injector(
     injector_request: &mut injector::InjectorRequest,
@@ -1502,6 +1504,7 @@ fn apply_vault_config_to_injector(
 /// Constructs the base request and enriches the `connection_config` with external vault
 /// proxy metadata (VGS proxy_url/ca_cert, or HyperswitchVault endpoint/auth) if the
 /// `x-external-vault-metadata` header is present in vault headers.
+#[cfg(feature = "injector-client")]
 fn build_injector_request(
     endpoint: String,
     http_method: HttpMethod,
