@@ -1153,35 +1153,44 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // Rapyd REQUIRES a customer to save a payment method. We pass an
         // inline `{name, email}` object so Rapyd creates `cus_*` in the
         // same call and attaches the saved `card_*` to it.
+        let customer_name = request
+            .customer_name
+            .clone()
+            .or_else(|| {
+                router_data
+                    .resource_common_data
+                    .get_optional_billing_full_name()
+                    .map(|s| s.expose())
+            })
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "customer_name / billing.full_name",
+                context: Default::default(),
+            })?;
+        let customer_email = request
+            .email
+            .as_ref()
+            .map(|e| e.peek().to_string())
+            .or_else(|| {
+                router_data
+                    .resource_common_data
+                    .get_optional_billing_email()
+                    .map(|e| e.peek().to_string())
+            })
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "email / billing.email",
+                context: Default::default(),
+            })?;
         let inline_customer = RapydInlineCustomer {
-            name: request
-                .customer_name
-                .clone()
-                .or_else(|| {
-                    router_data
-                        .resource_common_data
-                        .get_optional_billing_full_name()
-                        .map(|s| s.expose())
-                })
-                .or_else(|| Some("Grace Tester".to_string())),
-            email: request
-                .email
-                .as_ref()
-                .map(|e| e.peek().to_string())
-                .or_else(|| {
-                    router_data
-                        .resource_common_data
-                        .get_optional_billing_email()
-                        .map(|e| e.peek().to_string())
-                })
-                .or_else(|| Some("grace@test.com".to_string())),
+            name: Some(customer_name),
+            email: Some(customer_email),
         };
 
-        let return_url = router_data
-            .resource_common_data
-            .return_url
-            .clone()
-            .unwrap_or_else(|| "https://hyperswitch.io/return".to_string());
+        let return_url = router_data.resource_common_data.return_url.clone().ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "return_url",
+                context: Default::default(),
+            },
+        )?;
 
         Ok(Self {
             amount,
@@ -1426,11 +1435,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             three_ds: three_ds_enabled,
         });
 
-        let return_url = router_data
-            .resource_common_data
-            .return_url
-            .clone()
-            .unwrap_or_else(|| "https://hyperswitch.io/return".to_string());
+        let return_url = router_data.resource_common_data.return_url.clone().ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "return_url",
+                context: Default::default(),
+            },
+        )?;
 
         Ok(Self {
             amount,
