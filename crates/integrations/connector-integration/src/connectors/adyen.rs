@@ -739,6 +739,88 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
     for Adyen<T>
 {
+    fn get_headers(
+        &self,
+        req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+        self.build_headers(req)
+    }
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+    fn get_http_method(&self) -> common_utils::request::Method {
+        common_utils::request::Method::Get
+    }
+    fn build_request_v2(
+        &self,
+        req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+    ) -> CustomResult<Option<common_utils::request::Request>, IntegrationError> {
+        Ok(Some(
+            common_utils::request::RequestBuilder::new()
+                .method(common_utils::request::Method::Get)
+                .url(self.get_url(req)?.as_str())
+                .attach_default_headers()
+                .headers(self.get_headers(req)?)
+                .build(),
+        ))
+    }
+    fn get_url(
+        &self,
+        req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        let payment_psp_reference = &req.request.connector_transaction_id;
+        let refund_psp_reference = &req.request.connector_refund_id;
+        let endpoint = build_env_specific_endpoint(
+            self.connector_base_url_refunds(req),
+            req.resource_common_data.test_mode,
+            &req.connector_config,
+        )?;
+        Ok(format!(
+            "{endpoint}{ADYEN_API_VERSION}/payments/{payment_psp_reference}/refunds/{refund_psp_reference}"
+        ))
+    }
+    fn get_request_body(
+        &self,
+        _req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+    ) -> CustomResult<Option<common_utils::request::RequestContent>, IntegrationError> {
+        Ok(None)
+    }
+    fn get_error_response_v2(
+        &self,
+        res: Response,
+        event_builder: Option<&mut events::Event>,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+    fn handle_response_v2(
+        &self,
+        data: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        event_builder: Option<&mut events::Event>,
+        res: Response,
+    ) -> CustomResult<
+        RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ConnectorError,
+    > {
+        let response: AdyenRefundResponse = res
+            .response
+            .parse_struct("AdyenRefundResponse")
+            .change_context(crate::utils::response_handling_fail_for_connector(
+                res.status_code,
+                "adyen",
+            ))?;
+        event_builder.map(|i| i.set_connector_response(&response));
+        let response_router_data = ResponseRouterData {
+            response,
+            router_data: data.clone(),
+            http_code: res.status_code,
+        };
+        RouterDataV2::<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>::try_from(
+            response_router_data,
+        )
+        .change_context(ConnectorError::ResponseHandlingFailed {
+            context: Default::default(),
+        })
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -1451,19 +1533,15 @@ impl ConnectorValidation for Adyen<DefaultPCIHolder> {
 
     fn validate_psync_reference_id(
         &self,
-        data: &PaymentsSyncData,
+        _data: &PaymentsSyncData,
         _is_three_ds: bool,
         _status: AttemptStatus,
         _connector_feature_data: Option<SecretSerdeValue>,
     ) -> CustomResult<(), IntegrationError> {
-        if data.encoded_data.is_some() {
-            return Ok(());
-        }
-        Err(IntegrationError::MissingRequiredField {
-            field_name: "encoded_data",
-            context: Default::default(),
-        }
-        .into())
+        // Adyen PSync is redirect-completion only (POST /payments/details).
+        // When encoded_data is absent, build_request_v2 returns Ok(None) to
+        // skip the call and rely on webhooks for payment status.
+        Ok(())
     }
     fn is_webhook_source_verification_mandatory(&self) -> bool {
         false

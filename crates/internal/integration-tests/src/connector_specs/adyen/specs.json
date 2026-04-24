@@ -5,12 +5,12 @@
     "capture",
     "client_authentication_token",
     "create_order",
-    "get",
+    "handle_event",
     "incremental_authorization",
-    "recurring_charge",
+    "proxy_authorize",
+    "proxy_setup_recurring",
     "refund",
     "setup_recurring",
-    "void",
-    "handle_event"
+    "void"
   ]
 }

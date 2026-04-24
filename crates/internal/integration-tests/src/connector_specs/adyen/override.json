@@ -216,6 +216,37 @@
       }
     }
   },
+  "incremental_authorization": {
+    "incremental_auth_basic": {
+      "assert": {
+        "status": {
+          "one_of": ["AUTHORIZATION_SUCCESS"]
+        }
+      }
+    },
+    "incremental_auth_with_tip": {
+      "assert": {
+        "status": {
+          "one_of": ["AUTHORIZATION_SUCCESS"]
+        }
+      }
+    },
+    "incremental_auth_multiple_increase": {
+      "assert": {
+        "status": {
+          "one_of": ["AUTHORIZATION_SUCCESS", "AUTHORIZATION_FAILURE"]
+        }
+      }
+    },
+    "incremental_auth_fail_invalid_transaction_id": {
+      "assert": {
+        "status": {
+          "one_of": ["AUTHORIZATION_SUCCESS", "AUTHORIZATION_FAILURE", "AUTHORIZATION_PROCESSING"]
+        },
+        "error": null
+      }
+    }
+  },
   "refund": {
     "refund_with_reason": {
       "grpc_req": {

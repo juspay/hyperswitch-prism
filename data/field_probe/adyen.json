@@ -2262,7 +2262,22 @@
     },
     "refund_get": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments/probe_connector_txn_001/refunds/probe_refund_id_001",
+          "method": "Get",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": null
+        }
       }
     },
     "reverse": {
