@@ -9,25 +9,49 @@ sdk_language: java
 ---
 -->
 
-## 🎯 What is Prism?
+## What is Prism?
 
-Today, integrating multiple payment processors either makes developers running in circles with AI agents to recreate integrations from specs, or developers spending months of engineering effort. 
-
-Because every payment processor has diverse APIs, error codes, authentication methods, pdf documents to read, and above all - different behaviour in the actual environment when compared to documented specs. All this rests as tribal or undocumented knowledge making it harder AI agents which are very good at implementing clearly documented specification.
-
-**Prism is a stateless, unified connector library for AI agents and Developers to connect with any payment processor**
-
-**Prism offers hardened transformation through testing on payment processor environment & iterative bug fixing**
-
-**Prism can be embedded in you server application with its wide range of multi-language SDKs, or run as a rRPC microservice**
+Prism is a stateless, unified connector library to connect with any payment processor. It is extracted out of the hardened integrations through continuous testing & iterative bug fixing over years of usage within [Juspay Hyperswitch](https://github.com/juspay/hyperswitch).
 
 
-| ❌ Without Prism | ✅ With Prism |
-|------------------------------|----------------------------|
-| 🗂️ 100+ different API schemas | 📋 Single unified schema |
-| ⏳ Never ending agent loops/ months of integration work | ⚡ Hours to integrate, Agent driven |
-| 🔗 Brittle, provider-specific code | 🔓 Portable, provider-agnostic code |
-| 🚫 Hard to switch providers | 🔄 Change providers in 1 line |
+### Why are payment processor integrations such a big deal?
+
+Every payment processor has diverse APIs, error codes, authentication methods, pdf documents to read, and behavioural differences between the actual environment and documented specs. 
+
+A small mistake or oversight can create a huge financial impact for businesses accepting payments. Thousands of enterprises around the world have gone through this learning curve and iterated and fixed payment systems over many years. All such fixes/improvements/iterations are locked-in as tribal knowledge into Enterprise Payment Platforms and SaaS Payment Orchestration solutions. 
+
+Hence, **Prism** - to open up payment diversity to the entire world as a simple, lightweight, zero lock-in, developer friendly payments library.
+
+**Prism is extracted, built and maintained by the team behind [Juspay Hyperswitch](https://github.com/juspay/hyperswitch) - the open-source payments platform with 40K+ Github stars and used by leading enterprise merchants around the world.**
+
+**Note:** In all honesty, payments are not more complicated than database drivers. It is simply just that the industry has not arrived at a standard (and it never will!!).
+
+
+## What does Prism do well?
+- **One request schema** for every payment. The same authorize call works against Stripe, Adyen and many more without additional lines of code.
+- **Stateless. No database, no stored PII.** Credentials are not stored/ logged by the library. It lives only up to the lifetime of your HTTP client.
+- **PCI scope reduction.** The card data flowing/ not flowing into the library is your choice. You can choose to leverage any payment processor vault or your own PCI certified vault. Nothing is logged or stored by the library.
+
+
+## Integrations - Status
+
+Prism supports **multiple connectors** with varying levels of payment method and flow coverage. Each connector is continuously tested against real sandbox/ production environments.
+
+**Legend:** ✓ Supported | x Not Supported | ⚠ In Progress | ? Needs Validation
+
+| Status | Description |
+|--------|-------------|
+| ✓ | Fully implemented and tested |
+| x | Not applicable or unsupported by processor |
+| ⚠ | Implementation in progress or partial |
+| ? | Implementation needs validation against live environment |
+
+**[View Complete Connector Coverage →](./docs-generated/all_connector.md)**
+
+## What Prism does not do (yet)?
+- **Built-in vault or tokenization service.** This is a design choice. You may bring your own vault, or use the payment processor's vault.
+- **Retry or routing logic.** It lives in [Juspay Hyperswitch](https://github.com/juspay/hyperswitch). Prism is only the transformation layer.
+- **Beyond payments.** The diversity exists beyond payments - in subscriptions, fraud, tax, payouts. And it is our aspiration, to evolve Prism into a stateless commerce library.
 
 ## Installation
 

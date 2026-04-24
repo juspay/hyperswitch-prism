@@ -65,6 +65,8 @@
     - [Create SDK Session Token](api-reference/services/merchant-authentication-service/create-sdk-session-token.md)
   - [Domain Schema](api-reference/domain-schema/README.md)
 
+- [FAQs](FAQs.md)
+
 - [Java SDK Overview](sdks/java/README.md)
   - [Payment Service Overview](sdks/java/payment-service/README.md)
     - [Create Order](sdks/java/payment-service/create-order.md)
