@@ -119,6 +119,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Cybersource<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(Report::new(IntegrationError::FlowNotSupported {
+            flow: "void_post_capture".to_string(),
+            connector: "Cybersource".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Cybersource<T>
@@ -1271,7 +1281,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-// Stub implementations for unsupported flows
+// FlowNotSupported markers — CyberSource does not expose endpoints for these flows
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
@@ -1281,24 +1291,64 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentCreateOrderResponse,
     > for Cybersource<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(Report::new(IntegrationError::FlowNotSupported {
+            flow: "create_order".to_string(),
+            connector: "Cybersource".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>
     for Cybersource<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(Report::new(IntegrationError::FlowNotSupported {
+            flow: "submit_evidence".to_string(),
+            connector: "Cybersource".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
     for Cybersource<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(Report::new(IntegrationError::FlowNotSupported {
+            flow: "defend_dispute".to_string(),
+            connector: "Cybersource".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
     for Cybersource<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(Report::new(IntegrationError::FlowNotSupported {
+            flow: "accept_dispute".to_string(),
+            connector: "Cybersource".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -1309,7 +1359,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ServerSessionAuthenticationTokenResponseData,
     > for Cybersource<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(Report::new(IntegrationError::FlowNotSupported {
+            flow: "server_session_authentication_token".to_string(),
+            connector: "Cybersource".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
         PaymentMethodToken,
@@ -1318,7 +1379,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentMethodTokenResponse,
     > for Cybersource<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(Report::new(IntegrationError::FlowNotSupported {
+            flow: "tokenize_payment_method".to_string(),
+            connector: "Cybersource".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
         ServerAuthenticationToken,
@@ -1327,6 +1399,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ServerAuthenticationTokenResponseData,
     > for Cybersource<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(Report::new(IntegrationError::FlowNotSupported {
+            flow: "server_authentication_token".to_string(),
+            connector: "Cybersource".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -1337,6 +1419,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ConnectorCustomerResponse,
     > for Cybersource<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(Report::new(IntegrationError::FlowNotSupported {
+            flow: "create_customer".to_string(),
+            connector: "Cybersource".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
 
 // SourceVerification implementations for all flows

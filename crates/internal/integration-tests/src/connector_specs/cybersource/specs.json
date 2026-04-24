@@ -12,6 +12,7 @@
     "recurring_charge",
     "refund",
     "refund_sync",
+    "revoke_mandate",
     "setup_recurring",
     "void"
   ]
