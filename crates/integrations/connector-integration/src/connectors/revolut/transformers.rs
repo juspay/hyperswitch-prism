@@ -1,10 +1,11 @@
 use crate::connectors::revolut::RevolutRouterData;
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, Refund},
+    connector_flow::{Authorize, Capture, IncrementalAuthorization, PSync, Refund},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        ResponseId, WebhookDetailsResponse,
+        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        WebhookDetailsResponse,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -49,6 +50,18 @@ pub struct RevolutOrderCreateRequest {
     pub upcoming_payment_data: Option<serde_json::Value>,
     pub redirect_url: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
+    /// Authorisation type for the order. Use `pre_authorisation` to enable
+    /// extended clearing windows and incremental authorisation on the order.
+    pub authorisation_type: Option<RevolutAuthorisationType>,
+}
+
+/// Revolut order authorisation type. Use `PreAuthorisation` to enable
+/// incremental authorisation on the order.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RevolutAuthorisationType {
+    FinalAuthorisation,
+    PreAuthorisation,
 }
 
 #[serde_with::skip_serializing_none]
@@ -591,6 +604,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ),
         });
 
+        let capture_mode = router_data.request.capture_method.map(|c| match c {
+            common_enums::CaptureMethod::Manual => RevolutCaptureMode::Manual,
+            _ => RevolutCaptureMode::Automatic,
+        });
+
+        // Manual capture requires pre_authorisation so subsequent capture and
+        // incremental authorisation flows succeed against the same order.
+        let authorisation_type = match capture_mode {
+            Some(RevolutCaptureMode::Manual) => Some(RevolutAuthorisationType::PreAuthorisation),
+            _ => None,
+        };
+
         Ok(Self {
             amount: router_data.request.amount,
             currency: router_data.request.currency,
@@ -600,10 +625,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             enforce_challenge: None,
             line_items: None,
             shipping,
-            capture_mode: router_data.request.capture_method.map(|c| match c {
-                common_enums::CaptureMethod::Manual => RevolutCaptureMode::Manual,
-                _ => RevolutCaptureMode::Automatic,
-            }),
+            capture_mode,
             cancel_authorised_after: None,
             location_id: None,
             metadata: router_data.request.metadata.clone(),
@@ -616,6 +638,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .billing_descriptor
                 .as_ref()
                 .and_then(|bd| bd.statement_descriptor_suffix.clone()),
+            authorisation_type,
         })
     }
 }
@@ -1029,3 +1052,119 @@ impl TryFrom<RevolutWebhookBody> for WebhookDetailsResponse {
         })
     }
 }
+
+// ============================================================================
+// Incremental Authorization
+// ============================================================================
+//
+// Revolut Merchant API supports incremental authorisation on orders that were
+// originally created with `authorisation_type: pre_authorisation`. The increment
+// endpoint accepts the incremental delta `amount` (in minor units) and an optional
+// merchant `reference`. The endpoint URL is:
+//
+//   POST {base_url}/api/orders/{id}/increment-authorisation
+//
+// Successful (2xx) responses return the updated order object. The actual
+// outcome (authorised/declined/failed) is also delivered asynchronously via the
+// ORDER_INCREMENTAL_AUTHORISATION_AUTHORISED / DECLINED / FAILED webhooks.
+// Refs:
+//   https://developer.revolut.com/docs/guides/accept-payments/tutorials/advanced-authorisation/incremental-authorisation
+//   https://developer.revolut.com/docs/merchant/2024-09-01/orders
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct RevolutIncrementalAuthRequest {
+    /// Incremental delta amount to add to the existing authorization (in minor currency units).
+    pub amount: MinorUnit,
+    /// External reference for this incremental authorisation. Returned in
+    /// webhooks for easy matching to the merchant's system.
+    pub reference: Option<String>,
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        RevolutRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for RevolutIncrementalAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: RevolutRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+        let incremental_amount = router_data.request.minor_amount.get_amount_as_i64()
+            - router_data.request.parent_amount.get_amount_as_i64();
+
+        Ok(Self {
+            amount: MinorUnit::new(incremental_amount),
+            reference: Some(
+                router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            ),
+        })
+    }
+}
+
+impl TryFrom<ResponseRouterData<RevolutOrderCreateResponse, Self>>
+    for RouterDataV2<
+        IncrementalAuthorization,
+        PaymentFlowData,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<RevolutOrderCreateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        // Revolut returns HTTP 2xx with the updated order object once the
+        // increment request is accepted. The final outcome
+        // (authorised / declined / failed) is delivered asynchronously via
+        // ORDER_INCREMENTAL_AUTHORISATION_* webhooks. Map the synchronous
+        // body's order state to the closest AuthorizationStatus.
+        let authorization_status = if item.http_code >= 200 && item.http_code < 300 {
+            match item.response.state {
+                RevolutOrderState::Authorised | RevolutOrderState::Completed => {
+                    common_enums::AuthorizationStatus::Success
+                }
+                RevolutOrderState::Failed | RevolutOrderState::Cancelled => {
+                    common_enums::AuthorizationStatus::Failure
+                }
+                RevolutOrderState::Pending | RevolutOrderState::Processing => {
+                    common_enums::AuthorizationStatus::Processing
+                }
+            }
+        } else {
+            common_enums::AuthorizationStatus::Failure
+        };
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                status: authorization_status,
+                connector_authorization_id: Some(item.response.id.clone()),
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
+}
+

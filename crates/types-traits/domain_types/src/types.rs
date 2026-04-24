@@ -7288,8 +7288,17 @@ impl ForeignTryFrom<PaymentServiceIncrementalAuthorizationRequest>
             context: IntegrationErrorContext::default(),
         })?;
 
+        let parent_amount =
+            value
+                .parent_amount
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "parent_amount",
+                    context: IntegrationErrorContext::default(),
+                })?;
+
         Ok(Self {
             minor_amount: common_utils::types::MinorUnit::new(amount.minor_amount),
+            parent_amount: common_utils::types::MinorUnit::new(parent_amount.minor_amount),
             connector_transaction_id,
             connector_feature_data,
             currency: common_enums::Currency::foreign_try_from(amount.currency())?,

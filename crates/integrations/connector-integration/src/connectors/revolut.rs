@@ -55,8 +55,9 @@ use interfaces::{
 use serde::Serialize;
 use transformers as revolut;
 use transformers::{
-    RevolutCaptureRequest, RevolutOrderCreateRequest, RevolutOrderCreateResponse,
-    RevolutOrderCreateResponse as RevolutPSyncResponse,
+    RevolutCaptureRequest, RevolutIncrementalAuthRequest,
+    RevolutOrderCreateResponse as RevolutIncrementalAuthResponse, RevolutOrderCreateRequest,
+    RevolutOrderCreateResponse, RevolutOrderCreateResponse as RevolutPSyncResponse,
     RevolutOrderCreateResponse as RevolutCaptureResponse, RevolutRefundRequest,
     RevolutRefundResponse, RevolutRefundResponse as RevolutRSyncResponse,
 };
@@ -64,16 +65,6 @@ use transformers::{
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
     pub(crate) const AUTHORIZATION: &str = "Authorization";
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Revolut<T>
-{
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -681,6 +672,12 @@ macros::create_all_prerequisites!(
             flow: RSync,
             response_body: RevolutRSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: IncrementalAuthorization,
+            request_body: RevolutIncrementalAuthRequest,
+            response_body: RevolutIncrementalAuthResponse,
+            router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -894,6 +891,56 @@ macros::macro_connector_implementation!(
             let order_id = req.request.connector_refund_id.clone();
             let base_url = req.resource_common_data.connectors.revolut.base_url.to_string();
             Ok(format!("{base_url}/api/orders/{order_id}"))
+        }
+    }
+);
+
+// Incremental Authorisation flow.
+//
+// Revolut Merchant API (`2024-09-01`) exposes incremental authorisation as a
+// dedicated POST endpoint on a pre-authorised order:
+//
+//   POST {base_url}/api/orders/{id}/increment-authorisation
+//   Body: { "amount": <new_total_minor_units>, "reference": "<merchant_ref>" }
+//
+// The order MUST have been created with `authorisation_type: pre_authorisation`
+// (handled in the Authorize transformer when capture_method = Manual). The
+// synchronous response carries the updated order; the final outcome is also
+// delivered via ORDER_INCREMENTAL_AUTHORISATION_AUTHORISED / DECLINED / FAILED
+// webhooks.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Revolut,
+    curl_request: Json(RevolutIncrementalAuthRequest),
+    curl_response: RevolutIncrementalAuthResponse,
+    flow_name: IncrementalAuthorization,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsIncrementalAuthorizationData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let order_id = req
+                .request
+                .connector_transaction_id
+                .get_connector_transaction_id()
+                .change_context(IntegrationError::MissingConnectorTransactionID {
+                    context: Default::default(),
+                })?;
+            let base_url = self.connector_base_url(req);
+            Ok(format!("{base_url}/api/orders/{order_id}/increment-authorisation"))
         }
     }
 );
