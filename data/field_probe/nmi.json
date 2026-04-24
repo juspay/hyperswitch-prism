@@ -715,45 +715,14 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "security_key=probe_key&type=sale&amount=10.0&currency=USD&orderid=probe_proxy_txn_001&ccnumber=4111111111111111&ccexp=0330&cvv=123"
+          "body": "security_key=probe_key&type=sale&amount=10.0&currency=USD&orderid=probe_proxy_txn_001&ccnumber=%7B%7B%7B%7B%24card_number%7D%7D%7D%7D&ccexp=%7B%7B%7B%7B%24card_exp_month%7D%7D%7D%7D%7D%7D&cvv=%7B%7B%7B%7B%24card_cvc%7D%7D%7D%7D"
         }
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
-          "amount": {
-            "minor_amount": 0,
-            "currency": "USD"
-          },
-          "card_proxy": {
-            "card_number": "4111111111111111",
-            "card_exp_month": "03",
-            "card_exp_year": "2030",
-            "card_cvc": "123",
-            "card_holder_name": "John Doe"
-          },
-          "address": {
-            "billing_address": {}
-          },
-          "customer_acceptance": {
-            "acceptance_type": "OFFLINE",
-            "accepted_at": 0
-          },
-          "auth_type": "NO_THREE_DS",
-          "setup_future_usage": "OFF_SESSION"
-        },
-        "sample": {
-          "url": "https://secure.nmi.com/api/transact.php",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/x-www-form-urlencoded",
-            "via": "HyperSwitch"
-          },
-          "body": "type=validate&security_key=probe_key&orderid=probe_proxy_mandate_001&customer_vault=add_customer&ccnumber=4111111111111111&ccexp=0330&cvv=123"
-        }
+        "status": "error",
+        "error": "Invalid data format: payment_method_data.card.card_exp_month. Expected format: MM"
       }
     },
     "recurring_charge": {

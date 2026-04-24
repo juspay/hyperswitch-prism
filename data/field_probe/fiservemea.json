@@ -595,7 +595,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"requestType\":\"PaymentCardSaleTransaction\",\"merchantTransactionId\":\"probe_proxy_txn_001\",\"transactionAmount\":{\"total\":\"10.00\",\"currency\":\"USD\"},\"order\":{\"orderId\":\"probe_proxy_txn_001\"},\"paymentMethod\":{\"paymentCard\":{\"number\":\"4111111111111111\",\"expiryDate\":{\"month\":\"03\",\"year\":\"30\"},\"securityCode\":\"123\"}}}"
+          "body": "{\"requestType\":\"PaymentCardSaleTransaction\",\"merchantTransactionId\":\"probe_proxy_txn_001\",\"transactionAmount\":{\"total\":\"10.00\",\"currency\":\"USD\"},\"order\":{\"orderId\":\"probe_proxy_txn_001\"},\"paymentMethod\":{\"paymentCard\":{\"number\":\"{{{{$card_number}}}}\",\"expiryDate\":{\"month\":\"{{{{$card_exp_month}}}}\",\"year\":\"{{{{$card_exp_year}}}}\"},\"securityCode\":\"{{{{$card_cvc}}}}\"}}}"
         }
       }
     },

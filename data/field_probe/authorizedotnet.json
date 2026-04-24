@@ -651,7 +651,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"createTransactionRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"refId\":\"probe_proxy_txn_001\",\"transactionRequest\":{\"transactionType\":\"authCaptureTransaction\",\"amount\":10.0,\"currencyCode\":\"USD\",\"payment\":{\"creditCard\":{\"cardNumber\":\"4111111111111111\",\"expirationDate\":\"2030-03\",\"cardCode\":\"123\"}},\"order\":{\"invoiceNumber\":\"ProbeInvoiceRef1\",\"description\":\"probe_proxy_txn_001\"},\"billTo\":{}}}}"
+          "body": "{\"createTransactionRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"refId\":\"probe_proxy_txn_001\",\"transactionRequest\":{\"transactionType\":\"authCaptureTransaction\",\"amount\":10.0,\"currencyCode\":\"USD\",\"payment\":{\"creditCard\":{\"cardNumber\":\"{{{{$card_number}}}}\",\"expirationDate\":\"{{{{$card_exp_year}}}}-{{{{$card_exp_month}}}}\",\"cardCode\":\"{{{{$card_cvc}}}}\"}},\"order\":{\"invoiceNumber\":\"ProbeInvoiceRef1\",\"description\":\"probe_proxy_txn_001\"},\"billTo\":{}}}}"
         }
       }
     },
@@ -691,7 +691,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"createCustomerPaymentProfileRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"customerProfileId\":\"probe_customer_001\",\"paymentProfile\":{\"billTo\":{},\"payment\":{\"creditCard\":{\"cardNumber\":\"4111111111111111\",\"expirationDate\":\"2030-03\",\"cardCode\":\"123\"}}},\"validationMode\":\"testMode\"}}"
+          "body": "{\"createCustomerPaymentProfileRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"customerProfileId\":\"probe_customer_001\",\"paymentProfile\":{\"billTo\":{},\"payment\":{\"creditCard\":{\"cardNumber\":\"{{{{$card_number}}}}\",\"expirationDate\":\"{{{{$card_exp_year}}}}-{{{{$card_exp_month}}}}\",\"cardCode\":\"{{{{$card_cvc}}}}\"}}},\"validationMode\":\"testMode\"}}"
         }
       }
     },

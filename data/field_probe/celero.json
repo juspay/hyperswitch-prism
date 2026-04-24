@@ -583,7 +583,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"idempotency_key\":\"probe_proxy_txn_001_idempotency\",\"type\":\"sale\",\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_proxy_txn_001\",\"payment_method\":{\"card\":{\"number\":\"4111111111111111\",\"expiration_date\":\"03/2030\",\"cvc\":\"123\"}}}"
+          "body": "{\"idempotency_key\":\"probe_proxy_txn_001_idempotency\",\"type\":\"sale\",\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_proxy_txn_001\",\"payment_method\":{\"card\":{\"number\":\"{{{{$card_number}}}}\",\"expiration_date\":\"{{{{$card_exp_month}}}}/{{{{$card_exp_year}}}}\",\"cvc\":\"{{{{$card_cvc}}}}\"}}}"
         }
       }
     },

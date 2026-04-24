@@ -2909,7 +2909,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ProxyCardDetails>
         Ok(payment_method_data::Card {
             card_number: RawCardNumber(
                 //card number token is already stored in token_data , so we can update the value to internal transformation value.
-                "{{{{$card_number}}}}".to_string().into()
+                "{{{{$card_number}}}}".to_string().into(),
             ),
             card_exp_month: "{{{{$card_exp_month}}}}".to_string().into(),
             card_exp_year: "{{{{$card_exp_year}}}}".to_string().into(),

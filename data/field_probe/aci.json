@@ -911,7 +911,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "entityId=probe_id&amount=10.00&currency=USD&paymentType=DB&card.number=4111111111111111&card.holder=John&card.expiryMonth=03&card.expiryYear=2030&card.cvv=123&shopperResultUrl=https%3A%2F%2Fexample.com%2Freturn"
+          "body": "entityId=probe_id&amount=10.00&currency=USD&paymentType=DB&card.number=%7B%7B%7B%7B%24card_number%7D%7D%7D%7D&card.holder=John&card.expiryMonth=%7B%7B%7B%7B%24card_exp_month%7D%7D%7D%7D&card.expiryYear=%7B%7B%7B%7B%24card_exp_year%7D%7D%7D%7D&card.cvv=%7B%7B%7B%7B%24card_cvc%7D%7D%7D%7D&shopperResultUrl=https%3A%2F%2Fexample.com%2Freturn"
         }
       }
     },
@@ -949,7 +949,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "entityId=probe_id&card.number=4111111111111111&card.holder=John+Doe&card.expiryMonth=03&card.expiryYear=2030&card.cvv=123"
+          "body": "entityId=probe_id&card.number=%7B%7B%7B%7B%24card_number%7D%7D%7D%7D&card.holder=John+Doe&card.expiryMonth=%7B%7B%7B%7B%24card_exp_month%7D%7D%7D%7D&card.expiryYear=%7B%7B%7B%7B%24card_exp_year%7D%7D%7D%7D&card.cvv=%7B%7B%7B%7B%24card_cvc%7D%7D%7D%7D"
         }
       }
     },
