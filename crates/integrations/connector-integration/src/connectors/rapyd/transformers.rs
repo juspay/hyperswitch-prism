@@ -44,26 +44,36 @@ const RAPYD_DINERSCLUB_CARD_TYPE: &str = "in_dinersclub_card";
 const RAPYD_JCB_CARD_TYPE: &str = "in_jcb_card";
 const RAPYD_MAESTRO_CARD_TYPE: &str = "in_maestro_card";
 
-/// Resolve the Rapyd `payment_method.type` identifier from a raw card
-/// number by mapping the BIN-detected `CardIssuer` to the matching
-/// Rapyd card-type constant. Returning the wrong identifier causes
-/// Rapyd to reject the request, so we fail loudly for unsupported
-/// issuers instead of defaulting.
-fn get_rapyd_card_type(
-    card_number: &str,
-) -> Result<&'static str, error_stack::Report<IntegrationError>> {
-    let card_issuer = domain_types::utils::get_card_issuer(card_number)?;
-    match card_issuer {
-        CardIssuer::Visa => Ok(RAPYD_VISA_CARD_TYPE),
-        CardIssuer::Master => Ok(RAPYD_MASTERCARD_CARD_TYPE),
-        CardIssuer::AmericanExpress => Ok(RAPYD_AMEX_CARD_TYPE),
-        CardIssuer::Discover => Ok(RAPYD_DISCOVER_CARD_TYPE),
-        CardIssuer::DinersClub => Ok(RAPYD_DINERSCLUB_CARD_TYPE),
-        CardIssuer::JCB => Ok(RAPYD_JCB_CARD_TYPE),
-        CardIssuer::Maestro => Ok(RAPYD_MAESTRO_CARD_TYPE),
-        CardIssuer::CarteBlanche | CardIssuer::CartesBancaires | CardIssuer::UnionPay => Err(
-            IntegrationError::not_implemented(format!("rapyd card type for {card_issuer}")),
-        )?,
+// `description` field sent to Rapyd for the card-on-file verification
+// call that SetupMandate issues against `/v1/payments`.
+const RAPYD_MANDATE_SETUP_DESCRIPTION: &str = "Mandate setup";
+
+/// Rapyd `payment_method.type` identifier (`<country>_<network>_card`).
+/// Built via `TryFrom<CardIssuer>` so the wrong identifier can never be
+/// assembled ad-hoc — Rapyd rejects requests whose `type` does not match
+/// the card BIN.
+struct RapydCardType(&'static str);
+
+impl TryFrom<CardIssuer> for RapydCardType {
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(issuer: CardIssuer) -> Result<Self, Self::Error> {
+        let ty = match issuer {
+            CardIssuer::Visa => RAPYD_VISA_CARD_TYPE,
+            CardIssuer::Master => RAPYD_MASTERCARD_CARD_TYPE,
+            CardIssuer::AmericanExpress => RAPYD_AMEX_CARD_TYPE,
+            CardIssuer::Discover => RAPYD_DISCOVER_CARD_TYPE,
+            CardIssuer::DinersClub => RAPYD_DINERSCLUB_CARD_TYPE,
+            CardIssuer::JCB => RAPYD_JCB_CARD_TYPE,
+            CardIssuer::Maestro => RAPYD_MAESTRO_CARD_TYPE,
+            CardIssuer::CarteBlanche | CardIssuer::CartesBancaires | CardIssuer::UnionPay => {
+                Err(IntegrationError::NotImplemented(
+                    format!("rapyd card type for {issuer}"),
+                    Default::default(),
+                ))?
+            }
+        };
+        Ok(Self(ty))
     }
 }
 
@@ -1095,18 +1105,29 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let payment_method = match &request.payment_method_data {
             PaymentMethodData::Card(ccard) => {
-                let pm_type = get_rapyd_card_type(ccard.card_number.peek())?.to_owned();
+                let card_issuer = domain_types::utils::get_card_issuer(ccard.card_number.peek())?;
+                let RapydCardType(pm_type) = RapydCardType::try_from(card_issuer)?;
+                // Rapyd documents `payment_method.fields.name` as required
+                // (https://docs.rapyd.net/en/create-card-payment-method.html).
+                // Fall back to `customer_name` from the request before giving
+                // up on the billing address, and surface a clear error rather
+                // than defaulting to an empty string that Rapyd may silently
+                // accept today and reject after a config change.
+                let cardholder_name = router_data
+                    .resource_common_data
+                    .get_optional_billing_full_name()
+                    .or_else(|| request.customer_name.clone().map(Secret::new))
+                    .ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "billing.first_name / customer_name",
+                        context: Default::default(),
+                    })?;
                 RapydPaymentMethodData::PaymentMethod(Box::new(PaymentMethod {
-                    pm_type,
+                    pm_type: pm_type.to_owned(),
                     fields: Some(PaymentFields {
                         number: ccard.card_number.to_owned(),
                         expiration_month: ccard.card_exp_month.to_owned(),
                         expiration_year: ccard.card_exp_year.to_owned(),
-                        name: router_data
-                            .resource_common_data
-                            .get_optional_billing_full_name()
-                            .to_owned()
-                            .unwrap_or_else(|| Secret::new("".to_string())),
+                        name: cardholder_name,
                         cvv: ccard.card_cvc.to_owned(),
                     }),
                     address: None,
@@ -1114,8 +1135,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 }))
             }
             _ => {
-                return Err(IntegrationError::not_implemented(
+                return Err(IntegrationError::NotImplemented(
                     "payment_method for rapyd SetupMandate".to_owned(),
+                    Default::default(),
                 ))?;
             }
         };
@@ -1173,7 +1195,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     .connector_request_reference_id
                     .clone(),
             ),
-            description: Some("Mandate setup".to_string()),
+            description: Some(RAPYD_MANDATE_SETUP_DESCRIPTION.to_owned()),
             complete_payment_url: Some(return_url.clone()),
             error_payment_url: Some(return_url),
             customer: Some(RapydCustomerRef::Inline(inline_customer)),
@@ -1378,8 +1400,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     })?
             }
             _ => {
-                return Err(IntegrationError::not_implemented(
+                return Err(IntegrationError::NotImplemented(
                     "non-connector mandate for rapyd RepeatPayment".to_owned(),
+                    Default::default(),
                 ))?;
             }
         };
