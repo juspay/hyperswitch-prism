@@ -124,7 +124,8 @@
                   "payment_data": {
                     "online_payment_cryptogram": "AAAAAA==",
                     "eci_indicator": "05"
-                  }
+                  },
+                  "device_manufacturer_identifier": "040010030273"
                 }
               },
               "payment_method": {
@@ -150,7 +151,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"cardTransactionType\":\"AUTH_CAPTURE\",\"wallet\":{\"applePay\":{\"encodedPaymentToken\":\"{\\\"application_primary_account_number\\\":\\\"4111111111111111\\\",\\\"application_expiration_month\\\":\\\"03\\\",\\\"application_expiration_year\\\":\\\"2030\\\",\\\"payment_data\\\":{\\\"online_payment_cryptogram\\\":\\\"AAAAAA==\\\",\\\"eci_indicator\\\":\\\"05\\\"}}\"},\"walletType\":\"APPLE_PAY\"},\"transactionFraudInfo\":{\"fraudSessionId\":\"probe_txn_001\"},\"merchantTransactionId\":\"probe_txn_001\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"cardTransactionType\":\"AUTH_CAPTURE\",\"wallet\":{\"applePay\":{\"encodedPaymentToken\":\"{\\\"application_primary_account_number\\\":\\\"4111111111111111\\\",\\\"application_expiration_month\\\":\\\"03\\\",\\\"application_expiration_year\\\":\\\"2030\\\",\\\"payment_data\\\":{\\\"online_payment_cryptogram\\\":\\\"AAAAAA==\\\",\\\"eci_indicator\\\":\\\"05\\\"},\\\"device_manufacturer_identifier\\\":\\\"040010030273\\\"}\"},\"walletType\":\"APPLE_PAY\"},\"transactionFraudInfo\":{\"fraudSessionId\":\"probe_txn_001\"},\"merchantTransactionId\":\"probe_txn_001\"}"
         }
       },
       "ApplePayThirdPartySdk": {

@@ -1150,6 +1150,8 @@ pub struct ApplePayDecryptedData {
     pub application_expiration_year: Secret<String>,
     /// The payment data, which contains the cryptogram and ECI indicator
     pub payment_data: ApplePayCryptogramData,
+    /// Device manufacturer identifier from the decrypted Apple Pay token
+    pub device_manufacturer_identifier: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
