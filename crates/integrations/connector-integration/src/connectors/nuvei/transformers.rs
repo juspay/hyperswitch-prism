@@ -1,4 +1,4 @@
-use common_utils::{consts, pii, types::StringMajorUnit};
+use common_utils::{consts, pii, request::Method, types::StringMajorUnit};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, CreateOrder, PSync, RSync, Refund,
@@ -14,10 +14,12 @@ use domain_types::{
         ResponseId, SetupMandateRequestData,
     },
     payment_method_data::{
-        BankTransferData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        BankRedirectData, BankTransferData, PaymentMethodData, PaymentMethodDataTypes,
+        RawCardNumber, WalletData,
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
+    router_response_types::RedirectForm,
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_masking::{PeekInterface, Secret};
@@ -140,6 +142,13 @@ pub struct NuveiPaymentRequest<
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct NuveiExternalToken {
+    pub external_token_provider: String,
+    pub mobile_token: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NuveiPaymentOption<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
@@ -149,6 +158,8 @@ pub struct NuveiPaymentOption<
     pub alternative_payment_method: Option<NuveiAlternativePaymentMethod>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user_payment_option_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub external_token: Option<NuveiExternalToken>,
 }
 
 #[derive(Debug, Serialize)]
@@ -164,17 +175,18 @@ pub struct NuveiCard<
     pub cvv: Secret<String>,
 }
 
-// ACH Bank Transfer specific structures
 #[derive(Debug, Serialize)]
 pub struct NuveiAlternativePaymentMethod {
     #[serde(rename = "paymentMethod")]
     pub payment_method: String,
-    #[serde(rename = "AccountNumber")]
-    pub account_number: Secret<String>,
-    #[serde(rename = "RoutingNumber")]
-    pub routing_number: Secret<String>,
+    #[serde(rename = "AccountNumber", skip_serializing_if = "Option::is_none")]
+    pub account_number: Option<Secret<String>>,
+    #[serde(rename = "RoutingNumber", skip_serializing_if = "Option::is_none")]
+    pub routing_number: Option<Secret<String>>,
     #[serde(rename = "SECCode", skip_serializing_if = "Option::is_none")]
     pub sec_code: Option<String>,
+    #[serde(rename = "bank_id", skip_serializing_if = "Option::is_none")]
+    pub bank_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -260,6 +272,8 @@ pub struct NuveiPaymentResponse {
     pub client_unique_id: Option<String>,
     pub client_request_id: Option<String>,
     pub internal_request_id: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub redirect_url: Option<url::Url>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
@@ -591,6 +605,137 @@ impl TryFrom<ResponseRouterData<NuveiSessionTokenResponse, Self>>
     }
 }
 
+// ServerAuthenticationToken — uses same getSessionToken.do endpoint but different
+// response type (access_token based). Distinct Nuvei types to avoid macro conflicts.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiServerAuthTokenRequest {
+    pub merchant_id: Secret<String>,
+    pub merchant_site_id: Secret<String>,
+    pub client_request_id: String,
+    pub time_stamp: common_utils::date_time::DateTime<common_utils::date_time::YYYYMMDDHHmmss>,
+    pub checksum: String,
+}
+
+pub type NuveiServerAuthTokenResponse = NuveiSessionTokenResponse;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        NuveiRouterData<
+            RouterDataV2<
+                domain_types::connector_flow::ServerAuthenticationToken,
+                PaymentFlowData,
+                domain_types::connector_types::ServerAuthenticationTokenRequestData,
+                domain_types::connector_types::ServerAuthenticationTokenResponseData,
+            >,
+            T,
+        >,
+    > for NuveiServerAuthTokenRequest
+{
+    type Error = Report<IntegrationError>;
+
+    fn try_from(
+        item: NuveiRouterData<
+            RouterDataV2<
+                domain_types::connector_flow::ServerAuthenticationToken,
+                PaymentFlowData,
+                domain_types::connector_types::ServerAuthenticationTokenRequestData,
+                domain_types::connector_types::ServerAuthenticationTokenResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let auth = NuveiAuthType::try_from(&router_data.connector_config)?;
+        let time_stamp = NuveiAuthType::get_timestamp();
+        let client_request_id = router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+        let checksum = auth.generate_checksum(&[
+            auth.merchant_id.peek(),
+            auth.merchant_site_id.peek(),
+            &client_request_id,
+            &time_stamp.to_string(),
+        ]);
+        Ok(Self {
+            merchant_id: auth.merchant_id,
+            merchant_site_id: auth.merchant_site_id,
+            client_request_id,
+            time_stamp,
+            checksum,
+        })
+    }
+}
+
+impl TryFrom<ResponseRouterData<NuveiServerAuthTokenResponse, Self>>
+    for RouterDataV2<
+        domain_types::connector_flow::ServerAuthenticationToken,
+        PaymentFlowData,
+        domain_types::connector_types::ServerAuthenticationTokenRequestData,
+        domain_types::connector_types::ServerAuthenticationTokenResponseData,
+    >
+{
+    type Error = Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<NuveiServerAuthTokenResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+        let router_data = &item.router_data;
+
+        if matches!(response.status, NuveiPaymentStatus::Error) {
+            let error_code = response.err_code.map(|c| c.to_string()).unwrap_or_default();
+            let error_message = response
+                .reason
+                .clone()
+                .unwrap_or_else(|| "Unknown error".to_string());
+
+            return Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status: common_enums::AttemptStatus::Failure,
+                    ..router_data.resource_common_data.clone()
+                },
+                response: Err(domain_types::router_data::ErrorResponse {
+                    code: error_code,
+                    message: error_message.clone(),
+                    reason: Some(error_message),
+                    status_code: item.http_code,
+                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    connector_transaction_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }),
+                ..router_data.clone()
+            });
+        }
+
+        let session_token = response.session_token.clone().ok_or_else(|| {
+            Report::new(ConnectorError::response_handling_failed_with_context(
+                item.http_code,
+                Some("session_token missing in Nuvei response".to_string()),
+            ))
+        })?;
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status: common_enums::AttemptStatus::Pending,
+                session_token: Some(session_token.clone()),
+                ..router_data.resource_common_data.clone()
+            },
+            response: Ok(
+                domain_types::connector_types::ServerAuthenticationTokenResponseData {
+                    access_token: Secret::new(session_token),
+                    token_type: Some("Bearer".to_string()),
+                    expires_in: None,
+                },
+            ),
+            ..router_data.clone()
+        })
+    }
+}
+
 // Sync Request Transformation
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
@@ -705,13 +850,358 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }),
                     alternative_payment_method: None,
                     user_payment_option_id: None,
+                    external_token: None,
                 }
             }
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                WalletData::ApplePay(apple_pay_data) => {
+                    let token = apple_pay_data
+                        .payment_data
+                        .get_encrypted_apple_pay_payment_data_mandatory()
+                        .change_context(IntegrationError::MissingRequiredField {
+                            field_name: "apple_pay.payment_data",
+                            context: Default::default(),
+                        })?
+                        .clone();
+                    NuveiPaymentOption {
+                        card: None,
+                        alternative_payment_method: None,
+                        user_payment_option_id: None,
+                        external_token: Some(NuveiExternalToken {
+                            external_token_provider: "ApplePay".to_string(),
+                            mobile_token: Secret::new(token),
+                        }),
+                    }
+                }
+                WalletData::ApplePayRedirect(_) | WalletData::ApplePayThirdPartySdk(_) => {
+                    NuveiPaymentOption {
+                        card: None,
+                        alternative_payment_method: Some(NuveiAlternativePaymentMethod {
+                            payment_method: "apmgw_ApplePay".to_string(),
+                            account_number: None,
+                            routing_number: None,
+                            sec_code: None,
+                            bank_id: None,
+                        }),
+                        user_payment_option_id: None,
+                        external_token: None,
+                    }
+                }
+                WalletData::GooglePay(gpay_data) => {
+                    let token = gpay_data
+                        .tokenization_data
+                        .get_encrypted_google_pay_token()
+                        .change_context(IntegrationError::MissingRequiredField {
+                            field_name: "google_pay.tokenization_data",
+                            context: Default::default(),
+                        })?;
+                    NuveiPaymentOption {
+                        card: None,
+                        alternative_payment_method: None,
+                        user_payment_option_id: None,
+                        external_token: Some(NuveiExternalToken {
+                            external_token_provider: "GooglePay".to_string(),
+                            mobile_token: Secret::new(token),
+                        }),
+                    }
+                }
+                WalletData::GooglePayRedirect(_) | WalletData::GooglePayThirdPartySdk(_) => {
+                    NuveiPaymentOption {
+                        card: None,
+                        alternative_payment_method: Some(NuveiAlternativePaymentMethod {
+                            payment_method: "apmgw_GooglePay".to_string(),
+                            account_number: None,
+                            routing_number: None,
+                            sec_code: None,
+                            bank_id: None,
+                        }),
+                        user_payment_option_id: None,
+                        external_token: None,
+                    }
+                }
+                WalletData::SamsungPay(samsung_pay_data) => {
+                    let token = samsung_pay_data.payment_credential.token_data.data.clone();
+                    NuveiPaymentOption {
+                        card: None,
+                        alternative_payment_method: None,
+                        user_payment_option_id: None,
+                        external_token: Some(NuveiExternalToken {
+                            external_token_provider: "SamsungPay".to_string(),
+                            mobile_token: token,
+                        }),
+                    }
+                }
+                WalletData::PaypalRedirect(_) | WalletData::PaypalSdk(_) => NuveiPaymentOption {
+                    card: None,
+                    alternative_payment_method: Some(NuveiAlternativePaymentMethod {
+                        payment_method: "apmgw_PayPal".to_string(),
+                        account_number: None,
+                        routing_number: None,
+                        sec_code: None,
+                        bank_id: None,
+                    }),
+                    user_payment_option_id: None,
+                    external_token: None,
+                },
+                WalletData::MbWay(_) => NuveiPaymentOption {
+                    card: None,
+                    alternative_payment_method: Some(NuveiAlternativePaymentMethod {
+                        payment_method: "apmgw_MBWay".to_string(),
+                        account_number: None,
+                        routing_number: None,
+                        sec_code: None,
+                        bank_id: None,
+                    }),
+                    user_payment_option_id: None,
+                    external_token: None,
+                },
+                _ => {
+                    return Err(IntegrationError::NotSupported {
+                        message: format!(
+                            "Wallet type {:?} is not supported by Nuvei",
+                            wallet_data
+                        ),
+                        connector: "nuvei",
+                        context: Default::default(),
+                    }
+                    .into())
+                }
+            },
+            PaymentMethodData::BankRedirect(bank_redirect_data) => {
+                match bank_redirect_data {
+                    BankRedirectData::Ideal { .. } => NuveiPaymentOption {
+                        card: None,
+                        alternative_payment_method: Some(NuveiAlternativePaymentMethod {
+                            payment_method: "apmgw_iDeal".to_string(),
+                            account_number: None,
+                            routing_number: None,
+                            sec_code: None,
+                            bank_id: None,
+                        }),
+                        user_payment_option_id: None,
+                        external_token: None,
+                    },
+                    BankRedirectData::Sofort { .. } => NuveiPaymentOption {
+                        card: None,
+                        alternative_payment_method: Some(NuveiAlternativePaymentMethod {
+                            payment_method: "apmgw_Sofort".to_string(),
+                            account_number: None,
+                            routing_number: None,
+                            sec_code: None,
+                            bank_id: None,
+                        }),
+                        user_payment_option_id: None,
+                        external_token: None,
+                    },
+                    BankRedirectData::Giropay { .. } => NuveiPaymentOption {
+                        card: None,
+                        alternative_payment_method: Some(NuveiAlternativePaymentMethod {
+                            payment_method: "apmgw_Giropay".to_string(),
+                            account_number: None,
+                            routing_number: None,
+                            sec_code: None,
+                            bank_id: None,
+                        }),
+                        user_payment_option_id: None,
+                        external_token: None,
+                    },
+                    BankRedirectData::Eps { bank_name, .. } => NuveiPaymentOption {
+                        card: None,
+                        alternative_payment_method: Some(NuveiAlternativePaymentMethod {
+                            payment_method: "apmgw_EPS".to_string(),
+                            account_number: None,
+                            routing_number: None,
+                            sec_code: None,
+                            bank_id: bank_name.as_ref().map(|bn| bn.to_string()),
+                        }),
+                        user_payment_option_id: None,
+                        external_token: None,
+                    },
+                    BankRedirectData::Przelewy24 { .. } => NuveiPaymentOption {
+                        card: None,
+                        alternative_payment_method: Some(NuveiAlternativePaymentMethod {
+                            payment_method: "apmgw_Przelewy24".to_string(),
+                            account_number: None,
+                            routing_number: None,
+                            sec_code: None,
+                            bank_id: None,
+                        }),
+                        user_payment_option_id: None,
+                        external_token: None,
+                    },
+                    BankRedirectData::Trustly { .. } => NuveiPaymentOption {
+                        card: None,
+                        alternative_payment_method: Some(NuveiAlternativePaymentMethod {
+                            payment_method: "apmgw_Trustly".to_string(),
+                            account_number: None,
+                            routing_number: None,
+                            sec_code: None,
+                            bank_id: None,
+                        }),
+                        user_payment_option_id: None,
+                        external_token: None,
+                    },
+                    BankRedirectData::BancontactCard { .. } => NuveiPaymentOption {
+                        card: None,
+                        alternative_payment_method: Some(NuveiAlternativePaymentMethod {
+                            payment_method: "apmgw_Bancontact".to_string(),
+                            account_number: None,
+                            routing_number: None,
+                            sec_code: None,
+                            bank_id: None,
+                        }),
+                        user_payment_option_id: None,
+                        external_token: None,
+                    },
+                    BankRedirectData::Blik { .. } => NuveiPaymentOption {
+                        card: None,
+                        alternative_payment_method: Some(NuveiAlternativePaymentMethod {
+                            payment_method: "apmgw_BLIK".to_string(),
+                            account_number: None,
+                            routing_number: None,
+                            sec_code: None,
+                            bank_id: None,
+                        }),
+                        user_payment_option_id: None,
+                        external_token: None,
+                    },
+                    BankRedirectData::Interac { .. } => NuveiPaymentOption {
+                        card: None,
+                        alternative_payment_method: Some(NuveiAlternativePaymentMethod {
+                            payment_method: "apmgw_Interac".to_string(),
+                            account_number: None,
+                            routing_number: None,
+                            sec_code: None,
+                            bank_id: None,
+                        }),
+                        user_payment_option_id: None,
+                        external_token: None,
+                    },
+                    BankRedirectData::Netbanking { .. } => NuveiPaymentOption {
+                        card: None,
+                        alternative_payment_method: Some(NuveiAlternativePaymentMethod {
+                            payment_method: "apmgw_Netbanking".to_string(),
+                            account_number: None,
+                            routing_number: None,
+                            sec_code: None,
+                            bank_id: None,
+                        }),
+                        user_payment_option_id: None,
+                        external_token: None,
+                    },
+                    BankRedirectData::OnlineBankingPoland { .. } => NuveiPaymentOption {
+                        card: None,
+                        alternative_payment_method: Some(NuveiAlternativePaymentMethod {
+                            payment_method: "apmgw_OnlineBankingPoland".to_string(),
+                            account_number: None,
+                            routing_number: None,
+                            sec_code: None,
+                            bank_id: None,
+                        }),
+                        user_payment_option_id: None,
+                        external_token: None,
+                    },
+                    BankRedirectData::OnlineBankingFinland { .. } => NuveiPaymentOption {
+                        card: None,
+                        alternative_payment_method: Some(NuveiAlternativePaymentMethod {
+                            payment_method: "apmgw_OnlineBankingFinland".to_string(),
+                            account_number: None,
+                            routing_number: None,
+                            sec_code: None,
+                            bank_id: None,
+                        }),
+                        user_payment_option_id: None,
+                        external_token: None,
+                    },
+                    other => {
+                        return Err(IntegrationError::NotSupported {
+                            message: format!(
+                                "Bank redirect {:?} is not supported by Nuvei",
+                                other
+                            ),
+                            connector: "nuvei",
+                            context: Default::default(),
+                        }
+                        .into())
+                    }
+                }
+            }
+            PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
+                domain_types::payment_method_data::PayLaterData::KlarnaRedirect {}
+                | domain_types::payment_method_data::PayLaterData::KlarnaSdk { .. } => {
+                    NuveiPaymentOption {
+                        card: None,
+                        alternative_payment_method: Some(NuveiAlternativePaymentMethod {
+                            payment_method: "apmgw_Klarna".to_string(),
+                            account_number: None,
+                            routing_number: None,
+                            sec_code: None,
+                            bank_id: None,
+                        }),
+                        user_payment_option_id: None,
+                        external_token: None,
+                    }
+                }
+                domain_types::payment_method_data::PayLaterData::AfterpayClearpayRedirect {} => {
+                    NuveiPaymentOption {
+                        card: None,
+                        alternative_payment_method: Some(NuveiAlternativePaymentMethod {
+                            payment_method: "apmgw_Afterpay".to_string(),
+                            account_number: None,
+                            routing_number: None,
+                            sec_code: None,
+                            bank_id: None,
+                        }),
+                        user_payment_option_id: None,
+                        external_token: None,
+                    }
+                }
+                other => {
+                    return Err(IntegrationError::NotSupported {
+                        message: format!("PayLater {:?} is not supported by Nuvei", other),
+                        connector: "nuvei",
+                        context: Default::default(),
+                    }
+                    .into())
+                }
+            },
+            PaymentMethodData::Voucher(voucher_data) => match voucher_data {
+                domain_types::payment_method_data::VoucherData::Boleto(_) => NuveiPaymentOption {
+                    card: None,
+                    alternative_payment_method: Some(NuveiAlternativePaymentMethod {
+                        payment_method: "apmgw_Boleto".to_string(),
+                        account_number: None,
+                        routing_number: None,
+                        sec_code: None,
+                        bank_id: None,
+                    }),
+                    user_payment_option_id: None,
+                    external_token: None,
+                },
+                domain_types::payment_method_data::VoucherData::Oxxo => NuveiPaymentOption {
+                    card: None,
+                    alternative_payment_method: Some(NuveiAlternativePaymentMethod {
+                        payment_method: "apmgw_OXXO".to_string(),
+                        account_number: None,
+                        routing_number: None,
+                        sec_code: None,
+                        bank_id: None,
+                    }),
+                    user_payment_option_id: None,
+                    external_token: None,
+                },
+                other => {
+                    return Err(IntegrationError::NotSupported {
+                        message: format!("Voucher {:?} is not supported by Nuvei", other),
+                        connector: "nuvei",
+                        context: Default::default(),
+                    }
+                    .into())
+                }
+            },
             PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 match bank_transfer_data.as_ref() {
                     BankTransferData::AchBankTransfer {} => {
-                        // For ACH Bank Transfer, Nuvei requires account_number and routing_number
-                        // These should be provided in the request metadata as ACH details
                         let metadata = router_data.request.metadata.as_ref().ok_or(
                             IntegrationError::MissingRequiredField {
                                 field_name: "metadata for ACH details",
@@ -751,13 +1241,27 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             card: None,
                             alternative_payment_method: Some(NuveiAlternativePaymentMethod {
                                 payment_method: "apmgw_ACH".to_string(),
-                                account_number: Secret::new(account_number.to_string()),
-                                routing_number: Secret::new(routing_number.to_string()),
+                                account_number: Some(Secret::new(account_number.to_string())),
+                                routing_number: Some(Secret::new(routing_number.to_string())),
                                 sec_code,
+                                bank_id: None,
                             }),
                             user_payment_option_id: None,
+                            external_token: None,
                         }
                     }
+                    BankTransferData::SepaBankTransfer { .. } => NuveiPaymentOption {
+                        card: None,
+                        alternative_payment_method: Some(NuveiAlternativePaymentMethod {
+                            payment_method: "apmgw_SEPA".to_string(),
+                            account_number: None,
+                            routing_number: None,
+                            sec_code: None,
+                            bank_id: None,
+                        }),
+                        user_payment_option_id: None,
+                        external_token: None,
+                    },
                     other => {
                         return Err(IntegrationError::NotSupported {
                             message: format!("{:?} is not supported for Nuvei", other),
@@ -772,12 +1276,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 card: None,
                 alternative_payment_method: None,
                 user_payment_option_id: Some(token_data.token.clone()),
+                external_token: None,
             },
             _ => {
-                return Err(IntegrationError::NotImplemented(
-                    "Payment method not supported by Nuvei in this transformer".to_string(),
-                    Default::default(),
-                )
+                return Err(IntegrationError::NotSupported {
+                    message: "Payment method not supported by Nuvei".to_string(),
+                    connector: "nuvei",
+                    context: Default::default(),
+                }
                 .into())
             }
         };
@@ -1019,9 +1525,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 ))
             })?;
 
+        let redirection_data = response
+            .redirect_url
+            .clone()
+            .map(|url| Box::new(RedirectForm::from((url, Method::Get))));
+
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
-            redirection_data: None,
+            redirection_data,
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
@@ -2190,7 +2701,8 @@ pub struct NuveiSetupMandateRequest<
     pub is_rebilling: String,
     pub transaction_type: TransactionType,
     pub device_details: NuveiDeviceDetails,
-    pub billing_address: NuveiBillingAddress,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_address: Option<NuveiBillingAddress>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url_details: Option<NuveiUrlDetails>,
     pub time_stamp: common_utils::date_time::DateTime<common_utils::date_time::YYYYMMDDHHmmss>,
@@ -2282,6 +2794,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }),
                     alternative_payment_method: None,
                     user_payment_option_id: None,
+                    external_token: None,
                 }
             }
             _ => {
@@ -2294,15 +2807,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        // Billing address - Nuvei requires email and country.
         let billing_address = get_billing_address(
             &router_data.resource_common_data,
             router_data.request.email.clone(),
-        )
-        .ok_or(IntegrationError::MissingRequiredField {
-            field_name: "billing_address (email and country required)",
-            context: Default::default(),
-        })?;
+        );
 
         // Device details - ipAddress required by Nuvei.
         let ip_address = router_data
@@ -2722,17 +3230,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             })?;
 
-        // Nuvei's short-lived session token is passed via state.access_token
-        // on the Charge request.
         let session_token = router_data
             .resource_common_data
             .access_token
             .as_ref()
             .map(|at| at.access_token.peek().to_string())
-            .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "state.access_token",
-                context: Default::default(),
-            })?;
+            .or_else(|| {
+                router_data
+                    .resource_common_data
+                    .session_token
+                    .clone()
+            });
 
         // Default to Sale so funds capture in one step for MIT; fall back to
         // Auth only if the caller explicitly asks for manual capture.
@@ -2751,7 +3259,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         ]);
 
         Ok(Self {
-            session_token: Some(session_token),
+            session_token,
             merchant_id: auth.merchant_id,
             merchant_site_id: auth.merchant_site_id,
             client_request_id: client_request_id.clone(),
