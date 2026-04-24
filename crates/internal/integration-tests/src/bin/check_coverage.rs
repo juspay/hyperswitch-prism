@@ -92,27 +92,20 @@ fn get_suite_mappings() -> HashMap<String, String> {
 }
 
 fn get_available_suites(suites_dir: &PathBuf) -> HashSet<String> {
-    let mut suites = HashSet::new();
+    let Ok(entries) = fs::read_dir(suites_dir) else {
+        return HashSet::new();
+    };
 
-    if let Ok(entries) = fs::read_dir(suites_dir) {
-        for entry in entries.flatten() {
-            if entry.path().is_dir() {
-                let suite_spec_path = entry.path().join("suite_spec.json");
-                if suite_spec_path.exists() {
-                    // Read the suite name from suite_spec.json
-                    if let Ok(content) = fs::read_to_string(&suite_spec_path) {
-                        if let Ok(value) = serde_json::from_str::<JsonValue>(&content) {
-                            if let Some(suite_name) = value.get("suite").and_then(|v| v.as_str()) {
-                                suites.insert(suite_name.to_string());
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    suites
+    entries
+        .flatten()
+        .filter(|e| e.path().is_dir())
+        .filter_map(|e| {
+            let content = fs::read_to_string(e.path().join("suite_spec.json")).ok()?;
+            let value = serde_json::from_str::<JsonValue>(&content).ok()?;
+            let suite_name = value.get("suite")?.as_str()?;
+            Some(suite_name.to_string())
+        })
+        .collect()
 }
 
 fn analyze_coverage(
