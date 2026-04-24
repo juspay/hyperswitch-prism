@@ -39,6 +39,7 @@ use std::{
     path::PathBuf,
 };
 
+use integration_tests::harness::scenario_api::all_known_suites;
 use regex::Regex;
 use serde::Deserialize;
 
@@ -177,40 +178,20 @@ fn extract_balanced_parens(src: &str, start: usize) -> &str {
     &src[start..]
 }
 
-/// Derive the known suite list from `all_known_suites` in `scenario_api.rs`.
-///
-/// Parses every string literal in the `all_known_suites()` array and returns
-/// them sorted, excluding suites whose service is in `IGNORE_SERVICES`.
-///
-/// This is the single source of truth — no hardcoded list needed here.
-fn extract_suites_from_scenario_api(scenario_api_path: &PathBuf) -> Vec<String> {
-    let src = fs::read_to_string(scenario_api_path).expect("failed to read scenario_api.rs");
-
-    // Find the all_known_suites function and parse string literals from it.
-    let suite_re = Regex::new(r#""([A-Za-z]+/[A-Za-z]+)""#).unwrap();
-
-    let mut suites: BTreeSet<String> = BTreeSet::new();
-
-    if let Some(start) = src.find("fn all_known_suites()") {
-        let block = &src[start..];
-        if let Some(array_start) = block.find("&[") {
-            if let Some(array_end) = block[array_start..].find(']') {
-                let array_content = &block[array_start..array_start + array_end];
-                for caps in suite_re.captures_iter(array_content) {
-                    let suite = caps[1].to_string();
-                    // Extract service name (part before /)
-                    if let Some(service) = suite.split('/').next() {
-                        if IGNORE_SERVICES.contains(&service) {
-                            continue;
-                        }
-                    }
-                    suites.insert(suite);
-                }
-            }
-        }
-    }
-
-    suites.into_iter().collect()
+/// Returns the known suite list from `all_known_suites`, sorted and excluding
+/// suites whose service is in `IGNORE_SERVICES`.
+fn known_proto_suites() -> Vec<String> {
+    all_known_suites()
+        .iter()
+        .filter(|s| {
+            s.split('/')
+                .next()
+                .is_none_or(|svc| !IGNORE_SERVICES.contains(&svc))
+        })
+        .map(|s| s.to_string())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -233,10 +214,8 @@ fn main() {
     let connectors_src = root.join("crates/integrations/connector-integration/src/connectors");
     let specs_root = root.join("crates/internal/integration-tests/src/connector_specs");
     let suites_root = root.join("crates/internal/integration-tests/src/global_suites");
-    let scenario_api = root.join("crates/internal/integration-tests/src/harness/scenario_api.rs");
 
-    // Derive the known suite list from scenario_api.rs at runtime.
-    let all_proto_suites = extract_suites_from_scenario_api(&scenario_api);
+    let all_proto_suites = known_proto_suites();
 
     // -----------------------------------------------------------------------
     // Phase 1: connector list parity

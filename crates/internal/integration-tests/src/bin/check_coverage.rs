@@ -15,6 +15,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
 
+use integration_tests::harness::scenario_api::all_known_suites;
 use regex::Regex;
 use serde_json::Value as JsonValue;
 
@@ -39,7 +40,6 @@ fn main() {
 
     let proto_file = root.join("crates/types-traits/grpc-api-types/proto/services.proto");
     let suites_dir = root.join("crates/internal/integration-tests/src/global_suites");
-    let scenario_api = root.join("crates/internal/integration-tests/src/harness/scenario_api.rs");
 
     println!("{}", "=".repeat(80));
     println!("gRPC PROTO SERVICE COVERAGE ANALYSIS");
@@ -47,7 +47,7 @@ fn main() {
     println!();
 
     let proto_methods = extract_proto_methods(&proto_file);
-    let suite_mappings = extract_suite_mappings(&scenario_api);
+    let suite_mappings = get_suite_mappings();
     let available_suites = get_available_suites(&suites_dir);
 
     analyze_coverage(&proto_methods, &suite_mappings, &available_suites);
@@ -82,31 +82,13 @@ fn extract_proto_methods(proto_file: &PathBuf) -> Vec<ProtoMethod> {
     methods
 }
 
-fn extract_suite_mappings(scenario_api: &PathBuf) -> HashMap<String, String> {
-    let content = fs::read_to_string(scenario_api).expect("Failed to read scenario_api.rs");
-    let mut mappings = HashMap::new();
-
-    // Parse suite names from the all_known_suites() array.
-    // Each entry is a string like "PaymentService/Authorize".
-    let suite_re = Regex::new(r#""([A-Za-z]+/[A-Za-z]+)""#).unwrap();
-
-    // Find the all_known_suites function block
-    if let Some(start) = content.find("fn all_known_suites()") {
-        let block = &content[start..];
-        // Find the closing of the array (look for the first "]" after "&[")
-        if let Some(array_start) = block.find("&[") {
-            if let Some(array_end) = block[array_start..].find(']') {
-                let array_content = &block[array_start..array_start + array_end];
-                for caps in suite_re.captures_iter(array_content) {
-                    let suite = caps[1].to_string();
-                    // With new naming, suite IS the service/method path
-                    mappings.insert(suite.clone(), suite);
-                }
-            }
-        }
-    }
-
-    mappings
+fn get_suite_mappings() -> HashMap<String, String> {
+    // Suite names are already in "ServiceName/MethodName" form, which is also
+    // the proto path — so the mapping is identity.
+    all_known_suites()
+        .iter()
+        .map(|s| (s.to_string(), s.to_string()))
+        .collect()
 }
 
 fn get_available_suites(suites_dir: &PathBuf) -> HashSet<String> {

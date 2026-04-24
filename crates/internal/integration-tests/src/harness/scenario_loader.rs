@@ -7,6 +7,25 @@ use crate::harness::scenario_types::{
     ScenarioFile, SuiteSpec,
 };
 
+/// Converts a global-suite directory name to its canonical suite identifier.
+///
+/// Directory names use `_` as the single separator between the service name and
+/// the method name (e.g. `PaymentService_Authorize` → `"PaymentService/Authorize"`).
+/// The service-name component must be CamelCase with no underscores — this is
+/// enforced by the `debug_assert!` below so any violation is caught at test time.
+///
+/// Returns `None` if `dir_name` contains no `_` (not a valid suite directory).
+pub fn suite_dir_name_to_suite_name(dir_name: &str) -> Option<String> {
+    let sep_pos = dir_name.find('_')?;
+    let service = &dir_name[..sep_pos];
+    let method = &dir_name[sep_pos + 1..];
+    debug_assert!(
+        !method.contains('/'),
+        "suite directory name {dir_name:?} produced a malformed suite name: service part {service:?} must not contain underscores",
+    );
+    Some(format!("{service}/{method}"))
+}
+
 /// Root directory containing `<ServiceName_FlowName>/scenario.json` and `suite_spec.json`.
 pub fn scenario_root() -> PathBuf {
     std::env::var("UCS_SCENARIO_ROOT")
@@ -242,10 +261,7 @@ pub fn load_supported_suites_for_connector(connector: &str) -> Result<Vec<String
             continue;
         }
 
-        // Directory names use `_` as separator (e.g. `PaymentService_Authorize`).
-        // Convert back to canonical suite name with `/`.
-        if let Some(sep_pos) = dir_name.find('_') {
-            let suite_name = format!("{}/{}", &dir_name[..sep_pos], &dir_name[sep_pos + 1..]);
+        if let Some(suite_name) = suite_dir_name_to_suite_name(dir_name) {
             suites.insert(suite_name);
         }
     }
@@ -387,8 +403,59 @@ mod tests {
     use crate::harness::scenario_loader::{
         configured_all_connectors, discover_all_connectors, get_the_assertion, get_the_grpc_req,
         load_scenario, load_suite_scenarios, load_suite_spec, load_supported_suites_for_connector,
-        scenario_root,
+        scenario_root, suite_dir_name_to_suite_name,
     };
+
+    #[test]
+    fn suite_dir_name_to_suite_name_splits_at_first_underscore() {
+        assert_eq!(
+            suite_dir_name_to_suite_name("PaymentService_Authorize"),
+            Some("PaymentService/Authorize".to_string())
+        );
+        assert_eq!(
+            suite_dir_name_to_suite_name(
+                "MerchantAuthenticationService_CreateClientAuthenticationToken"
+            ),
+            Some("MerchantAuthenticationService/CreateClientAuthenticationToken".to_string())
+        );
+        assert_eq!(
+            suite_dir_name_to_suite_name("RefundService_Get"),
+            Some("RefundService/Get".to_string())
+        );
+    }
+
+    #[test]
+    fn suite_dir_name_to_suite_name_returns_none_when_no_underscore() {
+        assert_eq!(suite_dir_name_to_suite_name("PaymentService"), None);
+        assert_eq!(suite_dir_name_to_suite_name(""), None);
+    }
+
+    #[test]
+    fn all_global_suite_dirs_produce_valid_suite_names() {
+        let entries = fs::read_dir(scenario_root()).expect("scenario root should be readable");
+        for entry in entries.filter_map(Result::ok) {
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+            let dir_name = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .expect("dir name should be valid UTF-8");
+            let suite_name = suite_dir_name_to_suite_name(dir_name)
+                .unwrap_or_else(|| panic!("directory {dir_name:?} has no underscore separator"));
+            assert!(
+                suite_name.contains('/'),
+                "suite name {suite_name:?} from dir {dir_name:?} must contain '/'"
+            );
+            let parts: Vec<_> = suite_name.splitn(2, '/').collect();
+            assert_eq!(parts.len(), 2, "suite name must have exactly one '/'");
+            assert!(
+                !parts[0].is_empty() && !parts[1].is_empty(),
+                "suite name {suite_name:?} must have non-empty service and method"
+            );
+        }
+    }
 
     fn discover_suites() -> Vec<String> {
         fs::read_dir(scenario_root())
@@ -402,14 +469,7 @@ mod tests {
                 if !has_scenario_file {
                     return None;
                 }
-                // Directory names use `_` as separator (e.g. `PaymentService_Authorize`).
-                // Convert back to canonical suite name with `/`.
-                let sep_pos = dir_name.find('_')?;
-                Some(format!(
-                    "{}/{}",
-                    &dir_name[..sep_pos],
-                    &dir_name[sep_pos + 1..]
-                ))
+                suite_dir_name_to_suite_name(dir_name)
             })
             .collect()
     }
