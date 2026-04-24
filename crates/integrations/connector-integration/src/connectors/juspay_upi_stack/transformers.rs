@@ -409,7 +409,7 @@ pub fn build_refund_request(
 
     // Determine refund type (default to Offline for safety)
     let refund_type = refunds_data
-        .refund_connector_metadata
+        .connector_feature_data
         .as_ref()
         .and_then(|m| m.peek().get("refund_type").cloned())
         .and_then(|v| {
@@ -446,8 +446,6 @@ pub fn build_refund_request(
             .unwrap_or_else(|| "Refund".to_string()),
         adj_code,
         adj_flag,
-        merchant_refund_vpa: None,
-        original_transaction_timestamp: None,
         iat: get_current_timestamp_ms(),
     };
 
@@ -493,8 +491,6 @@ pub fn build_rsync_request(
         remarks: "Status check".to_string(),
         adj_code: None,
         adj_flag: None,
-        merchant_refund_vpa: None,
-        original_transaction_timestamp: None,
         iat: get_current_timestamp_ms(),
     };
 
@@ -574,7 +570,7 @@ pub fn handle_authorize_response<
         let redirect_form = RedirectForm::Uri { uri: deeplink };
 
         let response_data = PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::ConnectorTransactionId(payload.gateway_transaction_id.clone()),
+            resource_id: ResponseId::ConnectorTransactionId(payload.merchant_request_id.clone()),
             redirection_data: Some(Box::new(redirect_form)),
             connector_metadata: None,
             mandate_reference: None,
@@ -670,7 +666,7 @@ pub fn handle_psync_response(
         resource_id: response
             .payload
             .as_ref()
-            .map(|p| ResponseId::ConnectorTransactionId(p.gateway_transaction_id.clone()))
+            .map(|p| ResponseId::ConnectorTransactionId(p.merchant_request_id.clone()))
             .unwrap_or(ResponseId::NoResponseId),
         redirection_data: None,
         connector_metadata: None,

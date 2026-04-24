@@ -117,10 +117,6 @@ pub struct Refund360Request {
     pub adj_code: Option<AdjustmentCode>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub adj_flag: Option<AdjustmentFlag>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub merchant_refund_vpa: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub original_transaction_timestamp: Option<String>,
     pub iat: String,
 }
 
