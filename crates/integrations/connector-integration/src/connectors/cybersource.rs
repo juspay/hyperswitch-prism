@@ -56,14 +56,15 @@ use transformers::{
     CybersourceAuthSetupResponse, CybersourceAuthValidateRequest, CybersourceAuthenticateResponse,
     CybersourceAuthenticateResponse as CybersourcePostAuthenticateResponse,
     CybersourceClientAuthRequest, CybersourceClientAuthResponse, CybersourcePaymentsCaptureRequest,
-    CybersourcePaymentsIncrementalAuthorizationRequest,
-    CybersourcePaymentsIncrementalAuthorizationResponse, CybersourcePaymentsRequest,
+    CybersourcePaymentsIncrementalAuthorizationRequest, CybersourcePaymentsRequest,
     CybersourcePaymentsResponse, CybersourcePaymentsResponse as CybersourceCaptureResponse,
     CybersourcePaymentsResponse as CybersourceVoidResponse,
     CybersourcePaymentsResponse as CybersourceSetupMandateResponse,
-    CybersourcePaymentsResponse as CybersourceRepeatPaymentResponse, CybersourceRefundRequest,
-    CybersourceRefundResponse, CybersourceRepeatPaymentRequest, CybersourceRsyncResponse,
-    CybersourceTransactionResponse, CybersourceVoidRequest, CybersourceZeroMandateRequest,
+    CybersourcePaymentsResponse as CybersourceRepeatPaymentResponse,
+    CybersourcePaymentsResponse as CybersourceIncrementalAuthorizationResponse,
+    CybersourceRefundRequest, CybersourceRefundResponse, CybersourceRepeatPaymentRequest,
+    CybersourceRsyncResponse, CybersourceTransactionResponse, CybersourceVoidRequest,
+    CybersourceZeroMandateRequest,
 };
 
 use super::macros;
@@ -305,7 +306,7 @@ macros::create_all_prerequisites!(
         (
             flow: IncrementalAuthorization,
             request_body: CybersourcePaymentsIncrementalAuthorizationRequest,
-            response_body: CybersourcePaymentsIncrementalAuthorizationResponse,
+            response_body: CybersourceIncrementalAuthorizationResponse,
             router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
         )
     ],
@@ -1123,7 +1124,7 @@ macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Cybersource,
     curl_request: Json(CybersourcePaymentsIncrementalAuthorizationRequest),
-    curl_response: CybersourcePaymentsIncrementalAuthorizationResponse,
+    curl_response: CybersourceIncrementalAuthorizationResponse,
     flow_name: IncrementalAuthorization,
     resource_common_data: PaymentFlowData,
     flow_request: PaymentsIncrementalAuthorizationData,

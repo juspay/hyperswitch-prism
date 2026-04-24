@@ -2657,17 +2657,6 @@ pub enum CybersourcePaymentStatus {
     //PartialAuthorized, not being consumed yet.
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum CybersourceIncrementalAuthorizationStatus {
-    Authorized,
-    Declined,
-    AuthorizedPendingReview,
-    AuthorizedRiskDeclined,
-    InvalidRequest,
-    ServerError,
-}
-
 pub fn map_cybersource_attempt_status(
     status: CybersourcePaymentStatus,
     capture: bool,
@@ -2704,19 +2693,6 @@ pub fn map_cybersource_attempt_status(
         | CybersourcePaymentStatus::AuthorizedPendingReview => common_enums::AttemptStatus::Pending,
     }
 }
-impl From<CybersourceIncrementalAuthorizationStatus> for AuthorizationStatus {
-    fn from(item: CybersourceIncrementalAuthorizationStatus) -> Self {
-        match item {
-            CybersourceIncrementalAuthorizationStatus::Authorized => Self::Success,
-            CybersourceIncrementalAuthorizationStatus::AuthorizedPendingReview => Self::Processing,
-            CybersourceIncrementalAuthorizationStatus::Declined
-            | CybersourceIncrementalAuthorizationStatus::AuthorizedRiskDeclined
-            | CybersourceIncrementalAuthorizationStatus::InvalidRequest
-            | CybersourceIncrementalAuthorizationStatus::ServerError => Self::Failure,
-        }
-    }
-}
-
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourcePaymentsResponse {
@@ -2757,15 +2733,6 @@ pub struct ClientAuthSetupInfoResponse {
 pub enum CybersourceAuthSetupResponse {
     ClientAuthSetupInfo(Box<ClientAuthSetupInfoResponse>),
     ErrorInformation(Box<CybersourceErrorInformationResponse>),
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CybersourcePaymentsIncrementalAuthorizationResponse {
-    pub id: String,
-    pub status: CybersourceIncrementalAuthorizationStatus,
-    pub client_reference_information: Option<ClientReferenceInformation>,
-    pub error_information: Option<CybersourceErrorInformation>,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -2847,12 +2814,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-// Map the CyberSource incremental authorization response into RouterDataV2.
-// On success, CyberSource returns HTTP 201 with a status of "AUTHORIZED" /
-// "AUTHORIZED_PENDING_REVIEW" / "DECLINED". We mirror this into
-// common_enums::AuthorizationStatus and preserve the `id` as the
-// connector_authorization_id.
-impl TryFrom<ResponseRouterData<CybersourcePaymentsIncrementalAuthorizationResponse, Self>>
+fn map_incremental_authorization_status(
+    status: Option<CybersourcePaymentStatus>,
+) -> common_enums::AuthorizationStatus {
+    match status {
+        Some(CybersourcePaymentStatus::Authorized) => common_enums::AuthorizationStatus::Success,
+        Some(CybersourcePaymentStatus::AuthorizedPendingReview)
+        | Some(CybersourcePaymentStatus::Pending)
+        | Some(CybersourcePaymentStatus::PendingReview) => {
+            common_enums::AuthorizationStatus::Processing
+        }
+        _ => common_enums::AuthorizationStatus::Failure,
+    }
+}
+
+impl TryFrom<ResponseRouterData<CybersourcePaymentsResponse, Self>>
     for RouterDataV2<
         IncrementalAuthorization,
         PaymentFlowData,
@@ -2863,65 +2839,39 @@ impl TryFrom<ResponseRouterData<CybersourcePaymentsIncrementalAuthorizationRespo
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<CybersourcePaymentsIncrementalAuthorizationResponse, Self>,
+        item: ResponseRouterData<CybersourcePaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let response = item.response;
+        let response = &item.response;
         let http_code = item.http_code;
+        let authorization_status = map_incremental_authorization_status(response.status.clone());
 
-        // If the connector returned error_information, surface it as a failure response.
-        if let Some(error_info) = response.error_information.as_ref() {
-            let detailed_error_info = error_info.details.as_ref().map(|details| {
-                details
-                    .iter()
-                    .map(|det| format!("{} : {}", det.field, det.reason))
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            });
-            let reason = get_error_reason(error_info.message.clone(), detailed_error_info, None);
+        if domain_types::utils::is_payment_failure(
+            map_cybersource_attempt_status(
+                response
+                    .status
+                    .clone()
+                    .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
+                false,
+            ),
+        ) {
+            let error_response = get_error_response(
+                &response.error_information,
+                &response.processor_information,
+                &response.risk_information,
+                None,
+                http_code,
+                response.id.clone(),
+            );
             return Ok(Self {
-                response: Err(ErrorResponse {
-                    status_code: http_code,
-                    code: error_info
-                        .reason
-                        .clone()
-                        .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-                    message: error_info
-                        .message
-                        .clone()
-                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-                    reason,
-                    attempt_status: None,
-                    connector_transaction_id: Some(response.id.clone()),
-                    network_advice_code: None,
-                    network_decline_code: None,
-                    network_error_message: None,
-                }),
+                response: Err(error_response),
                 ..item.router_data
             });
         }
 
-        // Map CyberSource's incremental-authorization status to common_enums::AuthorizationStatus.
-        // Match is exhaustive on purpose — any new status variant added upstream will fail to
-        // compile here so it cannot be silently ignored.
-        let authorization_status: common_enums::AuthorizationStatus = match response.status {
-            CybersourceIncrementalAuthorizationStatus::Authorized => {
-                common_enums::AuthorizationStatus::Success
-            }
-            CybersourceIncrementalAuthorizationStatus::AuthorizedPendingReview => {
-                common_enums::AuthorizationStatus::Processing
-            }
-            CybersourceIncrementalAuthorizationStatus::Declined
-            | CybersourceIncrementalAuthorizationStatus::AuthorizedRiskDeclined
-            | CybersourceIncrementalAuthorizationStatus::InvalidRequest
-            | CybersourceIncrementalAuthorizationStatus::ServerError => {
-                common_enums::AuthorizationStatus::Failure
-            }
-        };
-
         Ok(Self {
             response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
                 status: authorization_status,
-                connector_authorization_id: Some(response.id),
+                connector_authorization_id: Some(response.id.clone()),
                 status_code: http_code,
             }),
             ..item.router_data
