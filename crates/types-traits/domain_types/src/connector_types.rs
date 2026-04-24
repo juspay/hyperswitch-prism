@@ -2610,6 +2610,20 @@ impl<T: PaymentMethodDataTypes> SetupMandateRequestData<T> {
         self.get_ip_address_as_optional()
             .ok_or_else(missing_field_err("browser_info.ip_address"))
     }
+
+    /// Returns true if payment should be automatically captured, false for manual capture.
+    ///
+    /// Maps capture methods to boolean intent:
+    /// - Automatic/SequentialAutomatic/None → true (auto capture)
+    /// - Manual/ManualMultiple/Scheduled → false (manual capture)
+    pub fn is_auto_capture(&self) -> bool {
+        !matches!(
+            self.capture_method,
+            Some(common_enums::CaptureMethod::Manual)
+                | Some(common_enums::CaptureMethod::ManualMultiple)
+                | Some(common_enums::CaptureMethod::Scheduled)
+        )
+    }
 }
 
 #[derive(Debug, Clone)]
