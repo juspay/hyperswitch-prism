@@ -231,7 +231,11 @@ fn fetch_payment_instrument<
         | PaymentMethodData::OpenBanking(_)
         | PaymentMethodData::PaymentMethodToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-        | PaymentMethodData::NetworkToken(_) => Err(IntegrationError::NotImplemented(utils::get_unimplemented_payment_method_error_message("worldpay") , Default::default())
+        | PaymentMethodData::NetworkToken(_) => Err(IntegrationError::FlowNotSupported {
+            flow: "Unsupported payment method".to_string(),
+            connector: "worldpay".to_string(),
+            context: Default::default(),
+        }
         .into())
 }
 }
@@ -251,17 +255,19 @@ impl TryFrom<(enums::PaymentMethod, Option<enums::PaymentMethodType>)> for Payme
                 match pm {
                     enums::PaymentMethodType::ApplePay => Ok(Self::ApplePay),
                     enums::PaymentMethodType::GooglePay => Ok(Self::GooglePay),
-                    _ => Err(IntegrationError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("worldpay"),
-                        Default::default(),
-                    )
+                    _ => Err(IntegrationError::FlowNotSupported {
+                        flow: format!("Wallet payment method {pm:?}"),
+                        connector: "worldpay".to_string(),
+                        context: Default::default(),
+                    }
                     .into()),
                 }
             }
-            _ => Err(IntegrationError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("worldpay"),
-                Default::default(),
-            )
+            _ => Err(IntegrationError::FlowNotSupported {
+                flow: format!("Payment method {:?}", src.0),
+                connector: "worldpay".to_string(),
+                context: Default::default(),
+            }
             .into()),
         }
     }

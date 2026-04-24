@@ -62,6 +62,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Worldpayxml<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(IntegrationError::FlowNotSupported {
+            flow: "IncrementalAuthorization".to_string(),
+            connector: "worldpayxml".to_string(),
+            context: Default::default(),
+        }
+        .into())
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -223,6 +234,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Worldpayxml<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<domain_types::connector_flow::PostAuthenticate, PaymentFlowData, domain_types::connector_types::PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(IntegrationError::FlowNotSupported {
+            flow: "PostAuthenticate".to_string(),
+            connector: "worldpayxml".to_string(),
+            context: Default::default(),
+        }
+        .into())
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -233,6 +255,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Worldpayxml<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<domain_types::connector_flow::Authenticate, PaymentFlowData, domain_types::connector_types::PaymentsAuthenticateData<T>, PaymentsResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(IntegrationError::FlowNotSupported {
+            flow: "Authenticate".to_string(),
+            connector: "worldpayxml".to_string(),
+            context: Default::default(),
+        }
+        .into())
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -243,6 +276,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Worldpayxml<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<domain_types::connector_flow::PreAuthenticate, PaymentFlowData, domain_types::connector_types::PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(IntegrationError::FlowNotSupported {
+            flow: "PreAuthenticate".to_string(),
+            connector: "worldpayxml".to_string(),
+            context: Default::default(),
+        }
+        .into())
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -253,6 +297,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::DisputeResponseData,
     > for Worldpayxml<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<domain_types::connector_flow::SubmitEvidence, domain_types::connector_types::DisputeFlowData, domain_types::connector_types::SubmitEvidenceData, domain_types::connector_types::DisputeResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(IntegrationError::FlowNotSupported {
+            flow: "SubmitEvidence".to_string(),
+            connector: "worldpayxml".to_string(),
+            context: Default::default(),
+        }
+        .into())
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -263,6 +318,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::DisputeResponseData,
     > for Worldpayxml<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<domain_types::connector_flow::DefendDispute, domain_types::connector_types::DisputeFlowData, domain_types::connector_types::DisputeDefendData, domain_types::connector_types::DisputeResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(IntegrationError::FlowNotSupported {
+            flow: "DefendDispute".to_string(),
+            connector: "worldpayxml".to_string(),
+            context: Default::default(),
+        }
+        .into())
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -273,6 +339,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::DisputeResponseData,
     > for Worldpayxml<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<domain_types::connector_flow::Accept, domain_types::connector_types::DisputeFlowData, domain_types::connector_types::AcceptDisputeData, domain_types::connector_types::DisputeResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(IntegrationError::FlowNotSupported {
+            flow: "AcceptDispute".to_string(),
+            connector: "worldpayxml".to_string(),
+            context: Default::default(),
+        }
+        .into())
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -283,6 +360,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Worldpayxml<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<domain_types::connector_flow::RepeatPayment, PaymentFlowData, domain_types::connector_types::RepeatPaymentData<T>, PaymentsResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(IntegrationError::FlowNotSupported {
+            flow: "RepeatPayment".to_string(),
+            connector: "worldpayxml".to_string(),
+            context: Default::default(),
+        }
+        .into())
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -293,6 +381,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Worldpayxml<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<domain_types::connector_flow::SetupMandate, PaymentFlowData, domain_types::connector_types::SetupMandateRequestData<T>, PaymentsResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(IntegrationError::FlowNotSupported {
+            flow: "SetupMandate".to_string(),
+            connector: "worldpayxml".to_string(),
+            context: Default::default(),
+        }
+        .into())
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -303,6 +402,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Worldpayxml<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<domain_types::connector_flow::VoidPC, PaymentFlowData, domain_types::connector_types::PaymentsCancelPostCaptureData, PaymentsResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(IntegrationError::FlowNotSupported {
+            flow: "Reverse".to_string(),
+            connector: "worldpayxml".to_string(),
+            context: Default::default(),
+        }
+        .into())
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -313,6 +423,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::PaymentMethodTokenResponse,
     > for Worldpayxml<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<domain_types::connector_flow::PaymentMethodToken, PaymentFlowData, domain_types::connector_types::PaymentMethodTokenizationData<T>, domain_types::connector_types::PaymentMethodTokenResponse>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(IntegrationError::FlowNotSupported {
+            flow: "PaymentMethodToken".to_string(),
+            connector: "worldpayxml".to_string(),
+            context: Default::default(),
+        }
+        .into())
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -323,6 +444,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::ConnectorCustomerResponse,
     > for Worldpayxml<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<domain_types::connector_flow::CreateConnectorCustomer, PaymentFlowData, domain_types::connector_types::ConnectorCustomerData, domain_types::connector_types::ConnectorCustomerResponse>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(IntegrationError::FlowNotSupported {
+            flow: "CreateConnectorCustomer".to_string(),
+            connector: "worldpayxml".to_string(),
+            context: Default::default(),
+        }
+        .into())
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -333,6 +465,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::ServerAuthenticationTokenResponseData,
     > for Worldpayxml<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<domain_types::connector_flow::ServerAuthenticationToken, PaymentFlowData, domain_types::connector_types::ServerAuthenticationTokenRequestData, domain_types::connector_types::ServerAuthenticationTokenResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(IntegrationError::FlowNotSupported {
+            flow: "ServerAuthenticationToken".to_string(),
+            connector: "worldpayxml".to_string(),
+            context: Default::default(),
+        }
+        .into())
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -343,6 +486,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::ServerSessionAuthenticationTokenResponseData,
     > for Worldpayxml<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<domain_types::connector_flow::ServerSessionAuthenticationToken, PaymentFlowData, domain_types::connector_types::ServerSessionAuthenticationTokenRequestData, domain_types::connector_types::ServerSessionAuthenticationTokenResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(IntegrationError::FlowNotSupported {
+            flow: "ServerSessionAuthenticationToken".to_string(),
+            connector: "worldpayxml".to_string(),
+            context: Default::default(),
+        }
+        .into())
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -353,6 +507,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Worldpayxml<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<domain_types::connector_flow::ClientAuthenticationToken, PaymentFlowData, domain_types::connector_types::ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(IntegrationError::FlowNotSupported {
+            flow: "ClientAuthenticationToken".to_string(),
+            connector: "worldpayxml".to_string(),
+            context: Default::default(),
+        }
+        .into())
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -363,6 +528,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         MandateRevokeResponseData,
     > for Worldpayxml<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<domain_types::connector_flow::MandateRevoke, PaymentFlowData, domain_types::connector_types::MandateRevokeRequestData, MandateRevokeResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(IntegrationError::FlowNotSupported {
+            flow: "MandateRevoke".to_string(),
+            connector: "worldpayxml".to_string(),
+            context: Default::default(),
+        }
+        .into())
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -373,6 +549,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::PaymentCreateOrderResponse,
     > for Worldpayxml<T>
 {
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<domain_types::connector_flow::CreateOrder, PaymentFlowData, domain_types::connector_types::PaymentCreateOrderData, domain_types::connector_types::PaymentCreateOrderResponse>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(IntegrationError::FlowNotSupported {
+            flow: "CreateOrder".to_string(),
+            connector: "worldpayxml".to_string(),
+            context: Default::default(),
+        }
+        .into())
+    }
 }
 
 macros::create_all_prerequisites!(
