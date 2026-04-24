@@ -1,6 +1,6 @@
 {
   "connector": "sanlam",
   "supported_suites": [
-    "authorize"
+    "PaymentService/Authorize"
   ]
 }

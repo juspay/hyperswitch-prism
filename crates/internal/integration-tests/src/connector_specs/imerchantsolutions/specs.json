@@ -1,11 +1,11 @@
 {
   "connector": "imerchantsolutions",
   "supported_suites": [
-    "authorize",
-    "capture",
-    "void",
-    "get",
-    "refund",
-    "refund_sync"
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Void",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "RefundService/Get"
   ]
 }
