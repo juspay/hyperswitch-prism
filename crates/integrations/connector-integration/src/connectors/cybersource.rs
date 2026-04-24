@@ -119,6 +119,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Cybersource<T>
 {
+    // CyberSource has no distinct post-capture void; use Refund (POST /pts/v2/payments/{id}/refunds) instead.
+    // Ref: https://developer.cybersource.com/api-reference-assets/index.html#payments_reversal
     fn get_url(
         &self,
         _req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
@@ -1291,6 +1293,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentCreateOrderResponse,
     > for Cybersource<T>
 {
+    // CyberSource has no pre-payment "order" object; authorizations are initiated directly via POST /pts/v2/payments.
+    // Ref: https://developer.cybersource.com/api-reference-assets/index.html#payments_payments
     fn get_url(
         &self,
         _req: &RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
@@ -1307,6 +1311,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>
     for Cybersource<T>
 {
+    // CyberSource dispute management is merchant-portal only; no API endpoint for evidence submission.
+    // Ref: https://developer.cybersource.com/api-reference-assets/index.html#chargeback-disputes
     fn get_url(
         &self,
         _req: &RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>,
@@ -1323,6 +1329,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
     for Cybersource<T>
 {
+    // CyberSource has no API-driven dispute defense; disputes are handled via the Business Center portal.
+    // Ref: https://developer.cybersource.com/api-reference-assets/index.html#chargeback-disputes
     fn get_url(
         &self,
         _req: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
@@ -1339,6 +1347,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
     for Cybersource<T>
 {
+    // CyberSource has no programmatic dispute-accept endpoint; acceptance is done via the Business Center.
+    // Ref: https://developer.cybersource.com/api-reference-assets/index.html#chargeback-disputes
     fn get_url(
         &self,
         _req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
@@ -1359,6 +1369,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ServerSessionAuthenticationTokenResponseData,
     > for Cybersource<T>
 {
+    // CyberSource uses HTTP Signature authentication, not session-token-based merchant auth.
+    // Ref: https://developer.cybersource.com/api/developer-guides/dita-gettingstarted/authentication.html
     fn get_url(
         &self,
         _req: &RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
@@ -1379,6 +1391,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentMethodTokenResponse,
     > for Cybersource<T>
 {
+    // CyberSource has no dedicated tokenization endpoint; tokens are created as a side-effect of SetupMandate (zero-dollar auth).
+    // Ref: https://developer.cybersource.com/api-reference-assets/index.html#token-management
     fn get_url(
         &self,
         _req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
@@ -1399,6 +1413,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ServerAuthenticationTokenResponseData,
     > for Cybersource<T>
 {
+    // CyberSource uses HTTP Signature authentication, not a token-exchange auth model.
+    // Ref: https://developer.cybersource.com/api/developer-guides/dita-gettingstarted/authentication.html
     fn get_url(
         &self,
         _req: &RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
@@ -1419,6 +1435,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ConnectorCustomerResponse,
     > for Cybersource<T>
 {
+    // CyberSource has no standalone customer resource; payment instruments are managed inline via TMS.
+    // Ref: https://developer.cybersource.com/api-reference-assets/index.html#token-management
     fn get_url(
         &self,
         _req: &RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,

@@ -2663,6 +2663,9 @@ pub enum CybersourceIncrementalAuthorizationStatus {
     Authorized,
     Declined,
     AuthorizedPendingReview,
+    AuthorizedRiskDeclined,
+    InvalidRequest,
+    ServerError,
 }
 
 pub fn map_cybersource_attempt_status(
@@ -2706,7 +2709,10 @@ impl From<CybersourceIncrementalAuthorizationStatus> for AuthorizationStatus {
         match item {
             CybersourceIncrementalAuthorizationStatus::Authorized => Self::Success,
             CybersourceIncrementalAuthorizationStatus::AuthorizedPendingReview => Self::Processing,
-            CybersourceIncrementalAuthorizationStatus::Declined => Self::Failure,
+            CybersourceIncrementalAuthorizationStatus::Declined
+            | CybersourceIncrementalAuthorizationStatus::AuthorizedRiskDeclined
+            | CybersourceIncrementalAuthorizationStatus::InvalidRequest
+            | CybersourceIncrementalAuthorizationStatus::ServerError => Self::Failure,
         }
     }
 }
@@ -2904,7 +2910,10 @@ impl TryFrom<ResponseRouterData<CybersourcePaymentsIncrementalAuthorizationRespo
             CybersourceIncrementalAuthorizationStatus::AuthorizedPendingReview => {
                 common_enums::AuthorizationStatus::Processing
             }
-            CybersourceIncrementalAuthorizationStatus::Declined => {
+            CybersourceIncrementalAuthorizationStatus::Declined
+            | CybersourceIncrementalAuthorizationStatus::AuthorizedRiskDeclined
+            | CybersourceIncrementalAuthorizationStatus::InvalidRequest
+            | CybersourceIncrementalAuthorizationStatus::ServerError => {
                 common_enums::AuthorizationStatus::Failure
             }
         };
