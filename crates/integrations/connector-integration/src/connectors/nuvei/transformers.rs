@@ -14,7 +14,7 @@ use domain_types::{
         ResponseId, SetupMandateRequestData,
     },
     payment_method_data::{
-        BankTransferData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        BankTransferData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -156,12 +156,20 @@ pub struct NuveiPaymentOption<
 pub struct NuveiCard<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
-    pub card_number: RawCardNumber<T>,
-    pub card_holder_name: Secret<String>,
-    pub expiration_month: Secret<String>,
-    pub expiration_year: Secret<String>,
-    #[serde(rename = "CVV")]
-    pub cvv: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_number: Option<RawCardNumber<T>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_holder_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expiration_month: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expiration_year: Option<Secret<String>>,
+    #[serde(rename = "CVV", skip_serializing_if = "Option::is_none")]
+    pub cvv: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_token: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub brand: Option<String>,
 }
 
 // ACH Bank Transfer specific structures
@@ -697,16 +705,54 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                 NuveiPaymentOption {
                     card: Some(NuveiCard {
-                        card_number: card_data.card_number.clone(),
-                        card_holder_name,
-                        expiration_month: card_data.card_exp_month.clone(),
-                        expiration_year: card_data.card_exp_year.clone(),
-                        cvv: card_data.card_cvc.clone(),
+                        card_number: Some(card_data.card_number.clone()),
+                        card_holder_name: Some(card_holder_name),
+                        expiration_month: Some(card_data.card_exp_month.clone()),
+                        expiration_year: Some(card_data.card_exp_year.clone()),
+                        cvv: Some(card_data.card_cvc.clone()),
+                        payment_token: None,
+                        brand: None,
                     }),
                     alternative_payment_method: None,
                     user_payment_option_id: None,
                 }
             }
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                WalletData::GooglePay(google_pay_data) => {
+                    // Extract Google Pay token from tokenization_data
+                    // The token is the encrypted payment data as a JSON string
+                    let encrypted_data = google_pay_data
+                        .tokenization_data
+                        .get_encrypted_google_pay_payment_data_mandatory()
+                        .change_context(IntegrationError::InvalidWalletToken {
+                            wallet_name: "Google Pay".to_string(),
+                            context: Default::default(),
+                        })?;
+
+                    let token = Secret::new(encrypted_data.token.clone());
+
+                    NuveiPaymentOption {
+                        card: Some(NuveiCard {
+                            card_number: None,
+                            card_holder_name: None,
+                            expiration_month: None,
+                            expiration_year: None,
+                            cvv: None,
+                            payment_token: Some(token),
+                            brand: Some("googlepay".to_string()),
+                        }),
+                        alternative_payment_method: None,
+                    }
+                }
+                other => {
+                    return Err(IntegrationError::NotSupported {
+                        message: format!("{:?} wallet is not supported for Nuvei", other),
+                        connector: "nuvei",
+                        context: Default::default(),
+                    }
+                    .into())
+                }
+            },
             PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 match bank_transfer_data.as_ref() {
                     BankTransferData::AchBankTransfer {} => {
