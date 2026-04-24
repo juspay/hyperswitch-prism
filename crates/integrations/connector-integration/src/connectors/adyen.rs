@@ -1533,19 +1533,15 @@ impl ConnectorValidation for Adyen<DefaultPCIHolder> {
 
     fn validate_psync_reference_id(
         &self,
-        data: &PaymentsSyncData,
+        _data: &PaymentsSyncData,
         _is_three_ds: bool,
         _status: AttemptStatus,
         _connector_feature_data: Option<SecretSerdeValue>,
     ) -> CustomResult<(), IntegrationError> {
-        if data.encoded_data.is_some() {
-            return Ok(());
-        }
-        Err(IntegrationError::MissingRequiredField {
-            field_name: "encoded_data",
-            context: Default::default(),
-        }
-        .into())
+        // Adyen PSync is redirect-completion only (POST /payments/details).
+        // When encoded_data is absent, build_request_v2 returns Ok(None) to
+        // skip the call and rely on webhooks for payment status.
+        Ok(())
     }
     fn is_webhook_source_verification_mandatory(&self) -> bool {
         false
