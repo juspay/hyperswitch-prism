@@ -362,9 +362,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::BillDeskRedirect(_)
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
-                | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("Noon"),
-                )),
+                | WalletData::EaseBuzzRedirect(_) => {
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: utils::get_unimplemented_payment_method_error_message("Noon"),
+                        connector: "Noon",
+                        context: Default::default(),
+                    }))
+                }
             },
             PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::PayLater(_)
@@ -384,9 +388,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("Noon"),
-                ))
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("Noon"),
+                    connector: "Noon",
+                    context: Default::default(),
+                }))
             }
         }?;
 
@@ -1254,9 +1260,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         | WalletData::CashfreeRedirect(_)
                         | WalletData::PayURedirect(_)
                         | WalletData::EaseBuzzRedirect(_) => {
-                            Err(IntegrationError::not_implemented(
-                                utils::get_unimplemented_payment_method_error_message("Noon"),
-                            ))
+                            Err(error_stack::report!(IntegrationError::NotSupported {
+                                message: utils::get_unimplemented_payment_method_error_message(
+                                    "Noon"
+                                ),
+                                connector: "Noon",
+                                context: Default::default(),
+                            }))
                         }
                     },
                     PaymentMethodData::CardRedirect(_)
@@ -1277,9 +1287,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                     | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                        Err(IntegrationError::not_implemented(
-                            utils::get_unimplemented_payment_method_error_message("Noon"),
-                        ))
+                        Err(error_stack::report!(IntegrationError::NotSupported {
+                            message: utils::get_unimplemented_payment_method_error_message("Noon"),
+                            connector: "Noon",
+                            context: Default::default(),
+                        }))
                     }
                 }?,
                 Some(item.request.currency),
@@ -1535,8 +1547,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             MandateReferenceId::NetworkMandateId(_)
             | MandateReferenceId::NetworkTokenWithNTI(_) => {
-                return Err(IntegrationError::not_implemented(
+                return Err(IntegrationError::NotImplemented(
                     "Only connector mandate ID is supported for Noon repeat payments".to_string(),
+                    Default::default(),
                 )
                 .into())
             }

@@ -21,7 +21,8 @@ use serde::{Deserialize, Serialize};
 use super::{requests, responses};
 use crate::types::ResponseRouterData;
 use domain_types::errors::{
-    ConnectorError, IntegrationError, ResponseTransformationErrorContext, WebhookError,
+    ConnectorError, IntegrationError, IntegrationErrorContext, ResponseTransformationErrorContext,
+    WebhookError,
 };
 
 // Wallet type constants
@@ -99,8 +100,8 @@ fn get_payer_info(
 fn map_ecp_account_type(
     bank_type: Option<common_enums::BankType>,
     bank_holder_type: Option<common_enums::BankHolderType>,
-) -> String {
-    match (bank_holder_type, bank_type) {
+) -> CustomResult<String, IntegrationError> {
+    let account_type = match (bank_holder_type, bank_type) {
         (Some(common_enums::BankHolderType::Business), Some(common_enums::BankType::Checking)) => {
             "CORPORATE_CHECKING"
         }
@@ -112,8 +113,26 @@ fn map_ecp_account_type(
         (Some(common_enums::BankHolderType::Personal), Some(common_enums::BankType::Checking))
         | (None, Some(common_enums::BankType::Checking))
         | (_, None) => "CONSUMER_CHECKING",
-    }
-    .to_string()
+        (_, Some(common_enums::BankType::Transmission))
+        | (_, Some(common_enums::BankType::Current))
+        | (_, Some(common_enums::BankType::Bond))
+        | (_, Some(common_enums::BankType::SubscriptionShare)) => {
+            Err(IntegrationError::NotSupported {
+                message: format!("Bank type {bank_type:?} is not supported by BlueSnap"),
+                connector: "bluesnap",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use `BankType::Checking` or `BankType::Savings`".to_owned(),
+                    ),
+                    doc_url: None,
+                    additional_context: Some(format!(
+                        "Received BankType::{bank_type:?}, which does not map to any BlueSnap ECP account type. Only `Checking` and `Savings` are accepted by the BlueSnap."
+                    )),
+                },
+            })?
+        }
+    };
+    Ok(account_type.to_string())
 }
 
 // Auth Type
@@ -346,8 +365,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             },
                         }
                     }
-                    _ => Err(IntegrationError::not_implemented(
+                    _ => Err(IntegrationError::NotImplemented(
                         "Selected wallet type is not supported".to_string(),
+                        Default::default(),
                     ))?,
                 };
 
@@ -409,7 +429,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     let payer_info = get_payer_info(address_details)?;
 
                     // Map to BlueSnap ECP account type format
-                    let account_type = map_ecp_account_type(*bank_type, *bank_holder_type);
+                    let account_type = map_ecp_account_type(*bank_type, *bank_holder_type)?;
 
                     let amount = super::BluesnapAmountConvertor::convert(
                         router_data.request.minor_amount,
@@ -488,8 +508,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         transaction_fraud_info,
                     }))
                 }
-                _ => Err(IntegrationError::not_implemented(
+                _ => Err(IntegrationError::NotImplemented(
                     "Only ACH and SEPA Bank Debit are supported".to_string(),
+                    Default::default(),
                 ))?,
             },
             PaymentMethodData::PaymentMethodToken(token_data) => {
@@ -547,8 +568,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     transaction_meta_data,
                 }))
             }
-            _ => Err(IntegrationError::not_implemented(
+            _ => Err(IntegrationError::NotImplemented(
                 "Selected payment method is not supported".to_string(),
+                Default::default(),
             ))?,
         }
     }

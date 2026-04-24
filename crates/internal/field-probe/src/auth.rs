@@ -284,6 +284,11 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             public_key: None,
             base_url: None,
         },
+        ConnectorEnum::Sanlam => ConnectorSpecificConfig::Sanlam {
+            api_key: k(),
+            merchant_id: m(),
+            base_url: None,
+        },
         ConnectorEnum::Payme => ConnectorSpecificConfig::Payme {
             seller_payme_id: id(),
             payme_client_key: None,
@@ -633,6 +638,15 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
         ConnectorEnum::Itaubank => ConnectorSpecificConfig::Itaubank {
             client_id: id(),
             client_secret: s(),
+            base_url: None,
+        },
+        ConnectorEnum::PinelabsOnline => ConnectorSpecificConfig::PinelabsOnline {
+            client_id: id(),
+            client_secret: s(),
+            base_url: None,
+        },
+        ConnectorEnum::Imerchantsolutions => ConnectorSpecificConfig::Imerchantsolutions {
+            api_key: k(),
             base_url: None,
         },
         ConnectorEnum::Axisbank => ConnectorSpecificConfig::Axisbank {

@@ -89,7 +89,7 @@ def _build_refund_get_request():
     return payment_pb2.RefundServiceGetRequest(
         merchant_refund_id="probe_refund_001",  # Identification.
         connector_transaction_id="probe_connector_txn_001",
-        refund_id="probe_refund_id_001",
+        refund_id="probe_refund_id_001",  # Deprecated.
     )
 
 def _build_token_authorize_request():

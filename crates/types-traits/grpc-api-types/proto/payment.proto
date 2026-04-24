@@ -741,7 +741,10 @@ enum Connector {
   PPRO = 113;
   FISERVCOMMERCEHUB = 114;
   TRUSTLY = 115;
-  AXISBANK = 116;
+  SANLAM = 116;
+  PINELABS_ONLINE = 117;
+  IMERCHANTSOLUTIONS = 118;
+  AXISBANK = 119;
 }
 
 // Payment method types
@@ -1329,13 +1332,9 @@ message RedirectResponseSecrets {
   optional string additional_secret = 2;
 }
 
-// Incomplete transformation response
-message IncompleteTransformationResponse {
-  // The resource object bytes that should be sent in PSync call
-  bytes resource_object = 1;
-  // Reason why transformation is incomplete
-  string reason = 2;
-}
+// Response for EventService.HandleEvent.
+// event_content mirrors PaymentService.Get / RefundService.Get / DisputeService.Get.
+// Returns INVALID_ARGUMENT if required EventContext fields are absent for this connector.
 
 // Response for handling an event, which may contain different types of content
 // based on the event type.
@@ -1352,11 +1351,8 @@ message EventServiceHandleResponse {
   // Reference
   optional string merchant_event_id = 4;
 
-  // Event Status
-  EventStatus event_status = 5;
-
   // Suggested HTTP response to send back to the connector for webhook acknowledgement
-  optional EventAckResponse event_ack_response = 6;
+  optional EventAckResponse event_ack_response = 5;
 }
 
 // Suggested HTTP response for webhook acknowledgement (status, headers, body).
@@ -1375,9 +1371,6 @@ message EventContent {
     RefundResponse refunds_response = 2;
     // Content if the event is for a dispute synchronization.
     DisputeResponse disputes_response = 3;
-    // Content if the payment event transformation is incomplete and requires
-    // psync call.
-    IncompleteTransformationResponse incomplete_transformation = 4;
   }
 }
 
@@ -2060,7 +2053,7 @@ message PaymentServiceGetRequest {
   // Capture Settings
   optional CaptureMethod capture_method = 4;
 
-  optional bytes handle_response = 5;
+  reserved 5; // was: handle_response (bytes) — removed as incomplete transformation of webhook is removed
 
   // Amount Information
   optional Money amount = 6;
@@ -3090,26 +3083,128 @@ message PaymentServiceIncrementalAuthorizationResponse {
   optional ConnectorState state = 6;
 }
 
-// Request message for EventService.HandleEvent RPC
-message EventServiceHandleRequest {
-  // Identification
-  optional string merchant_event_id = 1;
-
-  // Request Details
-  RequestDetails request_details = 2;
-
-  // Security
-  optional WebhookSecrets webhook_secrets = 3;
-
-  // State Information
-  optional ConnectorState state = 4;
+// IDs extracted from a payment webhook.
+// connector_transaction_id: connector-assigned ID (e.g. Stripe "pi_xxx", Adyen "pspReference" on capture events).
+// merchant_transaction_id:  merchant reference echoed by the connector (e.g. Adyen "merchantReference"
+//                           on transaction events, Stripe metadata.order_id).
+// Exactly one is expected to be present; both may be present when the connector echoes both.
+message PaymentEventReference {
+  optional string connector_transaction_id = 1;
+  optional string merchant_transaction_id  = 2;
 }
 
-// Status of event processing
-enum EventStatus {
-  EVENT_STATUS_UNSPECIFIED = 0;
-  EVENT_STATUS_COMPLETE = 1;
-  EVENT_STATUS_INCOMPLETE = 2;
+// IDs extracted from a refund webhook.
+// connector_refund_id:      connector-assigned refund ID (e.g. PayPal refund resource.id).
+// merchant_refund_id:       merchant reference echoed for the refund (e.g. Adyen "merchantReference"
+//                           on refund events).
+// connector_transaction_id: parent payment ID, if the connector includes it.
+message RefundEventReference {
+  optional string connector_refund_id      = 1;
+  optional string merchant_refund_id       = 2;
+  optional string connector_transaction_id = 3;  // Parent payment ID, if present.
+}
+
+// IDs extracted from a dispute webhook.
+// Connectors typically reference disputes via the parent payment's connector_transaction_id
+// (e.g. Adyen originalReference, PayPal seller_transaction_id).
+// connector_dispute_id is populated when the connector issues a dispute-specific identifier.
+message DisputeEventReference {
+  optional string connector_dispute_id     = 1;
+  optional string connector_transaction_id = 2;  // Parent payment ID.
+}
+
+// IDs extracted from a mandate webhook.
+message MandateEventReference {
+  optional string connector_mandate_id = 1;
+}
+
+// IDs extracted from a payout webhook.
+// connector_payout_id: connector-assigned payout ID (e.g. PayPal payout_batch_id).
+// merchant_payout_id:  merchant reference echoed by the connector (e.g. Adyen "merchantReference"
+//                      on payout events).
+message PayoutEventReference {
+  optional string connector_payout_id = 1;
+  optional string merchant_payout_id  = 2;
+}
+
+// Resource reference extracted from a webhook payload.
+// The oneof variant identifies the entity class. Unset for non-resource events (e.g. account/capability notifications).
+message EventReference {
+  oneof resource {
+    PaymentEventReference payment = 1;
+    RefundEventReference  refund  = 2;
+    DisputeEventReference dispute = 3;
+    MandateEventReference mandate = 4;
+    PayoutEventReference  payout  = 5;
+  }
+}
+
+// Request for EventService.ParseEvent. No credentials required.
+message EventServiceParseRequest {
+  RequestDetails request_details = 1;
+}
+
+// Response for EventService.ParseEvent.
+message EventServiceParseResponse {
+  optional EventReference   reference  = 1;  // Absent for non-resource events (e.g. account/capability notifications).
+  optional WebhookEventType event_type = 2;
+}
+
+// Business context the caller passes back to fill UCS's stateless gap.
+// UCS is stateless — it cannot retrieve the original request parameters.
+// Pass back the fields from your original request that correspond to the
+// EventReference arm returned by ParseEvent.
+// UCS returns INVALID_ARGUMENT with an actionable message if a required field
+// is missing for the connector being handled.
+message EventContext {
+  oneof event_context {
+    PaymentEventContext  payment  = 1;
+    RefundEventContext   refund   = 2;
+    DisputeEventContext  dispute  = 3;
+    MandateEventContext  mandate  = 4;
+    PayoutEventContext   payout   = 5;
+  }
+}
+
+// Context from the original PaymentServiceAuthorizeRequest.
+// Required by connectors whose webhook payloads do not unambiguously distinguish
+// AUTHORIZED from CAPTURED (e.g. Noon, Fiuu).
+message PaymentEventContext {
+  // From original PaymentServiceAuthorizeRequest.capture_method.
+  optional CaptureMethod capture_method = 1;
+}
+
+// Context from the original RefundServiceRefundRequest.
+// Reserved for future use — no connectors currently require it.
+message RefundEventContext {
+}
+
+// Context from the original dispute flow.
+// Reserved for future use — no connectors currently require it.
+message DisputeEventContext {
+}
+
+// Context from the original mandate flow.
+// Reserved for future use — no connectors currently require it.
+message MandateEventContext {
+}
+
+// Context from the original mandate flow.
+// Reserved for future use — no connectors currently require it.
+message PayoutEventContext {
+}
+
+// Request for EventService.HandleEvent.
+// Supply event_context for connectors that require it (see connector integration guide).
+// access_token required for connectors that verify webhooks via an outbound API call
+// (e.g. PayPal POST /v1/notifications/verify-webhook-signature requires OAuth2).
+message EventServiceHandleRequest {
+  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+  optional string         merchant_event_id = 1;
+  RequestDetails          request_details   = 2;
+  optional WebhookSecrets webhook_secrets   = 3;
+  optional AccessToken    access_token      = 4;
+  optional EventContext   event_context     = 5;
 }
 
 // Request message for VerifyRedirectResponse
@@ -3155,7 +3250,8 @@ message RefundServiceGetRequest {
   // Identification
   optional string merchant_refund_id = 1;
   string connector_transaction_id = 2;
-  string refund_id = 3;
+  string refund_id = 3; // Deprecated
+  string connector_refund_id = 14;
 
   // Refund Details
   optional string refund_reason = 4;
@@ -3884,6 +3980,12 @@ message FiservcommercehubConfig {
   optional string base_url = 50;
 }
 
+message SanlamConfig {
+  SecretString api_key = 1;
+  SecretString merchant_id = 2;
+  optional string base_url = 50;
+}
+
 message ItaubankConfig {
   SecretString client_secret = 1;
   SecretString client_id = 2;
@@ -4048,6 +4150,17 @@ message TruelayerConfig {
   SecretString kid = 6;
   optional string base_url = 50;
   optional string secondary_base_url = 51;
+}
+
+message PinelabsOnlineConfig {
+  SecretString client_id = 1;
+  SecretString client_secret = 2;
+  optional string base_url = 50;
+}
+
+message ImerchantsolutionsConfig {
+  SecretString api_key = 1;
+  optional string base_url = 2;
 }
 
 message AxisbankConfig {
@@ -4300,8 +4413,17 @@ message ConnectorSpecificConfig {
     // TRUSTLY = 116
     TrustlyConfig trustly = 115;
 
+    // SANLAM = 116
+    SanlamConfig sanlam = 116;
+
+    // PINELABS_ONLINE = 117
+    PinelabsOnlineConfig pinelabs_online = 117;
+
+    // IMERCHANTSOLUTIONS = 118
+    ImerchantsolutionsConfig imerchantsolutions = 118;
+
     // AXISBANK = 117
-    AxisbankConfig axisbank = 116;
+    AxisbankConfig axisbank = 119;
   }
 }
 
@@ -4342,6 +4464,7 @@ message PaymentServiceTokenAuthorizeRequest {
   // Send the connector order identifier here if an order was created before
   // authorize
   optional string connector_order_id = 22;
+  optional int64 shipping_cost = 23;    // Cost of shipping for the order
 }
 
 message PaymentServiceTokenSetupRecurringRequest {
@@ -4369,7 +4492,7 @@ message PaymentServiceProxyAuthorizeRequest {
   Money amount = 2;
   // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly).
   // Real card values are substituted by the proxy before reaching the connector.
-  CardDetails card_proxy = 3;
+  ProxyCardDetails card_proxy = 3;
   optional Customer customer = 4;
   PaymentAddress address = 5;
   optional CaptureMethod capture_method = 6;
@@ -4397,13 +4520,14 @@ message PaymentServiceProxyAuthorizeRequest {
   // Send the connector order identifier here if an order was created before
   // authorize
   optional string connector_order_id = 26;
+  optional int64 shipping_cost = 27;    // Cost of shipping for the order
 }
 
 message PaymentServiceProxySetupRecurringRequest {
   string merchant_recurring_payment_id = 1;
   Money amount = 2;
   // Card proxy for vault-aliased payments.
-  CardDetails card_proxy = 3;
+  ProxyCardDetails card_proxy = 3;
   optional Customer customer = 4;
   PaymentAddress address = 5;
   optional string return_url = 6;

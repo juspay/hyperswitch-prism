@@ -6,6 +6,8 @@
     "get",
     "refund",
     "refund_sync",
+    "setup_recurring",
+    "recurring_charge",
     "void",
     "client_authentication_token"
   ]
