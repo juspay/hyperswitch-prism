@@ -3420,7 +3420,10 @@ impl<
                 .map(BrowserInformation::foreign_try_from)
                 .transpose()?,
             email,
-            customer_name: None,
+            customer_name: value
+                .customer
+                .as_ref()
+                .and_then(|customer| customer.name.clone()),
             return_url: value.complete_authorize_url.clone(),
             payment_method_type: <Option<PaymentMethodType>>::foreign_try_from(
                 value.payment_method.clone().ok_or_else(|| {

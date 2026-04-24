@@ -707,9 +707,19 @@ macros::macro_connector_implementation!(
                         ..Default::default()
                     },
                 })?;
-            let body = self.get_request_body(req)?
-                .map(|content| content.get_inner_value().expose())
-                .unwrap_or_default();
+            let body = self
+                .get_request_body(req)?
+                .ok_or(IntegrationError::RequestEncodingFailed {
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "rapyd SetupMandate: request body is required for HMAC signing"
+                                .to_owned(),
+                        ),
+                        ..Default::default()
+                    },
+                })?
+                .get_inner_value()
+                .expose();
             self.build_headers(req, "post", url_path, &body)
         }
         fn get_url(
@@ -762,9 +772,19 @@ macros::macro_connector_implementation!(
                         ..Default::default()
                     },
                 })?;
-            let body = self.get_request_body(req)?
-                .map(|content| content.get_inner_value().expose())
-                .unwrap_or_default();
+            let body = self
+                .get_request_body(req)?
+                .ok_or(IntegrationError::RequestEncodingFailed {
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "rapyd RepeatPayment: request body is required for HMAC signing"
+                                .to_owned(),
+                        ),
+                        ..Default::default()
+                    },
+                })?
+                .get_inner_value()
+                .expose();
             self.build_headers(req, "post", url_path, &body)
         }
         fn get_url(

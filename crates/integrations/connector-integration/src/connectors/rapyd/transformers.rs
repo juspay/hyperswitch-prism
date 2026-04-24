@@ -31,50 +31,79 @@ use crate::types::ResponseRouterData;
 
 use super::RapydRouterData;
 
-// Rapyd differentiates card payment methods by `<country>_<network>_card`.
-// The `in_` prefix (India) is kept as a placeholder to match the existing
-// Authorize flow until multi-country payment-method resolution lands (see
-// the `[#369]` TODO elsewhere in this file).
-// Reference: https://docs.rapyd.net/en/list-payment-methods-by-country.html
-const RAPYD_VISA_CARD_TYPE: &str = "in_visa_card";
-const RAPYD_MASTERCARD_CARD_TYPE: &str = "in_mastercard_card";
-const RAPYD_AMEX_CARD_TYPE: &str = "in_amex_card";
-const RAPYD_DISCOVER_CARD_TYPE: &str = "in_discover_card";
-const RAPYD_DINERSCLUB_CARD_TYPE: &str = "in_dinersclub_card";
-const RAPYD_JCB_CARD_TYPE: &str = "in_jcb_card";
-const RAPYD_MAESTRO_CARD_TYPE: &str = "in_maestro_card";
-
-// `description` field sent to Rapyd for the card-on-file verification
-// call that SetupMandate issues against `/v1/payments`.
-const RAPYD_MANDATE_SETUP_DESCRIPTION: &str = "Mandate setup";
-
 /// Rapyd `payment_method.type` identifier (`<country>_<network>_card`).
+///
+/// The `in_` prefix (India) is kept as a placeholder to match the existing
+/// Authorize flow until multi-country payment-method resolution lands (see
+/// the `[#369]` TODO elsewhere in this file).
+///
 /// Built via `TryFrom<CardIssuer>` so the wrong identifier can never be
 /// assembled ad-hoc — Rapyd rejects requests whose `type` does not match
 /// the card BIN.
-struct RapydCardType(&'static str);
+/// Reference: https://docs.rapyd.net/en/list-payment-methods-by-country.html
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RapydCardType {
+    #[serde(rename = "in_visa_card")]
+    InVisaCard,
+    #[serde(rename = "in_mastercard_card")]
+    InMastercardCard,
+    #[serde(rename = "in_amex_card")]
+    InAmexCard,
+    #[serde(rename = "in_discover_card")]
+    InDiscoverCard,
+    #[serde(rename = "in_dinersclub_card")]
+    InDinersclubCard,
+    #[serde(rename = "in_jcb_card")]
+    InJcbCard,
+    #[serde(rename = "in_maestro_card")]
+    InMaestroCard,
+}
+
+impl RapydCardType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::InVisaCard => "in_visa_card",
+            Self::InMastercardCard => "in_mastercard_card",
+            Self::InAmexCard => "in_amex_card",
+            Self::InDiscoverCard => "in_discover_card",
+            Self::InDinersclubCard => "in_dinersclub_card",
+            Self::InJcbCard => "in_jcb_card",
+            Self::InMaestroCard => "in_maestro_card",
+        }
+    }
+}
 
 impl TryFrom<CardIssuer> for RapydCardType {
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(issuer: CardIssuer) -> Result<Self, Self::Error> {
-        let ty = match issuer {
-            CardIssuer::Visa => RAPYD_VISA_CARD_TYPE,
-            CardIssuer::Master => RAPYD_MASTERCARD_CARD_TYPE,
-            CardIssuer::AmericanExpress => RAPYD_AMEX_CARD_TYPE,
-            CardIssuer::Discover => RAPYD_DISCOVER_CARD_TYPE,
-            CardIssuer::DinersClub => RAPYD_DINERSCLUB_CARD_TYPE,
-            CardIssuer::JCB => RAPYD_JCB_CARD_TYPE,
-            CardIssuer::Maestro => RAPYD_MAESTRO_CARD_TYPE,
+        match issuer {
+            CardIssuer::Visa => Ok(Self::InVisaCard),
+            CardIssuer::Master => Ok(Self::InMastercardCard),
+            CardIssuer::AmericanExpress => Ok(Self::InAmexCard),
+            CardIssuer::Discover => Ok(Self::InDiscoverCard),
+            CardIssuer::DinersClub => Ok(Self::InDinersclubCard),
+            CardIssuer::JCB => Ok(Self::InJcbCard),
+            CardIssuer::Maestro => Ok(Self::InMaestroCard),
             CardIssuer::CarteBlanche | CardIssuer::CartesBancaires | CardIssuer::UnionPay => {
                 Err(IntegrationError::NotImplemented(
                     format!("rapyd card type for {issuer}"),
                     Default::default(),
                 ))?
             }
-        };
-        Ok(Self(ty))
+        }
     }
+}
+
+/// Rapyd `initiation_type` for `/v1/payments`. MIT replays go out as
+/// `recurring`; the full Rapyd vocabulary also includes `customer_present`,
+/// `installment`, `moto`, and `unscheduled`, but only `recurring` is used
+/// on this path today.
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RapydInitiationType {
+    Recurring,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
@@ -223,10 +252,12 @@ pub struct RapydPaymentsRequest<
     /// Must be paired with `customer`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub save_payment_method: Option<bool>,
-    /// `recurring` / `unscheduled` / `customer_present` — required on
-    /// MIT replays so Rapyd bypasses 3DS using the stored credential.
+    /// Required on MIT replays so Rapyd bypasses 3DS using the stored
+    /// credential. Rapyd's vocabulary also includes `customer_present`,
+    /// `installment`, `moto`, and `unscheduled` — only `recurring` is
+    /// emitted on the current MIT path.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub initiation_type: Option<String>,
+    pub initiation_type: Option<RapydInitiationType>,
 }
 
 /// Rapyd customer reference: either a raw id string (`cus_*`) for MIT
@@ -551,12 +582,10 @@ pub struct ResponseData {
     /// the `customer_token` key (NOT `customer`). Present both when the
     /// payment was created with an inline customer object and when it
     /// was created against an existing `cus_*`.
-    #[serde(default)]
     pub customer_token: Option<String>,
     /// Saved-card token (`card_*`) — populated when the payment was
     /// created with `save_payment_method: true`. Used as the MIT token
     /// on subsequent charges.
-    #[serde(default)]
     pub payment_method: Option<String>,
 }
 
@@ -1106,23 +1135,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let payment_method = match &request.payment_method_data {
             PaymentMethodData::Card(ccard) => {
                 let card_issuer = domain_types::utils::get_card_issuer(ccard.card_number.peek())?;
-                let RapydCardType(pm_type) = RapydCardType::try_from(card_issuer)?;
+                let pm_type = RapydCardType::try_from(card_issuer)?.as_str().to_owned();
                 // Rapyd documents `payment_method.fields.name` as required
                 // (https://docs.rapyd.net/en/create-card-payment-method.html).
-                // Fall back to `customer_name` from the request before giving
-                // up on the billing address, and surface a clear error rather
-                // than defaulting to an empty string that Rapyd may silently
-                // accept today and reject after a config change.
-                let cardholder_name = router_data
-                    .resource_common_data
-                    .get_optional_billing_full_name()
-                    .or_else(|| request.customer_name.clone().map(Secret::new))
+                // Prefer the cardholder name on the card itself; fall back to
+                // the billing full name. We deliberately do not fall back to
+                // `customer_name`, which describes the Rapyd customer object
+                // (inline `{name, email}`) — not the cardholder.
+                let cardholder_name = ccard
+                    .card_holder_name
+                    .clone()
+                    .or_else(|| router_data.resource_common_data.get_optional_billing_full_name())
                     .ok_or(IntegrationError::MissingRequiredField {
-                        field_name: "billing.first_name / customer_name",
+                        field_name: "card.card_holder_name / billing.full_name",
                         context: Default::default(),
                     })?;
                 RapydPaymentMethodData::PaymentMethod(Box::new(PaymentMethod {
-                    pm_type: pm_type.to_owned(),
+                    pm_type,
                     fields: Some(PaymentFields {
                         number: ccard.card_number.to_owned(),
                         expiration_month: ccard.card_exp_month.to_owned(),
@@ -1152,32 +1181,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // Rapyd REQUIRES a customer to save a payment method. We pass an
         // inline `{name, email}` object so Rapyd creates `cus_*` in the
-        // same call and attaches the saved `card_*` to it.
-        let customer_name = request
-            .customer_name
-            .clone()
-            .or_else(|| {
-                router_data
-                    .resource_common_data
-                    .get_optional_billing_full_name()
-                    .map(|s| s.expose())
-            })
-            .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "customer_name / billing.full_name",
-                context: Default::default(),
-            })?;
+        // same call and attaches the saved `card_*` to it. Both fields
+        // must come from the customer payload — billing address describes
+        // the cardholder, not the customer-of-record, and mixing them
+        // would attach the card to the wrong customer on repeat use.
+        let customer_name =
+            request
+                .customer_name
+                .clone()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "customer.name",
+                    context: Default::default(),
+                })?;
         let customer_email = request
             .email
             .as_ref()
             .map(|e| e.peek().to_string())
-            .or_else(|| {
-                router_data
-                    .resource_common_data
-                    .get_optional_billing_email()
-                    .map(|e| e.peek().to_string())
-            })
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "email / billing.email",
+                field_name: "customer.email",
                 context: Default::default(),
             })?;
         let inline_customer = RapydInlineCustomer {
@@ -1196,7 +1217,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             amount,
             currency: request.currency,
             payment_method,
-            capture: Some(true),
+            // Zero-auth: authorize the card so Rapyd can mint the
+            // `card_*` / `cus_*` tokens, but do not capture funds.
+            capture: Some(false),
             payment_method_options,
             merchant_reference_id: Some(
                 router_data
@@ -1204,7 +1227,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     .connector_request_reference_id
                     .clone(),
             ),
-            description: Some(RAPYD_MANDATE_SETUP_DESCRIPTION.to_owned()),
+            description: router_data.resource_common_data.description.clone(),
             complete_payment_url: Some(return_url.clone()),
             error_payment_url: Some(return_url),
             customer: Some(RapydCustomerRef::Inline(inline_customer)),
@@ -1228,6 +1251,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn try_from(
         item: ResponseRouterData<RapydSetupMandateResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        // Emitted only on the success path; threaded back through PaymentFlowData
+        // so the gRPC layer exposes it via `state.connector_customer_id` and the
+        // next RepeatPayment can forward it as `connector_customer_id`.
+        let mut connector_customer: Option<String> = None;
+
         let (status, response) = match &item.response.data {
             Some(data) => {
                 let attempt_status =
@@ -1241,7 +1269,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 .to_owned()
                                 .unwrap_or(item.response.status.error_code.clone()),
                             status_code: item.http_code,
-                            message: item.response.status.status.clone().unwrap_or_default(),
+                            message: item
+                                .response
+                                .status
+                                .status
+                                .clone()
+                                .unwrap_or_else(|| {
+                                    common_utils::consts::NO_ERROR_MESSAGE.to_string()
+                                }),
                             reason: data.failure_message.clone(),
                             attempt_status: None,
                             connector_transaction_id: Some(data.id.clone()),
@@ -1251,18 +1286,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         }),
                     ),
                     _ => {
-                        // Compose "cus_*|card_*" so RepeatPayment can
-                        // recover both halves without a metadata side
-                        // channel. Require that save_payment_method
-                        // actually produced a card_* token (otherwise
-                        // MIT replays are impossible).
+                        // `customer_token` is the Rapyd connector-customer id; it
+                        // belongs in `PaymentFlowData.connector_customer` (surfaced
+                        // to the caller via `state.connector_customer_id`), not
+                        // `mandate_reference`. The card token (`card_*`) is the
+                        // actual mandate reference used on MIT replays.
                         match (data.customer_token.as_deref(), data.payment_method.as_deref()) {
                             (Some(cus), Some(card))
                                 if cus.starts_with("cus_") && card.starts_with("card_") =>
                             {
-                                let mandate_id = format!("{cus}|{card}");
+                                connector_customer = Some(cus.to_owned());
                                 let mandate_reference = Some(Box::new(MandateReference {
-                                    connector_mandate_id: Some(mandate_id.clone()),
+                                    connector_mandate_id: Some(card.to_owned()),
                                     payment_method_id: None,
                                     connector_mandate_request_reference_id: None,
                                 }));
@@ -1302,7 +1337,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                         .status
                                         .status
                                         .clone()
-                                        .unwrap_or_default(),
+                                        .unwrap_or_else(|| {
+                                            common_utils::consts::NO_ERROR_MESSAGE.to_string()
+                                        }),
                                     reason: Some(format!(
                                         "rapyd payment succeeded but did not return a reusable card_* token (customer_token={:?}, payment_method={:?})",
                                         data.customer_token, data.payment_method
@@ -1323,7 +1360,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 Err(ErrorResponse {
                     code: item.response.status.error_code.clone(),
                     status_code: item.http_code,
-                    message: item.response.status.status.clone().unwrap_or_default(),
+                    message: item
+                        .response
+                        .status
+                        .status
+                        .clone()
+                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
                     reason: item.response.status.message.clone(),
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -1337,6 +1379,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                connector_customer: connector_customer
+                    .or(item.router_data.resource_common_data.connector_customer),
                 ..item.router_data.resource_common_data
             },
             response,
@@ -1398,16 +1442,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 context: Default::default(),
             })?;
 
-        // Extract stored mandate id (connector_mandate_id from SetupMandate).
-        // Format is "cus_xxx|card_xxx" so we can supply both to `/v1/payments`.
-        let raw_mandate_id = match &request.mandate_reference {
-            MandateReferenceId::ConnectorMandateId(cmr) => {
-                cmr.get_connector_mandate_id()
-                    .ok_or(IntegrationError::MissingRequiredField {
-                        field_name: "mandate_reference.connector_mandate_id",
-                        context: Default::default(),
-                    })?
-            }
+        // SetupMandate stored the `card_*` token in `connector_mandate_id`.
+        // The `cus_*` it returned was routed to `PaymentFlowData.connector_customer`
+        // and arrives back on this Charge via `RecurringPaymentServiceChargeRequest
+        // .connector_customer_id` (proto field 14).
+        let card_id = match &request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(cmr) => cmr.get_connector_mandate_id().ok_or(
+                IntegrationError::MissingRequiredField {
+                    field_name: "mandate_reference.connector_mandate_id",
+                    context: Default::default(),
+                },
+            )?,
             _ => {
                 return Err(IntegrationError::NotImplemented(
                     "non-connector mandate for rapyd RepeatPayment".to_owned(),
@@ -1415,17 +1460,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 ))?;
             }
         };
-        let (customer_id, card_id) = match raw_mandate_id.split_once('|') {
-            Some((cus, card)) if !cus.is_empty() && !card.is_empty() => {
-                (cus.to_owned(), card.to_owned())
-            }
-            _ => {
-                return Err(IntegrationError::MissingRequiredField {
-                    field_name: "mandate_reference.connector_mandate_id (expected cus_*|card_*)",
-                    context: Default::default(),
-                })?;
-            }
-        };
+        let customer_id = router_data
+            .resource_common_data
+            .connector_customer
+            .clone()
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "connector_customer_id",
+                context: Default::default(),
+            })?;
 
         let three_ds_enabled = matches!(
             router_data.resource_common_data.auth_type,
@@ -1435,18 +1477,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             three_ds: three_ds_enabled,
         });
 
-        let return_url = router_data.resource_common_data.return_url.clone().ok_or(
-            IntegrationError::MissingRequiredField {
+        // On Charge, return_url arrives on `request.router_return_url`;
+        // `PaymentFlowData.return_url` is hardcoded to None for this flow.
+        let return_url = request
+            .router_return_url
+            .clone()
+            .or_else(|| router_data.resource_common_data.return_url.clone())
+            .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "return_url",
                 context: Default::default(),
-            },
-        )?;
+            })?;
 
         Ok(Self {
             amount,
             currency: request.currency,
             payment_method: RapydPaymentMethodData::Token(Secret::new(card_id)),
-            capture: Some(true),
+            // Honor the caller's capture intent; SequentialAutomatic and
+            // unspecified default to auto-capture, matching the Authorize flow.
+            capture: Some(request.is_auto_capture()),
             payment_method_options,
             merchant_reference_id: Some(
                 router_data
@@ -1459,7 +1507,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             complete_payment_url: Some(return_url),
             customer: Some(RapydCustomerRef::Id(customer_id)),
             save_payment_method: None,
-            initiation_type: Some("recurring".to_owned()),
+            initiation_type: Some(RapydInitiationType::Recurring),
         })
     }
 }
@@ -1486,7 +1534,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 .to_owned()
                                 .unwrap_or(item.response.status.error_code.clone()),
                             status_code: item.http_code,
-                            message: item.response.status.status.clone().unwrap_or_default(),
+                            message: item
+                                .response
+                                .status
+                                .status
+                                .clone()
+                                .unwrap_or_else(|| {
+                                    common_utils::consts::NO_ERROR_MESSAGE.to_string()
+                                }),
                             reason: data.failure_message.to_owned(),
                             attempt_status: None,
                             // Preserve the connector's transaction id on
@@ -1504,9 +1559,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             resource_id: ResponseId::ConnectorTransactionId(data.id.clone()),
                             redirection_data: None,
                             // MIT replay does not mint a new mandate — the
-                            // `cus_*|card_*` pair from SetupMandate stays
-                            // valid. `data.id` is a one-shot payment id and
-                            // must never be stored as a mandate.
+                            // `connector_customer` + `card_*` from SetupMandate
+                            // stay valid. `data.id` is a one-shot payment id
+                            // and must never be stored as a mandate.
                             mandate_reference: None,
                             connector_metadata: None,
                             network_txn_id: None,
@@ -1522,7 +1577,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 Err(ErrorResponse {
                     code: item.response.status.error_code.clone(),
                     status_code: item.http_code,
-                    message: item.response.status.status.clone().unwrap_or_default(),
+                    message: item
+                        .response
+                        .status
+                        .status
+                        .clone()
+                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
                     reason: item.response.status.message.clone(),
                     attempt_status: None,
                     connector_transaction_id: None,
