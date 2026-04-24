@@ -1,0 +1,6 @@
+{
+  "connector": "sanlam",
+  "supported_suites": [
+    "authorize"
+  ]
+}

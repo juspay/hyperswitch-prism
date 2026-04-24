@@ -133,10 +133,11 @@ impl TryFrom<String> for GigadatTransactionStatus {
             "STATUS_ABORTED1" => Ok(Self::StatusAborted1),
             "STATUS_PENDING" => Ok(Self::StatusPending),
             "STATUS_FAILED" => Ok(Self::StatusFailed),
-            _ => Err(
-                IntegrationError::not_implemented("webhook body decoding failed".to_string())
-                    .into(),
-            ),
+            _ => Err(IntegrationError::NotImplemented(
+                "webhook body decoding failed".to_string(),
+                Default::default(),
+            )
+            .into()),
         }
     }
 }
@@ -378,13 +379,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 })
             }
             PaymentMethodData::BankRedirect(_) => {
-                Err(Report::new(IntegrationError::not_implemented(
-                    "Only Interac bank redirect is supported for Gigadat".to_string(),
-                )))
+                Err(Report::new(IntegrationError::NotSupported {
+                    message: "Only Interac bank redirect is supported for Gigadat".to_string(),
+                    connector: "Gigadat",
+                    context: Default::default(),
+                }))
             }
-            _ => Err(Report::new(IntegrationError::not_implemented(
-                "Only Interac bank redirect is supported for Gigadat".to_string(),
-            ))),
+            _ => Err(Report::new(IntegrationError::NotSupported {
+                message: "Only Interac bank redirect is supported for Gigadat".to_string(),
+                connector: "Gigadat",
+                context: Default::default(),
+            })),
         }
     }
 }

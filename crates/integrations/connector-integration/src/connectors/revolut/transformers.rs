@@ -996,8 +996,9 @@ fn map_webhook_event_to_attempt_status(
         RevolutWebhookEvent::OrderAuthorised => Ok(AttemptStatus::Authorized),
         RevolutWebhookEvent::OrderCancelled => Ok(AttemptStatus::Voided),
         RevolutWebhookEvent::OrderFailed => Ok(AttemptStatus::Failure),
-        _ => Err(IntegrationError::not_implemented(
+        _ => Err(IntegrationError::NotImplemented(
             "webhook event type not found".to_string(),
+            Default::default(),
         )),
     }
 }
@@ -1021,7 +1022,6 @@ impl TryFrom<RevolutWebhookBody> for WebhookDetailsResponse {
             mandate_reference: None,
             raw_connector_response: None,
             response_headers: None,
-            transformation_status: common_enums::WebhookTransformationStatus::Complete,
             minor_amount_captured: None,
             amount_captured: None,
             network_txn_id: None,

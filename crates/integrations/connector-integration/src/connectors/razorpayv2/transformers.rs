@@ -378,7 +378,7 @@ impl<U: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
                 UpiData::UpiIntent(_) | UpiData::UpiQr(_) => (Some(UpiFlow::Intent), None),
                 // UpiData::UpiQr(_) => {
-                //     return Err(errors::IntegrationError::not_implemented("UPI QR flow not supported by RazorpayV2".to_string()).into());
+                //     return Err(errors::IntegrationError::NotImplemented(("UPI QR flow not supported by RazorpayV2".to_string()).into(), Default::default()).into());
                 // }
             },
             _ => (None, None),

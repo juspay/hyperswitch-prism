@@ -49,8 +49,8 @@ use transformers::{
     DlocalPaymentsResponse as DlocalPaymentsSyncResponse,
     DlocalPaymentsResponse as DlocalPaymentsCaptureResponse,
     DlocalPaymentsResponse as DlocalPaymentsVoidResponse, DlocalRefundRequest,
-    DlocalRepeatPaymentRequest, DlocalRepeatPaymentResponse, RefundResponse,
-    RefundResponse as RefundSyncResponse,
+    DlocalRepeatPaymentRequest, DlocalRepeatPaymentResponse, DlocalSetupMandateRequest,
+    DlocalSetupMandateResponse, RefundResponse, RefundResponse as RefundSyncResponse,
 };
 
 use super::macros;
@@ -261,6 +261,12 @@ macros::create_all_prerequisites!(
             request_body: DlocalRepeatPaymentRequest,
             response_body: DlocalRepeatPaymentResponse,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: DlocalSetupMandateRequest<T>,
+            response_body: DlocalSetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -595,6 +601,37 @@ macros::macro_connector_implementation!(
     }
 );
 
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Dlocal,
+    curl_request: Json(DlocalSetupMandateRequest),
+    curl_response: DlocalSetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // dLocal card tokenization uses the same /secure_payments endpoint as
+            // card authorize flow with `card.save: true` and a minimal verify amount
+            // (dLocal rejects amounts <= 1.00 with code 5016 "Amount too low").
+            Ok(format!("{}secure_payments", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
 // Stub implementations for unsupported flows
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
@@ -621,16 +658,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
     for Dlocal<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
-        PaymentsResponseData,
-    > for Dlocal<T>
 {
 }
 
