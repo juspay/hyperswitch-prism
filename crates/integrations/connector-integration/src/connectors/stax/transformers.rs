@@ -1159,29 +1159,30 @@ fn extract_stax_mandate_token<T: PaymentMethodDataTypes>(
     payment_method_data: &PaymentMethodData<T>,
     mandate_reference: Option<&MandateReferenceId>,
 ) -> Result<String, error_stack::Report<IntegrationError>> {
-    if let PaymentMethodData::PaymentMethodToken(t) = payment_method_data {
-        return Ok(t.token.peek().to_string());
-    }
+    let resolved_token = match payment_method_data {
+        PaymentMethodData::PaymentMethodToken(t) => Some(t.token.peek().to_string()),
+        _ => match mandate_reference {
+            Some(MandateReferenceId::ConnectorMandateId(c)) => c.get_connector_mandate_id(),
+            _ => None,
+        },
+    };
 
-    if let Some(MandateReferenceId::ConnectorMandateId(c)) = mandate_reference {
-        if let Some(id) = c.get_connector_mandate_id() {
-            return Ok(id);
-        }
-    }
-
-    match payment_method_data {
-        PaymentMethodData::Card(_) | PaymentMethodData::BankDebit(_) => {
-            Err(IntegrationError::MissingRequiredField {
-                field_name: "payment_method_token (from PaymentMethodToken flow) or connector_mandate_id (for saved payment methods)",
-                context: Default::default(),
+    match resolved_token {
+        Some(token) => Ok(token),
+        None => match payment_method_data {
+            PaymentMethodData::Card(_) | PaymentMethodData::BankDebit(_) => {
+                Err(IntegrationError::MissingRequiredField {
+                    field_name: "payment_method_token (from PaymentMethodToken flow) or connector_mandate_id (for saved payment methods)",
+                    context: Default::default(),
+                }
+                .into())
             }
-            .into())
-        }
-        _ => Err(IntegrationError::NotImplemented(
-            "Only card and ACH bank debit payments are supported for Stax".to_string(),
-            Default::default(),
-        )
-        .into()),
+            _ => Err(IntegrationError::NotImplemented(
+                "Only card and ACH bank debit payments are supported for Stax".to_string(),
+                Default::default(),
+            )
+            .into()),
+        },
     }
 }
 
@@ -1211,7 +1212,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let converter = FloatMajorUnitForConnector;
         // Stax's /charge endpoint requires a non-zero total. Fail fast if the
         // caller omits an amount rather than silently authorizing $0.01, which
         // would leave a surprise charge on the cardholder's statement.
@@ -1224,11 +1224,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     "minor_amount (Stax requires a non-zero authorization amount for SetupMandate)",
                 context: Default::default(),
             })?;
-        let total = converter
-            .convert(minor_amount, item.router_data.request.currency)
-            .change_context(IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
-            })?;
+        let total = domain_types::utils::convert_amount(
+            item.connector.amount_converter,
+            minor_amount,
+            item.router_data.request.currency,
+        )?;
 
         let mandate_reference_id = item
             .router_data
@@ -1370,15 +1370,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let converter = FloatMajorUnitForConnector;
-        let total = converter
-            .convert(
-                item.router_data.request.minor_amount,
-                item.router_data.request.currency,
-            )
-            .change_context(IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
-            })?;
+        let total = domain_types::utils::convert_amount(
+            item.connector.amount_converter,
+            item.router_data.request.minor_amount,
+            item.router_data.request.currency,
+        )?;
 
         let payment_method_id = extract_stax_mandate_token(
             &item.router_data.request.payment_method_data,
