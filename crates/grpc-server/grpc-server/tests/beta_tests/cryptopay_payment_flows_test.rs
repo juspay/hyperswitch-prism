@@ -130,7 +130,6 @@ fn create_payment_sync_request(request_ref_id: &str) -> PaymentServiceGetRequest
             id_type: Some(IdType::Id(request_ref_id.to_string())),
         }),
         capture_method: None,
-        handle_response: None,
         amount: TEST_AMOUNT,
         currency: i32::from(Currency::Usd),
         state: None,

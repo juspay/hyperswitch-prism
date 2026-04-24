@@ -330,8 +330,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             _ => {
                 return Err(error_stack::report!(
-                    errors::IntegrationError::not_implemented(
+                    errors::IntegrationError::NotImplemented(
                         "This payment method is not implemented".to_string(),
+                        Default::default()
                     )
                 ))
             }

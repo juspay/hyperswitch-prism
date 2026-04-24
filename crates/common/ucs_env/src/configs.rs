@@ -4,6 +4,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use common_utils::{
+    connector_request_kafka::{ConnectorRequestKafkaConfig, ConnectorRequestKafkaConfigPatch},
     consts,
     events::{EventConfig, EventConfigPatch},
     metadata::{HeaderMaskingConfig, HeaderMaskingConfigPatch},
@@ -39,6 +40,8 @@ pub struct Config {
     pub api_tags: ApiTagConfig,
     #[serde(default)]
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
+    #[serde(default)]
+    pub connector_request_kafka: ConnectorRequestKafkaConfig,
     /// Superposition configuration for connector URL resolution
     /// This is loaded at startup from config/superposition.toml
     #[serde(skip)]

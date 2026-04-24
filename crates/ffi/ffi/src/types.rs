@@ -4,7 +4,7 @@ use domain_types::{connector_types::ConnectorEnum, router_data::ConnectorSpecifi
 #[derive(Clone, Debug)]
 pub struct FfiMetadataPayload {
     pub connector: ConnectorEnum,
-    pub connector_config: ConnectorSpecificConfig,
+    pub connector_config: Option<ConnectorSpecificConfig>,
 }
 
 #[derive(Debug)]

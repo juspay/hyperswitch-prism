@@ -352,15 +352,19 @@ macros::create_all_prerequisites!(
                         })
                     }),
                 MandateReferenceId::NetworkMandateId(_) => {
-                    Err(error_stack::report!(IntegrationError::not_implemented(
-                        "Network mandate ID not supported for repeat payments in aci"
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: "Network mandate ID not supported for repeat payments in aci"
                             .to_string(),
-                    )))
+                        connector: "Aci",
+                        context: Default::default(),
+                    }))
                 }
                 MandateReferenceId::NetworkTokenWithNTI(_) => {
-                    Err(error_stack::report!(IntegrationError::not_implemented(
-                        "Network token with NTI not supported for aci".to_string(),
-                    )))
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: "Network token with NTI not supported for aci".to_string(),
+                        connector: "Aci",
+                        context: Default::default(),
+                    }))
                 }
             }
         }

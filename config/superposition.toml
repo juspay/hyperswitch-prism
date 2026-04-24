@@ -188,6 +188,16 @@ connector_secondary_base_url = "https://sandpay.bluesnap.com"
 _context_ = { connector = "fiserv" }
 connector_base_url = "https://cert.api.fiservapps.com/"
 
+# Fiserv Development
+[[overrides]]
+_context_ = { connector = "fiserv", environment = "development" }
+connector_base_url = "https://cert.api.fiservapps.com/"
+
+# Fiserv Production
+[[overrides]]
+_context_ = { connector = "fiserv", environment = "production" }
+connector_base_url = "https://cert.api.fiservapps.com/"
+
 # TrustPay (special case with bank redirects)
 [[overrides]]
 _context_ = { connector = "trustpay" }
@@ -242,6 +252,11 @@ connector_base_url = "https://sandbox.dlocal.com/"
 _context_ = { connector = "rapyd" }
 connector_base_url = "https://sandboxapi.rapyd.net"
 
+# Rapyd Development
+[[overrides]]
+_context_ = { connector = "rapyd", environment = "development" }
+connector_base_url = "https://sandboxapi.rapyd.net"
+
 # ACI
 [[overrides]]
 _context_ = { connector = "aci" }
@@ -265,6 +280,11 @@ connector_base_url = "https://apitest.authorize.net/xml/v1/request.api"
 # Elavon
 [[overrides]]
 _context_ = { connector = "elavon" }
+connector_base_url = "https://api.demo.convergepay.com/VirtualMerchantDemo/"
+
+# Elavon Development
+[[overrides]]
+_context_ = { connector = "elavon", environment = "development" }
 connector_base_url = "https://api.demo.convergepay.com/VirtualMerchantDemo/"
 
 # Bambora APAC
@@ -406,9 +426,19 @@ connector_base_url = "https://cluster05.api-test.cashtocode.com"
 _context_ = { connector = "novalnet" }
 connector_base_url = "https://payport.novalnet.de/v2"
 
+# Novalnet Development
+[[overrides]]
+_context_ = { connector = "novalnet", environment = "development" }
+connector_base_url = "https://payport.novalnet.de/v2"
+
 # Nexi Nets
 [[overrides]]
 _context_ = { connector = "nexinets" }
+connector_base_url = "https://apitest.payengine.de/v1"
+
+# Nexi Nets Development
+[[overrides]]
+_context_ = { connector = "nexinets", environment = "development" }
 connector_base_url = "https://apitest.payengine.de/v1"
 
 # Noon Payments
@@ -655,6 +685,11 @@ connector_third_base_url = "https://api.merchant.razer.com/"
 [[overrides]]
 _context_ = { connector = "cashtocode", environment = "production" }
 connector_base_url = "https://cluster14.api.cashtocode.com"
+
+# Novalnet Production
+[[overrides]]
+_context_ = { connector = "novalnet", environment = "production" }
+connector_base_url = "https://payport.novalnet.de/v2"
 
 # Nexi Nets Production
 [[overrides]]

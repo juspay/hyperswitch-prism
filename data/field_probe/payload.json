@@ -103,6 +103,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Payload"
       },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
+      },
       "Bizum": {
         "status": "not_supported",
         "error": "Payment method is not supported by Payload"
@@ -179,6 +183,10 @@
         "status": "not_supported",
         "error": "Wallet is not supported by Payload"
       },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
+      },
       "CimbVaBankTransfer": {
         "status": "not_supported",
         "error": "Payment method is not supported by Payload"
@@ -189,7 +197,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
@@ -197,11 +205,15 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
         "status": "not_supported",
         "error": "Payment method is not supported by Payload"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
       },
       "Efecty": {
         "status": "not_supported",
@@ -225,7 +237,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GooglePay": {
         "status": "not_implemented",
@@ -275,6 +287,10 @@
         "status": "not_supported",
         "error": "Payment method is not supported by Payload"
       },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
+      },
       "LocalBankRedirect": {
         "status": "not_supported",
         "error": "Payment method is not supported by Payload"
@@ -300,6 +316,10 @@
         "error": "Payment method is not supported by Payload"
       },
       "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
+      "Netbanking": {
         "status": "not_supported",
         "error": "Payment method is not supported by Payload"
       },
@@ -333,7 +353,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
         "status": "not_supported",
@@ -353,7 +373,11 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
       },
       "PaypalRedirect": {
         "status": "not_supported",
@@ -365,11 +389,15 @@
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
         "status": "not_supported",
         "error": "Payment method is not supported by Payload"
+      },
+      "PhonePeRedirect": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
       },
       "Pix": {
         "status": "not_supported",
@@ -584,12 +612,31 @@
     },
     "handle_event": {
       "default": {
-        "status": "supported"
+        "status": "not_implemented"
       }
     },
     "incremental_authorization": {
       "default": {
         "status": "not_implemented"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"object\":\"transaction\",\"trigger\":\"payment\",\"webhook_id\":\"probe_wh_001\",\"triggered_at\":\"2024-01-01T00:00:00Z\",\"triggered_on\":{\"id\":\"probe_txn_001\",\"object\":\"transaction\"},\"url\":\"https://example.com/webhook\"}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"object\":\"transaction\",\"trigger\":\"payment\",\"webhook_id\":\"probe_wh_001\",\"triggered_at\":\"2024-01-01T00:00:00Z\",\"triggered_on\":{\"id\":\"probe_txn_001\",\"object\":\"transaction\"},\"url\":\"https://example.com/webhook\"}"
+        }
       }
     },
     "post_authenticate": {

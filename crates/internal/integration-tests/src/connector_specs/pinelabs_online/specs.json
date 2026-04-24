@@ -1,0 +1,13 @@
+{
+  "connector": "pinelabs_online",
+  "supported_suites": [
+    "authorize",
+    "get",
+    "capture",
+    "void",
+    "refund",
+    "refund_sync",
+    "server_authentication_token",
+    "create_order"
+  ]
+}

@@ -22,11 +22,14 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        powertranz=payment_pb2.PowertranzConfig(
+            power_tranz_id=payment_methods_pb2.SecretString(value="YOUR_POWER_TRANZ_ID"),
+            power_tranz_password=payment_methods_pb2.SecretString(value="YOUR_POWER_TRANZ_PASSWORD"),
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     powertranz=payment_pb2.PowertranzConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,14 +41,18 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Powertranz',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
+const config = ConnectorConfig.create({
+    connector: Connector.POWERTRANZ,
+    environment: Environment.SANDBOX,
+    auth: {
+        powertranz: {
+            powerTranzId: { value: 'YOUR_POWER_TRANZ_ID' },
+            powerTranzPassword: { value: 'YOUR_POWER_TRANZ_PASSWORD' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
     },
 });
 ```
@@ -59,11 +66,15 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Powertranz")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setPowertranz(PowertranzConfig.newBuilder()
+                .setPowerTranzId(SecretString.newBuilder().setValue("YOUR_POWER_TRANZ_ID").build())
+                .setPowerTranzPassword(SecretString.newBuilder().setValue("YOUR_POWER_TRANZ_PASSWORD").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
     )
     .build()
 ```
@@ -76,13 +87,21 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Powertranz".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Powertranz(PowertranzConfig {
+                power_tranz_id: Some(hyperswitch_masking::Secret::new("YOUR_POWER_TRANZ_ID".to_string())),  // Authentication credential
+                power_tranz_password: Some(hyperswitch_masking::Secret::new("YOUR_POWER_TRANZ_PASSWORD".to_string())),  // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -108,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py#L139) · [JavaScript](../../examples/powertranz/powertranz.js) · [Kotlin](../../examples/powertranz/powertranz.kt#L103) · [Rust](../../examples/powertranz/powertranz.rs#L131)
+**Examples:** [Python](../../examples/powertranz/powertranz.py#L175) · [JavaScript](../../examples/powertranz/powertranz.js) · [Kotlin](../../examples/powertranz/powertranz.kt#L113) · [Rust](../../examples/powertranz/powertranz.rs#L226)
 
 ### Card Payment (Authorize + Capture)
 
@@ -122,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py#L158) · [JavaScript](../../examples/powertranz/powertranz.js) · [Kotlin](../../examples/powertranz/powertranz.kt#L119) · [Rust](../../examples/powertranz/powertranz.rs#L147)
+**Examples:** [Python](../../examples/powertranz/powertranz.py#L194) · [JavaScript](../../examples/powertranz/powertranz.js) · [Kotlin](../../examples/powertranz/powertranz.kt#L129) · [Rust](../../examples/powertranz/powertranz.rs#L242)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py#L183) · [JavaScript](../../examples/powertranz/powertranz.js) · [Kotlin](../../examples/powertranz/powertranz.kt#L141) · [Rust](../../examples/powertranz/powertranz.rs#L170)
+**Examples:** [Python](../../examples/powertranz/powertranz.py#L219) · [JavaScript](../../examples/powertranz/powertranz.js) · [Kotlin](../../examples/powertranz/powertranz.kt#L151) · [Rust](../../examples/powertranz/powertranz.rs#L265)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py#L208) · [JavaScript](../../examples/powertranz/powertranz.js) · [Kotlin](../../examples/powertranz/powertranz.kt#L163) · [Rust](../../examples/powertranz/powertranz.rs#L193)
+**Examples:** [Python](../../examples/powertranz/powertranz.py#L244) · [JavaScript](../../examples/powertranz/powertranz.js) · [Kotlin](../../examples/powertranz/powertranz.kt#L173) · [Rust](../../examples/powertranz/powertranz.rs#L288)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py#L230) · [JavaScript](../../examples/powertranz/powertranz.js) · [Kotlin](../../examples/powertranz/powertranz.kt#L182) · [Rust](../../examples/powertranz/powertranz.rs#L212)
+**Examples:** [Python](../../examples/powertranz/powertranz.py#L266) · [JavaScript](../../examples/powertranz/powertranz.js) · [Kotlin](../../examples/powertranz/powertranz.kt#L192) · [Rust](../../examples/powertranz/powertranz.rs#L307)
 
 ## API Reference
 
@@ -150,8 +169,10 @@ Retrieve current payment status from the connector.
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
+| [PaymentService.ProxySetupRecurring](#paymentserviceproxysetuprecurring) | Payments | `PaymentServiceProxySetupRecurringRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
+| [PaymentService.SetupRecurring](#paymentservicesetuprecurring) | Payments | `PaymentServiceSetupRecurringRequest` |
 | [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
 
 ### Payments
@@ -267,17 +288,17 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "card": {  # Generic card payment.
-        "card_number": {"value": "4111111111111111"},  # Card Identification.
-        "card_exp_month": {"value": "03"},
-        "card_exp_year": {"value": "2030"},
-        "card_cvc": {"value": "737"},
-        "card_holder_name": {"value": "John Doe"}  # Cardholder Information.
-    }
+  "card": {
+    "card_number": "4111111111111111",
+    "card_exp_month": "03",
+    "card_exp_year": "2030",
+    "card_cvc": "737",
+    "card_holder_name": "John Doe"
+  }
 }
 ```
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py#L252) · [TypeScript](../../examples/powertranz/powertranz.ts#L240) · [Kotlin](../../examples/powertranz/powertranz.kt#L200) · [Rust](../../examples/powertranz/powertranz.rs#L230)
+**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L303) · [Kotlin](../../examples/powertranz/powertranz.kt#L210) · [Rust](../../examples/powertranz/powertranz.rs)
 
 #### PaymentService.Capture
 
@@ -288,7 +309,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py#L261) · [TypeScript](../../examples/powertranz/powertranz.ts#L249) · [Kotlin](../../examples/powertranz/powertranz.kt#L212) · [Rust](../../examples/powertranz/powertranz.rs#L242)
+**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L312) · [Kotlin](../../examples/powertranz/powertranz.kt#L222) · [Rust](../../examples/powertranz/powertranz.rs)
 
 #### PaymentService.Get
 
@@ -299,7 +320,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py#L270) · [TypeScript](../../examples/powertranz/powertranz.ts#L258) · [Kotlin](../../examples/powertranz/powertranz.kt#L222) · [Rust](../../examples/powertranz/powertranz.rs#L249)
+**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L321) · [Kotlin](../../examples/powertranz/powertranz.kt#L232) · [Rust](../../examples/powertranz/powertranz.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -310,7 +331,18 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py#L279) · [TypeScript](../../examples/powertranz/powertranz.ts#L267) · [Kotlin](../../examples/powertranz/powertranz.kt#L230) · [Rust](../../examples/powertranz/powertranz.rs#L256)
+**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L330) · [Kotlin](../../examples/powertranz/powertranz.kt#L240) · [Rust](../../examples/powertranz/powertranz.rs)
+
+#### PaymentService.ProxySetupRecurring
+
+Setup recurring mandate using vault-aliased card data.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceProxySetupRecurringRequest` |
+| **Response** | `PaymentServiceSetupRecurringResponse` |
+
+**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L339) · [Kotlin](../../examples/powertranz/powertranz.kt#L268) · [Rust](../../examples/powertranz/powertranz.rs)
 
 #### PaymentService.Refund
 
@@ -321,7 +353,18 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py#L288) · [TypeScript](../../examples/powertranz/powertranz.ts#L276) · [Kotlin](../../examples/powertranz/powertranz.kt#L258) · [Rust](../../examples/powertranz/powertranz.rs#L263)
+**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L348) · [Kotlin](../../examples/powertranz/powertranz.kt#L299) · [Rust](../../examples/powertranz/powertranz.rs)
+
+#### PaymentService.SetupRecurring
+
+Configure a payment method for recurring billing. Sets up the mandate and payment details needed for future automated charges.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceSetupRecurringRequest` |
+| **Response** | `PaymentServiceSetupRecurringResponse` |
+
+**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L366) · [Kotlin](../../examples/powertranz/powertranz.kt#L321) · [Rust](../../examples/powertranz/powertranz.rs)
 
 #### PaymentService.Void
 
@@ -332,7 +375,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py#L306) · [TypeScript](../../examples/powertranz/powertranz.ts) · [Kotlin](../../examples/powertranz/powertranz.kt#L280) · [Rust](../../examples/powertranz/powertranz.rs#L277)
+**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts) · [Kotlin](../../examples/powertranz/powertranz.kt#L360) · [Rust](../../examples/powertranz/powertranz.rs)
 
 ### Refunds
 
@@ -345,4 +388,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py#L297) · [TypeScript](../../examples/powertranz/powertranz.ts#L285) · [Kotlin](../../examples/powertranz/powertranz.kt#L268) · [Rust](../../examples/powertranz/powertranz.rs#L270)
+**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L357) · [Kotlin](../../examples/powertranz/powertranz.kt#L309) · [Rust](../../examples/powertranz/powertranz.rs)

@@ -17,12 +17,14 @@
    - [Redirect Form Wallet Pattern](#redirect-form-wallet-pattern)
    - [Specialized Wallet Pattern](#specialized-wallet-pattern)
    - [Per-Wallet Regional Redirect Pattern](#per-wallet-regional-redirect-pattern)
-5. [Request Patterns](#request-patterns)
-6. [Response Patterns](#response-patterns)
-7. [Implementation Templates](#implementation-templates)
-8. [Common Pitfalls](#common-pitfalls)
-9. [Testing Patterns](#testing-patterns)
-10. [Integration Checklist](#integration-checklist)
+5. [Per-Variant Implementation Notes](#per-variant-implementation-notes)
+6. [Request Patterns](#request-patterns)
+7. [Response Patterns](#response-patterns)
+8. [Implementation Templates](#implementation-templates)
+9. [Common Pitfalls](#common-pitfalls)
+10. [Testing Patterns](#testing-patterns)
+11. [Integration Checklist](#integration-checklist)
+12. [Change Log](#change-log)
 
 ---
 
@@ -106,6 +108,7 @@ Complete list of `WalletData` variants from `payment_method_data.rs`:
 | **Worldpay** | Apple Pay, Google Pay, PayPal | Token-based + Redirect |
 | **Bluesnap** | Apple Pay, Google Pay, PayPal | Token-based + Redirect |
 | **Razorpay** | LazyPay, PhonePe, BillDesk, Cashfree, PayU, EaseBuzz | Per-Wallet Regional Redirect |
+| **Cashfree** | AmazonPay, PayPal, GooglePay (Redirect/ThirdPartySdk), PhonePe, LazyPay, BillDesk, Cashfree, PayU, EaseBuzz | Per-Wallet Regional Redirect (APP channel) |
 
 ---
 
@@ -609,6 +612,102 @@ for pmt in [
     );
 }
 ```
+
+---
+
+## Per-Variant Implementation Notes
+
+Per-variant documentation for `WalletData` variants whose transformer behavior requires connector-specific attention at the pinned SHA. Variants not listed here follow the generic Token-Based or Redirect-Based patterns documented above without connector-specific quirks worth calling out at this SHA.
+
+### LazyPayRedirect
+
+Variant declared at `crates/types-traits/domain_types/src/payment_method_data.rs:728` with data struct `LazyPayRedirectData` at `crates/types-traits/domain_types/src/payment_method_data.rs:794`. Data struct is empty; the wallet identity is carried by the variant name itself.
+
+**Razorpay** (`crates/integrations/connector-integration/src/connectors/razorpay/transformers.rs`) maps this variant to the `RazorpayWalletType::LazyPay` enum arm at `crates/integrations/connector-integration/src/connectors/razorpay/transformers.rs:294` via `TryFrom<&WalletData> for RazorpayWalletType` declared at `crates/integrations/connector-integration/src/connectors/razorpay/transformers.rs:289`. The resulting `RazorpayWalletType` is serialized with `#[serde(rename_all = "lowercase")]` (see the enum at `crates/integrations/connector-integration/src/connectors/razorpay/transformers.rs:184`), producing the wire string `"lazypay"` in the `wallet` field of `RazorpayPaymentRequest` (`crates/integrations/connector-integration/src/connectors/razorpay/transformers.rs:165`). The `PaymentMethodType::LazyPay` is also registered in the supported-payment-methods table at `crates/integrations/connector-integration/src/connectors/razorpay.rs:1303`.
+
+### PhonePeRedirect
+
+Variant declared at `crates/types-traits/domain_types/src/payment_method_data.rs:729` with data struct `PhonePeRedirectData` at `crates/types-traits/domain_types/src/payment_method_data.rs:797`. Empty data struct.
+
+**Razorpay** maps this variant to `RazorpayWalletType::PhonePe` at `crates/integrations/connector-integration/src/connectors/razorpay/transformers.rs:295`. Serialized as `"phonepe"` on the wire. Registered in `razorpay_supported_payment_methods` at `crates/integrations/connector-integration/src/connectors/razorpay.rs:1304`.
+
+### BillDeskRedirect
+
+Variant declared at `crates/types-traits/domain_types/src/payment_method_data.rs:730` with data struct `BillDeskRedirectData` at `crates/types-traits/domain_types/src/payment_method_data.rs:800`. Empty data struct.
+
+**Razorpay** maps this variant to `RazorpayWalletType::BillDesk` at `crates/integrations/connector-integration/src/connectors/razorpay/transformers.rs:296`. Serialized as `"billdesk"` on the wire. Registered at `crates/integrations/connector-integration/src/connectors/razorpay.rs:1305`.
+
+### CashfreeRedirect
+
+Variant declared at `crates/types-traits/domain_types/src/payment_method_data.rs:731` with data struct `CashfreeRedirectData` at `crates/types-traits/domain_types/src/payment_method_data.rs:803`. Empty data struct.
+
+**Razorpay** maps this variant to `RazorpayWalletType::Cashfree` at `crates/integrations/connector-integration/src/connectors/razorpay/transformers.rs:297`. Serialized as `"cashfree"` on the wire. Registered at `crates/integrations/connector-integration/src/connectors/razorpay.rs:1306`.
+
+### PayURedirect
+
+Variant declared at `crates/types-traits/domain_types/src/payment_method_data.rs:732` with data struct `PayURedirectData` at `crates/types-traits/domain_types/src/payment_method_data.rs:806`. Empty data struct.
+
+**Razorpay** maps this variant to `RazorpayWalletType::PayU` at `crates/integrations/connector-integration/src/connectors/razorpay/transformers.rs:298`. Serialized as `"payu"` on the wire. Registered at `crates/integrations/connector-integration/src/connectors/razorpay.rs:1307`.
+
+### EaseBuzzRedirect
+
+Variant declared at `crates/types-traits/domain_types/src/payment_method_data.rs:733` with data struct `EaseBuzzRedirectData` at `crates/types-traits/domain_types/src/payment_method_data.rs:809`. Empty data struct.
+
+**Razorpay** maps this variant to `RazorpayWalletType::EaseBuzz` at `crates/integrations/connector-integration/src/connectors/razorpay/transformers.rs:299`. Serialized as `"easebuzz"` on the wire. Registered at `crates/integrations/connector-integration/src/connectors/razorpay.rs:1308`.
+
+The call site that invokes `RazorpayWalletType::try_from(wallet_data)` for all six variants lives in the `PaymentMethodData::Wallet(wallet_data)` arm at `crates/integrations/connector-integration/src/connectors/razorpay/transformers.rs:492`, which selects `PaymentMethodType::Wallet` as the `method` field and stores the mapped `RazorpayWalletType` in the `wallet` field.
+
+### GooglePay (PayPal decrypted-token flow)
+
+Variant declared at `crates/types-traits/domain_types/src/payment_method_data.rs` as part of `WalletData::GooglePay(GooglePayWalletData)`. The inner `GooglePayWalletData.tokenization_data` is a `GpayTokenizationData` enum with `Decrypted` and `Encrypted` arms; PayPal at the pinned SHA supports only the `Decrypted` arm.
+
+**PayPal** (`crates/integrations/connector-integration/src/connectors/paypal/transformers.rs`) matches `WalletData::GooglePay(gpay_data)` at `crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:1373`, then splits on `gpay_data.tokenization_data`:
+
+- `GpayTokenizationData::Decrypted(decrypted_data)` at `crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:1374` builds a `GooglePayRequest` (struct at `crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:569`) wrapping a `GooglePayDecryptedToken` (struct at `crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:580`). The decrypted-token payload includes:
+  - `message_id` generated per-request via `uuid::Uuid::new_v4()` at `crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:1388`.
+  - `message_expiration` hardcoded to `"9999999999999"` at `crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:1392` because the decrypted GPay payload's expiration is not yet forwarded through the gRPC interface (tracking issue noted inline).
+  - `payment_method: GooglePayPaymentMethod::Card` at `crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:1393` (the `GooglePayPaymentMethod` enum at `crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:575` only has a `Card` variant, serialized `SCREAMING_SNAKE_CASE`).
+  - `authentication_method` chosen dynamically at `crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:1381`: `GooglePayAuthMethod::Cryptogram` when `decrypted_data.cryptogram.is_some()`, else `GooglePayAuthMethod::PanOnly`.
+  - `cryptogram` and `eci_indicator` cloned from the decrypted payload at `crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:1395-1396`.
+  - `card: GooglePayDecryptedCard` (struct at `crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:593`) with `number` sourced from `decrypted_data.application_primary_account_number.get_card_no()` at `crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:1400-1402` and `expiry` formatted via `decrypted_data.get_expiry_date_as_yyyymm("-")` at `crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:1375`.
+  - The resulting `GooglePayRequest` is wrapped in `PaymentSourceItem::GooglePay(...)` (variant added to the `PaymentSourceItem` enum at `crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:687`) and attached as the order's `payment_source`.
+- `GpayTokenizationData::Encrypted(_)` at `crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:1413` returns `IntegrationError::not_implemented("PayPal GooglePay encrypted flow")` because PayPal requires the pre-decrypted cryptogram/PAN payload server-side rather than the raw encrypted token.
+
+PayPal's response-side handling for Google Pay order responses treats the `PaymentSourceItemResponse::GooglePay(_)` arm at `crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:2279` as producing no additional redirection or network-txn-id metadata, since the decrypted-token flow completes synchronously without a customer redirect.
+
+**Note**: The expiry formatter is `get_expiry_date_as_yyyymm("-")` (produces `YYYY-MM`) rather than the `YYYY/MM` variant; the `-` delimiter matches PayPal's `expiry` field format requirement.
+
+### Cashfree Wallet Mapping (APP-channel redirect)
+
+Cashfree's wallet support (PR #1092) extends the Per-Wallet Regional Redirect Pattern: the aggregator maps `WalletData` variants to a wallet-provider `provider` string that is placed inside a `CashfreeAppDetails` struct with `channel: "link"` and the customer's phone number.
+
+The dispatch lives in the `PaymentMethodData::Wallet(wallet_data)` arm at `crates/integrations/connector-integration/src/connectors/cashfree/transformers.rs:349`, which matches on `wallet_data` and produces the Cashfree provider wire string:
+
+| `WalletData` Variant | Cashfree `provider` Wire String | File:Line |
+|----------------------|-------------------------------|-----------|
+| `AmazonPayRedirect` | `"amazon"` | `crates/integrations/connector-integration/src/connectors/cashfree/transformers.rs:352` |
+| `PaypalRedirect` | `"paypal"` | `crates/integrations/connector-integration/src/connectors/cashfree/transformers.rs:353` |
+| `GooglePayRedirect` / `GooglePayThirdPartySdk` | `"gpay"` | `crates/integrations/connector-integration/src/connectors/cashfree/transformers.rs:354` |
+| `PhonePeRedirect` | `"phonepe"` | `crates/integrations/connector-integration/src/connectors/cashfree/transformers.rs:355` |
+| `LazyPayRedirect` | `"lazypay"` | `crates/integrations/connector-integration/src/connectors/cashfree/transformers.rs:356` |
+| `BillDeskRedirect` | `"billdesk"` | `crates/integrations/connector-integration/src/connectors/cashfree/transformers.rs:357` |
+| `CashfreeRedirect` | `"cashfreepay"` | `crates/integrations/connector-integration/src/connectors/cashfree/transformers.rs:358` |
+| `PayURedirect` | `"payu"` | `crates/integrations/connector-integration/src/connectors/cashfree/transformers.rs:359` |
+| `EaseBuzzRedirect` | `"easebuzz"` | `crates/integrations/connector-integration/src/connectors/cashfree/transformers.rs:360` |
+
+Unsupported wallet variants fall through to the `_ =>` arm at `crates/integrations/connector-integration/src/connectors/cashfree/transformers.rs:361`, which returns `IntegrationError::not_implemented_with_context("This wallet type is not supported for Cashfree", ...)` with a suggested-action pointer to the supported set.
+
+The `CashfreeAppDetails` payload is assembled at `crates/integrations/connector-integration/src/connectors/cashfree/transformers.rs:373-386`:
+- `channel: "link"` (deep-link/redirect)
+- `provider`: the mapped wire string from the table above
+- `phone`: the customer phone number threaded through from the request (defaults to an empty `Secret` when absent, see `cashfree/transformers.rs:372`)
+
+This is the APP-channel counterpart to Cashfree's UPI (`upi`), netbanking (`netbanking`), and card (`card`) payment-method branches within the same `CashfreePaymentMethod` struct; only one of the payment-method sub-structs is populated per request.
+
+**Notable behaviour at the pinned SHA**:
+- `GooglePayRedirect` and `GooglePayThirdPartySdk` share a single `"gpay"` provider string -- the SDK/Redirect distinction is not propagated to the Cashfree wire format.
+- `CashfreeRedirect` (the Razorpay-side aggregator variant that routes *to* Cashfree) is itself mapped to `"cashfreepay"` when the merchant runs Cashfree directly, acknowledging that merchants can route to Cashfree both as an aggregator and as a wallet provider.
+- Token-based wallet variants (`ApplePay`, `GooglePay`, `SamsungPay`, `Paze`) are **not** implemented here -- Cashfree's wallet coverage at this SHA is strictly redirect-based.
 
 ---
 
@@ -1131,6 +1230,17 @@ mod integration_tests {
 - [pattern_authorize.md](./pattern_authorize.md) - Base authorize flow patterns
 - [payment_method_data.rs](../../../../crates/types-traits/domain_types/src/payment_method_data.rs) - Wallet data structures
 - [utility_functions_reference.md](./utility_functions_reference.md) - Common utility functions
+
+---
+
+## Change Log
+
+| Date | Version | Pinned SHA | Change |
+|------|---------|------------|--------|
+| 2026-04-20 | 1.3.0 | `60540470cf84a350cc02b0d41565e5766437eb95` | Added **Cashfree** row to the Supported Connectors table and a new **Cashfree Wallet Mapping (APP-channel redirect)** subsection under Per-Variant Implementation Notes, documenting the `WalletData` -> Cashfree `provider` wire-string mapping table (`AmazonPayRedirect`->`"amazon"`, `PaypalRedirect`->`"paypal"`, `GooglePayRedirect`/`GooglePayThirdPartySdk`->`"gpay"`, `PhonePeRedirect`->`"phonepe"`, `LazyPayRedirect`->`"lazypay"`, `BillDeskRedirect`->`"billdesk"`, `CashfreeRedirect`->`"cashfreepay"`, `PayURedirect`->`"payu"`, `EaseBuzzRedirect`->`"easebuzz"`) with `file:line` citations at `crates/integrations/connector-integration/src/connectors/cashfree/transformers.rs:349-387`, along with the unsupported-variant fallback at `cashfree/transformers.rs:361` and the `CashfreeAppDetails` payload assembly at `cashfree/transformers.rs:373-386` -- PR #1092. |
+| 2026-04-20 | 1.2.0 | `60540470cf84a350cc02b0d41565e5766437eb95` | Promoted per-wallet Indian variants (LazyPayRedirect, PhonePeRedirect, BillDeskRedirect, CashfreeRedirect, PayURedirect, EaseBuzzRedirect) to the Per-Variant Implementation Notes section with full Razorpay `file:line` citations (PR #891, commit `f57ace53f`). Added PayPal GooglePay decrypted-token sub-section documenting `GpayTokenizationData::Decrypted` handling at `paypal/transformers.rs:1373-1416` (PR #930, commit `ab145d494`). Added document header metadata block and Change Log section. |
+| (prior) | 1.1.0 | `ceb33736ce941775403f241f3f0031acbf2b4527` | Added Per-Wallet Regional Redirect Pattern section documenting aggregator (Razorpay) mapping from per-wallet `WalletData` variants to connector wallet-name strings. Noted PR #891 as a future addition; the six Indian wallet variants were listed in the Wallet Variants table and Common Pitfalls #6/#7 but had no dedicated per-variant section. |
+| (prior) | 1.0.0 | (initial) | Initial authoring covering token-based, redirect-based, redirect-form, and specialized wallet patterns. |
 
 ---
 

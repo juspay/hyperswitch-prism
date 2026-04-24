@@ -67,6 +67,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported for Elavon"
       },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+      },
       "Bizum": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported for Elavon"
@@ -122,10 +126,14 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "xmldata=%3Ctxn%3E%3Cssl_transaction_type%3Eccsale%3C%2Fssl_transaction_type%3E%3Cssl_account_id%3Eprobe_merchant%3C%2Fssl_account_id%3E%3Cssl_user_id%3Eprobe_user%3C%2Fssl_user_id%3E%3Cssl_pin%3Eprobe_pin%3C%2Fssl_pin%3E%3Cssl_amount%3E10.00%3C%2Fssl_amount%3E%3Cssl_card_number%3E4111111111111111%3C%2Fssl_card_number%3E%3Cssl_exp_date%3E0330%3C%2Fssl_exp_date%3E%3Cssl_cvv2cvc2%3E737%3C%2Fssl_cvv2cvc2%3E%3Cssl_cvv2cvc2_indicator%3E1%3C%2Fssl_cvv2cvc2_indicator%3E%3Cssl_transaction_currency%3EUSD%3C%2Fssl_transaction_currency%3E%3Cssl_invoice_number%3EIRRELEVANT_PAYMENT_ID%3C%2Fssl_invoice_number%3E%3C%2Ftxn%3E"
+          "body": "xmldata=%3Ctxn%3E%3Cssl_transaction_type%3Eccsale%3C%2Fssl_transaction_type%3E%3Cssl_account_id%3Eprobe_merchant%3C%2Fssl_account_id%3E%3Cssl_user_id%3Eprobe_user%3C%2Fssl_user_id%3E%3Cssl_pin%3Eprobe_pin%3C%2Fssl_pin%3E%3Cssl_amount%3E10.00%3C%2Fssl_amount%3E%3Cssl_card_number%3E4111111111111111%3C%2Fssl_card_number%3E%3Cssl_exp_date%3E0330%3C%2Fssl_exp_date%3E%3Cssl_cvv2cvc2%3E737%3C%2Fssl_cvv2cvc2%3E%3Cssl_cvv2cvc2_indicator%3E1%3C%2Fssl_cvv2cvc2_indicator%3E%3Cssl_invoice_number%3EIRRELEVANT_PAYMENT_ID%3C%2Fssl_invoice_number%3E%3C%2Ftxn%3E"
         }
       },
       "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+      },
+      "CashfreeRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported for Elavon"
       },
@@ -139,7 +147,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
@@ -147,9 +155,13 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported for Elavon"
       },
@@ -175,7 +187,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GooglePay": {
         "status": "not_implemented",
@@ -225,6 +237,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported for Elavon"
       },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+      },
       "LocalBankRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported for Elavon"
@@ -250,6 +266,10 @@
         "error": "This feature is not implemented: Only card payments are supported for Elavon"
       },
       "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+      },
+      "Netbanking": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported for Elavon"
       },
@@ -283,7 +303,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -303,7 +323,11 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported for Elavon"
       },
       "PaypalRedirect": {
         "status": "not_implemented",
@@ -315,9 +339,13 @@
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+      },
+      "PhonePeRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported for Elavon"
       },
@@ -506,6 +534,11 @@
         "status": "not_implemented"
       }
     },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "post_authenticate": {
       "default": {
         "status": "not_implemented"
@@ -546,7 +579,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "xmldata=%3Ctxn%3E%3Cssl_transaction_type%3Eccsale%3C%2Fssl_transaction_type%3E%3Cssl_account_id%3Eprobe_merchant%3C%2Fssl_account_id%3E%3Cssl_user_id%3Eprobe_user%3C%2Fssl_user_id%3E%3Cssl_pin%3Eprobe_pin%3C%2Fssl_pin%3E%3Cssl_amount%3E10.00%3C%2Fssl_amount%3E%3Cssl_card_number%3E4111111111111111%3C%2Fssl_card_number%3E%3Cssl_exp_date%3E0330%3C%2Fssl_exp_date%3E%3Cssl_cvv2cvc2%3E123%3C%2Fssl_cvv2cvc2%3E%3Cssl_cvv2cvc2_indicator%3E1%3C%2Fssl_cvv2cvc2_indicator%3E%3Cssl_transaction_currency%3EUSD%3C%2Fssl_transaction_currency%3E%3Cssl_invoice_number%3EIRRELEVANT_PAYMENT_ID%3C%2Fssl_invoice_number%3E%3C%2Ftxn%3E"
+          "body": "xmldata=%3Ctxn%3E%3Cssl_transaction_type%3Eccsale%3C%2Fssl_transaction_type%3E%3Cssl_account_id%3Eprobe_merchant%3C%2Fssl_account_id%3E%3Cssl_user_id%3Eprobe_user%3C%2Fssl_user_id%3E%3Cssl_pin%3Eprobe_pin%3C%2Fssl_pin%3E%3Cssl_amount%3E10.00%3C%2Fssl_amount%3E%3Cssl_card_number%3E4111111111111111%3C%2Fssl_card_number%3E%3Cssl_exp_date%3E0330%3C%2Fssl_exp_date%3E%3Cssl_cvv2cvc2%3E123%3C%2Fssl_cvv2cvc2%3E%3Cssl_cvv2cvc2_indicator%3E1%3C%2Fssl_cvv2cvc2_indicator%3E%3Cssl_invoice_number%3EIRRELEVANT_PAYMENT_ID%3C%2Fssl_invoice_number%3E%3C%2Ftxn%3E"
         }
       }
     },
