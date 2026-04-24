@@ -473,7 +473,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 charge.payment_charge_id.clone(),
             )),
             status,
-            connector_response_reference_id: Some(charge.payment_charge_id),
+            connector_response_reference_id: charge
+                .merchant_payment_charge_reference
+                .or(Some(charge.payment_charge_id)),
             error_code,
             error_message,
             error_reason,

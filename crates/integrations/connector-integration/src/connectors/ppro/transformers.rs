@@ -684,6 +684,8 @@ pub struct PproWebhookChargeData {
     pub payment_charge_id: String,
     pub payment_charge_status: PproPaymentStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_payment_charge_reference: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub failure: Option<PproFailure>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refund_id: Option<String>,
