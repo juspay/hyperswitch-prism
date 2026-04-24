@@ -444,14 +444,11 @@ mod tests {
                 .expect("dir name should be valid UTF-8");
             let suite_name = suite_dir_name_to_suite_name(dir_name)
                 .unwrap_or_else(|| panic!("directory {dir_name:?} has no underscore separator"));
+            let (service, method) = suite_name
+                .split_once('/')
+                .unwrap_or_else(|| panic!("suite name {suite_name:?} must contain '/'"));
             assert!(
-                suite_name.contains('/'),
-                "suite name {suite_name:?} from dir {dir_name:?} must contain '/'"
-            );
-            let parts: Vec<_> = suite_name.splitn(2, '/').collect();
-            assert_eq!(parts.len(), 2, "suite name must have exactly one '/'");
-            assert!(
-                !parts[0].is_empty() && !parts[1].is_empty(),
+                !service.is_empty() && !method.is_empty(),
                 "suite name {suite_name:?} must have non-empty service and method"
             );
         }
