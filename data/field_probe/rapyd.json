@@ -1316,12 +1316,48 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: return_url — Missing required field: return_url"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://sandboxapi.rapyd.net/v1/payments",
+          "method": "Post",
+          "headers": {
+            "access_key": "probe_key",
+            "content-type": "application/json",
+            "salt": "probeSaltVal0001",
+            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":\"probe-mandate-123\",\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/recurring-return\",\"error_payment_url\":\"https://example.com/recurring-return\",\"customer\":\"cust_probe_123\",\"initiation_type\":\"recurring\"}"
+        }
       }
     },
     "recurring_revoke": {
@@ -1387,7 +1423,8 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: return_url — Missing required field: return_url"
       }
     },
     "token_authorize": {
@@ -1423,7 +1460,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method for rapyd SetupMandate"
       }
     },
     "tokenize": {
