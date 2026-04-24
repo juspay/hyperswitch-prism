@@ -148,7 +148,10 @@ pub enum PeachpaymentsTransactionData<T: PaymentMethodDataTypes> {
 #[serde(rename_all = "camelCase")]
 pub struct PeachpaymentsCardData<T: PaymentMethodDataTypes> {
     pub merchant_information: PeachpaymentsMerchantInformation,
-    pub routing_reference: PeachpaymentsRoutingReference,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub routing_reference: Option<PeachpaymentsRoutingReference>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub routing: Option<PeachpaymentsRouting>,
     pub card: PeachpaymentsCardDetails<T>,
     pub amount: PeachpaymentsAmount,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -163,7 +166,10 @@ pub struct PeachpaymentsCardData<T: PaymentMethodDataTypes> {
 #[serde(rename_all = "camelCase")]
 pub struct PeachpaymentsNetworkTokenData {
     pub merchant_information: PeachpaymentsMerchantInformation,
-    pub routing_reference: PeachpaymentsRoutingReference,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub routing_reference: Option<PeachpaymentsRoutingReference>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub routing: Option<PeachpaymentsRouting>,
     pub network_token_data: PeachpaymentsNetworkTokenDetails,
     pub amount: PeachpaymentsAmount,
     pub cof_data: PeachpaymentsCofData,
@@ -177,6 +183,11 @@ pub struct PeachpaymentsNetworkTokenData {
 #[serde(rename_all = "camelCase")]
 pub struct PeachpaymentsRoutingReference {
     pub merchant_payment_method_route_id: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PeachpaymentsRouting {
+    pub route: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -244,3 +255,11 @@ pub struct PeachpaymentsCofData {
 pub struct PeachpaymentsMerchantInformation {
     pub client_merchant_reference_id: Secret<String>,
 }
+
+// SetupMandate request reuses the same structure as Authorize
+// but with cof_data set to initial CIT
+pub type PeachpaymentsSetupMandateRequest<T> = PeachpaymentsAuthorizeRequest<T>;
+
+// RepeatPayment request reuses the same structure as Authorize
+// but with cof_data set to subsequent MIT
+pub type PeachpaymentsRepeatPaymentRequest<T> = PeachpaymentsAuthorizeRequest<T>;

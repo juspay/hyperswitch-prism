@@ -1,0 +1,69 @@
+{
+  "Barclaycard": [
+    "https://developer.smartpayfuse.barclaycard/docs/barclays/en-us/payments/developer/all/rest/payments/MITs.html",
+    "https://developer.smartpayfuse.barclaycard/api-reference-assets/index.html",
+    "https://developer.smartpayfuse.barclaycard/docs/barclays/en-us/payments/developer/barclays/rest/payments/payments-about-guide.html",
+    "https://developer.smartpayfuse.barclaycard/barclays/quick-start-guides/direct-integration.html",
+    "https://developer.smartpayfuse.barclaycard/docs/barclays/en-us/platform/developer/all/rest/rest-getting-started/restgs-intro.html",
+    "https://developer.cybersource.com/docs/cybs/en-us/credentials/developer/six/rest/credentials/credentials-intro.html",
+    "https://developer.cybersource.com/docs/cybs/en-us/payments/developer/ctv/rest/credentials/credentials-mit-intro.html",
+    "https://developer.cybersource.com/docs/cybs/en-us/payments/developer/ctv/rest/payments/credentials-processsing-intro/credentials-recur-intro/credentials-recur-mit-tms-intro.html"
+  ],
+  "bambora": [
+    "https://docs.na.worldline-solutions.com/build-your-integration/payment-apis/credential-on-file",
+    "https://docs.na.worldline-solutions.com/na_openapi.yaml",
+    "https://docs.na.worldline-solutions.com/build-your-integration/payment-apis/payment-api/",
+    "https://docs.na.worldline-solutions.com/build-your-integration/payment-apis/payment-api/payment-api-response-codes",
+    "https://docs.na.worldline-solutions.com/build-your-integration/payment-apis/payment-api/test-cards"
+  ],
+  "Revolut": [
+    "https://developer.revolut.com/docs/merchant/merchant-api",
+    "https://developer.revolut.com/docs/merchant/create-order",
+    "https://developer.revolut.com/docs/merchant/pay-order",
+    "https://developer.revolut.com/docs/merchant/orders",
+    "https://developer.revolut.com/docs/merchant/customers",
+    "https://developer.revolut.com/docs/merchant/retrieve-all-payment-methods",
+    "https://developer.revolut.com/docs/merchant/retrieve-payment-method",
+    "https://developer.revolut.com/docs/guides/accept-payments/tutorials/save-and-charge-payment-methods/subscription-management",
+    "https://developer.revolut.com/docs/guides/accept-payments/other-resources/order-payment-flow",
+    "https://developer.revolut.com/docs/accept-payments"
+  ],
+  "Airwallex": [
+    "https://www.airwallex.com/docs/payments/online-payments/native-api/registered-user-checkout",
+    "https://www.airwallex.com/docs/online-payments__native-api__management-of-payment-credentials",
+    "https://www.airwallex.com/docs/payments/online-payments/native-api/network-tokenization",
+    "https://www.airwallex.com/docs/api"
+  ],
+  "paybox": [
+    "https://www1.paybox.com/wp-content/uploads/2017/08/ManuelIntegrationVerifone_PayboxDirect_V8.1_EN.pdf",
+    "https://www.paybox.com/wp-content/uploads/2022/11/ManuelIntegrationPaybox_DSP2_EN-v2.0.pdf",
+    "https://www.paybox.com/espace-integrateur-documentation/les-solutions-paybox-direct-et-paybox-direct-plus/",
+    "https://www.paybox.com/espace-integrateur-documentation/solution-api-paybox-direct/",
+    "https://www.paybox.com/espace-integrateur-documentation/conservation-du-moyen-de-paiement-paybox-direct-plus/?lang=en/"
+  ],
+  "Paytm": [
+    "https://business.paytm.com/docs/subscription/",
+    "https://business.paytm.com/docs/api/initiate-subscription-api/",
+    "https://business.paytm.com/docs/api/renew-subscription-api/",
+    "https://business.paytm.com/docs/api/initiate-transaction-api/",
+    "https://business.paytm.com/docs/api/process-transaction-api/",
+    "https://business.paytm.com/docs/token-gateway-solution/",
+    "https://business.paytm.com/docs/api/tokenize-card-api/"
+  ],
+  "PayU": [
+    "https://developers.payu.com/europe/docs/payment-solutions/cards/recurring/",
+    "https://developers.payu.com/europe/api/",
+    "https://developers.payu.com/europe/docs/payment-solutions/cards/tokenization/",
+    "https://developers.payu.com/europe/docs/payment-flows/lifecycle/"
+  ],
+  "Peach Payments": [
+    "https://developer.peachpayments.com/docs/payments-api-overview",
+    "https://developer.peachpayments.com/docs/payments-api-flows",
+    "https://developer.peachpayments.com/docs/card-manage-payments",
+    "https://developer.peachpayments.com/docs/checkout-tokenisation",
+    "https://developer.peachpayments.com/docs/dashboard-recurring",
+    "https://developer.peachpayments.com/docs/dashboard-response-codes",
+    "https://developer.peachpayments.com/docs/reference-webhooks",
+    "https://peachpayments.docs.oppwa.com/reference/parameters"
+  ]
+}
