@@ -383,9 +383,10 @@ impl<T: PaymentMethodDataTypes>
 
         // Bambora requires province/state for US and CA addresses in 2-letter format
         // Convert full state names (e.g., "California", "New York") to 2-letter codes (e.g., "CA", "NY")
-        let province = billing_address.state.clone().and_then(|state| {
-            utils::get_state_code_for_country(&state, billing_address.country)
-        });
+        let province = billing_address
+            .state
+            .clone()
+            .and_then(|state| utils::get_state_code_for_country(&state, billing_address.country));
 
         let billing = BamboraBillingAddress {
             name: billing_address
@@ -990,7 +991,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .router_data
             .resource_common_data
             .get_optional_billing_full_name()
-            .or_else(|| item.router_data.request.customer_name.clone().map(Secret::new))
+            .or_else(|| {
+                item.router_data
+                    .request
+                    .customer_name
+                    .clone()
+                    .map(Secret::new)
+            })
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "billing.first_name or customer_name",
                 context: Default::default(),
@@ -1157,14 +1164,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         // Bambora's MIT API requires the series_id (an i64) that was returned in the
         // card_on_file response during SetupMandate. We store that as connector_mandate_id.
-        let connector_mandate_id = item
-            .router_data
-            .request
-            .connector_mandate_id()
-            .ok_or(IntegrationError::MissingRequiredField {
+        let connector_mandate_id = item.router_data.request.connector_mandate_id().ok_or(
+            IntegrationError::MissingRequiredField {
                 field_name: "connector_mandate_id",
                 context: Default::default(),
-            })?;
+            },
+        )?;
 
         let series_id: i64 = connector_mandate_id.parse().map_err(|_| {
             IntegrationError::RequestEncodingFailed {
