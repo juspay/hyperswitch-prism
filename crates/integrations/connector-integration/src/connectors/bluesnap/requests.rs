@@ -270,3 +270,104 @@ pub struct BluesnapCompletePaymentsRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transaction_meta_data: Option<BluesnapMetadata>,
 }
+
+// ===== SETUP MANDATE (VAULTED SHOPPER) STRUCTURES =====
+
+/// Credit card information for vaulted shopper creation
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapVaultedCreditCard {
+    pub card_number: Secret<String>,
+    pub expiration_month: Secret<String>,
+    pub expiration_year: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub security_code: Option<Secret<String>>,
+}
+
+/// Credit card info wrapper for vaulted shopper
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapVaultedCreditCardInfo {
+    pub credit_card: BluesnapVaultedCreditCard,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_contact_info: Option<BluesnapBillingContactInfo>,
+}
+
+/// Billing contact info for vaulted shopper
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapBillingContactInfo {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address2: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub city: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub zip: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country: Option<String>,
+}
+
+/// Payment sources for vaulted shopper (supports credit card)
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapPaymentSources {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub credit_card_info: Option<Vec<BluesnapVaultedCreditCardInfo>>,
+}
+
+/// SetupMandate request - creates a vaulted shopper in BlueSnap
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapSetupMandateRequest {
+    pub first_name: Secret<String>,
+    pub last_name: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<common_utils::pii::Email>,
+    pub payment_sources: BluesnapPaymentSources,
+}
+
+// ===== REPEAT PAYMENT (MIT via vaulted shopper) STRUCTURES =====
+
+/// Minimal credit card details for MIT charge (only last-four and card type
+/// are required by BlueSnap when re-using a vaulted shopper)
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapRepeatCreditCard {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_last_four_digits: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_type: Option<String>,
+}
+
+/// RepeatPayment request - charges a vaulted shopper (MIT) via
+/// `POST /services/2/transactions`.
+///
+/// BlueSnap accepts two minimum shapes: (a) `vaultedShopperId` + `creditCard`
+/// (with `cardLastFourDigits`/`cardType`), or (b) `vaultedShopperId` alone if
+/// only one payment source is stored. We prefer (a) when we have the last-four
+/// available; (b) is a safe fallback.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapRepeatPaymentRequest {
+    pub amount: StringMajorUnit,
+    pub currency: common_enums::Currency,
+    pub vaulted_shopper_id: u64,
+    pub card_transaction_type: BluesnapTxnType,
+    /// "ECOMMERCE" for MIT initiated subsequent charges, per BlueSnap docs.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recurring_transaction: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub credit_card: Option<BluesnapRepeatCreditCard>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_transaction_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transaction_fraud_info: Option<TransactionFraudInfo>,
+}

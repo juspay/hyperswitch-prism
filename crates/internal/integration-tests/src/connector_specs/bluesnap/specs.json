@@ -7,6 +7,8 @@
     "refund",
     "refund_sync",
     "get",
-    "client_authentication_token"
+    "client_authentication_token",
+    "setup_recurring",
+    "recurring_charge"
   ]
 }

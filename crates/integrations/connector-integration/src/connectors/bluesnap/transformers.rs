@@ -2,23 +2,28 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use common_enums::AttemptStatus;
 use common_utils::errors::CustomResult;
 use domain_types::{
-    connector_flow::{Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund},
+    connector_flow::{
+        Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund, RepeatPayment,
+        SetupMandate,
+    },
     connector_types::{
         BluesnapClientAuthenticationResponse as BluesnapClientAuthenticationResponseDomain,
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
-        ConnectorSpecificClientAuthenticationResponse, PaymentFlowData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        ConnectorSpecificClientAuthenticationResponse, MandateReference, MandateReferenceId,
+        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
+    utils,
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
-use super::{requests, responses};
+use super::{requests, responses, BluesnapRouterData};
 use crate::types::ResponseRouterData;
 use domain_types::errors::{
     ConnectorError, IntegrationError, IntegrationErrorContext, ResponseTransformationErrorContext,
@@ -31,13 +36,16 @@ const WALLET_TYPE_GOOGLE_PAY: &str = "GOOGLE_PAY";
 
 // Re-export request types
 pub use requests::{
-    BluesnapAchAuthorizeRequest, BluesnapAchData, BluesnapAuthorizeRequest, BluesnapCaptureRequest,
-    BluesnapCardHolderInfo, BluesnapCompletePaymentsRequest, BluesnapCreditCard,
-    BluesnapEcpTransaction, BluesnapMetadata, BluesnapPayerInfo, BluesnapPaymentMethodDetails,
+    BluesnapAchAuthorizeRequest, BluesnapAchData, BluesnapAuthorizeRequest,
+    BluesnapBillingContactInfo, BluesnapCaptureRequest, BluesnapCardHolderInfo,
+    BluesnapCompletePaymentsRequest, BluesnapCreditCard, BluesnapEcpTransaction, BluesnapMetadata,
+    BluesnapPayerInfo, BluesnapPaymentMethodDetails, BluesnapPaymentSources,
     BluesnapPaymentsRequest, BluesnapPaymentsTokenRequest, BluesnapRefundRequest,
-    BluesnapSepaAuthorizeRequest, BluesnapSepaDirectDebitTransaction, BluesnapSepaPayerInfo,
-    BluesnapThreeDSecureInfo, BluesnapTxnType, BluesnapVoidRequest, BluesnapWallet,
-    RequestMetadata, TransactionFraudInfo,
+    BluesnapRepeatCreditCard, BluesnapRepeatPaymentRequest, BluesnapSepaAuthorizeRequest,
+    BluesnapSepaDirectDebitTransaction, BluesnapSepaPayerInfo, BluesnapSetupMandateRequest,
+    BluesnapThreeDSecureInfo, BluesnapTxnType, BluesnapVaultedCreditCard,
+    BluesnapVaultedCreditCardInfo, BluesnapVoidRequest, BluesnapWallet, RequestMetadata,
+    TransactionFraudInfo,
 };
 
 // Re-export response types
@@ -46,9 +54,10 @@ pub use responses::{
     BluesnapCreditCardResponse, BluesnapDisputeWebhookBody, BluesnapErrorResponse,
     BluesnapPSyncResponse, BluesnapPaymentsResponse, BluesnapProcessingInfo,
     BluesnapProcessingStatus, BluesnapRedirectionResponse, BluesnapRefundResponse,
-    BluesnapRefundStatus, BluesnapRefundSyncResponse, BluesnapThreeDsReference,
-    BluesnapThreeDsResult, BluesnapVoidResponse, BluesnapWebhookBody, BluesnapWebhookEvent,
-    BluesnapWebhookObjectResource, RedirectErrorMessage,
+    BluesnapRefundStatus, BluesnapRefundSyncResponse, BluesnapRepeatPaymentResponse,
+    BluesnapSetupMandateResponse, BluesnapThreeDsReference, BluesnapThreeDsResult,
+    BluesnapVoidResponse, BluesnapWebhookBody, BluesnapWebhookEvent, BluesnapWebhookObjectResource,
+    RedirectErrorMessage,
 };
 
 const DISPLAY_METADATA: &str = "Y";
@@ -208,7 +217,7 @@ impl From<BluesnapRefundStatus> for common_enums::RefundStatus {
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
-        super::BluesnapRouterData<
+        BluesnapRouterData<
             RouterDataV2<
                 Authorize,
                 PaymentFlowData,
@@ -222,7 +231,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        item: super::BluesnapRouterData<
+        item: BluesnapRouterData<
             RouterDataV2<
                 Authorize,
                 PaymentFlowData,
@@ -287,7 +296,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             ),
                         });
 
-                let amount = super::BluesnapAmountConvertor::convert(
+                let amount = utils::convert_amount(
+                    item.connector.amount_converter,
                     router_data.request.minor_amount,
                     router_data.request.currency,
                 )?;
@@ -382,7 +392,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             ),
                         });
 
-                let amount = super::BluesnapAmountConvertor::convert(
+                let amount = utils::convert_amount(
+                    item.connector.amount_converter,
                     router_data.request.minor_amount,
                     router_data.request.currency,
                 )?;
@@ -431,7 +442,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     // Map to BlueSnap ECP account type format
                     let account_type = map_ecp_account_type(*bank_type, *bank_holder_type)?;
 
-                    let amount = super::BluesnapAmountConvertor::convert(
+                    let amount = utils::convert_amount(
+                        item.connector.amount_converter,
                         router_data.request.minor_amount,
                         router_data.request.currency,
                     )?;
@@ -476,7 +488,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .map(|c| c.to_string())
                         .unwrap_or_else(|| "de".to_string()); // Default to DE for SEPA
 
-                    let amount = super::BluesnapAmountConvertor::convert(
+                    let amount = utils::convert_amount(
+                        item.connector.amount_converter,
                         router_data.request.minor_amount,
                         router_data.request.currency,
                     )?;
@@ -541,7 +554,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             ),
                         });
 
-                let amount = super::BluesnapAmountConvertor::convert(
+                let amount = utils::convert_amount(
+                    item.connector.amount_converter,
                     router_data.request.minor_amount,
                     router_data.request.currency,
                 )?;
@@ -578,7 +592,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
-        super::BluesnapRouterData<
+        BluesnapRouterData<
             RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
             T,
         >,
@@ -587,7 +601,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        item: super::BluesnapRouterData<
+        item: BluesnapRouterData<
             RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
             T,
         >,
@@ -604,7 +618,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        let amount = super::BluesnapAmountConvertor::convert(
+        let amount = utils::convert_amount(
+            item.connector.amount_converter,
             router_data.request.minor_amount_to_capture,
             router_data.request.currency,
         )?;
@@ -619,7 +634,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
-        super::BluesnapRouterData<
+        BluesnapRouterData<
             RouterDataV2<
                 domain_types::connector_flow::Void,
                 PaymentFlowData,
@@ -633,7 +648,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        item: super::BluesnapRouterData<
+        item: BluesnapRouterData<
             RouterDataV2<
                 domain_types::connector_flow::Void,
                 PaymentFlowData,
@@ -654,7 +669,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
-        super::BluesnapRouterData<
+        BluesnapRouterData<
             RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
             T,
         >,
@@ -663,14 +678,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        item: super::BluesnapRouterData<
+        item: BluesnapRouterData<
             RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
             T,
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
 
-        let amount = super::BluesnapAmountConvertor::convert(
+        let amount = utils::convert_amount(
+            item.connector.amount_converter,
             router_data.request.minor_refund_amount,
             router_data.request.currency,
         )?;
@@ -932,7 +948,7 @@ pub struct BluesnapClientAuthRequest {}
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
-        super::BluesnapRouterData<
+        BluesnapRouterData<
             RouterDataV2<
                 ClientAuthenticationToken,
                 PaymentFlowData,
@@ -945,7 +961,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 {
     type Error = error_stack::Report<IntegrationError>;
     fn try_from(
-        _item: super::BluesnapRouterData<
+        _item: BluesnapRouterData<
             RouterDataV2<
                 ClientAuthenticationToken,
                 PaymentFlowData,
@@ -1008,6 +1024,318 @@ impl TryFrom<ResponseRouterData<BluesnapClientAuthResponse, Self>>
                 session_data,
                 status_code: item.http_code,
             }),
+            ..item.router_data
+        })
+    }
+}
+
+// ===== SETUP MANDATE (VAULTED SHOPPER) TRANSFORMERS =====
+
+/// Transform SetupMandate request to BlueSnap vaulted shopper request
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        BluesnapRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for BluesnapSetupMandateRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: BluesnapRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        // Get billing address for cardholder info
+        let billing_address = router_data
+            .resource_common_data
+            .get_optional_billing()
+            .and_then(|b| b.address.as_ref());
+
+        let (first_name, last_name) = match billing_address {
+            Some(address) => {
+                let first = address.get_first_name()?.clone();
+                let last = address.get_last_name().unwrap_or(&first).clone();
+                (first, last)
+            }
+            None => {
+                return Err(IntegrationError::MissingRequiredField {
+                    field_name: "billing_address",
+                    context: Default::default(),
+                }
+                .into())
+            }
+        };
+
+        // Build payment sources based on payment method
+        let payment_sources = match &router_data.request.payment_method_data {
+            PaymentMethodData::Card(card_data) => {
+                let credit_card = BluesnapVaultedCreditCard {
+                    card_number: Secret::new(card_data.card_number.peek().to_string()),
+                    expiration_month: card_data.card_exp_month.clone(),
+                    expiration_year: card_data.card_exp_year.clone(),
+                    security_code: Some(card_data.card_cvc.clone()),
+                };
+
+                let billing_contact_info = billing_address.map(|addr| BluesnapBillingContactInfo {
+                    first_name: addr.first_name.clone(),
+                    last_name: addr.last_name.clone(),
+                    address1: addr.line1.clone(),
+                    address2: addr.line2.clone(),
+                    city: addr.city.as_ref().map(|c| c.peek().to_string()),
+                    state: addr.state.clone(),
+                    zip: addr.zip.clone(),
+                    country: addr.country.map(|c| c.to_string()),
+                });
+
+                BluesnapPaymentSources {
+                    credit_card_info: Some(vec![BluesnapVaultedCreditCardInfo {
+                        credit_card,
+                        billing_contact_info,
+                    }]),
+                }
+            }
+            _ => {
+                return Err(IntegrationError::NotImplemented(
+                    "BlueSnap SetupMandate only supports Card payment method".to_string(),
+                    Default::default(),
+                )
+                .into())
+            }
+        };
+
+        Ok(Self {
+            first_name,
+            last_name,
+            email: router_data.request.email.clone(),
+            payment_sources,
+        })
+    }
+}
+
+/// Transform BlueSnap vaulted shopper response to SetupMandate response
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<BluesnapSetupMandateResponse, Self>>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<BluesnapSetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+
+        // BlueSnap's POST /services/2/vaulted-shoppers is a customer/vault
+        // resource creation — the response contains only `vaultedShopperId`
+        // and no separate transaction id. We therefore use the same value
+        // for both `resource_id` (the flow's only available identifier) and
+        // `mandate_reference.connector_mandate_id` (the id downstream MIT
+        // charges must reference via RepeatPayment). Subsequent MIT charges
+        // do return a distinct `transactionId` via RepeatPayment, so this
+        // dual use is confined to the SetupMandate response only.
+        let connector_mandate_id = response.vaulted_shopper_id.to_string();
+
+        let mandate_reference = Some(Box::new(MandateReference {
+            connector_mandate_id: Some(connector_mandate_id.clone()),
+            payment_method_id: None,
+            connector_mandate_request_reference_id: None,
+        }));
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(connector_mandate_id.clone()),
+                redirection_data: None,
+                mandate_reference,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(connector_mandate_id),
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+            }),
+            resource_common_data: PaymentFlowData {
+                // Vaulted-shoppers responses have no `processingInfo.processingStatus`
+                // (it is a resource-creation endpoint, not a transaction); HTTP 201
+                // is the success signal. `Charged` is the cross-connector convention
+                // for "mandate setup succeeded" in this repo — see helcim/billwerk,
+                // whose SetupMandate paths resolve to the same status.
+                status: AttemptStatus::Charged,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// ===== REPEAT PAYMENT (MIT via vaulted shopper) TRANSFORMERS =====
+
+// Bluesnap recurring type marker for MIT-initiated subsequent charges.
+// Passed as `recurringTransaction` in POST /services/2/transactions to
+// identify this as a merchant-initiated charge on a stored payment source.
+const BLUESNAP_RECURRING_TRANSACTION_ECOMMERCE: &str = "ECOMMERCE";
+
+/// Transform RepeatPayment request to BlueSnap `POST /services/2/transactions`
+/// body using the vaulted shopper id stored as `connector_mandate_id`.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        BluesnapRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for BluesnapRepeatPaymentRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: BluesnapRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        // Pull the connector mandate id (BlueSnap `vaultedShopperId`) from the
+        // router request. BlueSnap only supports the ConnectorMandateId variant
+        // here — network mandate ids / network-token NTIs aren't applicable to
+        // its vaulted-shopper flow.
+        let vaulted_shopper_id_str: String = match &router_data.request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(ids) => {
+                ids.get_connector_mandate_id()
+                    .ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "mandate_reference.connector_mandate_id",
+                        context: Default::default(),
+                    })?
+            }
+            MandateReferenceId::NetworkMandateId(_)
+            | MandateReferenceId::NetworkTokenWithNTI(_) => {
+                return Err(IntegrationError::NotImplemented(
+                    "BlueSnap RepeatPayment only supports ConnectorMandateId (vaultedShopperId)"
+                        .to_string(),
+                    Default::default(),
+                )
+                .into());
+            }
+        };
+
+        let vaulted_shopper_id: u64 = vaulted_shopper_id_str.parse::<u64>().map_err(|_| {
+            IntegrationError::InvalidDataFormat {
+                field_name: "mandate_reference.connector_mandate_id",
+                context: Default::default(),
+            }
+        })?;
+
+        let card_transaction_type = match router_data.request.capture_method {
+            Some(common_enums::CaptureMethod::Manual) => BluesnapTxnType::AuthOnly,
+            _ => BluesnapTxnType::AuthCapture,
+        };
+
+        let amount = utils::convert_amount(
+            item.connector.amount_converter,
+            router_data.request.minor_amount,
+            router_data.request.currency,
+        )?;
+
+        // `creditCard` { cardLastFourDigits, cardType } is optional; BlueSnap
+        // only needs it when a vaulted shopper has multiple stored payment
+        // sources and you want to disambiguate. If the caller also passes a
+        // full Card payload in this flow we expose last-four as a hint so the
+        // subsequent charge is unambiguous.
+        let credit_card = match &router_data.request.payment_method_data {
+            PaymentMethodData::Card(card_data) => {
+                let pan = card_data.card_number.peek().to_string();
+                let last_four = if pan.len() >= 4 {
+                    Some(pan[pan.len() - 4..].to_string())
+                } else {
+                    None
+                };
+                Some(BluesnapRepeatCreditCard {
+                    card_last_four_digits: last_four,
+                    card_type: None,
+                })
+            }
+            _ => None,
+        };
+
+        let merchant_txn_id = router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+
+        Ok(Self {
+            amount,
+            currency: router_data.request.currency,
+            vaulted_shopper_id,
+            card_transaction_type,
+            recurring_transaction: Some(BLUESNAP_RECURRING_TRANSACTION_ECOMMERCE.to_string()),
+            credit_card,
+            merchant_transaction_id: Some(merchant_txn_id.clone()),
+            transaction_fraud_info: Some(TransactionFraudInfo {
+                fraud_session_id: merchant_txn_id,
+            }),
+        })
+    }
+}
+
+/// Transform BlueSnap transaction response into a RepeatPayment router response.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<BluesnapRepeatPaymentResponse, Self>>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<BluesnapRepeatPaymentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let status = get_attempt_status_from_bluesnap_status(
+            item.response.card_transaction_type.clone(),
+            item.response.processing_info.processing_status.clone(),
+        );
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(
+                    item.response.transaction_id.clone(),
+                ),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(item.response.transaction_id.clone()),
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+            }),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
             ..item.router_data
         })
     }
