@@ -14,6 +14,7 @@ import payments.CustomerClient
 import payments.RecurringPaymentClient
 import payments.RefundClient
 import payments.PaymentMethodClient
+import payments.AcceptanceType
 import payments.CaptureMethod
 import payments.Currency
 import payments.FutureUsage
@@ -25,7 +26,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.StaxConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("capture", "create_customer", "get", "refund", "refund_get", "token_authorize", "tokenize", "void")
+val SUPPORTED_FLOWS = listOf<String>("capture", "create_customer", "get", "recurring_charge", "refund", "refund_get", "token_authorize", "token_setup_recurring", "tokenize", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -115,8 +116,8 @@ fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
 }
 
 // Flow: RecurringPaymentService.Charge
-fun recurringCharge(txnId: String) {
-    val client = RecurringPaymentClient(_defaultConfig)
+fun recurringCharge(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = RecurringPaymentClient(config)
     val request = RecurringPaymentServiceChargeRequest.newBuilder().apply {
         connectorRecurringPaymentIdBuilder.apply {  // Reference to existing mandate.
             connectorMandateIdBuilder.apply {  // mandate_id sent by the connector.
@@ -189,8 +190,8 @@ fun tokenAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
 }
 
 // Flow: PaymentService.TokenSetupRecurring
-fun tokenSetupRecurring(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun tokenSetupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = PaymentServiceTokenSetupRecurringRequest.newBuilder().apply {
         merchantRecurringPaymentId = "probe_tokenized_mandate_001"
         amountBuilder.apply {
