@@ -19,7 +19,7 @@ use domain_types::{
     payment_method_data::{
         BankDebitData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
     },
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -344,7 +344,6 @@ pub struct StaxPaymentResponse {
     /// Saved payment method token echoed back by Stax. Used to thread the
     /// mandate reference through SetupMandate so that subsequent RepeatPayment
     /// calls can reuse the same tokenized instrument.
-    #[serde(default)]
     pub payment_method_id: Option<String>,
 }
 
@@ -1310,8 +1309,12 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxSetupMandateRespo
             })
         });
 
-        Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        // A Stax 200 OK with `success: false` is an application-level failure
+        // (declined auth, bad card, etc.). Surface it on the error channel so
+        // downstream flows short-circuit instead of treating it as an
+        // AUTHORIZED mandate.
+        let response_payload = if response.success {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
                 redirection_data: None,
                 mandate_reference,
@@ -1320,7 +1323,26 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxSetupMandateRespo
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
-            }),
+            })
+        } else {
+            Err(ErrorResponse {
+                status_code: item.http_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: response
+                    .message
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: response.message.clone(),
+                attempt_status: Some(AttemptStatus::Failure),
+                connector_transaction_id: Some(response.id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            })
+        };
+
+        Ok(Self {
+            response: response_payload,
             resource_common_data: PaymentFlowData {
                 status,
                 ..item.router_data.resource_common_data
@@ -1433,8 +1455,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxRepeatPaymentResp
             None
         };
 
-        Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        // See SetupMandate response handler for rationale — a 200 OK with
+        // `success: false` is a decline, not a successful MIT charge.
+        let response_payload = if response.success {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
                 redirection_data: None,
                 // RepeatPayment reuses an existing mandate — no new mandate is
@@ -1445,7 +1469,26 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxRepeatPaymentResp
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
-            }),
+            })
+        } else {
+            Err(ErrorResponse {
+                status_code: item.http_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: response
+                    .message
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: response.message.clone(),
+                attempt_status: Some(AttemptStatus::Failure),
+                connector_transaction_id: Some(response.id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            })
+        };
+
+        Ok(Self {
+            response: response_payload,
             resource_common_data: PaymentFlowData {
                 status,
                 ..item.router_data.resource_common_data
