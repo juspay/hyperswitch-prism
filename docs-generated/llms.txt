@@ -587,7 +587,7 @@ connector_id: stax
 doc: docs/connectors/stax.md
 scenarios: none
 payment_methods: none
-flows: capture, create_customer, get, refund, refund_get, token_authorize, tokenize, void
+flows: capture, create_customer, get, recurring_charge, refund, refund_get, token_authorize, token_setup_recurring, tokenize, void
 examples_python: none
 
 ## Stripe

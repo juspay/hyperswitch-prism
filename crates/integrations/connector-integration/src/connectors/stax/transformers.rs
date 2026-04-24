@@ -6,17 +6,20 @@ use common_utils::{
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, PaymentMethodToken, RSync, Refund, Void},
+    connector_flow::{
+        Authorize, Capture, PSync, PaymentMethodToken, RSync, Refund, RepeatPayment, SetupMandate,
+        Void,
+    },
     connector_types::{
-        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
-        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        ResponseId,
+        MandateReference, MandateReferenceId, PaymentFlowData, PaymentMethodTokenResponse,
+        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     payment_method_data::{
         BankDebitData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
     },
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -293,7 +296,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 ))?;
             }
         };
-
         let is_auto_capture = item.router_data.request.is_auto_capture();
 
         Ok(Self {
@@ -339,6 +341,10 @@ pub struct StaxPaymentResponse {
     pub settled_at: Option<String>,
     pub child_transactions: Vec<ChildTransaction>,
     pub message: Option<String>,
+    /// Saved payment method token echoed back by Stax. Used to thread the
+    /// mandate reference through SetupMandate so that subsequent RepeatPayment
+    /// calls can reuse the same tokenized instrument.
+    pub payment_method_id: Option<String>,
 }
 
 // Type aliases for each flow to avoid macro conflicts
@@ -349,6 +355,7 @@ pub type StaxCaptureResponse = StaxPaymentResponse;
 pub type StaxVoidResponse = StaxPaymentResponse;
 pub type StaxRefundResponse = StaxPaymentResponse;
 pub type StaxRSyncResponse = StaxPaymentResponse;
+pub type StaxRepeatPaymentResponse = StaxPaymentResponse;
 
 /// Child capture transaction (for pre-auth captures)
 #[derive(Debug, Deserialize, Serialize)]
@@ -1121,6 +1128,364 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxTokenResponse, Se
             response: Ok(PaymentMethodTokenResponse {
                 token: item.response.id.expose(),
             }),
+            ..item.router_data
+        })
+    }
+}
+
+// ===== SETUP MANDATE (SetupRecurring) =====
+// Stax uses the same `/charge` endpoint for SetupMandate, with `pre_auth: true`
+// to authorize (verify) the card without capturing funds. A saved payment method
+// token (payment_method_id) is required — produced by the PaymentMethodToken flow.
+#[derive(Debug, Serialize)]
+pub struct StaxSetupMandateRequest {
+    pub total: FloatMajorUnit,
+    pub payment_method_id: String,
+    pub is_refundable: bool,
+    pub pre_auth: bool,
+    pub meta: StaxMeta,
+    pub idempotency_id: Option<String>,
+}
+
+pub type StaxSetupMandateResponse = StaxPaymentResponse;
+
+/// Extract the Stax `payment_method_id` (saved card/bank token) from a
+/// SetupMandate or RepeatPayment request. Stax uses the same token for both
+/// setup and subsequent merchant-initiated charges, so this helper centralizes
+/// the resolution logic: prefer an explicit PaymentMethodToken, otherwise pull
+/// the connector_mandate_id threaded in by a previous SetupRecurring.
+fn extract_stax_mandate_token<T: PaymentMethodDataTypes>(
+    payment_method_data: &PaymentMethodData<T>,
+    mandate_reference: Option<&MandateReferenceId>,
+) -> Result<String, error_stack::Report<IntegrationError>> {
+    let resolved_token = match payment_method_data {
+        PaymentMethodData::PaymentMethodToken(t) => Some(t.token.peek().to_string()),
+        _ => match mandate_reference {
+            Some(MandateReferenceId::ConnectorMandateId(c)) => c.get_connector_mandate_id(),
+            _ => None,
+        },
+    };
+
+    match resolved_token {
+        Some(token) => Ok(token),
+        None => match payment_method_data {
+            PaymentMethodData::Card(_) | PaymentMethodData::BankDebit(_) => {
+                Err(IntegrationError::MissingRequiredField {
+                    field_name: "payment_method_token (from PaymentMethodToken flow) or connector_mandate_id (for saved payment methods)",
+                    context: Default::default(),
+                }
+                .into())
+            }
+            _ => Err(IntegrationError::NotImplemented(
+                "Only card and ACH bank debit payments are supported for Stax".to_string(),
+                Default::default(),
+            )
+            .into()),
+        },
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        StaxRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for StaxSetupMandateRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: StaxRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        // Stax's /charge endpoint requires a non-zero total. Fail fast if the
+        // caller omits an amount rather than silently authorizing $0.01, which
+        // would leave a surprise charge on the cardholder's statement.
+        let minor_amount =
+            item.router_data
+                .request
+                .minor_amount
+                .ok_or(IntegrationError::MissingRequiredField {
+                field_name:
+                    "minor_amount (Stax requires a non-zero authorization amount for SetupMandate)",
+                context: Default::default(),
+            })?;
+        let total = domain_types::utils::convert_amount(
+            item.connector.amount_converter,
+            minor_amount,
+            item.router_data.request.currency,
+        )?;
+
+        let mandate_reference_id = item
+            .router_data
+            .request
+            .mandate_id
+            .as_ref()
+            .and_then(|m| m.mandate_reference_id.as_ref());
+        let payment_method_id = extract_stax_mandate_token(
+            &item.router_data.request.payment_method_data,
+            mandate_reference_id,
+        )?;
+
+        Ok(Self {
+            total,
+            payment_method_id,
+            is_refundable: false,
+            pre_auth: true,
+            meta: StaxMeta {
+                tax: MinorUnit::zero(),
+            },
+            idempotency_id: Some(
+                item.router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            ),
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxSetupMandateResponse, Self>>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<StaxSetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+        let status = get_payment_status(response, item.http_code)?;
+
+        // Surface the saved payment_method_id as mandate_reference so that
+        // RecurringPaymentService.Charge (RepeatPayment) can reuse it.
+        // Prefer the value echoed back by Stax, fall back to the request-side
+        // token we sent in (which may have been sourced from PaymentMethodToken
+        // or a prior connector_mandate_id).
+        let mandate_token = match response.payment_method_id.clone() {
+            Some(token) => Some(token),
+            None => match extract_stax_mandate_token(
+                &item.router_data.request.payment_method_data,
+                item.router_data
+                    .request
+                    .mandate_id
+                    .as_ref()
+                    .and_then(|m| m.mandate_reference_id.as_ref()),
+            ) {
+                Ok(token) => Some(token),
+                Err(err) => {
+                    tracing::warn!(
+                        error = ?err,
+                        transaction_id = %response.id,
+                        "Stax SetupMandate: response did not include payment_method_id and fallback extraction failed; RepeatPayment will fail without a mandate reference"
+                    );
+                    None
+                }
+            },
+        };
+
+        let mandate_reference = mandate_token.map(|token| {
+            Box::new(MandateReference {
+                connector_mandate_id: Some(token),
+                payment_method_id: None,
+                connector_mandate_request_reference_id: None,
+            })
+        });
+
+        // A Stax 200 OK with `success: false` is an application-level failure
+        // (declined auth, bad card, etc.). Surface it on the error channel so
+        // downstream flows short-circuit instead of treating it as an
+        // AUTHORIZED mandate.
+        let response_payload = if response.success {
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
+                redirection_data: None,
+                mandate_reference,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+            })
+        } else {
+            Err(ErrorResponse {
+                status_code: item.http_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: response
+                    .message
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: response.message.clone(),
+                attempt_status: Some(AttemptStatus::Failure),
+                connector_transaction_id: Some(response.id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            })
+        };
+
+        Ok(Self {
+            response: response_payload,
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// ===== REPEAT PAYMENT (RecurringPaymentService.Charge) =====
+// Stax does not have a dedicated MIT endpoint: the existing /charge endpoint
+// supports merchant-initiated charges by passing the saved `payment_method_id`
+// that was previously tokenized (and optionally verified via SetupRecurring).
+#[derive(Debug, Serialize)]
+pub struct StaxRepeatPaymentRequest {
+    pub total: FloatMajorUnit,
+    pub payment_method_id: String,
+    pub is_refundable: bool,
+    pub pre_auth: bool,
+    pub meta: StaxMeta,
+    pub idempotency_id: Option<String>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        StaxRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for StaxRepeatPaymentRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: StaxRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let total = domain_types::utils::convert_amount(
+            item.connector.amount_converter,
+            item.router_data.request.minor_amount,
+            item.router_data.request.currency,
+        )?;
+
+        let payment_method_id = extract_stax_mandate_token(
+            &item.router_data.request.payment_method_data,
+            Some(&item.router_data.request.mandate_reference),
+        )?;
+
+        let is_auto_capture = item.router_data.request.is_auto_capture();
+
+        Ok(Self {
+            total,
+            payment_method_id,
+            is_refundable: true,
+            pre_auth: !is_auto_capture,
+            meta: StaxMeta {
+                tax: MinorUnit::zero(),
+            },
+            idempotency_id: Some(
+                item.router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            ),
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxRepeatPaymentResponse, Self>>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<StaxRepeatPaymentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+        let status = get_payment_status(response, item.http_code)?;
+
+        // Preserve capture_id metadata when a pre-auth gets captured, matching
+        // the Authorize flow's handling.
+        let connector_metadata = if response.transaction_type == StaxTransactionType::PreAuth
+            && response.is_captured != 0
+        {
+            response.child_captures.first().map(|child_captures| {
+                serde_json::json!(StaxMetaData {
+                    capture_id: child_captures.id.clone()
+                })
+            })
+        } else {
+            None
+        };
+
+        // See SetupMandate response handler for rationale — a 200 OK with
+        // `success: false` is a decline, not a successful MIT charge.
+        let response_payload = if response.success {
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
+                redirection_data: None,
+                // RepeatPayment reuses an existing mandate — no new mandate is
+                // established, so we do not return a mandate_reference here.
+                mandate_reference: None,
+                connector_metadata,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+            })
+        } else {
+            Err(ErrorResponse {
+                status_code: item.http_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: response
+                    .message
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: response.message.clone(),
+                attempt_status: Some(AttemptStatus::Failure),
+                connector_transaction_id: Some(response.id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            })
+        };
+
+        Ok(Self {
+            response: response_payload,
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
             ..item.router_data
         })
     }
