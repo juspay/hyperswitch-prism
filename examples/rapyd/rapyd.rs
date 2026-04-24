@@ -194,26 +194,6 @@ pub fn build_token_authorize_request() -> PaymentServiceTokenAuthorizeRequest {
     }
 }
 
-pub fn build_token_authorize_request() -> PaymentServiceTokenAuthorizeRequest {
-    PaymentServiceTokenAuthorizeRequest {
-        merchant_transaction_id: Some("probe_tokenized_txn_001".to_string()),
-        amount: Some(Money {
-            minor_amount: 1000,             // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
-        }),
-        connector_token: Some(Secret::new("pm_1AbcXyzStripeTestToken".to_string())), // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
-        address: Some(PaymentAddress {
-            billing_address: Some(Address {
-                ..Default::default()
-            }),
-            ..Default::default()
-        }),
-        capture_method: Some(CaptureMethod::Automatic.into()),
-        return_url: Some("https://example.com/return".to_string()),
-        ..Default::default()
-    }
-}
-
 pub fn build_void_request(connector_transaction_id: &str) -> PaymentServiceVoidRequest {
     PaymentServiceVoidRequest {
         merchant_void_id: Some("probe_void_001".to_string()), // Identification.
@@ -505,16 +485,6 @@ pub async fn process_refund_get(
         .refund_get(build_refund_get_request(), &HashMap::new(), None)
         .await?;
     Ok(format!("status: {:?}", response.status()))
-}
-
-// Flow: PaymentService.SetupRecurring
-#[allow(dead_code)]
-pub async fn setup_recurring(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.setup_recurring(build_setup_recurring_request(), &HashMap::new(), None).await?;
-    if response.status() == PaymentStatus::Failure {
-        return Err(format!("Setup failed: {:?}", response.error).into());
-    }
-    Ok(format!("Mandate: {}", response.connector_recurring_payment_id.as_deref().unwrap_or("")))
 }
 
 // Flow: PaymentService.TokenAuthorize

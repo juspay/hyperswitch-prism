@@ -1316,43 +1316,8 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
-          "amount": {
-            "minor_amount": 0,
-            "currency": "USD"
-          },
-          "card_proxy": {
-            "card_number": "4111111111111111",
-            "card_exp_month": "03",
-            "card_exp_year": "2030",
-            "card_cvc": "123",
-            "card_holder_name": "John Doe"
-          },
-          "address": {
-            "billing_address": {}
-          },
-          "customer_acceptance": {
-            "acceptance_type": "OFFLINE",
-            "accepted_at": 0
-          },
-          "auth_type": "NO_THREE_DS",
-          "setup_future_usage": "OFF_SESSION"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"0.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"in_amex_card\",\"fields\":{\"number\":\"4111111111111111\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"\",\"cvv\":\"123\"},\"address\":null,\"digital_wallet\":null},\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_proxy_mandate_001\",\"capture\":true,\"description\":\"Mandate setup\",\"complete_payment_url\":\"https://hyperswitch.io/return\",\"error_payment_url\":\"https://hyperswitch.io/return\",\"customer\":{\"name\":\"Grace Tester\",\"email\":\"grace@test.com\"},\"save_payment_method\":true}"
-        }
+        "status": "error",
+        "error": "Stuck on field: billing.first_name / customer_name — Missing required field: billing.first_name / customer_name"
       }
     },
     "recurring_charge": {
@@ -1424,48 +1389,8 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_recurring_payment_id": "probe_mandate_001",
-          "amount": {
-            "minor_amount": 0,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "enrolled_for_3ds": false,
-          "return_url": "https://example.com/mandate-return",
-          "setup_future_usage": "OFF_SESSION",
-          "request_incremental_authorization": false,
-          "customer_acceptance": {
-            "acceptance_type": "OFFLINE",
-            "accepted_at": 0
-          }
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"0.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"in_amex_card\",\"fields\":{\"number\":\"4111111111111111\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"\",\"cvv\":\"737\"},\"address\":null,\"digital_wallet\":null},\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_mandate_001\",\"capture\":true,\"description\":\"Mandate setup\",\"complete_payment_url\":\"https://hyperswitch.io/return\",\"error_payment_url\":\"https://hyperswitch.io/return\",\"customer\":{\"name\":\"Grace Tester\",\"email\":\"grace@test.com\"},\"save_payment_method\":true}"
-        }
+        "status": "error",
+        "error": "Stuck on field: billing.first_name / customer_name — Missing required field: billing.first_name / customer_name"
       }
     },
     "token_authorize": {
