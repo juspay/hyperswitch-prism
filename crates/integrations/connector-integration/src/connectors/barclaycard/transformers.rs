@@ -996,8 +996,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let ccard = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card) => Ok(card),
-            _ => Err(IntegrationError::not_implemented(
+            _ => Err(IntegrationError::NotImplemented(
                 "Only card payments are supported for mandate setup".to_string(),
+                Default::default(),
             )),
         }?;
 
@@ -1332,8 +1333,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     pi,
                 )
             }
-            MandateReferenceId::NetworkTokenWithNTI(_) => Err(IntegrationError::not_implemented(
+            MandateReferenceId::NetworkTokenWithNTI(_) => Err(IntegrationError::NotImplemented(
                 "Network token with NTI based MIT is not supported for Barclaycard".to_string(),
+                Default::default(),
             ))?,
         };
 
