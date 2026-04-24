@@ -1209,12 +1209,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let converter = FloatMajorUnitForConnector;
-        // SetupMandate may not carry an amount — default to 1 minor unit (Stax requires a non-zero total).
-        let minor_amount = item
-            .router_data
-            .request
-            .minor_amount
-            .unwrap_or_else(|| MinorUnit::new(1));
+        // Stax's /charge endpoint requires a non-zero total. Fail fast if the
+        // caller omits an amount rather than silently authorizing $0.01, which
+        // would leave a surprise charge on the cardholder's statement.
+        let minor_amount =
+            item.router_data
+                .request
+                .minor_amount
+                .ok_or(IntegrationError::MissingRequiredField {
+                field_name:
+                    "minor_amount (Stax requires a non-zero authorization amount for SetupMandate)",
+                context: Default::default(),
+            })?;
         let total = converter
             .convert(minor_amount, item.router_data.request.currency)
             .change_context(IntegrationError::RequestEncodingFailed {
@@ -1271,17 +1277,27 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxSetupMandateRespo
         // Prefer the value echoed back by Stax, fall back to the request-side
         // token we sent in (which may have been sourced from PaymentMethodToken
         // or a prior connector_mandate_id).
-        let mandate_token = response.payment_method_id.clone().or_else(|| {
-            extract_stax_mandate_token(
+        let mandate_token = match response.payment_method_id.clone() {
+            Some(token) => Some(token),
+            None => match extract_stax_mandate_token(
                 &item.router_data.request.payment_method_data,
                 item.router_data
                     .request
                     .mandate_id
                     .as_ref()
                     .and_then(|m| m.mandate_reference_id.as_ref()),
-            )
-            .ok()
-        });
+            ) {
+                Ok(token) => Some(token),
+                Err(err) => {
+                    tracing::warn!(
+                        error = ?err,
+                        transaction_id = %response.id,
+                        "Stax SetupMandate: response did not include payment_method_id and fallback extraction failed; RepeatPayment will fail without a mandate reference"
+                    );
+                    None
+                }
+            },
+        };
 
         let mandate_reference = mandate_token.map(|token| {
             Box::new(MandateReference {
