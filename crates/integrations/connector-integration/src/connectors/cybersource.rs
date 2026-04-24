@@ -56,14 +56,15 @@ use transformers::{
     CybersourceAuthSetupResponse, CybersourceAuthValidateRequest, CybersourceAuthenticateResponse,
     CybersourceAuthenticateResponse as CybersourcePostAuthenticateResponse,
     CybersourceClientAuthRequest, CybersourceClientAuthResponse, CybersourcePaymentsCaptureRequest,
-    CybersourcePaymentsIncrementalAuthorizationRequest,
-    CybersourcePaymentsIncrementalAuthorizationResponse, CybersourcePaymentsRequest,
+    CybersourcePaymentsIncrementalAuthorizationRequest, CybersourcePaymentsRequest,
     CybersourcePaymentsResponse, CybersourcePaymentsResponse as CybersourceCaptureResponse,
     CybersourcePaymentsResponse as CybersourceVoidResponse,
     CybersourcePaymentsResponse as CybersourceSetupMandateResponse,
-    CybersourcePaymentsResponse as CybersourceRepeatPaymentResponse, CybersourceRefundRequest,
-    CybersourceRefundResponse, CybersourceRepeatPaymentRequest, CybersourceRsyncResponse,
-    CybersourceTransactionResponse, CybersourceVoidRequest, CybersourceZeroMandateRequest,
+    CybersourcePaymentsResponse as CybersourceRepeatPaymentResponse,
+    CybersourcePaymentsResponse as CybersourceIncrementalAuthorizationResponse,
+    CybersourceRefundRequest, CybersourceRefundResponse, CybersourceRepeatPaymentRequest,
+    CybersourceRsyncResponse, CybersourceTransactionResponse, CybersourceVoidRequest,
+    CybersourceZeroMandateRequest,
 };
 
 use super::macros;
@@ -119,6 +120,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Cybersource<T>
 {
+    // CyberSource has no distinct post-capture void; use Refund (POST /pts/v2/payments/{id}/refunds) instead.
+    // Ref: https://developer.cybersource.com/api-reference-assets/index.html#payments_reversal
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(Report::new(IntegrationError::FlowNotSupported {
+            flow: "void_post_capture".to_string(),
+            connector: "Cybersource".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Cybersource<T>
@@ -293,7 +306,7 @@ macros::create_all_prerequisites!(
         (
             flow: IncrementalAuthorization,
             request_body: CybersourcePaymentsIncrementalAuthorizationRequest,
-            response_body: CybersourcePaymentsIncrementalAuthorizationResponse,
+            response_body: CybersourceIncrementalAuthorizationResponse,
             router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
         )
     ],
@@ -1111,7 +1124,7 @@ macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Cybersource,
     curl_request: Json(CybersourcePaymentsIncrementalAuthorizationRequest),
-    curl_response: CybersourcePaymentsIncrementalAuthorizationResponse,
+    curl_response: CybersourceIncrementalAuthorizationResponse,
     flow_name: IncrementalAuthorization,
     resource_common_data: PaymentFlowData,
     flow_request: PaymentsIncrementalAuthorizationData,
@@ -1271,7 +1284,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-// Stub implementations for unsupported flows
+// FlowNotSupported markers — CyberSource does not expose endpoints for these flows
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
@@ -1281,24 +1294,72 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentCreateOrderResponse,
     > for Cybersource<T>
 {
+    // CyberSource has no pre-payment "order" object; authorizations are initiated directly via POST /pts/v2/payments.
+    // Ref: https://developer.cybersource.com/api-reference-assets/index.html#payments_payments
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(Report::new(IntegrationError::FlowNotSupported {
+            flow: "create_order".to_string(),
+            connector: "Cybersource".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>
     for Cybersource<T>
 {
+    // CyberSource dispute management is merchant-portal only; no API endpoint for evidence submission.
+    // Ref: https://developer.cybersource.com/api-reference-assets/index.html#chargeback-disputes
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(Report::new(IntegrationError::FlowNotSupported {
+            flow: "submit_evidence".to_string(),
+            connector: "Cybersource".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
     for Cybersource<T>
 {
+    // CyberSource has no API-driven dispute defense; disputes are handled via the Business Center portal.
+    // Ref: https://developer.cybersource.com/api-reference-assets/index.html#chargeback-disputes
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(Report::new(IntegrationError::FlowNotSupported {
+            flow: "defend_dispute".to_string(),
+            connector: "Cybersource".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
     for Cybersource<T>
 {
+    // CyberSource has no programmatic dispute-accept endpoint; acceptance is done via the Business Center.
+    // Ref: https://developer.cybersource.com/api-reference-assets/index.html#chargeback-disputes
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(Report::new(IntegrationError::FlowNotSupported {
+            flow: "accept_dispute".to_string(),
+            connector: "Cybersource".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -1309,7 +1370,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ServerSessionAuthenticationTokenResponseData,
     > for Cybersource<T>
 {
+    // CyberSource uses HTTP Signature authentication, not session-token-based merchant auth.
+    // Ref: https://developer.cybersource.com/api/developer-guides/dita-gettingstarted/authentication.html
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(Report::new(IntegrationError::FlowNotSupported {
+            flow: "server_session_authentication_token".to_string(),
+            connector: "Cybersource".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
         PaymentMethodToken,
@@ -1318,7 +1392,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentMethodTokenResponse,
     > for Cybersource<T>
 {
+    // CyberSource has no dedicated tokenization endpoint; tokens are created as a side-effect of SetupMandate (zero-dollar auth).
+    // Ref: https://developer.cybersource.com/api-reference-assets/index.html#token-management
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(Report::new(IntegrationError::FlowNotSupported {
+            flow: "tokenize_payment_method".to_string(),
+            connector: "Cybersource".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
         ServerAuthenticationToken,
@@ -1327,6 +1414,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ServerAuthenticationTokenResponseData,
     > for Cybersource<T>
 {
+    // CyberSource uses HTTP Signature authentication, not a token-exchange auth model.
+    // Ref: https://developer.cybersource.com/api/developer-guides/dita-gettingstarted/authentication.html
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(Report::new(IntegrationError::FlowNotSupported {
+            flow: "server_authentication_token".to_string(),
+            connector: "Cybersource".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -1337,6 +1436,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ConnectorCustomerResponse,
     > for Cybersource<T>
 {
+    // CyberSource has no standalone customer resource; payment instruments are managed inline via TMS.
+    // Ref: https://developer.cybersource.com/api-reference-assets/index.html#token-management
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(Report::new(IntegrationError::FlowNotSupported {
+            flow: "create_customer".to_string(),
+            connector: "Cybersource".to_string(),
+            context: Default::default(),
+        }))
+    }
 }
 
 // SourceVerification implementations for all flows
