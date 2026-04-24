@@ -41,11 +41,11 @@ use serde::Serialize;
 use transformers as nexixpay;
 use transformers::{
     NexixpayCaptureRequest, NexixpayCaptureResponse, NexixpayClientAuthRequest,
-    NexixpayClientAuthResponse, NexixpayPaymentsRequest, NexixpayPaymentsResponse,
-    NexixpayPostAuthenticateRequest, NexixpayPostAuthenticateResponse,
-    NexixpayPreAuthenticateRequest, NexixpayPreAuthenticateResponse, NexixpayRSyncResponse,
-    NexixpayRefundRequest, NexixpayRefundResponse, NexixpaySyncResponse, NexixpayVoidRequest,
-    NexixpayVoidResponse,
+    NexixpayClientAuthResponse, NexixpayIncrementalAuthRequest, NexixpayIncrementalAuthResponse,
+    NexixpayPaymentsRequest, NexixpayPaymentsResponse, NexixpayPostAuthenticateRequest,
+    NexixpayPostAuthenticateResponse, NexixpayPreAuthenticateRequest,
+    NexixpayPreAuthenticateResponse, NexixpayRSyncResponse, NexixpayRefundRequest,
+    NexixpayRefundResponse, NexixpaySyncResponse, NexixpayVoidRequest, NexixpayVoidResponse,
 };
 use uuid::Uuid;
 
@@ -60,6 +60,7 @@ pub(crate) mod headers {
     pub(crate) const X_API_KEY: &str = "X-Api-Key";
     pub(crate) const CORRELATION_ID: &str = "Correlation-Id";
     pub(crate) const IDEMPOTENCY_KEY: &str = "Idempotency-Key";
+    pub(crate) const SERVICE_SCOPE: &str = "serviceScope";
 }
 
 // ===== MACRO-BASED STRUCT AND BRIDGE SETUP =====
@@ -118,6 +119,12 @@ macros::create_all_prerequisites!(
             request_body: NexixpayClientAuthRequest,
             response_body: NexixpayClientAuthResponse,
             router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ),
+        (
+            flow: IncrementalAuthorization,
+            request_body: NexixpayIncrementalAuthRequest,
+            response_body: NexixpayIncrementalAuthResponse,
+            router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -178,16 +185,6 @@ macros::create_all_prerequisites!(
 
 // ===== CONNECTOR SERVICE TRAIT IMPLEMENTATIONS =====
 // Main service trait - aggregates all other traits
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Nexixpay<T>
-{
-}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Nexixpay<T>
@@ -524,6 +521,52 @@ macros::macro_connector_implementation!(
                     .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?
             };
             Ok(format!("{}/operations/{}/captures", self.connector_base_url_payments(req), operation_id))
+        }
+    }
+);
+
+// Incremental Authorization — POST /incrementals
+// Nexi XPay supports incremental authorization on pre-authorized operations
+// via POST {base}/incrementals with body referencing the originalOperationId.
+// The body is assembled by NexixpayIncrementalAuthRequest::try_from which
+// resolves originalOperationId from connector_feature_data (or the raw
+// connector_transaction_id as fallback).
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Nexixpay,
+    curl_request: Json(NexixpayIncrementalAuthRequest),
+    curl_response: NexixpayIncrementalAuthResponse,
+    flow_name: IncrementalAuthorization,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsIncrementalAuthorizationData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let mut header = self.build_headers(req)?;
+            header.push((
+                headers::IDEMPOTENCY_KEY.to_string(),
+                Uuid::new_v4().to_string().into(),
+            ));
+            // NexiXPay gates /incrementals behind a serviceScope guard.
+            // BACKOFFICE matches the channel returned by the /init and
+            // /payment responses in sandbox.
+            header.push((
+                headers::SERVICE_SCOPE.to_string(),
+                "BACKOFFICE".to_string().into(),
+            ));
+            Ok(header)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/incrementals", self.connector_base_url_payments(req)))
         }
     }
 );

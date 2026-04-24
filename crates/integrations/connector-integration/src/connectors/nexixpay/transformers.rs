@@ -7,17 +7,17 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, PSync, PostAuthenticate, PreAuthenticate,
-        RSync, Refund, Void,
+        Authorize, Capture, ClientAuthenticationToken, IncrementalAuthorization, PSync,
+        PostAuthenticate, PreAuthenticate, RSync, Refund, Void,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse, MandateReferenceId,
         NexixpayClientAuthenticationResponse as NexixpayClientAuthenticationResponseDomain,
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        ResponseId,
+        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
@@ -1791,6 +1791,138 @@ impl TryFrom<ResponseRouterData<NexixpayClientAuthResponse, Self>>
         Ok(Self {
             response: Ok(PaymentsResponseData::ClientAuthenticationTokenResponse {
                 session_data,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
+}
+
+// ===== INCREMENTAL AUTHORIZATION FLOW STRUCTURES =====
+// NexiXPay incremental authorization is implemented via POST /incrementals
+// with a JSON body referencing the originalOperationId. It allows merchants
+// to increase the authorized amount on a previously AUTHORIZED operation
+// (e.g., hotel bookings extended stays).
+//
+// Endpoint:  POST {base_url}/incrementals
+// Body:      {"originalOperationId": "...", "amount": "<minor>", "currency": "EUR", "description": "..."}
+// Response:  {"operationId": "...", "operationTime": "..."}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NexixpayIncrementalAuthRequest {
+    pub original_operation_id: String,
+    pub amount: StringMinorUnit,
+    pub currency: common_enums::Currency,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        NexixpayRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for NexixpayIncrementalAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        value: NexixpayRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let item = &value.router_data;
+
+        // Determine the originalOperationId:
+        // Prefer the authorization operationId stored in connector_feature_data;
+        // fall back to the plain connector_transaction_id when metadata is
+        // unavailable.
+        let original_operation_id = match item.request.connector_transaction_id.clone() {
+            ResponseId::ConnectorTransactionId(id) => {
+                if let Some(metadata) = item
+                    .resource_common_data
+                    .connector_feature_data
+                    .as_ref()
+                {
+                    get_payment_id(
+                        Some(metadata.peek().clone()),
+                        Some(NexixpayPaymentIntent::Authorize),
+                    )
+                    .unwrap_or(id)
+                } else {
+                    id
+                }
+            }
+            other => other.get_connector_transaction_id().change_context(
+                IntegrationError::MissingConnectorTransactionID {
+                    context: Default::default(),
+                },
+            )?,
+        };
+
+        // Convert incremental amount to minor unit string
+        let amount = StringMinorUnitForConnector
+            .convert(item.request.minor_amount, item.request.currency)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
+
+        Ok(Self {
+            original_operation_id,
+            amount,
+            currency: item.request.currency,
+            description: item.request.reason.clone(),
+        })
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NexixpayIncrementalAuthResponse {
+    pub operation_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub operation_time: Option<String>,
+}
+
+impl TryFrom<ResponseRouterData<NexixpayIncrementalAuthResponse, Self>>
+    for RouterDataV2<
+        IncrementalAuthorization,
+        PaymentFlowData,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<NexixpayIncrementalAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        // A 2xx response from /incrementals indicates the increment was
+        // accepted by NexiXPay. The JSON body is intentionally minimal
+        // (operationId + operationTime), mirroring capture/refund behavior.
+        let authorization_status = common_enums::AuthorizationStatus::Success;
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status: AttemptStatus::Authorized,
+                ..item.router_data.resource_common_data
+            },
+            response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                status: authorization_status,
+                connector_authorization_id: Some(item.response.operation_id),
                 status_code: item.http_code,
             }),
             ..item.router_data
