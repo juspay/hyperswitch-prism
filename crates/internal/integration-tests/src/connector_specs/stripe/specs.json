@@ -7,7 +7,6 @@
     "client_authentication_token",
     "complete_authorize",
     "create_customer",
-    "create_order",
     "get",
     "handle_event",
     "incremental_authorization",

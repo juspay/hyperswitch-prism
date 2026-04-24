@@ -74,6 +74,61 @@
           "contains": "declin"
         }
       }
+    },
+    "no3ds_auto_capture_apple_pay_encrypted": {
+      "grpc_req": {
+        "setup_future_usage": null
+      }
+    },
+    "no3ds_auto_capture_wechat_pay": {
+      "grpc_req": {
+        "setup_future_usage": null
+      }
+    },
+    "no3ds_auto_capture_amazon_pay": {
+      "grpc_req": {
+        "setup_future_usage": null
+      }
+    },
+    "no3ds_auto_capture_cashapp": {
+      "grpc_req": {
+        "setup_future_usage": null
+      }
+    },
+    "no3ds_auto_capture_revolut_pay": {
+      "grpc_req": {
+        "setup_future_usage": null
+      }
+    },
+    "no3ds_auto_capture_sofort": {
+      "grpc_req": {
+        "setup_future_usage": null
+      }
+    },
+    "no3ds_auto_capture_blik": {
+      "grpc_req": {
+        "setup_future_usage": null
+      }
+    },
+    "no3ds_auto_capture_klarna": {
+      "grpc_req": {
+        "setup_future_usage": null
+      }
+    },
+    "no3ds_auto_capture_affirm": {
+      "grpc_req": {
+        "setup_future_usage": null
+      }
+    },
+    "no3ds_auto_capture_becs_bank_debit": {
+      "grpc_req": {
+        "setup_future_usage": null
+      }
+    },
+    "no3ds_auto_capture_multibanco": {
+      "grpc_req": {
+        "setup_future_usage": null
+      }
     }
   },
   "setup_recurring": {
