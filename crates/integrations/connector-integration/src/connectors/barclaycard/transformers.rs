@@ -230,7 +230,12 @@ fn format_error_details(details: Option<&Vec<responses::Details>>) -> Option<Str
 /// It must be a decimal string in the major unit of the original currency (e.g. "10.00").
 /// Both the ConnectorMandateId and NetworkMandateId branches of RepeatPayment need this.
 fn get_repeat_payment_original_authorized_amount<T>(
-    router_data: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+    router_data: &RouterDataV2<
+        RepeatPayment,
+        PaymentFlowData,
+        RepeatPaymentData<T>,
+        PaymentsResponseData,
+    >,
 ) -> Result<Option<String>, error_stack::Report<IntegrationError>>
 where
     T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
@@ -1239,9 +1244,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
                 let mandate_card = match router_data.request.payment_method_type {
                     Some(common_enums::PaymentMethodType::Card) => Some(requests::MandateCard {
-                        type_selection_indicator: Some(
-                            TYPE_SELECTION_INDICATOR_PRIMARY.to_owned(),
-                        ),
+                        type_selection_indicator: Some(TYPE_SELECTION_INDICATOR_PRIMARY.to_owned()),
                     }),
                     _ => None,
                 };

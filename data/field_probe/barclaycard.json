@@ -720,7 +720,7 @@
             "v-c-merchant-id": "probe_merchant",
             "via": "HyperSwitch"
           },
-          "body": "{\"processingInformation\":{\"commerceIndicator\":\"internet\",\"capture\":true,\"authorizationOptions\":{\"merchantInitiatedTransaction\":{}}},\"paymentInformation\":{\"paymentInstrument\":{\"id\":\"probe-mandate-123\"}},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":null},\"clientReferenceInformation\":{\"code\":\"\"}}"
+          "body": "{\"processingInformation\":{\"commerceIndicator\":\"internet\",\"capture\":true,\"authorizationOptions\":{\"initiator\":{\"type\":\"merchant\",\"storedCredentialUsed\":true},\"merchantInitiatedTransaction\":{}}},\"paymentInformation\":{\"paymentInstrument\":{\"id\":\"probe-mandate-123\"}},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":null},\"clientReferenceInformation\":{\"code\":\"\"}}"
         }
       }
     },
