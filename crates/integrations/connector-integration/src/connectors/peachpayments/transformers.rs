@@ -264,9 +264,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let transaction_data = match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(card_info) => {
-                let (routing_reference, routing) = build_routing_fields(
-                    connector_meta_data.merchant_payment_method_route_id,
-                );
+                let (routing_reference, routing) =
+                    build_routing_fields(connector_meta_data.merchant_payment_method_route_id);
                 requests::PeachpaymentsTransactionData::Card(requests::PeachpaymentsCardData {
                     merchant_information: requests::PeachpaymentsMerchantInformation {
                         client_merchant_reference_id: connector_meta_data
@@ -316,9 +315,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 })
             }
             PaymentMethodData::NetworkToken(token_data) => {
-                let (routing_reference, routing) = build_routing_fields(
-                    connector_meta_data.merchant_payment_method_route_id,
-                );
+                let (routing_reference, routing) =
+                    build_routing_fields(connector_meta_data.merchant_payment_method_route_id);
                 requests::PeachpaymentsTransactionData::NetworkToken(
                     requests::PeachpaymentsNetworkTokenData {
                         merchant_information: requests::PeachpaymentsMerchantInformation {
@@ -787,9 +785,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         context: Default::default(),
                     },
                 )?;
-                let (routing_reference, routing) = build_routing_fields(
-                    connector_meta_data.merchant_payment_method_route_id,
-                );
+                let (routing_reference, routing) =
+                    build_routing_fields(connector_meta_data.merchant_payment_method_route_id);
                 requests::PeachpaymentsTransactionData::Card(requests::PeachpaymentsCardData {
                     merchant_information: requests::PeachpaymentsMerchantInformation {
                         client_merchant_reference_id: connector_meta_data
@@ -975,9 +972,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let transaction_data = match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(card_info) => {
-                let (routing_reference, routing) = build_routing_fields(
-                    connector_meta_data.merchant_payment_method_route_id,
-                );
+                let (routing_reference, routing) =
+                    build_routing_fields(connector_meta_data.merchant_payment_method_route_id);
                 requests::PeachpaymentsTransactionData::Card(requests::PeachpaymentsCardData {
                     merchant_information: requests::PeachpaymentsMerchantInformation {
                         client_merchant_reference_id: connector_meta_data
@@ -1010,9 +1006,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 })
             }
             PaymentMethodData::NetworkToken(token_data) => {
-                let (routing_reference, routing) = build_routing_fields(
-                    connector_meta_data.merchant_payment_method_route_id,
-                );
+                let (routing_reference, routing) =
+                    build_routing_fields(connector_meta_data.merchant_payment_method_route_id);
                 requests::PeachpaymentsTransactionData::NetworkToken(
                     requests::PeachpaymentsNetworkTokenData {
                         merchant_information: requests::PeachpaymentsMerchantInformation {
