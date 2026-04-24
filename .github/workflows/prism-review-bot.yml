@@ -5,6 +5,8 @@ on:
     types: [created]
   pull_request_review_comment:
     types: [created]
+  pull_request:
+    types: [labeled]
 
 permissions:
   contents: read
@@ -12,7 +14,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: prism-review-${{ github.event.issue.number || github.event.pull_request.number }}
+  group: prism-review-${{ github.event.pull_request.number || github.event.issue.number }}
   cancel-in-progress: false
 
 defaults:
@@ -20,21 +22,30 @@ defaults:
     shell: bash
 
 env:
-  # Team configuration — change these to reuse this workflow for another team.
   TEAM_NAME: prism
   SKILL_NAME: prism-reviewer
   SOURCE_REPO: juspay/hyperswitch-prism
-  SOURCE_REPO_LOCAL: /home/phoenix/repos/hyperswitch-prism
   AGENT_FILE: /home/phoenix/.config/opencode/agents/hyperswitch-prism-reviewer.md
+  OPENCODE_SKILLS_DIR: /home/phoenix/.config/opencode/skills
+  SPECS_LOCAL: /home/phoenix/repos/hyperswitch-specs
+  SOURCE_REPO_LOCAL: /home/phoenix/repos/hyperswitch-prism
 
 jobs:
   agent:
     runs-on: self-hosted
     timeout-minutes: 30
     if: |
-      (github.event_name == 'pull_request_review_comment' || github.event.issue.pull_request) &&
-      contains(github.event.comment.body, '@prism-review-bot') &&
-      contains(fromJSON('["COLLABORATOR", "MEMBER", "OWNER"]'), github.event.comment.author_association)
+      (
+        (github.event_name == 'pull_request_review_comment' || github.event.issue.pull_request) &&
+        contains(github.event.comment.body, '@prism-review-bot') &&
+        contains(fromJSON('["COLLABORATOR", "MEMBER", "OWNER"]'), github.event.comment.author_association)
+      ) ||
+      (
+        github.event_name == 'pull_request' &&
+        github.event.action == 'labeled' &&
+        github.event.label.name == (vars.PRISM_TRIGGER_LABEL || 'prism-review') &&
+        contains(fromJSON(vars.PRISM_TRIGGER_ALLOWLIST || '["10xGRACE","10xgrace","10xgrace[bot]"]'), github.event.sender.login)
+      )
 
     steps:
       - name: Resolve context
@@ -42,19 +53,25 @@ jobs:
         run: |
           set -euo pipefail
           EVENT_NAME="${{ github.event_name }}"
-          if [ "$EVENT_NAME" == "pull_request_review_comment" ]; then
+          if [ "$EVENT_NAME" == "pull_request" ] || [ "$EVENT_NAME" == "pull_request_review_comment" ]; then
             PR_NUMBER="${{ github.event.pull_request.number }}"
           else
             PR_NUMBER="${{ github.event.issue.number }}"
+          fi
+          if [ -z "$PR_NUMBER" ]; then
+            echo "ERROR: Could not resolve PR number from event payload"
+            exit 1
           fi
           echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
           echo "Resolved — PR: #$PR_NUMBER"
 
       - name: Acknowledge trigger with eye reaction
+        if: github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment'
         env:
           EVENT_NAME: ${{ github.event_name }}
           COMMENT_ID: ${{ github.event.comment.id }}
         run: |
+          set -uo pipefail
           if [ "$EVENT_NAME" == "pull_request_review_comment" ]; then
             REACTION_ENDPOINT="repos/$SOURCE_REPO/pulls/comments/$COMMENT_ID/reactions"
           else
@@ -63,26 +80,29 @@ jobs:
           gh api "$REACTION_ENDPOINT" --method POST -f content=eyes --silent \
             || echo "Failed to add eye reaction (non-fatal, continuing)"
 
-      - name: Sync review skill from spec repo
+      - name: Remove trigger label (label event only)
+        if: github.event_name == 'pull_request' && github.event.action == 'labeled'
+        env:
+          PR_NUMBER: ${{ steps.context.outputs.pr_number }}
+          REPO: ${{ env.SOURCE_REPO }}
+          TRIGGER_LABEL: ${{ vars.PRISM_TRIGGER_LABEL || 'prism-review' }}
+        run: |
+          set -uo pipefail
+          gh api -X DELETE "repos/$REPO/issues/$PR_NUMBER/labels/$TRIGGER_LABEL" --silent \
+            || echo "Failed to remove $TRIGGER_LABEL (may already be gone); continuing"
+
+      - name: Sync specs repo
         run: |
           set -euo pipefail
-          echo "Syncing $SKILL_NAME skill from juspay/hyperswitch-specs..."
-          cd /home/phoenix/repos/hyperswitch-specs
-          git checkout main
-          git pull origin main
-
-          SKILL_SRC="/home/phoenix/repos/hyperswitch-specs/.opencode/skills/$SKILL_NAME"
-          if [ ! -d "$SKILL_SRC" ]; then
-            echo "ERROR: Skill source directory not found: $SKILL_SRC"
+          if [ ! -d "$SPECS_LOCAL/.git" ]; then
+            echo "ERROR: specs clone missing at $SPECS_LOCAL"
             exit 1
           fi
+          git -C "$SPECS_LOCAL" fetch --quiet origin main
+          git -C "$SPECS_LOCAL" checkout --quiet main
+          git -C "$SPECS_LOCAL" reset --hard origin/main
 
-          mkdir -p "$HOME/.config/opencode/skills/$SKILL_NAME"
-          cp -r "$SKILL_SRC/." "$HOME/.config/opencode/skills/$SKILL_NAME/"
-
-          echo "Skill $SKILL_NAME synced successfully"
-
-      - name: Pull latest and checkout PR branch
+      - name: Checkout PR branch
         env:
           PR_NUMBER: ${{ steps.context.outputs.pr_number }}
         run: |
@@ -98,6 +118,50 @@ jobs:
           git pull origin "$BRANCH"
           echo "Checked out PR branch: $BRANCH"
 
+      - name: Sync prism reviewer skill
+        run: |
+          set -euo pipefail
+          mkdir -p "$OPENCODE_SKILLS_DIR"
+
+          src="$SPECS_LOCAL/.opencode/skills/$SKILL_NAME"
+          dst="$OPENCODE_SKILLS_DIR/$SKILL_NAME"
+          if [ ! -d "$src" ]; then
+            echo "ERROR: skill '$SKILL_NAME' missing in specs repo ($src)"
+            exit 1
+          fi
+          mkdir -p "$dst"
+          rsync -a --delete "$src/" "$dst/"
+          echo "Synced $SKILL_NAME"
+
+          for helper in review-commenter pr-trigger-classifier review-updater; do
+            if [ ! -f "$OPENCODE_SKILLS_DIR/$helper/SKILL.md" ]; then
+              echo "ERROR: orchestrator helper '$helper' is not installed on this runner"
+              echo "       Expected: $OPENCODE_SKILLS_DIR/$helper/SKILL.md"
+              exit 1
+            fi
+          done
+
+      - name: Pre-fetch existing PR comments for dedup
+        env:
+          PR_NUMBER: ${{ steps.context.outputs.pr_number }}
+          REPO: ${{ env.SOURCE_REPO }}
+        run: |
+          set -euo pipefail
+          INLINE="/tmp/pr_${PR_NUMBER}_existing_inline.json"
+          ISSUE="/tmp/pr_${PR_NUMBER}_existing_issue.json"
+
+          gh api "repos/$REPO/pulls/$PR_NUMBER/comments" \
+            --jq '[.[] | {id, path, line, body, user: .user.login}]' \
+            > "$INLINE"
+
+          gh api "repos/$REPO/issues/$PR_NUMBER/comments" \
+            --jq '[.[] | {id, body, user: .user.login}]' \
+            > "$ISSUE"
+
+          echo "Pre-fetched existing comments:"
+          echo "  inline: $INLINE ($(jq 'length' "$INLINE") comments)"
+          echo "  issue:  $ISSUE ($(jq 'length' "$ISSUE") comments)"
+
       - name: Run OpenCode Review Agent
         timeout-minutes: 30
         env:
@@ -105,16 +169,24 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
+
           COMMENT_BODY=$(jq -r '.comment.body // empty' "$GITHUB_EVENT_PATH")
           IN_REPLY_TO=$(jq -r '.comment.in_reply_to_id // empty' "$GITHUB_EVENT_PATH")
+
           SESSION_DIR="/home/phoenix/.opencode-sessions"
           mkdir -p "$SESSION_DIR"
           SESSION_FILE="$SESSION_DIR/review-$TEAM_NAME-$PR_NUMBER"
 
-          echo "PR number: $PR_NUMBER"
-          echo "Event: $EVENT_NAME"
+          echo "PR number:  $PR_NUMBER"
+          echo "Event:      $EVENT_NAME"
           echo "Source repo: $SOURCE_REPO"
-          echo "Skill: $SKILL_NAME"
+          echo "Workdir:    $SOURCE_REPO_LOCAL"
+          echo "Agent file: $AGENT_FILE"
+
+          if [ ! -f "$AGENT_FILE" ]; then
+            echo "ERROR: Agent file not found at $AGENT_FILE"
+            exit 1
+          fi
 
           PROMPT="You MUST operate exclusively as the agent defined in:
           $AGENT_FILE
@@ -142,31 +214,60 @@ jobs:
             SAVED_ID=$(cat "$SESSION_FILE")
             echo "Resuming session $SAVED_ID for review #$PR_NUMBER"
             if opencode run \
-              --session "$SAVED_ID" \
-              --dir "$SOURCE_REPO_LOCAL" \
-              "$PROMPT"; then
+                 --session "$SAVED_ID" \
+                 --dir "$SOURCE_REPO_LOCAL" \
+                 "$PROMPT"; then
               echo "Resumed session $SAVED_ID successfully"
               exit 0
             else
-              echo "Session $SAVED_ID failed, creating new session"
+              echo "Session $SAVED_ID failed; falling through to new session"
               rm -f "$SESSION_FILE"
             fi
           fi
 
           UNIQUE_TITLE="review-$TEAM_NAME-$PR_NUMBER-$GITHUB_RUN_ID"
-          echo "Creating new session for review #$PR_NUMBER"
+          echo "Creating new session: $UNIQUE_TITLE"
           opencode run \
             --title "$UNIQUE_TITLE" \
             --dir "$SOURCE_REPO_LOCAL" \
             "$PROMPT"
 
-          SESSION_ID=$(opencode session list --format json | \
-            jq -r --arg title "$UNIQUE_TITLE" \
-            '.[] | select(.title == $title) | .id' | head -1)
-          echo "Captured session ID: $SESSION_ID"
-          if [ -n "$SESSION_ID" ]; then
+          SESSION_LIST_RAW=$(mktemp)
+          trap 'rm -f "$SESSION_LIST_RAW"' EXIT
+
+          if ! opencode session list --format json >"$SESSION_LIST_RAW" 2>/dev/null; then
+            echo "WARNING: 'opencode session list' exited non-zero; skipping session capture"
+            exit 0
+          fi
+
+          if ! jq empty "$SESSION_LIST_RAW" 2>/dev/null; then
+            echo "WARNING: opencode session list output was not valid JSON; skipping session capture"
+            echo "--- raw output (first 40 lines) ---"
+            head -n 40 "$SESSION_LIST_RAW" || true
+            echo "--- end raw output ---"
+            exit 0
+          fi
+
+          SESSION_ID=$(jq -re --arg title "$UNIQUE_TITLE" \
+            'map(select(.title == $title)) | .[0].id // empty' \
+            "$SESSION_LIST_RAW" || true)
+
+          if [ -n "${SESSION_ID:-}" ]; then
             echo "$SESSION_ID" > "$SESSION_FILE"
             echo "Saved session $SESSION_ID for review #$PR_NUMBER"
           else
-            echo "WARNING: Could not capture session ID"
+            echo "WARNING: Could not locate session with title '$UNIQUE_TITLE' in session list"
           fi
+
+      - name: Mark PR as reviewed (label event only)
+        if: success() && github.event_name == 'pull_request' && github.event.action == 'labeled'
+        env:
+          PR_NUMBER: ${{ steps.context.outputs.pr_number }}
+          REPO: ${{ env.SOURCE_REPO }}
+          DONE_LABEL: ${{ vars.PRISM_REVIEWED_LABEL || 'prism-reviewed' }}
+        run: |
+          set -uo pipefail
+          gh api "repos/$REPO/issues/$PR_NUMBER/labels" \
+            --method POST \
+            -f "labels[]=$DONE_LABEL" --silent \
+            || echo "Failed to add $DONE_LABEL; non-fatal"
