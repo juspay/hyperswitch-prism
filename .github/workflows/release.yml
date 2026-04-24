@@ -221,6 +221,15 @@ jobs:
         with:
           name: generated-python
           path: sdk/python/src/payments/generated/
+      - name: Embed source SHA + tag into Python package (chain-of-trust)
+        run: |
+          mkdir -p sdk/python/src/payments
+          cat > sdk/python/src/payments/_build_info.py <<EOF
+          __commit__ = "${{ github.sha }}"
+          __ref__ = "${{ github.ref_name }}"
+          __ref_type__ = "${{ github.ref_type }}"
+          __build_url__ = "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          EOF
       - name: Package Python SDK
         run: make -C sdk/python dist
       - name: Upload Python SDK artifact
@@ -262,6 +271,15 @@ jobs:
         with:
           name: generated-javascript
           path: sdk/javascript/src/payments/generated/
+      - name: Embed source SHA + tag into package.json (chain-of-trust)
+        working-directory: sdk/javascript
+        run: |
+          npm pkg set gitHead="${{ github.sha }}"
+          npm pkg set repository.type="git"
+          npm pkg set repository.url="git+https://github.com/${{ github.repository }}.git"
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            npm pkg set repository.directory="sdk/javascript"
+          fi
       - name: Package JavaScript SDK
         run: make -C sdk/javascript dist
       - name: Upload JavaScript SDK artifact
@@ -352,6 +370,42 @@ jobs:
     if: always() && needs.collect-sdks.result == 'success' && (inputs.preview_only == true || inputs.publish_java == true || inputs.publish_python == true || inputs.publish_javascript == true)
     steps:
       - uses: actions/checkout@v4
+
+      - name: Echo dispatched inputs (audit trail)
+        run: |
+          echo "===== Dispatch context ====="
+          echo "Inputs: ${{ toJSON(inputs) }}"
+          echo "Ref:    ${{ github.ref }} (${{ github.ref_type }})"
+          echo "SHA:    ${{ github.sha }}"
+          echo "Actor:  ${{ github.actor }}"
+          echo "Run:    ${{ github.run_id }}"
+          echo "============================"
+
+      - name: Refuse to publish from non-tag ref
+        if: ${{ inputs.preview_only == false }}
+        run: |
+          if [ "${{ github.ref_type }}" != "tag" ]; then
+            echo "::error::release.yml must be dispatched against a git tag for real publishes, got ref='${{ github.ref }}' type='${{ github.ref_type }}'"
+            exit 1
+          fi
+
+      - name: Verify tag matches manifest versions
+        if: ${{ inputs.preview_only == false }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          JS=$(node -p "require('./sdk/javascript/package.json').version")
+          PY=$(grep -E '^version\s*=' sdk/python/pyproject.toml | head -1 | cut -d'"' -f2)
+          JV=$(grep -E '^version\s*=' sdk/java/build.gradle.kts | head -1 | cut -d'"' -f2)
+          echo "tag=$TAG  js=$JS  py=$PY  java=$JV"
+          drift=0
+          for v in "$JS" "$PY" "$JV"; do
+            if [ "$v" != "$TAG" ]; then
+              echo "::error::version drift — manifest='$v' tag='$TAG'"
+              drift=1
+            fi
+          done
+          [ "$drift" = "0" ] || exit 1
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -758,4 +812,40 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           npm ci
-          npm publish ../../artifacts/sdk-javascript/*.tgz --access public
+          npm publish ../../artifacts/sdk-javascript/*.tgz --access public --provenance
+
+  create-github-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [publish-java, publish-python, publish-javascript]
+    if: |
+      always() && inputs.preview_only == false && github.ref_type == 'tag' &&
+      (needs.publish-java.result == 'success' || needs.publish-python.result == 'success' || needs.publish-javascript.result == 'success')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download all SDK artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Create GitHub Release with artifacts and auto-generated notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          ASSETS=()
+          for f in artifacts/sdk-javascript/*.tgz artifacts/sdk-python/*.whl artifacts/sdk-java/*.jar; do
+            [ -f "$f" ] && ASSETS+=("$f")
+          done
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; uploading missing assets only"
+            [ ${#ASSETS[@]} -gt 0 ] && gh release upload "$TAG" --repo "${{ github.repository }}" --clobber "${ASSETS[@]}"
+          else
+            gh release create "$TAG" \
+              --repo "${{ github.repository }}" \
+              --title "UCS $TAG" \
+              --generate-notes \
+              "${ASSETS[@]}"
+          fi
+

@@ -92,6 +92,7 @@ if (System.getenv("CENTRAL_TOKEN_USERNAME") != null) {
                 url = "https://github.com/juspay/hyperswitch-prism"
                 connection = "scm:git:git://github.com/juspay/hyperswitch-prism.git"
                 developerConnection = "scm:git:ssh://github.com/juspay/hyperswitch-prism.git"
+                tag = System.getenv("GITHUB_REF_NAME") ?: "HEAD"
             }
         }
 
