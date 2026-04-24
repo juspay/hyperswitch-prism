@@ -1583,6 +1583,7 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthenticateData<T> {
 #[derive(Debug, Clone)]
 pub struct PaymentsIncrementalAuthorizationData {
     pub minor_amount: MinorUnit,
+    pub parent_amount: MinorUnit,
     pub currency: Currency,
     pub reason: Option<String>,
     pub connector_transaction_id: ResponseId,

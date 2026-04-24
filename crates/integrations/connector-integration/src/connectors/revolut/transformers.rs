@@ -1059,7 +1059,7 @@ impl TryFrom<RevolutWebhookBody> for WebhookDetailsResponse {
 //
 // Revolut Merchant API supports incremental authorisation on orders that were
 // originally created with `authorisation_type: pre_authorisation`. The increment
-// endpoint accepts the new total `amount` (in minor units) and an optional
+// endpoint accepts the incremental delta `amount` (in minor units) and an optional
 // merchant `reference`. The endpoint URL is:
 //
 //   POST {base_url}/api/orders/{id}/increment-authorisation
@@ -1074,7 +1074,7 @@ impl TryFrom<RevolutWebhookBody> for WebhookDetailsResponse {
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize)]
 pub struct RevolutIncrementalAuthRequest {
-    /// New total amount requested in this increment (in minor currency units).
+    /// Incremental delta amount to add to the existing authorization (in minor currency units).
     pub amount: MinorUnit,
     /// External reference for this incremental authorisation. Returned in
     /// webhooks for easy matching to the merchant's system.
@@ -1108,8 +1108,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = item.router_data;
+        let incremental_amount = router_data.request.minor_amount.get_amount_as_i64()
+            - router_data.request.parent_amount.get_amount_as_i64();
+
         Ok(Self {
-            amount: router_data.request.minor_amount,
+            amount: MinorUnit::new(incremental_amount),
             reference: Some(
                 router_data
                     .resource_common_data

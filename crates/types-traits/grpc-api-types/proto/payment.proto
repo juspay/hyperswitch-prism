@@ -3064,6 +3064,7 @@ message PaymentServiceIncrementalAuthorizationRequest {
 
   // Amount Information
   Money amount = 3; // new amount to be authorized (in minor currency units)
+  Money parent_amount = 7; // existing authorized amount before increment (in minor currency units)
 
   // Optional Fields
   optional string reason = 4;
