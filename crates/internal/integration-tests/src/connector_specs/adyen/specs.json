@@ -1,16 +1,32 @@
 {
   "connector": "adyen",
   "supported_suites": [
+    "authenticate",
     "authorize",
     "capture",
     "client_authentication_token",
+    "complete_authorize",
+    "create_customer",
     "create_order",
     "get",
+    "handle_event",
     "incremental_authorization",
+    "post_authenticate",
+    "pre_authenticate",
+    "proxy_authorize",
+    "proxy_setup_recurring",
     "recurring_charge",
     "refund",
+    "refund_sync",
+    "reverse",
+    "revoke_mandate",
+    "server_authentication_token",
+    "server_session_authentication_token",
     "setup_recurring",
-    "void",
-    "handle_event"
+    "token_authorize",
+    "token_setup_recurring",
+    "tokenize_payment_method",
+    "verify_redirect_response",
+    "void"
   ]
 }
