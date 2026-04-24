@@ -225,8 +225,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::RevolutPay(_)
                 | WalletData::MbWay(_)
                 | WalletData::Satispay(_)
-                | WalletData::Wero(_) => Err(IntegrationError::not_implemented(
+                | WalletData::Wero(_)
+                | WalletData::LazyPayRedirect(_)
+                | WalletData::PhonePeRedirect(_)
+                | WalletData::BillDeskRedirect(_)
+                | WalletData::CashfreeRedirect(_)
+                | WalletData::PayURedirect(_)
+                | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Mifinity"),
+                    Default::default(),
                 )
                 .into()),
             },
@@ -249,8 +256,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
+                Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Mifinity"),
+                    Default::default(),
                 )
                 .into())
             }

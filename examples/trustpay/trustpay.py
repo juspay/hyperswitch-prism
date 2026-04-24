@@ -7,206 +7,224 @@
 
 import asyncio
 import sys
-from google.protobuf.json_format import ParseDict
 from payments import PaymentClient
 from payments import MerchantAuthenticationClient
 from payments import EventClient
+from payments import RecurringPaymentClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
+SUPPORTED_FLOWS = ["authorize", "create_order", "create_server_authentication_token", "get", "parse_event", "proxy_authorize", "recurring_charge", "refund", "refund_get"]
+
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        trustpay=payment_pb2.TrustpayConfig(
+            api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
+            project_id=payment_methods_pb2.SecretString(value="YOUR_PROJECT_ID"),
+            secret_key=payment_methods_pb2.SecretString(value="YOUR_SECRET_KEY"),
+            base_url="YOUR_BASE_URL",
+            base_url_bank_redirects="YOUR_BASE_URL_BANK_REDIRECTS",
+        ),
+    ),
 )
-# Standalone credentials (field names depend on connector auth type):
-# _default_config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     trustpay=payment_pb2.TrustpayConfig(api_key=...),
-# ))
 
 
 
 
 def _build_authorize_request(capture_method: str):
-    return ParseDict(
-        {
-            "merchant_transaction_id": "probe_txn_001",  # Identification.
-            "amount": {  # The amount for the payment.
-                "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00).
-                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
-            },
-            "payment_method": {  # Payment method to be used.
-                "card": {  # Generic card payment.
-                    "card_number": {"value": "4111111111111111"},  # Card Identification.
-                    "card_exp_month": {"value": "03"},
-                    "card_exp_year": {"value": "2030"},
-                    "card_cvc": {"value": "737"},
-                    "card_holder_name": {"value": "John Doe"}  # Cardholder Information.
-                }
-            },
-            "capture_method": capture_method,  # Method for capturing the payment.
-            "customer": {  # Customer Information.
-                "email": {"value": "test@example.com"}  # Customer's email address.
-            },
-            "address": {  # Address Information.
-                "billing_address": {
-                    "first_name": {"value": "John"},  # Personal Information.
-                    "line1": {"value": "123 Main St"},  # Address Details.
-                    "city": {"value": "Seattle"},
-                    "zip_code": {"value": "98101"},
-                    "country_alpha2_code": "US"
-                }
-            },
-            "auth_type": "NO_THREE_DS",  # Authentication Details.
-            "return_url": "https://example.com/return",  # URLs for Redirection and Webhooks.
-            "browser_info": {
-                "user_agent": "Mozilla/5.0 (probe-bot)",
-                "ip_address": "1.2.3.4"  # Device Information.
-            },
-            "state": {  # State Information.
-                "access_token": {  # Access token obtained from connector.
-                    "token": {"value": "probe_access_token"},  # The token string.
-                    "expires_in_seconds": 3600,  # Expiration timestamp (seconds since epoch).
-                    "token_type": "Bearer"  # Token type (e.g., "Bearer", "Basic").
-                }
-            }
-        },
-        payment_pb2.PaymentServiceAuthorizeRequest(),
+    return payment_pb2.PaymentServiceAuthorizeRequest(
+        merchant_transaction_id="probe_txn_001",  # Identification.
+        amount=payment_pb2.Money(  # The amount for the payment.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+        payment_method=payment_methods_pb2.PaymentMethod(  # Payment method to be used.
+            card=payment_methods_pb2.CardDetails(
+                card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
+                card_exp_month=payment_methods_pb2.SecretString(value="03"),
+                card_exp_year=payment_methods_pb2.SecretString(value="2030"),
+                card_cvc=payment_methods_pb2.SecretString(value="737"),
+                card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
+            ),
+        ),
+        capture_method=payment_pb2.CaptureMethod.Value(capture_method),  # Method for capturing the payment.
+        customer=payment_pb2.Customer(  # Customer Information.
+            email=payment_methods_pb2.SecretString(value="test@example.com"),  # Customer's email address.
+        ),
+        address=payment_pb2.PaymentAddress(  # Address Information.
+            billing_address=payment_pb2.Address(
+                first_name=payment_methods_pb2.SecretString(value="John"),  # Personal Information.
+                line1=payment_methods_pb2.SecretString(value="123 Main St"),  # Address Details.
+                city=payment_methods_pb2.SecretString(value="Seattle"),
+                zip_code=payment_methods_pb2.SecretString(value="98101"),
+                country_alpha2_code=payment_methods_pb2.CountryAlpha2.Value("US"),
+            ),
+        ),
+        auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),  # Authentication Details.
+        return_url="https://example.com/return",  # URLs for Redirection and Webhooks.
+        browser_info=payment_pb2.BrowserInformation(
+            user_agent="Mozilla/5.0 (probe-bot)",
+            ip_address="1.2.3.4",  # Device Information.
+        ),
+        state=payment_pb2.ConnectorState(  # State Information.
+            access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
+                token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
+                expires_in_seconds=3600,  # Expiration timestamp (seconds since epoch).
+                token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
+            ),
+        ),
     )
 
 def _build_create_order_request():
-    return ParseDict(
-        {
-            "merchant_order_id": "probe_order_001",  # Identification.
-            "amount": {  # Amount Information.
-                "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00).
-                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
-            },
-            "state": {  # State Information.
-                "access_token": {  # Access token obtained from connector.
-                    "token": {"value": "probe_access_token"},  # The token string.
-                    "expires_in_seconds": 3600,  # Expiration timestamp (seconds since epoch).
-                    "token_type": "Bearer"  # Token type (e.g., "Bearer", "Basic").
-                }
-            }
-        },
-        payment_pb2.PaymentServiceCreateOrderRequest(),
+    return payment_pb2.PaymentServiceCreateOrderRequest(
+        merchant_order_id="probe_order_001",  # Identification.
+        amount=payment_pb2.Money(  # Amount Information.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+        state=payment_pb2.ConnectorState(  # State Information.
+            access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
+                token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
+                expires_in_seconds=3600,  # Expiration timestamp (seconds since epoch).
+                token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
+            ),
+        ),
     )
 
 def _build_create_server_authentication_token_request():
-    return ParseDict(
-        {
-        },
-        payment_pb2.MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest(),
+    return payment_pb2.MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest(
     )
 
 def _build_get_request(connector_transaction_id: str):
-    return ParseDict(
-        {
-            "merchant_transaction_id": "probe_merchant_txn_001",  # Identification.
-            "connector_transaction_id": connector_transaction_id,
-            "amount": {  # Amount Information.
-                "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00).
-                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
-            },
-            "state": {  # State Information.
-                "access_token": {  # Access token obtained from connector.
-                    "token": {"value": "probe_access_token"},  # The token string.
-                    "expires_in_seconds": 3600,  # Expiration timestamp (seconds since epoch).
-                    "token_type": "Bearer"  # Token type (e.g., "Bearer", "Basic").
-                }
-            }
-        },
-        payment_pb2.PaymentServiceGetRequest(),
+    return payment_pb2.PaymentServiceGetRequest(
+        merchant_transaction_id="probe_merchant_txn_001",  # Identification.
+        connector_transaction_id=connector_transaction_id,
+        amount=payment_pb2.Money(  # Amount Information.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+        state=payment_pb2.ConnectorState(  # State Information.
+            access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
+                token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
+                expires_in_seconds=3600,  # Expiration timestamp (seconds since epoch).
+                token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
+            ),
+        ),
     )
 
-def _build_handle_event_request():
-    return ParseDict(
-        {
-        },
-        payment_pb2.EventServiceHandleRequest(),
+def _build_parse_event_request():
+    return payment_pb2.EventServiceParseRequest(
+        request_details=payment_pb2.RequestDetails(
+            method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
+            uri="https://example.com/webhook",  # URI of the request.
+            headers=payment_pb2.HeadersEntry(),  # Headers of the HTTP request.
+            body="{\"PaymentInformation\":{\"CreditDebitIndicator\":\"CRDT\",\"References\":{\"EndToEndId\":\"probe_txn_001\"},\"Status\":\"Paid\",\"Amount\":{\"InstructedAmount\":10.00,\"Currency\":\"EUR\"}},\"Signature\":\"probe_sig\"}",  # Body of the HTTP request.
+        ),
     )
 
 def _build_proxy_authorize_request():
-    return ParseDict(
-        {
-            "merchant_transaction_id": "probe_proxy_txn_001",
-            "amount": {
-                "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00).
-                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
-            },
-            "card_proxy": {  # Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
-                "card_number": {"value": "4111111111111111"},  # Card Identification.
-                "card_exp_month": {"value": "03"},
-                "card_exp_year": {"value": "2030"},
-                "card_cvc": {"value": "123"},
-                "card_holder_name": {"value": "John Doe"}  # Cardholder Information.
-            },
-            "customer": {
-                "email": {"value": "test@example.com"}  # Customer's email address.
-            },
-            "address": {
-                "billing_address": {
-                    "first_name": {"value": "John"},  # Personal Information.
-                    "line1": {"value": "123 Main St"},  # Address Details.
-                    "city": {"value": "Seattle"},
-                    "zip_code": {"value": "98101"},
-                    "country_alpha2_code": "US"
-                }
-            },
-            "capture_method": "AUTOMATIC",
-            "auth_type": "NO_THREE_DS",
-            "return_url": "https://example.com/return",
-            "browser_info": {
-                "user_agent": "Mozilla/5.0 (probe-bot)",
-                "ip_address": "1.2.3.4"  # Device Information.
-            },
-            "state": {
-                "access_token": {  # Access token obtained from connector.
-                    "token": {"value": "probe_access_token"},  # The token string.
-                    "expires_in_seconds": 3600,  # Expiration timestamp (seconds since epoch).
-                    "token_type": "Bearer"  # Token type (e.g., "Bearer", "Basic").
-                }
-            }
-        },
-        payment_pb2.PaymentServiceProxyAuthorizeRequest(),
+    return payment_pb2.PaymentServiceProxyAuthorizeRequest(
+        merchant_transaction_id="probe_proxy_txn_001",
+        amount=payment_pb2.Money(
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+        card_proxy=payment_methods_pb2.ProxyCardDetails(  # Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
+            card_number=payment_methods_pb2.SecretString(value="4111111111111111"),  # Card Identification.
+            card_exp_month=payment_methods_pb2.SecretString(value="03"),
+            card_exp_year=payment_methods_pb2.SecretString(value="2030"),
+            card_cvc=payment_methods_pb2.SecretString(value="123"),
+            card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
+        ),
+        customer=payment_pb2.Customer(
+            email=payment_methods_pb2.SecretString(value="test@example.com"),  # Customer's email address.
+        ),
+        address=payment_pb2.PaymentAddress(
+            billing_address=payment_pb2.Address(
+                first_name=payment_methods_pb2.SecretString(value="John"),  # Personal Information.
+                line1=payment_methods_pb2.SecretString(value="123 Main St"),  # Address Details.
+                city=payment_methods_pb2.SecretString(value="Seattle"),
+                zip_code=payment_methods_pb2.SecretString(value="98101"),
+                country_alpha2_code=payment_methods_pb2.CountryAlpha2.Value("US"),
+            ),
+        ),
+        capture_method=payment_pb2.CaptureMethod.Value("AUTOMATIC"),
+        auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),
+        return_url="https://example.com/return",
+        browser_info=payment_pb2.BrowserInformation(
+            user_agent="Mozilla/5.0 (probe-bot)",
+            ip_address="1.2.3.4",  # Device Information.
+        ),
+        state=payment_pb2.ConnectorState(
+            access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
+                token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
+                expires_in_seconds=3600,  # Expiration timestamp (seconds since epoch).
+                token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
+            ),
+        ),
+    )
+
+def _build_recurring_charge_request():
+    return payment_pb2.RecurringPaymentServiceChargeRequest(
+        connector_recurring_payment_id=payment_pb2.MandateReference(  # Reference to existing mandate.
+            connector_mandate_id=payment_pb2.ConnectorMandateReferenceId(  # mandate_id sent by the connector.
+                connector_mandate_id="probe-mandate-123",
+            ),
+        ),
+        amount=payment_pb2.Money(  # Amount Information.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+        payment_method=payment_methods_pb2.PaymentMethod(  # Optional payment Method Information (for network transaction flows).
+            token=payment_methods_pb2.TokenPaymentMethodType(
+                token=payment_methods_pb2.SecretString(value="probe_pm_token"),  # The token string representing a payment method.
+            ),
+        ),
+        return_url="https://example.com/recurring-return",
+        connector_customer_id="cust_probe_123",
+        payment_method_type=payment_pb2.PaymentMethodType.Value("PAY_PAL"),
+        off_session=True,  # Behavioral Flags and Preferences.
+        state=payment_pb2.ConnectorState(  # State Information.
+            access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
+                token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
+                expires_in_seconds=3600,  # Expiration timestamp (seconds since epoch).
+                token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
+            ),
+        ),
     )
 
 def _build_refund_request(connector_transaction_id: str):
-    return ParseDict(
-        {
-            "merchant_refund_id": "probe_refund_001",  # Identification.
-            "connector_transaction_id": connector_transaction_id,
-            "payment_amount": 1000,  # Amount Information.
-            "refund_amount": {
-                "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00).
-                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
-            },
-            "reason": "customer_request",  # Reason for the refund.
-            "state": {  # State data for access token storage and.
-                "access_token": {  # Access token obtained from connector.
-                    "token": {"value": "probe_access_token"},  # The token string.
-                    "expires_in_seconds": 3600,  # Expiration timestamp (seconds since epoch).
-                    "token_type": "Bearer"  # Token type (e.g., "Bearer", "Basic").
-                }
-            }
-        },
-        payment_pb2.PaymentServiceRefundRequest(),
+    return payment_pb2.PaymentServiceRefundRequest(
+        merchant_refund_id="probe_refund_001",  # Identification.
+        connector_transaction_id=connector_transaction_id,
+        payment_amount=1000,  # Amount Information.
+        refund_amount=payment_pb2.Money(
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+        reason="customer_request",  # Reason for the refund.
+        state=payment_pb2.ConnectorState(  # State data for access token storage and.
+            access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
+                token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
+                expires_in_seconds=3600,  # Expiration timestamp (seconds since epoch).
+                token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
+            ),
+        ),
     )
 
 def _build_refund_get_request():
-    return ParseDict(
-        {
-            "merchant_refund_id": "probe_refund_001",  # Identification.
-            "connector_transaction_id": "probe_connector_txn_001",
-            "refund_id": "probe_refund_id_001",
-            "state": {  # State Information.
-                "access_token": {  # Access token obtained from connector.
-                    "token": {"value": "probe_access_token"},  # The token string.
-                    "expires_in_seconds": 3600,  # Expiration timestamp (seconds since epoch).
-                    "token_type": "Bearer"  # Token type (e.g., "Bearer", "Basic").
-                }
-            }
-        },
-        payment_pb2.RefundServiceGetRequest(),
+    return payment_pb2.RefundServiceGetRequest(
+        merchant_refund_id="probe_refund_001",  # Identification.
+        connector_transaction_id="probe_connector_txn_001",
+        refund_id="probe_refund_id_001",  # Deprecated.
+        state=payment_pb2.ConnectorState(  # State Information.
+            access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
+                token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
+                expires_in_seconds=3600,  # Expiration timestamp (seconds since epoch).
+                token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
+            ),
+        ),
     )
 async def process_checkout_autocapture(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """One-step Payment (Authorize + Capture)
@@ -274,7 +292,7 @@ async def process_get_payment(merchant_transaction_id: str, config: sdk_config_p
     return {"status": getattr(get_response, "status", ""), "transaction_id": getattr(get_response, "connector_transaction_id", ""), "error": getattr(get_response, "error", None)}
 
 
-async def authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+async def process_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: PaymentService.Authorize (Card)"""
     payment_client = PaymentClient(config)
 
@@ -283,7 +301,7 @@ async def authorize(merchant_transaction_id: str, config: sdk_config_pb2.Connect
     return {"status": authorize_response.status, "transaction_id": authorize_response.connector_transaction_id}
 
 
-async def create_order(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+async def process_create_order(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: PaymentService.CreateOrder"""
     payment_client = PaymentClient(config)
 
@@ -292,7 +310,7 @@ async def create_order(merchant_transaction_id: str, config: sdk_config_pb2.Conn
     return {"status": create_response.status}
 
 
-async def create_server_authentication_token(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+async def process_create_server_authentication_token(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: MerchantAuthenticationService.CreateServerAuthenticationToken"""
     merchantauthentication_client = MerchantAuthenticationClient(config)
 
@@ -301,7 +319,7 @@ async def create_server_authentication_token(merchant_transaction_id: str, confi
     return {"status": create_response.status}
 
 
-async def get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: PaymentService.Get"""
     payment_client = PaymentClient(config)
 
@@ -310,16 +328,16 @@ async def get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConf
     return {"status": get_response.status}
 
 
-async def handle_event(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: EventService.HandleEvent"""
+async def process_parse_event(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: EventService.ParseEvent"""
     event_client = EventClient(config)
 
-    handle_response = await event_client.handle_event(_build_handle_event_request())
+    parse_response = await event_client.parse_event(_build_parse_event_request())
 
-    return {"status": handle_response.status}
+    return {"status": parse_response.status}
 
 
-async def proxy_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+async def process_proxy_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: PaymentService.ProxyAuthorize"""
     payment_client = PaymentClient(config)
 
@@ -328,16 +346,16 @@ async def proxy_authorize(merchant_transaction_id: str, config: sdk_config_pb2.C
     return {"status": proxy_response.status}
 
 
-async def refund(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.Refund"""
-    payment_client = PaymentClient(config)
+async def process_recurring_charge(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: RecurringPaymentService.Charge"""
+    recurringpayment_client = RecurringPaymentClient(config)
 
-    refund_response = await payment_client.refund(_build_refund_request("probe_connector_txn_001"))
+    recurring_response = await recurringpayment_client.charge(_build_recurring_charge_request())
 
-    return {"status": refund_response.status}
+    return {"status": recurring_response.status}
 
 
-async def refund_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+async def process_refund_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: RefundService.Get"""
     refund_client = RefundClient(config)
 

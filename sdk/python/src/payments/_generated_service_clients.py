@@ -30,8 +30,12 @@ class EventClient(_ConnectorClientBase):
     """EventService flows"""
 
     def handle_event(self, request, options=None):
-        """EventService.HandleEvent — Process webhook notifications from connectors. Translates connector events into standardized responses for asynchronous payment state updates."""
+        """EventService.HandleEvent — Verify webhook source and return a unified typed response. Response mirrors PaymentService.Get / RefundService.Get / DisputeService.Get."""
         return self._execute_direct("handle_event", request, _pb2.EventServiceHandleResponse, options)
+
+    def parse_event(self, request, options=None):
+        """EventService.ParseEvent — Parse a raw webhook payload without credentials. Returns resource reference and event type — sufficient to resolve secrets or early-exit."""
+        return self._execute_direct("parse_event", request, _pb2.EventServiceParseResponse, options)
 
 class MerchantAuthenticationClient(_ConnectorClientBase):
     """MerchantAuthenticationService flows"""

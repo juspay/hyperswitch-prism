@@ -111,9 +111,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
-                    get_unimplemented_payment_method_error_message("CryptoPay"),
-                ))
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: get_unimplemented_payment_method_error_message("CryptoPay"),
+                    connector: "Cryptopay",
+                    context: Default::default(),
+                }))
             }
         }?;
         Ok(cryptopay_request)
@@ -438,7 +440,6 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
                 mandate_reference: None,
                 raw_connector_response: None,
                 response_headers: None,
-                transformation_status: common_enums::WebhookTransformationStatus::Complete,
                 minor_amount_captured: None,
                 amount_captured: None,
                 network_txn_id: None,
@@ -479,7 +480,6 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
                         response_headers: None,
                         network_txn_id: None,
                         payment_method_update: None,
-                        transformation_status: common_enums::WebhookTransformationStatus::Complete,
                     })
                 }
                 _ => Ok(Self {
@@ -497,7 +497,6 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
                     error_reason: None,
                     network_txn_id: None,
                     payment_method_update: None,
-                    transformation_status: common_enums::WebhookTransformationStatus::Complete,
                 }),
             }
         }

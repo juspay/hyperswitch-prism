@@ -8,6 +8,7 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
+    types::FloatMajorUnit,
 };
 use domain_types::{
     connector_flow::{
@@ -47,7 +48,8 @@ use transformers::{
     PowertranzCaptureRequest, PowertranzCaptureResponse, PowertranzPaymentsRequest,
     PowertranzPaymentsResponse, PowertranzPaymentsResponse as PowertranzPaymentsSyncResponse,
     PowertranzRSyncResponse, PowertranzRefundRequest, PowertranzRefundResponse,
-    PowertranzVoidRequest, PowertranzVoidResponse,
+    PowertranzRepeatPaymentRequest, PowertranzRepeatPaymentResponse, PowertranzSetupMandateRequest,
+    PowertranzSetupMandateResponse, PowertranzVoidRequest, PowertranzVoidResponse,
 };
 
 use crate::{types::ResponseRouterData, with_response_body};
@@ -239,26 +241,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
-        PaymentsResponseData,
-    > for Powertranz<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
-    > for Powertranz<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
         MandateRevoke,
         PaymentFlowData,
         MandateRevokeRequestData,
@@ -383,8 +365,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // Macros Framework - Amount Converter and Prerequisites
 // ============================================================================
 
-macros::create_amount_converter_wrapper!(connector_name: Powertranz, amount_type: FloatMajorUnit);
-
 use super::macros;
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
@@ -425,9 +405,23 @@ macros::create_all_prerequisites!(
             flow: RSync,
             response_body: PowertranzRSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: PowertranzSetupMandateRequest<T>,
+            response_body: PowertranzSetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: PowertranzRepeatPaymentRequest<T>,
+            response_body: PowertranzRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
-    amount_converters: [],
+    amount_converters: [
+        amount_converter: FloatMajorUnit
+    ],
     member_functions: {
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
@@ -756,6 +750,71 @@ macros::macro_connector_implementation!(
                 self.connector_base_url_refunds(req),
                 connector_refund_id
             ))
+        }
+    }
+);
+
+// SetupMandate flow implementation using macro. PowerTranz has no dedicated
+// mandate-setup endpoint — the canonical approach is to issue an auth-only
+// (zero/low-amount) request against `/auth`. The returned
+// `transaction_identifier` is surfaced as the connector_mandate_id for
+// subsequent RepeatPayment (MIT) calls.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Powertranz,
+    curl_request: Json(PowertranzSetupMandateRequest<T>),
+    curl_response: PowertranzSetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/auth", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
+// RepeatPayment (MIT) flow. PowerTranz has no native stored-credential
+// endpoint; each MIT replay is a fresh `/sale` request against the same
+// card, with the original mandate transaction_identifier replayed as the
+// OrderIdentifier.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Powertranz,
+    curl_request: Json(PowertranzRepeatPaymentRequest<T>),
+    curl_response: PowertranzRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/sale", self.connector_base_url_payments(req)))
         }
     }
 );

@@ -134,6 +134,24 @@ pack-archive: build-ts
 	@echo "Tarball created: $(JS_TARBALL)"
 
 # ---------------------------------------------------------------------------
+# dist
+# Builds the distribution package for all supported platforms.
+# Copies pre-built native binaries for each target platform into the generated
+# output directory, generates proto stubs, then packs the archive. Assumes
+# generated/ already contains the proto files from a prior generate-proto step
+# or downloaded CI artifact.
+# ---------------------------------------------------------------------------
+dist:
+	@echo "Building JavaScript SDK distribution package..."
+	@mkdir -p $(GENERATED_OUT)
+	@cp -f $(REPO_ROOT)/target/x86_64-unknown-linux-gnu/release/libconnector_service_ffi.so \
+		$(GENERATED_OUT)/ 2>/dev/null || echo "  Note: Linux x86_64 binary not found (skipping)"
+	@cp -f $(REPO_ROOT)/target/aarch64-apple-darwin/release/libconnector_service_ffi.dylib \
+		$(GENERATED_OUT)/ 2>/dev/null || echo "  Note: macOS aarch64 binary not found (skipping)"
+	@$(MAKE) -C $(SDK_ROOT) pack-archive
+	@echo "Distribution package created in $(PACKAGE_DIR)/"
+
+# ---------------------------------------------------------------------------
 # install
 # Local install: builds TypeScript and links for development.
 # ---------------------------------------------------------------------------
@@ -177,6 +195,17 @@ test-package: build-ffi-lib generate-all build-ts pack-archive
 		NODE_PATH=/tmp/test-hyperswitch-js-composite/node_modules node test_smoke_composite.js \
 		--connectors $(CONNECTORS) --examples-dir $(REPO_ROOT)/examples
 	@rm -rf /tmp/test-hyperswitch-js-composite
+	@echo "Running webhook smoke test..."
+	@rm -rf /tmp/test-hyperswitch-js-webhook
+	@mkdir -p /tmp/test-hyperswitch-js-webhook
+	@test -f $(JS_TARBALL) || (echo "Error: Tarball not found: $(JS_TARBALL)" && exit 1)
+	@cd /tmp/test-hyperswitch-js-webhook && npm init -y --silent && \
+		npm install $(JS_TARBALL) typescript @types/node --silent
+	@cp $(SDK_ROOT)/smoke-test/test_smoke_webhook.ts /tmp/test-hyperswitch-js-webhook/
+	@cp $(SDK_ROOT)/smoke-test/tsconfig.json /tmp/test-hyperswitch-js-webhook/
+	@cd /tmp/test-hyperswitch-js-webhook && \
+		NODE_PATH=/tmp/test-hyperswitch-js-webhook/node_modules npx tsx test_smoke_webhook.ts
+	@rm -rf /tmp/test-hyperswitch-js-webhook
 
 # ---------------------------------------------------------------------------
 # test-composite
@@ -202,7 +231,7 @@ test-composite: build-ffi-lib generate-all build-ts pack-archive
 # ---------------------------------------------------------------------------
 # test-package-mock
 # Same as test-package but runs in MOCK mode (no real HTTP calls).
-# Uses generated harnesses instead of examples and verifies req_transformer only.
+# Uses examples/connector/connector.ts files and verifies req_transformer only.
 # ---------------------------------------------------------------------------
 test-package-mock: build-ffi-lib generate-all build-ts pack-archive
 	@echo "Testing in MOCK mode (HTTP intercepted)..."
@@ -217,9 +246,9 @@ test-package-mock: build-ffi-lib generate-all build-ts pack-archive
 	@if [ -f $(REPO_ROOT)/creds_dummy.json ]; then \
 		cp $(REPO_ROOT)/creds_dummy.json /tmp/test-hyperswitch-js-mock/creds.json; \
 	fi
-	@# Copy harness to the location test_smoke.ts expects in mock mode
+	@# Copy example to the location test_smoke.ts expects in mock mode
 	@mkdir -p /tmp/test-hyperswitch-js-mock/smoke-test/generated/$(CONNECTORS)
-	@cp $(SDK_ROOT)/smoke-test/generated/$(CONNECTORS)/$(CONNECTORS).ts /tmp/test-hyperswitch-js-mock/smoke-test/generated/$(CONNECTORS)/
+	@cp $(REPO_ROOT)/examples/$(CONNECTORS)/$(CONNECTORS).ts /tmp/test-hyperswitch-js-mock/smoke-test/generated/$(CONNECTORS)/
 	@cd /tmp/test-hyperswitch-js-mock && \
 		NODE_PATH=/tmp/test-hyperswitch-js-mock/node_modules npx tsx test_smoke.ts \
 		--connectors $(CONNECTORS) --creds-file creds.json --mock --examples-dir ./smoke-test/generated

@@ -198,8 +198,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     card_type: None,
                 }
             }
-            _ => Err(IntegrationError::not_implemented(
+            _ => Err(IntegrationError::NotImplemented(
                 UNSUPPORTED_PAYMENT_METHOD_ERROR.to_string(),
+                Default::default(),
             ))?,
         };
 

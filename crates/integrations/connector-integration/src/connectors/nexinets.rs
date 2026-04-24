@@ -38,11 +38,13 @@ use interfaces::{
 use serde::Serialize;
 use transformers::{
     self as nexinets, NexinetsCaptureOrVoidRequest,
-    NexinetsCaptureOrVoidRequest as NexinetsVoidRequest, NexinetsErrorResponse,
+    NexinetsCaptureOrVoidRequest as NexinetsVoidRequest, NexinetsClientAuthRequest,
+    NexinetsClientAuthResponse, NexinetsErrorResponse,
     NexinetsPaymentResponse as NexinetsCaptureResponse, NexinetsPaymentResponse,
     NexinetsPaymentResponse as NexinetsVoidResponse, NexinetsPaymentsRequest,
     NexinetsPreAuthOrDebitResponse, NexinetsRefundRequest, NexinetsRefundResponse,
-    NexinetsRefundResponse as RefundSyncResponse,
+    NexinetsRefundResponse as RefundSyncResponse, NexinetsRepeatPaymentRequest,
+    NexinetsRepeatPaymentResponse, NexinetsSetupMandateRequest, NexinetsSetupMandateResponse,
 };
 
 use super::macros;
@@ -320,6 +322,24 @@ macros::create_all_prerequisites!(
             request_body: NexinetsVoidRequest,
             response_body: NexinetsVoidResponse,
             router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ),
+        (
+            flow: ClientAuthenticationToken,
+            request_body: NexinetsClientAuthRequest,
+            response_body: NexinetsClientAuthResponse,
+            router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: NexinetsSetupMandateRequest<T>,
+            response_body: NexinetsSetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: NexinetsRepeatPaymentRequest,
+            response_body: NexinetsRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -580,6 +600,67 @@ macros::macro_connector_implementation!(
     }
 );
 
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Nexinets,
+    curl_request: Json(NexinetsClientAuthRequest),
+    curl_response: NexinetsClientAuthResponse,
+    flow_name: ClientAuthenticationToken,
+    resource_common_data: PaymentFlowData,
+    flow_request: ClientAuthenticationTokenRequestData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/orders", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
+// SetupMandate flow implementation using macro. Nexinets has no dedicated
+// mandate-setup endpoint — the canonical approach is to issue a PREAUTH
+// against `/orders/preauth` with a `cofContract` of type UNSCHEDULED. The
+// returned `paymentInstrument.paymentInstrumentId` is surfaced as the
+// connector_mandate_id for subsequent RepeatPayment (MIT) calls.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Nexinets,
+    curl_request: Json(NexinetsSetupMandateRequest<T>),
+    curl_response: NexinetsSetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/orders/preauth", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
         CreateOrder,
@@ -639,16 +720,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
-        SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
-        PaymentsResponseData,
-    > for Nexinets<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
         MandateRevoke,
         PaymentFlowData,
         MandateRevokeRequestData,
@@ -668,15 +739,46 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
-    > for Nexinets<T>
-{
-}
+// RepeatPayment (MIT / Merchant-Initiated Transaction) uses the same Nexinets
+// payments endpoint as Authorize but substitutes the card panel with a stored
+// `paymentInstrument.paymentInstrumentId` reference. Auto-capture flows hit
+// `/orders/debit`; manual-capture flows hit `/orders/preauth`. The stored
+// credential lifecycle is signalled via `cofContract` type UNSCHEDULED.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Nexinets,
+    curl_request: Json(NexinetsRepeatPaymentRequest),
+    curl_response: NexinetsRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let url = if matches!(
+                req.request.capture_method,
+                Some(common_enums::CaptureMethod::Manual) | Some(common_enums::CaptureMethod::ManualMultiple)
+            ) {
+                format!("{}/orders/preauth", self.connector_base_url_payments(req))
+            } else {
+                format!("{}/orders/debit", self.connector_base_url_payments(req))
+            };
+            Ok(url)
+        }
+    }
+);
 
 // ConnectorIntegrationV2 implementations for authentication flows
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -704,16 +806,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PostAuthenticate,
         PaymentFlowData,
         PaymentsPostAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Nexinets<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ClientAuthenticationToken,
-        PaymentFlowData,
-        ClientAuthenticationTokenRequestData,
         PaymentsResponseData,
     > for Nexinets<T>
 {

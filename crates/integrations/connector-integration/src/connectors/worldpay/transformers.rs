@@ -3,12 +3,12 @@ use std::collections::HashMap;
 use common_enums as enums;
 use common_utils::{ext_traits::OptionExt, pii, types::MinorUnit, CustomResult};
 use domain_types::{
-    connector_flow::{Authorize, Capture, Void},
+    connector_flow::{Authorize, Capture, IncrementalAuthorization, Void},
     connector_types::{
         MandateIds, MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{
@@ -50,6 +50,11 @@ const METADATA_DDC_REFERENCE: &str = "device_data_collection";
 // 3DS stage values
 const STAGE_DDC: &str = "ddc";
 const STAGE_CHALLENGE: &str = "challenge";
+
+// HAL link relation for the incremental-authorization action exposed by the
+// Access Worldpay Card Payments API. The trailing segment of the link's href
+// is the linkData used as `connector_authorization_id` for subsequent calls.
+const LINK_KEY_INCREASE_AUTHORIZED_AMOUNT: &str = "cardPayments:increaseAuthorizedAmount";
 
 /// Metadata object extracted from connector_feature_data
 /// Contains Worldpay-specific merchant configuration
@@ -142,9 +147,7 @@ fn fetch_payment_instrument<
 }))
         }
         PaymentMethodData::MandatePayment => {
-            Err(IntegrationError::not_implemented(
-                "MandatePayment should not be used in Authorize flow - use RepeatPayment flow for MIT transactions".to_string()
-            ).into())
+            Err(IntegrationError::NotImplemented("MandatePayment should not be used in Authorize flow - use RepeatPayment flow for MIT transactions".to_string() , Default::default()).into())
         }
         PaymentMethodData::Wallet(wallet) => match wallet {
             WalletDataPaymentMethod::GooglePay(data) => {
@@ -199,11 +202,18 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::BluecodeRedirect {}
             | WalletDataPaymentMethod::MbWay(_)
             | WalletDataPaymentMethod::Satispay(_)
-            | WalletDataPaymentMethod::Wero(_) => {
-                Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("worldpay"),
-                )
-                .into())
+            | WalletDataPaymentMethod::Wero(_)
+            | WalletDataPaymentMethod::LazyPayRedirect(_)
+            | WalletDataPaymentMethod::PhonePeRedirect(_)
+            | WalletDataPaymentMethod::BillDeskRedirect(_)
+            | WalletDataPaymentMethod::CashfreeRedirect(_)
+            | WalletDataPaymentMethod::PayURedirect(_)
+            | WalletDataPaymentMethod::EaseBuzzRedirect(_) => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("worldpay"),
+                    connector: "Worldpay",
+                    context: Default::default(),
+                }))
             }
         },
         PaymentMethodData::PayLater(_)
@@ -221,9 +231,7 @@ fn fetch_payment_instrument<
         | PaymentMethodData::OpenBanking(_)
         | PaymentMethodData::PaymentMethodToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-        | PaymentMethodData::NetworkToken(_) => Err(IntegrationError::not_implemented(
-            utils::get_unimplemented_payment_method_error_message("worldpay"),
-        )
+        | PaymentMethodData::NetworkToken(_) => Err(IntegrationError::NotImplemented(utils::get_unimplemented_payment_method_error_message("worldpay") , Default::default())
         .into())
 }
 }
@@ -243,14 +251,16 @@ impl TryFrom<(enums::PaymentMethod, Option<enums::PaymentMethodType>)> for Payme
                 match pm {
                     enums::PaymentMethodType::ApplePay => Ok(Self::ApplePay),
                     enums::PaymentMethodType::GooglePay => Ok(Self::GooglePay),
-                    _ => Err(IntegrationError::not_implemented(
+                    _ => Err(IntegrationError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("worldpay"),
+                        Default::default(),
                     )
                     .into()),
                 }
             }
-            _ => Err(IntegrationError::not_implemented(
+            _ => Err(IntegrationError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("worldpay"),
+                Default::default(),
             )
             .into()),
         }
@@ -540,14 +550,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             MandateReferenceId::NetworkMandateId(_network_txn_id) => {
                 // NTI flow would need raw card details, which RepeatPayment doesn't have
-                return Err(IntegrationError::not_implemented(
+                return Err(IntegrationError::NotImplemented(
                     "NetworkMandateId not supported in RepeatPayment".to_string(),
+                    Default::default(),
                 )
                 .into());
             }
             MandateReferenceId::NetworkTokenWithNTI(_) => {
-                return Err(IntegrationError::not_implemented(
+                return Err(IntegrationError::NotImplemented(
                     "NetworkTokenWithNTI not supported in RepeatPayment yet".to_string(),
+                    Default::default(),
                 )
                 .into());
             }
@@ -648,6 +660,28 @@ impl From<PaymentOutcome> for enums::AttemptStatus {
             }
             PaymentOutcome::Refused | PaymentOutcome::FraudHighRisk => Self::Failure,
             PaymentOutcome::ThreeDsUnavailable => Self::AuthenticationFailed,
+        }
+    }
+}
+
+// Maps Worldpay Card Payments outcomes on the incremental-authorization endpoint
+// to UCS AuthorizationStatus. Refund-related outcomes are not part of the
+// documented response set for this flow; if the connector ever surfaces one,
+// treat it as a terminal failure rather than in-flight processing.
+impl From<PaymentOutcome> for enums::AuthorizationStatus {
+    fn from(item: PaymentOutcome) -> Self {
+        match item {
+            PaymentOutcome::Authorized | PaymentOutcome::SentForSettlement => Self::Success,
+            PaymentOutcome::Refused
+            | PaymentOutcome::FraudHighRisk
+            | PaymentOutcome::ThreeDsAuthenticationFailed
+            | PaymentOutcome::ThreeDsUnavailable
+            | PaymentOutcome::SentForCancellation
+            | PaymentOutcome::SentForRefund
+            | PaymentOutcome::SentForPartialRefund => Self::Failure,
+            PaymentOutcome::ThreeDsDeviceDataRequired | PaymentOutcome::ThreeDsChallenged => {
+                Self::Processing
+            }
         }
     }
 }
@@ -1541,5 +1575,113 @@ fn extract_three_ds_metadata(response: &WorldpayPaymentsResponse) -> Option<serd
             }
         }
         _ => None,
+    }
+}
+
+// Steps 120-129: TryFrom implementations for IncrementalAuthorization flow
+// Access Worldpay endpoint: POST /payments/authorizations/incrementalAuthorizations/{linkData}
+// Request body contains only { "value": { "amount": <minor>, "currency": "<ISO>" } }
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        WorldpayRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for WorldpayIncrementalAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: WorldpayRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            value: PaymentValue {
+                amount: item.router_data.request.minor_amount,
+                currency: item.router_data.request.currency,
+            },
+        })
+    }
+}
+
+impl TryFrom<ResponseRouterData<WorldpayIncrementalAuthResponse, Self>>
+    for RouterDataV2<
+        IncrementalAuthorization,
+        PaymentFlowData,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<WorldpayIncrementalAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let authorization_status = enums::AuthorizationStatus::from(item.response.outcome.clone());
+
+        // connector_authorization_id is derived from the
+        // `cardPayments:increaseAuthorizedAmount` action link's trailing
+        // linkData segment. The original Authorize-flow connector_transaction_id
+        // already represents this same linkData, so we fall back to it if the
+        // incremental auth response does not expose a new one.
+        let href = item.response.links.as_ref().and_then(|links| {
+            links
+                .get(LINK_KEY_INCREASE_AUTHORIZED_AMOUNT)
+                .and_then(|v| v.get("href"))
+                .and_then(|v| v.as_str())
+                .map(str::to_string)
+        });
+        let connector_authorization_id = match href {
+            Some(href) => {
+                let encoded = href
+                    .rsplit_once('/')
+                    .map(|(_, h)| h)
+                    .unwrap_or(href.as_str());
+                Some(
+                    urlencoding::decode(encoded)
+                        .map(|s| s.into_owned())
+                        .change_context(crate::utils::response_handling_fail_for_connector(
+                            item.http_code,
+                            "worldpay",
+                        ))?,
+                )
+            }
+            None => Some(
+                item.router_data
+                    .request
+                    .connector_transaction_id
+                    .get_connector_transaction_id()
+                    .change_context(crate::utils::response_handling_fail_for_connector(
+                        item.http_code,
+                        "worldpay",
+                    ))?,
+            ),
+        };
+
+        let response = Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+            status: authorization_status,
+            connector_authorization_id,
+            status_code: item.http_code,
+        });
+
+        let attempt_status = enums::AttemptStatus::from(item.response.outcome);
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status: attempt_status,
+                ..item.router_data.resource_common_data
+            },
+            response,
+            ..item.router_data
+        })
     }
 }

@@ -13,8 +13,8 @@ use crate::{connectors::cybersource::CybersourceRouterData, types::ResponseRoute
 use cards;
 use domain_types::{
     connector_flow::{
-        Authenticate, Authorize, Capture, ClientAuthenticationToken, PostAuthenticate,
-        PreAuthenticate, RepeatPayment, SetupMandate, Void,
+        Authenticate, Authorize, Capture, ClientAuthenticationToken, IncrementalAuthorization,
+        PostAuthenticate, PreAuthenticate, RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
@@ -22,9 +22,10 @@ use domain_types::{
         CybersourceClientAuthenticationResponse as CybersourceClientAuthenticationResponseDomain,
         MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
         PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
-        PaymentsSyncData, RecurringMandateData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RecurringMandateData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_address::Address,
@@ -302,11 +303,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     | WalletData::RevolutPay(_)
                     | WalletData::MbWay(_)
                     | WalletData::Satispay(_)
-                    | WalletData::Wero(_) => Err(IntegrationError::not_implemented(
-                        domain_types::utils::get_unimplemented_payment_method_error_message(
-                            "Cybersource",
-                        ),
-                    ))?,
+                    | WalletData::Wero(_)
+                    | WalletData::LazyPayRedirect(_)
+                    | WalletData::PhonePeRedirect(_)
+                    | WalletData::BillDeskRedirect(_)
+                    | WalletData::CashfreeRedirect(_)
+                    | WalletData::PayURedirect(_)
+                    | WalletData::EaseBuzzRedirect(_) => {
+                        Err(error_stack::report!(IntegrationError::NotSupported {
+                            message:
+                                domain_types::utils::get_unimplemented_payment_method_error_message(
+                                    "Cybersource"
+                                ),
+                            connector: "Cybersource",
+                            context: Default::default(),
+                        }))?
+                    }
                 },
                 PaymentMethodData::CardRedirect(_)
                 | PaymentMethodData::PayLater(_)
@@ -326,11 +338,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | PaymentMethodData::NetworkToken(_)
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                    Err(IntegrationError::not_implemented(
-                        domain_types::utils::get_unimplemented_payment_method_error_message(
-                            "Cybersource",
-                        ),
-                    ))?
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message:
+                            domain_types::utils::get_unimplemented_payment_method_error_message(
+                                "Cybersource"
+                            ),
+                        connector: "Cybersource",
+                        context: Default::default(),
+                    }))?
                 }
             };
 
@@ -862,6 +877,12 @@ pub struct Amount {
 pub struct AdditionalAmount {
     additional_amount: StringMajorUnit,
     currency: String,
+}
+
+#[derive(Debug, Clone, Copy, strum::Display)]
+#[strum(serialize_all = "lowercase")]
+pub enum CybersourceCommerceIndicator {
+    Internet,
 }
 
 #[derive(Debug, Serialize)]
@@ -2187,12 +2208,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::RevolutPay(_)
                 | WalletData::MbWay(_)
                 | WalletData::Satispay(_)
-                | WalletData::Wero(_) => Err(IntegrationError::not_implemented(
-                    domain_types::utils::get_unimplemented_payment_method_error_message(
-                        "Cybersource",
-                    ),
-                )
-                .into()),
+                | WalletData::Wero(_)
+                | WalletData::LazyPayRedirect(_)
+                | WalletData::PhonePeRedirect(_)
+                | WalletData::BillDeskRedirect(_)
+                | WalletData::CashfreeRedirect(_)
+                | WalletData::PayURedirect(_)
+                | WalletData::EaseBuzzRedirect(_) => {
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message:
+                            domain_types::utils::get_unimplemented_payment_method_error_message(
+                                "Cybersource",
+                            ),
+                        connector: "Cybersource",
+                        context: Default::default(),
+                    }))
+                }
             },
             PaymentMethodData::NetworkToken(token_data) => Self::try_from((&item, token_data)),
             PaymentMethodData::PaymentMethodToken(token_data) => {
@@ -2249,12 +2280,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
-                    domain_types::utils::get_unimplemented_payment_method_error_message(
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: domain_types::utils::get_unimplemented_payment_method_error_message(
                         "Cybersource",
                     ),
-                )
-                .into())
+                    connector: "Cybersource",
+                    context: Default::default(),
+                }))
             }
         }
     }
@@ -2355,10 +2387,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("Cybersource"),
-                )
-                .into())
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("Cybersource"),
+                    connector: "Cybersource",
+                    context: Default::default(),
+                }))
             }
         }
     }
@@ -2374,6 +2407,10 @@ pub struct CybersourcePaymentsCaptureRequest {
     merchant_defined_information: Option<Vec<utils::MerchantDefinedInformation>>,
 }
 
+// CyberSource's PATCH /pts/v2/payments/{id} endpoint rejects requests that include
+// `clientReferenceInformation` at the top level (400: "One or more fields in the
+// request contains invalid data"). The merchant reference from the parent payment
+// is preserved by CyberSource and echoed back in the incremental auth response.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourcePaymentsIncrementalAuthorizationRequest {
@@ -2719,8 +2756,168 @@ pub enum CybersourceAuthSetupResponse {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourcePaymentsIncrementalAuthorizationResponse {
-    status: CybersourceIncrementalAuthorizationStatus,
-    error_information: Option<CybersourceErrorInformation>,
+    pub id: String,
+    pub status: CybersourceIncrementalAuthorizationStatus,
+    pub client_reference_information: Option<ClientReferenceInformation>,
+    pub error_information: Option<CybersourceErrorInformation>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        CybersourceRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for CybersourcePaymentsIncrementalAuthorizationRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: CybersourceRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let request = &router_data.request;
+
+        // Convert the incremental (additional) amount to the connector's expected
+        // StringMajorUnit format (e.g. "10.00").
+        let additional_amount = item
+            .connector
+            .amount_converter
+            .convert(request.minor_amount, request.currency)
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })
+            .attach_printable(
+                "Failed to convert additional_amount for CyberSource incremental authorization",
+            )?;
+
+        // storedCredentialUsed=true is set unconditionally for both sandbox and production:
+        // incremental authorization only applies to an already-authorized (stored-credential)
+        // payment, so the flag is always true here. This mirrors the hyperswitch reference
+        // implementation, which has been production-validated.
+        let processing_information = ProcessingInformation {
+            action_list: None,
+            action_token_types: None,
+            authorization_options: Some(CybersourceAuthorizationOptions {
+                initiator: Some(CybersourcePaymentInitiator {
+                    initiator_type: None,
+                    credential_stored_on_file: None,
+                    stored_credential_used: Some(true),
+                }),
+                merchant_initiated_transaction: None,
+                ignore_avs_result: None,
+                ignore_cv_result: None,
+            }),
+            commerce_indicator: CybersourceCommerceIndicator::Internet.to_string(),
+            capture: None,
+            capture_options: None,
+            payment_solution: None,
+        };
+
+        let order_information = OrderInformationIncrementalAuthorization {
+            amount_details: AdditionalAmount {
+                additional_amount,
+                currency: request.currency.to_string(),
+            },
+        };
+
+        Ok(Self {
+            processing_information,
+            order_information,
+        })
+    }
+}
+
+// Map the CyberSource incremental authorization response into RouterDataV2.
+// On success, CyberSource returns HTTP 201 with a status of "AUTHORIZED" /
+// "AUTHORIZED_PENDING_REVIEW" / "DECLINED". We mirror this into
+// common_enums::AuthorizationStatus and preserve the `id` as the
+// connector_authorization_id.
+impl TryFrom<ResponseRouterData<CybersourcePaymentsIncrementalAuthorizationResponse, Self>>
+    for RouterDataV2<
+        IncrementalAuthorization,
+        PaymentFlowData,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<CybersourcePaymentsIncrementalAuthorizationResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+        let http_code = item.http_code;
+
+        // If the connector returned error_information, surface it as a failure response.
+        if let Some(error_info) = response.error_information.as_ref() {
+            let detailed_error_info = error_info.details.as_ref().map(|details| {
+                details
+                    .iter()
+                    .map(|det| format!("{} : {}", det.field, det.reason))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            });
+            let reason = get_error_reason(error_info.message.clone(), detailed_error_info, None);
+            return Ok(Self {
+                response: Err(ErrorResponse {
+                    status_code: http_code,
+                    code: error_info
+                        .reason
+                        .clone()
+                        .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                    message: error_info
+                        .message
+                        .clone()
+                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                    reason,
+                    attempt_status: None,
+                    connector_transaction_id: Some(response.id.clone()),
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                }),
+                ..item.router_data
+            });
+        }
+
+        // Map CyberSource's incremental-authorization status to common_enums::AuthorizationStatus.
+        // Match is exhaustive on purpose — any new status variant added upstream will fail to
+        // compile here so it cannot be silently ignored.
+        let authorization_status: common_enums::AuthorizationStatus = match response.status {
+            CybersourceIncrementalAuthorizationStatus::Authorized => {
+                common_enums::AuthorizationStatus::Success
+            }
+            CybersourceIncrementalAuthorizationStatus::AuthorizedPendingReview => {
+                common_enums::AuthorizationStatus::Processing
+            }
+            CybersourceIncrementalAuthorizationStatus::Declined => {
+                common_enums::AuthorizationStatus::Failure
+            }
+        };
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                status: authorization_status,
+                connector_authorization_id: Some(response.id),
+                status_code: http_code,
+            }),
+            ..item.router_data
+        })
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -3094,8 +3291,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
+                Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
+                    Default::default(),
                 ))
             }
         }?;
@@ -3371,8 +3569,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
+                Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
+                    Default::default(),
                 ))
             }
         }?;
@@ -4390,8 +4589,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | PaymentMethodData::OpenBanking(_)
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::PaymentMethodToken(_) => {
-                    Err(IntegrationError::not_implemented(
+                    Err(IntegrationError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Cybersource"),
+                        Default::default(),
                     ))?
                 }
             },
@@ -5167,6 +5367,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[derive(Debug, Serialize)]
 pub struct CybersourceClientAuthResponse {
     pub capture_context: String,
+    pub client_library: String,
+    pub client_library_integrity: String,
 }
 
 impl<'de> Deserialize<'de> for CybersourceClientAuthResponse {
@@ -5188,11 +5390,17 @@ impl<'de> Deserialize<'de> for CybersourceClientAuthResponse {
             fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
                 Ok(CybersourceClientAuthResponse {
                     capture_context: v.to_string(),
+                    client_library: String::new(),
+                    client_library_integrity: String::new(),
                 })
             }
 
             fn visit_string<E: serde::de::Error>(self, v: String) -> Result<Self::Value, E> {
-                Ok(CybersourceClientAuthResponse { capture_context: v })
+                Ok(CybersourceClientAuthResponse {
+                    capture_context: v,
+                    client_library: String::new(),
+                    client_library_integrity: String::new(),
+                })
             }
 
             fn visit_map<A: serde::de::MapAccess<'de>>(
@@ -5210,7 +5418,11 @@ impl<'de> Deserialize<'de> for CybersourceClientAuthResponse {
                 }
                 let capture_context =
                     key_id.ok_or_else(|| serde::de::Error::missing_field("keyId"))?;
-                Ok(CybersourceClientAuthResponse { capture_context })
+                Ok(CybersourceClientAuthResponse {
+                    capture_context,
+                    client_library: String::new(),
+                    client_library_integrity: String::new(),
+                })
             }
         }
 
@@ -5233,10 +5445,16 @@ impl TryFrom<ResponseRouterData<CybersourceClientAuthResponse, Self>>
         let response = item.response;
 
         let capture_context = Secret::new(response.capture_context);
+        let client_library = response.client_library;
+        let client_library_integrity = response.client_library_integrity;
 
         let session_data = ClientAuthenticationTokenData::ConnectorSpecific(Box::new(
             ConnectorSpecificClientAuthenticationResponse::Cybersource(
-                CybersourceClientAuthenticationResponseDomain { capture_context },
+                CybersourceClientAuthenticationResponseDomain {
+                    capture_context,
+                    client_library,
+                    client_library_integrity,
+                },
             ),
         ));
 

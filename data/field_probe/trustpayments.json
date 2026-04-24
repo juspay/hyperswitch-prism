@@ -36,12 +36,55 @@
         "error": "This feature is not implemented: Payment method not supported"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "error",
+        "error": "Stuck on field: apple_pay_decrypted_data — Missing required field: apple_pay_decrypted_data"
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay": {
+              "payment_data": {
+                "decrypted_data": {
+                  "application_primary_account_number": "4111111111111111",
+                  "application_expiration_month": "03",
+                  "application_expiration_year": "2030",
+                  "payment_data": {
+                    "online_payment_cryptogram": "AAAAAA==",
+                    "eci_indicator": "05"
+                  }
+                }
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://webservices.securetrading.net/json/",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"alias\":\"probe_user\",\"version\":\"1.00\",\"request\":[{\"accounttypedescription\":\"ECOM\",\"baseamount\":\"1000\",\"credentialsonfile\":\"1\",\"currencyiso3a\":\"USD\",\"orderreference\":\"probe_txn_001\",\"requesttypedescriptions\":[\"AUTH\"],\"sitereference\":\"probe_site_ref\",\"settlestatus\":\"0\",\"pan\":\"4111111111111111\",\"expirydate\":\"03/2030\",\"tavv\":\"AAAAAA==\",\"eci\":\"05\",\"walletdisplayname\":\"Visa 1111\",\"walletsource\":\"APPLEPAY\"}]}"
+        }
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
@@ -64,6 +107,10 @@
         "error": "This feature is not implemented: Payment method not supported"
       },
       "Becs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "BillDeskRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported"
       },
@@ -130,6 +177,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported"
       },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported"
@@ -140,7 +191,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
@@ -148,9 +199,13 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported"
       },
@@ -176,7 +231,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GooglePay": {
         "status": "error",
@@ -267,6 +322,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported"
       },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
       "LocalBankRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported"
@@ -292,6 +351,10 @@
         "error": "This feature is not implemented: Payment method not supported"
       },
       "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Netbanking": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported"
       },
@@ -325,7 +388,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -345,7 +408,11 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
       },
       "PaypalRedirect": {
         "status": "not_implemented",
@@ -357,9 +424,13 @@
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "PhonePeRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported"
       },
@@ -546,6 +617,30 @@
       }
     },
     "incremental_authorization": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_authorization_id": "probe_auth_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1100,
+            "currency": "USD"
+          },
+          "reason": "incremental_auth_probe"
+        },
+        "sample": {
+          "url": "https://webservices.securetrading.net/json/",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"alias\":\"probe_user\",\"version\":\"1.00\",\"request\":[{\"accounttypedescription\":\"ECOM\",\"authmethod\":\"INCREMENTAL\",\"baseamount\":\"1100\",\"currencyiso3a\":\"USD\",\"orderreference\":\"probe_auth_001\",\"parenttransactionreference\":\"probe_connector_txn_001\",\"requesttypedescriptions\":[\"AUTH\"],\"sitereference\":\"probe_site_ref\"}]}"
+        }
+      }
+    },
+    "parse_event": {
       "default": {
         "status": "not_implemented"
       }

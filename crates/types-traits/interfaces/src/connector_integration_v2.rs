@@ -2,7 +2,7 @@
 
 use common_utils::{
     events,
-    request::{Method, Request, RequestBuilder, RequestContent},
+    request::{KafkaRecord, Method, Request, RequestBuilder, RequestContent, TransportType},
     CustomResult,
 };
 use domain_types::{
@@ -86,6 +86,33 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
     ) -> CustomResult<Option<reqwest::multipart::Form>, IntegrationError> {
+        Ok(None)
+    }
+
+    fn get_transport_type(&self) -> TransportType {
+        TransportType::Http
+    }
+
+    /// returns kafka topic
+    fn get_kafka_topic(
+        &self,
+        _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
+    ) -> CustomResult<String, IntegrationError> {
+        Ok(String::new())
+    }
+
+    /// returns kafka key
+    fn get_kafka_key(
+        &self,
+        _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
+    ) -> CustomResult<Option<String>, IntegrationError> {
+        Ok(None)
+    }
+
+    fn build_kafka_record(
+        &self,
+        _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
+    ) -> CustomResult<Option<KafkaRecord>, IntegrationError> {
         Ok(None)
     }
 

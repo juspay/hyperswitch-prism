@@ -221,6 +221,10 @@ pub enum SamsungPayCardBrand {
 pub enum BankType {
     Checking,
     Savings,
+    Transmission,
+    Current,
+    Bond,
+    SubscriptionShare,
 }
 
 #[derive(
@@ -421,6 +425,7 @@ pub enum BankNames {
     FederalBank,
     IndianOverseasBank,
     CentralBankOfIndia,
+    Absa,
 }
 
 /// Specifies the regulated name for a card network, primarily used for US debit card routing regulations.
@@ -975,6 +980,7 @@ pub enum PaymentMethodType {
     Becs,
     Benefit,
     Bizum,
+    BillDesk,
     Blik,
     Boleto,
     BcaBankTransfer,
@@ -987,10 +993,12 @@ pub enum PaymentMethodType {
     Card,
     CryptoCurrency,
     Cashapp,
+    Cashfree,
     Dana,
     DanamonVa,
     DuitNow,
     Efecty,
+    EaseBuzz,
     Eft,
     Eps,
     Fps,
@@ -1008,6 +1016,7 @@ pub enum PaymentMethodType {
     LocalBankRedirect,
     MandiriVa,
     Knet,
+    LazyPay,
     MbWay,
     MobilePay,
     Momo,
@@ -1027,7 +1036,9 @@ pub enum PaymentMethodType {
     OpenBanking,
     PayBright,
     Paypal,
+    PayU,
     Paze,
+    PhonePe,
     Pix,
     PaySafeCard,
     Przelewy24,
@@ -1601,6 +1612,23 @@ pub enum CountryAlpha3 {
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Clone)]
+pub enum KafkaClientError {
+    /// Invalid configuration provided
+    #[error("Invalid configuration: {message}")]
+    InvalidConfiguration { message: String },
+    #[error("Kafka connector request publishing not enabled")]
+    NotEnabled,
+    #[error("Kafka producer not initialized")]
+    ProducerNotInitialized,
+    #[error("Kafka producer construction failed")]
+    ProducerConstructionFailed,
+    #[error("Failed to fetch Kafka metadata")]
+    MetadataFetchFailed,
+    #[error("Unsupported payload format: {format}")]
+    UnsupportedPayloadFormat { format: String },
+}
+
+#[derive(Debug, thiserror::Error, PartialEq, Clone)]
 pub enum ApiClientError {
     #[error("Header map construction failed")]
     HeaderMapConstructionFailed,
@@ -1908,14 +1936,6 @@ pub enum ProductType {
     Ride,
     Event,
     Accommodation,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum WebhookTransformationStatus {
-    /// Transformation completed successfully, no further action needed
-    Complete,
-    /// Transformation incomplete, requires second call for final status
-    Incomplete,
 }
 
 #[derive(Clone, Debug, PartialEq)]
