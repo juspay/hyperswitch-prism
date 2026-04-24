@@ -45,9 +45,9 @@ use transformers::{
     NuveiErrorResponse, NuveiOpenOrderRequest, NuveiOpenOrderResponse, NuveiPaymentRequest,
     NuveiPaymentResponse, NuveiRefundRequest, NuveiRefundResponse, NuveiRefundSyncRequest,
     NuveiRefundSyncResponse, NuveiRepeatPaymentRequest, NuveiRepeatPaymentResponse,
-    NuveiSessionTokenRequest, NuveiSessionTokenResponse, NuveiSetupMandateRequest,
-    NuveiSetupMandateResponse, NuveiSyncRequest, NuveiSyncResponse, NuveiVoidRequest,
-    NuveiVoidResponse,
+    NuveiServerAuthTokenRequest, NuveiServerAuthTokenResponse, NuveiSessionTokenRequest,
+    NuveiSessionTokenResponse, NuveiSetupMandateRequest, NuveiSetupMandateResponse,
+    NuveiSyncRequest, NuveiSyncResponse, NuveiVoidRequest, NuveiVoidResponse,
 };
 
 use super::macros;
@@ -273,6 +273,12 @@ macros::create_all_prerequisites!(
             request_body: NuveiRepeatPaymentRequest,
             response_body: NuveiRepeatPaymentResponse,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: ServerAuthenticationToken,
+            request_body: NuveiServerAuthTokenRequest,
+            response_body: NuveiServerAuthTokenResponse,
+            router_data: RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         )
     ],
     amount_converters: [

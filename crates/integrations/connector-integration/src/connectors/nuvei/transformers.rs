@@ -605,6 +605,137 @@ impl TryFrom<ResponseRouterData<NuveiSessionTokenResponse, Self>>
     }
 }
 
+// ServerAuthenticationToken — uses same getSessionToken.do endpoint but different
+// response type (access_token based). Distinct Nuvei types to avoid macro conflicts.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiServerAuthTokenRequest {
+    pub merchant_id: Secret<String>,
+    pub merchant_site_id: Secret<String>,
+    pub client_request_id: String,
+    pub time_stamp: common_utils::date_time::DateTime<common_utils::date_time::YYYYMMDDHHmmss>,
+    pub checksum: String,
+}
+
+pub type NuveiServerAuthTokenResponse = NuveiSessionTokenResponse;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        NuveiRouterData<
+            RouterDataV2<
+                domain_types::connector_flow::ServerAuthenticationToken,
+                PaymentFlowData,
+                domain_types::connector_types::ServerAuthenticationTokenRequestData,
+                domain_types::connector_types::ServerAuthenticationTokenResponseData,
+            >,
+            T,
+        >,
+    > for NuveiServerAuthTokenRequest
+{
+    type Error = Report<IntegrationError>;
+
+    fn try_from(
+        item: NuveiRouterData<
+            RouterDataV2<
+                domain_types::connector_flow::ServerAuthenticationToken,
+                PaymentFlowData,
+                domain_types::connector_types::ServerAuthenticationTokenRequestData,
+                domain_types::connector_types::ServerAuthenticationTokenResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let auth = NuveiAuthType::try_from(&router_data.connector_config)?;
+        let time_stamp = NuveiAuthType::get_timestamp();
+        let client_request_id = router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+        let checksum = auth.generate_checksum(&[
+            auth.merchant_id.peek(),
+            auth.merchant_site_id.peek(),
+            &client_request_id,
+            &time_stamp.to_string(),
+        ]);
+        Ok(Self {
+            merchant_id: auth.merchant_id,
+            merchant_site_id: auth.merchant_site_id,
+            client_request_id,
+            time_stamp,
+            checksum,
+        })
+    }
+}
+
+impl TryFrom<ResponseRouterData<NuveiServerAuthTokenResponse, Self>>
+    for RouterDataV2<
+        domain_types::connector_flow::ServerAuthenticationToken,
+        PaymentFlowData,
+        domain_types::connector_types::ServerAuthenticationTokenRequestData,
+        domain_types::connector_types::ServerAuthenticationTokenResponseData,
+    >
+{
+    type Error = Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<NuveiServerAuthTokenResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+        let router_data = &item.router_data;
+
+        if matches!(response.status, NuveiPaymentStatus::Error) {
+            let error_code = response.err_code.map(|c| c.to_string()).unwrap_or_default();
+            let error_message = response
+                .reason
+                .clone()
+                .unwrap_or_else(|| "Unknown error".to_string());
+
+            return Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status: common_enums::AttemptStatus::Failure,
+                    ..router_data.resource_common_data.clone()
+                },
+                response: Err(domain_types::router_data::ErrorResponse {
+                    code: error_code,
+                    message: error_message.clone(),
+                    reason: Some(error_message),
+                    status_code: item.http_code,
+                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    connector_transaction_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }),
+                ..router_data.clone()
+            });
+        }
+
+        let session_token = response.session_token.clone().ok_or_else(|| {
+            Report::new(ConnectorError::response_handling_failed_with_context(
+                item.http_code,
+                Some("session_token missing in Nuvei response".to_string()),
+            ))
+        })?;
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status: common_enums::AttemptStatus::Pending,
+                session_token: Some(session_token.clone()),
+                ..router_data.resource_common_data.clone()
+            },
+            response: Ok(
+                domain_types::connector_types::ServerAuthenticationTokenResponseData {
+                    access_token: Secret::new(session_token),
+                    token_type: Some("Bearer".to_string()),
+                    expires_in: None,
+                },
+            ),
+            ..router_data.clone()
+        })
+    }
+}
+
 // Sync Request Transformation
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
