@@ -358,7 +358,7 @@ pub struct BluesnapRepeatCreditCard {
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapRepeatPaymentRequest {
     pub amount: StringMajorUnit,
-    pub currency: String,
+    pub currency: common_enums::Currency,
     pub vaulted_shopper_id: u64,
     pub card_transaction_type: BluesnapTxnType,
     /// "ECOMMERCE" for MIT initiated subsequent charges, per BlueSnap docs.
