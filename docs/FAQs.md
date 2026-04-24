@@ -42,7 +42,7 @@ Prism provides you with the flexibility to:
 - Outsource your PCI compliance to third-party vaults/payment processors of your choice
 - Insource the compliance fully
 
-Learn more in the PCI compliance section.
+Learn more from the [PCI compliance section](./architecture/compliance/compliance.md).
 
 ### How is sensitive data protected when using Prism?
 
@@ -56,10 +56,11 @@ Just like an optical prism, it takes an input (beam of light), transforms (refra
 ### Who develops and maintains the Prism library?
 
 Prism is actively maintained by the Juspay Hyperswitch team with regular updates for:
-- New additions
-- Features
+- New integrations
+- Feature enhancements
 - Security patches
 - Bug fixes
+- Framework improvements
 
 It was extracted from Juspay Hyperswitch and is an actively used component in production, powering payments for large enterprises.
 
