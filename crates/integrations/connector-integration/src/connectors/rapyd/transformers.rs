@@ -1145,7 +1145,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 let cardholder_name = ccard
                     .card_holder_name
                     .clone()
-                    .or_else(|| router_data.resource_common_data.get_optional_billing_full_name())
+                    .or_else(|| {
+                        router_data
+                            .resource_common_data
+                            .get_optional_billing_full_name()
+                    })
                     .ok_or(IntegrationError::MissingRequiredField {
                         field_name: "card.card_holder_name / billing.full_name",
                         context: Default::default(),
@@ -1193,14 +1197,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     field_name: "customer.name",
                     context: Default::default(),
                 })?;
-        let customer_email = request
-            .email
-            .as_ref()
-            .map(|e| e.peek().to_string())
-            .ok_or(IntegrationError::MissingRequiredField {
+        let customer_email = request.email.as_ref().map(|e| e.peek().to_string()).ok_or(
+            IntegrationError::MissingRequiredField {
                 field_name: "customer.email",
                 context: Default::default(),
-            })?;
+            },
+        )?;
         let inline_customer = RapydInlineCustomer {
             name: Some(customer_name),
             email: Some(customer_email),
@@ -1269,14 +1271,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 .to_owned()
                                 .unwrap_or(item.response.status.error_code.clone()),
                             status_code: item.http_code,
-                            message: item
-                                .response
-                                .status
-                                .status
-                                .clone()
-                                .unwrap_or_else(|| {
-                                    common_utils::consts::NO_ERROR_MESSAGE.to_string()
-                                }),
+                            message: item.response.status.status.clone().unwrap_or_else(|| {
+                                common_utils::consts::NO_ERROR_MESSAGE.to_string()
+                            }),
                             reason: data.failure_message.clone(),
                             attempt_status: None,
                             connector_transaction_id: Some(data.id.clone()),
@@ -1447,12 +1444,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // and arrives back on this Charge via `RecurringPaymentServiceChargeRequest
         // .connector_customer_id` (proto field 14).
         let card_id = match &request.mandate_reference {
-            MandateReferenceId::ConnectorMandateId(cmr) => cmr.get_connector_mandate_id().ok_or(
-                IntegrationError::MissingRequiredField {
-                    field_name: "mandate_reference.connector_mandate_id",
-                    context: Default::default(),
-                },
-            )?,
+            MandateReferenceId::ConnectorMandateId(cmr) => {
+                cmr.get_connector_mandate_id()
+                    .ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "mandate_reference.connector_mandate_id",
+                        context: Default::default(),
+                    })?
+            }
             _ => {
                 return Err(IntegrationError::NotImplemented(
                     "non-connector mandate for rapyd RepeatPayment".to_owned(),
@@ -1534,14 +1532,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 .to_owned()
                                 .unwrap_or(item.response.status.error_code.clone()),
                             status_code: item.http_code,
-                            message: item
-                                .response
-                                .status
-                                .status
-                                .clone()
-                                .unwrap_or_else(|| {
-                                    common_utils::consts::NO_ERROR_MESSAGE.to_string()
-                                }),
+                            message: item.response.status.status.clone().unwrap_or_else(|| {
+                                common_utils::consts::NO_ERROR_MESSAGE.to_string()
+                            }),
                             reason: data.failure_message.to_owned(),
                             attempt_status: None,
                             // Preserve the connector's transaction id on
