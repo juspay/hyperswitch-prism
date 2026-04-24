@@ -8,7 +8,6 @@ Usage:
     python3 scripts/generators/docs/generate.py stripe adyen
     python3 scripts/generators/docs/generate.py --all
     python3 scripts/generators/docs/generate.py --list
-    python3 scripts/generators/docs/generate.py --all-connectors-doc
 
 How it works:
   1. Loads probe data from data/field_probe/{connector}.json
@@ -20,12 +19,14 @@ To add docs for a new connector:
   - Run: python3 scripts/generators/docs/generate.py {name}
 """
 
+import os
 import sys
 import json
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Optional
 
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from snippet_examples import generate as snippets
 
@@ -221,6 +222,8 @@ _FLOW_KEY_OVERRIDES: dict[tuple[str, str], str] = {
     ("PaymentMethodService", "Tokenize"): "tokenize",
     # EventService.HandleEvent should just be "handle_event" not "event_handle_event"
     ("EventService", "HandleEvent"): "handle_event",
+    # EventService.ParseEvent should just be "parse_event" not "event_parse_event"
+    ("EventService", "ParseEvent"): "parse_event",
     # VerifyRedirectResponse -> verify_redirect (truncated in probe data)
     ("PaymentService", "VerifyRedirectResponse"): "verify_redirect",
     # MerchantAuthenticationService flows (probe data doesn't use merchant_auth_ prefix)
@@ -552,6 +555,10 @@ def load_probe_data(probe_path: Optional[Path]) -> dict[str, dict]:
     if probe_path is None:
         return {}
 
+    # Already loaded — skip expensive proto compilation and JSON parsing
+    if _PROBE_DATA:
+        return _PROBE_DATA
+
     probe_dir = probe_path if probe_path.is_dir() else probe_path
 
     # Discover connectors from filesystem (no manifest needed)
@@ -561,10 +568,12 @@ def load_probe_data(probe_path: Optional[Path]) -> dict[str, dict]:
     proto_dir = probe_dir.parent.parent / "crates" / "types-traits" / "grpc-api-types" / "proto"
     if proto_dir.exists():
         try:
+            print("  Compiling proto metadata…", end=" ", flush=True)
             _FLOW_METADATA, _MESSAGE_SCHEMAS = _build_proto_metadata(proto_dir)
             snippets.load_proto_type_map(proto_dir)
+            print("✓")
         except Exception as exc:
-            print(f"Warning: failed to build proto metadata: {exc}", file=sys.stderr)
+            print(f"✗\nWarning: failed to build proto metadata: {exc}", file=sys.stderr)
             _FLOW_METADATA = []
             _MESSAGE_SCHEMAS = {}
     else:
@@ -603,7 +612,7 @@ def _probe_pm_support(probe_connector: dict, flow_key: str) -> Optional[dict[str
 
 # ─── Paths ────────────────────────────────────────────────────────────────────
 
-REPO_ROOT       = Path(__file__).parent.parent.parent.parent
+REPO_ROOT    = Path(__file__).parent.parent.parent.parent
 DOCS_DIR     = REPO_ROOT / "docs-generated/connectors"
 EXAMPLES_DIR = REPO_ROOT / "examples"
 PROTO_DIR    = REPO_ROOT / "crates/types-traits/grpc-api-types/proto"
@@ -1130,10 +1139,11 @@ def list_connectors() -> list[str]:
 
 # ─── CLI ─────────────────────────────────────────────────────────────────────
 
-def check_example_syntax(examples_dir: Path, connectors: Optional[list[str]] = None) -> None:
-    """Run syntax checks on generated example files.
+def check_example_syntax(examples_dir: Path, connectors: Optional[list[str]] = None) -> bool:
+    """Run syntax/compilation checks on generated example files.
 
     If *connectors* is given, only files under examples_dir/{connector}/ are checked.
+    Returns True when all checks pass, False when any error is found.
     """
     import subprocess
 
@@ -1151,100 +1161,234 @@ def check_example_syntax(examples_dir: Path, connectors: Optional[list[str]] = N
 
     errors: list[str] = []
 
-    # Python — full AST parse
-    for f in py_files:
-        result = subprocess.run(
-            [sys.executable, "-m", "py_compile", str(f)],
-            capture_output=True, text=True,
-        )
-        if result.returncode != 0:
-            errors.append(f"Python: {f.relative_to(examples_dir.parent)}: {result.stderr.strip()}")
-
-    # TypeScript — syntax check via tsc (TypeScript compiler)
-    tsc_ok = False
-    try:
-        subprocess.run(["tsc", "--version"], capture_output=True, check=True)
-        tsc_ok = True
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        pass
-    if tsc_ok:
-        for f in ts_files:
-            # Check syntax only (no emit)
+    # ── Python — full AST parse via py_compile ─────────────────────────────────
+    if py_files:
+        print(f"  Checking Python ({len(py_files)} files) ...", end=" ", flush=True)
+        py_errors: list[str] = []
+        for f in py_files:
             result = subprocess.run(
-                ["tsc", "--noEmit", "--skipLibCheck", str(f)],
-                capture_output=True, text=True
+                [sys.executable, "-m", "py_compile", str(f)],
+                capture_output=True, text=True,
             )
             if result.returncode != 0:
-                errors.append(f"TypeScript: {f.relative_to(examples_dir.parent)}: {result.stderr.strip()}")
+                py_errors.append(f"Python: {f.relative_to(examples_dir.parent)}: {result.stderr.strip()}")
+        if py_errors:
+            print(f"✗ ({len(py_errors)} error(s))")
+            errors.extend(py_errors)
+        else:
+            print("✓")
 
-    # Kotlin — full compile via Gradle (preferred) or kotlinc syntax check (fallback).
-    # Standalone kotlinc cannot resolve payments.* SDK imports, so only Gradle gives
-    # accurate type-checking results.
-    kt_ok = False
-    sdk_java_dir = examples_dir.parent / "sdk" / "java"
-    gradlew = sdk_java_dir / "gradlew"
-    if gradlew.exists():
-        kt_ok = True
-        result = subprocess.run(
-            [str(gradlew), ":smoke-test:compileKotlin", "--rerun-tasks", "-q"],
-            capture_output=True, text=True,
-            cwd=str(sdk_java_dir),
-        )
-        if result.returncode != 0:
-            # Parse errors from Gradle output (lines starting with "e: file://...")
-            for line in (result.stdout + result.stderr).splitlines():
-                if line.startswith("e: file://"):
-                    # Shorten the absolute path for readability
-                    short = line.replace("e: file://" + str(examples_dir.parent) + "/", "")
-                    errors.append(f"Kotlin: {short}")
-    else:
-        try:
-            subprocess.run(["kotlinc", "-version"], capture_output=True, check=True)
-            kt_ok = True
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            pass
-        if kt_ok:
-            for f in kt_files:
+    # ── Python — mypy type checking ────────────────────────────────────────────
+    # Check if mypy is available before attempting type checking
+    mypy_available = False
+    try:
+        subprocess.run([sys.executable, "-m", "mypy", "--version"], capture_output=True, check=True)
+        mypy_available = True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass
+    
+    if py_files:
+        if mypy_available:
+            print(f"  Checking Python types ({len(py_files)} files) ...", end=" ", flush=True)
+            mypy_errors: list[str] = []
+            for f in py_files:
                 result = subprocess.run(
-                    ["kotlinc", "-nowarn", str(f), "-d", "/dev/null"],
+                    [sys.executable, "-m", "mypy", "--ignore-missing-imports", "--follow-imports=skip", str(f)],
                     capture_output=True, text=True,
                 )
                 if result.returncode != 0:
-                    errors.append(f"Kotlin: {f.relative_to(examples_dir.parent)}: {result.stderr.strip()}")
+                    err_lines = [line for line in (result.stdout + result.stderr).splitlines() if line.strip()]
+                    mypy_errors.append(f"Python Types: {f.relative_to(examples_dir.parent)}: {'; '.join(err_lines)}")
+            if mypy_errors:
+                print(f"✗ ({len(mypy_errors)} error(s))")
+                errors.extend(mypy_errors)
+            else:
+                print("✓")
+        else:
+            print(f"  Checking Python types ({len(py_files)} files) ... skipped (mypy unavailable)")
 
-    # Rust — format check via rustfmt (syntax-level); full compile needs cargo check
-    # Full compilation: cargo check -p hyperswitch-payments-client (from repo root)
+    # ── TypeScript — tsc --noEmit via SDK's local tsc installation ──────────────
+    # The generated .ts files import 'hyperswitch-prism', which is resolved via
+    # path mappings in sdk/javascript/tsconfig.json.  We must run tsc from that
+    # directory using a temporary tsconfig that extends it and adds the example
+    # files as additional includes.
+    sdk_js_dir = examples_dir.parent / "sdk" / "javascript"
+    local_tsc  = sdk_js_dir / "node_modules" / ".bin" / "tsc"
+    tsc_cmd: list[str] | None = None
+    # Prefer the SDK-local tsc (already installed); fall back to PATH/npx.
+    for candidate in ([str(local_tsc)], ["tsc"], ["npx", "--yes", "tsc"]):
+        try:
+            subprocess.run(candidate + ["--version"], capture_output=True, check=True)
+            tsc_cmd = candidate
+            break
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            pass
+    tsc_ok = tsc_cmd is not None
+    if ts_files:
+        if tsc_ok and sdk_js_dir.exists():
+            import json as _json, tempfile as _tempfile
+            print(f"  Checking TypeScript ({len(ts_files)} files) ...", end=" ", flush=True)
+            ts_errors: list[str] = []
+            # Build relative paths from sdk/javascript to each example .ts file.
+            # Examples live outside sdk/javascript, so use os.path.relpath.
+            import os as _os
+            rel_includes = [
+                _os.path.relpath(str(f), str(sdk_js_dir)).replace("\\", "/")
+                for f in ts_files
+            ]
+            # rootDir must cover both sdk/javascript/src and ../../examples,
+            # so set it to the repo root (../../ relative to sdk/javascript).
+            tmp_cfg = {
+                "extends": "./tsconfig.json",
+                "compilerOptions": {
+                    "noEmit": True,
+                    "rootDir": "../../",
+                },
+                "include": rel_includes,
+            }
+            with _tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", dir=str(sdk_js_dir), delete=False
+            ) as fh:
+                _json.dump(tmp_cfg, fh)
+                tmp_cfg_path = fh.name
+            try:
+                result = subprocess.run(
+                    tsc_cmd + ["--project", tmp_cfg_path],
+                    capture_output=True, text=True, cwd=str(sdk_js_dir),
+                )
+                if result.returncode != 0:
+                    # Parse tsc output lines: "path(line,col): error TSxxxx: msg"
+                    for line in (result.stdout + result.stderr).splitlines():
+                        line = line.strip()
+                        if not line or line.startswith("Found "):
+                            continue
+                        # Skip deprecation warnings about baseUrl and TS5101
+                        if "TS5101" in line or "deprecated" in line.lower():
+                            continue
+                        # Skip info/help URLs and messages without error codes
+                        if line.startswith("Visit http") or "aka.ms" in line:
+                            continue
+                        # Normalize absolute path back to examples/connector/file.ts
+                        for f in ts_files:
+                            rel = str(f.relative_to(examples_dir.parent))
+                            if str(f) in line or rel in line:
+                                ts_errors.append(f"TypeScript: {line}")
+                                break
+                        else:
+                            ts_errors.append(f"TypeScript: {line}")
+            finally:
+                _os.unlink(tmp_cfg_path)
+            if ts_errors:
+                print(f"✗ ({len(ts_errors)} error(s))")
+                errors.extend(ts_errors)
+            else:
+                print("✓")
+        elif not tsc_ok:
+            print(f"  Checking TypeScript ({len(ts_files)} files) ... skipped (tsc/npx unavailable)")
+        else:
+            print(f"  Checking TypeScript ({len(ts_files)} files) ... skipped (sdk/javascript not found)")
+
+    # ── Kotlin — Gradle (preferred) or kotlinc fallback ───────────────────────
+    # smoke-test is a standalone Gradle project at sdk/java/smoke-test/ that
+    # depends on the published SDK JAR. We run it via --project-dir so the root
+    # sdk/java/gradlew drives it without needing a separate wrapper.
+    kt_ok = False
+    sdk_java_dir = examples_dir.parent / "sdk" / "java"
+    smoke_test_dir = sdk_java_dir / "smoke-test"
+    gradlew = sdk_java_dir / "gradlew"
+    if kt_files:
+        if gradlew.exists() and smoke_test_dir.exists():
+            kt_ok = True
+            print(f"  Checking Kotlin ({len(kt_files)} files) via Gradle ...", end=" ", flush=True)
+            # Ensure the SDK JAR is in Maven local so smoke-test can resolve it.
+            # Clean first so new proto-generated classes (e.g. EventServiceParseRequest)
+            # are always compiled from the regenerated Payment.java, not a stale cache.
+            subprocess.run(
+                [str(gradlew), "clean", "publishToMavenLocal", "-q"],
+                capture_output=True, text=True,
+                cwd=str(sdk_java_dir),
+            )
+            result = subprocess.run(
+                [str(gradlew), "--project-dir", str(smoke_test_dir),
+                 "compileKotlin", "--rerun-tasks", "-q"],
+                capture_output=True, text=True,
+                cwd=str(sdk_java_dir),
+            )
+            if result.returncode != 0:
+                kt_errors: list[str] = []
+                for line in (result.stdout + result.stderr).splitlines():
+                    if line.startswith("e: file://"):
+                        short = line.replace("e: file://" + str(examples_dir.parent) + "/", "")
+                        kt_errors.append(f"Kotlin: {short}")
+                if kt_errors:
+                    print(f"✗ ({len(kt_errors)} error(s))")
+                    errors.extend(kt_errors)
+                else:
+                    # Non-zero exit but no parseable errors — surface raw output
+                    raw = (result.stdout + result.stderr).strip()[:300]
+                    errors.append(f"Kotlin (Gradle): {raw}")
+                    print("✗")
+            else:
+                print("✓")
+        else:
+            try:
+                subprocess.run(["kotlinc", "-version"], capture_output=True, check=True)
+                kt_ok = True
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                pass
+            if kt_ok:
+                print(f"  Checking Kotlin ({len(kt_files)} files) via kotlinc ...", end=" ", flush=True)
+                kt_errors = []
+                for f in kt_files:
+                    result = subprocess.run(
+                        ["kotlinc", "-nowarn", str(f), "-d", "/dev/null"],
+                        capture_output=True, text=True,
+                    )
+                    if result.returncode != 0:
+                        kt_errors.append(f"Kotlin: {f.relative_to(examples_dir.parent)}: {result.stderr.strip()}")
+                if kt_errors:
+                    print(f"✗ ({len(kt_errors)} error(s))")
+                    errors.extend(kt_errors)
+                else:
+                    print("✓")
+            else:
+                print(f"  Checking Kotlin ({len(kt_files)} files) ... skipped (Gradle/kotlinc unavailable)")
+
+    # ── Rust — rustfmt syntax check ────────────────────────────────────────────
     rustfmt_ok = False
     try:
         subprocess.run(["rustfmt", "--version"], capture_output=True, check=True)
         rustfmt_ok = True
     except (subprocess.CalledProcessError, FileNotFoundError):
         pass
-    if rustfmt_ok:
-        for f in rs_files:
-            result = subprocess.run(
-                ["rustfmt", "--check", "--edition", "2021", str(f)],
-                capture_output=True, text=True,
-            )
-            # rustfmt --check exits 1 only on formatting diffs, not syntax errors.
-            # Run rustfmt without --check to detect parse errors.
-            result2 = subprocess.run(
-                ["rustfmt", "--edition", "2021", "--check", str(f)],
-                capture_output=True, text=True,
-            )
-            if "error" in result2.stderr.lower():
-                errors.append(f"Rust: {f.relative_to(examples_dir.parent)}: {result2.stderr.strip()}")
+    if rs_files:
+        if rustfmt_ok:
+            print(f"  Checking Rust format ({len(rs_files)} files) ...", end=" ", flush=True)
+            fmt_errors: list[str] = []
+            for f in rs_files:
+                result2 = subprocess.run(
+                    ["rustfmt", "--edition", "2021", "--check", str(f)],
+                    capture_output=True, text=True,
+                )
+                if "error" in result2.stderr.lower():
+                    fmt_errors.append(f"Rust: {f.relative_to(examples_dir.parent)}: {result2.stderr.strip()}")
+            if fmt_errors:
+                print(f"✗ ({len(fmt_errors)} error(s))")
+                errors.extend(fmt_errors)
+            else:
+                print("✓")
+        else:
+            print(f"  Checking Rust format ({len(rs_files)} files) ... skipped (rustfmt unavailable)")
+
+    # Note: Cargo check removed - examples are validated during actual smoke test execution
+    # which catches compilation errors naturally without duplicate compilation overhead
 
     if errors:
-        print(f"\n  Syntax errors in {len(errors)} example file(s):")
+        print(f"\n  ✗ {len(errors)} compilation error(s) found:")
         for e in errors:
             print(f"    {e}")
-    else:
-        checks = f"{len(py_files)} Python, {len(ts_files)} TypeScript, {len(kt_files)} Kotlin, {len(rs_files)} Rust"
-        ts_note = "" if tsc_ok else " (tsc unavailable — TypeScript skipped)"
-        kt_note = "" if kt_ok else " (Gradle/kotlinc unavailable — Kotlin skipped)"
-        rs_note = "" if rustfmt_ok else " (rustfmt unavailable — Rust skipped)"
-        print(f"  ✓ Syntax check passed ({checks}){ts_note}{kt_note}{rs_note}")
+        return False
+    return True
 
 
 def cmd_list():
@@ -1254,7 +1398,7 @@ def cmd_list():
         print(f"  {name}")
 
 
-def cmd_generate(connectors: list[str], output_dir: Path, probe_path: Optional[Path] = None, update_llms: bool = True):
+def cmd_generate(connectors: list[str], output_dir: Path, probe_path: Optional[Path] = None, update_llms: bool = True, syntax_check: bool = True):
     probe_data = load_probe_data(probe_path)
     if not probe_data:
         print("Error: No probe data available. Run field-probe first.", file=sys.stderr)
@@ -1319,7 +1463,30 @@ def cmd_generate(connectors: list[str], output_dir: Path, probe_path: Optional[P
     if update_llms:
         generate_llms_txt(probe_data, output_dir)
     print(f"\nDone: {ok} generated, {skip} skipped.")
-    check_example_syntax(EXAMPLES_DIR, connectors=connectors)
+
+    # Format generated Rust files before syntax check so the check sees clean files
+    rs_files = list(EXAMPLES_DIR.rglob("*.rs"))
+    if rs_files:
+        print("  Formatting generated Rust files ...", end=" ", flush=True)
+        try:
+            result = subprocess.run(
+                ["rustfmt", "--edition", "2021"] + [str(f) for f in rs_files],
+                capture_output=True, text=True,
+            )
+            if result.returncode == 0:
+                print("✓")
+            else:
+                print(f"✗ (some files may have formatting issues)")
+        except FileNotFoundError:
+            print("skipped (rustfmt not found)")
+
+    if syntax_check:
+        ok_syntax = check_example_syntax(EXAMPLES_DIR, connectors=connectors)
+        if not ok_syntax:
+            sys.exit(1)
+
+    print("\n▶ Updating all_connector.md coverage matrix…")
+    cmd_all_connectors_doc(output_dir, probe_path)
 
 
 # ─── All Connectors Coverage Document ─────────────────────────────────────────
@@ -1424,7 +1591,7 @@ def generate_all_connector_doc(probe_data: dict[str, dict], output_dir: Path) ->
     a("<!--")
     a("This file is auto-generated. Do not edit by hand.")
     a("Source: data/field_probe/")
-    a("Regenerate: python3 scripts/generators/docs/generate.py --all-connectors-doc")
+    a("Regenerate: make docs")
     a("-->")
     a("")
     a("This document provides a comprehensive overview of payment method support")
@@ -1704,11 +1871,6 @@ def main():
         help="List all available connectors"
     )
     parser.add_argument(
-        "--all-connectors-doc",
-        action="store_true",
-        help="Generate the all_connector.md coverage document"
-    )
-    parser.add_argument(
         "--probe-path",
         type=Path,
         default=REPO_ROOT / "data" / "field_probe",
@@ -1720,27 +1882,41 @@ def main():
         default=DOCS_DIR,
         help="Output directory for generated docs (default: docs-generated/connectors)"
     )
-    
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Run compilation checks on existing generated examples without regenerating"
+    )
+    parser.add_argument(
+        "--no-syntax-check",
+        action="store_true",
+        help="Skip compilation checks after generation (useful for fast local iteration)"
+    )
+
     args = parser.parse_args()
-    
+
+    syntax_check = not args.no_syntax_check
+
+    # Standalone check mode — validate existing examples without regenerating
+    if args.check:
+        connectors = args.connectors or None
+        ok = check_example_syntax(EXAMPLES_DIR, connectors=connectors)
+        sys.exit(0 if ok else 1)
+
     load_probe_data(args.probe_path)
-    
+
     if args.list:
         cmd_list()
         return
-    
-    if args.all_connectors_doc:
-        cmd_all_connectors_doc(args.output_dir, args.probe_path)
-        return
-    
+
     if args.all:
         connectors = list_connectors()
         if not connectors:
             print("Error: No connectors found. Run field-probe first.", file=sys.stderr)
             sys.exit(1)
-        cmd_generate(connectors, args.output_dir, args.probe_path)
+        cmd_generate(connectors, args.output_dir, args.probe_path, syntax_check=syntax_check)
     elif args.connectors:
-        cmd_generate(args.connectors, args.output_dir, args.probe_path, update_llms=False)
+        cmd_generate(args.connectors, args.output_dir, args.probe_path, update_llms=False, syntax_check=syntax_check)
     else:
         parser.print_help()
         sys.exit(1)

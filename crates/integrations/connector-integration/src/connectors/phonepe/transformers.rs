@@ -281,11 +281,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             },
             _ => {
-                return Err(IntegrationError::NotSupported {
-                    message: "Payment method not supported".to_string(),
-                    connector: "Phonepe",
-                    context: Default::default(),
-                }
+                return Err(IntegrationError::NotImplemented(
+                    "Phonepe currently implements UPI payment methods only".to_string(),
+                    Default::default(),
+                )
                 .into())
             }
         };
@@ -443,11 +442,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             },
             _ => {
-                return Err(IntegrationError::NotSupported {
-                    message: "Payment method not supported".to_string(),
-                    connector: "Phonepe",
-                    context: Default::default(),
-                }
+                return Err(IntegrationError::NotImplemented(
+                    "Phonepe currently implements UPI payment methods only".to_string(),
+                    Default::default(),
+                )
                 .into())
             }
         };

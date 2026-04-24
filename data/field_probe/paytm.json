@@ -8,348 +8,376 @@
     },
     "authorize": {
       "Ach": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "AchBankTransfer": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Affirm": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Afterpay": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Alfamart": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "AliPayRedirect": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "AmazonPayRedirect": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "ApplePay": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "ApplePayDecrypted": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Bacs": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "BacsBankTransfer": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "BancontactCard": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "BcaBankTransfer": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Becs": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Bizum": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Blik": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Bluecode": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "BniVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Boleto": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "BriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Card": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "CashappQr": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "CimbVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "ClassicReward": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Efecty": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Eft": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Eps": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "FamilyMart": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Giropay": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GooglePay": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "GooglePayDecrypted": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Ideal": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Indomaret": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "IndonesianBankTransfer": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "InstantBankTransfer": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "InstantBankTransferFinland": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "InstantBankTransferPoland": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Interac": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Klarna": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Lawson": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "LocalBankRedirect": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "LocalBankTransfer": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "MbWay": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Mifinity": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "MiniStop": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "MultibancoBankTransfer": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "OnlineBankingFinland": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "OnlineBankingFpx": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "OnlineBankingPoland": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "OnlineBankingThailand": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "OpenBanking": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Oxxo": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "PagoEfectivo": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "PayEasy": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "PaypalRedirect": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "PaypalSdk": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Pix": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Przelewy24": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Pse": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "RedCompra": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "RedPagos": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "RevolutPay": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "SamsungPay": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Satispay": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Seicomart": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Sepa": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "SepaBankTransfer": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "SevenEleven": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Sofort": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Trustly": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "UpiCollect": {
         "status": "supported",
@@ -441,12 +469,12 @@
         }
       },
       "WeChatPayQr": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "Wero": {
-        "status": "not_supported",
-        "error": "Only UPI payment methods are supported is not supported by Paytm"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       }
     },
     "capture": {
@@ -551,6 +579,11 @@
       }
     },
     "incremental_authorization": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "parse_event": {
       "default": {
         "status": "not_implemented"
       }

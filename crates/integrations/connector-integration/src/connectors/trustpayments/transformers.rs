@@ -1,15 +1,15 @@
 use std::fmt::Debug;
 
-use common_enums::{AttemptStatus, CaptureMethod, Currency};
+use common_enums::{AttemptStatus, AuthorizationStatus, CaptureMethod, Currency};
 use common_utils::types::StringMinorUnit;
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, IncrementalAuthorization, PSync, RSync, Refund, Void},
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{
         GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, WalletData,
     },
@@ -26,6 +26,17 @@ use crate::types::ResponseRouterData;
 const TRUSTPAYMENTS_API_VERSION: &str = "1.00";
 const TRUSTPAYMENTS_ACCOUNT_TYPE_ECOM: &str = "ECOM";
 const TRUSTPAYMENTS_CREDENTIALS_ON_FILE: &str = "1";
+// Trust Payments marks an AUTH as an incremental authorisation via this value.
+// Reference: https://docs.trustpayments.com/document/tru-connect/knowledge-base/authorisations/auth-method/incremental-authorisations-api/
+const TRUSTPAYMENTS_AUTHMETHOD_INCREMENTAL: &str = "INCREMENTAL";
+// A PRE-authorisation parent is required before any incremental authorisation
+// can be processed against it.
+// Reference: https://help.trustpayments.com/hc/en-us/articles/4403195376273-Processing-pre-authorisations
+const TRUSTPAYMENTS_AUTHMETHOD_PRE: &str = "PRE";
+// Trust Payments signals success on an individual response item with errorcode "0".
+const TRUSTPAYMENTS_SUCCESS_CODE: &str = "0";
+// Canonical docs URL for the incremental authorisation flow; reused in error contexts.
+const TRUSTPAYMENTS_INCREMENTAL_AUTH_DOC_URL: &str = "https://docs.trustpayments.com/document/tru-connect/knowledge-base/authorisations/auth-method/incremental-authorisations-api/";
 
 // ===== ENUMS =====
 #[derive(Debug, Serialize, Clone)]
@@ -148,6 +159,8 @@ pub struct TrustpaymentsAuthorizeRequest {
 pub struct TrustpaymentsAuthRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub accounttypedescription: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authmethod: Option<String>,
     pub baseamount: StringMinorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub billingfirstname: Option<Secret<String>>,
@@ -169,6 +182,7 @@ pub struct TrustpaymentsAuthRequest {
 pub enum TrustpaymentsPaymentMethod {
     Card(TrustpaymentsCardData),
     GooglePay(Box<TrustpaymentsGooglePayData>),
+    ApplePay(Box<TrustpaymentsApplePayData>),
 }
 
 #[derive(Debug, Serialize)]
@@ -190,6 +204,18 @@ pub struct TrustpaymentsGooglePayData {
     pub tokenisedpayment: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tokentype: Option<String>,
+    pub walletsource: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct TrustpaymentsApplePayData {
+    pub pan: Secret<String>,
+    pub expirydate: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tavv: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eci: Option<String>,
+    pub walletdisplayname: String,
     pub walletsource: String,
 }
 
@@ -215,6 +241,8 @@ pub struct TrustpaymentsAuthResponse {
     pub requesttypedescription: String,
     pub paymenttypedescription: Option<String>,
     pub maskedpan: Option<Secret<String>>,
+    pub tokenisedpayment: Option<String>,
+    pub tokentype: Option<String>,
 }
 
 // ===== REQUEST TRANSFORMER =====
@@ -339,9 +367,63 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     walletsource: "GOOGLEPAY".to_string(),
                 }))
             }
+            PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay_data)) => {
+                // Trust Payments has no native encrypted Apple Pay endpoint; follow
+                // the decrypted-passthrough pattern and submit the decrypted DPAN
+                // as a wallet-sourced card transaction (walletsource=APPLEPAY).
+                const WALLET_SOURCE: &str = "APPLEPAY";
+                // ECI "07" = Apple Pay non-3DS (no 3DS challenge, liability shift via TAVV).
+                const DEFAULT_ECI: &str = "07";
+
+                let apple_pay_decrypted_data = apple_pay_data
+                    .payment_data
+                    .get_decrypted_apple_pay_payment_data_optional()
+                    .ok_or_else(|| {
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "apple_pay_decrypted_data",
+                            context: Default::default(),
+                        })
+                        .attach_printable(
+                            "Trust Payments requires pre-decrypted Apple Pay data; \
+                             encrypted Apple Pay tokens are not supported.",
+                        )
+                    })?;
+
+                // Trust Payments expects MM/YYYY format
+                let expirydate = apple_pay_decrypted_data.get_expiry_date_as_mmyyyy("/");
+
+                let pan = Secret::new(
+                    apple_pay_decrypted_data
+                        .application_primary_account_number
+                        .get_card_no(),
+                );
+
+                let cryptogram = apple_pay_decrypted_data
+                    .payment_data
+                    .online_payment_cryptogram
+                    .clone();
+                let is_cryptogram_3ds = !cryptogram.peek().is_empty();
+                let eci = apple_pay_decrypted_data.payment_data.eci_indicator.clone();
+
+                TrustpaymentsPaymentMethod::ApplePay(Box::new(TrustpaymentsApplePayData {
+                    pan,
+                    expirydate,
+                    tavv: if is_cryptogram_3ds {
+                        Some(cryptogram)
+                    } else {
+                        None
+                    },
+                    // For non-cryptogram flows, Trust Payments requires an ECI value;
+                    // default to DEFAULT_ECI (Apple Pay non-3DS) if absent.
+                    eci: Some(eci.unwrap_or_else(|| DEFAULT_ECI.to_string())),
+                    walletdisplayname: apple_pay_data.payment_method.display_name.clone(),
+                    walletsource: WALLET_SOURCE.to_string(),
+                }))
+            }
             _ => {
-                return Err(error_stack::report!(IntegrationError::not_implemented(
-                    "Payment method not supported".to_string()
+                return Err(error_stack::report!(IntegrationError::NotImplemented(
+                    "Payment method not supported".to_string(),
+                    Default::default()
                 )))
             }
         };
@@ -374,8 +456,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             Some(_) | None => TrustpaymentsSettleStatus::AutomaticCapture,
         };
 
+        // When the merchant flags a payment as eligible for incremental
+        // authorisations, Trust Payments requires the parent AUTH to be
+        // submitted as a pre-authorisation (authmethod = "PRE"). Otherwise
+        // the connector rejects any subsequent INCREMENTAL call with the
+        // error "INCREMENTAL must be processed with a PRE parent".
+        let authmethod = if router_data
+            .request
+            .request_incremental_authorization
+            .unwrap_or(false)
+        {
+            Some(TRUSTPAYMENTS_AUTHMETHOD_PRE.to_string())
+        } else {
+            None
+        };
+
         let auth_request = TrustpaymentsAuthRequest {
             accounttypedescription: Some(TRUSTPAYMENTS_ACCOUNT_TYPE_ECOM.to_string()),
+            authmethod,
             baseamount: amount,
             billingfirstname: first_name,
             billinglastname: last_name,
@@ -1322,6 +1420,228 @@ impl TryFrom<ResponseRouterData<TrustpaymentsRefundResponse, Self>>
 
         Ok(Self {
             response: Ok(refunds_response_data),
+            ..router_data.clone()
+        })
+    }
+}
+
+// ===== INCREMENTAL AUTHORIZATION REQUEST =====
+// Trust Payments incremental authorisation is modelled as an additional AUTH
+// request with `authmethod = "INCREMENTAL"` and a `parenttransactionreference`
+// pointing at the originally authorised payment.
+//
+// Reference: https://docs.trustpayments.com/document/tru-connect/knowledge-base/authorisations/auth-method/incremental-authorisations-api/
+#[derive(Debug, Serialize)]
+pub struct TrustpaymentsIncrementalAuthRequest {
+    pub alias: String,
+    pub version: String,
+    pub request: Vec<TrustpaymentsIncrementalAuthRequestItem>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct TrustpaymentsIncrementalAuthRequestItem {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub accounttypedescription: Option<String>,
+    pub authmethod: String,
+    pub baseamount: StringMinorUnit,
+    pub currencyiso3a: Currency,
+    pub orderreference: String,
+    pub parenttransactionreference: String,
+    pub requesttypedescriptions: Vec<TrustpaymentsRequestType>,
+    pub sitereference: Secret<String>,
+}
+
+// ===== INCREMENTAL AUTHORIZATION RESPONSE =====
+// Response mirrors a regular AUTH response from Trust Payments.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct TrustpaymentsIncrementalAuthResponse {
+    pub requestreference: String,
+    pub version: String,
+    // The incremental-auth endpoint observed in testing returns `responses` (plural),
+    // matching the AUTH/PSYNC JSON responses in this connector. The `response` alias
+    // is retained for parity with `TrustpaymentsAuthorizeResponse` because Trust
+    // Payments has historically varied the key across endpoints and SDK versions
+    // (compare PSYNC at line ~538 which uses the reverse primary/alias pair); removing
+    // it here would make the incremental-auth deserializer the only one in this file
+    // that is strict about the key name.
+    #[serde(alias = "response")]
+    pub responses: Vec<TrustpaymentsIncrementalAuthResponseItem>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct TrustpaymentsIncrementalAuthResponseItem {
+    pub errorcode: String,
+    pub errormessage: String,
+    pub transactionreference: Option<String>,
+    pub parenttransactionreference: Option<String>,
+    pub authcode: Option<String>,
+    pub baseamount: Option<StringMinorUnit>,
+    pub currencyiso3a: Option<Currency>,
+    pub settlestatus: Option<TrustpaymentsSettleStatus>,
+    pub requesttypedescription: String,
+    pub paymenttypedescription: Option<String>,
+    pub authmethod: Option<String>,
+}
+
+// ===== INCREMENTAL AUTHORIZATION REQUEST TRANSFORMER =====
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::TrustpaymentsRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for TrustpaymentsIncrementalAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: super::TrustpaymentsRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        // Extract auth credentials (alias = username, sitereference = api_secret)
+        let auth = TrustpaymentsAuthType::try_from(&router_data.connector_config)?;
+
+        // Extract parent transaction reference from connector_transaction_id
+        let parent_transaction_reference = router_data
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .map_err(|_| IntegrationError::MissingConnectorTransactionID {
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Ensure the original PRE-authorisation payment's connector transaction \
+                         reference is propagated to the IncrementalAuthorization request."
+                            .to_string(),
+                    ),
+                    doc_url: Some(TRUSTPAYMENTS_INCREMENTAL_AUTH_DOC_URL.to_string()),
+                    additional_context: Some(
+                        "Trust Payments requires parenttransactionreference (sourced from the \
+                         parent payment's connector_transaction_id) to process an INCREMENTAL \
+                         authorisation."
+                            .to_string(),
+                    ),
+                },
+            })?;
+
+        // Convert minor amount to the string minor unit Trust Payments expects
+        let base_amount = item
+            .connector
+            .amount_converter
+            .convert(
+                router_data.request.minor_amount,
+                router_data.request.currency,
+            )
+            .map_err(|_| IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Verify the requested minor_amount and currency are supported by Trust \
+                         Payments' StringMinorUnit converter."
+                            .to_string(),
+                    ),
+                    doc_url: Some(TRUSTPAYMENTS_INCREMENTAL_AUTH_DOC_URL.to_string()),
+                    additional_context: Some(
+                        "Failed to convert minor_amount to StringMinorUnit for the baseamount \
+                         field on the INCREMENTAL auth request."
+                            .to_string(),
+                    ),
+                },
+            })?;
+
+        let request_item = TrustpaymentsIncrementalAuthRequestItem {
+            accounttypedescription: Some(TRUSTPAYMENTS_ACCOUNT_TYPE_ECOM.to_string()),
+            authmethod: TRUSTPAYMENTS_AUTHMETHOD_INCREMENTAL.to_string(),
+            baseamount: base_amount,
+            currencyiso3a: router_data.request.currency,
+            orderreference: router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            parenttransactionreference: parent_transaction_reference,
+            requesttypedescriptions: vec![TrustpaymentsRequestType::Auth],
+            sitereference: auth.site_reference.clone(),
+        };
+
+        Ok(Self {
+            alias: auth.username.expose(),
+            version: TRUSTPAYMENTS_API_VERSION.to_string(),
+            request: vec![request_item],
+        })
+    }
+}
+
+// ===== INCREMENTAL AUTHORIZATION RESPONSE TRANSFORMER =====
+impl TryFrom<ResponseRouterData<TrustpaymentsIncrementalAuthResponse, Self>>
+    for RouterDataV2<
+        IncrementalAuthorization,
+        PaymentFlowData,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<TrustpaymentsIncrementalAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        // Get the first response from the array
+        let response = item.response.responses.first().ok_or(
+            crate::utils::response_handling_fail_for_connector(item.http_code, "trustpayments"),
+        )?;
+
+        // errorcode "0" indicates success in Trust Payments
+        let authorization_status = if response.errorcode == TRUSTPAYMENTS_SUCCESS_CODE {
+            AuthorizationStatus::Success
+        } else {
+            AuthorizationStatus::Failure
+        };
+
+        // Trust Payments guarantees `transactionreference` on a successful AUTH response.
+        // Ref: https://docs.trustpayments.com/document/tru-connect/knowledge-base/authorisations/auth-method/incremental-authorisations-api/
+        // `requestreference` is a request-level correlation id (e.g. "W60-r25A8x6n") and
+        // must NOT be used here — downstream Capture/Sync lookups use this id to find the
+        // authorisation on Trust Payments' side and would break on a request id.
+        let connector_authorization_id = response.transactionreference.clone();
+
+        // On non-"0" errorcode, surface as error response while keeping status set
+        if response.errorcode != TRUSTPAYMENTS_SUCCESS_CODE {
+            return Ok(Self {
+                response: Err(domain_types::router_data::ErrorResponse {
+                    code: response.errorcode.clone(),
+                    message: response.errormessage.clone(),
+                    reason: Some(response.errormessage.clone()),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: response.transactionreference.clone(),
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }),
+                ..router_data.clone()
+            });
+        }
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                status: authorization_status,
+                connector_authorization_id,
+                status_code: item.http_code,
+            }),
             ..router_data.clone()
         })
     }
