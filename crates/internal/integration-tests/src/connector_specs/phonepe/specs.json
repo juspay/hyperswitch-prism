@@ -2,6 +2,11 @@
   "connector": "phonepe",
   "supported_suites": [
     "authorize",
-    "get"
+    "get",
+    "capture",
+    "void",
+    "refund",
+    "refund_sync",
+    "handle_event"
   ]
 }

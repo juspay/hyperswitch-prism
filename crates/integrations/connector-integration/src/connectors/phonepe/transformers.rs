@@ -6,11 +6,15 @@ use common_utils::{
     types::MinorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, PSync},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, ResponseId,
+        EventType, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, ResponseId,
     },
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, UpiData, UpiSource},
+    payment_method_data::{
+        PaymentMethodData, PaymentMethodDataTypes, UpiData, UpiSource, WalletData,
+    },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_request_types::BrowserInformation,
@@ -31,6 +35,8 @@ use super::constants;
 use crate::{connectors::phonepe::PhonepeRouterData, types::ResponseRouterData};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
+use domain_types::errors::IntegrationErrorContext;
+use domain_types::errors::WebhookError;
 
 type Error = error_stack::Report<IntegrationError>;
 type ResponseError = error_stack::Report<ConnectorError>;
@@ -82,6 +88,22 @@ struct PhonepePaymentInstrument {
     target_app: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     vpa: Option<Secret<String>>,
+}
+
+// ===== WALLET DEBIT REQUEST STRUCTURES =====
+
+/// Payload for PhonePe wallet direct debit (POST /v3/wallet/debit)
+#[derive(Debug, Serialize)]
+struct PhonepeWalletDebitPayload {
+    #[serde(rename = "merchantId")]
+    merchant_id: Secret<String>,
+    #[serde(rename = "merchantTransactionId")]
+    merchant_transaction_id: String,
+    amount: MinorUnit,
+    #[serde(rename = "mobileNumber")]
+    mobile_number: Secret<String>,
+    #[serde(rename = "callbackUrl", skip_serializing_if = "Option::is_none")]
+    callback_url: Option<String>,
 }
 
 // ===== SYNC REQUEST STRUCTURES =====
@@ -245,7 +267,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to encode PhonePe request payload to base64".to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?;
 
         // Get customer mobile number from billing address
@@ -254,7 +281,65 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .get_optional_billing_phone_number()
             .map(|phone| Secret::new(phone.peek().to_string()));
 
-        // Create payment instrument based on payment method data
+        // Handle PhonePe wallet direct debit
+        if let PaymentMethodData::Wallet(WalletData::PhonePeRedirect(_)) =
+            &router_data.request.payment_method_data
+        {
+            let wallet_mobile_number =
+                mobile_number.ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "billing.phone.number",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Provide billing phone number in the address".to_string(),
+                        ),
+                        doc_url: Some(
+                            "https://developer.phonepe.com/v1/reference/pay-api".to_string(),
+                        ),
+                        additional_context: Some(
+                            "PhonePe wallet debit requires a mobile number".to_string(),
+                        ),
+                    },
+                })?;
+
+            let callback_url = router_data.request.get_webhook_url().ok();
+
+            let wallet_payload = PhonepeWalletDebitPayload {
+                merchant_id: auth.merchant_id.clone(),
+                merchant_transaction_id: router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+                amount: amount_in_minor_units,
+                mobile_number: wallet_mobile_number,
+                callback_url,
+            };
+
+            let json_payload = Encode::encode_to_string_of_json(&wallet_payload).change_context(
+                IntegrationError::RequestEncodingFailed {
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Failed to encode PhonePe request payload to base64".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                },
+            )?;
+            let base64_payload = base64::engine::general_purpose::STANDARD.encode(&json_payload);
+            let api_path = format!("/{}", constants::API_WALLET_DEBIT_ENDPOINT);
+            let checksum = generate_phonepe_checksum(
+                &base64_payload,
+                &api_path,
+                &auth.salt_key,
+                &auth.key_index,
+            )?;
+
+            return Ok(Self {
+                request: Secret::new(base64_payload),
+                checksum,
+            });
+        }
+
+        // Create payment instrument based on payment method data (UPI flows)
         let payment_instrument = match &router_data.request.payment_method_data {
             PaymentMethodData::Upi(upi_data) => match upi_data {
                 UpiData::UpiIntent(intent_data) => {
@@ -281,10 +366,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             },
             _ => {
-                return Err(IntegrationError::NotImplemented(
-                    "Phonepe currently implements UPI payment methods only".to_string(),
-                    Default::default(),
-                )
+                return Err(IntegrationError::NotSupported {
+                    message: "Payment method not supported".to_string(),
+                    connector: "Phonepe",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Use a supported payment method: UPI Intent, UPI Collect, UPI QR, or PhonePe Wallet"
+                                .to_string(),
+                        ),
+                        doc_url: Some(
+                            "https://developer.phonepe.com/v1/reference/pay-api".to_string(),
+                        ),
+                        additional_context: None,
+                    },
+                }
                 .into())
             }
         };
@@ -343,7 +438,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Convert to JSON and encode
         let json_payload = Encode::encode_to_string_of_json(&payload).change_context(
             IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to encode PhonePe request payload to base64".to_string(),
+                    ),
+                    ..Default::default()
+                },
             },
         )?;
 
@@ -406,7 +506,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to encode PhonePe request payload to base64".to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?;
 
         // Get customer mobile number from billing address
@@ -414,6 +519,64 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .resource_common_data
             .get_optional_billing_phone_number()
             .map(|phone| Secret::new(phone.peek().to_string()));
+
+        // Handle PhonePe wallet direct debit
+        if let PaymentMethodData::Wallet(WalletData::PhonePeRedirect(_)) =
+            &router_data.request.payment_method_data
+        {
+            let wallet_mobile_number =
+                mobile_number.ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "billing.phone.number",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Provide billing phone number in the address".to_string(),
+                        ),
+                        doc_url: Some(
+                            "https://developer.phonepe.com/v1/reference/pay-api".to_string(),
+                        ),
+                        additional_context: Some(
+                            "PhonePe wallet debit requires a mobile number".to_string(),
+                        ),
+                    },
+                })?;
+
+            let callback_url = router_data.request.get_webhook_url().ok();
+
+            let wallet_payload = PhonepeWalletDebitPayload {
+                merchant_id: auth.merchant_id.clone(),
+                merchant_transaction_id: router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+                amount: amount_in_minor_units,
+                mobile_number: wallet_mobile_number,
+                callback_url,
+            };
+
+            let json_payload = Encode::encode_to_string_of_json(&wallet_payload).change_context(
+                IntegrationError::RequestEncodingFailed {
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Failed to encode PhonePe request payload to base64".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                },
+            )?;
+            let base64_payload = base64::engine::general_purpose::STANDARD.encode(&json_payload);
+            let api_path = format!("/{}", constants::API_WALLET_DEBIT_ENDPOINT);
+            let checksum = generate_phonepe_checksum(
+                &base64_payload,
+                &api_path,
+                &auth.salt_key,
+                &auth.key_index,
+            )?;
+
+            return Ok(Self {
+                request: Secret::new(base64_payload),
+                checksum,
+            });
+        }
 
         // Create payment instrument based on payment method data
         let payment_instrument = match &router_data.request.payment_method_data {
@@ -442,10 +605,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             },
             _ => {
-                return Err(IntegrationError::NotImplemented(
-                    "Phonepe currently implements UPI payment methods only".to_string(),
-                    Default::default(),
-                )
+                return Err(IntegrationError::NotSupported {
+                    message: "Payment method not supported".to_string(),
+                    connector: "Phonepe",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Use a supported payment method: UPI Intent, UPI Collect, UPI QR, or PhonePe Wallet"
+                                .to_string(),
+                        ),
+                        doc_url: Some(
+                            "https://developer.phonepe.com/v1/reference/pay-api".to_string(),
+                        ),
+                        additional_context: None,
+                    },
+                }
                 .into())
             }
         };
@@ -504,7 +677,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Convert to JSON and encode
         let json_payload = Encode::encode_to_string_of_json(&payload).change_context(
             IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to encode PhonePe request payload to base64".to_string(),
+                    ),
+                    ..Default::default()
+                },
             },
         )?;
 
@@ -705,7 +883,19 @@ impl TryFrom<&ConnectorSpecificConfig> for PhonepeAuthType {
                 key_index: salt_index.peek().clone(),
             }),
             _ => Err(IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Pass PhonePe credentials via x-connector-config with merchant_id, salt_key, and salt_index"
+                            .to_string(),
+                    ),
+                    doc_url: Some(
+                        "https://developer.phonepe.com/v1/reference/credentials".to_string(),
+                    ),
+                    additional_context: Some(
+                        "Expected ConnectorSpecificConfig::Phonepe with merchant_id, salt_key, and salt_index"
+                            .to_string(),
+                    ),
+                },
             }
             .into()),
         }
@@ -733,7 +923,12 @@ fn generate_phonepe_checksum(
     let hash_bytes = sha256
         .generate_digest(checksum_input.as_bytes())
         .change_context(IntegrationError::RequestEncodingFailed {
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Failed to encode PhonePe request payload to base64".to_string(),
+                ),
+                ..Default::default()
+            },
         })?;
     let hash = hash_bytes.iter().fold(String::new(), |mut acc, byte| {
         use std::fmt::Write;
@@ -970,7 +1165,12 @@ fn generate_phonepe_sync_checksum(
     let hash_bytes = sha256
         .generate_digest(checksum_input.as_bytes())
         .change_context(IntegrationError::RequestEncodingFailed {
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Failed to encode PhonePe request payload to base64".to_string(),
+                ),
+                ..Default::default()
+            },
         })?;
     let hash = hash_bytes.iter().fold(String::new(), |mut acc, byte| {
         use std::fmt::Write;
@@ -1149,4 +1349,1069 @@ fn extract_bin_from_masked_account_number(masked_account_number: Option<&str>) -
             .filter(|bin| bin.chars().all(|c| c.is_ascii_digit()))
             .map(str::to_string)
     })
+}
+
+// ===== CAPTURE REQUEST/RESPONSE STRUCTURES =====
+
+/// Inner payload for the capture request - base64 encoded and sent as `request` field
+#[derive(Debug, Serialize)]
+struct PhonepeCaptureRequestPayload {
+    #[serde(rename = "merchantId")]
+    merchant_id: Secret<String>,
+    #[serde(rename = "originalTransactionId")]
+    original_transaction_id: String,
+    #[serde(rename = "merchantTransactionId")]
+    merchant_transaction_id: String,
+    amount: MinorUnit,
+}
+
+/// Top-level capture request structure: base64-encoded payload + checksum
+#[derive(Debug, Serialize)]
+pub struct PhonepeCaptureRequest {
+    request: Secret<String>,
+    #[serde(skip)]
+    pub checksum: String,
+}
+
+/// Capture response data object
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PhonepeCaptureResponseData {
+    #[serde(rename = "merchantId", skip_serializing_if = "Option::is_none")]
+    pub merchant_id: Option<String>,
+    #[serde(
+        rename = "merchantTransactionId",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub merchant_transaction_id: Option<String>,
+    #[serde(rename = "transactionId", skip_serializing_if = "Option::is_none")]
+    pub transaction_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<String>,
+}
+
+/// Top-level capture response
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PhonepeCaptureResponse {
+    pub success: bool,
+    pub code: String,
+    #[serde(default = "default_capture_error_message")]
+    pub message: String,
+    pub data: Option<PhonepeCaptureResponseData>,
+}
+
+fn default_capture_error_message() -> String {
+    "Capture processing failed".to_string()
+}
+
+// ===== CAPTURE REQUEST BUILDING =====
+
+// TryFrom implementation for owned PhonepeRouterData wrapper (used by macro for request body)
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PhonepeRouterData<
+            RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+            T,
+        >,
+    > for PhonepeCaptureRequest
+{
+    type Error = Error;
+
+    fn try_from(
+        wrapper: PhonepeRouterData<
+            RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &wrapper.router_data;
+        let auth = PhonepeAuthType::try_from(&router_data.connector_config)?;
+
+        // Purpose: API requires original transaction reference for capture (pre-auth transaction ID)
+        let original_transaction_id = router_data
+            .request
+            .get_connector_transaction_id()
+            .change_context(IntegrationError::MissingConnectorTransactionID {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "connector_transaction_id is required for PhonePe capture/void operations"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
+
+        let merchant_transaction_id = router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+
+        let amount_in_minor_units = wrapper
+            .connector
+            .amount_converter
+            .convert(
+                router_data.request.minor_amount_to_capture,
+                router_data.request.currency,
+            )
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to encode PhonePe request payload to base64".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
+
+        let payload = PhonepeCaptureRequestPayload {
+            merchant_id: auth.merchant_id.clone(),
+            original_transaction_id,
+            merchant_transaction_id,
+            amount: amount_in_minor_units,
+        };
+
+        let json_payload = Encode::encode_to_string_of_json(&payload).change_context(
+            IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to encode PhonePe request payload to base64".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            },
+        )?;
+
+        let base64_payload = base64::engine::general_purpose::STANDARD.encode(&json_payload);
+        let api_path = format!("/{}", constants::API_CAPTURE_ENDPOINT);
+        let checksum =
+            generate_phonepe_checksum(&base64_payload, &api_path, &auth.salt_key, &auth.key_index)?;
+
+        Ok(Self {
+            request: Secret::new(base64_payload),
+            checksum,
+        })
+    }
+}
+
+// TryFrom implementation for borrowed PhonepeRouterData wrapper (used for header generation)
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        &PhonepeRouterData<
+            &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+            T,
+        >,
+    > for PhonepeCaptureRequest
+{
+    type Error = Error;
+
+    fn try_from(
+        item: &PhonepeRouterData<
+            &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+        let auth = PhonepeAuthType::try_from(&router_data.connector_config)?;
+
+        // Purpose: API requires original transaction reference for capture (pre-auth transaction ID)
+        let original_transaction_id = router_data
+            .request
+            .get_connector_transaction_id()
+            .change_context(IntegrationError::MissingConnectorTransactionID {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "connector_transaction_id is required for PhonePe capture/void operations"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
+
+        let merchant_transaction_id = router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+
+        let amount_in_minor_units = item
+            .connector
+            .amount_converter
+            .convert(
+                router_data.request.minor_amount_to_capture,
+                router_data.request.currency,
+            )
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to encode PhonePe request payload to base64".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
+
+        let payload = PhonepeCaptureRequestPayload {
+            merchant_id: auth.merchant_id.clone(),
+            original_transaction_id,
+            merchant_transaction_id,
+            amount: amount_in_minor_units,
+        };
+
+        let json_payload = Encode::encode_to_string_of_json(&payload).change_context(
+            IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to encode PhonePe request payload to base64".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            },
+        )?;
+
+        let base64_payload = base64::engine::general_purpose::STANDARD.encode(&json_payload);
+        let api_path = format!("/{}", constants::API_CAPTURE_ENDPOINT);
+        let checksum =
+            generate_phonepe_checksum(&base64_payload, &api_path, &auth.salt_key, &auth.key_index)?;
+
+        Ok(Self {
+            request: Secret::new(base64_payload),
+            checksum,
+        })
+    }
+}
+
+// ===== CAPTURE RESPONSE HANDLING =====
+
+impl TryFrom<ResponseRouterData<PhonepeCaptureResponse, Self>>
+    for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
+{
+    type Error = ResponseError;
+
+    fn try_from(
+        item: ResponseRouterData<PhonepeCaptureResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+
+        if response.success {
+            // Map the data.state to AttemptStatus
+            // PAYMENT_SUCCESS → Charged (funds captured)
+            // PAYMENT_ERROR → Failure (capture failed)
+            // Absent state → Charged (success=true with no state means synchronously captured)
+            let status = response
+                .data
+                .as_ref()
+                .and_then(|d| d.state.as_deref())
+                .map(|state| match state {
+                    "PAYMENT_SUCCESS" | "SUCCESS" => common_enums::AttemptStatus::Charged,
+                    "PAYMENT_ERROR" | "PAYMENT_DECLINED" | "FAILED" | "ERROR" => {
+                        common_enums::AttemptStatus::Failure
+                    }
+                    "PAYMENT_PENDING" | "PENDING" => common_enums::AttemptStatus::Pending,
+                    _ => common_enums::AttemptStatus::Pending,
+                })
+                .unwrap_or(common_enums::AttemptStatus::Charged);
+
+            let connector_transaction_id = response
+                .data
+                .as_ref()
+                .and_then(|d| d.transaction_id.clone())
+                .or_else(|| item.router_data.request.get_connector_transaction_id().ok())
+                .unwrap_or_default();
+
+            let connector_response_reference_id = response
+                .data
+                .as_ref()
+                .and_then(|d| d.merchant_transaction_id.clone());
+
+            let mut router_data = item.router_data;
+            router_data.resource_common_data.status = status;
+            router_data.response = Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id,
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+            });
+            Ok(router_data)
+        } else {
+            // success=false: capture failed
+            let error_message = response.message.clone();
+            let error_code = response.code.clone();
+
+            let connector_transaction_id = response
+                .data
+                .as_ref()
+                .and_then(|d| d.transaction_id.clone());
+
+            let attempt_status = match error_code.as_str() {
+                "PAYMENT_ERROR"
+                | "PAYMENT_DECLINED"
+                | "TRANSACTION_NOT_FOUND"
+                | "AUTHORIZATION_FAILED"
+                | "BAD_REQUEST" => Some(common_enums::AttemptStatus::Failure),
+                "PAYMENT_PENDING" | "INTERNAL_SERVER_ERROR" => {
+                    Some(common_enums::AttemptStatus::Pending)
+                }
+                _ => Some(common_enums::AttemptStatus::Failure),
+            };
+
+            let mut router_data = item.router_data;
+            router_data.response = Err(domain_types::router_data::ErrorResponse {
+                code: error_code,
+                message: error_message.clone(),
+                reason: Some(error_message),
+                status_code: item.http_code,
+                attempt_status,
+                connector_transaction_id,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            });
+            Ok(router_data)
+        }
+    }
+}
+
+// ===== REFUND REQUEST/RESPONSE STRUCTURES =====
+
+#[derive(Debug, Serialize)]
+pub struct PhonepeRefundRequest {
+    request: Secret<String>,
+    #[serde(skip)]
+    pub checksum: String,
+}
+
+#[derive(Debug, Serialize)]
+struct PhonepeRefundRequestPayload {
+    #[serde(rename = "merchantId")]
+    merchant_id: Secret<String>,
+    #[serde(rename = "originalTransactionId")]
+    original_transaction_id: String,
+    #[serde(rename = "merchantTransactionId")]
+    merchant_transaction_id: String,
+    amount: MinorUnit,
+    #[serde(rename = "callbackUrl", skip_serializing_if = "Option::is_none")]
+    callback_url: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PhonepeRefundResponse {
+    pub success: bool,
+    pub code: String,
+    pub message: String,
+    pub data: Option<PhonepeRefundResponseData>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PhonepeRefundResponseData {
+    #[serde(rename = "merchantId", skip_serializing_if = "Option::is_none")]
+    pub merchant_id: Option<String>,
+    #[serde(
+        rename = "merchantTransactionId",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub merchant_transaction_id: Option<String>,
+    #[serde(
+        rename = "originalTransactionId",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub original_transaction_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<String>,
+}
+
+// ===== REFUND REQUEST BUILDING =====
+
+// TryFrom for owned PhonepeRouterData (used by macro for request body)
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PhonepeRouterData<
+            RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+            T,
+        >,
+    > for PhonepeRefundRequest
+{
+    type Error = Error;
+
+    fn try_from(
+        wrapper: PhonepeRouterData<
+            RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &wrapper.router_data;
+        let auth = PhonepeAuthType::try_from(&router_data.connector_config)?;
+
+        let amount_in_minor_units = wrapper
+            .connector
+            .amount_converter
+            .convert(
+                router_data.request.minor_refund_amount,
+                router_data.request.currency,
+            )
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to encode PhonePe request payload to base64".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
+
+        let original_transaction_id = router_data.request.connector_transaction_id.clone();
+        let merchant_transaction_id = router_data.request.refund_id.clone();
+        let callback_url = router_data.request.webhook_url.clone();
+
+        let payload = PhonepeRefundRequestPayload {
+            merchant_id: auth.merchant_id.clone(),
+            original_transaction_id,
+            merchant_transaction_id,
+            amount: amount_in_minor_units,
+            callback_url,
+        };
+
+        let json_payload = Encode::encode_to_string_of_json(&payload).change_context(
+            IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to encode PhonePe request payload to base64".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            },
+        )?;
+
+        let base64_payload = base64::engine::general_purpose::STANDARD.encode(&json_payload);
+        let api_path = format!("/{}", constants::API_REFUND_ENDPOINT);
+        let checksum =
+            generate_phonepe_checksum(&base64_payload, &api_path, &auth.salt_key, &auth.key_index)?;
+
+        Ok(Self {
+            request: Secret::new(base64_payload),
+            checksum,
+        })
+    }
+}
+
+// TryFrom for borrowed PhonepeRouterData (used for header generation)
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        &PhonepeRouterData<
+            &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+            T,
+        >,
+    > for PhonepeRefundRequest
+{
+    type Error = Error;
+
+    fn try_from(
+        item: &PhonepeRouterData<
+            &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+        let auth = PhonepeAuthType::try_from(&router_data.connector_config)?;
+
+        let amount_in_minor_units = item
+            .connector
+            .amount_converter
+            .convert(
+                router_data.request.minor_refund_amount,
+                router_data.request.currency,
+            )
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to encode PhonePe request payload to base64".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
+
+        let original_transaction_id = router_data.request.connector_transaction_id.clone();
+        let merchant_transaction_id = router_data.request.refund_id.clone();
+        let callback_url = router_data.request.webhook_url.clone();
+
+        let payload = PhonepeRefundRequestPayload {
+            merchant_id: auth.merchant_id.clone(),
+            original_transaction_id,
+            merchant_transaction_id,
+            amount: amount_in_minor_units,
+            callback_url,
+        };
+
+        let json_payload = Encode::encode_to_string_of_json(&payload).change_context(
+            IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to encode PhonePe request payload to base64".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            },
+        )?;
+
+        let base64_payload = base64::engine::general_purpose::STANDARD.encode(&json_payload);
+        let api_path = format!("/{}", constants::API_REFUND_ENDPOINT);
+        let checksum =
+            generate_phonepe_checksum(&base64_payload, &api_path, &auth.salt_key, &auth.key_index)?;
+
+        Ok(Self {
+            request: Secret::new(base64_payload),
+            checksum,
+        })
+    }
+}
+
+// ===== REFUND RESPONSE HANDLING =====
+
+impl TryFrom<ResponseRouterData<PhonepeRefundResponse, Self>>
+    for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
+{
+    type Error = ResponseError;
+
+    fn try_from(
+        item: ResponseRouterData<PhonepeRefundResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+
+        if response.success {
+            let refund_status = response
+                .data
+                .as_ref()
+                .and_then(|d| d.state.as_deref())
+                .map(|state| match state {
+                    "SUCCESS" => common_enums::RefundStatus::Success,
+                    "FAILED" => common_enums::RefundStatus::Failure,
+                    _ => common_enums::RefundStatus::Pending,
+                })
+                .unwrap_or(common_enums::RefundStatus::Pending);
+
+            let connector_refund_id = response
+                .data
+                .as_ref()
+                .and_then(|d| d.merchant_transaction_id.clone())
+                .unwrap_or_else(|| item.router_data.request.refund_id.clone());
+
+            let mut router_data = item.router_data;
+            router_data.response = Ok(RefundsResponseData {
+                connector_refund_id,
+                refund_status,
+                status_code: item.http_code,
+            });
+            Ok(router_data)
+        } else {
+            let mut router_data = item.router_data;
+            router_data.response = Err(domain_types::router_data::ErrorResponse {
+                code: response.code.clone(),
+                message: response.message.clone(),
+                reason: Some(response.message.clone()),
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            });
+            Ok(router_data)
+        }
+    }
+}
+
+// ===== REFUND SYNC REQUEST/RESPONSE STRUCTURES =====
+
+#[derive(Debug, Serialize)]
+pub struct PhonepeRefundSyncRequest {
+    #[serde(skip)]
+    pub connector_refund_id: String,
+    #[serde(skip)]
+    pub checksum: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PhonepeRefundSyncResponse {
+    pub success: bool,
+    pub code: String,
+    #[serde(default = "default_rsync_error_message")]
+    pub message: String,
+    #[serde(default)]
+    pub data: Option<PhonepeRefundSyncData>,
+}
+
+fn default_rsync_error_message() -> String {
+    "Refund sync failed".to_string()
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PhonepeRefundSyncData {
+    #[serde(rename = "merchantId", skip_serializing_if = "Option::is_none")]
+    pub merchant_id: Option<String>,
+    #[serde(
+        rename = "merchantTransactionId",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub merchant_transaction_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<String>,
+}
+
+// ===== REFUND SYNC REQUEST BUILDING =====
+
+// TryFrom for owned PhonepeRouterData (used by macro for request body)
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PhonepeRouterData<
+            RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+            T,
+        >,
+    > for PhonepeRefundSyncRequest
+{
+    type Error = Error;
+
+    fn try_from(
+        wrapper: PhonepeRouterData<
+            RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &wrapper.router_data;
+        let auth = PhonepeAuthType::try_from(&router_data.connector_config)?;
+
+        let connector_refund_id = router_data.request.connector_refund_id.clone();
+
+        let api_path = format!(
+            "/{}/{}/{}/status",
+            constants::API_REFUND_STATUS_ENDPOINT,
+            auth.merchant_id.peek(),
+            connector_refund_id
+        );
+        let checksum = generate_phonepe_sync_checksum(&api_path, &auth.salt_key, &auth.key_index)?;
+
+        Ok(Self {
+            connector_refund_id,
+            checksum,
+        })
+    }
+}
+
+// TryFrom for borrowed PhonepeRouterData (used for header generation)
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        &PhonepeRouterData<
+            &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+            T,
+        >,
+    > for PhonepeRefundSyncRequest
+{
+    type Error = Error;
+
+    fn try_from(
+        item: &PhonepeRouterData<
+            &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+        let auth = PhonepeAuthType::try_from(&router_data.connector_config)?;
+
+        let connector_refund_id = router_data.request.connector_refund_id.clone();
+
+        let api_path = format!(
+            "/{}/{}/{}/status",
+            constants::API_REFUND_STATUS_ENDPOINT,
+            auth.merchant_id.peek(),
+            connector_refund_id
+        );
+        let checksum = generate_phonepe_sync_checksum(&api_path, &auth.salt_key, &auth.key_index)?;
+
+        Ok(Self {
+            connector_refund_id,
+            checksum,
+        })
+    }
+}
+
+// ===== WEBHOOK STRUCTURES =====
+
+/// Top-level PhonePe webhook request body: contains the base64-encoded payload
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PhonepeWebhookRequest {
+    pub response: String,
+}
+
+/// Decoded webhook payload from PhonePe (PhonePeV2UpiWebhookRequestData)
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PhonepeWebhookPayload {
+    #[serde(rename = "merchantId")]
+    pub merchant_id: String,
+    #[serde(rename = "merchantTransactionId")]
+    pub merchant_transaction_id: String,
+    #[serde(rename = "transactionId")]
+    pub transaction_id: String,
+    pub amount: Option<MinorUnit>,
+    pub state: String,
+    #[serde(rename = "responseCode")]
+    pub response_code: Option<String>,
+    #[serde(rename = "paymentInstrument")]
+    pub payment_instrument: Option<serde_json::Value>,
+}
+
+/// Map PhonePe webhook state string to UCS EventType
+pub fn map_phonepe_webhook_state_to_event_type(state: &str) -> EventType {
+    match state {
+        "PAYMENT_SUCCESS" | "SUCCESS" => EventType::PaymentIntentSuccess,
+        "PAYMENT_PENDING" | "PENDING" => EventType::PaymentIntentProcessing,
+        "PAYMENT_ERROR" | "FAILED" | "ERROR" | "PAYMENT_CANCELLED" | "PAYMENT_DECLINED"
+        | "TIMED_OUT" => EventType::PaymentIntentFailure,
+        _ => EventType::PaymentIntentProcessing,
+    }
+}
+
+/// Map PhonePe webhook state string to UCS AttemptStatus
+pub fn map_phonepe_webhook_state_to_attempt_status(state: &str) -> common_enums::AttemptStatus {
+    match state {
+        "PAYMENT_SUCCESS" | "SUCCESS" => common_enums::AttemptStatus::Charged,
+        "PAYMENT_PENDING" | "PENDING" => common_enums::AttemptStatus::Pending,
+        "PAYMENT_ERROR" | "FAILED" | "ERROR" | "PAYMENT_CANCELLED" | "PAYMENT_DECLINED"
+        | "TIMED_OUT" => common_enums::AttemptStatus::Failure,
+        _ => common_enums::AttemptStatus::Pending,
+    }
+}
+
+/// Decode and parse the PhonePe webhook body (base64-encoded JSON payload)
+pub fn decode_phonepe_webhook_payload(
+    raw_body: &[u8],
+) -> Result<PhonepeWebhookPayload, error_stack::Report<WebhookError>> {
+    use common_utils::ext_traits::ByteSliceExt;
+
+    let webhook_request: PhonepeWebhookRequest = raw_body
+        .parse_struct("PhonepeWebhookRequest")
+        .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+
+    let decoded_bytes = base64::engine::general_purpose::STANDARD
+        .decode(&webhook_request.response)
+        .change_context(WebhookError::WebhookBodyDecodingFailed)
+        .attach_printable("Failed to base64-decode PhonePe webhook response field")?;
+
+    let payload: PhonepeWebhookPayload = serde_json::from_slice(&decoded_bytes)
+        .change_context(WebhookError::WebhookBodyDecodingFailed)
+        .attach_printable("Failed to parse decoded PhonePe webhook payload as JSON")?;
+
+    Ok(payload)
+}
+
+/// Compute expected PhonePe webhook HMAC checksum:
+/// sha256(base64Body + apiPath + saltKey) + "###" + keyIndex
+pub fn compute_phonepe_webhook_checksum(
+    base64_body: &str,
+    api_path: &str,
+    salt_key: &Secret<String>,
+    key_index: &str,
+) -> Result<String, error_stack::Report<WebhookError>> {
+    use hyperswitch_masking::PeekInterface;
+
+    let checksum_input = format!("{}{}{}", base64_body, api_path, salt_key.peek());
+    let sha256 = crypto::Sha256;
+    let hash_bytes = sha256
+        .generate_digest(checksum_input.as_bytes())
+        .change_context(WebhookError::WebhookSourceVerificationFailed)?;
+    let hash = hash_bytes.iter().fold(String::new(), |mut acc, byte| {
+        use std::fmt::Write;
+        let _ = write!(&mut acc, "{byte:02x}");
+        acc
+    });
+    Ok(format!(
+        "{}{}{}",
+        hash,
+        constants::CHECKSUM_SEPARATOR,
+        key_index
+    ))
+}
+
+// ===== REFUND SYNC RESPONSE HANDLING =====
+
+impl TryFrom<ResponseRouterData<PhonepeRefundSyncResponse, Self>>
+    for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
+{
+    type Error = ResponseError;
+
+    fn try_from(
+        item: ResponseRouterData<PhonepeRefundSyncResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+
+        if response.success {
+            let refund_status = response
+                .data
+                .as_ref()
+                .and_then(|d| d.state.as_deref())
+                .map(|state| match state {
+                    "PAYMENT_SUCCESS" | "SUCCESS" => common_enums::RefundStatus::Success,
+                    "PAYMENT_PENDING" | "PENDING" | "TIMED_OUT" => {
+                        common_enums::RefundStatus::Pending
+                    }
+                    "PAYMENT_ERROR" | "FAILED" | "ERROR" | "PAYMENT_DECLINED" => {
+                        common_enums::RefundStatus::Failure
+                    }
+                    _ => common_enums::RefundStatus::Pending,
+                })
+                .unwrap_or(common_enums::RefundStatus::Pending);
+
+            let connector_refund_id = response
+                .data
+                .as_ref()
+                .and_then(|d| d.merchant_transaction_id.clone())
+                .unwrap_or_else(|| item.router_data.request.connector_refund_id.clone());
+
+            let mut router_data = item.router_data;
+            router_data.response = Ok(RefundsResponseData {
+                connector_refund_id,
+                refund_status,
+                status_code: item.http_code,
+            });
+            Ok(router_data)
+        } else {
+            // Error response from RSync API
+            let error_message = response.message.clone();
+            let error_code = response.code.clone();
+
+            let mut router_data = item.router_data;
+            router_data.response = Err(domain_types::router_data::ErrorResponse {
+                code: error_code,
+                message: error_message.clone(),
+                reason: Some(error_message),
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            });
+            Ok(router_data)
+        }
+    }
+}
+
+// ===== VOID REQUEST/RESPONSE STRUCTURES =====
+
+/// Inner payload for the void request - base64 encoded and sent as `request` field
+#[derive(Debug, Serialize)]
+struct PhonepeVoidRequestPayload {
+    #[serde(rename = "merchantId")]
+    merchant_id: Secret<String>,
+    #[serde(rename = "originalTransactionId")]
+    original_transaction_id: String,
+}
+
+/// Top-level void request structure: base64-encoded payload + checksum
+#[derive(Debug, Serialize)]
+pub struct PhonepeVoidRequest {
+    request: Secret<String>,
+    #[serde(skip)]
+    pub checksum: String,
+}
+
+/// Void response data object
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PhonepeVoidResponseData {
+    #[serde(rename = "merchantId", skip_serializing_if = "Option::is_none")]
+    pub merchant_id: Option<String>,
+    #[serde(
+        rename = "originalTransactionId",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub original_transaction_id: Option<String>,
+    #[serde(rename = "transactionId", skip_serializing_if = "Option::is_none")]
+    pub transaction_id: Option<String>,
+}
+
+/// Top-level void response
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PhonepeVoidResponse {
+    pub success: bool,
+    pub code: String,
+    #[serde(default = "default_void_error_message")]
+    pub message: String,
+    pub data: Option<PhonepeVoidResponseData>,
+}
+
+fn default_void_error_message() -> String {
+    "Void processing failed".to_string()
+}
+
+// ===== VOID REQUEST BUILDING =====
+
+// TryFrom implementation for owned PhonepeRouterData wrapper (used by macro for request body)
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PhonepeRouterData<
+            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+            T,
+        >,
+    > for PhonepeVoidRequest
+{
+    type Error = Error;
+
+    fn try_from(
+        wrapper: PhonepeRouterData<
+            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &wrapper.router_data;
+        let auth = PhonepeAuthType::try_from(&router_data.connector_config)?;
+
+        let original_transaction_id = router_data.request.connector_transaction_id.clone();
+
+        let payload = PhonepeVoidRequestPayload {
+            merchant_id: auth.merchant_id.clone(),
+            original_transaction_id,
+        };
+
+        let json_payload = Encode::encode_to_string_of_json(&payload).change_context(
+            IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to encode PhonePe request payload to base64".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            },
+        )?;
+
+        let base64_payload = base64::engine::general_purpose::STANDARD.encode(&json_payload);
+        let api_path = format!("/{}", constants::API_VOID_ENDPOINT);
+        let checksum =
+            generate_phonepe_checksum(&base64_payload, &api_path, &auth.salt_key, &auth.key_index)?;
+
+        Ok(Self {
+            request: Secret::new(base64_payload),
+            checksum,
+        })
+    }
+}
+
+// TryFrom implementation for borrowed PhonepeRouterData wrapper (used for header generation)
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        &PhonepeRouterData<
+            &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+            T,
+        >,
+    > for PhonepeVoidRequest
+{
+    type Error = Error;
+
+    fn try_from(
+        item: &PhonepeRouterData<
+            &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+        let auth = PhonepeAuthType::try_from(&router_data.connector_config)?;
+
+        let original_transaction_id = router_data.request.connector_transaction_id.clone();
+
+        let payload = PhonepeVoidRequestPayload {
+            merchant_id: auth.merchant_id.clone(),
+            original_transaction_id,
+        };
+
+        let json_payload = Encode::encode_to_string_of_json(&payload).change_context(
+            IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to encode PhonePe request payload to base64".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            },
+        )?;
+
+        let base64_payload = base64::engine::general_purpose::STANDARD.encode(&json_payload);
+        let api_path = format!("/{}", constants::API_VOID_ENDPOINT);
+        let checksum =
+            generate_phonepe_checksum(&base64_payload, &api_path, &auth.salt_key, &auth.key_index)?;
+
+        Ok(Self {
+            request: Secret::new(base64_payload),
+            checksum,
+        })
+    }
+}
+
+// ===== VOID RESPONSE HANDLING =====
+
+impl TryFrom<ResponseRouterData<PhonepeVoidResponse, Self>>
+    for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
+{
+    type Error = ResponseError;
+
+    fn try_from(item: ResponseRouterData<PhonepeVoidResponse, Self>) -> Result<Self, Self::Error> {
+        let response = &item.response;
+
+        if response.success {
+            let connector_transaction_id = response
+                .data
+                .as_ref()
+                .and_then(|d| d.original_transaction_id.clone())
+                .or_else(|| {
+                    item.router_data
+                        .request
+                        .connector_transaction_id
+                        .clone()
+                        .into()
+                })
+                .unwrap_or_default();
+
+            let mut router_data = item.router_data;
+            router_data.resource_common_data.status = common_enums::AttemptStatus::Voided;
+            router_data.response = Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+            });
+            Ok(router_data)
+        } else {
+            // success=false: void failed
+            let error_message = response.message.clone();
+            let error_code = response.code.clone();
+
+            let connector_transaction_id = response
+                .data
+                .as_ref()
+                .and_then(|d| d.original_transaction_id.clone());
+
+            let attempt_status = match error_code.as_str() {
+                "PAYMENT_ERROR"
+                | "PAYMENT_DECLINED"
+                | "TRANSACTION_NOT_FOUND"
+                | "AUTHORIZATION_FAILED"
+                | "BAD_REQUEST" => Some(common_enums::AttemptStatus::VoidFailed),
+                "PAYMENT_PENDING" | "INTERNAL_SERVER_ERROR" => {
+                    Some(common_enums::AttemptStatus::Pending)
+                }
+                _ => Some(common_enums::AttemptStatus::VoidFailed),
+            };
+
+            let mut router_data = item.router_data;
+            router_data.response = Err(domain_types::router_data::ErrorResponse {
+                code: error_code,
+                message: error_message.clone(),
+                reason: Some(error_message),
+                status_code: item.http_code,
+                attempt_status,
+                connector_transaction_id,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            });
+            Ok(router_data)
+        }
+    }
 }
