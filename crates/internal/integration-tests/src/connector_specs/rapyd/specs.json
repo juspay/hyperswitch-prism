@@ -4,10 +4,12 @@
     "authorize",
     "capture",
     "client_authentication_token",
-    "create_order",                                                                                                                                                                                                                                                               
+    "create_order",
     "get",
+    "recurring_charge",
     "refund",
     "refund_sync",
+    "setup_recurring",
     "void"
   ]
 }

@@ -53,7 +53,7 @@ use transformers::{
 use super::macros;
 use crate::{types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
-use domain_types::errors::IntegrationError;
+use domain_types::errors::{IntegrationError, IntegrationErrorContext};
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -692,8 +692,21 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let url = self.get_url(req)?;
-            let url_path = url.strip_prefix(self.connector_base_url_payments(req))
-                .unwrap_or(&url);
+            // HMAC SHA-256 signs only the path component (everything after
+            // the base URL). Falling back to the full URL here would produce
+            // a signature Rapyd cannot verify, so treat a missing prefix as
+            // a hard error instead of silently signing the wrong input.
+            let url_path = url
+                .strip_prefix(self.connector_base_url_payments(req))
+                .ok_or(IntegrationError::RequestEncodingFailed {
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "rapyd SetupMandate: computed URL did not start with the configured base URL; HMAC signature requires the exact path component"
+                                .to_owned(),
+                        ),
+                        ..Default::default()
+                    },
+                })?;
             let body = self.get_request_body(req)?
                 .map(|content| content.get_inner_value().expose())
                 .unwrap_or_default();
@@ -734,8 +747,21 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let url = self.get_url(req)?;
-            let url_path = url.strip_prefix(self.connector_base_url_payments(req))
-                .unwrap_or(&url);
+            // HMAC SHA-256 signs only the path component (everything after
+            // the base URL). Falling back to the full URL here would produce
+            // a signature Rapyd cannot verify, so treat a missing prefix as
+            // a hard error instead of silently signing the wrong input.
+            let url_path = url
+                .strip_prefix(self.connector_base_url_payments(req))
+                .ok_or(IntegrationError::RequestEncodingFailed {
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "rapyd RepeatPayment: computed URL did not start with the configured base URL; HMAC signature requires the exact path component"
+                                .to_owned(),
+                        ),
+                        ..Default::default()
+                    },
+                })?;
             let body = self.get_request_body(req)?
                 .map(|content| content.get_inner_value().expose())
                 .unwrap_or_default();
