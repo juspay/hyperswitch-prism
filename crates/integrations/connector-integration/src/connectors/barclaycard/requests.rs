@@ -174,9 +174,16 @@ pub struct SetupMandateAuthorizationOptions {
 #[serde(rename_all = "camelCase")]
 pub struct SetupMandateInitiator {
     #[serde(rename = "type")]
-    pub initiator_type: Option<String>,
+    pub initiator_type: Option<BarclaycardPaymentInitiatorTypes>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub credential_stored_on_file: Option<bool>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum BarclaycardPaymentInitiatorTypes {
+    Customer,
+    Merchant,
 }
 
 // --- RepeatPayment (MIT) types ---
@@ -215,7 +222,7 @@ pub struct AuthorizationOptions {
 pub struct PaymentInitiator {
     #[serde(rename = "type")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub initiator_type: Option<String>,
+    pub initiator_type: Option<BarclaycardPaymentInitiatorTypes>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stored_credential_used: Option<bool>,
 }

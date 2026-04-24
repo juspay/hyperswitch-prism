@@ -31,6 +31,26 @@ use crate::{types::ResponseRouterData, utils};
 /// - If 3DS were implemented in future, this would indicate the algorithm to use
 const CAVV_ALGORITHM_ATN: &str = "2";
 
+/// `processingInformation.commerceIndicator` — marks a standard e-commerce transaction.
+/// Used for the initial customer-initiated flows (Authorize, SetupMandate) and for MITs
+/// that reference a stored TMS payment instrument.
+const COMMERCE_INDICATOR_INTERNET: &str = "internet";
+
+/// `processingInformation.commerceIndicator` — marks a recurring merchant-initiated
+/// transaction. Used when the MIT carries a raw card + network transaction id (NTI).
+const COMMERCE_INDICATOR_RECURRING: &str = "recurring";
+
+/// `paymentInformation.card.typeSelectionIndicator` — "1" tells Barclaycard that the
+/// `type` field above refers to the primary card type (as opposed to a co-badged
+/// secondary network). Barclaycard requires this for every card payment.
+const TYPE_SELECTION_INDICATOR_PRIMARY: &str = "1";
+
+/// `processingInformation.authorizationOptions.merchantInitiatedTransaction.reason` — "7"
+/// indicates a merchant-initiated transaction using a network transaction id (the NTI
+/// flow). Other reason codes exist for installment/recurring/resubmission MITs but are
+/// not used here.
+const MIT_REASON_NTI: &str = "7";
+
 #[derive(Debug, Clone)]
 pub struct BarclaycardAuthType {
     pub api_key: Secret<String>,
@@ -188,6 +208,55 @@ fn map_barclaycard_refund_status(
     }
 }
 
+/// Flatten Barclaycard's per-field error details into a single formatted string.
+///
+/// Barclaycard returns structured error details as a list of `{field, reason}` pairs.
+/// This helper formats them into `"field1 : reason1, field2 : reason2"` for populating
+/// the `reason` field of the UCS `ErrorResponse`.
+fn format_error_details(details: Option<&Vec<responses::Details>>) -> Option<String> {
+    details.map(|details| {
+        details
+            .iter()
+            .map(|d| format!("{} : {}", d.field, d.reason))
+            .collect::<Vec<_>>()
+            .join(", ")
+    })
+}
+
+/// Extract and format the original authorized amount for Barclaycard MIT requests.
+///
+/// Barclaycard's `merchantInitiatedTransaction.originalAuthorizedAmount` references the
+/// amount from the initial customer-initiated transaction that established the mandate.
+/// It must be a decimal string in the major unit of the original currency (e.g. "10.00").
+/// Both the ConnectorMandateId and NetworkMandateId branches of RepeatPayment need this.
+fn get_repeat_payment_original_authorized_amount<T>(
+    router_data: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+) -> Result<Option<String>, error_stack::Report<IntegrationError>>
+where
+    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
+{
+    let original_pair = router_data
+        .request
+        .recurring_mandate_payment_data
+        .as_ref()
+        .and_then(|data| {
+            data.original_payment_authorized_amount
+                .as_ref()
+                .map(|oa| (oa.amount, oa.currency))
+        });
+
+    match original_pair {
+        Some((original_amount, original_currency)) => {
+            Ok(Some(domain_types::utils::get_amount_as_string(
+                &common_enums::CurrencyUnit::Base,
+                original_amount,
+                original_currency,
+            )?))
+        }
+        None => Ok(None),
+    }
+}
+
 fn get_error_reason(
     error_info: Option<String>,
     detailed_error_info: Option<String>,
@@ -273,17 +342,7 @@ fn transform_payment_response<F, Req>(
         }
         responses::BarclaycardPaymentsResponse::ErrorInformation(error_response) => {
             let detailed_error_info =
-                error_response
-                    .error_information
-                    .details
-                    .as_ref()
-                    .map(|details| {
-                        details
-                            .iter()
-                            .map(|d| format!("{} : {}", d.field, d.reason))
-                            .collect::<Vec<_>>()
-                            .join(", ")
-                    });
+                format_error_details(error_response.error_information.details.as_ref());
 
             let reason = get_error_reason(
                 error_response.error_information.message.clone(),
@@ -344,15 +403,9 @@ fn get_error_response(
             })
         });
 
-    let detailed_error_info = error_data.to_owned().and_then(|error_info| {
-        error_info.details.map(|error_details| {
-            error_details
-                .iter()
-                .map(|details| format!("{} : {}", details.field, details.reason))
-                .collect::<Vec<_>>()
-                .join(", ")
-        })
-    });
+    let detailed_error_info = error_data
+        .as_ref()
+        .and_then(|error_info| format_error_details(error_info.details.as_ref()));
 
     let network_decline_code = processor_information
         .as_ref()
@@ -442,7 +495,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     expiration_year: ccard.get_expiry_year_4_digit(),
                     security_code: ccard.card_cvc.clone(),
                     card_type,
-                    type_selection_indicator: Some("1".to_owned()),
+                    type_selection_indicator: Some(TYPE_SELECTION_INDICATOR_PRIMARY.to_owned()),
                 },
             }));
 
@@ -471,7 +524,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         let processing_information = requests::ProcessingInformation {
-            commerce_indicator: "internet".to_string(),
+            commerce_indicator: COMMERCE_INDICATOR_INTERNET.to_string(),
             capture: Some(matches!(
                 router_data.request.capture_method,
                 Some(common_enums::CaptureMethod::Automatic) | None
@@ -960,7 +1013,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     expiration_year: ccard.get_expiry_year_4_digit(),
                     security_code: ccard.card_cvc.clone(),
                     card_type,
-                    type_selection_indicator: Some("1".to_owned()),
+                    type_selection_indicator: Some(TYPE_SELECTION_INDICATOR_PRIMARY.to_owned()),
                 },
             }));
 
@@ -970,13 +1023,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // network transaction id (NTI), which is then used as the mandate reference for
         // subsequent merchant-initiated transactions (MIT).
         let processing_information = requests::SetupMandateProcessingInformation {
-            commerce_indicator: "internet".to_string(),
+            commerce_indicator: COMMERCE_INDICATOR_INTERNET.to_string(),
             capture: Some(false),
             action_list: None,
             action_token_types: None,
             authorization_options: Some(requests::SetupMandateAuthorizationOptions {
                 initiator: Some(requests::SetupMandateInitiator {
-                    initiator_type: Some("customer".to_string()),
+                    initiator_type: Some(requests::BarclaycardPaymentInitiatorTypes::Customer),
                     credential_stored_on_file: Some(true),
                 }),
             }),
@@ -1017,28 +1070,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         match item.response {
             responses::BarclaycardPaymentsResponse::ClientReferenceInformation(info_response) => {
-                // Preferred: TMS-provided payment instrument id (when available).
-                // Fallback: the network transaction id (NTI) from processor_information, which
-                // Barclaycard's Smartpay sandbox always returns and is usable as a mandate
-                // reference for subsequent NetworkMandateId-based MIT charges.
-                let connector_mandate_id = info_response
+                // Only populate connector_mandate_id when TMS issued a payment instrument id.
+                // When the sandbox cannot return a TMS token, the network_transaction_id is still
+                // surfaced via network_txn_id below, letting the caller use the NetworkMandateId
+                // MIT path — preserving the type distinction between a connector-generated
+                // tokenized credential and a raw network transaction id.
+                let mandate_reference = info_response
                     .token_information
                     .as_ref()
                     .and_then(|token_info| token_info.payment_instrument.as_ref())
-                    .map(|payment_instrument| payment_instrument.id.clone().expose())
-                    .or_else(|| {
-                        info_response
-                            .processor_information
-                            .as_ref()
-                            .and_then(|pi| pi.network_transaction_id.clone())
-                            .map(|nti| nti.expose())
+                    .map(|payment_instrument| MandateReference {
+                        connector_mandate_id: Some(payment_instrument.id.clone().expose()),
+                        payment_method_id: None,
+                        connector_mandate_request_reference_id: None,
                     });
-
-                let mandate_reference = connector_mandate_id.map(|id| MandateReference {
-                    connector_mandate_id: Some(id),
-                    payment_method_id: None,
-                    connector_mandate_request_reference_id: None,
-                });
 
                 let mut status = map_barclaycard_attempt_status((
                     info_response
@@ -1048,7 +1093,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     false,
                 ));
 
-                // For zero-dollar auth mandates, convert Authorized to Charged (terminal status)
+                // Drive zero-dollar mandate setups to a terminal attempt status. No money is
+                // captured — the mandate flow has no separate capture step, so Authorized would
+                // otherwise leave the attempt stuck in a non-terminal state. This matches the
+                // hyperswitch Cybersource reference transformer for SetupMandate responses.
                 if matches!(status, common_enums::AttemptStatus::Authorized) {
                     status = common_enums::AttemptStatus::Charged;
                 }
@@ -1097,17 +1145,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
             responses::BarclaycardPaymentsResponse::ErrorInformation(error_response) => {
                 let detailed_error_info =
-                    error_response
-                        .error_information
-                        .details
-                        .as_ref()
-                        .map(|details| {
-                            details
-                                .iter()
-                                .map(|d| format!("{} : {}", d.field, d.reason))
-                                .collect::<Vec<_>>()
-                                .join(", ")
-                        });
+                    format_error_details(error_response.error_information.details.as_ref());
 
                 let reason = get_error_reason(
                     error_response.error_information.message.clone(),
@@ -1190,26 +1228,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         context: Default::default(),
                     },
                 )?;
-                let original_authorized_amount = router_data
-                    .request
-                    .recurring_mandate_payment_data
-                    .as_ref()
-                    .and_then(|data| {
-                        data.original_payment_authorized_amount
-                            .as_ref()
-                            .map(|oa| (oa.amount, oa.currency))
-                    });
-
-                let original_authorized_amount = match original_authorized_amount {
-                    Some((original_amount, original_currency)) => {
-                        Some(domain_types::utils::get_amount_as_string(
-                            &common_enums::CurrencyUnit::Base,
-                            original_amount,
-                            original_currency,
-                        )?)
-                    }
-                    None => None,
-                };
+                let original_authorized_amount =
+                    get_repeat_payment_original_authorized_amount(router_data)?;
 
                 let payment_instrument = requests::PaymentInstrument {
                     id: mandate_id.into(),
@@ -1217,7 +1237,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
                 let mandate_card = match router_data.request.payment_method_type {
                     Some(common_enums::PaymentMethodType::Card) => Some(requests::MandateCard {
-                        type_selection_indicator: Some("1".to_owned()),
+                        type_selection_indicator: Some(
+                            TYPE_SELECTION_INDICATOR_PRIMARY.to_owned(),
+                        ),
                     }),
                     _ => None,
                 };
@@ -1229,10 +1251,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     },
                 ));
 
+                // MIT using a stored TMS payment instrument. The paymentInstrument.id itself is
+                // the reference to the stored credential, so previous_transaction_id/reason are
+                // left unset (matches the hyperswitch Cybersource reference implementation).
+                // initiator.type = Merchant + stored_credential_used = true tells Barclaycard
+                // this is merchant-initiated against a stored credential.
                 (
-                    "internet".to_string(),
+                    COMMERCE_INDICATOR_INTERNET.to_string(),
                     Some(requests::AuthorizationOptions {
-                        initiator: None,
+                        initiator: Some(requests::PaymentInitiator {
+                            initiator_type: Some(
+                                requests::BarclaycardPaymentInitiatorTypes::Merchant,
+                            ),
+                            stored_credential_used: Some(true),
+                        }),
                         merchant_initiated_transaction: Some(
                             requests::MerchantInitiatedTransaction {
                                 reason: None,
@@ -1245,26 +1277,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 )
             }
             MandateReferenceId::NetworkMandateId(network_transaction_id) => {
-                let original_authorized_amount = router_data
-                    .request
-                    .recurring_mandate_payment_data
-                    .as_ref()
-                    .and_then(|data| {
-                        data.original_payment_authorized_amount
-                            .as_ref()
-                            .map(|oa| (oa.amount, oa.currency))
-                    });
-
-                let original_authorized_amount = match original_authorized_amount {
-                    Some((original_amount, original_currency)) => {
-                        Some(domain_types::utils::get_amount_as_string(
-                            &common_enums::CurrencyUnit::Base,
-                            original_amount,
-                            original_currency,
-                        )?)
-                    }
-                    None => None,
-                };
+                let original_authorized_amount =
+                    get_repeat_payment_original_authorized_amount(router_data)?;
 
                 let ccard = match &router_data.request.payment_method_data {
                     PaymentMethodData::CardDetailsForNetworkTransactionId(card) => Ok(card),
@@ -1288,21 +1302,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             expiration_year: ccard.card_exp_year.clone(),
                             security_code: None,
                             card_type,
-                            type_selection_indicator: Some("1".to_owned()),
+                            type_selection_indicator: Some(
+                                TYPE_SELECTION_INDICATOR_PRIMARY.to_owned(),
+                            ),
                         },
                     },
                 ));
 
                 (
-                    "recurring".to_string(),
+                    COMMERCE_INDICATOR_RECURRING.to_string(),
                     Some(requests::AuthorizationOptions {
                         initiator: Some(requests::PaymentInitiator {
-                            initiator_type: Some("merchant".to_string()),
+                            initiator_type: Some(
+                                requests::BarclaycardPaymentInitiatorTypes::Merchant,
+                            ),
                             stored_credential_used: Some(true),
                         }),
                         merchant_initiated_transaction: Some(
                             requests::MerchantInitiatedTransaction {
-                                reason: Some("7".to_string()),
+                                reason: Some(MIT_REASON_NTI.to_string()),
                                 original_authorized_amount,
                                 previous_transaction_id: Some(Secret::new(
                                     network_transaction_id.clone(),
@@ -1431,17 +1449,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
             responses::BarclaycardPaymentsResponse::ErrorInformation(error_response) => {
                 let detailed_error_info =
-                    error_response
-                        .error_information
-                        .details
-                        .as_ref()
-                        .map(|details| {
-                            details
-                                .iter()
-                                .map(|d| format!("{} : {}", d.field, d.reason))
-                                .collect::<Vec<_>>()
-                                .join(", ")
-                        });
+                    format_error_details(error_response.error_information.details.as_ref());
 
                 let reason = get_error_reason(
                     error_response.error_information.message.clone(),
