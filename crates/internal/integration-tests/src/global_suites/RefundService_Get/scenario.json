@@ -34,6 +34,7 @@
     "grpc_req": {
       "connector_transaction_id": "auto_generate",
       "refund_id": "auto_generate",
+      "connector_refund_id": "auto_generate",
       "state": {
         "connector_customer_id": "",
         "access_token": {
