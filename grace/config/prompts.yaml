@@ -1,0 +1,203 @@
+# GRACE Custom Prompt Configuration
+# This file defines custom prompts that can be injected into workflow orchestrators
+
+# Version of the prompt configuration schema
+version: "1.0"
+
+# Default prompts applied to all tasks unless overridden
+defaults:
+  system_context: |
+    You are an expert payment integration engineer working with the GRACE framework.
+    Follow all guardrails, rules, and patterns defined in the orchestrator files exactly.
+
+  code_style: |
+    - Use macros for all connector implementations
+    - Use RouterDataV2, not RouterData
+    - Use domain_types, not hyperswitch_*
+    - Follow existing code patterns exactly
+    - Never invent new patterns
+
+# Task-specific prompt overrides
+# These prompts are injected based on task type or connector
+task_prompts:
+  # 3DS/ThreeDS flow implementation
+  three_ds:
+    name: "3DS Flow Implementation"
+    description: "Custom prompts for implementing 3D Secure authentication flows"
+    applicable_flows: ["ThreeDS", "3DS", "ThreeDs"]
+    prompt: |
+      ## 3DS Implementation Guidelines
+
+      When implementing 3DS flows:
+
+      1. **Browser Info Requirements**: Extract and map these fields from the gRPC request:
+         - accept_header (REQUIRED)
+         - user_agent (REQUIRED)
+         - color_depth, screen_width, screen_height (device data)
+         - java_enabled, java_script_enabled
+         - language, time_zone_offset_minutes
+
+      2. **3DS Response States**: Handle these connector response types:
+         - 3dsDeviceDataRequired → Return DEVICE_DATA_COLLECTION_PENDING with redirect_form
+         - 3dsChallenged → Return AUTHENTICATION_PENDING with redirect_form
+         - 3dsAuthenticationFailed → Return AUTHENTICATION_FAILED
+         - authorized → Return AUTHORIZED
+
+      3. **Redirect Form**: For DDC and Challenge, build redirect_form with:
+         - url: The 3DS server URL
+         - method: POST
+         - form_fields: jwt, any additional required fields
+
+      4. **CompleteAuthorize**: Implement for handling 3DS completion callbacks
+
+  # Wallet payment methods (Apple Pay, Google Pay)
+  wallet:
+    name: "Wallet Payment Implementation"
+    description: "Custom prompts for Apple Pay, Google Pay, and other wallet implementations"
+    applicable_payment_methods: ["wallet", "apple_pay", "google_pay", "paypal"]
+    prompt: |
+      ## Wallet Payment Implementation Guidelines
+
+      When implementing wallet payment flows:
+
+      1. **Token Handling**: Wallet payments use encrypted tokens, not raw card data
+         - Extract payment_token from the wallet data
+         - Map to connector's expected token format
+         - Some connectors require decryption on their side
+
+      2. **Network Specification**: Include the card network when available
+         - Visa, Mastercard, Amex, Discover
+         - Some connectors require this in the request
+
+      3. **Display Name**: Pass the card holder name / display name if available
+
+      4. **Billing/Shipping**: Map billing and shipping details from wallet if present
+
+  # Bank Debit / ACH / SEPA
+  bank_debit:
+    name: "Bank Debit Implementation"
+    description: "Custom prompts for ACH, SEPA, BACS, BECS bank debit flows"
+    applicable_flows: ["BankDebit", "BankDebitTransfer"]
+    applicable_payment_methods: ["bank_debit", "ach", "sepa", "bacs", "becs"]
+    prompt: |
+      ## Bank Debit Implementation Guidelines
+
+      When implementing bank debit flows:
+
+      1. **Region-Specific Fields**:
+         - ACH (US): account_number, routing_number, bank_type (Checking/Savings)
+         - SEPA (EU): iban, bank_account_holder_name
+         - BACS (UK): account_number, sort_code
+         - BECS (AU): account_number, bsb_number
+
+      2. **Mandate Requirements**: Some connectors require:
+         - Mandate ID for recurring debits
+         - Customer acceptance timestamp
+         - IP address of mandate acceptance
+
+      3. **Currency Mapping**:
+         - ACH → USD
+         - SEPA → EUR
+         - BACS → GBP
+         - BECS → AUD
+
+      4. **Test Data**: Use appropriate test account numbers for each region
+
+  # Card payments
+  card:
+    name: "Card Payment Implementation"
+    description: "Custom prompts for credit/debit card payments"
+    applicable_payment_methods: ["card", "credit", "debit"]
+    prompt: |
+      ## Card Payment Implementation Guidelines
+
+      When implementing card payment flows:
+
+      1. **Card Data Handling**:
+         - card_number (PAN) - map to connector's expected field
+         - card_exp_month, card_exp_year - ensure proper formatting (MM/YYYY or MM/YY)
+         - card_cvc / card_cvv - security code
+         - card_holder_name - name on card
+
+      2. **Card Network Detection**: Map card_network if provided:
+         - Visa, Mastercard, AmericanExpress, Discover, JCB, DinersClub, UnionPay, CartesBancaires
+
+      3. **Auth Types**: Support both:
+         - NO_THREE_DS - direct authorization
+         - THREE_DS - 3D Secure authentication (see three_ds prompts)
+
+      4. **Capture Methods**:
+         - AUTOMATIC - immediate capture after authorization
+         - MANUAL - requires separate capture call
+
+# Connector-specific prompts
+# These override or extend task prompts for specific connectors
+connector_prompts:
+  stripe:
+    name: "Stripe-Specific Guidelines"
+    description: "Special handling for Stripe API patterns"
+    prompt: |
+      ## Stripe-Specific Implementation Notes
+
+      1. **Idempotency**: Always include Idempotency-Key header for POST requests
+      2. **API Version**: Use Stripe-Version header if required
+      3. **Expand Params**: Use expand[] to include related objects in response
+      4. **Metadata**: Map request metadata to Stripe's metadata object
+      5. **Error Codes**: Stripe uses specific error codes (card_declined, insufficient_funds, etc.)
+
+  adyen:
+    name: "Adyen-Specific Guidelines"
+    description: "Special handling for Adyen API patterns"
+    prompt: |
+      ## Adyen-Specific Implementation Notes
+
+      1. **Merchant Account**: Required in every request as merchantAccount field
+      2. **Reference**: Provide unique reference for idempotency
+      3. **Payment Method**: Use paymentMethod object with type field
+      4. **Shopper Interaction**: Set to Ecommerce or ContAuth based on flow
+      5. **Recurring**: For MIT, set shopperInteraction and recurringProcessingModel
+
+  worldpay:
+    name: "Worldpay-Specific Guidelines"
+    description: "Special handling for Worldpay API patterns"
+    prompt: |
+      ## Worldpay-Specific Implementation Notes
+
+      1. **Entity**: Use "default" or specific merchant entity
+      2. **Instruction Structure**: Wrap payment details in instruction object
+      3. **Payment Instrument**: Use type: "card/plain" for card payments
+      4. **3DS Type**: Use "intelligent" or "challenge" based on requirements
+      5. **Narrative**: Include line1 for transaction description
+
+# Validation rules for custom prompts
+validation:
+  max_prompt_length: 10000
+  required_fields:
+    - name
+    - description
+    - prompt
+  allowed_variables:
+    - CONNECTOR
+    - CONNECTOR_NAME
+    - FLOW
+    - PAYMENT_METHOD
+    - PAYMENT_METHOD_TYPE
+    - BRANCH
+
+# Injection points - where custom prompts can be applied
+injection_points:
+  - name: "pre_analysis"
+    description: "Before analyzing the task/connector"
+    applicable_to: ["1_orchestrator.md", "2_connector.md", "3_task_orchestrator.md", "4_task_implementer.md"]
+
+  - name: "pre_codegen"
+    description: "Before generating code"
+    applicable_to: ["2.3_codegen.md", "4_task_implementer.md"]
+
+  - name: "pre_test"
+    description: "Before running grpcurl tests"
+    applicable_to: ["2.3_codegen.md", "4_task_implementer.md"]
+
+  - name: "on_error"
+    description: "When an error occurs"
+    applicable_to: ["all"]
