@@ -15,7 +15,7 @@
 #   --suite <name>        Run tests for a single suite
 #   --scenario <name>     Run a single scenario (requires --suite)
 #   --interface grpc|sdk  Execution interface (default: grpc)
-#   --endpoint <addr>     Override gRPC endpoint (default: localhost:50051)
+#   --endpoint <addr>     Override gRPC endpoint (default: localhost:8000)
 #   --report              Write report.json + markdown test_report/ files
 #   --no-server           Do not start/stop the gRPC server automatically
 #   --setup               Force re-run of the one-time setup wizard

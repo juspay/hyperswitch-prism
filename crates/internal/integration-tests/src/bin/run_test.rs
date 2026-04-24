@@ -631,7 +631,7 @@ mod tests {
             "--connector",
             "stripe",
             "--endpoint",
-            "localhost:50051",
+            "localhost:8000",
             "--merchant-id",
             "test_merchant",
             "--tenant-id",
@@ -644,7 +644,7 @@ mod tests {
         let parsed = parse_args(args).expect("args should parse");
         assert!(!parsed.plaintext);
         assert_eq!(parsed.connector.as_deref(), Some("stripe"));
-        assert_eq!(parsed.endpoint.as_deref(), Some("localhost:50051"));
+        assert_eq!(parsed.endpoint.as_deref(), Some("localhost:8000"));
     }
 
     #[test]

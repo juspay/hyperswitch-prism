@@ -20,8 +20,8 @@ pub fn suite_dir_name_to_suite_name(dir_name: &str) -> Option<String> {
     let service = &dir_name[..sep_pos];
     let method = &dir_name[sep_pos + 1..];
     debug_assert!(
-        !method.contains('/'),
-        "suite directory name {dir_name:?} produced a malformed suite name: service part {service:?} must not contain underscores",
+        !service.contains('_'),
+        "suite directory name {dir_name:?} has an underscore in the service part {service:?} — service names must be single CamelCase words with no underscores",
     );
     Some(format!("{service}/{method}"))
 }

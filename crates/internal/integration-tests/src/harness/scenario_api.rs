@@ -1636,7 +1636,10 @@ fn remove_json_path(root: &mut Value, path: &str) -> bool {
 fn has_only_default_leaves(value: &Value) -> bool {
     match value {
         Value::Null | Value::Bool(false) => true,
-        Value::String(s) => s.is_empty(),
+        // Treat "auto_generate" sentinels as unresolved defaults so they are
+        // pruned before resolve_auto_generate runs, preventing bogus UUIDs from
+        // being generated for fields whose dependency context was never populated.
+        Value::String(s) => s.is_empty() || s == "auto_generate",
         Value::Number(n) => n.as_f64().map(|f| f == 0.0).unwrap_or(false),
         Value::Array(items) => items.is_empty() || items.iter().all(has_only_default_leaves),
         Value::Object(map) => map.is_empty() || map.values().all(has_only_default_leaves),
@@ -4758,7 +4761,7 @@ mod tests {
         let command = build_grpcurl_command(
             Some("PaymentService/Authorize"),
             Some("no3ds_auto_capture_credit_card"),
-            Some("localhost:50051"),
+            Some("localhost:8000"),
             Some("stripe"),
             Some("test_merchant"),
             Some("default"),
@@ -4777,7 +4780,7 @@ mod tests {
         let request = build_grpcurl_request(
             Some("PaymentService/Authorize"),
             Some("no3ds_auto_capture_credit_card"),
-            Some("localhost:50051"),
+            Some("localhost:8000"),
             Some("stripe"),
             Some("test_merchant"),
             Some("default"),
@@ -4786,7 +4789,7 @@ mod tests {
         )
         .expect("grpcurl request should build");
 
-        assert_eq!(request.endpoint, "localhost:50051");
+        assert_eq!(request.endpoint, "localhost:8000");
         assert_eq!(request.method, "types.PaymentService/Authorize");
         assert!(request.payload.contains("\"auth_type\": \"NO_THREE_DS\""));
         assert!(!request.headers.is_empty());
@@ -4838,7 +4841,7 @@ grpc-status: 0
         let request = build_grpcurl_request(
             Some("PaymentService/Authorize"),
             Some("no3ds_manual_capture_credit_card"),
-            Some("localhost:50051"),
+            Some("localhost:8000"),
             Some("stripe"),
             Some("test_merchant"),
             Some("default"),

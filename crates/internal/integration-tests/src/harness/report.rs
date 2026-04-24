@@ -302,17 +302,16 @@ fn suite_display_name(suite: &str) -> String {
         "PaymentService/IncrementalAuthorization" => "Incremental Auth",
         "PaymentService/CreateOrder" => "Create Order",
         other => {
-            return other
-                .split('_')
-                .map(|w| {
-                    let mut c = w.chars();
-                    match c.next() {
-                        None => String::new(),
-                        Some(f) => f.to_uppercase().to_string() + c.as_str(),
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join(" ")
+            // Suite identifiers are "ServiceName/MethodName". Extract the method
+            // part and split CamelCase words for a readable fallback label.
+            let method = other.split('/').nth(1).unwrap_or(other);
+            return method.chars().fold(String::new(), |mut acc, c| {
+                if c.is_uppercase() && !acc.is_empty() {
+                    acc.push(' ');
+                }
+                acc.push(c);
+                acc
+            });
         }
     };
     name.to_string()
@@ -1404,7 +1403,7 @@ mod tests {
             connector: "stripe".to_string(),
             pm: Some("card".to_string()),
             pmt: Some("credit".to_string()),
-            endpoint: "localhost:50051".to_string(),
+            endpoint: "localhost:8000".to_string(),
             is_dependency: false,
             assertion_result: "PASS".to_string(),
             response_status: None,
@@ -1423,7 +1422,7 @@ mod tests {
                 "access_token": "access_token_value"
             })),
             grpc_request: Some(
-                "grpcurl -plaintext \\\n+  -H \"x-api-key: sk_test_123\" \\\n+  -H \"authorization: Bearer token123\" \\\n+  -d @ localhost:50051 types.PaymentService/Authorize <<'JSON'"
+                "grpcurl -plaintext \\\n+  -H \"x-api-key: sk_test_123\" \\\n+  -H \"authorization: Bearer token123\" \\\n+  -d @ localhost:8000 types.PaymentService/Authorize <<'JSON'"
                     .to_string(),
             ),
             grpc_response: Some(
