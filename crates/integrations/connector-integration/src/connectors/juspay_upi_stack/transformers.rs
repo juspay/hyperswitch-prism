@@ -319,19 +319,14 @@ pub fn build_authorize_request<T: PaymentMethodDataTypes + serde::Serialize>(
         .filter(|c| c.is_alphanumeric())
         .collect();
 
-    // Build remarks from description
-    let remarks = router_data.resource_common_data.description.clone();
-
-    let ref_url = router_data.request.router_return_url.clone();
-
     let register_intent = RegisterIntentRequest {
         merchant_request_id,
         upi_request_id,
         amount: amount_str,
         flow: RegisterIntentFlowType::Transaction,
         intent_request_expiry_minutes: Some(intent_expiry),
-        remarks,
-        ref_url,
+        remarks: router_data.resource_common_data.description.clone(),
+        ref_url: router_data.request.router_return_url.clone(),
         iat: get_current_timestamp_ms(),
     };
 
@@ -478,16 +473,48 @@ pub fn build_refund_request(
 pub fn build_rsync_request(
     connector_transaction_id: String,
     connector_refund_id: String,
+    refund_amount: Option<common_utils::types::MinorUnit>,
+    connector_feature_data: &Option<SecretSerdeValue>,
     auth: &JuspayUpiAuthConfig,
 ) -> Result<JwsObject, error_stack::Report<IntegrationError>> {
     use crate::connectors::juspay_upi_stack::crypto::get_current_timestamp_ms;
     use crate::connectors::juspay_upi_stack::types::Refund360Type;
 
+    let amount_str = refund_amount
+        .map(|a| minor_to_major_amount(a.get_amount_as_i64()))
+        .ok_or_else(|| IntegrationError::MissingRequiredField {
+            field_name: "refund_amount",
+            context: IntegrationErrorContext {
+                suggested_action: Some("Provide refund_amount in RSync request".to_string()),
+                doc_url: Some(
+                    "https://juspay.io/in/docs/upi-merchant-stack/docs/transactions/refund-360"
+                        .to_string(),
+                ),
+                additional_context: Some(
+                    "refund_amount is required for Juspay UPI Stack refund status check"
+                        .to_string(),
+                ),
+            },
+        })?;
+
+    // Determine refund type from connector_feature_data (default to Offline for safety)
+    let refund_type = connector_feature_data
+        .as_ref()
+        .and_then(|m| m.peek().get("refund_type").cloned())
+        .and_then(|v| {
+            v.as_str().map(|s| match s.to_uppercase().as_str() {
+                "UDIR" => Refund360Type::Udir,
+                "ONLINE" => Refund360Type::Online,
+                _ => Refund360Type::Offline,
+            })
+        })
+        .unwrap_or(Refund360Type::Offline);
+
     let refund_sync = Refund360Request {
         original_merchant_request_id: connector_transaction_id,
         refund_request_id: connector_refund_id,
-        refund_type: Refund360Type::Offline, // Default for sync
-        refund_amount: "0.00".to_string(),   // Not needed for status check
+        refund_type,
+        refund_amount: amount_str,
         remarks: "Status check".to_string(),
         adj_code: None,
         adj_flag: None,

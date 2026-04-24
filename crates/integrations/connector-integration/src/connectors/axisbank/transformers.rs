@@ -300,8 +300,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let connector_transaction_id = router_data.request.connector_transaction_id.clone();
         let connector_refund_id = router_data.request.connector_refund_id.clone();
+        let refund_amount = router_data.request.refund_amount;
+        let connector_feature_data = &router_data.request.connector_feature_data;
 
-        build_rsync_request(connector_transaction_id, connector_refund_id, &shared_auth)
+        build_rsync_request(
+            connector_transaction_id,
+            connector_refund_id,
+            refund_amount,
+            connector_feature_data,
+            &shared_auth,
+        )
     }
 }
 

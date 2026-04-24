@@ -1752,6 +1752,7 @@ pub struct RefundSyncData {
     /// Charges associated with the payment
     pub split_refunds: Option<SplitRefundsRequest>,
     pub connector_feature_data: Option<SecretSerdeValue>,
+    pub refund_amount: Option<common_utils::types::MinorUnit>,
 }
 
 impl RefundSyncData {

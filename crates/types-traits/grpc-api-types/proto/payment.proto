@@ -3271,6 +3271,9 @@ message RefundServiceGetRequest {
   optional PaymentMethodType payment_method_type = 9;
 
   optional SecretString connector_feature_data = 10;
+
+  // Amount Information
+  optional Money refund_amount = 15;
 }
 
 // ============================================================================
