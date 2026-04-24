@@ -1177,8 +1177,9 @@ fn extract_stax_mandate_token<T: PaymentMethodDataTypes>(
             }
             .into())
         }
-        _ => Err(IntegrationError::not_implemented(
+        _ => Err(IntegrationError::NotImplemented(
             "Only card and ACH bank debit payments are supported for Stax".to_string(),
+            Default::default(),
         )
         .into()),
     }
