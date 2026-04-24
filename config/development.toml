@@ -145,6 +145,7 @@ truelayer.secondary_base_url = "https://auth.truelayer-sandbox.com"
 trustly.base_url = "https://test.trustly.com/api/1"
 itaubank.base_url = "https://sandbox.devportal.itau.com.br"
 pinelabs_online.base_url = "https://pluraluat.v2.pinepg.in/api/pay/v1"
+axisbank.base_url = "https://upiuatv3.axisbank.com/api/b2/"
 
 # Generic Events Configuration
 [events]

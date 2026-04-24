@@ -247,3 +247,8 @@ pub use self::pinelabs_online::PinelabsOnline;
 
 pub mod imerchantsolutions;
 pub use self::imerchantsolutions::Imerchantsolutions;
+
+pub mod juspay_upi_stack;
+
+pub mod axisbank;
+pub use self::axisbank::Axisbank;

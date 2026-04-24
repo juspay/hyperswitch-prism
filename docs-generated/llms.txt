@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 84
+# Connectors: 85
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 84
+  total_connectors: 85
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -61,6 +61,14 @@ scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_paymen
 payment_methods: Ach, Card
 flows: authorize, capture, create_customer, get, handle_event, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
 examples_python: examples/authorizedotnet/authorizedotnet.py
+
+## Axisbank
+connector_id: axisbank
+doc: docs/connectors/axisbank.md
+scenarios: none
+payment_methods: none
+flows: 
+examples_python: none
 
 ## Bambora
 connector_id: bambora

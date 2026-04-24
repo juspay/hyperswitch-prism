@@ -391,6 +391,7 @@ pub struct Connectors {
     pub sanlam: ConnectorParams,
     pub pinelabs_online: ConnectorParams,
     pub imerchantsolutions: ConnectorParams,
+    pub axisbank: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -6357,6 +6358,9 @@ impl ForeignTryFrom<grpc_api_types::payments::RefundServiceGetRequest> for Refun
                 .connector_feature_data
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "merchant account metadata")))
                 .transpose()?,
+            refund_amount: value
+                .refund_amount
+                .map(|a| common_utils::types::MinorUnit::new(a.minor_amount)),
         })
     }
 }

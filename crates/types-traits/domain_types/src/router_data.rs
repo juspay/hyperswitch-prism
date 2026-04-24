@@ -725,6 +725,13 @@ pub enum ConnectorSpecificConfig {
         client_secret: Secret<String>,
         base_url: Option<String>,
     },
+    Axisbank {
+        merchant_kid: Secret<String>,
+        juspay_kid: Secret<String>,
+        merchant_private_key: Secret<String>,
+        juspay_public_key: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -1025,6 +1032,12 @@ impl ConnectorSpecificConfig {
             Itaubank {
                 client_id,
                 client_secret
+            },
+            Axisbank {
+                merchant_kid,
+                juspay_kid,
+                merchant_private_key,
+                juspay_public_key
             },
             PinelabsOnline {
                 client_id,
@@ -1419,6 +1432,13 @@ impl ConnectorSpecificConfig {
                 Itaubank {
                     client_id,
                     client_secret
+                },
+                Axisbank {
+                    merchant_kid,
+                    juspay_kid,
+                    merchant_private_key,
+                    juspay_public_key,
+                    base_url
                 },
                 PinelabsOnline {
                     client_id,
@@ -1905,6 +1925,13 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 password: trustly.password.ok_or_else(err)?,
                 private_key: trustly.private_key.ok_or_else(err)?,
                 base_url: trustly.base_url,
+            }),
+            AuthType::Axisbank(axisbank) => Ok(Self::Axisbank {
+                merchant_kid: axisbank.merchant_kid.ok_or_else(err)?,
+                juspay_kid: axisbank.juspay_kid.ok_or_else(err)?,
+                merchant_private_key: axisbank.merchant_private_key.ok_or_else(err)?,
+                juspay_public_key: axisbank.juspay_public_key.ok_or_else(err)?,
+                base_url: axisbank.base_url,
             }),
             AuthType::Truelayer(truelayer) => Ok(Self::Truelayer {
                 client_id: truelayer.client_id.ok_or_else(err)?,
@@ -2956,6 +2983,21 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::PinelabsOnline {
                     client_id: api_key.clone(),
                     client_secret: key1.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err().into()),
+            },
+            ConnectorEnum::Axisbank => match auth {
+                ConnectorAuthType::MultiAuthKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                    key2,
+                } => Ok(Self::Axisbank {
+                    merchant_kid: api_key.clone(),
+                    juspay_kid: key1.clone(),
+                    merchant_private_key: api_secret.clone(),
+                    juspay_public_key: key2.clone(),
                     base_url: None,
                 }),
                 _ => Err(err().into()),

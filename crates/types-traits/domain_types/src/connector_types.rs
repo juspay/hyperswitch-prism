@@ -141,6 +141,7 @@ pub enum ConnectorEnum {
     Itaubank,
     Sanlam,
     PinelabsOnline,
+    Axisbank,
 }
 
 impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
@@ -230,6 +231,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Itaubank => Ok(Self::Itaubank),
             grpc_api_types::payments::Connector::PinelabsOnline => Ok(Self::PinelabsOnline),
             grpc_api_types::payments::Connector::Imerchantsolutions => Ok(Self::Imerchantsolutions),
+            grpc_api_types::payments::Connector::Axisbank => Ok(Self::Axisbank),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -1750,6 +1752,7 @@ pub struct RefundSyncData {
     /// Charges associated with the payment
     pub split_refunds: Option<SplitRefundsRequest>,
     pub connector_feature_data: Option<SecretSerdeValue>,
+    pub refund_amount: Option<common_utils::types::MinorUnit>,
 }
 
 impl RefundSyncData {
@@ -4175,6 +4178,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Truelayer(_) => Ok(Self::Truelayer),
             AuthType::Fiservcommercehub(_) => Ok(Self::Fiservcommercehub),
             AuthType::Itaubank(_) => Ok(Self::Itaubank),
+            AuthType::Axisbank(_) => Ok(Self::Axisbank),
             AuthType::Screenstream(_) => Err(error_stack::Report::new(
                 IntegrationError::InvalidDataFormat {
                     field_name: "connector",

@@ -322,6 +322,7 @@ impl
             test_mode: item.test_mode,
             payment_method_type: item.payment_method_type,
             connector_feature_data: item.connector_feature_data.clone(),
+            refund_amount: item.refund_amount,
         }
     }
 }
