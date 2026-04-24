@@ -4,6 +4,7 @@
     "PaymentService/Authorize",
     "PaymentService/Capture",
     "MerchantAuthenticationService/CreateClientAuthenticationToken",
+    "PaymentService/CreateOrder",
     "PaymentService/Get",
     "PaymentService/Refund",
     "RefundService/Get",

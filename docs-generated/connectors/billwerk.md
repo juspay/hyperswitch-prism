@@ -22,11 +22,15 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        billwerk=payment_pb2.BillwerkConfig(
+            api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
+            public_api_key=payment_methods_pb2.SecretString(value="YOUR_PUBLIC_API_KEY"),
+            base_url="YOUR_BASE_URL",
+            secondary_base_url="YOUR_SECONDARY_BASE_URL",
+        ),
+    ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     billwerk=payment_pb2.BillwerkConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,14 +42,19 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Billwerk',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
+const config = ConnectorConfig.create({
+    connector: Connector.BILLWERK,
+    environment: Environment.SANDBOX,
+    auth: {
+        billwerk: {
+            apiKey: { value: 'YOUR_API_KEY' },
+            publicApiKey: { value: 'YOUR_PUBLIC_API_KEY' },
+            baseUrl: 'YOUR_BASE_URL',
+            secondaryBaseUrl: 'YOUR_SECONDARY_BASE_URL',
+        }
     },
 });
 ```
@@ -59,11 +68,16 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Billwerk")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setBillwerk(BillwerkConfig.newBuilder()
+                .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
+                .setPublicApiKey(SecretString.newBuilder().setValue("YOUR_PUBLIC_API_KEY").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .setSecondaryBaseUrl("YOUR_SECONDARY_BASE_URL")
+                .build())
+            .build()
     )
     .build()
 ```
@@ -76,13 +90,22 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Billwerk".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Billwerk(BillwerkConfig {
+                api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
+                public_api_key: Some(hyperswitch_masking::Secret::new("YOUR_PUBLIC_API_KEY".to_string())),  // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                secondary_base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -117,7 +140,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/billwerk/billwerk.py#L190) · [TypeScript](../../examples/billwerk/billwerk.ts#L170) · [Kotlin](../../examples/billwerk/billwerk.kt#L83) · [Rust](../../examples/billwerk/billwerk.rs#L178)
+**Examples:** [Python](../../examples/billwerk/billwerk.py) · [TypeScript](../../examples/billwerk/billwerk.ts#L172) · [Kotlin](../../examples/billwerk/billwerk.kt#L90) · [Rust](../../examples/billwerk/billwerk.rs)
 
 #### PaymentService.Get
 
@@ -128,7 +151,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/billwerk/billwerk.py#L199) · [TypeScript](../../examples/billwerk/billwerk.ts#L179) · [Kotlin](../../examples/billwerk/billwerk.kt#L93) · [Rust](../../examples/billwerk/billwerk.rs#L185)
+**Examples:** [Python](../../examples/billwerk/billwerk.py) · [TypeScript](../../examples/billwerk/billwerk.ts#L181) · [Kotlin](../../examples/billwerk/billwerk.kt#L100) · [Rust](../../examples/billwerk/billwerk.rs)
 
 #### PaymentService.Refund
 
@@ -139,7 +162,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/billwerk/billwerk.py#L217) · [TypeScript](../../examples/billwerk/billwerk.ts#L197) · [Kotlin](../../examples/billwerk/billwerk.kt#L132) · [Rust](../../examples/billwerk/billwerk.rs#L199)
+**Examples:** [Python](../../examples/billwerk/billwerk.py) · [TypeScript](../../examples/billwerk/billwerk.ts#L199) · [Kotlin](../../examples/billwerk/billwerk.kt#L139) · [Rust](../../examples/billwerk/billwerk.rs)
 
 #### PaymentService.TokenAuthorize
 
@@ -150,7 +173,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/billwerk/billwerk.py#L235) · [TypeScript](../../examples/billwerk/billwerk.ts#L215) · [Kotlin](../../examples/billwerk/billwerk.kt#L154) · [Rust](../../examples/billwerk/billwerk.rs#L213)
+**Examples:** [Python](../../examples/billwerk/billwerk.py) · [TypeScript](../../examples/billwerk/billwerk.ts#L217) · [Kotlin](../../examples/billwerk/billwerk.kt#L161) · [Rust](../../examples/billwerk/billwerk.rs)
 
 #### PaymentService.TokenSetupRecurring
 
@@ -161,7 +184,7 @@ Setup a recurring mandate using a connector token.
 | **Request** | `PaymentServiceTokenSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/billwerk/billwerk.py#L244) · [TypeScript](../../examples/billwerk/billwerk.ts#L224) · [Kotlin](../../examples/billwerk/billwerk.kt#L175) · [Rust](../../examples/billwerk/billwerk.rs#L220)
+**Examples:** [Python](../../examples/billwerk/billwerk.py) · [TypeScript](../../examples/billwerk/billwerk.ts#L226) · [Kotlin](../../examples/billwerk/billwerk.kt#L182) · [Rust](../../examples/billwerk/billwerk.rs)
 
 #### PaymentMethodService.Tokenize
 
@@ -172,7 +195,7 @@ Tokenize payment method for secure storage. Replaces raw card details with secur
 | **Request** | `PaymentMethodServiceTokenizeRequest` |
 | **Response** | `PaymentMethodServiceTokenizeResponse` |
 
-**Examples:** [Python](../../examples/billwerk/billwerk.py#L253) · [TypeScript](../../examples/billwerk/billwerk.ts#L233) · [Kotlin](../../examples/billwerk/billwerk.kt#L211) · [Rust](../../examples/billwerk/billwerk.rs#L227)
+**Examples:** [Python](../../examples/billwerk/billwerk.py) · [TypeScript](../../examples/billwerk/billwerk.ts#L235) · [Kotlin](../../examples/billwerk/billwerk.kt#L218) · [Rust](../../examples/billwerk/billwerk.rs)
 
 #### PaymentService.Void
 
@@ -183,7 +206,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/billwerk/billwerk.py#L262) · [TypeScript](../../examples/billwerk/billwerk.ts) · [Kotlin](../../examples/billwerk/billwerk.kt#L237) · [Rust](../../examples/billwerk/billwerk.rs#L234)
+**Examples:** [Python](../../examples/billwerk/billwerk.py) · [TypeScript](../../examples/billwerk/billwerk.ts) · [Kotlin](../../examples/billwerk/billwerk.kt#L244) · [Rust](../../examples/billwerk/billwerk.rs)
 
 ### Refunds
 
@@ -196,7 +219,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/billwerk/billwerk.py#L226) · [TypeScript](../../examples/billwerk/billwerk.ts#L206) · [Kotlin](../../examples/billwerk/billwerk.kt#L142) · [Rust](../../examples/billwerk/billwerk.rs#L206)
+**Examples:** [Python](../../examples/billwerk/billwerk.py) · [TypeScript](../../examples/billwerk/billwerk.ts#L208) · [Kotlin](../../examples/billwerk/billwerk.kt#L149) · [Rust](../../examples/billwerk/billwerk.rs)
 
 ### Mandates
 
@@ -209,4 +232,4 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/billwerk/billwerk.py#L208) · [TypeScript](../../examples/billwerk/billwerk.ts#L188) · [Kotlin](../../examples/billwerk/billwerk.kt#L101) · [Rust](../../examples/billwerk/billwerk.rs#L192)
+**Examples:** [Python](../../examples/billwerk/billwerk.py) · [TypeScript](../../examples/billwerk/billwerk.ts#L190) · [Kotlin](../../examples/billwerk/billwerk.kt#L108) · [Rust](../../examples/billwerk/billwerk.rs)

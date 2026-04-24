@@ -198,9 +198,11 @@ where
             BankRedirectData::Ideal { .. } => Ok(CountryAlpha2::NL),
             // LocalBankRedirect → Austria
             BankRedirectData::LocalBankRedirect { .. } => Ok(CountryAlpha2::AT),
-            _ => Err(Report::new(IntegrationError::not_implemented(
-                "Unsupported bank redirect type for Iatapay".to_string(),
-            ))),
+            _ => Err(Report::new(IntegrationError::NotSupported {
+                message: "Unsupported bank redirect type for Iatapay".to_string(),
+                connector: "Iatapay",
+                context: Default::default(),
+            })),
         },
 
         // Real-time payment methods
@@ -215,9 +217,11 @@ where
             RealTimePaymentData::VietQr {} => Ok(CountryAlpha2::VN),
         },
 
-        _ => Err(Report::new(IntegrationError::not_implemented(
-            "Payment method not supported by Iatapay".to_string(),
-        ))),
+        _ => Err(Report::new(IntegrationError::NotSupported {
+            message: "Payment method not supported by Iatapay".to_string(),
+            connector: "Iatapay",
+            context: Default::default(),
+        })),
     }
 }
 

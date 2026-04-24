@@ -4,8 +4,10 @@
     "PaymentService/Authorize",
     "PaymentService/CreateOrder",
     "PaymentService/Get",
+    "RecurringPaymentService/Charge",
     "PaymentService/Refund",
     "RefundService/Get",
-    "MerchantAuthenticationService/CreateServerAuthenticationToken"
+    "MerchantAuthenticationService/CreateServerAuthenticationToken",
+    "PaymentService/SetupRecurring"
   ]
 }

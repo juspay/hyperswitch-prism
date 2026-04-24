@@ -5,8 +5,10 @@
     "PaymentService/Capture",
     "PaymentService/Get",
     "PaymentMethodAuthenticationService/PreAuthenticate",
+    "RecurringPaymentService/Charge",
     "PaymentService/Refund",
     "RefundService/Get",
+    "PaymentService/SetupRecurring",
     "PaymentService/Void"
   ]
 }

@@ -2,6 +2,10 @@
   "connector": "payu",
   "supported_suites": [
     "PaymentService/Authorize",
-    "PaymentService/Get"
+    "PaymentService/Capture",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentService/Void"
   ]
 }

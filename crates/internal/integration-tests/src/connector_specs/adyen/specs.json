@@ -6,6 +6,7 @@
     "MerchantAuthenticationService/CreateClientAuthenticationToken",
     "PaymentService/CreateOrder",
     "PaymentService/Get",
+    "PaymentService/IncrementalAuthorization",
     "RecurringPaymentService/Charge",
     "PaymentService/Refund",
     "PaymentService/SetupRecurring",

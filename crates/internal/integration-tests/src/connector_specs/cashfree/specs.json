@@ -2,6 +2,11 @@
   "connector": "cashfree",
   "supported_suites": [
     "PaymentService/Authorize",
-    "PaymentService/CreateOrder"
+    "PaymentService/Capture",
+    "PaymentService/CreateOrder",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentService/Void"
   ]
 }

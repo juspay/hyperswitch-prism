@@ -3,14 +3,15 @@ pub mod response;
 pub mod transformers;
 
 use self::requests::{
-    WorldpayAuthorizeRequest, WorldpayCaptureRequest, WorldpayPostAuthenticateRequest,
-    WorldpayPreAuthenticateRequest, WorldpayRefundRequest, WorldpayRepeatPaymentRequest,
+    WorldpayAuthorizeRequest, WorldpayCaptureRequest, WorldpayIncrementalAuthRequest,
+    WorldpayPostAuthenticateRequest, WorldpayPreAuthenticateRequest, WorldpayRefundRequest,
+    WorldpayRepeatPaymentRequest,
 };
 use self::response::{
     WorldpayAuthorizeResponse, WorldpayCaptureResponse, WorldpayErrorResponse,
-    WorldpayPostAuthenticateResponse, WorldpayPreAuthenticateResponse, WorldpayRefundResponse,
-    WorldpayRefundSyncResponse, WorldpayRepeatPaymentResponse, WorldpaySyncResponse,
-    WorldpayVoidResponse,
+    WorldpayIncrementalAuthResponse, WorldpayPostAuthenticateResponse,
+    WorldpayPreAuthenticateResponse, WorldpayRefundResponse, WorldpayRefundSyncResponse,
+    WorldpayRepeatPaymentResponse, WorldpaySyncResponse, WorldpayVoidResponse,
 };
 use common_utils::{errors::CustomResult, events, ext_traits::BytesExt};
 use domain_types::{
@@ -51,21 +52,18 @@ use crate::{types::ResponseRouterData, with_error_response_body};
 
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
+/// Content type required by Access Worldpay Card Payments API (used for
+/// IncrementalAuthorization). The orchestrated Payments API on /api/payments
+/// uses `application/json`, but Card Payments endpoints such as
+/// /payments/authorizations/incrementalAuthorizations/{linkData} require this
+/// vendor media type.
+const WP_CARD_PAYMENTS_CONTENT_TYPE: &str = "application/vnd.worldpay.payments-v7+json";
+
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 use error_stack::ResultExt;
 
 // Trait implementations with generic type parameters
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Worldpay<T>
-{
-}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Worldpay<T>
@@ -249,6 +247,12 @@ macros::create_all_prerequisites!(
             request_body: WorldpayRepeatPaymentRequest<T>,
             response_body: WorldpayRepeatPaymentResponse,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: IncrementalAuthorization,
+            request_body: WorldpayIncrementalAuthRequest,
+            response_body: WorldpayIncrementalAuthResponse,
+            router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -671,6 +675,63 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}api/payments", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Worldpay,
+    curl_request: Json(WorldpayIncrementalAuthRequest),
+    curl_response: WorldpayIncrementalAuthResponse,
+    flow_name: IncrementalAuthorization,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsIncrementalAuthorizationData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            // IncrementalAuthorization uses Access Worldpay Card Payments API (not the
+            // orchestrated Payments API). Card Payments API requires the vendor media
+            // type `application/vnd.worldpay.payments-v7+json` for both Accept and
+            // Content-Type headers.
+            let mut headers: Vec<(String, Maskable<String>)> = vec![
+                (
+                    "Accept".to_string(),
+                    WP_CARD_PAYMENTS_CONTENT_TYPE.to_string().into(),
+                ),
+                (
+                    "Content-Type".to_string(),
+                    WP_CARD_PAYMENTS_CONTENT_TYPE.to_string().into(),
+                ),
+            ];
+            let mut api_key = self.get_auth_header(&req.connector_config)?;
+            headers.append(&mut api_key);
+            Ok(headers)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let connector_payment_id = req
+                .request
+                .connector_transaction_id
+                .get_connector_transaction_id()
+                .change_context(IntegrationError::MissingConnectorTransactionID {
+                    context: Default::default(),
+                })?;
+            // Access Worldpay Card Payments API endpoint:
+            // POST /payments/authorizations/incrementalAuthorizations/{linkData}
+            Ok(format!(
+                "{}payments/authorizations/incrementalAuthorizations/{}",
+                self.connector_base_url_payments(req),
+                urlencoding::encode(&connector_payment_id),
+            ))
         }
     }
 );

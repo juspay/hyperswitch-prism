@@ -6,6 +6,7 @@
     "PaymentService/Capture",
     "MerchantAuthenticationService/CreateClientAuthenticationToken",
     "PaymentService/Get",
+    "PaymentService/IncrementalAuthorization",
     "PaymentMethodAuthenticationService/PostAuthenticate",
     "PaymentMethodAuthenticationService/PreAuthenticate",
     "RecurringPaymentService/Charge",

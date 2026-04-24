@@ -1,0 +1,11 @@
+{
+  "connector": "imerchantsolutions",
+  "supported_suites": [
+    "authorize",
+    "capture",
+    "void",
+    "get",
+    "refund",
+    "refund_sync"
+  ]
+}

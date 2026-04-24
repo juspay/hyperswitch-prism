@@ -7,8 +7,10 @@
     "PaymentService/CreateOrder",
     "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
     "PaymentService/Get",
+    "RecurringPaymentService/Charge",
     "PaymentService/Refund",
     "RefundService/Get",
+    "PaymentService/SetupRecurring",
     "PaymentService/Void"
   ]
 }

@@ -67,6 +67,10 @@
         "status": "not_supported",
         "error": "Payment method is not supported by Wellsfargo"
       },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
+      },
       "Bizum": {
         "status": "not_supported",
         "error": "Payment method is not supported by Wellsfargo"
@@ -138,6 +142,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
       },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
+      },
       "CimbVaBankTransfer": {
         "status": "not_supported",
         "error": "Payment method is not supported by Wellsfargo"
@@ -148,7 +156,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
@@ -156,11 +164,15 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
         "status": "not_supported",
         "error": "Payment method is not supported by Wellsfargo"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
       },
       "Efecty": {
         "status": "not_supported",
@@ -184,7 +196,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GooglePay": {
         "status": "not_implemented",
@@ -234,6 +246,10 @@
         "status": "not_supported",
         "error": "Payment method is not supported by Wellsfargo"
       },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
+      },
       "LocalBankRedirect": {
         "status": "not_supported",
         "error": "Payment method is not supported by Wellsfargo"
@@ -259,6 +275,10 @@
         "error": "Payment method is not supported by Wellsfargo"
       },
       "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Wellsfargo"
+      },
+      "Netbanking": {
         "status": "not_supported",
         "error": "Payment method is not supported by Wellsfargo"
       },
@@ -292,7 +312,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
         "status": "not_supported",
@@ -312,7 +332,11 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
       },
       "PaypalRedirect": {
         "status": "not_implemented",
@@ -324,11 +348,15 @@
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
         "status": "not_supported",
         "error": "Payment method is not supported by Wellsfargo"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
       },
       "Pix": {
         "status": "not_supported",
@@ -522,6 +550,11 @@
       }
     },
     "incremental_authorization": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "parse_event": {
       "default": {
         "status": "not_implemented"
       }
@@ -753,8 +786,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported for SetupMandate"
+        "status": "not_supported",
+        "error": "Payment method not supported for SetupMandate is not supported by Wellsfargo"
       }
     },
     "tokenize": {

@@ -31,10 +31,8 @@ mod tests {
                 "id": "evt_test_001",
                 "time": "2024-01-01T00:00:00Z",
                 "data": {{
-                    "charge": {{
-                        "id": "pc_test_123",
-                        "status": "{status}"
-                    }}
+                    "paymentChargeId": "pc_test_123",
+                    "paymentChargeStatus": "{status}"
                 }}
             }}"#
         )
@@ -50,10 +48,8 @@ mod tests {
                 "id": "evt_test_001",
                 "time": "2024-01-01T00:00:00Z",
                 "data": {{
-                    "agreement": {{
-                        "id": "agr_test_123",
-                        "status": "{status}"
-                    }}
+                    "paymentAgreementId": "agr_test_123",
+                    "paymentAgreementStatus": "{status}"
                 }}
             }}"#
         )
@@ -121,7 +117,7 @@ mod tests {
     fn test_webhook_event_type_capture_succeeded() -> Result<(), Box<dyn std::error::Error>> {
         let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
         let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
-        let event_type = connector.get_event_type(make_request(&body), None, None)?;
+        let event_type = connector.get_event_type(make_request(&body))?;
         ensure_eq!(event_type, EventType::PaymentIntentCaptureSuccess);
         Ok(())
     }
@@ -135,7 +131,7 @@ mod tests {
             "PAYMENT_CHARGE_DISCARDED",
         ] {
             let body = charge_webhook(event, "FAILED");
-            let event_type = connector.get_event_type(make_request(&body), None, None)?;
+            let event_type = connector.get_event_type(make_request(&body))?;
             ensure_eq!(
                 event_type,
                 EventType::PaymentIntentFailure,
@@ -153,7 +149,7 @@ mod tests {
             "PAYMENT_CHARGE_SUCCESS",
         ] {
             let body = charge_webhook(event, "SUCCESS");
-            let event_type = connector.get_event_type(make_request(&body), None, None)?;
+            let event_type = connector.get_event_type(make_request(&body))?;
             ensure_eq!(
                 event_type,
                 EventType::PaymentIntentAuthorizationSuccess,
@@ -167,7 +163,7 @@ mod tests {
     fn test_webhook_event_type_refund_succeeded() -> Result<(), Box<dyn std::error::Error>> {
         let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
         let body = charge_webhook("PAYMENT_CHARGE_REFUND_SUCCEEDED", "REFUNDED");
-        let event_type = connector.get_event_type(make_request(&body), None, None)?;
+        let event_type = connector.get_event_type(make_request(&body))?;
         ensure_eq!(event_type, EventType::RefundSuccess);
         Ok(())
     }
@@ -176,7 +172,7 @@ mod tests {
     fn test_webhook_event_type_refund_failed() -> Result<(), Box<dyn std::error::Error>> {
         let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
         let body = charge_webhook("PAYMENT_CHARGE_REFUND_FAILED", "FAILED");
-        let event_type = connector.get_event_type(make_request(&body), None, None)?;
+        let event_type = connector.get_event_type(make_request(&body))?;
         ensure_eq!(event_type, EventType::RefundFailure);
         Ok(())
     }
@@ -185,7 +181,7 @@ mod tests {
     fn test_webhook_event_type_void_succeeded() -> Result<(), Box<dyn std::error::Error>> {
         let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
         let body = charge_webhook("PAYMENT_CHARGE_VOID_SUCCEEDED", "VOIDED");
-        let event_type = connector.get_event_type(make_request(&body), None, None)?;
+        let event_type = connector.get_event_type(make_request(&body))?;
         ensure_eq!(event_type, EventType::PaymentIntentCancelled);
         Ok(())
     }
@@ -194,7 +190,7 @@ mod tests {
     fn test_webhook_event_type_void_failed() -> Result<(), Box<dyn std::error::Error>> {
         let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
         let body = charge_webhook("PAYMENT_CHARGE_VOID_FAILED", "FAILED");
-        let event_type = connector.get_event_type(make_request(&body), None, None)?;
+        let event_type = connector.get_event_type(make_request(&body))?;
         ensure_eq!(event_type, EventType::PaymentIntentCancelFailure);
         Ok(())
     }
@@ -203,7 +199,7 @@ mod tests {
     fn test_webhook_event_type_capture_failed() -> Result<(), Box<dyn std::error::Error>> {
         let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
         let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_FAILED", "FAILED");
-        let event_type = connector.get_event_type(make_request(&body), None, None)?;
+        let event_type = connector.get_event_type(make_request(&body))?;
         ensure_eq!(event_type, EventType::PaymentIntentCaptureFailure);
         Ok(())
     }
@@ -212,7 +208,7 @@ mod tests {
     fn test_webhook_event_type_mandate_active() -> Result<(), Box<dyn std::error::Error>> {
         let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
         let body = agreement_webhook("PAYMENT_AGREEMENT_ACTIVE", "ACTIVE");
-        let event_type = connector.get_event_type(make_request(&body), None, None)?;
+        let event_type = connector.get_event_type(make_request(&body))?;
         ensure_eq!(event_type, EventType::MandateActive);
         Ok(())
     }
@@ -221,7 +217,7 @@ mod tests {
     fn test_webhook_event_type_mandate_failed() -> Result<(), Box<dyn std::error::Error>> {
         let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
         let body = agreement_webhook("PAYMENT_AGREEMENT_FAILED", "FAILED");
-        let event_type = connector.get_event_type(make_request(&body), None, None)?;
+        let event_type = connector.get_event_type(make_request(&body))?;
         ensure_eq!(event_type, EventType::MandateFailed);
         Ok(())
     }
@@ -235,7 +231,7 @@ mod tests {
             "PAYMENT_AGREEMENT_REVOKED_BY_PROVIDER",
         ] {
             let body = agreement_webhook(event, "REVOKED");
-            let event_type = connector.get_event_type(make_request(&body), None, None)?;
+            let event_type = connector.get_event_type(make_request(&body))?;
             ensure_eq!(
                 event_type,
                 EventType::MandateRevoked,
@@ -248,7 +244,7 @@ mod tests {
     #[test]
     fn test_webhook_event_type_invalid_body() {
         let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
-        let result = connector.get_event_type(make_request(b"not-valid-json"), None, None);
+        let result = connector.get_event_type(make_request(b"not-valid-json"));
         assert!(result.is_err(), "invalid JSON should return an error");
     }
 
@@ -258,7 +254,7 @@ mod tests {
     fn test_process_payment_webhook_captured() -> Result<(), Box<dyn std::error::Error>> {
         let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
         let body = charge_webhook("PAYMENT_CHARGE_CAPTURE_SUCCEEDED", "CAPTURED");
-        let details = connector.process_payment_webhook(make_request(&body), None, None)?;
+        let details = connector.process_payment_webhook(make_request(&body), None, None, None)?;
         ensure_eq!(
             details.status,
             common_enums::AttemptStatus::Charged,
@@ -286,19 +282,17 @@ mod tests {
             "id": "evt_test_002",
             "time": "2024-01-01T00:00:00Z",
             "data": {
-                "charge": {
-                    "id": "pc_test_456",
-                    "status": "FAILED",
-                    "failure": {
-                        "failureType": "AUTHORIZATION",
-                        "failureCode": "CARD_DECLINED",
-                        "failureMessage": "Card was declined"
-                    }
+                "paymentChargeId": "pc_test_456",
+                "paymentChargeStatus": "FAILED",
+                "failure": {
+                    "failureType": "AUTHORIZATION",
+                    "failureCode": "CARD_DECLINED",
+                    "failureMessage": "Card was declined"
                 }
             }
         }"#
         .as_bytes();
-        let details = connector.process_payment_webhook(make_request(body), None, None)?;
+        let details = connector.process_payment_webhook(make_request(body), None, None, None)?;
         ensure_eq!(details.status, common_enums::AttemptStatus::Failure);
         ensure_eq!(
             details.error_code.as_deref(),
@@ -322,14 +316,12 @@ mod tests {
             "id": "evt_test_003",
             "time": "2024-01-01T00:00:00Z",
             "data": {
-                "agreement": {
-                    "id": "pa_test_789",
-                    "status": "ACTIVE"
-                }
+                "paymentAgreementId": "pa_test_789",
+                "paymentAgreementStatus": "ACTIVE"
             }
         }"#
         .as_bytes();
-        let result = connector.process_payment_webhook(make_request(body), None, None);
+        let result = connector.process_payment_webhook(make_request(body), None, None, None);
         assert!(
             result.is_err(),
             "Agreement webhook data should return an error for process_payment_webhook"
@@ -370,13 +362,16 @@ mod tests {
 
     // ── Webhook: verify_webhook_source ───────────────────────────────────────
 
-    /// Helper: compute HMAC-SHA256 and return hex-encoded signature.
+    /// Helper: compute SHA256(body + "." + secret) and return hex-encoded signature.
     fn sign_body(secret: &[u8], body: &[u8]) -> Result<String, Box<dyn std::error::Error>> {
-        use common_utils::crypto::SignMessage;
-        let sig = common_utils::crypto::HmacSha256
-            .sign_message(secret, body)
-            .map_err(|e| format!("HMAC signing failed: {e:?}"))?;
-        Ok(hex::encode(sig))
+        use common_utils::crypto::GenerateDigest;
+        let mut message = body.to_vec();
+        message.push(b'.');
+        message.extend_from_slice(secret);
+        let digest = common_utils::crypto::Sha256
+            .generate_digest(&message)
+            .map_err(|e| format!("SHA256 digest failed: {e:?}"))?;
+        Ok(hex::encode(digest))
     }
 
     fn make_signed_request(body: &[u8], signature: &str) -> RequestDetails {
@@ -405,7 +400,7 @@ mod tests {
         };
 
         let result = connector.verify_webhook_source(request, Some(secrets), None)?;
-        ensure!(result, "valid HMAC signature should verify as true");
+        ensure!(result, "valid SHA256 signature should verify as true");
         Ok(())
     }
 
@@ -424,7 +419,7 @@ mod tests {
         };
 
         let result = connector.verify_webhook_source(request, Some(secrets), None)?;
-        ensure!(!result, "invalid HMAC signature should verify as false");
+        ensure!(!result, "invalid SHA256 signature should verify as false");
         Ok(())
     }
 
@@ -455,7 +450,7 @@ mod tests {
         let result = connector.verify_webhook_source(request, None, None);
         assert!(
             result.is_err(),
-            "missing connector_webhook_secret should return Err(IntegrationError::not_implemented(\"webhook source verification failed\".to_string()))"
+            "missing connector_webhook_secret should return NotImplemented error"
         );
     }
 
@@ -523,7 +518,7 @@ mod tests {
     {
         let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
         let body = charge_webhook("PAYMENT_CHARGE_AUTHORIZATION_SUCCEEDED", "SUCCESS");
-        let details = connector.process_payment_webhook(make_request(&body), None, None)?;
+        let details = connector.process_payment_webhook(make_request(&body), None, None, None)?;
         ensure_eq!(
             details.status,
             common_enums::AttemptStatus::Charged,
@@ -540,7 +535,7 @@ mod tests {
     fn test_process_payment_webhook_voided() -> Result<(), Box<dyn std::error::Error>> {
         let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
         let body = charge_webhook("PAYMENT_CHARGE_VOID_SUCCEEDED", "VOIDED");
-        let details = connector.process_payment_webhook(make_request(&body), None, None)?;
+        let details = connector.process_payment_webhook(make_request(&body), None, None, None)?;
         ensure_eq!(
             details.status,
             common_enums::AttemptStatus::Voided,
@@ -559,19 +554,17 @@ mod tests {
             "id": "evt_test_cap_fail",
             "time": "2024-01-01T00:00:00Z",
             "data": {
-                "charge": {
-                    "id": "pc_cap_fail",
-                    "status": "FAILED",
-                    "failure": {
-                        "failureType": "CAPTURE",
-                        "failureCode": "CAPTURE_TIMEOUT",
-                        "failureMessage": "Capture timed out"
-                    }
+                "paymentChargeId": "pc_cap_fail",
+                "paymentChargeStatus": "FAILED",
+                "failure": {
+                    "failureType": "CAPTURE",
+                    "failureCode": "CAPTURE_TIMEOUT",
+                    "failureMessage": "Capture timed out"
                 }
             }
         }"#
         .as_bytes();
-        let details = connector.process_payment_webhook(make_request(body), None, None)?;
+        let details = connector.process_payment_webhook(make_request(body), None, None, None)?;
         ensure_eq!(details.status, common_enums::AttemptStatus::Failure);
         ensure_eq!(
             details.error_code.as_deref(),
@@ -585,7 +578,7 @@ mod tests {
     fn test_process_payment_webhook_discarded() -> Result<(), Box<dyn std::error::Error>> {
         let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
         let body = charge_webhook("PAYMENT_CHARGE_DISCARDED", "DISCARDED");
-        let details = connector.process_payment_webhook(make_request(&body), None, None)?;
+        let details = connector.process_payment_webhook(make_request(&body), None, None, None)?;
         ensure_eq!(
             details.status,
             common_enums::AttemptStatus::Failure,
@@ -604,19 +597,17 @@ mod tests {
             "id": "evt_test_void_fail",
             "time": "2024-01-01T00:00:00Z",
             "data": {
-                "charge": {
-                    "id": "pc_void_fail",
-                    "status": "FAILED",
-                    "failure": {
-                        "failureType": "VOID",
-                        "failureCode": "VOID_NOT_ALLOWED",
-                        "failureMessage": "Void not allowed"
-                    }
+                "paymentChargeId": "pc_void_fail",
+                "paymentChargeStatus": "FAILED",
+                "failure": {
+                    "failureType": "VOID",
+                    "failureCode": "VOID_NOT_ALLOWED",
+                    "failureMessage": "Void not allowed"
                 }
             }
         }"#
         .as_bytes();
-        let details = connector.process_payment_webhook(make_request(body), None, None)?;
+        let details = connector.process_payment_webhook(make_request(body), None, None, None)?;
         ensure_eq!(details.status, common_enums::AttemptStatus::Failure);
         ensure_eq!(details.error_code.as_deref(), Some("VOID_NOT_ALLOWED"),);
         ensure!(
@@ -631,7 +622,7 @@ mod tests {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
         let body = charge_webhook("PAYMENT_CHARGE_SUCCESS", "SUCCESS");
-        let details = connector.process_payment_webhook(make_request(&body), None, None)?;
+        let details = connector.process_payment_webhook(make_request(&body), None, None, None)?;
         ensure!(
             details.raw_connector_response.is_some(),
             "raw_connector_response should always be populated"
@@ -645,14 +636,15 @@ mod tests {
     #[test]
     fn test_process_payment_webhook_empty_body() {
         let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
-        let result = connector.process_payment_webhook(make_request(b""), None, None);
+        let result = connector.process_payment_webhook(make_request(b""), None, None, None);
         assert!(result.is_err(), "empty body should return an error");
     }
 
     #[test]
     fn test_process_payment_webhook_malformed_json() {
         let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
-        let result = connector.process_payment_webhook(make_request(b"{invalid json}"), None, None);
+        let result =
+            connector.process_payment_webhook(make_request(b"{invalid json}"), None, None, None);
         assert!(result.is_err(), "malformed JSON should return an error");
     }
 
@@ -669,14 +661,12 @@ mod tests {
             "id": "evt_test_refund_fail_detail",
             "time": "2024-01-01T00:00:00Z",
             "data": {
-                "charge": {
-                    "id": "pc_refund_fail_detail",
-                    "status": "FAILED",
-                    "failure": {
-                        "failureType": "REFUND",
-                        "failureCode": "REFUND_LIMIT_EXCEEDED",
-                        "failureMessage": "Refund amount exceeds limit"
-                    }
+                "paymentChargeId": "pc_refund_fail_detail",
+                "paymentChargeStatus": "FAILED",
+                "failure": {
+                    "failureType": "REFUND",
+                    "failureCode": "REFUND_LIMIT_EXCEEDED",
+                    "failureMessage": "Refund amount exceeds limit"
                 }
             }
         }"#

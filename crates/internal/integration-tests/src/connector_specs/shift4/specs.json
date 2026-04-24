@@ -6,8 +6,10 @@
     "PaymentService/Capture",
     "CustomerService/Create",
     "PaymentService/Get",
+    "PaymentService/IncrementalAuthorization",
     "RecurringPaymentService/Charge",
     "PaymentService/Refund",
-    "RefundService/Get"
+    "RefundService/Get",
+    "PaymentService/SetupRecurring"
   ]
 }

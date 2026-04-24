@@ -42,10 +42,10 @@ use interfaces::{
 use serde::Serialize;
 use transformers::{
     self as trustpayments, TrustpaymentsAuthorizeRequest, TrustpaymentsAuthorizeResponse,
-    TrustpaymentsCaptureRequest, TrustpaymentsCaptureResponse, TrustpaymentsPSyncRequest,
-    TrustpaymentsPSyncResponse, TrustpaymentsRSyncRequest, TrustpaymentsRSyncResponse,
-    TrustpaymentsRefundRequest, TrustpaymentsRefundResponse, TrustpaymentsVoidRequest,
-    TrustpaymentsVoidResponse,
+    TrustpaymentsCaptureRequest, TrustpaymentsCaptureResponse, TrustpaymentsIncrementalAuthRequest,
+    TrustpaymentsIncrementalAuthResponse, TrustpaymentsPSyncRequest, TrustpaymentsPSyncResponse,
+    TrustpaymentsRSyncRequest, TrustpaymentsRSyncResponse, TrustpaymentsRefundRequest,
+    TrustpaymentsRefundResponse, TrustpaymentsVoidRequest, TrustpaymentsVoidResponse,
 };
 
 use super::macros;
@@ -59,16 +59,6 @@ pub(crate) mod headers {
 }
 
 // ===== CONNECTOR SERVICE TRAIT IMPLEMENTATIONS =====
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Trustpayments<T>
-{
-}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Trustpayments<T>
@@ -266,6 +256,12 @@ macros::create_all_prerequisites!(
             request_body: TrustpaymentsVoidRequest,
             response_body: TrustpaymentsVoidResponse,
             router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ),
+        (
+            flow: IncrementalAuthorization,
+            request_body: TrustpaymentsIncrementalAuthRequest,
+            response_body: TrustpaymentsIncrementalAuthResponse,
+            router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -486,6 +482,40 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/json/", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
+// ===== INCREMENTAL AUTHORIZATION FLOW IMPLEMENTATION =====
+// Trust Payments treats incremental authorisations as an additional AUTH
+// request with `authmethod = "INCREMENTAL"` and a `parenttransactionreference`.
+// The endpoint is identical to a standard AUTH (POST /json/).
+// Reference: https://docs.trustpayments.com/document/tru-connect/knowledge-base/authorisations/auth-method/incremental-authorisations-api/
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Trustpayments,
+    curl_request: Json(TrustpaymentsIncrementalAuthRequest),
+    curl_response: TrustpaymentsIncrementalAuthResponse,
+    flow_name: IncrementalAuthorization,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsIncrementalAuthorizationData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/json/", self.connector_base_url_payments(req)))
         }

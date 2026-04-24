@@ -7,21 +7,45 @@
 
 package examples.braintree
 
+import types.Payment.*
+import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.MerchantAuthenticationClient
-import payments.RefundClient
 import payments.PaymentMethodClient
-import payments.PaymentServiceCaptureRequest
-import payments.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest
-import payments.PaymentServiceGetRequest
-import payments.PaymentServiceRefundRequest
-import payments.RefundServiceGetRequest
-import payments.PaymentMethodServiceTokenizeRequest
-import payments.PaymentServiceVoidRequest
 import payments.Currency
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
+import payments.ConnectorSpecificConfig
+import types.Payment.BraintreeConfig
+import payments.SecretString
+
+val SUPPORTED_FLOWS = listOf<String>("capture", "create_client_authentication_token", "get", "refund", "tokenize", "void")
+
+val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setBraintree(BraintreeConfig.newBuilder()
+                .setPublicKey(SecretString.newBuilder().setValue("YOUR_PUBLIC_KEY").build())
+                .setPrivateKey(SecretString.newBuilder().setValue("YOUR_PRIVATE_KEY").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .setMerchantAccountId(SecretString.newBuilder().setValue("YOUR_MERCHANT_ACCOUNT_ID").build())
+                .setMerchantConfigCurrency("YOUR_MERCHANT_CONFIG_CURRENCY")
+                .addAllApplePaySupportedNetworks(listOf("YOUR_APPLE_PAY_SUPPORTED_NETWORKS"))
+                .addAllApplePayMerchantCapabilities(listOf("YOUR_APPLE_PAY_MERCHANT_CAPABILITIES"))
+                .setApplePayLabel("YOUR_APPLE_PAY_LABEL")
+                .setGpayMerchantName("YOUR_GPAY_MERCHANT_NAME")
+                .setGpayMerchantId("YOUR_GPAY_MERCHANT_ID")
+                .addAllGpayAllowedAuthMethods(listOf("YOUR_GPAY_ALLOWED_AUTH_METHODS"))
+                .addAllGpayAllowedCardNetworks(listOf("YOUR_GPAY_ALLOWED_CARD_NETWORKS"))
+                .setPaypalClientId("YOUR_PAYPAL_CLIENT_ID")
+                .setGpayGatewayMerchantId("YOUR_GPAY_GATEWAY_MERCHANT_ID")
+                .build())
+            .build()
+    )
+    .build()
+
 
 
 private fun buildCaptureRequest(connectorTransactionIdStr: String): PaymentServiceCaptureRequest {
@@ -66,15 +90,9 @@ private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceV
     }.build()
 }
 
-val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
-    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your connector config here
-    .build()
-
-
 // Flow: PaymentService.Capture
-fun capture(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun capture(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildCaptureRequest("probe_connector_txn_001")
     val response = client.capture(request)
     if (response.status.name == "FAILED")
@@ -83,8 +101,8 @@ fun capture(txnId: String) {
 }
 
 // Flow: MerchantAuthenticationService.CreateClientAuthenticationToken
-fun createClientAuthenticationToken(txnId: String) {
-    val client = MerchantAuthenticationClient(_defaultConfig)
+fun createClientAuthenticationToken(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = MerchantAuthenticationClient(config)
     val request = MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest.newBuilder().apply {
         merchantClientSessionId = "probe_sdk_session_001"  // Infrastructure.
         paymentBuilder.apply {  // FrmClientAuthenticationContext frm = 5; // future: device fingerprinting PayoutClientAuthenticationContext payout = 6; // future: payout verification widget.
@@ -99,16 +117,16 @@ fun createClientAuthenticationToken(txnId: String) {
 }
 
 // Flow: PaymentService.Get
-fun get(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildGetRequest("probe_connector_txn_001")
     val response = client.get(request)
     println("Status: ${response.status.name}")
 }
 
 // Flow: PaymentService.Refund
-fun refund(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun refund(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildRefundRequest("probe_connector_txn_001")
     val response = client.refund(request)
     if (response.status.name == "FAILED")
@@ -116,22 +134,9 @@ fun refund(txnId: String) {
     println("Done: ${response.status.name}")
 }
 
-// Flow: RefundService.Get
-fun refundGet(txnId: String) {
-    val client = RefundClient(_defaultConfig)
-    val request = RefundServiceGetRequest.newBuilder().apply {
-        merchantRefundId = "probe_refund_001"  // Identification.
-        connectorTransactionId = "probe_connector_txn_001"
-        refundId = "probe_refund_id_001"
-        refundMetadataBuilder.value = "{\"currency\":\"USD\"}"  // Metadata specific to the refund sync.
-    }.build()
-    val response = client.refund_get(request)
-    println("Status: ${response.status.name}")
-}
-
 // Flow: PaymentMethodService.Tokenize
-fun tokenize(txnId: String) {
-    val client = PaymentMethodClient(_defaultConfig)
+fun tokenize(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentMethodClient(config)
     val request = PaymentMethodServiceTokenizeRequest.newBuilder().apply {
         amountBuilder.apply {  // Payment Information.
             minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
@@ -156,8 +161,8 @@ fun tokenize(txnId: String) {
 }
 
 // Flow: PaymentService.Void
-fun void(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildVoidRequest("probe_connector_txn_001")
     val response = client.void(request)
     if (response.status.name == "FAILED")
@@ -174,9 +179,8 @@ fun main(args: Array<String>) {
         "createClientAuthenticationToken" -> createClientAuthenticationToken(txnId)
         "get" -> get(txnId)
         "refund" -> refund(txnId)
-        "refundGet" -> refundGet(txnId)
         "tokenize" -> tokenize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, createClientAuthenticationToken, get, refund, refundGet, tokenize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: capture, createClientAuthenticationToken, get, refund, tokenize, void")
     }
 }

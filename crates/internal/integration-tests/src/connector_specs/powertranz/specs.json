@@ -3,9 +3,11 @@
   "supported_suites": [
     "PaymentService/Authorize",
     "PaymentService/Capture",
-    "PaymentService/Void",
-    "PaymentService/Refund",
     "PaymentService/Get",
-    "RefundService/Get"
+    "RecurringPaymentService/Charge",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentService/SetupRecurring",
+    "PaymentService/Void"
   ]
 }

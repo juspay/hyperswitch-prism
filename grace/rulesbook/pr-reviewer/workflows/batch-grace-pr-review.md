@@ -25,14 +25,14 @@ Read these first:
 Use GitHub metadata to find open PRs where at least one of these is true:
 
 - PR author is `10xGRACE`
-- head repo owner is `10xGRACE`
+- Branch matches `feat/grace-*`
 
 ## Step 2: Spawn one PR review per PR
 
 For each matched PR, run:
 
 ```text
-Review PR <PR-REFERENCE> in connector-service.
+Review PR <PR-REFERENCE> in hyperswitch-prism.
 This PR was raised by 10xGRACE / GRACE automation.
 Read grace/rulesbook/pr-reviewer/workflows/grace-pr-review.md and follow it exactly.
 Use nested subagents if the tool supports them; otherwise emulate the same phases serially.

@@ -68,6 +68,30 @@ pub(crate) fn authorize_pm_variants() -> Vec<(&'static str, fn() -> PaymentMetho
         ("MbWay", mb_way_method as fn() -> PaymentMethod),
         ("Satispay", satispay_method as fn() -> PaymentMethod),
         ("Wero", wero_method as fn() -> PaymentMethod),
+        (
+            "LazyPayRedirect",
+            lazypay_redirect_method as fn() -> PaymentMethod,
+        ),
+        (
+            "PhonePeRedirect",
+            phonepe_redirect_method as fn() -> PaymentMethod,
+        ),
+        (
+            "BillDeskRedirect",
+            billdesk_redirect_method as fn() -> PaymentMethod,
+        ),
+        (
+            "CashfreeRedirect",
+            cashfree_redirect_method as fn() -> PaymentMethod,
+        ),
+        (
+            "PayURedirect",
+            payu_redirect_method as fn() -> PaymentMethod,
+        ),
+        (
+            "EaseBuzzRedirect",
+            easebuzz_redirect_method as fn() -> PaymentMethod,
+        ),
         // UPI
         (
             "UpiCollect",
@@ -115,6 +139,7 @@ pub(crate) fn authorize_pm_variants() -> Vec<(&'static str, fn() -> PaymentMetho
             "LocalBankRedirect",
             local_bank_redirect_method as fn() -> PaymentMethod,
         ),
+        ("Netbanking", netbanking_method as fn() -> PaymentMethod),
         ("Ideal", ideal_payment_method as fn() -> PaymentMethod),
         ("Sofort", sofort_method as fn() -> PaymentMethod),
         ("Trustly", trustly_method as fn() -> PaymentMethod),
