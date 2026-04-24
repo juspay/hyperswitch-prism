@@ -949,7 +949,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
     ) -> CustomResult<String, IntegrationError> {
         Err(IntegrationError::FlowNotSupported {
-            flow: "Reverse".to_string(),
+            flow: "VoidPostCapture".to_string(),
             connector: "worldpay".to_string(),
             context: Default::default(),
         }
