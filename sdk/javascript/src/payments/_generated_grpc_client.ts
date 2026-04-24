@@ -386,7 +386,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   EventServiceHandleRequest: { "requestDetails": "RequestDetails", "webhookSecrets": "WebhookSecrets", "accessToken": "AccessToken", "eventContext": "EventContext" },
   PaymentServiceVerifyRedirectResponseRequest: { "requestDetails": "RequestDetails", "redirectResponseSecrets": "RedirectResponseSecrets" },
   PaymentServiceVerifyRedirectResponseResponse: { "responseAmount": "Money", "error": "ErrorInfo" },
-  RefundServiceGetRequest: { "browserInfo": "BrowserInformation", "state": "ConnectorState" },
+  RefundServiceGetRequest: { "browserInfo": "BrowserInformation", "state": "ConnectorState", "refundAmount": "Money" },
   DisputeServiceSubmitEvidenceRequest: { "evidenceDocuments": "EvidenceDocument" },
   DisputeServiceSubmitEvidenceResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   DisputeServiceDefendResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
