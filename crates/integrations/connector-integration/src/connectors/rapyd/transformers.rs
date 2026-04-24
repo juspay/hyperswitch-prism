@@ -37,44 +37,28 @@ use super::RapydRouterData;
 /// Authorize flow until multi-country payment-method resolution lands (see
 /// the `[#369]` TODO elsewhere in this file).
 ///
-/// Built via `TryFrom<CardIssuer>` so the wrong identifier can never be
-/// assembled ad-hoc — Rapyd rejects requests whose `type` does not match
-/// the card BIN.
+/// Card variants are built via `TryFrom<CardIssuer>` so the wrong identifier
+/// can never be assembled ad-hoc — Rapyd rejects requests whose `type` does
+/// not match the card BIN. The wallet variant (`ByVisaCard`) is reserved for
+/// the existing Authorize digital-wallet path, which still hardcodes its
+/// payment-method type per the same `[#369]` TODO.
+///
 /// Reference: https://docs.rapyd.net/en/list-payment-methods-by-country.html
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone, Copy, Default, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum RapydCardType {
-    #[serde(rename = "in_visa_card")]
-    InVisaCard,
-    #[serde(rename = "in_mastercard_card")]
-    InMastercardCard,
-    #[serde(rename = "in_amex_card")]
+pub enum RapydPaymentMethodType {
+    #[default]
     InAmexCard,
-    #[serde(rename = "in_discover_card")]
+    InVisaCard,
+    InMastercardCard,
     InDiscoverCard,
-    #[serde(rename = "in_dinersclub_card")]
     InDinersclubCard,
-    #[serde(rename = "in_jcb_card")]
     InJcbCard,
-    #[serde(rename = "in_maestro_card")]
     InMaestroCard,
+    ByVisaCard,
 }
 
-impl RapydCardType {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::InVisaCard => "in_visa_card",
-            Self::InMastercardCard => "in_mastercard_card",
-            Self::InAmexCard => "in_amex_card",
-            Self::InDiscoverCard => "in_discover_card",
-            Self::InDinersclubCard => "in_dinersclub_card",
-            Self::InJcbCard => "in_jcb_card",
-            Self::InMaestroCard => "in_maestro_card",
-        }
-    }
-}
-
-impl TryFrom<CardIssuer> for RapydCardType {
+impl TryFrom<CardIssuer> for RapydPaymentMethodType {
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(issuer: CardIssuer) -> Result<Self, Self::Error> {
@@ -270,12 +254,16 @@ pub enum RapydCustomerRef {
     Inline(RapydInlineCustomer),
 }
 
-#[derive(Debug, Serialize, Default)]
+/// Inline customer object embedded in a `/v1/payments` call. Both fields
+/// are required by Rapyd when `save_payment_method: true` — without them
+/// Rapyd cannot mint a `cus_*` to attach the saved `card_*` to. The
+/// SetupMandate transformer enforces presence at the request level, so
+/// this struct never produces an empty `{}` body.
+/// Reference: https://docs.rapyd.net/en/create-customer.html
+#[derive(Debug, Serialize)]
 pub struct RapydInlineCustomer {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub email: Option<String>,
+    pub name: String,
+    pub email: String,
 }
 
 /// Rapyd payment_method field can be either a token string (for saved/tokenized
@@ -306,7 +294,7 @@ pub struct PaymentMethodOptions {
 #[derive(Default, Debug, Serialize)]
 pub struct PaymentMethod<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> {
     #[serde(rename = "type")]
-    pub pm_type: String,
+    pub pm_type: RapydPaymentMethodType,
     pub fields: Option<PaymentFields<T>>,
     pub address: Option<Address>,
     pub digital_wallet: Option<RapydWallet>,
@@ -405,7 +393,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentMethodData::Card(ref ccard) => {
                 Some(RapydPaymentMethodData::PaymentMethod(Box::new(
                     PaymentMethod {
-                        pm_type: "in_amex_card".to_owned(), //[#369] Map payment method type based on country
+                        pm_type: RapydPaymentMethodType::InAmexCard, //[#369] Map payment method type based on country
                         fields: Some(PaymentFields {
                             number: ccard.card_number.to_owned(),
                             expiration_month: ccard.card_exp_month.to_owned(),
@@ -454,7 +442,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 };
                 Some(RapydPaymentMethodData::PaymentMethod(Box::new(
                     PaymentMethod {
-                        pm_type: "by_visa_card".to_string(), //[#369]
+                        pm_type: RapydPaymentMethodType::ByVisaCard, //[#369]
                         fields: None,
                         address: None,
                         digital_wallet,
@@ -1135,7 +1123,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let payment_method = match &request.payment_method_data {
             PaymentMethodData::Card(ccard) => {
                 let card_issuer = domain_types::utils::get_card_issuer(ccard.card_number.peek())?;
-                let pm_type = RapydCardType::try_from(card_issuer)?.as_str().to_owned();
+                let pm_type = RapydPaymentMethodType::try_from(card_issuer)?;
                 // Rapyd documents `payment_method.fields.name` as required
                 // (https://docs.rapyd.net/en/create-card-payment-method.html).
                 // Prefer the cardholder name on the card itself; fall back to
@@ -1204,8 +1192,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             },
         )?;
         let inline_customer = RapydInlineCustomer {
-            name: Some(customer_name),
-            email: Some(customer_email),
+            name: customer_name,
+            email: customer_email,
         };
 
         let return_url = router_data.resource_common_data.return_url.clone().ok_or(
