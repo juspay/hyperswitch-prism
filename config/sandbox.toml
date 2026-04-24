@@ -24,6 +24,7 @@ mitm_proxy_enabled = false
 peachpayments.base_url = "https://apitest.bankint.ppay.io/v/1"
 finix.base_url = "https://finix.sandbox-payments-api.com"
 fiservcommercehub.base_url = "https://connect-cert.fiservapis.com/ch/"
+sanlam.base_url = "sbx"
 revolv3.base_url = "https://api-sandbox.revolv3.com"
 ppro.base_url = "https://api.sandbox.eu.ppro.com"
 mollie.base_url = "https://api.mollie.com/v2"
@@ -42,6 +43,7 @@ bluesnap.base_url = "https://sandbox.bluesnap.com"
 bluesnap.secondary_base_url = "https://sandpay.bluesnap.com"
 multisafepay.base_url = "https://testapi.multisafepay.com/v1/json"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
+imerchantsolutions.base_url = "https://imerchantsolutions.com/api"
 jpmorgan.base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
 jpmorgan.secondary_base_url = "https://id.payments.jpmorgan.com"
 nmi.base_url = "https://secure.nmi.com"
@@ -116,6 +118,7 @@ truelayer.base_url = "https://api.truelayer-sandbox.com"
 truelayer.secondary_base_url = "https://auth.truelayer-sandbox.com"
 itaubank.base_url = "https://sandbox.devportal.itau.com.br"
 trustly.base_url = "https://test.trustly.com/api/1"
+pinelabs_online.base_url = "https://pluraluat.v2.pinepg.in/api/pay/v1"
 
 # Generic Events Configuration
 [events]
@@ -123,6 +126,18 @@ enabled = false
 brokers = ["localhost:9092"]
 topic = "audit-trail-events"
 partition_key_field = "request_id"
+
+[connector_request_kafka]
+enabled = false
+brokers = ["localhost:9092"]
+acks = "all"
+request_timeout_ms = 30000
+message_timeout_ms = 30000
+enqueue_timeout_ms = 5000
+# security_protocol = "SASL_SSL"
+# sasl_mechanism = "PLAIN"
+# sasl_username = ""
+# sasl_password = ""
 
 [unmasked_headers]
 keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-connector","x-tenant-id","x-shadow-mode"]

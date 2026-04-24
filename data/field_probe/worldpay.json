@@ -81,8 +81,8 @@
         "error": "Stuck on field: Apple pay encrypted data — Missing required field: Apple pay encrypted data"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through worldpay"
+        "status": "not_supported",
+        "error": "Selected payment method through worldpay is not supported by Worldpay"
       },
       "Bacs": {
         "status": "not_implemented",
@@ -101,6 +101,10 @@
         "error": "This feature is not implemented: Selected payment method through worldpay"
       },
       "Becs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through worldpay"
+      },
+      "BillDeskRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through worldpay"
       },
@@ -169,6 +173,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through worldpay"
       },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through worldpay"
+      },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through worldpay"
@@ -179,7 +187,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
@@ -187,9 +195,13 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through worldpay"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through worldpay"
       },
@@ -215,7 +227,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GooglePay": {
         "status": "supported",
@@ -266,8 +278,8 @@
         "error": "Stuck on field: gpay wallet_token — Missing required field: gpay wallet_token"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through worldpay"
+        "status": "not_supported",
+        "error": "Selected payment method through worldpay is not supported by Worldpay"
       },
       "Ideal": {
         "status": "not_implemented",
@@ -305,6 +317,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through worldpay"
       },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through worldpay"
+      },
       "LocalBankRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through worldpay"
@@ -330,6 +346,10 @@
         "error": "This feature is not implemented: Selected payment method through worldpay"
       },
       "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through worldpay"
+      },
+      "Netbanking": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through worldpay"
       },
@@ -363,7 +383,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -383,7 +403,11 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through worldpay"
       },
       "PaypalRedirect": {
         "status": "not_implemented",
@@ -395,9 +419,13 @@
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through worldpay"
+      },
+      "PhonePeRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through worldpay"
       },
@@ -588,6 +616,31 @@
       }
     },
     "incremental_authorization": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_authorization_id": "probe_auth_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1100,
+            "currency": "USD"
+          },
+          "reason": "incremental_auth_probe"
+        },
+        "sample": {
+          "url": "https://try.access.worldpay.com/payments/authorizations/incrementalAuthorizations/probe_connector_txn_001",
+          "method": "Post",
+          "headers": {
+            "accept": "application/vnd.worldpay.payments-v7+json",
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/vnd.worldpay.payments-v7+json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"value\":{\"amount\":1100,\"currency\":\"USD\"}}"
+        }
+      }
+    },
+    "parse_event": {
       "default": {
         "status": "not_implemented"
       }

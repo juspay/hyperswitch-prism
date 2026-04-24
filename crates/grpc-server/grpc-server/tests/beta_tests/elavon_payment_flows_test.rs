@@ -274,7 +274,6 @@ fn create_payment_sync_request(transaction_id: &str) -> PaymentServiceGetRequest
         }), // Some(format!("elavon_sync_{}", get_timestamp())),
         // all_keys_required: Some(false),
         capture_method: None,
-        handle_response: None,
         amount: TEST_AMOUNT,
         currency: i32::from(Currency::Usd),
         state: None,

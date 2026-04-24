@@ -149,7 +149,7 @@ pub fn tenant_id_from_metadata(
 ) -> CustomResult<String, IntegrationError> {
     parse_metadata(metadata, consts::X_TENANT_ID)
         .map(|s| s.to_string())
-        .or_else(|_| Ok("DefaultTenantId".to_string()))
+        .or_else(|_| Ok("public".to_string()))
 }
 
 pub fn reference_id_from_metadata(
@@ -267,7 +267,7 @@ mod tests {
     fn tenant_id_defaults_when_missing() {
         let metadata = MetadataMap::new();
         let tenant_id = tenant_id_from_metadata(&metadata).expect("should not fail");
-        assert_eq!(tenant_id, "DefaultTenantId");
+        assert_eq!(tenant_id, "public");
     }
 
     #[test]

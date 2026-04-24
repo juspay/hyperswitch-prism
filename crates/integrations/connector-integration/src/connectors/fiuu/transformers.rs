@@ -213,8 +213,9 @@ impl TryFrom<BankNames> for FPXTxnChannel {
             BankNames::StandardCharteredBank => Ok(Self::FpxScb),
             BankNames::UobBank => Ok(Self::FpxUob),
             BankNames::OcbcBank => Ok(Self::FpxOcbc),
-            _ => Err(IntegrationError::not_implemented(
+            _ => Err(IntegrationError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Fiuu"),
+                Default::default(),
             ))?,
         }
     }
@@ -573,8 +574,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }
                     RealTimePaymentData::Fps {}
                     | RealTimePaymentData::PromptPay {}
-                    | RealTimePaymentData::VietQr {} => Err(IntegrationError::not_implemented(
+                    | RealTimePaymentData::VietQr {} => Err(IntegrationError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("fiuu"),
+                        Default::default(),
                     )
                     .into()),
                 }
@@ -605,10 +607,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | BankRedirectData::OnlineBankingThailand { .. }
                 | BankRedirectData::LocalBankRedirect {}
                 | BankRedirectData::OpenBanking {}
-                | BankRedirectData::Netbanking { .. } => Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("fiuu"),
-                )
-                .into()),
+                | BankRedirectData::Netbanking { .. } => {
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: utils::get_unimplemented_payment_method_error_message("fiuu"),
+                        connector: "Fiuu",
+                        context: Default::default(),
+                    }))
+                }
             },
             PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                 WalletData::GooglePay(google_pay_data) => {
@@ -660,8 +665,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::BillDeskRedirect(_)
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
-                | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::not_implemented(
+                | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("fiuu"),
+                    Default::default(),
                 )
                 .into()),
             },
@@ -681,8 +687,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
+                Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("fiuu"),
+                    Default::default(),
                 )
                 .into())
             }
@@ -772,14 +779,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             network_transaction_id.clone(),
                         ))
                     }
-                    _ => Err(IntegrationError::not_implemented(
+                    _ => Err(IntegrationError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("fiuu"),
+                        Default::default(),
                     )
                     .into()),
                 }
             }
-            _ => Err(IntegrationError::not_implemented(
+            _ => Err(IntegrationError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("fiuu"),
+                Default::default(),
             )
             .into()),
         }?;
@@ -818,10 +827,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let (mps_token_status, customer_email) =
             if item.request.is_customer_initiated_mandate_payment() {
-                (
-                    Some(1),
-                    Some(item.resource_common_data.get_billing_email()?),
-                )
+                let email = item.resource_common_data.get_billing_email()?;
+                // Filter out empty emails - don't send CustEmail field if email is empty
+                if email.peek().is_empty() {
+                    (Some(1), None)
+                } else {
+                    (Some(1), Some(email))
+                }
             } else {
                 (Some(3), None)
             };
@@ -2346,7 +2358,7 @@ pub struct FiuWebhookEvent {
     pub status: FiuuPaymentWebhookStatus,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, strum::Display)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, strum::Display)]
 pub enum FiuuPaymentWebhookStatus {
     #[strum(serialize = "00")]
     #[serde(rename = "00")]
@@ -2498,16 +2510,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[macro_export]
 macro_rules! unimplemented_payment_method {
     ($payment_method:expr, $connector:expr) => {
-        domain_types::errors::IntegrationError::not_implemented(format!(
-            "{} through {}",
-            $payment_method, $connector
-        ))
+        domain_types::errors::IntegrationError::NotImplemented(
+            (format!("{} through {}", $payment_method, $connector)).into(),
+            Default::default(),
+        )
     };
     ($payment_method:expr, $flow:expr, $connector:expr) => {
-        domain_types::errors::IntegrationError::not_implemented(format!(
-            "{} {} through {}",
-            $payment_method, $flow, $connector
-        ))
+        domain_types::errors::IntegrationError::NotImplemented(
+            (format!("{} {} through {}", $payment_method, $flow, $connector)).into(),
+            Default::default(),
+        )
     };
 }
 
@@ -2554,8 +2566,9 @@ impl TryFrom<FiuuRefundSyncResponse> for RefundWebhookDetailsResponse {
                 raw_connector_response: None,
                 response_headers: None,
             }),
-            _ => Err(IntegrationError::not_implemented(
+            _ => Err(IntegrationError::NotImplemented(
                 "webhook body decoding failed".to_string(),
+                Default::default(),
             ))?,
         }
     }

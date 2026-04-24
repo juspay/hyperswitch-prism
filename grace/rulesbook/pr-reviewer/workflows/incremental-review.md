@@ -58,7 +58,7 @@ The final report should explicitly say:
 ## Portable Invocation Prompt
 
 ```text
-Re-review PR <PR-REFERENCE> in connector-service after the latest updates.
+Re-review PR <PR-REFERENCE> in hyperswitch-prism after the latest updates.
 Read grace/rulesbook/pr-reviewer/workflows/incremental-review.md and follow it exactly.
 Use nested subagents if the tool supports them; otherwise emulate the same phases serially.
 ```

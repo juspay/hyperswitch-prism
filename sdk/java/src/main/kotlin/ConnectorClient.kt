@@ -211,7 +211,15 @@ open class ConnectorClient(
         val optionsBytes = ffiOptions.toByteArray()
 
         val resultBytes = transformer(requestBytes, optionsBytes)
-        val httpResponse = checkRes(resultBytes)
-        return responseParser.parseFrom(httpResponse.body)
+
+        // Direct flows return PROTO_RESPONSE (raw proto bytes), not an HTTP envelope.
+        // Errors come back as CONNECTOR_ERROR / INTEGRATION_ERROR.
+        val result = types.SdkConfig.FfiResult.parseFrom(resultBytes)
+        return when (result.getType()) {
+            types.SdkConfig.FfiResult.Type.PROTO_RESPONSE -> responseParser.parseFrom(result.protoResponse)
+            types.SdkConfig.FfiResult.Type.CONNECTOR_ERROR -> throw ConnectorError(result.getConnectorError())
+            types.SdkConfig.FfiResult.Type.INTEGRATION_ERROR -> throw IntegrationError(result.getIntegrationError())
+            else -> throw IllegalStateException("Unexpected FfiResult type for direct flow '$flow': ${result.getType()}")
+        }
     }
 }

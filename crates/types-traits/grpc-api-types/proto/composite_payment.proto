@@ -119,8 +119,7 @@ message CompositeGetRequest {
   // State Information
   optional ConnectorState state = 2; // State data for access token storage and other connector-specific state
 
-  // Body of the response
-  optional bytes handle_response = 3;
+  reserved 3; // was: handle_response (bytes)
 
   // Amount Information
   optional Money amount = 4; // The amount for the payment in minor currency units
@@ -211,7 +210,8 @@ message CompositeRefundGetRequest {
   // Identification
   optional string merchant_refund_id = 1; // Merchant's refund ID for tracking
   string connector_transaction_id = 2; // Connector transaction ID for the original payment
-  string refund_id = 3; // Connector's refund ID
+  string refund_id = 3; // Deprecated
+  string connector_refund_id = 14; // Connector's refund ID
 
   // Refund Details
   optional string refund_reason = 4; // Reason for the refund
@@ -332,4 +332,27 @@ message CompositeCaptureRequest {
 message CompositeCaptureResponse {
   optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 1;
   optional PaymentServiceCaptureResponse capture_response = 2;
+}
+
+// Request for CompositeEventService.HandleEvent.
+// Use when webhook secrets are already resolved (e.g. merchant identity in webhook URL).
+// Supply event_context for connectors that require it (see connector integration guide).
+message CompositeEventHandleRequest {
+  RequestDetails          request_details   = 1;
+  optional WebhookSecrets webhook_secrets   = 2;
+  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+  optional string         merchant_event_id = 3;
+  optional AccessToken    access_token      = 4;
+  optional EventContext   event_context     = 5;
+}
+
+// Response for CompositeEventService.HandleEvent.
+// Returns INVALID_ARGUMENT if required EventContext fields are absent for this connector.
+message CompositeEventHandleResponse {
+  optional EventReference   reference          = 1;
+  WebhookEventType          event_type         = 2;
+  EventContent              event_content      = 3;
+  bool                      source_verified    = 4;
+  optional string           merchant_event_id  = 5;  // Echoed from request.
+  optional EventAckResponse event_ack_response = 6;
 }

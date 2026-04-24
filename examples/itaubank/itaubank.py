@@ -7,28 +7,29 @@
 
 import asyncio
 import sys
-from google.protobuf.json_format import ParseDict
 from payments import MerchantAuthenticationClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
+SUPPORTED_FLOWS = ["create_server_authentication_token"]
+
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        itaubank=payment_pb2.ItaubankConfig(
+            client_secret=payment_methods_pb2.SecretString(value="YOUR_CLIENT_SECRET"),
+            client_id=payment_methods_pb2.SecretString(value="YOUR_CLIENT_ID"),
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
-# Standalone credentials (field names depend on connector auth type):
-# _default_config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     itaubank=payment_pb2.ItaubankConfig(api_key=...),
-# ))
 
 
 
 
 def _build_create_server_authentication_token_request():
-    return ParseDict(
-        {
-        },
-        payment_pb2.MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest(),
+    return payment_pb2.MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest(
     )
-async def create_server_authentication_token(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+async def process_create_server_authentication_token(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: MerchantAuthenticationService.CreateServerAuthenticationToken"""
     merchantauthentication_client = MerchantAuthenticationClient(config)
 

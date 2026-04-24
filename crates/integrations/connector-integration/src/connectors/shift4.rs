@@ -47,11 +47,13 @@ use serde::Serialize;
 use self::transformers::{
     Shift4AuthType, Shift4CaptureRequest, Shift4ClientAuthRequest, Shift4ClientAuthResponse,
     Shift4CreateCustomerRequest, Shift4CreateCustomerResponse, Shift4ErrorResponse,
-    Shift4PSyncRequest, Shift4PaymentsRequest, Shift4PaymentsResponse as Shift4AuthorizeResponse,
-    Shift4PaymentsResponse as Shift4CaptureResponse, Shift4PaymentsResponse as Shift4PSyncResponse,
-    Shift4RSyncRequest, Shift4RefundRequest, Shift4RefundResponse,
-    Shift4RefundResponse as Shift4RSyncResponse, Shift4RepeatPaymentRequest,
-    Shift4RepeatPaymentResponse,
+    Shift4IncrementalAuthRequest, Shift4PSyncRequest, Shift4PaymentsRequest,
+    Shift4PaymentsResponse as Shift4AuthorizeResponse,
+    Shift4PaymentsResponse as Shift4CaptureResponse,
+    Shift4PaymentsResponse as Shift4IncrementalAuthResponse,
+    Shift4PaymentsResponse as Shift4PSyncResponse, Shift4RSyncRequest, Shift4RefundRequest,
+    Shift4RefundResponse, Shift4RefundResponse as Shift4RSyncResponse, Shift4RepeatPaymentRequest,
+    Shift4RepeatPaymentResponse, Shift4SetupMandateRequest, Shift4SetupMandateResponse,
 };
 use crate::{connectors::macros, types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
@@ -65,16 +67,6 @@ pub(crate) mod headers {
 }
 
 // ===== CONNECTOR COMMON IMPLEMENTATION - Must be defined before macros =====
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Shift4<T>
-{
-}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
     for Shift4<T>
@@ -251,6 +243,18 @@ macros::create_all_prerequisites!(
             request_body: Shift4ClientAuthRequest,
             response_body: Shift4ClientAuthResponse,
             router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: Shift4SetupMandateRequest<T>,
+            response_body: Shift4SetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: IncrementalAuthorization,
+            request_body: Shift4IncrementalAuthRequest,
+            response_body: Shift4IncrementalAuthResponse,
+            router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -481,6 +485,47 @@ macros::macro_connector_implementation!(
     }
 );
 
+// IncrementalAuthorization Flow — POST /charges/{chargeId}/incremental-authorization
+// Increases the authorized amount on an existing Shift4 pre-authorization. Requires
+// the original charge to be `captured=false` AND `options.authorizationType="pre"`.
+// Note: Shift4's public API doc example shows `/increment-authorization`, but the
+// live API actually exposes `/incremental-authorization` (verified against sandbox);
+// only the plural form is routed on the server.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Shift4,
+    curl_request: Json(Shift4IncrementalAuthRequest),
+    curl_response: Shift4IncrementalAuthResponse,
+    flow_name: IncrementalAuthorization,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsIncrementalAuthorizationData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let connector_transaction_id = req
+                .request
+                .connector_transaction_id
+                .get_connector_transaction_id()
+                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
+            let base_url = self.connector_base_url_payments(req);
+            Ok(format!("{base_url}/charges/{connector_transaction_id}/incremental-authorization"))
+        }
+    }
+);
+
 // ===== SOURCE VERIFICATION IMPLEMENTATIONS =====
 
 // ===== TRAIT IMPLEMENTATIONS FOR SUPPORTED FLOWS =====
@@ -639,16 +684,39 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 {
 }
 
-// Setup Mandate
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
-        PaymentsResponseData,
-    > for Shift4<T>
-{
-}
+// Setup Mandate flow implementation using macro - POST /charges with
+// captured=false (auth-only) to create a card-on-file mandate. The
+// resulting charge.id is surfaced as the connector_mandate_id for
+// subsequent RepeatPayment (MIT) calls.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Shift4,
+    curl_request: Json(Shift4SetupMandateRequest<T>),
+    curl_response: Shift4SetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let base_url = self.connector_base_url_payments(req);
+            Ok(format!("{base_url}/charges"))
+        }
+    }
+);
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Shift4<T>
