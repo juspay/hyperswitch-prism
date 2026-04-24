@@ -12,7 +12,7 @@ use domain_types::{
         RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
         SetupMandateRequestData,
     },
-    errors::{ConnectorError, IntegrationError, WebhookError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -264,23 +264,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let transaction_data = match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(card_info) => {
+                let (routing_reference, routing) = build_routing_fields(
+                    connector_meta_data.merchant_payment_method_route_id,
+                );
                 requests::PeachpaymentsTransactionData::Card(requests::PeachpaymentsCardData {
                     merchant_information: requests::PeachpaymentsMerchantInformation {
                         client_merchant_reference_id: connector_meta_data
                             .client_merchant_reference_id,
                     },
-                    routing_reference: {
-                        let (rr, _) = build_routing_fields(
-                            connector_meta_data.merchant_payment_method_route_id.clone(),
-                        );
-                        rr
-                    },
-                    routing: {
-                        let (_, rt) = build_routing_fields(
-                            connector_meta_data.merchant_payment_method_route_id.clone(),
-                        );
-                        rt
-                    },
+                    routing_reference,
+                    routing,
                     card: requests::PeachpaymentsCardDetails {
                         pan: card_info.card_number.clone(),
                         cardholder_name: card_info.card_holder_name.clone(),
@@ -323,24 +316,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 })
             }
             PaymentMethodData::NetworkToken(token_data) => {
+                let (routing_reference, routing) = build_routing_fields(
+                    connector_meta_data.merchant_payment_method_route_id,
+                );
                 requests::PeachpaymentsTransactionData::NetworkToken(
                     requests::PeachpaymentsNetworkTokenData {
                         merchant_information: requests::PeachpaymentsMerchantInformation {
                             client_merchant_reference_id: connector_meta_data
                                 .client_merchant_reference_id,
                         },
-                        routing_reference: {
-                            let (rr, _) = build_routing_fields(
-                                connector_meta_data.merchant_payment_method_route_id.clone(),
-                            );
-                            rr
-                        },
-                        routing: {
-                            let (_, rt) = build_routing_fields(
-                                connector_meta_data.merchant_payment_method_route_id.clone(),
-                            );
-                            rt
-                        },
+                        routing_reference,
+                        routing,
                         network_token_data: requests::PeachpaymentsNetworkTokenDetails {
                             token: Secret::new(token_data.token_number.peek().clone()),
                             expiry_year: token_data
@@ -391,8 +377,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             pos_data: None,
             send_date_time: OffsetDateTime::now_utc()
                 .format(&Iso8601::DEFAULT)
-                .map_err(|_| IntegrationError::RequestEncodingFailed {
-                    context: Default::default(),
+                .map_err(|e| IntegrationError::RequestEncodingFailed {
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "Failed to format send_date_time as ISO 8601: {e}"
+                        )),
+                        ..Default::default()
+                    },
                 })?,
         })
     }
@@ -796,23 +787,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         context: Default::default(),
                     },
                 )?;
+                let (routing_reference, routing) = build_routing_fields(
+                    connector_meta_data.merchant_payment_method_route_id,
+                );
                 requests::PeachpaymentsTransactionData::Card(requests::PeachpaymentsCardData {
                     merchant_information: requests::PeachpaymentsMerchantInformation {
                         client_merchant_reference_id: connector_meta_data
                             .client_merchant_reference_id,
                     },
-                    routing_reference: {
-                        let (rr, _) = build_routing_fields(
-                            connector_meta_data.merchant_payment_method_route_id.clone(),
-                        );
-                        rr
-                    },
-                    routing: {
-                        let (_, rt) = build_routing_fields(
-                            connector_meta_data.merchant_payment_method_route_id.clone(),
-                        );
-                        rt
-                    },
+                    routing_reference,
+                    routing,
                     card: requests::PeachpaymentsCardDetails {
                         pan: card_info.card_number.clone(),
                         cardholder_name: card_info.card_holder_name.clone(),
@@ -858,8 +842,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             pos_data: None,
             send_date_time: OffsetDateTime::now_utc()
                 .format(&Iso8601::DEFAULT)
-                .map_err(|_| IntegrationError::RequestEncodingFailed {
-                    context: Default::default(),
+                .map_err(|e| IntegrationError::RequestEncodingFailed {
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "Failed to format send_date_time as ISO 8601: {e}"
+                        )),
+                        ..Default::default()
+                    },
                 })?,
         })
     }
@@ -986,23 +975,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let transaction_data = match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(card_info) => {
+                let (routing_reference, routing) = build_routing_fields(
+                    connector_meta_data.merchant_payment_method_route_id,
+                );
                 requests::PeachpaymentsTransactionData::Card(requests::PeachpaymentsCardData {
                     merchant_information: requests::PeachpaymentsMerchantInformation {
                         client_merchant_reference_id: connector_meta_data
                             .client_merchant_reference_id,
                     },
-                    routing_reference: {
-                        let (rr, _) = build_routing_fields(
-                            connector_meta_data.merchant_payment_method_route_id.clone(),
-                        );
-                        rr
-                    },
-                    routing: {
-                        let (_, rt) = build_routing_fields(
-                            connector_meta_data.merchant_payment_method_route_id.clone(),
-                        );
-                        rt
-                    },
+                    routing_reference,
+                    routing,
                     card: requests::PeachpaymentsCardDetails {
                         pan: card_info.card_number.clone(),
                         cardholder_name: card_info.card_holder_name.clone(),
@@ -1028,24 +1010,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 })
             }
             PaymentMethodData::NetworkToken(token_data) => {
+                let (routing_reference, routing) = build_routing_fields(
+                    connector_meta_data.merchant_payment_method_route_id,
+                );
                 requests::PeachpaymentsTransactionData::NetworkToken(
                     requests::PeachpaymentsNetworkTokenData {
                         merchant_information: requests::PeachpaymentsMerchantInformation {
                             client_merchant_reference_id: connector_meta_data
                                 .client_merchant_reference_id,
                         },
-                        routing_reference: {
-                            let (rr, _) = build_routing_fields(
-                                connector_meta_data.merchant_payment_method_route_id.clone(),
-                            );
-                            rr
-                        },
-                        routing: {
-                            let (_, rt) = build_routing_fields(
-                                connector_meta_data.merchant_payment_method_route_id.clone(),
-                            );
-                            rt
-                        },
+                        routing_reference,
+                        routing,
                         network_token_data: requests::PeachpaymentsNetworkTokenDetails {
                             token: Secret::new(token_data.token_number.peek().clone()),
                             expiry_year: token_data
@@ -1108,8 +1083,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             pos_data: None,
             send_date_time: OffsetDateTime::now_utc()
                 .format(&Iso8601::DEFAULT)
-                .map_err(|_| IntegrationError::RequestEncodingFailed {
-                    context: Default::default(),
+                .map_err(|e| IntegrationError::RequestEncodingFailed {
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "Failed to format send_date_time as ISO 8601: {e}"
+                        )),
+                        ..Default::default()
+                    },
                 })?,
         })
     }
