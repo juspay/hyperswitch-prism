@@ -1169,9 +1169,11 @@ impl TryFrom<&BankRedirectData> for StripePaymentMethodType {
             BankRedirectData::Przelewy24 { .. } => Ok(Self::Przelewy24),
             BankRedirectData::Eps { .. } => Ok(Self::Eps),
             BankRedirectData::Blik { .. } => Ok(Self::Blik),
-            BankRedirectData::OnlineBankingFpx { .. } => Err(IntegrationError::not_implemented(
-                get_unimplemented_payment_method_error_message("stripe"),
-            )),
+            BankRedirectData::OnlineBankingFpx { .. } => Err(IntegrationError::NotSupported {
+                message: "OnlineBankingFpx (Malaysia FPX) payment method".to_string(),
+                connector: "Stripe",
+                context: Default::default(),
+            }),
             BankRedirectData::Bizum {}
             | BankRedirectData::Interac { .. }
             | BankRedirectData::Eft { .. }
@@ -1183,10 +1185,14 @@ impl TryFrom<&BankRedirectData> for StripePaymentMethodType {
             | BankRedirectData::OpenBankingUk { .. }
             | BankRedirectData::Trustly { .. }
             | BankRedirectData::LocalBankRedirect {}
-            | BankRedirectData::OpenBanking {}
-            | BankRedirectData::Netbanking { .. } => Err(IntegrationError::not_implemented(
+            | BankRedirectData::OpenBanking {} => Err(IntegrationError::not_implemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )),
+            BankRedirectData::Netbanking { .. } => Err(IntegrationError::NotSupported {
+                message: "Netbanking (India) payment method".to_string(),
+                connector: "Stripe",
+                context: Default::default(),
+            }),
         }
     }
 }
@@ -1202,9 +1208,11 @@ fn get_stripe_payment_method_type_from_wallet_data(
         WalletData::CashappQr(_) => Ok(Some(StripePaymentMethodType::Cashapp)),
         WalletData::AmazonPayRedirect(_) => Ok(Some(StripePaymentMethodType::AmazonPay)),
         WalletData::RevolutPay(_) => Ok(Some(StripePaymentMethodType::RevolutPay)),
-        WalletData::MobilePayRedirect(_) => Err(IntegrationError::not_implemented(
-            get_unimplemented_payment_method_error_message("stripe"),
-        )),
+        WalletData::MobilePayRedirect(_) => Err(IntegrationError::NotSupported {
+            message: "MobilePay wallet redirect payment method".to_string(),
+            connector: "Stripe",
+            context: Default::default(),
+        }),
         WalletData::PaypalRedirect(_)
         | WalletData::AliPayQr(_)
         | WalletData::BluecodeRedirect {}
@@ -1235,10 +1243,14 @@ fn get_stripe_payment_method_type_from_wallet_data(
         | WalletData::PhonePeRedirect(_)
         | WalletData::BillDeskRedirect(_)
         | WalletData::CashfreeRedirect(_)
-        | WalletData::PayURedirect(_)
-        | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::not_implemented(
+        | WalletData::PayURedirect(_) => Err(IntegrationError::not_implemented(
             get_unimplemented_payment_method_error_message("stripe"),
         )),
+        WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotSupported {
+            message: "EaseBuzz (India) wallet redirect payment method".to_string(),
+            connector: "Stripe",
+            context: Default::default(),
+        }),
     }
 }
 
@@ -1500,10 +1512,13 @@ fn create_stripe_payment_method<
             CardRedirectData::Knet {}
             | CardRedirectData::Benefit {}
             | CardRedirectData::MomoAtm {}
-            | CardRedirectData::CardRedirect {} => Err(IntegrationError::not_implemented(
-                get_unimplemented_payment_method_error_message("stripe"),
-            )
-            .into()),
+            | CardRedirectData::CardRedirect {} => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "Card redirect payment method".to_string(),
+                    connector: "Stripe",
+                    context: Default::default(),
+                }))
+            }
         },
         PaymentMethodData::Reward => Err(IntegrationError::not_implemented(
             get_unimplemented_payment_method_error_message("stripe"),
@@ -1525,11 +1540,17 @@ fn create_stripe_payment_method<
             | VoucherData::Lawson(_)
             | VoucherData::MiniStop(_)
             | VoucherData::FamilyMart(_)
-            | VoucherData::Seicomart(_)
-            | VoucherData::PayEasy(_) => Err(IntegrationError::not_implemented(
+            | VoucherData::Seicomart(_) => Err(IntegrationError::not_implemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )
             .into()),
+            VoucherData::PayEasy(_) => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "PayEasy (Japan) voucher payment method".to_string(),
+                    connector: "Stripe",
+                    context: Default::default(),
+                }))
+            }
         },
 
         PaymentMethodData::Upi(_)
@@ -1674,11 +1695,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> TryF
                 })))
             }
             WalletData::GooglePay(gpay_data) => Ok(Self::try_from(gpay_data)?),
-            WalletData::PaypalRedirect(_) | WalletData::MobilePayRedirect(_) => {
+            WalletData::PaypalRedirect(_) => {
                 Err(IntegrationError::not_implemented(
                     get_unimplemented_payment_method_error_message("stripe"),
                 )
                 .into())
+            }
+            WalletData::MobilePayRedirect(_) => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "MobilePay wallet redirect payment method".to_string(),
+                    connector: "Stripe",
+                    context: Default::default(),
+                }))
             }
             WalletData::AliPayQr(_)
             | WalletData::BluecodeRedirect {}
@@ -1709,11 +1737,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> TryF
             | WalletData::PhonePeRedirect(_)
             | WalletData::BillDeskRedirect(_)
             | WalletData::CashfreeRedirect(_)
-            | WalletData::PayURedirect(_)
-            | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::not_implemented(
+            | WalletData::PayURedirect(_) => Err(IntegrationError::not_implemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )
             .into()),
+            WalletData::EaseBuzzRedirect(_) => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "EaseBuzz (India) wallet redirect payment method".to_string(),
+                    connector: "Stripe",
+                    context: Default::default(),
+                }))
+            }
         }
     }
 }
@@ -1782,10 +1816,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     country: *country,
                 })),
             )),
-            BankRedirectData::OnlineBankingFpx { .. } => Err(IntegrationError::not_implemented(
-                get_unimplemented_payment_method_error_message("stripe"),
-            )
-            .into()),
+            BankRedirectData::OnlineBankingFpx { .. } => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "OnlineBankingFpx (Malaysia FPX) payment method".to_string(),
+                    connector: "Stripe",
+                    context: Default::default(),
+                }))
+            }
             BankRedirectData::Bizum {}
             | BankRedirectData::Eft { .. }
             | BankRedirectData::Interac { .. }
@@ -1797,11 +1834,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | BankRedirectData::OpenBankingUk { .. }
             | BankRedirectData::Trustly { .. }
             | BankRedirectData::LocalBankRedirect {}
-            | BankRedirectData::OpenBanking {}
-            | BankRedirectData::Netbanking { .. } => Err(IntegrationError::not_implemented(
+            | BankRedirectData::OpenBanking {} => Err(IntegrationError::not_implemented(
                 get_unimplemented_payment_method_error_message("stripe"),
             )
             .into()),
+            BankRedirectData::Netbanking { .. } => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "Netbanking (India) payment method".to_string(),
+                    connector: "Stripe",
+                    context: Default::default(),
+                }))
+            }
         }
     }
 }
@@ -5061,10 +5104,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         | PaymentMethodData::OpenBanking(_)
                         | PaymentMethodData::PaymentMethodToken(_)
                         | PaymentMethodData::NetworkToken(_)
-                        | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-                        | PaymentMethodData::Card(_) => Err(IntegrationError::not_implemented(
-                            "Network tokenization for payment method".to_string(),
-                        ))?,
+                        | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => {
+                            Err(IntegrationError::not_implemented(
+                                "Network tokenization for payment method".to_string(),
+                            ))?
+                        }
+                        PaymentMethodData::Card(_) => {
+                            Err(error_stack::report!(IntegrationError::NotSupported {
+                                message: "Raw card data in network tokenization flow".to_string(),
+                                connector: "Stripe",
+                                context: Default::default(),
+                            }))?
+                        }
                     };
 
                         (
@@ -5570,3 +5621,29 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         })
     }
 }
+
+// Stub response types for flows wired into `create_all_prerequisites!` that
+// have no dedicated Stripe API endpoint (3DS is inline, mandate revoke is
+// detach, order creation is N/A, etc.).  The empty `ConnectorIntegrationV2`
+// impls return default errors; these types satisfy the macro's type machinery.
+
+#[derive(Debug, Deserialize)]
+pub struct MandateRevokeStubResponse {}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateOrderStubResponse {}
+
+#[derive(Debug, Deserialize)]
+pub struct PreAuthenticateStubResponse {}
+
+#[derive(Debug, Deserialize)]
+pub struct AuthenticateStubResponse {}
+
+#[derive(Debug, Deserialize)]
+pub struct PostAuthenticateStubResponse {}
+
+#[derive(Debug, Deserialize)]
+pub struct ServerAuthTokenStubResponse {}
+
+#[derive(Debug, Deserialize)]
+pub struct ServerSessionAuthTokenStubResponse {}

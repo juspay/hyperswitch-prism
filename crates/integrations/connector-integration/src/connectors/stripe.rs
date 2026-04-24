@@ -1,3 +1,43 @@
+//! Stripe connector integration for Hyperswitch Prism.
+//!
+//! Production base URL: `https://api.stripe.com/`
+//! API reference: <https://stripe.com/docs/api>
+//! API version pinned: `2022-11-15` (via `stripe-version` header)
+//!
+//! # Implemented Flows
+//!
+//! | Flow                    | Status       | Stripe endpoint                                      |
+//! |-------------------------|--------------|------------------------------------------------------|
+//! | `Authorize`             | Implemented  | `POST /v1/payment_intents`                           |
+//! | `PSync`                 | Implemented  | `GET  /v1/payment_intents/{id}?expand[0]=latest_charge` |
+//! | `Capture`               | Implemented  | `POST /v1/payment_intents/{id}/capture`              |
+//! | `Void`                  | Implemented  | `POST /v1/payment_intents/{id}/cancel`               |
+//! | `Refund`                | Implemented  | `POST /v1/refunds`                                   |
+//! | `RSync`                 | Implemented  | `GET  /v1/refunds/{id}`                              |
+//! | `IncrementalAuthorization` | Implemented | `POST /v1/payment_intents/{id}/increment_authorization` |
+//! | `SetupMandate`          | Implemented  | `POST /v1/setup_intents`                             |
+//! | `RepeatPayment`         | Implemented  | `POST /v1/payment_intents` (off-session)             |
+//! | `AcceptDispute`         | Implemented  | `POST /v1/disputes/{id}/close`                       |
+//! | `SubmitEvidence`        | Implemented  | `POST /v1/disputes/{id}` (evidence update)           |
+//! | `MandateRevoke`         | Wired (stub) | `POST /v1/payment_methods/{id}/detach` (no-op stub)  |
+//! | `CreateOrder`           | Wired (stub) | Not applicable — Stripe has no order-create endpoint |
+//! | `PreAuthenticate`       | Wired (stub) | Not applicable — 3DS handled inline in Authorize     |
+//! | `Authenticate`          | Wired (stub) | Not applicable — 3DS redirect via `next_action`      |
+//! | `PostAuthenticate`      | Wired (stub) | Not applicable — post-3DS polled via PSync           |
+//! | `ServerAuthToken`       | Wired (stub) | Not applicable — Stripe uses API key auth directly   |
+//! | `ServerSessionAuthToken`| Wired (stub) | Not applicable — no session token flow               |
+//! | `DefendDispute`         | Stub         | No distinct Stripe endpoint; covered by SubmitEvidence |
+//!
+//! # Authentication
+//!
+//! Bearer token auth: `Authorization: Bearer {api_key}`.
+//! Connect platform payments use the `Stripe-Account: {transfer_account_id}` header for Direct charges.
+//!
+//! # Webhook Verification
+//!
+//! HMAC-SHA256 over `{timestamp}.{raw_body}` with a 300-second replay-protection window.
+//! Signature carried in the `Stripe-Signature` header as `t={ts},v1={hex_sig}`.
+
 pub mod transformers;
 use std::{
     fmt::Debug,
@@ -53,18 +93,19 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    self as stripe, CancelRequest, CaptureRequest, CreateConnectorCustomerRequest,
-    CreateConnectorCustomerResponse, DisputeObj, DisputeObj as SubmitEvidenceResponse,
-    PaymentIncrementalAuthRequest,
-    PaymentIntentRequest, PaymentIntentRequest as RepeatPaymentRequest,
+    self as stripe, AuthenticateStubResponse, CancelRequest, CaptureRequest,
+    CreateConnectorCustomerRequest, CreateConnectorCustomerResponse, CreateOrderStubResponse,
+    DisputeObj, DisputeObj as SubmitEvidenceResponse, MandateRevokeStubResponse,
+    PaymentIncrementalAuthRequest, PaymentIntentRequest,
+    PaymentIntentRequest as RepeatPaymentRequest,
     PaymentIntentResponse as PaymentIncrementalAuthResponse, PaymentSyncResponse,
     PaymentsAuthorizeResponse, PaymentsAuthorizeResponse as RepeatPaymentResponse,
-    PaymentsCaptureResponse, PaymentsVoidResponse, RefundResponse,
-    RefundResponse as RefundSyncResponse, SetupMandateRequest, SetupMandateResponse,
-    StripeClientAuthRequest, StripeClientAuthResponse, StripeRefundRequest,
-    StripeSubmitEvidenceRequest, StripeTokenResponse,
-    TokenRequest, WebhookEvent, WebhookEventObjectResource, WebhookEventStatus,
-    WebhookEventType, WebhookEventTypeBody,
+    PaymentsCaptureResponse, PaymentsVoidResponse, PostAuthenticateStubResponse,
+    PreAuthenticateStubResponse, RefundResponse, RefundResponse as RefundSyncResponse,
+    ServerAuthTokenStubResponse, ServerSessionAuthTokenStubResponse, SetupMandateRequest,
+    SetupMandateResponse, StripeClientAuthRequest, StripeClientAuthResponse, StripeRefundRequest,
+    StripeSubmitEvidenceRequest, StripeTokenResponse, TokenRequest, WebhookEvent,
+    WebhookEventObjectResource, WebhookEventStatus, WebhookEventType, WebhookEventTypeBody,
 };
 
 use super::macros;
@@ -815,6 +856,41 @@ macros::create_all_prerequisites!(
             request_body: StripeSubmitEvidenceRequest,
             response_body: SubmitEvidenceResponse,
             router_data: RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>,
+        ),
+        (
+            flow: MandateRevoke,
+            response_body: MandateRevokeStubResponse,
+            router_data: RouterDataV2<MandateRevoke, PaymentFlowData, MandateRevokeRequestData, MandateRevokeResponseData>,
+        ),
+        (
+            flow: CreateOrder,
+            response_body: CreateOrderStubResponse,
+            router_data: RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+        ),
+        (
+            flow: PreAuthenticate,
+            response_body: PreAuthenticateStubResponse,
+            router_data: RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: Authenticate,
+            response_body: AuthenticateStubResponse,
+            router_data: RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: PostAuthenticate,
+            response_body: PostAuthenticateStubResponse,
+            router_data: RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: ServerAuthenticationToken,
+            response_body: ServerAuthTokenStubResponse,
+            router_data: RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+        ),
+        (
+            flow: ServerSessionAuthenticationToken,
+            response_body: ServerSessionAuthTokenStubResponse,
+            router_data: RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
         )
     ],
     amount_converters: [],
@@ -1660,5 +1736,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     > for Stripe<T>
 {
 }
+
+// FlowNotSupported: payment_method_eligibility
+// Stripe has no explicit payment method eligibility endpoint.
+
+// FlowNotSupported: reverse
+// Not a standard Stripe flow. Stripe uses void/cancel pre-capture and refund post-capture.
 
 // SourceVerification implementations for all flows
