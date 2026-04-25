@@ -806,38 +806,8 @@
     },
     "token_authorize": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_tokenized_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "connector_token": "pm_1AbcXyzStripeTestToken",
-          "customer": {
-            "email": "test@example.com"
-          },
-          "address": {
-            "billing_address": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://apitest.cybersource.com/pts/v2/payments/",
-          "method": "Post",
-          "headers": {
-            "accept": "application/hal+json;charset=utf-8",
-            "content-type": "application/json;charset=utf-8",
-            "date": "2020-01-01T00:00:00+00:00",
-            "digest": "SHA-256=cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "host": "apitest.cybersource.com",
-            "signature": "keyid=\"probe_key\", algorithm=\"HmacSHA256\", headers=\"host date (request-target) digest v-c-merchant-id\", signature=\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"",
-            "v-c-merchant-id": "probe_merchant",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"processingInformation\":{\"actionList\":null,\"actionTokenTypes\":null,\"authorizationOptions\":null,\"commerceIndicator\":\"internet\",\"capture\":true,\"captureOptions\":null,\"paymentSolution\":null},\"paymentInformation\":{\"fluidData\":{\"value\":\"pm_1AbcXyzStripeTestToken\"}},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":null,\"lastName\":null,\"address1\":null,\"locality\":null,\"administrativeArea\":null,\"postalCode\":null,\"country\":null,\"email\":\"test@example.com\"}},\"clientReferenceInformation\":{\"code\":\"probe_tokenized_txn_001\"}}"
-        }
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
       }
     },
     "token_setup_recurring": {

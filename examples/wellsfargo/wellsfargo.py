@@ -12,7 +12,7 @@ from payments import MerchantAuthenticationClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "get", "proxy_authorize", "proxy_setup_recurring", "refund", "refund_get", "setup_recurring", "void"]
+SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "get", "proxy_authorize", "proxy_setup_recurring", "refund", "refund_get", "setup_recurring", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -67,15 +67,14 @@ def _build_capture_request(connector_transaction_id: str):
     )
 
 def _build_create_client_authentication_token_request():
-    return ParseDict(
-        {
-            "merchant_client_session_id": "probe_sdk_session_001",  # Infrastructure.
-            "domain_context": {
-                "minor_amount": 1000,
-                "currency": "USD"
-            }
-        },
-        payment_pb2.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest(),
+    return payment_pb2.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest(
+        merchant_client_session_id="probe_sdk_session_001",  # Infrastructure.
+        payment=payment_pb2.PaymentClientAuthenticationContext(  # FrmClientAuthenticationContext frm = 5; // future: device fingerprinting PayoutClientAuthenticationContext payout = 6; // future: payout verification widget.
+            amount=payment_pb2.Money(
+                minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+                currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+            ),
+        ),
     )
 
 def _build_get_request(connector_transaction_id: str):
@@ -191,28 +190,6 @@ def _build_setup_recurring_request():
             acceptance_type=payment_pb2.AcceptanceType.Value("OFFLINE"),  # Type of acceptance (e.g., online, offline).
             accepted_at=0,  # Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
         ),
-    )
-
-def _build_token_authorize_request():
-    return ParseDict(
-        {
-            "merchant_transaction_id": "probe_tokenized_txn_001",
-            "amount": {
-                "minor_amount": 1000,  # Amount in minor units (e.g., 1000 = $10.00).
-                "currency": "USD"  # ISO 4217 currency code (e.g., "USD", "EUR").
-            },
-            "connector_token": {"value": "pm_1AbcXyzStripeTestToken"},  # Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
-            "customer": {
-                "email": {"value": "test@example.com"}  # Customer's email address.
-            },
-            "address": {
-                "billing_address": {
-                }
-            },
-            "capture_method": "AUTOMATIC",
-            "return_url": "https://example.com/return"
-        },
-        payment_pb2.PaymentServiceTokenAuthorizeRequest(),
     )
 
 def _build_void_request(connector_transaction_id: str):
@@ -361,7 +338,7 @@ async def process_create_client_authentication_token(merchant_transaction_id: st
 
     create_response = await merchantauthentication_client.create_client_authentication_token(_build_create_client_authentication_token_request())
 
-    return {"status": create_response.status}
+    return {"session_data": create_response.session_data}
 
 
 async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
@@ -407,15 +384,6 @@ async def process_setup_recurring(merchant_transaction_id: str, config: sdk_conf
     setup_response = await payment_client.setup_recurring(_build_setup_recurring_request())
 
     return {"status": setup_response.status, "mandate_id": setup_response.connector_recurring_payment_id}
-
-
-async def process_token_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.TokenAuthorize"""
-    payment_client = PaymentClient(config)
-
-    token_response = await payment_client.token_authorize(_build_token_authorize_request())
-
-    return {"status": token_response.status}
 
 
 async def process_void(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
