@@ -1,11 +1,13 @@
 use std::fmt::Debug;
 
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund, Void},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        BarclaycardClientAuthenticationResponse as BarclaycardClientAuthenticationResponseDomain,
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        ConnectorSpecificClientAuthenticationResponse, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
@@ -420,30 +422,32 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data.request.currency,
         )?;
 
-        let ccard = match &router_data.request.payment_method_data {
-            PaymentMethodData::Card(card) => Ok(card),
-            _ => Err(IntegrationError::NotImplemented(
-                "Only card payments are supported".to_string(),
-                Default::default(),
-            )),
-        }?;
+        let payment_information = match &router_data.request.payment_method_data {
+            PaymentMethodData::Card(ccard) => {
+                let card_network = ccard.card_network.clone();
+                let card_type = card_network
+                    .and_then(get_barclaycard_card_type)
+                    .map(|s| s.to_string());
 
-        let card_network = ccard.card_network.clone();
-        let card_type = card_network
-            .and_then(get_barclaycard_card_type)
-            .map(|s| s.to_string());
-
-        let payment_information =
-            requests::PaymentInformation::Cards(Box::new(requests::CardPaymentInformation {
-                card: requests::Card {
-                    number: ccard.card_number.clone(),
-                    expiration_month: ccard.card_exp_month.clone(),
-                    expiration_year: ccard.get_expiry_year_4_digit(),
-                    security_code: ccard.card_cvc.clone(),
-                    card_type,
-                    type_selection_indicator: Some("1".to_owned()),
-                },
-            }));
+                requests::PaymentInformation::Cards(Box::new(requests::CardPaymentInformation {
+                    card: requests::Card {
+                        number: ccard.card_number.clone(),
+                        expiration_month: ccard.card_exp_month.clone(),
+                        expiration_year: ccard.get_expiry_year_4_digit(),
+                        security_code: ccard.card_cvc.clone(),
+                        card_type,
+                        type_selection_indicator: Some("1".to_owned()),
+                    },
+                }))
+            }
+            _ => {
+                return Err(IntegrationError::NotImplemented(
+                    "Only card and card token payments are supported".to_string(),
+                    Default::default(),
+                )
+                .into())
+            }
+        };
 
         let email = router_data
             .resource_common_data
@@ -880,6 +884,105 @@ impl TryFrom<ResponseRouterData<responses::BarclaycardRsyncResponse, Self>>
 
         Ok(Self {
             response,
+            ..item.router_data
+        })
+    }
+}
+
+// ---- ClientAuthenticationToken flow types ----
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        BarclaycardRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for requests::BarclaycardClientAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: BarclaycardRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+
+        let return_url = router_data
+            .resource_common_data
+            .return_url
+            .clone()
+            .unwrap_or_else(|| "https://hyperswitch.io".to_string());
+
+        // Extract the origin from the return_url for target_origins
+        let target_origin = url::Url::parse(&return_url)
+            .map(|u| {
+                format!(
+                    "{}://{}",
+                    u.scheme(),
+                    u.host_str().unwrap_or("hyperswitch.io")
+                )
+            })
+            .unwrap_or_else(|_| "https://hyperswitch.io".to_string());
+
+        Ok(Self {
+            target_origins: vec![target_origin],
+            client_version: "0.11".to_string(),
+            allowed_card_networks: Some(vec![
+                "VISA".to_string(),
+                "MASTERCARD".to_string(),
+                "AMEX".to_string(),
+                "DISCOVER".to_string(),
+            ]),
+            fields: serde_json::json!({
+                "paymentInformation": {
+                    "card": {
+                        "number": {},
+                        "securityCode": {}
+                    }
+                }
+            }),
+        })
+    }
+}
+
+impl TryFrom<ResponseRouterData<responses::BarclaycardClientAuthResponse, Self>>
+    for RouterDataV2<
+        ClientAuthenticationToken,
+        PaymentFlowData,
+        ClientAuthenticationTokenRequestData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<responses::BarclaycardClientAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        let capture_context = Secret::new(response.capture_context);
+
+        let session_data = ClientAuthenticationTokenData::ConnectorSpecific(Box::new(
+            ConnectorSpecificClientAuthenticationResponse::Barclaycard(
+                BarclaycardClientAuthenticationResponseDomain { capture_context },
+            ),
+        ));
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::ClientAuthenticationTokenResponse {
+                session_data,
+                status_code: item.http_code,
+            }),
             ..item.router_data
         })
     }
