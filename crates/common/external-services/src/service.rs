@@ -516,13 +516,14 @@ where
                                 )
                             })?;
 
-                        // Convert headers from HashMap<String, String> to reqwest::HeaderMap if present
+                        // Convert headers from HashMap<String, String> to http 0.2 HeaderMap if
+                        // present (domain_types::Response.headers is the http 0.2 type).
                         let headers = injector_response.headers.map(|h| {
-                            let mut header_map = reqwest::header::HeaderMap::new();
+                            let mut header_map = http_02::HeaderMap::new();
                             for (key, value) in h {
                                 if let (Ok(header_name), Ok(header_value)) = (
-                                    reqwest::header::HeaderName::from_bytes(key.as_bytes()),
-                                    reqwest::header::HeaderValue::from_str(&value),
+                                    http_02::HeaderName::from_bytes(key.as_bytes()),
+                                    http_02::HeaderValue::from_str(&value),
                                 ) {
                                     header_map.insert(header_name, header_value);
                                 }
@@ -1201,7 +1202,9 @@ async fn handle_response(
     response
         .async_map(|resp| async {
             let status_code = resp.status().as_u16();
-            let headers = Some(resp.headers().to_owned());
+            // reqwest 0.12 returns the http 1.x HeaderMap; convert to the 0.2
+            // type that domain_types::Response.headers expects.
+            let headers = Some(reqwest_headers_to_http_02(resp.headers()));
             match status_code {
                 200..=202 | 302 | 204 => {
                     let response = resp
@@ -1247,6 +1250,22 @@ async fn handle_response(
             }
         })
         .await?
+}
+
+/// Re-encode a reqwest::header::HeaderMap (http 1.x) as an http 0.2 HeaderMap so it
+/// matches the domain_types Response shape. Header names and values are byte-stable
+/// across the two http versions, so the conversion cannot produce invalid entries.
+fn reqwest_headers_to_http_02(headers: &reqwest::header::HeaderMap) -> http_02::HeaderMap {
+    let mut out = http_02::HeaderMap::with_capacity(headers.len());
+    for (name, value) in headers.iter() {
+        if let (Ok(n), Ok(v)) = (
+            http_02::HeaderName::from_bytes(name.as_str().as_bytes()),
+            http_02::HeaderValue::from_bytes(value.as_bytes()),
+        ) {
+            out.append(n, v);
+        }
+    }
+    out
 }
 
 /// Helper function to remove BOM from response bytes and convert to string
