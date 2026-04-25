@@ -42,7 +42,8 @@ use transformers as authipay;
 use transformers::{
     AuthipayAuthorizeResponse, AuthipayCaptureRequest, AuthipayCaptureResponse,
     AuthipayPaymentsRequest, AuthipayRefundRequest, AuthipayRefundResponse,
-    AuthipayRefundSyncResponse, AuthipaySyncResponse, AuthipayVoidRequest, AuthipayVoidResponse,
+    AuthipayRefundSyncResponse, AuthipayRepeatPaymentRequest, AuthipayRepeatPaymentResponse,
+    AuthipaySyncResponse, AuthipayVoidRequest, AuthipayVoidResponse,
 };
 
 use super::macros;
@@ -269,6 +270,12 @@ macros::create_all_prerequisites!(
             flow: RSync,
             response_body: AuthipayRefundSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: AuthipayRepeatPaymentRequest,
+            response_body: AuthipayRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -648,16 +655,48 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// Repeat Payment
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
-    > for Authipay<T>
-{
-}
+// Repeat Payment (MIT) flow - Merchant Initiated Transaction using stored payment token
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Authipay,
+    curl_request: Json(AuthipayRepeatPaymentRequest),
+    curl_response: AuthipayRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let auth = authipay::AuthipayAuthType::try_from(&req.connector_config)
+                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
+
+            // Build the request to get the body for HMAC signature
+            let connector_req = AuthipayRepeatPaymentRequest::try_from(req)?;
+            let request_body_str = serde_json::to_string(&connector_req)
+                .change_context(IntegrationError::RequestEncodingFailed { context: Default::default() })?;
+
+            // Generate headers with HMAC signature
+            self.build_headers_with_signature(
+                &auth,
+                &request_body_str,
+            )
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // MIT uses the same /payments endpoint as primary transactions
+            Ok(self.connector_base_url_payments(req).to_string())
+        }
+    }
+);
 
 // Order Create
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
