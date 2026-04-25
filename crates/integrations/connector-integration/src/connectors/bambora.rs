@@ -646,6 +646,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// ClientAuthenticationToken flow — returns merchant_id from connector config
+// for Bambora Custom Checkout SDK initialization.
+// Bambora's Custom Checkout SDK is initialized client-side by loading the SDK script
+// with the merchant_id. There is no server-side session initialization API,
+// so no HTTP call to Bambora is needed.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
         ClientAuthenticationToken,
@@ -654,6 +659,64 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Bambora<T>
 {
+    fn build_request_v2(
+        &self,
+        req: &RouterDataV2<
+            ClientAuthenticationToken,
+            PaymentFlowData,
+            ClientAuthenticationTokenRequestData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<Option<common_utils::request::Request>, IntegrationError> {
+        // No HTTP call needed — Bambora's Custom Checkout SDK is initialized
+        // client-side with the merchant_id from connector config.
+        // We construct a minimal request that will trigger handle_response_v2
+        // with the merchant_id extracted from connector config.
+        let url = format!("{}/payments", self.connector_base_url_payments(req));
+        let mut auth_header = self.get_auth_header(&req.connector_config)?;
+        let mut header = vec![];
+        header.append(&mut auth_header);
+        Ok(Some(
+            common_utils::request::RequestBuilder::new()
+                .method(common_utils::request::Method::Get)
+                .url(url.as_str())
+                .attach_default_headers()
+                .headers(header)
+                .build(),
+        ))
+    }
+
+    fn handle_response_v2(
+        &self,
+        data: &RouterDataV2<
+            ClientAuthenticationToken,
+            PaymentFlowData,
+            ClientAuthenticationTokenRequestData,
+            PaymentsResponseData,
+        >,
+        _event_builder: Option<&mut events::Event>,
+        _res: Response,
+    ) -> CustomResult<
+        RouterDataV2<
+            ClientAuthenticationToken,
+            PaymentFlowData,
+            ClientAuthenticationTokenRequestData,
+            PaymentsResponseData,
+        >,
+        ConnectorError,
+    > {
+        // Ignore the HTTP response — extract merchant_id from connector config
+        // and return it as the client authentication token
+        bambora::build_client_auth_token_response(data)
+    }
+
+    fn get_error_response_v2(
+        &self,
+        res: Response,
+        event_builder: Option<&mut events::Event>,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
