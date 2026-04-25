@@ -53,7 +53,8 @@ pub(crate) mod headers {
 use transformers::{
     BamboraAuthorizeResponse, BamboraCaptureRequest, BamboraCaptureResponse, BamboraPSyncResponse,
     BamboraPaymentsRequest, BamboraRSyncResponse, BamboraRefundRequest, BamboraRefundResponse,
-    BamboraVoidRequest, BamboraVoidResponse,
+    BamboraRepeatPaymentRequest, BamboraRepeatPaymentResponse, BamboraSetupMandateRequest,
+    BamboraSetupMandateResponse, BamboraVoidRequest, BamboraVoidResponse,
 };
 
 macros::create_all_prerequisites!(
@@ -93,6 +94,18 @@ macros::create_all_prerequisites!(
             flow: RSync,
             response_body: BamboraRSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: BamboraSetupMandateRequest<T>,
+            response_body: BamboraSetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: BamboraRepeatPaymentRequest,
+            response_body: BamboraRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [amount_converter: FloatMajorUnit],
@@ -351,7 +364,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             message: response.message.clone(),
             reason: Some(format!(
                 "Category: {}, Reference: {}",
-                response.category, response.reference
+                response.category,
+                response.reference.clone().unwrap_or_default()
             )),
             attempt_status: None,
             connector_transaction_id: response.transaction_id.clone(),
@@ -594,6 +608,71 @@ macros::macro_connector_implementation!(
     }
 );
 
+// SetupMandate Flow — Bambora does not expose a dedicated mandate-setup
+// endpoint. We use the canonical card-on-file pattern: POST to /v1/payments
+// with `complete=false` (auth-only). The resulting Bambora transaction id
+// is surfaced as the `connector_mandate_id` for subsequent RepeatPayment
+// (MIT) calls via the reference-transaction token model.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Bambora,
+    curl_request: Json(BamboraSetupMandateRequest<T>),
+    curl_response: BamboraSetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/payments", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
+// RepeatPayment (MIT) Flow — POST /payments with payment_method=payment_profile.
+// The `connector_mandate_id` from SetupMandate is used as the customer_code.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Bambora,
+    curl_request: Json(BamboraRepeatPaymentRequest),
+    curl_response: BamboraRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/payments", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
 // ===== EMPTY IMPLEMENTATIONS FOR OTHER FLOWS =====
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -601,26 +680,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         VoidPC,
         PaymentFlowData,
         PaymentsCancelPostCaptureData,
-        PaymentsResponseData,
-    > for Bambora<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
-        PaymentsResponseData,
-    > for Bambora<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
         PaymentsResponseData,
     > for Bambora<T>
 {
