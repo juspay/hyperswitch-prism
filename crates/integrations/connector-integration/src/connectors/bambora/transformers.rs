@@ -2,11 +2,13 @@ use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund, Void},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        BamboraClientAuthenticationResponse as BamboraClientAuthenticationResponseDomain,
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        ConnectorSpecificClientAuthenticationResponse, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::ConnectorSpecificConfig,
@@ -84,7 +86,10 @@ pub struct BamboraPaymentsRequest<T: PaymentMethodDataTypes> {
     pub order_number: String,
     pub amount: FloatMajorUnit,
     pub payment_method: PaymentMethodType,
-    pub card: BamboraCard<T>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card: Option<BamboraCard<T>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token: Option<BamboraToken>,
     pub billing: BamboraBillingAddress,
 }
 
@@ -92,6 +97,20 @@ pub struct BamboraPaymentsRequest<T: PaymentMethodDataTypes> {
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodType {
     Card,
+    Token,
+}
+
+/// Token object for Bambora tokenized payments.
+/// Used when the client-side SDK (Custom Checkout) tokenizes card data
+/// and returns a single-use token code.
+#[derive(Debug, Serialize)]
+pub struct BamboraToken {
+    /// The single-use token code from the tokenization API
+    pub code: Secret<String>,
+    /// Cardholder name
+    pub name: Secret<String>,
+    /// true for auto-capture, false for pre-authorization
+    pub complete: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -250,9 +269,11 @@ impl<T: PaymentMethodDataTypes>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        // Extract card data
+        // Extract payment method data — supports raw Card and CardToken (from tokenization)
         let payment_method_data = &item.request.payment_method_data;
-        let card = match payment_method_data {
+        let is_auto_capture = !crate::utils::is_manual_capture(item.request.capture_method);
+
+        let (payment_method, card, token) = match payment_method_data {
             PaymentMethodData::Card(card_data) => {
                 // Get cardholder name - prefer billing full name, fallback to customer name
                 let cardholder_name = item
@@ -264,21 +285,23 @@ impl<T: PaymentMethodDataTypes>
                         context: Default::default(),
                     })?;
 
-                // Determine if this should be auto-capture or authorization
-                let is_auto_capture = !crate::utils::is_manual_capture(item.request.capture_method);
-
                 // Get 2-digit expiry year using utility function
                 let expiry_year = card_data.get_card_expiry_year_2_digit()?;
 
-                BamboraCard {
-                    name: cardholder_name,
-                    number: card_data.card_number.clone(),
-                    expiry_month: card_data.card_exp_month.clone(),
-                    expiry_year,
-                    cvd: card_data.card_cvc.clone(),
-                    complete: is_auto_capture,
-                }
+                (
+                    PaymentMethodType::Card,
+                    Some(BamboraCard {
+                        name: cardholder_name,
+                        number: card_data.card_number.clone(),
+                        expiry_month: card_data.card_exp_month.clone(),
+                        expiry_year,
+                        cvd: card_data.card_cvc.clone(),
+                        complete: is_auto_capture,
+                    }),
+                    None,
+                )
             }
+
             PaymentMethodData::Wallet(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::PayLater(_)
@@ -365,8 +388,9 @@ impl<T: PaymentMethodDataTypes>
                 .connector_request_reference_id
                 .clone(),
             amount,
-            payment_method: PaymentMethodType::Card,
+            payment_method,
             card,
+            token,
             billing,
         })
     }
@@ -886,4 +910,65 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         Self::try_from(&wrapper.router_data)
     }
+}
+
+// ---- ClientAuthenticationToken flow types ----
+
+/// Extracts the merchant_id from Bambora connector config.
+/// Bambora's Custom Checkout SDK is initialized client-side using the merchant_id.
+/// There is no server-side session initialization API, so the merchant_id
+/// is returned directly as the client authentication token.
+pub fn extract_merchant_id(
+    connector_config: &ConnectorSpecificConfig,
+) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
+    match connector_config {
+        ConnectorSpecificConfig::Bambora { merchant_id, .. } => Ok(merchant_id.clone()),
+        _ => Err(error_stack::report!(
+            IntegrationError::FailedToObtainAuthType {
+                context: Default::default()
+            }
+        )),
+    }
+}
+
+/// Builds the ClientAuthenticationToken response for Bambora.
+/// Returns the merchant_id as the client auth token for Custom Checkout SDK initialization.
+pub fn build_client_auth_token_response(
+    router_data: &RouterDataV2<
+        ClientAuthenticationToken,
+        PaymentFlowData,
+        ClientAuthenticationTokenRequestData,
+        PaymentsResponseData,
+    >,
+) -> Result<
+    RouterDataV2<
+        ClientAuthenticationToken,
+        PaymentFlowData,
+        ClientAuthenticationTokenRequestData,
+        PaymentsResponseData,
+    >,
+    error_stack::Report<ConnectorError>,
+> {
+    let merchant_id = extract_merchant_id(&router_data.connector_config).change_context(
+        ConnectorError::ResponseHandlingFailed {
+            context: Default::default(),
+        },
+    )?;
+
+    let session_data = ClientAuthenticationTokenData::ConnectorSpecific(Box::new(
+        ConnectorSpecificClientAuthenticationResponse::Bambora(
+            BamboraClientAuthenticationResponseDomain { token: merchant_id },
+        ),
+    ));
+
+    Ok(RouterDataV2 {
+        response: Ok(PaymentsResponseData::ClientAuthenticationTokenResponse {
+            session_data,
+            status_code: 200,
+        }),
+        flow: router_data.flow,
+        resource_common_data: router_data.resource_common_data.clone(),
+        connector_config: router_data.connector_config.clone(),
+        request: router_data.request.clone(),
+    })
 }
