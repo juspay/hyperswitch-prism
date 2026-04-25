@@ -328,6 +328,8 @@ message PayoutServiceStageResponse {
   optional ErrorInfo error = 4;
   // HTTP status code from the connector
   uint32 status_code = 5;
+  // Connector metadata (contains token for subsequent PayoutCreate)
+  optional string connector_metadata = 6;
 }
 
 // Request message for fetching a payout

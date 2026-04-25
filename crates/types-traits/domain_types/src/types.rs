@@ -2149,6 +2149,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for Option<Paym
             grpc_api_types::payments::PaymentMethodType::Netbanking => {
                 Ok(Some(PaymentMethodType::Netbanking))
             }
+            grpc_api_types::payments::PaymentMethodType::Interac => {
+                Ok(Some(PaymentMethodType::Interac))
+            }
             _ => Err(IntegrationError::InvalidDataFormat {
                 field_name: "unknown",
                 context: IntegrationErrorContext {
