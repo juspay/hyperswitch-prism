@@ -69,7 +69,7 @@
       },
       "BillDeskRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and card token payments are supported"
       },
       "Bizum": {
         "status": "not_implemented",
@@ -152,7 +152,7 @@
       },
       "CashfreeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and card token payments are supported"
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
@@ -180,7 +180,7 @@
       },
       "EaseBuzzRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and card token payments are supported"
       },
       "Efecty": {
         "status": "not_implemented",
@@ -256,7 +256,7 @@
       },
       "LazyPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and card token payments are supported"
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
@@ -288,7 +288,7 @@
       },
       "Netbanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and card token payments are supported"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
@@ -344,7 +344,7 @@
       },
       "PayURedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and card token payments are supported"
       },
       "PaypalRedirect": {
         "status": "not_implemented",
@@ -364,7 +364,7 @@
       },
       "PhonePeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Only card and card token payments are supported"
       },
       "Pix": {
         "status": "not_implemented",
@@ -735,46 +735,8 @@
     },
     "token_authorize": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_tokenized_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "connector_token": "pm_1AbcXyzStripeTestToken",
-          "customer": {
-            "email": "test@example.com"
-          },
-          "address": {
-            "billing_address": {
-              "first_name": "John",
-              "last_name": "Doe",
-              "line1": "123 Main St",
-              "city": "Seattle",
-              "state": "WA",
-              "zip_code": "98101",
-              "country_alpha2_code": "US"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://api.smartpayfuse-test.barclaycard/pts/v2/payments/",
-          "method": "Post",
-          "headers": {
-            "accept": "application/hal+json;charset=utf-8",
-            "content-type": "application/json",
-            "date": "2020-01-01T00:00:00+00:00",
-            "digest": "SHA-256=cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "host": "api.smartpayfuse-test.barclaycard",
-            "signature": "keyid=\"probe_key\", algorithm=\"HmacSHA256\", headers=\"host date (request-target) digest v-c-merchant-id\", signature=\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"",
-            "v-c-merchant-id": "probe_merchant",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"processingInformation\":{\"commerceIndicator\":\"internet\",\"capture\":true,\"cavvAlgorithm\":\"2\"},\"paymentInformation\":{\"fluidData\":{\"value\":\"pm_1AbcXyzStripeTestToken\"}},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":\"John\",\"lastName\":\"Doe\",\"address1\":\"123 Main St\",\"locality\":\"Seattle\",\"administrativeArea\":\"WA\",\"postalCode\":\"98101\",\"country\":\"US\",\"email\":\"test@example.com\"}},\"clientReferenceInformation\":{\"code\":\"probe_tokenized_txn_001\"}}"
-        }
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and card token payments are supported"
       }
     },
     "token_setup_recurring": {

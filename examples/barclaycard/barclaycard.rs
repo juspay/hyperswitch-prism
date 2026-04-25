@@ -114,18 +114,13 @@ pub fn build_capture_request(connector_transaction_id: &str) -> PaymentServiceCa
     }
 }
 
-pub fn build_create_client_authentication_token_request() -> MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
-    serde_json::from_value::<MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest>(serde_json::json!({
-    "merchant_client_session_id": "probe_sdk_session_001",  // Infrastructure.
-    "domain_context": {
-        "payment": {
-            "amount": {
-                "minor_amount": 1000,
-                "currency": "USD",
-            },
-        },
-    },
-    })).unwrap_or_default()
+pub fn build_create_client_authentication_token_request(
+) -> MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
+        merchant_client_session_id: "probe_sdk_session_001".to_string(), // Infrastructure.
+        // domain_context: {"payment": {"amount": {"minor_amount": 1000, "currency": "USD"}}}
+        ..Default::default()
+    }
 }
 
 pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetRequest {
@@ -202,33 +197,6 @@ pub fn build_refund_get_request() -> RefundServiceGetRequest {
         refund_id: "probe_refund_id_001".to_string(), // Deprecated.
         ..Default::default()
     }
-}
-
-pub fn build_token_authorize_request() -> PaymentServiceTokenAuthorizeRequest {
-    serde_json::from_value::<PaymentServiceTokenAuthorizeRequest>(serde_json::json!({
-    "merchant_transaction_id": "probe_tokenized_txn_001",
-    "amount": {
-        "minor_amount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-        "currency": "USD",  // ISO 4217 currency code (e.g., "USD", "EUR").
-    },
-    "connector_token": "pm_1AbcXyzStripeTestToken",  // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
-    "customer": {
-        "email": "test@example.com",  // Customer's email address.
-    },
-    "address": {
-        "billing_address": {
-            "first_name": "John",  // Personal Information.
-            "last_name": "Doe",
-            "line1": "123 Main St",  // Address Details.
-            "city": "Seattle",
-            "state": "WA",
-            "zip_code": "98101",
-            "country_alpha2_code": "US",
-        },
-    },
-    "capture_method": "AUTOMATIC",
-    "return_url": "https://example.com/return",
-    })).unwrap_or_default()
 }
 
 pub fn build_void_request(connector_transaction_id: &str) -> PaymentServiceVoidRequest {
@@ -476,8 +444,17 @@ pub async fn process_capture(
 
 // Flow: MerchantAuthenticationService.CreateClientAuthenticationToken
 #[allow(dead_code)]
-pub async fn create_client_authentication_token(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.create_client_authentication_token(build_create_client_authentication_token_request(), &HashMap::new(), None).await?;
+pub async fn process_create_client_authentication_token(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .create_client_authentication_token(
+            build_create_client_authentication_token_request(),
+            &HashMap::new(),
+            None,
+        )
+        .await?;
     Ok(format!("status: {:?}", response.status_code))
 }
 
@@ -521,13 +498,6 @@ pub async fn process_refund_get(
     Ok(format!("status: {:?}", response.status()))
 }
 
-// Flow: PaymentService.TokenAuthorize
-#[allow(dead_code)]
-pub async fn token_authorize(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.token_authorize(build_token_authorize_request(), &HashMap::new(), None).await?;
-    Ok(format!("status: {:?}", response.status()))
-}
-
 // Flow: PaymentService.Void
 #[allow(dead_code)]
 pub async fn process_void(
@@ -559,7 +529,9 @@ async fn main() {
         "process_get_payment" => process_get_payment(&client, "order_001").await,
         "process_authorize" => process_authorize(&client, "txn_001").await,
         "process_capture" => process_capture(&client, "txn_001").await,
-        "process_create_client_authentication_token" => create_client_authentication_token(&client, "txn_001").await,
+        "process_create_client_authentication_token" => {
+            process_create_client_authentication_token(&client, "txn_001").await
+        }
         "process_get" => process_get(&client, "txn_001").await,
         "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
