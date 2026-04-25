@@ -11101,6 +11101,18 @@ ConnectorSpecificClientAuthenticationResponse::Cybersource(cybersource_data) => 
                 ),
             }
         }
+                ConnectorSpecificClientAuthenticationResponse::Ppro(ppro_data) => {
+            grpc_api_types::payments::ConnectorSpecificClientAuthenticationResponse {
+                connector: Some(
+                    grpc_api_types::payments::connector_specific_client_authentication_response::Connector::Ppro(
+                        grpc_api_types::payments::PproClientAuthenticationResponse {
+                            charge_id: ppro_data.charge_id,
+                            redirect_url: ppro_data.redirect_url,
+                        },
+                    ),
+                ),
+            }
+        }
     };
     grpc_api_types::payments::ClientAuthenticationTokenData {
         sdk_type: Some(

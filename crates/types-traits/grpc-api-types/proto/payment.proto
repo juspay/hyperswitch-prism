@@ -1558,6 +1558,7 @@ message ConnectorSpecificClientAuthenticationResponse {
     MultisafepayClientAuthenticationResponse multisafepay = 23;
     NexinetsClientAuthenticationResponse nexinets = 24;
     NexixpayClientAuthenticationResponse nexixpay = 25;
+    PproClientAuthenticationResponse ppro = 26;
   }
 }
 
@@ -1691,6 +1692,14 @@ message NexinetsClientAuthenticationResponse {
 message NexixpayClientAuthenticationResponse {
   SecretString security_token = 1;
   string hosted_page = 2;
+}
+
+// Ppro SDK initialization data — charge_id and redirect_url for client-side payment authentication
+message PproClientAuthenticationResponse {
+  // The payment charge ID for tracking the payment
+  string charge_id = 1;
+  // The redirect URL for client-side payment authentication
+  optional string redirect_url = 2;
 }
 
 // Stripe SDK initialization data — client_secret for stripe.confirmPayment()

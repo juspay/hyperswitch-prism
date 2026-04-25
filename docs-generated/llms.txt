@@ -507,7 +507,7 @@ connector_id: ppro
 doc: docs/connectors/ppro.md
 scenarios: none
 payment_methods: AliPayRedirect, BancontactCard, Blik, Ideal, MbWay, Satispay, UpiIntent, UpiQr, WeChatPayQr, Wero
-flows: authorize, capture, get, handle_event, parse_event, recurring_charge, refund, refund_get, verify_redirect, void
+flows: authorize, capture, create_client_authentication_token, get, handle_event, parse_event, recurring_charge, refund, refund_get, verify_redirect, void
 examples_python: none
 
 ## Rapyd
