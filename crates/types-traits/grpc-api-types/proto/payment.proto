@@ -1558,6 +1558,7 @@ message ConnectorSpecificClientAuthenticationResponse {
     MultisafepayClientAuthenticationResponse multisafepay = 23;
     NexinetsClientAuthenticationResponse nexinets = 24;
     NexixpayClientAuthenticationResponse nexixpay = 25;
+    BarclaycardClientAuthenticationResponse barclaycard = 26;
   }
 }
 
@@ -1691,6 +1692,11 @@ message NexinetsClientAuthenticationResponse {
 message NexixpayClientAuthenticationResponse {
   SecretString security_token = 1;
   string hosted_page = 2;
+}
+
+// Barclaycard SDK initialization data — capture_context JWT for Flex Microform SDK
+message BarclaycardClientAuthenticationResponse {
+  SecretString capture_context = 1;
 }
 
 // Stripe SDK initialization data — client_secret for stripe.confirmPayment()

@@ -39,6 +39,21 @@ pub struct CardPaymentInformation<T: PaymentMethodDataTypes + Sync + Send + 'sta
 #[serde(untagged)]
 pub enum PaymentInformation<T: PaymentMethodDataTypes + Sync + Send + 'static + Serialize> {
     Cards(Box<CardPaymentInformation<T>>),
+    FlexToken(Box<FlexTokenPaymentInformation>),
+}
+
+/// Payment information using a Flex Microform transient token (from SDK tokenization)
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FlexTokenPaymentInformation {
+    pub fluid_data: FluidData,
+}
+
+/// Wrapper for the transient token value returned by Flex Microform SDK
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FluidData {
+    pub value: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -122,4 +137,16 @@ pub struct ReversalInformation {
 pub struct BarclaycardRefundRequest {
     pub order_information: OrderInformation,
     pub client_reference_information: ClientReferenceInformation,
+}
+
+/// Creates a Barclaycard Flex Microform session for client-side tokenization.
+/// The capture_context JWT is returned to the frontend for Flex Microform SDK initialization.
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BarclaycardClientAuthRequest {
+    pub target_origins: Vec<String>,
+    pub client_version: String,
+    pub allowed_card_networks: Option<Vec<String>>,
+    pub fields: serde_json::Value,
 }
