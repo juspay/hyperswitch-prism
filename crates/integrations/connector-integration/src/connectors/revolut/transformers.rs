@@ -1,10 +1,13 @@
 use crate::connectors::revolut::RevolutRouterData;
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, Refund},
+    connector_flow::{Authorize, Capture, ClientAuthenticationToken, PSync, Refund},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        ResponseId, WebhookDetailsResponse,
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        ConnectorSpecificClientAuthenticationResponse, PaymentFlowData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        RevolutClientAuthenticationResponse as RevolutClientAuthenticationResponseDomain,
+        WebhookDetailsResponse,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -1026,6 +1029,92 @@ impl TryFrom<RevolutWebhookBody> for WebhookDetailsResponse {
             amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,
+        })
+    }
+}
+
+// ---- ClientAuthenticationToken flow types ----
+
+/// Creates a Revolut order for client-side SDK initialization.
+/// The order's `token` is returned to the frontend for Revolut Pay
+/// widget or Revolut checkout initialization.
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct RevolutClientAuthRequest {
+    pub amount: MinorUnit,
+    pub currency: common_enums::Currency,
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        RevolutRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for RevolutClientAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: RevolutRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+
+        Ok(Self {
+            amount: router_data.request.amount,
+            currency: router_data.request.currency,
+        })
+    }
+}
+
+/// Revolut order response containing order id and token for SDK initialization.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct RevolutClientAuthResponse {
+    pub id: String,
+    pub token: Secret<String>,
+}
+
+impl TryFrom<ResponseRouterData<RevolutClientAuthResponse, Self>>
+    for RouterDataV2<
+        ClientAuthenticationToken,
+        PaymentFlowData,
+        ClientAuthenticationTokenRequestData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<RevolutClientAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        let session_data = ClientAuthenticationTokenData::ConnectorSpecific(Box::new(
+            ConnectorSpecificClientAuthenticationResponse::Revolut(
+                RevolutClientAuthenticationResponseDomain {
+                    order_id: response.id,
+                    token: response.token,
+                },
+            ),
+        ));
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::ClientAuthenticationTokenResponse {
+                session_data,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
         })
     }
 }
