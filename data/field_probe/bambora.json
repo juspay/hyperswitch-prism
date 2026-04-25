@@ -681,32 +681,8 @@
     },
     "token_authorize": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_tokenized_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "connector_token": "pm_1AbcXyzStripeTestToken",
-          "address": {
-            "billing_address": {
-              "last_name": "Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://api.na.bambora.com/v1/payments",
-          "method": "Post",
-          "headers": {
-            "authorization": "Passcode cHJvYmVfbWVyY2hhbnQ6cHJvYmVfa2V5",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"order_number\":\"probe_tokenized_txn_001\",\"amount\":10.0,\"payment_method\":\"token\",\"token\":{\"code\":\"pm_1AbcXyzStripeTestToken\",\"name\":\"Doe\",\"complete\":true},\"billing\":{\"name\":\"Doe\"}}"
-        }
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
       }
     },
     "token_setup_recurring": {
