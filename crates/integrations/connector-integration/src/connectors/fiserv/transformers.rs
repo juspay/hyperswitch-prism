@@ -267,6 +267,7 @@ impl TryFrom<&ConnectorSpecificConfig> for FiservAuthType {
         }
     }
 }
+
 #[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservErrorResponse {
@@ -485,9 +486,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             total,
             currency: item.router_data.request.currency.to_string(),
         };
+
+        // Validate that terminal_id is present - required by Fiserv API
+        let terminal_id =
+            auth.terminal_id
+                .ok_or_else(|| IntegrationError::MissingRequiredField {
+                    field_name: "terminal_id".to_string(),
+                    context:
+                        "terminal_id is required in Fiserv connector config or merchant metadata"
+                            .to_string(),
+                })?;
+
         let merchant_details = MerchantDetails {
             merchant_id: auth.merchant_account,
-            terminal_id: auth.terminal_id,
+            terminal_id: Some(terminal_id),
         };
 
         let checkout_charges_request = match item.router_data.request.payment_method_data.clone() {
