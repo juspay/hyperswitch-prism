@@ -11,6 +11,7 @@ pub type RedsysAuthorizeResponse = RedsysResponse;
 pub type RedsysCaptureResponse = RedsysResponse;
 pub type RedsysVoidResponse = RedsysResponse;
 pub type RedsysRefundResponse = RedsysResponse;
+pub type RedsysClientAuthResponse = RedsysResponse;
 
 /// Main response enum that handles both success and error responses
 #[derive(Debug, Serialize, Deserialize)]
@@ -90,6 +91,7 @@ pub struct RedsysOperationsResponse {
 #[serde(rename_all = "camelCase")]
 pub struct RedsysErrorResponse {
     pub error_code: String,
+    #[serde(default)]
     pub error_code_description: String,
 }
 

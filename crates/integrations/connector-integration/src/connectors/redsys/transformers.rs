@@ -14,11 +14,15 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authenticate, Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, Void,
+        Authenticate, Authorize, Capture, ClientAuthenticationToken, PSync, PreAuthenticate, RSync,
+        Refund, Void,
     },
     connector_types::{
-        self, PaymentFlowData, PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
+        self, ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        ConnectorSpecificClientAuthenticationResponse, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
+        RedsysClientAuthenticationResponse as RedsysClientAuthenticationResponseDomain,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
@@ -283,6 +287,12 @@ where
             | Some(PaymentMethodData::Upi(..))
             | Some(PaymentMethodData::OpenBanking(_))
             | Some(PaymentMethodData::PaymentMethodToken(..))
+            // TODO: Implement CardToken support for Redsys InSite SDK flow.
+            // After CreateClientAuthenticationToken returns merchant_parameters/signature,
+            // the InSite JS SDK tokenizes card data and returns an operationId.
+            // CardToken should extract payment_method_token and pass it as Ds_Merchant_Identifier
+            // in the authorize request, following the Globalpay .map() pattern.
+            | Some(PaymentMethodData::CardToken(..))
             | Some(PaymentMethodData::NetworkToken(..))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_))
@@ -2093,5 +2103,133 @@ impl TryFrom<ResponseRouterData<responses::RedsysSyncResponse, Self>>
             response,
             ..item.router_data
         })
+    }
+}
+
+// ---- ClientAuthenticationToken flow types ----
+
+/// Request transformer for ClientAuthenticationToken flow.
+/// Builds a RedsysTransaction containing signed merchant parameters
+/// for client-side InSite SDK initialization.
+/// Uses RedsysOperationRequest (no card data needed) since the
+/// client SDK will collect card details directly.
+impl<T>
+    TryFrom<
+        RedsysRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for requests::RedsysClientAuthRequest
+where
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+{
+    type Error = Error;
+
+    fn try_from(
+        item: RedsysRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                PaymentFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let auth = RedsysAuthType::try_from(&router_data.connector_config)?;
+
+        let amount = RedsysAmountConvertor::convert(
+            router_data.request.amount,
+            router_data.request.currency,
+        )?;
+
+        let connector_request_reference_id = router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+
+        let ds_merchant_order = if connector_request_reference_id.len() <= 12 {
+            Ok(connector_request_reference_id)
+        } else {
+            Err(IntegrationError::MaxFieldLengthViolated {
+                connector: "Redsys".to_string(),
+                field_name: "ds_merchant_order".to_string(),
+                max_length: 12,
+                received_length: connector_request_reference_id.len(),
+                context: Default::default(),
+            })
+        }?;
+
+        let operation_request = requests::RedsysOperationRequest {
+            ds_merchant_amount: amount,
+            ds_merchant_currency: router_data.request.currency.iso_4217().to_owned(),
+            ds_merchant_merchantcode: auth.merchant_id.clone(),
+            ds_merchant_order,
+            ds_merchant_terminal: auth.terminal_id.clone(),
+            ds_merchant_transactiontype: requests::RedsysTransactionType::Payment,
+        };
+
+        let transaction = Self::try_from((&operation_request, &auth))?;
+        Ok(transaction)
+    }
+}
+
+/// Response transformer for ClientAuthenticationToken flow.
+/// Extracts the signed merchant parameters from the Redsys response
+/// and returns them as SDK initialization data for the InSite JS SDK.
+impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
+    for RouterDataV2<
+        ClientAuthenticationToken,
+        PaymentFlowData,
+        ClientAuthenticationTokenRequestData,
+        PaymentsResponseData,
+    >
+{
+    type Error = ResponseError;
+
+    fn try_from(
+        item: ResponseRouterData<responses::RedsysResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            responses::RedsysResponse::RedsysResponse(ref transaction) => {
+                let session_data = ClientAuthenticationTokenData::ConnectorSpecific(Box::new(
+                    ConnectorSpecificClientAuthenticationResponse::Redsys(
+                        RedsysClientAuthenticationResponseDomain {
+                            merchant_parameters: transaction.ds_merchant_parameters.clone(),
+                            signature: transaction.ds_signature.clone(),
+                            signature_version: transaction.ds_signature_version.clone(),
+                        },
+                    ),
+                ));
+
+                Ok(Self {
+                    response: Ok(PaymentsResponseData::ClientAuthenticationTokenResponse {
+                        session_data,
+                        status_code: item.http_code,
+                    }),
+                    ..item.router_data
+                })
+            }
+            responses::RedsysResponse::RedsysErrorResponse(ref err) => Ok(Self {
+                response: Err(domain_types::router_data::ErrorResponse {
+                    status_code: item.http_code,
+                    code: err.error_code.clone(),
+                    message: err.error_code.clone(),
+                    reason: Some(err.error_code_description.clone()),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }),
+                ..item.router_data
+            }),
+        }
     }
 }

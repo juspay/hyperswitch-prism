@@ -1558,6 +1558,7 @@ message ConnectorSpecificClientAuthenticationResponse {
     MultisafepayClientAuthenticationResponse multisafepay = 23;
     NexinetsClientAuthenticationResponse nexinets = 24;
     NexixpayClientAuthenticationResponse nexixpay = 25;
+    RedsysClientAuthenticationResponse redsys = 26;
   }
 }
 
@@ -1691,6 +1692,16 @@ message NexinetsClientAuthenticationResponse {
 message NexixpayClientAuthenticationResponse {
   SecretString security_token = 1;
   string hosted_page = 2;
+}
+
+// Redsys SDK initialization data — merchant_parameters, signature, and signature_version for InSite SDK
+message RedsysClientAuthenticationResponse {
+  // Base64-encoded merchant parameters JSON for client-side SDK initialization
+  SecretString merchant_parameters = 1;
+  // HMAC-SHA256 signature of the merchant parameters
+  SecretString signature = 2;
+  // Signature version identifier (e.g., "HMAC_SHA256_V1")
+  string signature_version = 3;
 }
 
 // Stripe SDK initialization data — client_secret for stripe.confirmPayment()

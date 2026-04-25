@@ -11101,6 +11101,19 @@ ConnectorSpecificClientAuthenticationResponse::Cybersource(cybersource_data) => 
                 ),
             }
         }
+                ConnectorSpecificClientAuthenticationResponse::Redsys(redsys_data) => {
+            grpc_api_types::payments::ConnectorSpecificClientAuthenticationResponse {
+                connector: Some(
+                    grpc_api_types::payments::connector_specific_client_authentication_response::Connector::Redsys(
+                        grpc_api_types::payments::RedsysClientAuthenticationResponse {
+                            merchant_parameters: Some(redsys_data.merchant_parameters),
+                            signature: Some(redsys_data.signature),
+                            signature_version: redsys_data.signature_version,
+                        },
+                    ),
+                ),
+            }
+        }
     };
     grpc_api_types::payments::ClientAuthenticationTokenData {
         sdk_type: Some(
