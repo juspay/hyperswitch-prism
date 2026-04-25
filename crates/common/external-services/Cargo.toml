@@ -18,10 +18,14 @@ serde_json = { workspace = true }
 hex = "0.4.3"
 ring = { version = "0.17.8", features = ["std"] }
 strum = { version = "0.26.2", features = ["derive"] }
-reqwest = { version = "0.11.27", features = ["json", "rustls-tls", "gzip", "multipart"] }
+reqwest = { version = "0.12", features = ["json", "rustls-tls", "gzip", "multipart"] }
 base64 = "0.21.2"
 bytes = { workspace = true }
 http = "1.2.0"
+# Domain types still expose `Option<http::HeaderMap>` from the 0.2 line, so we
+# need both versions in scope to convert reqwest 0.12 (which re-exports http 1.x)
+# back to the 0.2 type at the boundary.
+http_02 = { package = "http", version = "0.2" }
 lazy_static = "1.5.0"
 once_cell = "1.19.0"
 async-trait = "0.1"
