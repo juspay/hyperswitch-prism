@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/revolut/revolut.py#L140) · [JavaScript](../../examples/revolut/revolut.js) · [Kotlin](../../examples/revolut/revolut.kt#L106) · [Rust](../../examples/revolut/revolut.rs#L201)
+**Examples:** [Python](../../examples/revolut/revolut.py#L152) · [JavaScript](../../examples/revolut/revolut.js) · [Kotlin](../../examples/revolut/revolut.kt#L107) · [Rust](../../examples/revolut/revolut.rs#L209)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,19 +141,19 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/revolut/revolut.py#L159) · [JavaScript](../../examples/revolut/revolut.js) · [Kotlin](../../examples/revolut/revolut.kt#L122) · [Rust](../../examples/revolut/revolut.rs#L217)
+**Examples:** [Python](../../examples/revolut/revolut.py#L171) · [JavaScript](../../examples/revolut/revolut.js) · [Kotlin](../../examples/revolut/revolut.kt#L123) · [Rust](../../examples/revolut/revolut.rs#L225)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/revolut/revolut.py#L184) · [JavaScript](../../examples/revolut/revolut.js) · [Kotlin](../../examples/revolut/revolut.kt#L144) · [Rust](../../examples/revolut/revolut.rs#L240)
+**Examples:** [Python](../../examples/revolut/revolut.py#L196) · [JavaScript](../../examples/revolut/revolut.js) · [Kotlin](../../examples/revolut/revolut.kt#L145) · [Rust](../../examples/revolut/revolut.rs#L248)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/revolut/revolut.py#L209) · [JavaScript](../../examples/revolut/revolut.js) · [Kotlin](../../examples/revolut/revolut.kt#L166) · [Rust](../../examples/revolut/revolut.rs#L263)
+**Examples:** [Python](../../examples/revolut/revolut.py#L221) · [JavaScript](../../examples/revolut/revolut.js) · [Kotlin](../../examples/revolut/revolut.kt#L167) · [Rust](../../examples/revolut/revolut.rs#L271)
 
 ## API Reference
 
@@ -161,6 +161,7 @@ Retrieve current payment status from the connector.
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
+| [MerchantAuthenticationService.CreateClientAuthenticationToken](#merchantauthenticationservicecreateclientauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
 | [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
@@ -461,7 +462,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L262) · [Kotlin](../../examples/revolut/revolut.kt#L184) · [Rust](../../examples/revolut/revolut.rs)
+**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L274) · [Kotlin](../../examples/revolut/revolut.kt#L185) · [Rust](../../examples/revolut/revolut.rs)
 
 #### PaymentService.Capture
 
@@ -472,7 +473,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L271) · [Kotlin](../../examples/revolut/revolut.kt#L196) · [Rust](../../examples/revolut/revolut.rs)
+**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L283) · [Kotlin](../../examples/revolut/revolut.kt#L197) · [Rust](../../examples/revolut/revolut.rs)
 
 #### PaymentService.Get
 
@@ -483,7 +484,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L280) · [Kotlin](../../examples/revolut/revolut.kt#L206) · [Rust](../../examples/revolut/revolut.rs)
+**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L301) · [Kotlin](../../examples/revolut/revolut.kt#L223) · [Rust](../../examples/revolut/revolut.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -494,7 +495,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L307) · [Kotlin](../../examples/revolut/revolut.kt#L245) · [Rust](../../examples/revolut/revolut.rs)
+**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L328) · [Kotlin](../../examples/revolut/revolut.kt#L262) · [Rust](../../examples/revolut/revolut.rs)
 
 #### PaymentService.Refund
 
@@ -505,7 +506,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L316) · [Kotlin](../../examples/revolut/revolut.kt#L273) · [Rust](../../examples/revolut/revolut.rs)
+**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L337) · [Kotlin](../../examples/revolut/revolut.kt#L290) · [Rust](../../examples/revolut/revolut.rs)
 
 #### PaymentService.TokenAuthorize
 
@@ -516,7 +517,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L334) · [Kotlin](../../examples/revolut/revolut.kt#L295) · [Rust](../../examples/revolut/revolut.rs)
+**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L355) · [Kotlin](../../examples/revolut/revolut.kt#L312) · [Rust](../../examples/revolut/revolut.rs)
 
 #### PaymentService.VerifyRedirectResponse
 
@@ -527,7 +528,7 @@ Verify and process redirect responses from 3D Secure or other external flows. Va
 | **Request** | `PaymentServiceVerifyRedirectResponseRequest` |
 | **Response** | `PaymentServiceVerifyRedirectResponseResponse` |
 
-**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L343) · [Kotlin](../../examples/revolut/revolut.kt#L316) · [Rust](../../examples/revolut/revolut.rs)
+**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L364) · [Kotlin](../../examples/revolut/revolut.kt#L333) · [Rust](../../examples/revolut/revolut.rs)
 
 ### Refunds
 
@@ -540,4 +541,17 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L325) · [Kotlin](../../examples/revolut/revolut.kt#L283) · [Rust](../../examples/revolut/revolut.rs)
+**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L346) · [Kotlin](../../examples/revolut/revolut.kt#L300) · [Rust](../../examples/revolut/revolut.rs)
+
+### Authentication
+
+#### MerchantAuthenticationService.CreateClientAuthenticationToken
+
+Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI.
+
+| | Message |
+|---|---------|
+| **Request** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
+| **Response** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse` |
+
+**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L292) · [Kotlin](../../examples/revolut/revolut.kt#L207) · [Rust](../../examples/revolut/revolut.rs)
