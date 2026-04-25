@@ -824,6 +824,35 @@ pub enum PaymentInformation<
     NetworkToken(Box<NetworkTokenPaymentInformation>),
     /// Used when payment info comes from tokenInformation.transientTokenJwt
     CardToken(Box<CardTokenPaymentInformation>),
+    ECheck(Box<ECheckPaymentInformation>),
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ECheckPaymentInformation {
+    bank: ECheckBank,
+    payment_type: ECheckPaymentType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ECheckBank {
+    account: ECheckBankAccount,
+    routing_number: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ECheckBankAccount {
+    number: Secret<String>,
+    #[serde(rename = "type")]
+    account_type: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ECheckPaymentType {
+    name: String,
 }
 
 /// Empty payment information used when a transient token JWT is provided
@@ -1969,6 +1998,131 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<(
+        &CybersourceRouterData<
+            RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+        payment_method_data::BankDebitData,
+    )> for CybersourcePaymentsRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        (item, bank_debit_data): (
+            &CybersourceRouterData<
+                RouterDataV2<
+                    Authorize,
+                    PaymentFlowData,
+                    PaymentsAuthorizeData<T>,
+                    PaymentsResponseData,
+                >,
+                T,
+            >,
+            payment_method_data::BankDebitData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        match bank_debit_data {
+            payment_method_data::BankDebitData::AchBankDebit {
+                account_number,
+                routing_number,
+                bank_type,
+                ..
+            } => {
+                let email = item
+                    .router_data
+                    .resource_common_data
+                    .get_billing_email()
+                    .or(item.router_data.request.get_email())?;
+                let bill_to = build_bill_to(
+                    item.router_data.resource_common_data.get_optional_billing(),
+                    email,
+                )?;
+                let order_information = OrderInformationWithBill::try_from((item, Some(bill_to)))?;
+
+                let account_type = match bank_type {
+                    Some(common_enums::BankType::Savings) => "S".to_string(),
+                    Some(common_enums::BankType::Checking) | None => "C".to_string(),
+                    Some(common_enums::BankType::Transmission)
+                    | Some(common_enums::BankType::Current)
+                    | Some(common_enums::BankType::Bond)
+                    | Some(common_enums::BankType::SubscriptionShare) => {
+                        return Err(error_stack::report!(IntegrationError::NotSupported {
+                            message: domain_types::utils::get_unimplemented_payment_method_error_message(
+                                "Cybersource",
+                            ),
+                            connector: "Cybersource",
+                            context: Default::default(),
+                        }));
+                    }
+                };
+
+                let payment_information =
+                    PaymentInformation::ECheck(Box::new(ECheckPaymentInformation {
+                        bank: ECheckBank {
+                            account: ECheckBankAccount {
+                                number: account_number,
+                                account_type,
+                            },
+                            routing_number,
+                        },
+                        payment_type: ECheckPaymentType {
+                            name: "check".to_string(),
+                        },
+                    }));
+
+                let processing_information = ProcessingInformation {
+                    capture: Some(true),
+                    capture_options: None,
+                    action_list: None,
+                    action_token_types: None,
+                    authorization_options: None,
+                    commerce_indicator: String::from("internet"),
+                    payment_solution: None,
+                };
+
+                let client_reference_information = ClientReferenceInformation::from(item);
+                let merchant_defined_information = convert_metadata_to_merchant_defined_info(
+                    item.router_data
+                        .request
+                        .metadata
+                        .clone()
+                        .map(|metadata| metadata.expose()),
+                    item.router_data.request.merchant_order_id.clone(),
+                );
+
+                Ok(Self {
+                    processing_information,
+                    payment_information,
+                    order_information,
+                    client_reference_information,
+                    consumer_authentication_information: None,
+                    merchant_defined_information,
+                    token_information: None,
+                })
+            }
+            payment_method_data::BankDebitData::SepaBankDebit { .. }
+            | payment_method_data::BankDebitData::SepaGuaranteedBankDebit { .. }
+            | payment_method_data::BankDebitData::BecsBankDebit { .. }
+            | payment_method_data::BankDebitData::BacsBankDebit { .. }
+            | payment_method_data::BankDebitData::EftBankDebit { .. } => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: domain_types::utils::get_unimplemented_payment_method_error_message(
+                        "Cybersource",
+                    ),
+                    connector: "Cybersource",
+                    context: Default::default(),
+                }))
+            }
+        }
+    }
+}
+
 fn get_samsung_pay_payment_information<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 >(
@@ -2264,12 +2418,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }),
                 })
             }
+            PaymentMethodData::BankDebit(bank_debit_data) => {
+                Self::try_from((&item, bank_debit_data))
+            }
             PaymentMethodData::MandatePayment
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankRedirect(_)
-            | PaymentMethodData::BankDebit(_)
             | PaymentMethodData::BankTransfer(_)
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::Reward
