@@ -63,9 +63,11 @@ function _buildCaptureRequest(connectorTransactionId: string): types.IPaymentSer
 function _buildCreateClientAuthenticationTokenRequest(): types.IMerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
     return {
         "merchantClientSessionId": "probe_sdk_session_001",  // Infrastructure.
-        "domainContext": {
-            "minorAmount": 1000,
-            "currency": "USD"
+        "payment": {  // FrmClientAuthenticationContext frm = 5; // future: device fingerprinting PayoutClientAuthenticationContext payout = 6; // future: payout verification widget.
+            "amount": {
+                "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+                "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            }
         }
     };
 }
@@ -292,7 +294,7 @@ async function createClientAuthenticationToken(merchantTransactionId: string, co
 
     const createResponse = await merchantAuthenticationClient.createClientAuthenticationToken(_buildCreateClientAuthenticationTokenRequest());
 
-    return { status: createResponse.status };
+    return createResponse;
 }
 
 // Flow: PaymentService.Get

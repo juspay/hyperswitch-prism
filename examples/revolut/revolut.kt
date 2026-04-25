@@ -13,16 +13,6 @@ import payments.PaymentClient
 import payments.MerchantAuthenticationClient
 import payments.EventClient
 import payments.RefundClient
-import payments.PaymentServiceAuthorizeRequest
-import payments.PaymentServiceCaptureRequest
-import payments.PaymentServiceRefundRequest
-import payments.PaymentServiceGetRequest
-import payments.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest
-import payments.EventServiceHandleRequest
-import payments.PaymentServiceProxyAuthorizeRequest
-import payments.RefundServiceGetRequest
-import payments.PaymentServiceTokenAuthorizeRequest
-import payments.PaymentServiceVerifyRedirectResponseRequest
 import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.Currency
@@ -214,8 +204,8 @@ fun capture(txnId: String, config: ConnectorConfig = _defaultConfig) {
 }
 
 // Flow: MerchantAuthenticationService.CreateClientAuthenticationToken
-fun createClientAuthenticationToken(txnId: String) {
-    val client = MerchantAuthenticationClient(_defaultConfig)
+fun createClientAuthenticationToken(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = MerchantAuthenticationClient(config)
     val request = MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest.newBuilder().apply {
         merchantClientSessionId = "probe_sdk_session_001"  // Infrastructure.
         paymentBuilder.apply {  // FrmClientAuthenticationContext frm = 5; // future: device fingerprinting PayoutClientAuthenticationContext payout = 6; // future: payout verification widget.

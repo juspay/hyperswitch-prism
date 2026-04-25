@@ -13,7 +13,7 @@ from payments import EventClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "get", "parse_event", "proxy_authorize", "refund", "refund_get", "token_authorize"]
+SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "get", "parse_event", "proxy_authorize", "refund", "refund_get", "token_authorize"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -64,15 +64,14 @@ def _build_capture_request(connector_transaction_id: str):
     )
 
 def _build_create_client_authentication_token_request():
-    return ParseDict(
-        {
-            "merchant_client_session_id": "probe_sdk_session_001",  # Infrastructure.
-            "domain_context": {
-                "minor_amount": 1000,
-                "currency": "USD"
-            }
-        },
-        payment_pb2.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest(),
+    return payment_pb2.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest(
+        merchant_client_session_id="probe_sdk_session_001",  # Infrastructure.
+        payment=payment_pb2.PaymentClientAuthenticationContext(  # FrmClientAuthenticationContext frm = 5; // future: device fingerprinting PayoutClientAuthenticationContext payout = 6; // future: payout verification widget.
+            amount=payment_pb2.Money(
+                minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+                currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+            ),
+        ),
     )
 
 def _build_get_request(connector_transaction_id: str):
@@ -259,13 +258,13 @@ async def process_capture(merchant_transaction_id: str, config: sdk_config_pb2.C
     return {"status": capture_response.status}
 
 
-async def create_client_authentication_token(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+async def process_create_client_authentication_token(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: MerchantAuthenticationService.CreateClientAuthenticationToken"""
     merchantauthentication_client = MerchantAuthenticationClient(config)
 
     create_response = await merchantauthentication_client.create_client_authentication_token(_build_create_client_authentication_token_request())
 
-    return {"status": create_response.status}
+    return {"session_data": create_response.session_data}
 
 
 async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
