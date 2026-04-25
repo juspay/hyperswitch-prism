@@ -19,8 +19,8 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{
-        ApplePayWalletData, BankRedirectData, Card, PaymentMethodData, PaymentMethodDataTypes,
-        RawCardNumber, WalletData,
+        ApplePayWalletData, BankDebitData, BankRedirectData, Card, PaymentMethodData,
+        PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -68,6 +68,7 @@ pub enum NexinetsProduct {
     Eps,
     Ideal,
     Applepay,
+    Sepa,
 }
 
 #[derive(Debug, Serialize)]
@@ -79,6 +80,7 @@ pub enum NexinetsPaymentDetails<
     Card(Box<NexiCardDetails<T>>),
     Wallet(Box<NexinetsWalletDetails>),
     BankRedirects(Box<NexinetsBankRedirects>),
+    Sepa(Box<NexinetsSepaDetails>),
 }
 
 #[derive(Debug, Serialize)]
@@ -133,6 +135,32 @@ pub enum RecurringType {
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsBankRedirects {
     bic: Option<NexinetsBIC>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NexinetsSepaDetails {
+    iban: Secret<String>,
+    account_holder: Secret<String>,
+    mandate: NexinetsSepaMandate,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NexinetsSepaMandate {
+    mandate_id: String,
+    created_date_time: i64,
+    mandate_text: String,
+    direct_debit_type: NexinetsDirectDebitType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum NexinetsDirectDebitType {
+    Single,
+    First,
+    Recurring,
+    Final,
 }
 
 #[derive(Debug, Serialize)]
@@ -749,9 +777,9 @@ fn get_payment_details_and_product<
                 Default::default(),
             ))?,
         },
+        PaymentMethodData::BankDebit(bank_debit) => get_bank_debit_details(item, bank_debit),
         PaymentMethodData::CardRedirect(_)
         | PaymentMethodData::PayLater(_)
-        | PaymentMethodData::BankDebit(_)
         | PaymentMethodData::BankTransfer(_)
         | PaymentMethodData::Crypto(_)
         | PaymentMethodData::MandatePayment
@@ -771,6 +799,69 @@ fn get_payment_details_and_product<
                 Default::default(),
             ))?
         }
+    }
+}
+
+fn get_bank_debit_details<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    item: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+    bank_debit: &BankDebitData,
+) -> Result<(Option<NexinetsPaymentDetails<T>>, NexinetsProduct), error_stack::Report<ConnectorError>>
+{
+    match bank_debit {
+        BankDebitData::SepaBankDebit {
+            iban,
+            bank_account_holder_name,
+        } => {
+            let account_holder =
+                bank_account_holder_name
+                    .clone()
+                    .ok_or(ConnectorError::MissingRequiredField {
+                        field_name: "bank_account_holder_name",
+                    })?;
+            let reference_id = item
+                .resource_common_data
+                .connector_request_reference_id
+                .clone();
+            let mandate_id = if reference_id.is_empty() {
+                format!("mandate-{}", uuid::Uuid::new_v4().simple())
+                    .chars()
+                    .take(35)
+                    .collect::<String>()
+            } else {
+                reference_id
+                    .chars()
+                    .filter(|c| c.is_alphanumeric() || *c == '-')
+                    .take(35)
+                    .collect::<String>()
+            };
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_err(|_| ConnectorError::RequestEncodingFailed)?
+                .as_millis() as i64;
+            Ok((
+                Some(NexinetsPaymentDetails::Sepa(Box::new(
+                    NexinetsSepaDetails {
+                        iban: iban.clone(),
+                        account_holder,
+                        mandate: NexinetsSepaMandate {
+                            mandate_id,
+                            created_date_time: now,
+                            mandate_text: "SEPA Direct Debit Mandate".to_string(),
+                            direct_debit_type: NexinetsDirectDebitType::Single,
+                        },
+                    },
+                ))),
+                NexinetsProduct::Sepa,
+            ))
+        }
+        BankDebitData::AchBankDebit { .. }
+        | BankDebitData::SepaGuaranteedBankDebit { .. }
+        | BankDebitData::BecsBankDebit { .. }
+        | BankDebitData::BacsBankDebit { .. } => Err(ConnectorError::NotImplemented(
+            utils::get_unimplemented_payment_method_error_message("nexinets"),
+        ))?,
     }
 }
 
