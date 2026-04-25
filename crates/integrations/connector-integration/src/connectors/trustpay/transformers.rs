@@ -30,8 +30,8 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError, WebhookError},
     payment_method_data::{
-        BankRedirectData, BankTransferData, Card, PaymentMethodData, PaymentMethodDataTypes,
-        RawCardNumber,
+        BankDebitData, BankRedirectData, BankTransferData, Card, PaymentMethodData,
+        PaymentMethodDataTypes, RawCardNumber,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -101,6 +101,11 @@ pub enum TrustpayBankTransferPaymentMethod {
     InstantBankTransfer,
     InstantBankTransferFI,
     InstantBankTransferPL,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+pub enum TrustpayBankDebitPaymentMethod {
+    SepaDirectDebit,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
@@ -1214,6 +1219,16 @@ pub struct PaymentRequestNetworkToken {
 }
 
 #[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+pub struct PaymentRequestBankDebit {
+    pub merchant_identification: MerchantIdentification,
+    pub payment_information: BankPaymentInformation,
+    pub callback_urls: CallbackURLs,
+    #[serde(rename = "PayNow")]
+    pub pay_now: bool,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
 #[serde(untagged)]
 pub enum TrustpayPaymentsRequest<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
@@ -1221,6 +1236,7 @@ pub enum TrustpayPaymentsRequest<
     CardsPaymentRequest(Box<PaymentRequestCards<T>>),
     BankRedirectPaymentRequest(Box<PaymentRequestBankRedirect>),
     BankTransferPaymentRequest(Box<PaymentRequestBankTransfer>),
+    BankDebitPaymentRequest(Box<PaymentRequestBankDebit>),
     NetworkTokenPaymentRequest(Box<PaymentRequestNetworkToken>),
 }
 
@@ -1554,6 +1570,80 @@ fn get_bank_transfer_debtor_info<
     })
 }
 
+impl TryFrom<&BankDebitData> for TrustpayBankDebitPaymentMethod {
+    type Error = Error;
+    fn try_from(value: &BankDebitData) -> Result<Self, Self::Error> {
+        match value {
+            BankDebitData::SepaBankDebit { .. } => Ok(Self::SepaDirectDebit),
+            BankDebitData::AchBankDebit { .. }
+            | BankDebitData::SepaGuaranteedBankDebit { .. }
+            | BankDebitData::BecsBankDebit { .. }
+            | BankDebitData::BacsBankDebit { .. } => Err(ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("trustpay"),
+            )
+            .into()),
+        }
+    }
+}
+
+fn get_bank_debit_debtor_info<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    item: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+    params: TrustpayMandatoryParams,
+) -> CustomResult<Option<DebtorInformation>, ConnectorError> {
+    let billing_last_name = item
+        .resource_common_data
+        .get_billing()?
+        .address
+        .as_ref()
+        .and_then(|address| address.last_name.clone());
+    Ok(Some(DebtorInformation {
+        name: get_full_name(params.billing_first_name, billing_last_name),
+        email: item.request.get_email()?,
+    }))
+}
+
+fn get_bank_debit_request_data<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    item: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+    bank_debit_data: &BankDebitData,
+    params: TrustpayMandatoryParams,
+    amount: StringMajorUnit,
+    auth: TrustpayAuthType,
+) -> Result<TrustpayPaymentsRequest<T>, error_stack::Report<ConnectorError>> {
+    // Validate that the bank debit data is SEPA
+    let _ = TrustpayBankDebitPaymentMethod::try_from(bank_debit_data)?;
+    let return_url = item.request.get_router_return_url()?;
+    let payment_request =
+        TrustpayPaymentsRequest::BankDebitPaymentRequest(Box::new(PaymentRequestBankDebit {
+            merchant_identification: MerchantIdentification {
+                project_id: auth.project_id,
+            },
+            payment_information: BankPaymentInformation {
+                amount: Amount {
+                    amount,
+                    currency: item.request.currency.to_string(),
+                },
+                references: References {
+                    merchant_reference: item
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone(),
+                },
+                debtor: get_bank_debit_debtor_info(item, params)?,
+            },
+            callback_urls: CallbackURLs {
+                success: format!("{return_url}?status=SuccessOk"),
+                cancel: return_url.clone(),
+                error: return_url,
+            },
+            pay_now: true,
+        }));
+    Ok(payment_request)
+}
+
 fn get_mandatory_fields<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 >(
@@ -1787,10 +1877,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     },
                 )))
             }
+            PaymentMethodData::BankDebit(ref bank_debit_data) => get_bank_debit_request_data(
+                item.router_data.clone(),
+                bank_debit_data,
+                params,
+                amount,
+                auth,
+            ),
             PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Wallet(_)
             | PaymentMethodData::PayLater(_)
-            | PaymentMethodData::BankDebit(_)
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
@@ -1872,7 +1968,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             })?;
         match item.router_data.resource_common_data.payment_method {
-            Some(enums::PaymentMethod::BankRedirect) => {
+            Some(enums::PaymentMethod::BankRedirect) | Some(enums::PaymentMethod::BankDebit) => {
                 let auth = TrustpayAuthType::try_from(&item.router_data.connector_config)
                     .change_context(IntegrationError::FailedToObtainAuthType {
                         context: Default::default(),
