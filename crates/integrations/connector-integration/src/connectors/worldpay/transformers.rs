@@ -437,6 +437,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        // Route to APM request builder for BankDebit payments
+        if let PaymentMethodData::BankDebit(ref bank_debit_data) =
+            item.router_data.request.payment_method_data
+        {
+            return build_apm_request(&item.router_data, bank_debit_data);
+        }
+
         let auth = WorldpayAuthType::try_from(&item.router_data.connector_config)?;
 
         let merchant_name = auth
@@ -456,7 +463,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             item.router_data.request.mandate_id.clone(),
         );
 
-        Ok(Self {
+        Ok(Self::Card(Box::new(WorldpayCardPaymentRequest {
             instruction: Instruction {
                 settlement: get_settlement_info(
                     &item.router_data,
@@ -492,7 +499,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector_request_reference_id
                 .clone(),
             customer: None,
-        })
+        })))
     }
 }
 
@@ -576,7 +583,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             _ => None,
         };
 
-        Ok(Self {
+        Ok(Self::Card(Box::new(WorldpayCardPaymentRequest {
             instruction: Instruction {
                 settlement,
                 method: PaymentMethod::Card, // RepeatPayment is always card-based
@@ -607,8 +614,178 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector_request_reference_id
                 .clone(),
             customer: None,
-        })
+        })))
     }
+}
+
+/// Build an APM payment request for BankDebit payments (ACH, SEPA)
+fn build_apm_request<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    router_data: &RouterDataV2<
+        Authorize,
+        PaymentFlowData,
+        PaymentsAuthorizeData<T>,
+        PaymentsResponseData,
+    >,
+    bank_debit_data: &domain_types::payment_method_data::BankDebitData,
+) -> Result<WorldpayAuthorizeRequest<T>, error_stack::Report<IntegrationError>> {
+    let auth = WorldpayAuthType::try_from(&router_data.connector_config)?;
+    let narrative_line1 = auth
+        .merchant_name
+        .map(|m| m.expose())
+        .unwrap_or_else(|| "Payment".to_string());
+
+    let billing = router_data.resource_common_data.get_optional_billing();
+    let billing_address_details = billing.and_then(|b| b.address.as_ref());
+
+    let apm_billing_address = billing_address_details.map(|addr| {
+        // Worldpay requires ISO 3166-2 format for state (e.g., "US-OH" not "OH")
+        let state = addr.state.as_ref().map(|s| {
+            let state_code = utils::convert_us_state_to_code(s.peek());
+            match addr.country {
+                Some(country) => format!("{}-{}", country, state_code),
+                None => state_code,
+            }
+        });
+        ApmBillingAddress {
+            address1: addr.line1.as_ref().map(|s| s.peek().to_string()),
+            address2: addr.line2.as_ref().map(|s| s.peek().to_string()),
+            address3: addr.line3.as_ref().map(|s| s.peek().to_string()),
+            city: addr.city.as_ref().map(|s| s.peek().to_string()),
+            postal_code: addr.zip.as_ref().map(|s| s.peek().to_string()),
+            state,
+            country_code: addr.country.map(|c| c.to_string()),
+        }
+    });
+
+    let (method, payment_instrument, customer, customer_agreement) = match bank_debit_data {
+        domain_types::payment_method_data::BankDebitData::AchBankDebit {
+            account_number,
+            routing_number,
+            bank_type,
+            ..
+        } => {
+            let account_type = bank_type.as_ref().map(|bt| match bt {
+                enums::BankType::Checking => "checking".to_string(),
+                enums::BankType::Savings => "savings".to_string(),
+            });
+
+            let first_name = billing.and_then(|b| {
+                b.address
+                    .as_ref()
+                    .and_then(|a| a.first_name.as_ref().map(|s| s.peek().to_string()))
+            });
+            let last_name = billing.and_then(|b| {
+                b.address
+                    .as_ref()
+                    .and_then(|a| a.last_name.as_ref().map(|s| s.peek().to_string()))
+            });
+            let email = router_data
+                .request
+                .email
+                .as_ref()
+                .map(|e| e.peek().to_string());
+
+            (
+                ApmMethod::Ach,
+                ApmPaymentInstrument {
+                    instrument_type: "direct".to_string(),
+                    account_type,
+                    account_number: Some(account_number.clone()),
+                    routing_number: Some(routing_number.clone()),
+                    iban: None,
+                    swift_bic: None,
+                    account_holder_name: None, // ACH does not use accountHolderName; name goes in customer object
+                    language: None,
+                    billing_address: apm_billing_address,
+                },
+                ApmCustomer {
+                    first_name,
+                    last_name,
+                    email,
+                },
+                None, // No customer agreement for ACH
+            )
+        }
+        domain_types::payment_method_data::BankDebitData::SepaBankDebit {
+            iban,
+            bank_account_holder_name,
+        } => {
+            let email = router_data
+                .request
+                .email
+                .as_ref()
+                .map(|e| e.peek().to_string());
+
+            // Generate a mandate ID from the transaction reference
+            let mandate_id = format!(
+                "M-{}",
+                router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+            );
+
+            (
+                ApmMethod::Sepa,
+                ApmPaymentInstrument {
+                    instrument_type: "direct".to_string(),
+                    account_type: None,
+                    account_number: None,
+                    routing_number: None,
+                    iban: Some(iban.clone()),
+                    swift_bic: None,
+                    account_holder_name: bank_account_holder_name.clone(),
+                    language: Some("en".to_string()),
+                    billing_address: apm_billing_address,
+                },
+                ApmCustomer {
+                    first_name: None,
+                    last_name: None,
+                    email,
+                },
+                Some(ApmCustomerAgreement {
+                    agreement_type: "oneTime".to_string(),
+                    mandate: ApmMandate {
+                        mandate_type: "oneTime".to_string(),
+                        mandate_id,
+                    },
+                }),
+            )
+        }
+        _ => {
+            return Err(IntegrationError::not_implemented(
+                utils::get_unimplemented_payment_method_error_message("worldpay"),
+            )
+            .into());
+        }
+    };
+
+    Ok(WorldpayAuthorizeRequest::Apm(Box::new(
+        WorldpayApmPaymentRequest {
+            transaction_reference: router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            order_reference: None,
+            merchant: ApmMerchant {
+                entity: auth.entity_id,
+            },
+            instruction: ApmInstruction {
+                method,
+                value: PaymentValue {
+                    amount: router_data.request.minor_amount,
+                    currency: router_data.request.currency,
+                },
+                narrative: InstructionNarrative {
+                    line1: narrative_line1,
+                },
+                payment_instrument,
+                customer,
+                customer_agreement,
+            },
+        },
+    )))
 }
 
 pub struct WorldpayAuthType {
@@ -660,6 +837,8 @@ impl From<PaymentOutcome> for enums::AttemptStatus {
             }
             PaymentOutcome::Refused | PaymentOutcome::FraudHighRisk => Self::Failure,
             PaymentOutcome::ThreeDsUnavailable => Self::AuthenticationFailed,
+            PaymentOutcome::SentForAuthorization => Self::Pending,
+            PaymentOutcome::Pending => Self::Pending,
         }
     }
 }
@@ -698,7 +877,9 @@ impl From<PaymentOutcome> for enums::RefundStatus {
             | PaymentOutcome::ThreeDsAuthenticationFailed
             | PaymentOutcome::ThreeDsChallenged
             | PaymentOutcome::SentForCancellation
-            | PaymentOutcome::ThreeDsUnavailable => Self::Failure,
+            | PaymentOutcome::ThreeDsUnavailable
+            | PaymentOutcome::SentForAuthorization
+            | PaymentOutcome::Pending => Self::Failure,
         }
     }
 }

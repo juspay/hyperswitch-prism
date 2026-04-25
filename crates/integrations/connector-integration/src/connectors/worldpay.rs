@@ -273,7 +273,7 @@ macros::create_all_prerequisites!(
                     "Content-Type".to_string(),
                     self.get_content_type().to_string().into(),
                 ),
-                ("WP-API-Version".to_string(), "2024-06-01".into()),
+                ("WP-API-Version".to_string(), "2024-07-01".into()),
             ];
             let mut api_key = self.get_auth_header(&req.connector_config)?;
             headers.append(&mut api_key);
@@ -411,6 +411,10 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
+            // Route BankDebit payments to the APM endpoint
+            if req.resource_common_data.payment_method == common_enums::PaymentMethod::BankDebit {
+                return Ok(format!("{}apmPayments", self.connector_base_url_payments(req)));
+            }
             Ok(format!("{}api/payments", self.connector_base_url_payments(req)))
         }
     }
