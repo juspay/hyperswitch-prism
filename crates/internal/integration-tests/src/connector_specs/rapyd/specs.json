@@ -1,13 +1,13 @@
 {
   "connector": "rapyd",
   "supported_suites": [
-    "authorize",
-    "capture",
-    "client_authentication_token",
-    "create_order",                                                                                                                                                                                                                                                               
-    "get",
-    "refund",
-    "refund_sync",
-    "void"
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "MerchantAuthenticationService/CreateClientAuthenticationToken",
+    "PaymentService/CreateOrder",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentService/Void"
   ]
 }

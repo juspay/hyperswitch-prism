@@ -53,7 +53,7 @@ cargo run --bin run_test -- [OPTIONS]
 | `--connector <name>` | Connector to test | `stripe` |
 | `--suite <name>` | Suite to run | `authorize` |
 | `--scenario <name>` | Scenario to run | First scenario in suite |
-| `--endpoint <host:port>` | gRPC server endpoint | `localhost:50051` |
+| `--endpoint <host:port>` | gRPC server endpoint | `localhost:8000` |
 | `--creds-file <path>` | Credentials file path | `CONNECTOR_AUTH_FILE_PATH` env var |
 | `--merchant-id <id>` | Merchant ID | `test_merchant` |
 | `--tenant-id <id>` | Tenant ID | `default` |
@@ -149,7 +149,7 @@ cargo run --bin suite_run_test -- [COMMAND] [OPTIONS]
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--connector <name>` | Connector to test | All configured connectors |
-| `--endpoint <host:port>` | gRPC server endpoint | `localhost:50051` |
+| `--endpoint <host:port>` | gRPC server endpoint | `localhost:8000` |
 | `--creds-file <path>` | Credentials file path | `CONNECTOR_AUTH_FILE_PATH` env var |
 | `--merchant-id <id>` | Merchant ID | `test_merchant` |
 | `--tenant-id <id>` | Tenant ID | `default` |
@@ -297,7 +297,7 @@ Output:
 grpcurl -plaintext \
   -H "x-connector: stripe" \
   -H "x-connector-auth: {...}" \
-  -d @ localhost:50051 payment.PaymentService/Authorize <<'JSON'
+  -d @ localhost:8000 payment.PaymentService/Authorize <<'JSON'
 {
   "merchant_transaction_id": {"id": "mti_a1b2c3d4"},
   ...

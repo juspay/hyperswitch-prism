@@ -1,12 +1,12 @@
 {
   "connector": "payme",
   "supported_suites": [
-    "authorize",
-    "capture",
-    "create_order",
-    "get",
-    "refund",
-    "refund_sync",
-    "void"
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/CreateOrder",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentService/Void"
   ]
 }

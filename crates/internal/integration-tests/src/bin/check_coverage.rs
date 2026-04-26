@@ -15,7 +15,9 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
 
+use integration_tests::harness::scenario_api::all_known_suites;
 use regex::Regex;
+use serde_json::Value as JsonValue;
 
 const IGNORE_SERVICES: &[&str] = &["PayoutService", "DisputeService"];
 
@@ -38,7 +40,6 @@ fn main() {
 
     let proto_file = root.join("crates/types-traits/grpc-api-types/proto/services.proto");
     let suites_dir = root.join("crates/internal/integration-tests/src/global_suites");
-    let scenario_api = root.join("crates/internal/integration-tests/src/harness/scenario_api.rs");
 
     println!("{}", "=".repeat(80));
     println!("gRPC PROTO SERVICE COVERAGE ANALYSIS");
@@ -46,7 +47,7 @@ fn main() {
     println!();
 
     let proto_methods = extract_proto_methods(&proto_file);
-    let suite_mappings = extract_suite_mappings(&scenario_api);
+    let suite_mappings = get_suite_mappings();
     let available_suites = get_available_suites(&suites_dir);
 
     analyze_coverage(&proto_methods, &suite_mappings, &available_suites);
@@ -81,59 +82,30 @@ fn extract_proto_methods(proto_file: &PathBuf) -> Vec<ProtoMethod> {
     methods
 }
 
-fn extract_suite_mappings(scenario_api: &PathBuf) -> HashMap<String, String> {
-    let content = fs::read_to_string(scenario_api).expect("Failed to read scenario_api.rs");
-    let mut mappings = HashMap::new();
-
-    // Find the grpc_method_for_suite function - use multiline matching with (?s)
-    let func_re =
-        Regex::new(r#"(?s)fn grpc_method_for_suite.*?let method = match suite \{(.*?)_ => \{"#)
-            .unwrap();
-
-    if let Some(caps) = func_re.captures(&content) {
-        let match_block = &caps[1];
-
-        // Match both single-line and block formats
-        // "suite_name" => "types.Service/Method"
-        // or
-        // "suite_name" => {
-        //     "types.Service/Method"
-        // }
-        let case_re =
-            Regex::new(r#""([^"]+)"\s*=>\s*(?:\{[^"]*)?["\s]*types\.(\w+)/(\w+)"#).unwrap();
-
-        for line in match_block.lines() {
-            if let Some(caps) = case_re.captures(line) {
-                let suite = caps[1].to_string();
-                let service = caps[2].to_string();
-                let method = caps[3].to_string();
-                mappings.insert(suite, format!("{}/{}", service, method));
-            }
-        }
-    }
-
-    mappings
+fn get_suite_mappings() -> HashMap<String, String> {
+    // Suite names are already in "ServiceName/MethodName" form, which is also
+    // the proto path — so the mapping is identity.
+    all_known_suites()
+        .iter()
+        .map(|s| (s.to_string(), s.to_string()))
+        .collect()
 }
 
 fn get_available_suites(suites_dir: &PathBuf) -> HashSet<String> {
-    let mut suites = HashSet::new();
+    let Ok(entries) = fs::read_dir(suites_dir) else {
+        return HashSet::new();
+    };
 
-    if let Ok(entries) = fs::read_dir(suites_dir) {
-        for entry in entries.flatten() {
-            if entry.path().is_dir() {
-                let suite_spec = entry.path().join("suite_spec.json");
-                if suite_spec.exists() {
-                    if let Some(name) = entry.file_name().to_str() {
-                        // Remove _suite suffix
-                        let suite_name = name.trim_end_matches("_suite");
-                        suites.insert(suite_name.to_string());
-                    }
-                }
-            }
-        }
-    }
-
-    suites
+    entries
+        .flatten()
+        .filter(|e| e.path().is_dir())
+        .filter_map(|e| {
+            let content = fs::read_to_string(e.path().join("suite_spec.json")).ok()?;
+            let value = serde_json::from_str::<JsonValue>(&content).ok()?;
+            let suite_name = value.get("suite")?.as_str()?;
+            Some(suite_name.to_string())
+        })
+        .collect()
 }
 
 fn analyze_coverage(

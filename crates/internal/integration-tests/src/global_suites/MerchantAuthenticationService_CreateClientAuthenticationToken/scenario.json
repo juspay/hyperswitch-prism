@@ -1,0 +1,86 @@
+{
+  "create_sdk_session_apple_pay": {
+    "grpc_req": {
+      "merchant_sdk_session_id": "auto_generate",
+      "amount": {
+        "minor_amount": 10000,
+        "currency": "USD"
+      },
+      "payment_method_type": "APPLE_PAY",
+      "country_alpha2_code": "US",
+      "customer": {
+        "id": "auto_generate",
+        "name": "auto_generate",
+        "email": {
+          "value": "auto_generate"
+        }
+      }
+    },
+    "assert": {
+      "session_data": {
+        "must_exist": true
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    },
+    "is_default": true,
+    "display_name": "Create SDK Session Token | Create SDK Session Apple Pay"
+  },
+  "create_sdk_session_google_pay": {
+    "grpc_req": {
+      "merchant_sdk_session_id": "auto_generate",
+      "amount": {
+        "minor_amount": 12000,
+        "currency": "USD"
+      },
+      "payment_method_type": "GOOGLE_PAY",
+      "country_alpha2_code": "US",
+      "customer": {
+        "id": "auto_generate",
+        "name": "auto_generate",
+        "email": {
+          "value": "auto_generate"
+        }
+      }
+    },
+    "assert": {
+      "session_data": {
+        "must_exist": true
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    },
+    "display_name": "Create SDK Session Token | Create SDK Session Google Pay"
+  },
+  "create_sdk_session_with_taxes": {
+    "grpc_req": {
+      "merchant_sdk_session_id": "auto_generate",
+      "amount": {
+        "minor_amount": 15000,
+        "currency": "USD"
+      },
+      "order_tax_amount": 1200,
+      "shipping_cost": 500,
+      "payment_method_type": "APPLE_PAY",
+      "country_alpha2_code": "US",
+      "customer": {
+        "id": "auto_generate",
+        "name": "auto_generate",
+        "email": {
+          "value": "auto_generate"
+        }
+      }
+    },
+    "assert": {
+      "session_data": {
+        "must_exist": true
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    },
+    "display_name": "Create SDK Session Token | Create SDK Session With Taxes"
+  }
+}

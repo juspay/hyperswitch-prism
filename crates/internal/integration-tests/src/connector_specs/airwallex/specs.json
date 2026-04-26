@@ -1,16 +1,16 @@
 {
   "connector": "airwallex",
   "supported_suites": [
-    "authorize",
-    "capture",
-    "create_customer",
-    "create_order",
-    "get",
-    "recurring_charge",
-    "refund",
-    "refund_sync",
-    "server_authentication_token",
-    "setup_recurring",
-    "void"
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "CustomerService/Create",
+    "PaymentService/CreateOrder",
+    "PaymentService/Get",
+    "RecurringPaymentService/Charge",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "MerchantAuthenticationService/CreateServerAuthenticationToken",
+    "PaymentService/SetupRecurring",
+    "PaymentService/Void"
   ]
 }

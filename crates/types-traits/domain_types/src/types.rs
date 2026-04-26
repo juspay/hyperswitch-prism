@@ -7996,6 +7996,30 @@ impl
             _ => None,
         };
 
+        // Extract customer data from the payment domain context (if available)
+        let customer = match &value.domain_context {
+            Some(grpc_api_types::payments::merchant_authentication_service_create_client_authentication_token_request::DomainContext::Payment(ctx)) => {
+                ctx.customer.clone()
+            }
+            _ => None,
+        };
+
+        let customer_id = customer
+            .as_ref()
+            .and_then(|c| c.id.as_ref())
+            .map(|id| common_utils::id_type::CustomerId::from_str(id))
+            .transpose()
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "customer.id",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Failed to parse customer id".to_string()),
+                    ..Default::default()
+                },
+            })?;
+
+        let connector_customer = customer
+            .as_ref()
+            .and_then(|c| c.connector_customer_id.clone());
         Ok(Self {
             merchant_id: merchant_id_from_header,
             payment_id: "PAYMENT_ID".to_string(),
@@ -8005,8 +8029,8 @@ impl
             address: PaymentAddress::default(),
             auth_type: common_enums::AuthenticationType::default(),
             connector_request_reference_id: value.merchant_client_session_id,
-            customer_id: None,
-            connector_customer: None,
+            customer_id,
+            connector_customer,
             description: None,
             return_url,
             connector_feature_data: value

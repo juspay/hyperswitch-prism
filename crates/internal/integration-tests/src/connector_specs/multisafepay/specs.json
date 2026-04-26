@@ -1,10 +1,10 @@
 {
   "connector": "multisafepay",
   "supported_suites": [
-    "authorize",
-    "client_authentication_token",
-    "get",
-    "refund",
-    "refund_sync"
+    "PaymentService/Authorize",
+    "MerchantAuthenticationService/CreateClientAuthenticationToken",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "RefundService/Get"
   ]
 }

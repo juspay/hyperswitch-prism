@@ -1,14 +1,14 @@
 {
   "connector": "nmi",
   "supported_suites": [
-    "authorize",
-    "capture",
-    "get",
-    "pre_authenticate",
-    "recurring_charge",
-    "refund",
-    "refund_sync",
-    "setup_recurring",
-    "void"
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Get",
+    "PaymentMethodAuthenticationService/PreAuthenticate",
+    "RecurringPaymentService/Charge",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentService/SetupRecurring",
+    "PaymentService/Void"
   ]
 }

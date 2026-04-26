@@ -32,7 +32,7 @@ pub struct ScenarioDef {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct SuiteSpec {
-    /// Suite name, expected to match `<suite>_suite` folder naming.
+    /// Suite name, e.g. `PaymentService/Authorize`.
     pub suite: String,
     /// Human-readable suite classification (`independent`, `payment_flow`, etc.).
     pub suite_type: String,
@@ -55,7 +55,7 @@ pub struct SuiteSpec {
     /// aliases to reuse the proto request type of a standard suite (for example,
     /// aliasing a custom suite to `authorize`) without extra core harness logic.
     ///
-    /// Example: `"alias_for": "authorize"` makes the suite dispatch via the
+    /// Example: `"alias_for": "PaymentService/Authorize"` makes the suite dispatch via the
     /// `PaymentService/Authorize` proto path.
     #[serde(default)]
     pub alias_for: Option<String>,

@@ -1,5 +1,5 @@
 {
-  "setup_recurring": {
+  "PaymentService/SetupRecurring": {
     "setup_recurring": {
       "grpc_req": {
         "payment_method": {

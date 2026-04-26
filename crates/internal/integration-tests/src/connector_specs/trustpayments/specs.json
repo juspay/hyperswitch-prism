@@ -1,12 +1,12 @@
 {
   "connector": "trustpayments",
   "supported_suites": [
-    "authorize",
-    "capture",
-    "get",
-    "incremental_authorization",
-    "refund",
-    "refund_sync",
-    "void"
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Get",
+    "PaymentService/IncrementalAuthorization",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentService/Void"
   ]
 }

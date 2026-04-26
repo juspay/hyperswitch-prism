@@ -202,8 +202,12 @@ mod tests {
         let previous = std::env::var("UCS_CONNECTOR_OVERRIDE_ROOT").ok();
         std::env::set_var("UCS_CONNECTOR_OVERRIDE_ROOT", &temp_root);
 
-        let loaded = load_scenario_override_patch("stripe", "authorize", "no3ds_fail_payment")
-            .expect("loading missing override should not fail");
+        let loaded = load_scenario_override_patch(
+            "stripe",
+            "PaymentService/Authorize",
+            "no3ds_fail_payment",
+        )
+        .expect("loading missing override should not fail");
         assert!(loaded.is_none());
 
         match previous {
@@ -223,7 +227,7 @@ mod tests {
 
         let override_path = connector_dir.join("override.json");
         let file_content = json!({
-            "authorize": {
+            "PaymentService/Authorize": {
                 "no3ds_fail_payment": {
                     "grpc_req": {
                         "payment_method": {
@@ -251,9 +255,13 @@ mod tests {
         let previous = std::env::var("UCS_CONNECTOR_OVERRIDE_ROOT").ok();
         std::env::set_var("UCS_CONNECTOR_OVERRIDE_ROOT", &temp_root);
 
-        let loaded = load_scenario_override_patch("stripe", "authorize", "no3ds_fail_payment")
-            .expect("loading override patch should succeed")
-            .expect("override patch should exist");
+        let loaded = load_scenario_override_patch(
+            "stripe",
+            "PaymentService/Authorize",
+            "no3ds_fail_payment",
+        )
+        .expect("loading override patch should succeed")
+        .expect("override patch should exist");
         assert!(matches!(loaded, ScenarioOverridePatch { .. }));
         assert_eq!(
             loaded.grpc_req,

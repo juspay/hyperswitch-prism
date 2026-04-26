@@ -1,10 +1,10 @@
 {
-  "authorize": {
+  "PaymentService/Authorize": {
     "no3ds_auto_capture_google_pay_encrypted": {
       "grpc_req": {}
     }
   },
-  "refund": {
+  "PaymentService/Refund": {
     "refund_full_amount": {
       "grpc_req": {
         "webhook_url": "https://example.com/webhook"

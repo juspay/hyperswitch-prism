@@ -1,10 +1,10 @@
 {
   "connector": "revolut",
   "supported_suites": [
-    "authorize",
-    "capture",
-    "get",
-    "refund",
-    "refund_sync"
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "RefundService/Get"
   ]
 }

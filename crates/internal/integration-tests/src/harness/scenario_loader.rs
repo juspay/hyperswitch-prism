@@ -7,7 +7,26 @@ use crate::harness::scenario_types::{
     ScenarioFile, SuiteSpec,
 };
 
-/// Root directory containing `<suite>_suite/scenario.json` and `suite_spec.json`.
+/// Converts a global-suite directory name to its canonical suite identifier.
+///
+/// Directory names use `_` as the single separator between the service name and
+/// the method name (e.g. `PaymentService_Authorize` → `"PaymentService/Authorize"`).
+/// The service-name component must be CamelCase with no underscores — this is
+/// enforced by the `debug_assert!` below so any violation is caught at test time.
+///
+/// Returns `None` if `dir_name` contains no `_` (not a valid suite directory).
+pub fn suite_dir_name_to_suite_name(dir_name: &str) -> Option<String> {
+    let sep_pos = dir_name.find('_')?;
+    let service = &dir_name[..sep_pos];
+    let method = &dir_name[sep_pos + 1..];
+    debug_assert!(
+        !service.contains('_'),
+        "suite directory name {dir_name:?} has an underscore in the service part {service:?} — service names must be single CamelCase words with no underscores",
+    );
+    Some(format!("{service}/{method}"))
+}
+
+/// Root directory containing `<ServiceName_FlowName>/scenario.json` and `suite_spec.json`.
 pub fn scenario_root() -> PathBuf {
     std::env::var("UCS_SCENARIO_ROOT")
         .map(PathBuf::from)
@@ -32,17 +51,23 @@ pub fn connector_spec_dir(connector: &str) -> PathBuf {
     connector_specs_root().join(connector)
 }
 
+/// Converts a suite name (`ServiceName/FlowName`) into the directory name
+/// used on disk (`ServiceName_FlowName`).
+fn suite_dir_name(suite: &str) -> String {
+    suite.replace('/', "_")
+}
+
 /// Absolute path to the suite scenario file.
 pub fn scenario_file_path(suite: &str) -> PathBuf {
     scenario_root()
-        .join(format!("{suite}_suite"))
+        .join(suite_dir_name(suite))
         .join("scenario.json")
 }
 
 /// Absolute path to the suite specification file.
 pub fn suite_spec_file_path(suite: &str) -> PathBuf {
     scenario_root()
-        .join(format!("{suite}_suite"))
+        .join(suite_dir_name(suite))
         .join("suite_spec.json")
 }
 
@@ -232,14 +257,13 @@ pub fn load_supported_suites_for_connector(connector: &str) -> Result<Vec<String
         let Some(dir_name) = path.file_name().and_then(|name| name.to_str()) else {
             continue;
         };
-        if !dir_name.ends_with("_suite") {
-            continue;
-        }
         if !path.join("scenario.json").exists() {
             continue;
         }
 
-        suites.insert(dir_name.trim_end_matches("_suite").to_string());
+        if let Some(suite_name) = suite_dir_name_to_suite_name(dir_name) {
+            suites.insert(suite_name);
+        }
     }
 
     Ok(suites.into_iter().collect())
@@ -379,8 +403,56 @@ mod tests {
     use crate::harness::scenario_loader::{
         configured_all_connectors, discover_all_connectors, get_the_assertion, get_the_grpc_req,
         load_scenario, load_suite_scenarios, load_suite_spec, load_supported_suites_for_connector,
-        scenario_root,
+        scenario_root, suite_dir_name_to_suite_name,
     };
+
+    #[test]
+    fn suite_dir_name_to_suite_name_splits_at_first_underscore() {
+        assert_eq!(
+            suite_dir_name_to_suite_name("PaymentService_Authorize"),
+            Some("PaymentService/Authorize".to_string())
+        );
+        assert_eq!(
+            suite_dir_name_to_suite_name(
+                "MerchantAuthenticationService_CreateClientAuthenticationToken"
+            ),
+            Some("MerchantAuthenticationService/CreateClientAuthenticationToken".to_string())
+        );
+        assert_eq!(
+            suite_dir_name_to_suite_name("RefundService_Get"),
+            Some("RefundService/Get".to_string())
+        );
+    }
+
+    #[test]
+    fn suite_dir_name_to_suite_name_returns_none_when_no_underscore() {
+        assert_eq!(suite_dir_name_to_suite_name("PaymentService"), None);
+        assert_eq!(suite_dir_name_to_suite_name(""), None);
+    }
+
+    #[test]
+    fn all_global_suite_dirs_produce_valid_suite_names() {
+        let entries = fs::read_dir(scenario_root()).expect("scenario root should be readable");
+        for entry in entries.filter_map(Result::ok) {
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+            let dir_name = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .expect("dir name should be valid UTF-8");
+            let suite_name = suite_dir_name_to_suite_name(dir_name)
+                .unwrap_or_else(|| panic!("directory {dir_name:?} has no underscore separator"));
+            let (service, method) = suite_name
+                .split_once('/')
+                .unwrap_or_else(|| panic!("suite name {suite_name:?} must contain '/'"));
+            assert!(
+                !service.is_empty() && !method.is_empty(),
+                "suite name {suite_name:?} must have non-empty service and method"
+            );
+        }
+    }
 
     fn discover_suites() -> Vec<String> {
         fs::read_dir(scenario_root())
@@ -391,10 +463,10 @@ mod tests {
                 let path = entry.path();
                 let has_scenario_file = path.join("scenario.json").is_file();
                 let dir_name = path.file_name()?.to_str()?;
-                if !has_scenario_file || !dir_name.ends_with("_suite") {
+                if !has_scenario_file {
                     return None;
                 }
-                Some(dir_name.trim_end_matches("_suite").to_string())
+                suite_dir_name_to_suite_name(dir_name)
             })
             .collect()
     }
@@ -484,10 +556,17 @@ mod tests {
 
     #[test]
     fn dependency_scope_defaults_and_overrides_are_loaded() {
-        let authorize_spec = load_suite_spec("authorize").expect("authorize spec should load");
+        let authorize_spec =
+            load_suite_spec("PaymentService/Authorize").expect("authorize spec should load");
         assert_eq!(authorize_spec.dependency_scope, DependencyScope::Scenario);
 
-        for suite in ["capture", "void", "refund", "get", "refund_sync"] {
+        for suite in [
+            "PaymentService/Capture",
+            "PaymentService/Void",
+            "PaymentService/Refund",
+            "PaymentService/Get",
+            "RefundService/Get",
+        ] {
             let spec = load_suite_spec(suite).expect("suite spec should load");
             assert_eq!(
                 spec.dependency_scope,
@@ -499,8 +578,8 @@ mod tests {
 
     #[test]
     fn explicit_context_maps_exist_for_name_mismatch_dependencies() {
-        let recurring_spec =
-            load_suite_spec("recurring_charge").expect("recurring_charge spec should load");
+        let recurring_spec = load_suite_spec("RecurringPaymentService/Charge")
+            .expect("RecurringPaymentService/Charge spec should load");
         let recurring_has_mandate_mapping = recurring_spec.depends_on.iter().any(|dependency| {
             dependency
                 .context_map()
@@ -516,11 +595,11 @@ mod tests {
         });
         assert!(
             recurring_has_mandate_mapping,
-            "recurring_charge should explicitly map mandate reference into connector recurring id"
+            "RecurringPaymentService/Charge should explicitly map mandate reference into connector recurring id"
         );
 
         let refund_sync_spec =
-            load_suite_spec("refund_sync").expect("refund_sync spec should load");
+            load_suite_spec("RefundService/Get").expect("RefundService/Get spec should load");
         let refund_sync_has_refund_mapping = refund_sync_spec.depends_on.iter().any(|dependency| {
             dependency
                 .context_map()
@@ -530,7 +609,7 @@ mod tests {
         });
         assert!(
             refund_sync_has_refund_mapping,
-            "refund_sync should explicitly map refund_id from connector_refund_id"
+            "RefundService/Get should explicitly map refund_id from connector_refund_id"
         );
     }
 
@@ -539,8 +618,10 @@ mod tests {
         let suites = load_supported_suites_for_connector("stripe")
             .expect("supported suites should load for stripe connector");
         assert!(
-            suites.iter().any(|suite| suite == "authorize"),
-            "stripe should support authorize suite"
+            suites
+                .iter()
+                .any(|suite| suite == "PaymentService/Authorize"),
+            "stripe should support PaymentService/Authorize suite"
         );
     }
 
@@ -604,11 +685,11 @@ mod tests {
             "recurring_charge_low_amount",
             "recurring_charge_with_order_context",
         ] {
-            let req = get_the_grpc_req("recurring_charge", scenario_name)
+            let req = get_the_grpc_req("RecurringPaymentService/Charge", scenario_name)
                 .expect("recurring charge grpc_req should be loadable");
             assert!(
                 req.get("connector_transaction_id").is_none(),
-                "recurring_charge/{scenario_name} should not include connector_transaction_id"
+                "RecurringPaymentService/Charge/{scenario_name} should not include connector_transaction_id"
             );
         }
     }
@@ -619,7 +700,7 @@ mod tests {
             "setup_recurring_with_webhook",
             "setup_recurring_with_order_context",
         ] {
-            let req = get_the_grpc_req("setup_recurring", scenario_name)
+            let req = get_the_grpc_req("PaymentService/SetupRecurring", scenario_name)
                 .expect("setup_recurring grpc_req should be loadable");
 
             let has_billing_address = req
@@ -628,7 +709,7 @@ mod tests {
                 .is_some();
             assert!(
                 has_billing_address,
-                "setup_recurring/{scenario_name} should include address.billing_address"
+                "PaymentService/SetupRecurring/{scenario_name} should include address.billing_address"
             );
         }
     }
@@ -638,26 +719,27 @@ mod tests {
         let authorizedotnet = load_supported_suites_for_connector("authorizedotnet")
             .expect("authorizedotnet supported suites should load");
         assert!(
-            authorizedotnet.contains(&"setup_recurring".to_string())
-                && authorizedotnet.contains(&"recurring_charge".to_string()),
+            authorizedotnet.contains(&"PaymentService/SetupRecurring".to_string())
+                && authorizedotnet.contains(&"RecurringPaymentService/Charge".to_string()),
             "authorizedotnet should cover recurring suites"
         );
 
         let stripe =
             load_supported_suites_for_connector("stripe").expect("stripe suites should load");
         assert!(
-            stripe.contains(&"create_customer".to_string())
-                && stripe.contains(&"setup_recurring".to_string())
-                && stripe.contains(&"recurring_charge".to_string()),
-            "stripe should include create_customer + recurring suites"
+            stripe.contains(&"CustomerService/Create".to_string())
+                && stripe.contains(&"PaymentService/SetupRecurring".to_string())
+                && stripe.contains(&"RecurringPaymentService/Charge".to_string()),
+            "stripe should include CustomerService/Create + recurring suites"
         );
 
         let paypal =
             load_supported_suites_for_connector("paypal").expect("paypal suites should load");
         assert!(
-            paypal.contains(&"server_authentication_token".to_string())
-                && paypal.contains(&"setup_recurring".to_string())
-                && paypal.contains(&"recurring_charge".to_string()),
+            paypal.contains(
+                &"MerchantAuthenticationService/CreateServerAuthenticationToken".to_string()
+            ) && paypal.contains(&"PaymentService/SetupRecurring".to_string())
+                && paypal.contains(&"RecurringPaymentService/Charge".to_string()),
             "paypal should include token + recurring suites"
         );
     }

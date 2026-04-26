@@ -1,7 +1,7 @@
 {
   "connector": "phonepe",
   "supported_suites": [
-    "authorize",
-    "get"
+    "PaymentService/Authorize",
+    "PaymentService/Get"
   ]
 }

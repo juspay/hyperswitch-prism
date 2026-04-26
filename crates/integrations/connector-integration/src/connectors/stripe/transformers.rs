@@ -571,6 +571,7 @@ pub enum StripePaymentMethodData<
     BankTransfer(StripeBankTransferData),
 }
 
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, Default, Eq, PartialEq, Serialize)]
 pub struct StripeBillingAddressCardToken {
     #[serde(rename = "billing_details[name]")]
@@ -590,6 +591,7 @@ pub struct StripeBillingAddressCardToken {
 }
 
 // Struct to call the Stripe tokens API to create a PSP token for the card details provided.
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeCardToken<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> {
     #[serde(rename = "type")]
@@ -5270,7 +5272,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         // Card flow for tokenization is handled separately because of API contact difference.
-        // /v1/tokens only accepts card[*] fields — do NOT include `type` or `billing_details[*]`.
+        // This path uses /v1/payment_methods, which requires `type` and accepts `billing_details[*]`.
         let request_payment_data = match &item.router_data.request.payment_method_data {
             PaymentMethodData::Card(card_details) => {
                 StripePaymentMethodData::CardToken(StripeCardToken {

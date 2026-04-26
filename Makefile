@@ -16,9 +16,9 @@ scenario  ?=
 interface ?= grpc
 
 # gRPC server settings
-# The test harness connects to localhost:50051 by default.
+# The test harness connects to localhost:8000 by default.
 # Override with: make test-connector connector=stripe GRPC_PORT=9090
-GRPC_PORT    ?= 50051
+GRPC_PORT    ?= 8000
 GRPC_HOST    ?= 0.0.0.0
 GRPC_PROFILE ?= release-fast
 # PID file used to track the background server process
@@ -110,7 +110,7 @@ setup-connector-tests:
 
 # ── gRPC server lifecycle ──────────────────────────────────────────────────────
 
-## Build and start the gRPC server in the background on GRPC_PORT (default 50051).
+## Build and start the gRPC server in the background on GRPC_PORT (default 8000).
 ## The server PID is written to $(GRPC_PID_FILE) so stop-grpc can kill it.
 ## You rarely need to call this directly — test-prism / test-connector /
 ## test-scenario all manage the server lifecycle automatically.
@@ -183,7 +183,7 @@ test-connector:
 	 [ -f .env.connector-tests ] && export $$(grep -v '^#' .env.connector-tests | xargs) 2>/dev/null || true; \
 	 cargo run -p integration-tests --bin test_ucs -- \
 	   --connector $(connector) \
-	   --endpoint localhost:50051 \
+	   --endpoint localhost:8000 \
 	   --interface $(interface) || EXIT_CODE=$$?; \
 	 [ "$(interface)" = "grpc" ] && $(MAKE) stop-grpc || true; \
 	 exit $$EXIT_CODE
@@ -207,7 +207,7 @@ test-scenario:
 	   --connector $(connector) \
 	   --suite $(suite) \
 	   --scenario $(scenario) \
-	   --endpoint localhost:50051 \
+	   --endpoint localhost:8000 \
 	   --interface $(interface) || EXIT_CODE=$$?; \
 	 [ "$(interface)" = "grpc" ] && $(MAKE) stop-grpc || true; \
 	 exit $$EXIT_CODE
@@ -466,7 +466,7 @@ help:
 	@echo "             make cargo ARGS=\"test\""
 	@echo "             make cargo ARGS=\"build --release\""
 	@echo ""
-	@echo "  start-grpc [GRPC_PORT=50051]"
+	@echo "  start-grpc [GRPC_PORT=8000]"
 	@echo "    Build and start the gRPC server in the background."
 	@echo ""
 	@echo "  stop-grpc"

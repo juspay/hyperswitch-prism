@@ -1,11 +1,11 @@
 {
   "connector": "hipay",
   "supported_suites": [
-    "authorize",
-    "capture",
-    "void",
-    "refund",
-    "get",
-    "tokenize_payment_method"
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Void",
+    "PaymentService/Refund",
+    "PaymentService/Get",
+    "PaymentMethodService/Tokenize"
   ]
 }

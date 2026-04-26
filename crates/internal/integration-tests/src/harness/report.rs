@@ -30,7 +30,7 @@ use crate::harness::scenario_loader::{
 pub struct ReportEntry {
     /// Execution timestamp in epoch milliseconds.
     pub run_at_epoch_ms: u128,
-    /// Suite name (e.g. `authorize`).
+    /// Suite name (e.g. `PaymentService/Authorize`).
     pub suite: String,
     /// Scenario name inside the suite.
     pub scenario: String,
@@ -259,60 +259,59 @@ pub fn extract_pm_and_pmt(grpc_req: Option<&Value>) -> (Option<String>, Option<S
 /// setup flows (customer, auth/3DS, tokens) at the end.
 const SUITE_ORDER: &[&str] = &[
     // Core payment flows
-    "authorize",
-    "capture",
-    "void",
-    "refund",
-    "get",
-    "refund_sync",
-    "complete_authorize",
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Void",
+    "PaymentService/Refund",
+    "PaymentService/Get",
+    "RefundService/Get",
+    "PaymentService/CompleteAuthorize",
     // Recurring / mandate flows
-    "setup_recurring",
-    "recurring_charge",
-    "revoke_mandate",
+    "PaymentService/SetupRecurring",
+    "RecurringPaymentService/Charge",
+    "RecurringPaymentService/Revoke",
     // Auxiliary / setup flows
-    "server_authentication_token",
-    "create_customer",
-    "pre_authenticate",
-    "authenticate",
-    "post_authenticate",
+    "MerchantAuthenticationService/CreateServerAuthenticationToken",
+    "CustomerService/Create",
+    "PaymentMethodAuthenticationService/PreAuthenticate",
+    "PaymentMethodAuthenticationService/Authenticate",
+    "PaymentMethodAuthenticationService/PostAuthenticate",
 ];
 
 /// Human-readable display names for suite columns.
 fn suite_display_name(suite: &str) -> String {
     let name = match suite {
-        "authorize" => "Authorize",
-        "capture" => "Capture",
-        "void" => "Void",
-        "refund" => "Refund",
-        "get" => "Payment Sync",
-        "refund_sync" => "Refund Sync",
-        "complete_authorize" => "Complete Auth",
-        "setup_recurring" => "Setup Mandate",
-        "recurring_charge" => "Mandate Pay",
-        "revoke_mandate" => "Revoke Mandate",
-        "server_authentication_token" => "Create Token",
-        "create_customer" => "Customer",
-        "pre_authenticate" => "Pre Auth",
-        "authenticate" => "Auth",
-        "post_authenticate" => "Post Auth",
-        "server_session_authentication_token" => "Session Token",
-        "client_authentication_token" => "SDK Session",
-        "tokenize_payment_method" => "Tokenize PM",
-        "incremental_authorization" => "Incremental Auth",
-        "create_order" => "Create Order",
+        "PaymentService/Authorize" => "Authorize",
+        "PaymentService/Capture" => "Capture",
+        "PaymentService/Void" => "Void",
+        "PaymentService/Refund" => "Refund",
+        "PaymentService/Get" => "Payment Sync",
+        "RefundService/Get" => "Refund Sync",
+        "PaymentService/CompleteAuthorize" => "Complete Auth",
+        "PaymentService/SetupRecurring" => "Setup Mandate",
+        "RecurringPaymentService/Charge" => "Mandate Pay",
+        "RecurringPaymentService/Revoke" => "Revoke Mandate",
+        "MerchantAuthenticationService/CreateServerAuthenticationToken" => "Create Token",
+        "CustomerService/Create" => "Customer",
+        "PaymentMethodAuthenticationService/PreAuthenticate" => "Pre Auth",
+        "PaymentMethodAuthenticationService/Authenticate" => "Auth",
+        "PaymentMethodAuthenticationService/PostAuthenticate" => "Post Auth",
+        "MerchantAuthenticationService/CreateServerSessionAuthenticationToken" => "Session Token",
+        "MerchantAuthenticationService/CreateClientAuthenticationToken" => "SDK Session",
+        "PaymentMethodService/Tokenize" => "Tokenize PM",
+        "PaymentService/IncrementalAuthorization" => "Incremental Auth",
+        "PaymentService/CreateOrder" => "Create Order",
         other => {
-            return other
-                .split('_')
-                .map(|w| {
-                    let mut c = w.chars();
-                    match c.next() {
-                        None => String::new(),
-                        Some(f) => f.to_uppercase().to_string() + c.as_str(),
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join(" ")
+            // Suite identifiers are "ServiceName/MethodName". Extract the method
+            // part and split CamelCase words for a readable fallback label.
+            let method = other.split('/').nth(1).unwrap_or(other);
+            return method.chars().fold(String::new(), |mut acc, c| {
+                if c.is_uppercase() && !acc.is_empty() {
+                    acc.push(' ');
+                }
+                acc.push(c);
+                acc
+            });
         }
     };
     name.to_string()
@@ -328,44 +327,59 @@ fn build_suite_service_cache() -> BTreeMap<String, String> {
 
     // Hardcoded mappings for core suites (always present).
     cache.insert(
-        "server_authentication_token".to_string(),
+        "MerchantAuthenticationService/CreateServerAuthenticationToken".to_string(),
         "MerchantAuthenticationService/CreateServerAuthenticationToken".to_string(),
     );
     cache.insert(
-        "create_customer".to_string(),
+        "CustomerService/Create".to_string(),
         "CustomerService/Create".to_string(),
     );
     cache.insert(
-        "pre_authenticate".to_string(),
+        "PaymentMethodAuthenticationService/PreAuthenticate".to_string(),
         "PaymentMethodAuthenticationService/PreAuthenticate".to_string(),
     );
     cache.insert(
-        "authenticate".to_string(),
+        "PaymentMethodAuthenticationService/Authenticate".to_string(),
         "PaymentMethodAuthenticationService/Authenticate".to_string(),
     );
     cache.insert(
-        "post_authenticate".to_string(),
+        "PaymentMethodAuthenticationService/PostAuthenticate".to_string(),
         "PaymentMethodAuthenticationService/PostAuthenticate".to_string(),
     );
     cache.insert(
-        "authorize".to_string(),
+        "PaymentService/Authorize".to_string(),
         "PaymentService/Authorize".to_string(),
     );
     cache.insert(
-        "complete_authorize".to_string(),
+        "PaymentService/CompleteAuthorize".to_string(),
         "PaymentService/Authorize".to_string(),
     );
-    cache.insert("capture".to_string(), "PaymentService/Capture".to_string());
-    cache.insert("refund".to_string(), "PaymentService/Refund".to_string());
-    cache.insert("void".to_string(), "PaymentService/Void".to_string());
-    cache.insert("get".to_string(), "PaymentService/Get".to_string());
-    cache.insert("refund_sync".to_string(), "RefundService/Get".to_string());
     cache.insert(
-        "setup_recurring".to_string(),
+        "PaymentService/Capture".to_string(),
+        "PaymentService/Capture".to_string(),
+    );
+    cache.insert(
+        "PaymentService/Refund".to_string(),
+        "PaymentService/Refund".to_string(),
+    );
+    cache.insert(
+        "PaymentService/Void".to_string(),
+        "PaymentService/Void".to_string(),
+    );
+    cache.insert(
+        "PaymentService/Get".to_string(),
+        "PaymentService/Get".to_string(),
+    );
+    cache.insert(
+        "RefundService/Get".to_string(),
+        "RefundService/Get".to_string(),
+    );
+    cache.insert(
+        "PaymentService/SetupRecurring".to_string(),
         "PaymentService/SetupRecurring".to_string(),
     );
     cache.insert(
-        "recurring_charge".to_string(),
+        "RecurringPaymentService/Charge".to_string(),
         "RecurringPaymentService/Charge".to_string(),
     );
 
@@ -1190,19 +1204,41 @@ mod tests {
     #[test]
     fn suite_ordering_is_consistent() {
         // Core payment flows come first
-        assert!(suite_sort_key("authorize") < suite_sort_key("capture"));
-        assert!(suite_sort_key("capture") < suite_sort_key("refund"));
-        assert!(suite_sort_key("refund") < suite_sort_key("get"));
-        assert!(suite_sort_key("get") < suite_sort_key("refund_sync"));
+        assert!(
+            suite_sort_key("PaymentService/Authorize") < suite_sort_key("PaymentService/Capture")
+        );
+        assert!(suite_sort_key("PaymentService/Capture") < suite_sort_key("PaymentService/Refund"));
+        assert!(suite_sort_key("PaymentService/Refund") < suite_sort_key("PaymentService/Get"));
+        assert!(suite_sort_key("PaymentService/Get") < suite_sort_key("RefundService/Get"));
         // Recurring flows come next
-        assert!(suite_sort_key("refund_sync") < suite_sort_key("setup_recurring"));
-        assert!(suite_sort_key("setup_recurring") < suite_sort_key("recurring_charge"));
+        assert!(
+            suite_sort_key("RefundService/Get") < suite_sort_key("PaymentService/SetupRecurring")
+        );
+        assert!(
+            suite_sort_key("PaymentService/SetupRecurring")
+                < suite_sort_key("RecurringPaymentService/Charge")
+        );
         // Auxiliary flows come last
-        assert!(suite_sort_key("recurring_charge") < suite_sort_key("server_authentication_token"));
-        assert!(suite_sort_key("server_authentication_token") < suite_sort_key("create_customer"));
-        assert!(suite_sort_key("create_customer") < suite_sort_key("pre_authenticate"));
-        assert!(suite_sort_key("pre_authenticate") < suite_sort_key("authenticate"));
-        assert!(suite_sort_key("authenticate") < suite_sort_key("post_authenticate"));
+        assert!(
+            suite_sort_key("RecurringPaymentService/Charge")
+                < suite_sort_key("MerchantAuthenticationService/CreateServerAuthenticationToken")
+        );
+        assert!(
+            suite_sort_key("MerchantAuthenticationService/CreateServerAuthenticationToken")
+                < suite_sort_key("CustomerService/Create")
+        );
+        assert!(
+            suite_sort_key("CustomerService/Create")
+                < suite_sort_key("PaymentMethodAuthenticationService/PreAuthenticate")
+        );
+        assert!(
+            suite_sort_key("PaymentMethodAuthenticationService/PreAuthenticate")
+                < suite_sort_key("PaymentMethodAuthenticationService/Authenticate")
+        );
+        assert!(
+            suite_sort_key("PaymentMethodAuthenticationService/Authenticate")
+                < suite_sort_key("PaymentMethodAuthenticationService/PostAuthenticate")
+        );
     }
 
     #[test]
@@ -1215,7 +1251,7 @@ mod tests {
             runs: vec![
                 ReportEntry {
                     run_at_epoch_ms: now_epoch_ms(),
-                    suite: "authorize".to_string(),
+                    suite: "PaymentService/Authorize".to_string(),
                     scenario: "no3ds_auto_capture_credit_card".to_string(),
                     scenario_display_name: None,
                     connector: "stripe".to_string(),
@@ -1234,8 +1270,8 @@ mod tests {
                 },
                 ReportEntry {
                     run_at_epoch_ms: now_epoch_ms(),
-                    suite: "create_customer".to_string(),
-                    scenario: "create_customer".to_string(),
+                    suite: "CustomerService/Create".to_string(),
+                    scenario: "CustomerService/Create".to_string(),
                     scenario_display_name: None,
                     connector: "paypal".to_string(),
                     pm: None,
@@ -1253,7 +1289,7 @@ mod tests {
                 },
                 ReportEntry {
                     run_at_epoch_ms: now_epoch_ms(),
-                    suite: "authorize".to_string(),
+                    suite: "PaymentService/Authorize".to_string(),
                     scenario: "no3ds_auto_capture_credit_card".to_string(),
                     scenario_display_name: None,
                     connector: "paypal".to_string(),
@@ -1264,7 +1300,7 @@ mod tests {
                     assertion_result: "FAIL".to_string(),
                     response_status: None,
                     error: Some("forced failure".to_string()),
-                    dependency: vec!["create_customer(create_customer)".to_string()],
+                    dependency: vec!["CustomerService/Create(CustomerService/Create)".to_string()],
                     req_body: Some(serde_json::json!({"field": "value"})),
                     res_body: Some(serde_json::json!({"error": "forced failure"})),
                     grpc_request: None,
@@ -1290,31 +1326,32 @@ mod tests {
         assert!(!content.contains("## Test Matrix"));
         assert!(!content.contains("## Summary"));
         assert!(!content.contains("## Scenario Details"));
-        assert!(content.contains("[100.0%](./connectors/stripe/authorize.md)"));
-        assert!(content.contains("[0.0%](./connectors/paypal/authorize.md)"));
+        assert!(content.contains("[100.0%](./connectors/stripe/paymentservice-authorize.md)"));
+        assert!(content.contains("[0.0%](./connectors/paypal/paymentservice-authorize.md)"));
 
         let stripe_suite_detail = temp_root
             .join("test_report")
             .join("connectors")
             .join("stripe")
-            .join("authorize.md");
+            .join("paymentservice-authorize.md");
         let stripe_suite_detail_content = fs::read_to_string(&stripe_suite_detail)
             .expect("suite detail markdown should be readable");
-        assert!(stripe_suite_detail_content.contains("# Connector `stripe` / Suite `authorize`"));
+        assert!(stripe_suite_detail_content
+            .contains("# Connector `stripe` / Suite `PaymentService/Authorize`"));
         assert!(stripe_suite_detail_content.contains(
-            "[`Credit Card \\| No 3DS \\| Automatic Capture`](./authorize/no3ds-auto-capture-credit-card.md)"
+            "[`Credit Card \\| No 3DS \\| Automatic Capture`](./paymentservice-authorize/no3ds-auto-capture-credit-card.md)"
         ));
 
         let stripe_detail = temp_root
             .join("test_report")
             .join("connectors")
             .join("stripe")
-            .join("authorize")
+            .join("paymentservice-authorize")
             .join("no3ds-auto-capture-credit-card.md");
         let stripe_detail_content =
             fs::read_to_string(&stripe_detail).expect("detail markdown should be readable");
         assert!(stripe_detail_content.contains(
-            "# Connector `stripe` / Suite `authorize` / Scenario `Credit Card | No 3DS | Automatic Capture`"
+            "# Connector `stripe` / Suite `PaymentService/Authorize` / Scenario `Credit Card | No 3DS | Automatic Capture`"
         ));
         assert!(stripe_detail_content.contains("- Scenario Key: `no3ds_auto_capture_credit_card`"));
         assert!(stripe_detail_content.contains("<summary>Show Request (masked)</summary>"));
@@ -1324,14 +1361,14 @@ mod tests {
         assert!(stripe_detail_content.contains("\"field\": \"value\""));
         assert!(stripe_detail_content.contains("\"status\": \"CHARGED\""));
         assert!(stripe_detail_content.contains(
-            "[Back to Connector Suite](../authorize.md) | [Back to Overview](../../../test_overview.md)"
+            "[Back to Connector Suite](../paymentservice-authorize.md) | [Back to Overview](../../../test_overview.md)"
         ));
 
         let paypal_detail = temp_root
             .join("test_report")
             .join("connectors")
             .join("paypal")
-            .join("authorize")
+            .join("paymentservice-authorize")
             .join("no3ds-auto-capture-credit-card.md");
         let paypal_detail_content =
             fs::read_to_string(&paypal_detail).expect("paypal detail markdown should be readable");
@@ -1348,7 +1385,7 @@ mod tests {
             .join("test_report")
             .join("connectors")
             .join("paypal")
-            .join("authorize.md");
+            .join("paymentservice-authorize.md");
         let paypal_suite_detail_content = fs::read_to_string(&paypal_suite_detail)
             .expect("paypal suite detail should be readable");
         assert!(paypal_suite_detail_content.contains("## Failed Scenarios"));
@@ -1360,13 +1397,13 @@ mod tests {
     fn sanitization_masks_sensitive_grpc_trace_and_json_fields() {
         let mut entry = ReportEntry {
             run_at_epoch_ms: now_epoch_ms(),
-            suite: "authorize".to_string(),
+            suite: "PaymentService/Authorize".to_string(),
             scenario: "no3ds_auto_capture_credit_card".to_string(),
             scenario_display_name: None,
             connector: "stripe".to_string(),
             pm: Some("card".to_string()),
             pmt: Some("credit".to_string()),
-            endpoint: "localhost:50051".to_string(),
+            endpoint: "localhost:8000".to_string(),
             is_dependency: false,
             assertion_result: "PASS".to_string(),
             response_status: None,
@@ -1385,7 +1422,7 @@ mod tests {
                 "access_token": "access_token_value"
             })),
             grpc_request: Some(
-                "grpcurl -plaintext \\\n+  -H \"x-api-key: sk_test_123\" \\\n+  -H \"authorization: Bearer token123\" \\\n+  -d @ localhost:50051 types.PaymentService/Authorize <<'JSON'"
+                "grpcurl -plaintext \\\n+  -H \"x-api-key: sk_test_123\" \\\n+  -H \"authorization: Bearer token123\" \\\n+  -d @ localhost:8000 types.PaymentService/Authorize <<'JSON'"
                     .to_string(),
             ),
             grpc_response: Some(

@@ -1,5 +1,5 @@
 {
-  "authorize": {
+  "PaymentService/Authorize": {
     "no3ds_auto_capture_google_pay_encrypted": {
       "grpc_req": {
         "connector_feature_data": {
@@ -134,7 +134,7 @@
       }
     }
   },
-  "capture": {
+  "PaymentService/Capture": {
     "capture_full_amount": {
       "grpc_req": {
         "connector_feature_data": {
@@ -157,7 +157,7 @@
       }
     }
   },
-  "void": {
+  "PaymentService/Void": {
     "void_authorized_payment": {
       "grpc_req": {
         "connector_feature_data": {
@@ -189,7 +189,7 @@
       }
     }
   },
-  "refund": {
+  "PaymentService/Refund": {
     "refund_full_amount": {
       "grpc_req": {
         "connector_feature_data": {
@@ -224,8 +224,8 @@
       }
     }
   },
-  "refund_sync": {
-    "refund_sync": {
+  "RefundService/Get": {
+    "RefundService/Get": {
       "grpc_req": {
         "connector_feature_data": {
           "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
@@ -240,7 +240,7 @@
       }
     }
   },
-  "get": {
+  "PaymentService/Get": {
     "sync_payment": {
       "grpc_req": {
         "connector_feature_data": {
@@ -253,6 +253,18 @@
         "connector_feature_data": {
           "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
         }
+      }
+    }
+  },
+  "MerchantAuthenticationService/CreateClientAuthenticationToken": {
+    "create_sdk_session_google_pay": {
+      "grpc_req": {
+        "payment_method_type": "GOOGLE_PAY"
+      }
+    },
+    "create_sdk_session_with_taxes": {
+      "grpc_req": {
+        "payment_method_type": "GOOGLE_PAY"
       }
     }
   }

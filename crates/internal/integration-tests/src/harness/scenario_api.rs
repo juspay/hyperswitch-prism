@@ -23,8 +23,8 @@ use uuid::Uuid;
 use crate::harness::{
     auto_gen::resolve_auto_generate,
     connector_override::{
-        apply_connector_overrides, context_deferred_paths_for_connector,
-        normalize_tonic_request_for_connector, transform_response_for_connector,
+        apply_connector_overrides, normalize_tonic_request_for_connector,
+        transform_response_for_connector,
     },
     credentials::{creds_file_path, load_connector_config},
     metadata::add_connector_metadata,
@@ -100,9 +100,9 @@ pub fn do_assertion(
     do_assertion_impl(assertions_for_that_req, response_json, grpc_req)
 }
 
-pub const DEFAULT_SUITE: &str = "authorize";
+pub const DEFAULT_SUITE: &str = "PaymentService/Authorize";
 pub const DEFAULT_SCENARIO: &str = "no3ds_auto_capture_credit_card";
-pub const DEFAULT_ENDPOINT: &str = "localhost:50051";
+pub const DEFAULT_ENDPOINT: &str = "localhost:8000";
 pub const DEFAULT_CONNECTOR: &str = "stripe";
 pub const DEFAULT_MERCHANT_ID: &str = "test_merchant";
 pub const DEFAULT_TENANT_ID: &str = "default";
@@ -257,9 +257,23 @@ pub fn add_context(
     }
 }
 
-fn prepare_context_placeholders(suite: &str, connector: &str, current_grpc_req: &mut Value) {
-    // Ensure metadata target exists for flows that need dependency-carried connector metadata.
-    if matches!(suite, "capture" | "void" | "refund" | "get" | "refund_sync")
+fn prepare_context_placeholders(suite: &str, _connector: &str, current_grpc_req: &mut Value) {
+    // Ensure a `connector_feature_data.value` leaf exists so that `add_context`
+    // can fill it from dependency responses.  Almost every proto request type
+    // carries this optional field; injecting a placeholder is harmless because
+    // `prune_empty_context_wrappers` removes it if nothing fills it.
+    //
+    // We skip root suites that never depend on another flow (auth-token flows,
+    // CustomerService/Create) since they have no dependency to source from.
+    let is_root_only_suite = matches!(
+        suite,
+        "MerchantAuthenticationService/CreateServerAuthenticationToken"
+            | "MerchantAuthenticationService/CreateServerSessionAuthenticationToken"
+            | "MerchantAuthenticationService/CreateClientAuthenticationToken"
+            | "CustomerService/Create"
+    );
+
+    if !is_root_only_suite
         && lookup_json_path_with_case_fallback(current_grpc_req, "connector_feature_data.value")
             .is_none()
     {
@@ -270,29 +284,23 @@ fn prepare_context_placeholders(suite: &str, connector: &str, current_grpc_req: 
         );
     }
 
-    for path in context_deferred_paths(connector) {
-        if let Some(value) = lookup_json_path_with_case_fallback(current_grpc_req, &path) {
-            if is_empty_context_placeholder(&path, value) {
-                let _ = deep_set_json_path(
-                    current_grpc_req,
-                    &path,
-                    Value::String("auto_generate".to_string()),
-                );
-            }
-        }
-    }
+    // NOTE: We intentionally do NOT normalize empty/null values to "auto_generate".
+    // Templates use explicit "auto_generate" sentinels for fields that should be
+    // generated.  Empty strings ("") and null values mean "omit or send empty" —
+    // they will be filled by dependency context if available, otherwise left as-is.
 }
 
-fn prune_unresolved_context_fields(connector: &str, current_grpc_req: &mut Value) {
-    for path in context_deferred_paths(connector) {
-        let should_remove = lookup_json_path_with_case_fallback(current_grpc_req, &path)
-            .map(|value| is_unresolved_context_value(&path, value))
-            .unwrap_or(false);
-        if should_remove {
-            let _ = remove_json_path(current_grpc_req, &path);
-        }
-    }
-
+/// Cleans up empty wrapper objects that may remain after context propagation
+/// and auto-generation (e.g. an empty `state.access_token` wrapper when none
+/// of its children were filled).
+///
+/// Uses `has_only_default_leaves` to detect subtrees where ALL leaf values are
+/// defaults (`""`, `0`, `null`, `false`).  This handles cases like an
+/// `access_token` block with `{"token": {"value": ""}, "expires_in_seconds": 0}`
+/// that should be pruned when dependency context didn't fill any real values.
+fn prune_empty_context_wrappers(current_grpc_req: &mut Value) {
+    // Special handling: connector_feature_data with unresolved "auto_generate"
+    // sentinel must be removed before auto-generation fills it with garbage.
     let should_remove_connector_feature =
         lookup_json_path_with_case_fallback(current_grpc_req, "connector_feature_data")
             .map(is_unresolved_connector_feature_data)
@@ -301,11 +309,49 @@ fn prune_unresolved_context_fields(connector: &str, current_grpc_req: &mut Value
         let _ = remove_json_path(current_grpc_req, "connector_feature_data");
     }
 
-    // Cleanup optional empty wrappers after field-level pruning.
-    let _ = remove_json_path_if_empty_object(current_grpc_req, "state.access_token.token");
-    let _ = remove_json_path_if_empty_object(current_grpc_req, "state.access_token");
-    let _ = remove_json_path_if_empty_object(current_grpc_req, "state");
-    let _ = remove_json_path_if_empty_object(current_grpc_req, "connector_feature_data");
+    // Generic cleanup: remove any top-level key whose value is an object (or
+    // scalar) where ALL primitive leaf values are defaults ("", 0, null, false).
+    //
+    // We skip subtrees that contain NO primitive leaves at all (only nested
+    // empty objects/arrays) because those may be proto oneof selectors — e.g.
+    // `payment_method: { "ideal": {} }` — where the empty object is
+    // intentional and choosing a variant.
+    prune_all_default_top_level_keys(current_grpc_req);
+}
+
+/// Returns `true` if the JSON value contains at least one primitive leaf
+/// (string, number, bool, or null).  Empty objects and arrays don't count.
+fn contains_primitive_leaf(value: &Value) -> bool {
+    match value {
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => true,
+        Value::Array(items) => items.iter().any(contains_primitive_leaf),
+        Value::Object(map) => map.values().any(contains_primitive_leaf),
+    }
+}
+
+/// Walks all top-level keys of a JSON object and removes any key whose value
+/// is an object/scalar containing only default primitive leaves.
+///
+/// This replaces the old hardcoded path list (`state`, `connector_feature_data`,
+/// etc.) with a single generic pass that handles any future wrapper fields.
+fn prune_all_default_top_level_keys(root: &mut Value) {
+    let Some(map) = root.as_object_mut() else {
+        return;
+    };
+    let keys_to_remove: Vec<String> = map
+        .iter()
+        .filter(|(_key, val)| {
+            // Only prune if: (a) the value has at least one primitive leaf,
+            // AND (b) all leaves are defaults.  Subtrees with no primitive
+            // leaves (e.g. oneof selectors like `{ "ideal": {} }`) are kept.
+            contains_primitive_leaf(val) && has_only_default_leaves(val)
+        })
+        .map(|(key, _)| key.clone())
+        .collect();
+
+    for key in keys_to_remove {
+        map.remove(&key);
+    }
 }
 
 fn maybe_execute_browser_automation_for_suite(
@@ -1223,58 +1269,6 @@ fn interpolate_rule_template(value: &Value, redirect_uri: Option<&str>) -> Optio
     }
 }
 
-fn context_deferred_paths(connector: &str) -> Vec<String> {
-    let mut base_paths = vec![
-        "customer.connector_customer_id".to_string(),
-        "state.connector_customer_id".to_string(),
-        "state.access_token.token.value".to_string(),
-        "state.access_token.token_type".to_string(),
-        "state.access_token.expires_in_seconds".to_string(),
-        "connector_feature_data.value".to_string(),
-        "connector_transaction_id.id".to_string(),
-        "connector_mandate_id".to_string(),
-        "refund_id".to_string(),
-    ];
-    base_paths.extend(context_deferred_paths_for_connector(connector));
-    base_paths.sort();
-    base_paths.dedup();
-    base_paths
-}
-
-fn is_empty_context_placeholder(path: &str, value: &Value) -> bool {
-    if value.is_null() {
-        return true;
-    }
-
-    if let Some(text) = value.as_str() {
-        return text.trim().is_empty();
-    }
-
-    // Historical placeholder for access token expiry.
-    if path == "state.access_token.expires_in_seconds" {
-        return value.as_i64() == Some(0);
-    }
-
-    false
-}
-
-fn is_unresolved_context_value(path: &str, value: &Value) -> bool {
-    if value.is_null() {
-        return true;
-    }
-
-    if let Some(text) = value.as_str() {
-        let normalized = text.trim().to_ascii_lowercase();
-        return normalized.is_empty() || normalized.contains("auto_generate");
-    }
-
-    if path == "state.access_token.expires_in_seconds" {
-        return value.as_i64() == Some(0);
-    }
-
-    false
-}
-
 fn is_unresolved_connector_feature_data(value: &Value) -> bool {
     match value {
         Value::Null => true,
@@ -1284,7 +1278,14 @@ fn is_unresolved_connector_feature_data(value: &Value) -> bool {
         }
         Value::Object(map) => map
             .get("value")
-            .map(|inner| is_unresolved_context_value("connector_feature_data.value", inner))
+            .map(|inner| match inner {
+                Value::Null => true,
+                Value::String(text) => {
+                    let normalized = text.trim().to_ascii_lowercase();
+                    normalized.is_empty() || normalized.contains("auto_generate")
+                }
+                _ => false,
+            })
             .unwrap_or(true),
         _ => false,
     }
@@ -1626,10 +1627,32 @@ fn remove_json_path(root: &mut Value, path: &str) -> bool {
     false
 }
 
-fn remove_json_path_if_empty_object(root: &mut Value, path: &str) -> bool {
+/// Recursively checks whether all leaf values in a JSON subtree are "default"
+/// values (`""`, `0`, `0.0`, `null`, `false`, empty arrays, or objects/arrays
+/// where all children are themselves defaults).
+///
+/// This is used to prune wrapper objects that remain after context propagation
+/// when none of their fields were actually filled with meaningful data.
+fn has_only_default_leaves(value: &Value) -> bool {
+    match value {
+        Value::Null | Value::Bool(false) => true,
+        // Treat "auto_generate" sentinels as unresolved defaults so they are
+        // pruned before resolve_auto_generate runs, preventing bogus UUIDs from
+        // being generated for fields whose dependency context was never populated.
+        Value::String(s) => s.is_empty() || s == "auto_generate",
+        Value::Number(n) => n.as_f64().map(|f| f == 0.0).unwrap_or(false),
+        Value::Array(items) => items.is_empty() || items.iter().all(has_only_default_leaves),
+        Value::Object(map) => map.is_empty() || map.values().all(has_only_default_leaves),
+        Value::Bool(true) => false,
+    }
+}
+
+/// Removes a JSON path if the value at that path has only default leaves
+/// (empty strings, zeros, nulls, false, or nested objects/arrays of the same).
+#[cfg(test)]
+fn remove_json_path_if_all_defaults(root: &mut Value, path: &str) -> bool {
     let should_remove = lookup_json_path_with_case_fallback(root, path)
-        .and_then(Value::as_object)
-        .map(|object| object.is_empty())
+        .map(has_only_default_leaves)
         .unwrap_or(false);
     if should_remove {
         return remove_json_path(root, path);
@@ -1682,7 +1705,7 @@ pub fn build_grpcurl_request(
     let scenario = scenario.unwrap_or(DEFAULT_SCENARIO);
     let connector = connector.unwrap_or(DEFAULT_CONNECTOR);
     let mut grpc_req = get_the_grpc_req_for_connector(suite, scenario, connector)?;
-    resolve_auto_generate(&mut grpc_req)?;
+    resolve_auto_generate(&mut grpc_req, connector)?;
     build_grpcurl_request_from_payload(
         suite,
         scenario,
@@ -1823,7 +1846,7 @@ pub fn execute_grpcurl_request_with_trace(
     let scenario = scenario.unwrap_or(DEFAULT_SCENARIO);
     let connector = connector.unwrap_or(DEFAULT_CONNECTOR);
     let mut grpc_req = get_the_grpc_req_for_connector(suite, scenario, connector)?;
-    resolve_auto_generate(&mut grpc_req)?;
+    resolve_auto_generate(&mut grpc_req, connector)?;
     execute_grpcurl_request_from_payload_with_trace(
         suite,
         scenario,
@@ -2085,7 +2108,7 @@ pub fn execute_tonic_request(
     let scenario = scenario.unwrap_or(DEFAULT_SCENARIO);
     let connector = connector.unwrap_or(DEFAULT_CONNECTOR);
     let mut grpc_req = get_the_grpc_req_for_connector(suite, scenario, connector)?;
-    resolve_auto_generate(&mut grpc_req)?;
+    resolve_auto_generate(&mut grpc_req, connector)?;
     execute_tonic_request_from_payload(
         suite,
         scenario,
@@ -2151,7 +2174,7 @@ pub fn execute_tonic_request_from_payload(
             .unwrap_or(suite);
 
         match effective_suite {
-            "server_authentication_token" => {
+            "MerchantAuthenticationService/CreateServerAuthenticationToken" => {
                 let payload: grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
@@ -2173,7 +2196,7 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
-            "create_customer" => {
+            "CustomerService/Create" => {
                 let payload: grpc_api_types::payments::CustomerServiceCreateRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
@@ -2195,7 +2218,7 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
-            "pre_authenticate" => {
+            "PaymentMethodAuthenticationService/PreAuthenticate" => {
                 let payload: grpc_api_types::payments::PaymentMethodAuthenticationServicePreAuthenticateRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
@@ -2217,7 +2240,7 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
-            "authenticate" => {
+            "PaymentMethodAuthenticationService/Authenticate" => {
                 let payload: grpc_api_types::payments::PaymentMethodAuthenticationServiceAuthenticateRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
@@ -2239,7 +2262,7 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
-            "post_authenticate" => {
+            "PaymentMethodAuthenticationService/PostAuthenticate" => {
                 let payload: grpc_api_types::payments::PaymentMethodAuthenticationServicePostAuthenticateRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
@@ -2261,7 +2284,7 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
-            "authorize" | "complete_authorize" => {
+            "PaymentService/Authorize" | "PaymentService/CompleteAuthorize" => {
                 let payload: grpc_api_types::payments::PaymentServiceAuthorizeRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
@@ -2283,7 +2306,7 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
-            "capture" => {
+            "PaymentService/Capture" => {
                 let payload: grpc_api_types::payments::PaymentServiceCaptureRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
@@ -2305,7 +2328,7 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
-            "refund" => {
+            "PaymentService/Refund" => {
                 let payload: grpc_api_types::payments::PaymentServiceRefundRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
@@ -2327,7 +2350,7 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
-            "void" => {
+            "PaymentService/Void" => {
                 let payload: grpc_api_types::payments::PaymentServiceVoidRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
@@ -2349,7 +2372,7 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
-            "get" => {
+            "PaymentService/Get" => {
                 let payload: grpc_api_types::payments::PaymentServiceGetRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
@@ -2371,7 +2394,7 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
-            "refund_sync" => {
+            "RefundService/Get" => {
                 let payload: grpc_api_types::payments::RefundServiceGetRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
@@ -2393,7 +2416,7 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
-            "setup_recurring" => {
+            "PaymentService/SetupRecurring" => {
                 let payload: grpc_api_types::payments::PaymentServiceSetupRecurringRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
@@ -2415,7 +2438,7 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
-            "recurring_charge" => {
+            "RecurringPaymentService/Charge" => {
                 let payload: grpc_api_types::payments::RecurringPaymentServiceChargeRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
@@ -2437,7 +2460,7 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
-            "revoke_mandate" => {
+            "RecurringPaymentService/Revoke" => {
                 let payload: grpc_api_types::payments::RecurringPaymentServiceRevokeRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
@@ -2459,7 +2482,7 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
-            "tokenize_payment_method" => {
+            "PaymentMethodService/Tokenize" => {
                 let payload: grpc_api_types::payments::PaymentMethodServiceTokenizeRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
@@ -2481,7 +2504,7 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
-            "incremental_authorization" => {
+            "PaymentService/IncrementalAuthorization" => {
                 let payload: grpc_api_types::payments::PaymentServiceIncrementalAuthorizationRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
@@ -2503,7 +2526,7 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
-            "server_session_authentication_token" => {
+            "MerchantAuthenticationService/CreateServerSessionAuthenticationToken" => {
                 let payload: grpc_api_types::payments::MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
@@ -2525,7 +2548,7 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
-            "client_authentication_token" => {
+            "MerchantAuthenticationService/CreateClientAuthenticationToken" => {
                 let payload: grpc_api_types::payments::MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
@@ -2547,7 +2570,7 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
-            "create_order" => {
+            "PaymentService/CreateOrder" => {
                 let payload: grpc_api_types::payments::PaymentServiceCreateOrderRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
@@ -2569,7 +2592,7 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
-            "reverse" => {
+            "PaymentService/Reverse" => {
                 let payload: grpc_api_types::payments::PaymentServiceReverseRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
@@ -2591,7 +2614,7 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
-            "verify_redirect_response" => {
+            "PaymentService/VerifyRedirectResponse" => {
                 let payload: grpc_api_types::payments::PaymentServiceVerifyRedirectResponseRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
@@ -2613,7 +2636,7 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
-            "token_authorize" => {
+            "PaymentService/TokenAuthorize" => {
                 let payload: grpc_api_types::payments::PaymentServiceTokenAuthorizeRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
@@ -2635,7 +2658,7 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
-            "token_setup_recurring" => {
+            "PaymentService/TokenSetupRecurring" => {
                 let payload: grpc_api_types::payments::PaymentServiceTokenSetupRecurringRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
@@ -2657,7 +2680,7 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
-            "proxy_authorize" => {
+            "PaymentService/ProxyAuthorize" => {
                 let payload: grpc_api_types::payments::PaymentServiceProxyAuthorizeRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
@@ -2679,7 +2702,7 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
-            "proxy_setup_recurring" => {
+            "PaymentService/ProxySetupRecurring" => {
                 let payload: grpc_api_types::payments::PaymentServiceProxySetupRecurringRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
@@ -2701,7 +2724,7 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
-            "payment_method_eligibility" => {
+            "PaymentMethodService/Eligibility" => {
                 let payload: grpc_api_types::payments::PayoutMethodEligibilityRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
@@ -2744,7 +2767,7 @@ pub(crate) fn parse_tonic_payload<T: DeserializeOwned>(
     })
 }
 
-fn normalize_tonic_request_json(
+pub fn normalize_tonic_request_json(
     connector: &str,
     suite: &str,
     scenario: &str,
@@ -2753,6 +2776,40 @@ fn normalize_tonic_request_json(
     normalize_value_wrappers(&mut value);
     normalize_proto_oneof_shapes(&mut value);
 
+    normalize_request_common(connector, suite, scenario, &mut value);
+    value
+}
+
+/// Normalises a scenario JSON payload for the grpcurl execution path.
+///
+/// Unlike [`normalize_tonic_request_json`], this does **not** strip `{"value": "..."}`
+/// wrappers (`SecretString`, `CardNumberType`, etc.) because grpcurl expects the
+/// full proto-native JSON shape.  It also does **not** wrap oneofs into the prost
+/// `{"payment_method": {"payment_method": {…}}}` double-nesting shape – grpcurl
+/// expects the proto field name directly.
+///
+/// What it does:
+/// - Suite-specific field renames (legacy → proto names)
+/// - Suite-specific field hoisting (e.g. flat fields → `domain_context`)
+/// - `convert_prost_oneofs_to_grpcurl` for `domain_context` (PascalCase → snake)
+/// - Connector-specific transforms
+pub fn normalize_grpcurl_request_json(
+    connector: &str,
+    suite: &str,
+    scenario: &str,
+    mut value: Value,
+) -> Value {
+    normalize_request_common(connector, suite, scenario, &mut value);
+
+    // domain_context hoisting above uses the prost format (`"Payment"` PascalCase).
+    // grpcurl expects the raw proto field name (`"payment"` lowercase).
+    convert_prost_oneofs_to_grpcurl(&mut value);
+
+    value
+}
+
+/// Shared normalisation logic used by both tonic and grpcurl paths.
+fn normalize_request_common(connector: &str, suite: &str, scenario: &str, value: &mut Value) {
     // Resolve alias_for so data-defined suite aliases apply the same
     // normalization rules as their canonical suite.
     let suite_spec_opt = load_suite_spec(suite).ok();
@@ -2764,19 +2821,22 @@ fn normalize_tonic_request_json(
     // Legacy scenario payloads used in grpcurl contain fields that do not map
     // directly to current proto request shapes used by tonic serde.
     // Drop or adjust known mismatches here so scenarios remain unchanged.
-    if let Value::Object(map) = &mut value {
-        if matches!(effective_suite, "authorize" | "complete_authorize") {
+    if let Value::Object(map) = value {
+        if matches!(
+            effective_suite,
+            "PaymentService/Authorize" | "PaymentService/CompleteAuthorize"
+        ) {
             map.entry("order_details".to_string())
                 .or_insert_with(|| Value::Array(Vec::new()));
         }
 
         if matches!(
             effective_suite,
-            "authorize"
-                | "complete_authorize"
-                | "setup_recurring"
-                | "proxy_setup_recurring"
-                | "token_setup_recurring"
+            "PaymentService/Authorize"
+                | "PaymentService/CompleteAuthorize"
+                | "PaymentService/SetupRecurring"
+                | "PaymentService/ProxySetupRecurring"
+                | "PaymentService/TokenSetupRecurring"
         ) {
             if let Some(Value::Object(customer_acceptance)) = map.get_mut("customer_acceptance") {
                 if !customer_acceptance.contains_key("accepted_at") {
@@ -2789,12 +2849,12 @@ fn normalize_tonic_request_json(
             }
         }
 
-        if effective_suite == "setup_recurring" {
+        if effective_suite == "PaymentService/SetupRecurring" {
             map.entry("request_incremental_authorization".to_string())
                 .or_insert_with(|| Value::Bool(false));
         }
 
-        if effective_suite == "get" {
+        if effective_suite == "PaymentService/Get" {
             if let Some(handle_response) = map.get("handle_response") {
                 if handle_response.is_boolean() {
                     map.remove("handle_response");
@@ -2804,9 +2864,15 @@ fn normalize_tonic_request_json(
 
         // client_authentication_token: flat scenario fields → nested proto shape.
         // Proto: merchant_client_session_id (string),
-        //        domain_context.Payment { amount, order_tax_amount,
+        //        oneof domain_context { payment (PaymentClientSessionContext) }
+        //        PaymentClientSessionContext { amount, order_tax_amount,
         //        shipping_cost, payment_method_type, country_alpha2_code, customer, metadata }
-        if effective_suite == "client_authentication_token" {
+        //
+        // NOTE: prost/serde expects `{"domainContext":{"Payment":{...}}}` (camelCase
+        //       wrapper + PascalCase variant) while grpcurl expects `{"payment":{...}}`
+        //       (raw field name).  We normalise to the prost shape here; the grpcurl
+        //       execution path converts to the grpcurl shape separately.
+        if effective_suite == "MerchantAuthenticationService/CreateClientAuthenticationToken" {
             // Rename legacy field name → proto field name
             if let Some(val) = map.remove("merchant_sdk_session_id") {
                 map.entry("merchant_client_session_id".to_string())
@@ -2839,8 +2905,10 @@ fn normalize_tonic_request_json(
 
         // server_session_authentication_token: flat scenario fields → nested proto shape.
         // Proto: merchant_server_session_id (optional string), connector_feature_data,
-        //        state, test_mode, domain_context.Payment { amount, metadata, browser_info }
-        if effective_suite == "server_session_authentication_token" {
+        //        state, test_mode, oneof domain_context { payment (PaymentSessionContext) }
+        //        PaymentSessionContext { amount, metadata, browser_info }
+        if effective_suite == "MerchantAuthenticationService/CreateServerSessionAuthenticationToken"
+        {
             // Rename legacy field name → proto field name
             if let Some(val) = map.remove("merchant_session_id") {
                 map.entry("merchant_server_session_id".to_string())
@@ -2864,8 +2932,86 @@ fn normalize_tonic_request_json(
         }
     }
 
-    normalize_tonic_request_for_connector(connector, suite, scenario, &mut value);
-    value
+    normalize_tonic_request_for_connector(connector, suite, scenario, value);
+}
+
+/// Converts prost/serde-style oneof wrappers to grpcurl-compatible field names.
+///
+/// Prost serialises oneofs as `{"domain_context": {"Payment": {...}}}` (camelCase
+/// wrapper key + PascalCase variant).  Grpcurl expects the proto field name
+/// directly: `{"payment": {...}}`.  This function performs that translation for
+/// known oneof patterns.
+pub fn convert_prost_oneofs_to_grpcurl(value: &mut Value) {
+    if let Value::Object(map) = value {
+        // Recurse into all children first so nested oneofs are handled.
+        for child in map.values_mut() {
+            convert_prost_oneofs_to_grpcurl(child);
+        }
+
+        // domain_context → extract the single variant and use lowercase field name.
+        // Prost: {"domain_context": {"Payment": {...}}}
+        // grpcurl: {"payment": {...}}
+        if let Some(Value::Object(domain_ctx)) = map.remove("domain_context") {
+            for (variant_name, variant_value) in domain_ctx {
+                let field_name = pascal_to_snake_case(&variant_name);
+                map.entry(field_name).or_insert(variant_value);
+            }
+        }
+
+        // payment_method oneof: unwrap the inner prost wrapper.
+        // Prost: {"payment_method": {"payment_method": {"card": {...}}}}
+        // grpcurl: {"payment_method": {"card": {...}}}
+        if let Some(Value::Object(pm_outer)) = map.get_mut("payment_method") {
+            if let Some(Value::Object(inner_map)) = pm_outer.remove("payment_method") {
+                for (k, v) in inner_map {
+                    pm_outer.entry(k).or_insert(v);
+                }
+            }
+        }
+
+        // mandate_id_type oneof inside connector_recurring_payment_id:
+        // Prost: {"connector_recurring_payment_id": {"mandate_id_type": {"ConnectorMandateId": {...}}}}
+        // grpcurl: {"connector_recurring_payment_id": {"connector_mandate_id": {...}}}
+        if let Some(Value::Object(mandate_ref)) = map.get_mut("connector_recurring_payment_id") {
+            if let Some(Value::Object(mandate_type)) = mandate_ref.remove("mandate_id_type") {
+                for (variant_name, variant_value) in mandate_type {
+                    let field_name = pascal_to_snake_case(&variant_name);
+                    mandate_ref.entry(field_name).or_insert(variant_value);
+                }
+            }
+        }
+
+        // tokenization_data oneof: unwrap the inner prost wrapper.
+        // Prost: {"tokenization_data": {"tokenization_data": {"encrypted_data": {...}}}}
+        // grpcurl: {"tokenization_data": {"encrypted_data": {...}}}
+        if let Some(Value::Object(td_outer)) = map.get_mut("tokenization_data") {
+            if let Some(Value::Object(inner_map)) = td_outer.remove("tokenization_data") {
+                for (k, v) in inner_map {
+                    td_outer.entry(k).or_insert(v);
+                }
+            }
+        }
+    } else if let Value::Array(items) = value {
+        for item in items {
+            convert_prost_oneofs_to_grpcurl(item);
+        }
+    }
+}
+
+/// Converts a PascalCase or camelCase string to snake_case.
+fn pascal_to_snake_case(s: &str) -> String {
+    let mut result = String::with_capacity(s.len() + 4);
+    for (i, ch) in s.chars().enumerate() {
+        if ch.is_uppercase() {
+            if i > 0 {
+                result.push('_');
+            }
+            result.extend(ch.to_lowercase());
+        } else {
+            result.push(ch);
+        }
+    }
+    result
 }
 
 fn normalize_proto_oneof_shapes(value: &mut Value) {
@@ -3966,7 +4112,9 @@ fn normalize_nexixpay_notneeded_postauth_dependency(
     effective_req: &Value,
     response_json: &Value,
 ) -> Option<Value> {
-    if !connector.eq_ignore_ascii_case("nexixpay") || dependency_suite != "post_authenticate" {
+    if !connector.eq_ignore_ascii_case("nexixpay")
+        || dependency_suite != "PaymentMethodAuthenticationService/PostAuthenticate"
+    {
         return None;
     }
 
@@ -4031,7 +4179,7 @@ fn maybe_sync_complete_authorize_pending(
     grpc_request: &mut Option<String>,
     grpc_response: &mut Option<String>,
 ) -> Result<(), ScenarioError> {
-    if suite != "complete_authorize" || options.backend != ExecutionBackend::Grpcurl {
+    if suite != "PaymentService/CompleteAuthorize" || options.backend != ExecutionBackend::Grpcurl {
         return Ok(());
     }
 
@@ -4087,7 +4235,7 @@ fn maybe_sync_complete_authorize_pending(
 
     for attempt in 1..=4 {
         let trace = execute_grpcurl_request_from_payload_with_trace(
-            "get",
+            "PaymentService/Get",
             "sync_payment",
             &sync_request,
             options.endpoint,
@@ -4108,7 +4256,12 @@ fn maybe_sync_complete_authorize_pending(
                 }
             };
 
-            transform_response_for_connector(connector, "get", "sync_payment", &mut sync_json);
+            transform_response_for_connector(
+                connector,
+                "PaymentService/Get",
+                "sync_payment",
+                &mut sync_json,
+            );
 
             let sync_status = lookup_json_path_with_case_fallback(&sync_json, "status")
                 .and_then(Value::as_str)
@@ -4138,7 +4291,7 @@ fn maybe_sync_complete_authorize_pending(
     Ok(())
 }
 
-#[allow(clippy::print_stdout)]
+#[allow(clippy::print_stdout, clippy::print_stderr)]
 fn execute_single_scenario_with_context(
     suite: &str,
     scenario: &str,
@@ -4157,17 +4310,25 @@ fn execute_single_scenario_with_context(
     // Normalize legacy empty placeholders to auto_generate sentinels where needed.
     prepare_context_placeholders(suite, connector, &mut effective_req);
 
-    // Context first.
+    // Context first — fill fields from dependency responses.
     add_context(dependency_reqs, dependency_res, &mut effective_req);
 
     // Apply any explicit dependency path mappings from suite_spec.json.
     apply_context_map(explicit_context_entries, &mut effective_req);
 
-    // Fallback generation for unresolved non-context placeholders.
-    resolve_auto_generate(&mut effective_req)?;
+    // Clean up empty wrapper objects left over from context propagation.
+    // This MUST run before resolve_auto_generate so that unresolved
+    // "auto_generate" sentinels inside wrapper objects like
+    // connector_feature_data and state.access_token are detected and
+    // removed — otherwise resolve_auto_generate would replace them with
+    // random "gen_XXXXX" values that the server cannot parse.
+    prune_empty_context_wrappers(&mut effective_req);
 
-    // Drop unresolved context-only fields instead of sending invalid placeholders.
-    prune_unresolved_context_fields(connector, &mut effective_req);
+    // Generate values for any remaining "auto_generate" sentinels and resolve
+    // "connector_name" placeholders to the uppercase connector enum name.
+    // Since context has already been applied, dependency-carried fields are
+    // already filled and won't be touched.
+    resolve_auto_generate(&mut effective_req, connector)?;
 
     if std::env::var("UCS_DEBUG_EFFECTIVE_REQ").as_deref() == Ok("1") {
         if let Ok(request_json) = serde_json::to_string_pretty(&effective_req) {
@@ -4187,10 +4348,24 @@ fn execute_single_scenario_with_context(
 
     let (response, mut grpc_request, mut grpc_response) = match options.backend {
         ExecutionBackend::Grpcurl => {
+            // grpcurl validates field names against the proto schema, so the
+            // payload must use proto-native field names and nested shapes.
+            // Unlike the tonic path, grpcurl needs the full proto JSON shape
+            // (e.g. `{"value": "..."}` wrappers for SecretString/CardNumberType)
+            // and does NOT need prost-style oneof double-nesting.
+            let grpcurl_payload =
+                normalize_grpcurl_request_json(connector, suite, scenario, effective_req.clone());
+            if std::env::var("UCS_DEBUG_GRPCURL_PAYLOAD").as_deref() == Ok("1") {
+                if let Ok(dbg_json) = serde_json::to_string_pretty(&grpcurl_payload) {
+                    eprintln!(
+                        "[DEBUG] grpcurl_payload suite={suite} scenario={scenario}:\n{dbg_json}"
+                    );
+                }
+            }
             let trace = execute_grpcurl_request_from_payload_with_trace(
                 suite,
                 scenario,
-                &effective_req,
+                &grpcurl_payload,
                 options.endpoint,
                 Some(connector),
                 options.merchant_id,
@@ -4269,40 +4444,48 @@ fn grpc_method_for_suite(suite: &str, spec: Option<&SuiteSpec>) -> Result<String
     }
 
     let method = match suite {
-        "server_authentication_token" => {
+        "MerchantAuthenticationService/CreateServerAuthenticationToken" => {
             "types.MerchantAuthenticationService/CreateServerAuthenticationToken"
         }
-        "create_customer" => "types.CustomerService/Create",
-        "pre_authenticate" => "types.PaymentMethodAuthenticationService/PreAuthenticate",
-        "authenticate" => "types.PaymentMethodAuthenticationService/Authenticate",
-        "post_authenticate" => "types.PaymentMethodAuthenticationService/PostAuthenticate",
-        "authorize" => "types.PaymentService/Authorize",
-        "complete_authorize" => "types.PaymentService/Authorize",
-        "capture" => "types.PaymentService/Capture",
-        "refund" => "types.PaymentService/Refund",
-        "void" => "types.PaymentService/Void",
-        "get" => "types.PaymentService/Get",
-        "refund_sync" => "types.RefundService/Get",
-        "setup_recurring" => "types.PaymentService/SetupRecurring",
-        "recurring_charge" => "types.RecurringPaymentService/Charge",
-        "create_order" => "types.PaymentService/CreateOrder",
-        "tokenize_payment_method" => "types.PaymentMethodService/Tokenize",
-        "revoke_mandate" => "types.RecurringPaymentService/Revoke",
-        "incremental_authorization" => "types.PaymentService/IncrementalAuthorization",
-        "reverse" => "types.PaymentService/Reverse",
-        "server_session_authentication_token" => {
+        "CustomerService/Create" => "types.CustomerService/Create",
+        "PaymentMethodAuthenticationService/PreAuthenticate" => {
+            "types.PaymentMethodAuthenticationService/PreAuthenticate"
+        }
+        "PaymentMethodAuthenticationService/Authenticate" => {
+            "types.PaymentMethodAuthenticationService/Authenticate"
+        }
+        "PaymentMethodAuthenticationService/PostAuthenticate" => {
+            "types.PaymentMethodAuthenticationService/PostAuthenticate"
+        }
+        "PaymentService/Authorize" => "types.PaymentService/Authorize",
+        "PaymentService/CompleteAuthorize" => "types.PaymentService/Authorize",
+        "PaymentService/Capture" => "types.PaymentService/Capture",
+        "PaymentService/Refund" => "types.PaymentService/Refund",
+        "PaymentService/Void" => "types.PaymentService/Void",
+        "PaymentService/Get" => "types.PaymentService/Get",
+        "RefundService/Get" => "types.RefundService/Get",
+        "PaymentService/SetupRecurring" => "types.PaymentService/SetupRecurring",
+        "RecurringPaymentService/Charge" => "types.RecurringPaymentService/Charge",
+        "PaymentService/CreateOrder" => "types.PaymentService/CreateOrder",
+        "PaymentMethodService/Tokenize" => "types.PaymentMethodService/Tokenize",
+        "RecurringPaymentService/Revoke" => "types.RecurringPaymentService/Revoke",
+        "PaymentService/IncrementalAuthorization" => {
+            "types.PaymentService/IncrementalAuthorization"
+        }
+        "PaymentService/Reverse" => "types.PaymentService/Reverse",
+        "MerchantAuthenticationService/CreateServerSessionAuthenticationToken" => {
             "types.MerchantAuthenticationService/CreateServerSessionAuthenticationToken"
         }
-        "client_authentication_token" => {
+        "MerchantAuthenticationService/CreateClientAuthenticationToken" => {
             "types.MerchantAuthenticationService/CreateClientAuthenticationToken"
         }
-        "verify_redirect_response" => "types.PaymentService/VerifyRedirectResponse",
-        "token_authorize" => "types.PaymentService/TokenAuthorize",
-        "token_setup_recurring" => "types.PaymentService/TokenSetupRecurring",
-        "proxy_authorize" => "types.PaymentService/ProxyAuthorize",
-        "proxy_setup_recurring" => "types.PaymentService/ProxySetupRecurring",
-        "payment_method_eligibility" => "types.PaymentMethodService/Eligibility",
-        "handle_event" => "types.EventService/HandleEvent",
+        "PaymentService/VerifyRedirectResponse" => "types.PaymentService/VerifyRedirectResponse",
+        "PaymentService/TokenAuthorize" => "types.PaymentService/TokenAuthorize",
+        "PaymentService/TokenSetupRecurring" => "types.PaymentService/TokenSetupRecurring",
+        "PaymentService/ProxyAuthorize" => "types.PaymentService/ProxyAuthorize",
+        "PaymentService/ProxySetupRecurring" => "types.PaymentService/ProxySetupRecurring",
+        "PaymentMethodService/Eligibility" => "types.PaymentMethodService/Eligibility",
+        "EventService/HandleEvent" => "types.EventService/HandleEvent",
         _ => {
             return Err(ScenarioError::UnsupportedSuite {
                 suite: suite.to_string(),
@@ -4323,34 +4506,34 @@ fn grpc_method_for_suite(suite: &str, spec: Option<&SuiteSpec>) -> Result<String
 /// DisputeService) are already absent from this list.
 pub fn all_known_suites() -> &'static [&'static str] {
     &[
-        "authenticate",
-        "authorize",
-        "capture",
-        "client_authentication_token",
-        "complete_authorize",
-        "create_customer",
-        "create_order",
-        "get",
-        "handle_event",
-        "incremental_authorization",
-        "payment_method_eligibility",
-        "post_authenticate",
-        "pre_authenticate",
-        "proxy_authorize",
-        "proxy_setup_recurring",
-        "recurring_charge",
-        "refund",
-        "refund_sync",
-        "reverse",
-        "revoke_mandate",
-        "server_authentication_token",
-        "server_session_authentication_token",
-        "setup_recurring",
-        "token_authorize",
-        "token_setup_recurring",
-        "tokenize_payment_method",
-        "verify_redirect_response",
-        "void",
+        "PaymentMethodAuthenticationService/Authenticate",
+        "PaymentService/Authorize",
+        "PaymentService/Capture",
+        "MerchantAuthenticationService/CreateClientAuthenticationToken",
+        "PaymentService/CompleteAuthorize",
+        "CustomerService/Create",
+        "PaymentService/CreateOrder",
+        "PaymentService/Get",
+        "EventService/HandleEvent",
+        "PaymentService/IncrementalAuthorization",
+        "PaymentMethodService/Eligibility",
+        "PaymentMethodAuthenticationService/PostAuthenticate",
+        "PaymentMethodAuthenticationService/PreAuthenticate",
+        "PaymentService/ProxyAuthorize",
+        "PaymentService/ProxySetupRecurring",
+        "RecurringPaymentService/Charge",
+        "PaymentService/Refund",
+        "RefundService/Get",
+        "PaymentService/Reverse",
+        "RecurringPaymentService/Revoke",
+        "MerchantAuthenticationService/CreateServerAuthenticationToken",
+        "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
+        "PaymentService/SetupRecurring",
+        "PaymentService/TokenAuthorize",
+        "PaymentService/TokenSetupRecurring",
+        "PaymentMethodService/Tokenize",
+        "PaymentService/VerifyRedirectResponse",
+        "PaymentService/Void",
     ]
 }
 
@@ -4367,11 +4550,13 @@ mod tests {
 
     use super::{
         add_context, apply_context_map, build_grpcurl_command, build_grpcurl_request,
-        deep_set_json_path, extract_json_body_from_grpc_output, get_the_assertion,
-        get_the_assertion_for_connector, get_the_grpc_req_for_connector,
-        normalize_tonic_request_json, prepare_context_placeholders,
-        prune_unresolved_context_fields, run_test, DEFAULT_SCENARIO, DEFAULT_SUITE,
+        contains_primitive_leaf, deep_set_json_path, extract_json_body_from_grpc_output,
+        get_the_assertion, get_the_assertion_for_connector, get_the_grpc_req_for_connector,
+        has_only_default_leaves, normalize_tonic_request_json, prepare_context_placeholders,
+        prune_empty_context_wrappers, remove_json_path_if_all_defaults, run_test, DEFAULT_SCENARIO,
+        DEFAULT_SUITE,
     };
+    use crate::harness::auto_gen::resolve_auto_generate;
     use crate::harness::scenario_loader::{
         connector_spec_dir, discover_all_connectors, load_suite_scenarios, load_suite_spec,
         load_supported_suites_for_connector,
@@ -4426,94 +4611,94 @@ mod tests {
             .unwrap_or(suite);
 
         match effective_suite {
-            "server_authentication_token" => validate_tonic_payload_shape::<
+            "MerchantAuthenticationService/CreateServerAuthenticationToken" => validate_tonic_payload_shape::<
                 payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
             >(connector, suite, scenario, grpc_req),
-            "create_customer" => validate_tonic_payload_shape::<
+            "CustomerService/Create" => validate_tonic_payload_shape::<
                 payments::CustomerServiceCreateRequest,
             >(connector, suite, scenario, grpc_req),
-            "pre_authenticate" => validate_tonic_payload_shape::<
+            "PaymentMethodAuthenticationService/PreAuthenticate" => validate_tonic_payload_shape::<
                 payments::PaymentMethodAuthenticationServicePreAuthenticateRequest,
             >(connector, suite, scenario, grpc_req),
-            "authenticate" => validate_tonic_payload_shape::<
+            "PaymentMethodAuthenticationService/Authenticate" => validate_tonic_payload_shape::<
                 payments::PaymentMethodAuthenticationServiceAuthenticateRequest,
             >(connector, suite, scenario, grpc_req),
-            "post_authenticate" => validate_tonic_payload_shape::<
+            "PaymentMethodAuthenticationService/PostAuthenticate" => validate_tonic_payload_shape::<
                 payments::PaymentMethodAuthenticationServicePostAuthenticateRequest,
             >(connector, suite, scenario, grpc_req),
-            "authorize" => {
+            "PaymentService/Authorize" => {
                 validate_tonic_payload_shape::<payments::PaymentServiceAuthorizeRequest>(
                     connector, suite, scenario, grpc_req,
                 )
             }
-            "complete_authorize" => validate_tonic_payload_shape::<
+            "PaymentService/CompleteAuthorize" => validate_tonic_payload_shape::<
                 payments::PaymentServiceAuthorizeRequest,
             >(connector, suite, scenario, grpc_req),
-            "capture" => validate_tonic_payload_shape::<payments::PaymentServiceCaptureRequest>(
+            "PaymentService/Capture" => validate_tonic_payload_shape::<payments::PaymentServiceCaptureRequest>(
                 connector, suite, scenario, grpc_req,
             ),
-            "void" => validate_tonic_payload_shape::<payments::PaymentServiceVoidRequest>(
+            "PaymentService/Void" => validate_tonic_payload_shape::<payments::PaymentServiceVoidRequest>(
                 connector, suite, scenario, grpc_req,
             ),
-            "refund" => validate_tonic_payload_shape::<payments::PaymentServiceRefundRequest>(
+            "PaymentService/Refund" => validate_tonic_payload_shape::<payments::PaymentServiceRefundRequest>(
                 connector, suite, scenario, grpc_req,
             ),
-            "get" => validate_tonic_payload_shape::<payments::PaymentServiceGetRequest>(
+            "PaymentService/Get" => validate_tonic_payload_shape::<payments::PaymentServiceGetRequest>(
                 connector, suite, scenario, grpc_req,
             ),
-            "refund_sync" => validate_tonic_payload_shape::<payments::RefundServiceGetRequest>(
+            "RefundService/Get" => validate_tonic_payload_shape::<payments::RefundServiceGetRequest>(
                 connector, suite, scenario, grpc_req,
             ),
-            "setup_recurring" => validate_tonic_payload_shape::<
+            "PaymentService/SetupRecurring" => validate_tonic_payload_shape::<
                 payments::PaymentServiceSetupRecurringRequest,
             >(connector, suite, scenario, grpc_req),
-            "recurring_charge" => validate_tonic_payload_shape::<
+            "RecurringPaymentService/Charge" => validate_tonic_payload_shape::<
                 payments::RecurringPaymentServiceChargeRequest,
             >(connector, suite, scenario, grpc_req),
-            "revoke_mandate" => validate_tonic_payload_shape::<
+            "RecurringPaymentService/Revoke" => validate_tonic_payload_shape::<
                 payments::RecurringPaymentServiceRevokeRequest,
             >(connector, suite, scenario, grpc_req),
-            "tokenize_payment_method" => validate_tonic_payload_shape::<
+            "PaymentMethodService/Tokenize" => validate_tonic_payload_shape::<
                 payments::PaymentMethodServiceTokenizeRequest,
             >(connector, suite, scenario, grpc_req),
-            "incremental_authorization" => validate_tonic_payload_shape::<
+            "PaymentService/IncrementalAuthorization" => validate_tonic_payload_shape::<
                 payments::PaymentServiceIncrementalAuthorizationRequest,
             >(connector, suite, scenario, grpc_req),
-            "server_session_authentication_token" => validate_tonic_payload_shape::<
+            "MerchantAuthenticationService/CreateServerSessionAuthenticationToken" => validate_tonic_payload_shape::<
                 payments::MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
             >(connector, suite, scenario, grpc_req),
-            "client_authentication_token" => validate_tonic_payload_shape::<
+            "MerchantAuthenticationService/CreateClientAuthenticationToken" => validate_tonic_payload_shape::<
                 payments::MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
             >(connector, suite, scenario, grpc_req),
-            "create_order" => validate_tonic_payload_shape::<
+            "PaymentService/CreateOrder" => validate_tonic_payload_shape::<
                 payments::PaymentServiceCreateOrderRequest,
             >(connector, suite, scenario, grpc_req),
-            "reverse" => validate_tonic_payload_shape::<
+            "PaymentService/Reverse" => validate_tonic_payload_shape::<
                 payments::PaymentServiceReverseRequest,
             >(connector, suite, scenario, grpc_req),
-            "verify_redirect_response" => validate_tonic_payload_shape::<
+            "PaymentService/VerifyRedirectResponse" => validate_tonic_payload_shape::<
                 payments::PaymentServiceVerifyRedirectResponseRequest,
             >(connector, suite, scenario, grpc_req),
-            "handle_event" => {
+            "EventService/HandleEvent" => {
                 // Webhook requests use base64 for the proto `bytes body` field,
                 // which grpcurl interprets correctly but tonic serde expects a
                 // byte array.  Skip tonic-level shape validation; the runtime
                 // grpcurl path is the authoritative check.
                 Ok(())
             }
-            "token_authorize" => validate_tonic_payload_shape::<
+            "PaymentService/TokenAuthorize" => validate_tonic_payload_shape::<
                 payments::PaymentServiceTokenAuthorizeRequest,
             >(connector, suite, scenario, grpc_req),
-            "token_setup_recurring" => validate_tonic_payload_shape::<
+            "PaymentService/TokenSetupRecurring" => validate_tonic_payload_shape::<
                 payments::PaymentServiceTokenSetupRecurringRequest,
             >(connector, suite, scenario, grpc_req),
-            "proxy_authorize" => validate_tonic_payload_shape::<
+            "PaymentService/ProxyAuthorize" => validate_tonic_payload_shape::<
                 payments::PaymentServiceProxyAuthorizeRequest,
             >(connector, suite, scenario, grpc_req),
-            "proxy_setup_recurring" => validate_tonic_payload_shape::<
+            "PaymentService/ProxySetupRecurring" => validate_tonic_payload_shape::<
                 payments::PaymentServiceProxySetupRecurringRequest,
             >(connector, suite, scenario, grpc_req),
-            "payment_method_eligibility" => validate_tonic_payload_shape::<
+            "PaymentMethodService/Eligibility" => validate_tonic_payload_shape::<
                 payments::PayoutMethodEligibilityRequest,
             >(connector, suite, scenario, grpc_req),
             _ => Err(format!(
@@ -4525,7 +4710,7 @@ mod tests {
     #[test]
     fn run_test_accepts_explicit_suite_and_scenario() {
         run_test(
-            Some("authorize"),
+            Some("PaymentService/Authorize"),
             Some("no3ds_manual_capture_credit_card"),
             Some("stripe"),
         )
@@ -4534,18 +4719,21 @@ mod tests {
 
     #[test]
     fn run_test_uses_default_suite_and_scenario() {
-        assert_eq!(DEFAULT_SUITE, "authorize");
+        assert_eq!(DEFAULT_SUITE, "PaymentService/Authorize");
         assert_eq!(DEFAULT_SCENARIO, "no3ds_auto_capture_credit_card");
         run_test(None, None, None).expect("run_test should succeed with defaults");
     }
 
     #[test]
     fn connector_override_is_applied_to_assertions() {
-        let base_assertions =
-            get_the_assertion("authorize", "no3ds_fail_payment").expect("base assertions load");
-        let overridden_assertions =
-            get_the_assertion_for_connector("authorize", "no3ds_fail_payment", "stripe")
-                .expect("connector assertions load");
+        let base_assertions = get_the_assertion("PaymentService/Authorize", "no3ds_fail_payment")
+            .expect("base assertions load");
+        let overridden_assertions = get_the_assertion_for_connector(
+            "PaymentService/Authorize",
+            "no3ds_fail_payment",
+            "stripe",
+        )
+        .expect("connector assertions load");
 
         let base_message_rule = base_assertions
             .get("error.connector_details.message")
@@ -4571,9 +4759,9 @@ mod tests {
     #[test]
     fn builds_grpcurl_command() {
         let command = build_grpcurl_command(
-            Some("authorize"),
+            Some("PaymentService/Authorize"),
             Some("no3ds_auto_capture_credit_card"),
-            Some("localhost:50051"),
+            Some("localhost:8000"),
             Some("stripe"),
             Some("test_merchant"),
             Some("default"),
@@ -4590,9 +4778,9 @@ mod tests {
     #[test]
     fn builds_grpcurl_request_struct() {
         let request = build_grpcurl_request(
-            Some("authorize"),
+            Some("PaymentService/Authorize"),
             Some("no3ds_auto_capture_credit_card"),
-            Some("localhost:50051"),
+            Some("localhost:8000"),
             Some("stripe"),
             Some("test_merchant"),
             Some("default"),
@@ -4601,7 +4789,7 @@ mod tests {
         )
         .expect("grpcurl request should build");
 
-        assert_eq!(request.endpoint, "localhost:50051");
+        assert_eq!(request.endpoint, "localhost:8000");
         assert_eq!(request.method, "types.PaymentService/Authorize");
         assert!(request.payload.contains("\"auth_type\": \"NO_THREE_DS\""));
         assert!(!request.headers.is_empty());
@@ -4651,9 +4839,9 @@ grpc-status: 0
     #[test]
     fn build_grpcurl_request_resolves_auto_generate_placeholders() {
         let request = build_grpcurl_request(
-            Some("authorize"),
+            Some("PaymentService/Authorize"),
             Some("no3ds_manual_capture_credit_card"),
-            Some("localhost:50051"),
+            Some("localhost:8000"),
             Some("stripe"),
             Some("test_merchant"),
             Some("default"),
@@ -4920,7 +5108,7 @@ grpc-status: 0
     }
 
     #[test]
-    fn prepare_context_placeholders_converts_empty_values_to_auto_generate() {
+    fn prepare_context_placeholders_preserves_empty_values_and_injects_connector_feature_data() {
         let mut req = json!({
             "customer": { "connector_customer_id": "" },
             "state": {
@@ -4933,28 +5121,16 @@ grpc-status: 0
             }
         });
 
-        prepare_context_placeholders("capture", "stripe", &mut req);
+        prepare_context_placeholders("PaymentService/Capture", "stripe", &mut req);
 
-        assert_eq!(
-            req["customer"]["connector_customer_id"],
-            json!("auto_generate")
-        );
-        assert_eq!(
-            req["state"]["connector_customer_id"],
-            json!("auto_generate")
-        );
-        assert_eq!(
-            req["state"]["access_token"]["token"]["value"],
-            json!("auto_generate")
-        );
-        assert_eq!(
-            req["state"]["access_token"]["token_type"],
-            json!("auto_generate")
-        );
-        assert_eq!(
-            req["state"]["access_token"]["expires_in_seconds"],
-            json!("auto_generate")
-        );
+        // Empty values should be left as-is (NOT converted to "auto_generate").
+        assert_eq!(req["customer"]["connector_customer_id"], json!(""));
+        assert_eq!(req["state"]["connector_customer_id"], json!(""));
+        assert_eq!(req["state"]["access_token"]["token"]["value"], json!(""));
+        assert_eq!(req["state"]["access_token"]["token_type"], json!(""));
+        assert_eq!(req["state"]["access_token"]["expires_in_seconds"], json!(0));
+
+        // connector_feature_data should be injected for dependent suites.
         assert_eq!(
             req["connector_feature_data"]["value"],
             json!("auto_generate")
@@ -4962,34 +5138,33 @@ grpc-status: 0
     }
 
     #[test]
-    fn prune_unresolved_context_fields_drops_unresolved_values() {
+    fn prune_empty_context_wrappers_removes_unresolved_connector_feature_data() {
         let mut req = json!({
-            "customer": { "connector_customer_id": "auto_generate" },
+            "connector_feature_data": { "value": "auto_generate" },
             "state": {
-                "connector_customer_id": "auto_generate",
                 "access_token": {
-                    "token": { "value": "auto_generate" },
-                    "token_type": "auto_generate",
-                    "expires_in_seconds": "auto_generate"
+                    "token": {"value": ""},
+                    "token_type": "",
+                    "expires_in_seconds": 0
                 }
             },
-            "connector_feature_data": { "value": "auto_generate" },
-            "connector_transaction_id": { "id": "auto_generate" },
-            "refund_id": "auto_generate",
             "merchant_transaction_id": { "id": "mti_real" }
         });
 
-        prune_unresolved_context_fields("stripe", &mut req);
+        prune_empty_context_wrappers(&mut req);
 
-        assert!(req["customer"].get("connector_customer_id").is_none());
-        assert!(req["connector_feature_data"].is_null());
-        assert!(req["connector_transaction_id"].get("id").is_none());
-        assert!(req.get("refund_id").is_none());
+        // connector_feature_data with unresolved value should be removed.
+        assert!(
+            req.get("connector_feature_data").is_none() || req["connector_feature_data"].is_null()
+        );
+        // Empty context wrappers with only default leaves should be cleaned up.
+        assert!(req.get("state").is_none() || req["state"].is_null());
+        // Real values should be kept.
         assert_eq!(req["merchant_transaction_id"]["id"], json!("mti_real"));
     }
 
     #[test]
-    fn prune_unresolved_context_fields_keeps_resolved_values() {
+    fn prune_empty_context_wrappers_keeps_resolved_values() {
         let mut req = json!({
             "customer": { "connector_customer_id": "cust_123" },
             "state": {
@@ -5005,7 +5180,7 @@ grpc-status: 0
             "refund_id": "re_123"
         });
 
-        prune_unresolved_context_fields("stripe", &mut req);
+        prune_empty_context_wrappers(&mut req);
 
         assert_eq!(req["customer"]["connector_customer_id"], json!("cust_123"));
         assert_eq!(
@@ -5018,6 +5193,224 @@ grpc-status: 0
         );
         assert_eq!(req["connector_transaction_id"]["id"], json!("pi_123"));
         assert_eq!(req["refund_id"], json!("re_123"));
+    }
+
+    #[test]
+    fn has_only_default_leaves_detects_all_default_shapes() {
+        // Primitive defaults.
+        assert!(has_only_default_leaves(&json!("")));
+        assert!(has_only_default_leaves(&json!(0)));
+        assert!(has_only_default_leaves(&json!(0.0)));
+        assert!(has_only_default_leaves(&json!(null)));
+        assert!(has_only_default_leaves(&json!(false)));
+
+        // Non-default primitives.
+        assert!(!has_only_default_leaves(&json!("hello")));
+        assert!(!has_only_default_leaves(&json!(42)));
+        assert!(!has_only_default_leaves(&json!(3.5)));
+        assert!(!has_only_default_leaves(&json!(true)));
+
+        // Empty containers are all-default.
+        assert!(has_only_default_leaves(&json!({})));
+        assert!(has_only_default_leaves(&json!([])));
+
+        // Nested all-default objects.
+        assert!(has_only_default_leaves(&json!({
+            "token": {"value": ""},
+            "token_type": "",
+            "expires_in_seconds": 0
+        })));
+
+        // Mixed: one real value makes it non-default.
+        assert!(!has_only_default_leaves(&json!({
+            "token": {"value": "tok_123"},
+            "token_type": "",
+            "expires_in_seconds": 0
+        })));
+
+        // Deeply nested all-default.
+        assert!(has_only_default_leaves(&json!({
+            "a": {"b": {"c": ""}, "d": 0},
+            "e": null
+        })));
+
+        // Array of defaults.
+        assert!(has_only_default_leaves(&json!(["", 0, null, false])));
+
+        // Array with one real value.
+        assert!(!has_only_default_leaves(&json!(["", "real", 0])));
+    }
+
+    #[test]
+    fn prune_removes_all_default_subtree_for_access_token() {
+        // This is the critical Bug 2 scenario: access_token has default
+        // values (empty string, 0) that should be pruned when context
+        // didn't fill any real values.
+        let mut req = json!({
+            "merchant_transaction_id": "mti_abc123",
+            "state": {
+                "access_token": {
+                    "token": {"value": ""},
+                    "token_type": "",
+                    "expires_in_seconds": 0
+                }
+            }
+        });
+
+        prune_empty_context_wrappers(&mut req);
+
+        // The entire state block should be pruned since all leaves are defaults.
+        assert!(
+            req.get("state").is_none() || req["state"].is_null(),
+            "state with all-default access_token should be pruned"
+        );
+        // Real values should be kept.
+        assert_eq!(req["merchant_transaction_id"], json!("mti_abc123"));
+    }
+
+    #[test]
+    fn prune_keeps_access_token_with_real_values() {
+        let mut req = json!({
+            "state": {
+                "access_token": {
+                    "token": {"value": "tok_real_123"},
+                    "token_type": "Bearer",
+                    "expires_in_seconds": 3600
+                }
+            }
+        });
+
+        prune_empty_context_wrappers(&mut req);
+
+        // Nothing should be pruned — real values present.
+        assert_eq!(
+            req["state"]["access_token"]["token"]["value"],
+            json!("tok_real_123")
+        );
+        assert_eq!(
+            req["state"]["access_token"]["expires_in_seconds"],
+            json!(3600)
+        );
+    }
+
+    #[test]
+    fn prune_keeps_oneof_selectors_with_empty_objects() {
+        // Proto oneof selectors like `payment_method: { "ideal": {} }` should
+        // NOT be pruned — the empty object selects the variant.
+        let mut req = json!({
+            "payment_method": { "ideal": {} },
+            "amount": { "minor_amount": 6000, "currency": "USD" },
+            "state": {
+                "access_token": {
+                    "token": {"value": ""},
+                    "token_type": "",
+                    "expires_in_seconds": 0
+                }
+            }
+        });
+
+        prune_empty_context_wrappers(&mut req);
+
+        // payment_method should be kept — it's a oneof selector with no primitive leaves.
+        assert!(
+            req.get("payment_method").is_some(),
+            "payment_method with oneof selector should not be pruned"
+        );
+        assert!(req["payment_method"]["ideal"].is_object());
+        // amount should be kept — it has non-default leaves.
+        assert_eq!(req["amount"]["minor_amount"], json!(6000));
+        // state should be pruned — all primitive leaves are defaults.
+        assert!(
+            req.get("state").is_none(),
+            "state with all-default leaves should be pruned"
+        );
+    }
+
+    #[test]
+    fn prune_removes_connector_token_with_empty_value() {
+        // Context placeholders like `connector_token: { "value": "" }`
+        // should be pruned when unfilled.
+        let mut req = json!({
+            "connector_token": { "value": "" },
+            "merchant_transaction_id": "mti_real"
+        });
+
+        prune_empty_context_wrappers(&mut req);
+
+        assert!(
+            req.get("connector_token").is_none(),
+            "connector_token with empty value should be pruned"
+        );
+        assert_eq!(req["merchant_transaction_id"], json!("mti_real"));
+    }
+
+    #[test]
+    fn prune_removes_customer_with_only_empty_connector_customer_id() {
+        let mut req = json!({
+            "customer": { "connector_customer_id": "" },
+            "amount": { "minor_amount": 100, "currency": "EUR" }
+        });
+
+        prune_empty_context_wrappers(&mut req);
+
+        assert!(
+            req.get("customer").is_none(),
+            "customer with only empty connector_customer_id should be pruned"
+        );
+        assert_eq!(req["amount"]["minor_amount"], json!(100));
+    }
+
+    #[test]
+    fn contains_primitive_leaf_detects_primitives() {
+        // Primitives are leaves.
+        assert!(contains_primitive_leaf(&json!("")));
+        assert!(contains_primitive_leaf(&json!(0)));
+        assert!(contains_primitive_leaf(&json!(null)));
+        assert!(contains_primitive_leaf(&json!(false)));
+        assert!(contains_primitive_leaf(&json!(true)));
+        assert!(contains_primitive_leaf(&json!("hello")));
+        assert!(contains_primitive_leaf(&json!(42)));
+
+        // Empty containers have no primitive leaves.
+        assert!(!contains_primitive_leaf(&json!({})));
+        assert!(!contains_primitive_leaf(&json!([])));
+
+        // Nested empty objects — no primitive leaves.
+        assert!(!contains_primitive_leaf(&json!({"a": {}, "b": {"c": {}}})));
+
+        // Nested with a primitive leaf somewhere.
+        assert!(contains_primitive_leaf(&json!({"a": {"b": ""}})));
+        assert!(contains_primitive_leaf(&json!({"a": {"b": {"c": 0}}})));
+    }
+
+    #[test]
+    fn remove_json_path_if_all_defaults_removes_default_subtree() {
+        let mut root = json!({
+            "wrapper": {
+                "inner": {"value": ""},
+                "count": 0
+            },
+            "keep": "real_data"
+        });
+
+        let removed = remove_json_path_if_all_defaults(&mut root, "wrapper");
+        assert!(removed, "should remove all-default subtree");
+        assert!(root.get("wrapper").is_none());
+        assert_eq!(root["keep"], json!("real_data"));
+    }
+
+    #[test]
+    fn remove_json_path_if_all_defaults_keeps_non_default_subtree() {
+        let mut root = json!({
+            "wrapper": {
+                "inner": {"value": "real"},
+                "count": 0
+            }
+        });
+
+        let removed = remove_json_path_if_all_defaults(&mut root, "wrapper");
+        assert!(!removed, "should NOT remove subtree with real values");
+        assert_eq!(root["wrapper"]["inner"]["value"], json!("real"));
     }
 
     #[test]
@@ -5036,7 +5429,7 @@ grpc-status: 0
 
         let normalized = normalize_tonic_request_json(
             "stripe",
-            "authorize",
+            "PaymentService/Authorize",
             "normalizer_unwraps_value_wrappers",
             original,
         );
@@ -5061,7 +5454,7 @@ grpc-status: 0
 
         let normalized = normalize_tonic_request_json(
             "stripe",
-            "get",
+            "PaymentService/Get",
             "normalizer_drops_legacy_get_handle_response_bool",
             original,
         );
@@ -5078,7 +5471,7 @@ grpc-status: 0
 
         let normalized = normalize_tonic_request_json(
             "stripe",
-            "authorize",
+            "PaymentService/Authorize",
             "normalizer_adds_authorize_order_details_default",
             original,
         );
@@ -5095,7 +5488,7 @@ grpc-status: 0
 
         let normalized = normalize_tonic_request_json(
             "stripe",
-            "setup_recurring",
+            "PaymentService/SetupRecurring",
             "normalizer_adds_customer_acceptance_accepted_at_default",
             original,
         );
@@ -5117,7 +5510,7 @@ grpc-status: 0
 
         let normalized = normalize_tonic_request_json(
             "paypal",
-            "recurring_charge",
+            "RecurringPaymentService/Charge",
             "normalizer_wraps_connector_recurring_mandate_oneof",
             original,
         );
@@ -5428,8 +5821,19 @@ grpc-status: 0
                         }
                     };
 
+                    // Resolve sentinels (e.g. "connector_name" → "STRIPE")
+                    // before schema validation so template placeholders don't
+                    // cause spurious proto parse failures.
+                    let mut resolved_req = grpc_req;
+                    if let Err(error) = resolve_auto_generate(&mut resolved_req, connector) {
+                        failures.push(format!(
+                            "{connector}/{suite}/{scenario}: sentinel resolution failed: {error}"
+                        ));
+                        continue;
+                    }
+
                     if let Err(error) =
-                        validate_suite_scenario_schema(connector, &suite, &scenario, &grpc_req)
+                        validate_suite_scenario_schema(connector, &suite, &scenario, &resolved_req)
                     {
                         failures.push(error);
                     }

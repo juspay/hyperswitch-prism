@@ -491,7 +491,7 @@ mod tests {
             "  -H \"x-merchant-id: test_merchant\" \\\n",
             "  -H \"x-connector-config: {\"config\":{\"Stripe\":{\"api_key\":\"stripe_key_example_123\"}}}\" \\\n",
             "  -H \"authorization: Bearer token123\" \\\n",
-            "  -d @ localhost:50051 types.PaymentService/Authorize"
+            "  -d @ localhost:8000 types.PaymentService/Authorize"
         );
         let masked = mask_sensitive_text(text);
         assert!(

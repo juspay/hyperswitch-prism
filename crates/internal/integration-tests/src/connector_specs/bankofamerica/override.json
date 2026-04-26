@@ -1,5 +1,5 @@
 {
-  "void": {
+  "PaymentService/Void": {
     "void_authorized_payment": {
       "grpc_req": {
         "amount": {

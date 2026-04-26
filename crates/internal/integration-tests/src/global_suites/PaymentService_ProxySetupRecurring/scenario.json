@@ -1,0 +1,65 @@
+{
+  "proxy_setup_mandate": {
+    "grpc_req": {
+      "merchant_recurring_payment_id": "auto_generate",
+      "amount": {
+        "minor_amount": 0,
+        "currency": "USD"
+      },
+      "card_proxy": {
+        "card_number": {
+          "value": "4111111111111111"
+        },
+        "card_exp_month": {
+          "value": "08"
+        },
+        "card_exp_year": {
+          "value": "30"
+        },
+        "card_cvc": {
+          "value": "999"
+        },
+        "card_type": "credit"
+      },
+      "customer": {
+        "id": "auto_generate",
+        "connector_customer_id": ""
+      },
+      "state": {
+        "access_token": {
+          "token": {
+            "value": ""
+          },
+          "token_type": "",
+          "expires_in_seconds": 0
+        },
+        "connector_customer_id": ""
+      },
+      "setup_mandate_details": {
+        "mandate_type": {
+          "mandate_type": {
+            "MultiUse": {
+              "amount": 10000,
+              "currency": "USD"
+            }
+          }
+        }
+      },
+      "customer_acceptance": {
+        "acceptance_type": "ONLINE",
+        "accepted_at": 1704067200
+      },
+      "auth_type": "NO_THREE_DS"
+    },
+    "assert": {
+      "status": {
+        "one_of": ["AUTHORIZED", "PROCESSING"]
+      },
+      "mandate_id": {
+        "must_exist": true
+      }
+    },
+    "is_default": true,
+    "display_name": "Proxy Payment | Setup Mandate"
+  }
+}

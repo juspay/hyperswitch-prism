@@ -1,9 +1,9 @@
 {
   "connector": "volt",
   "supported_suites": [
-    "authorize",
-    "get",
-    "refund",
-    "server_authentication_token"
+    "PaymentService/Authorize",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "MerchantAuthenticationService/CreateServerAuthenticationToken"
   ]
 }
