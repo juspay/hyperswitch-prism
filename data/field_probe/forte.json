@@ -573,40 +573,8 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_proxy_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "card_proxy": {
-            "card_number": "4111111111111111",
-            "card_exp_month": "03",
-            "card_exp_year": "2030",
-            "card_cvc": "123",
-            "card_holder_name": "John Doe"
-          },
-          "address": {
-            "billing_address": {
-              "first_name": "John"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandbox.forte.net/api/v3/organizations/org_probe_org_id/locations/loc_probe_loc_id/transactions",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfaWQ6cHJvYmVfa2V5",
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-forte-auth-organization-id": "org_probe_org_id"
-          },
-          "body": "{\"action\":\"sale\",\"authorization_amount\":10.0,\"billing_address\":{\"first_name\":\"John\",\"last_name\":\"John\"},\"card_type\":\"visa\",\"name_on_card\":\"John\",\"account_number\":\"4111111111111111\",\"expire_month\":\"03\",\"expire_year\":\"2030\",\"card_verification_value\":\"123\"}"
-        }
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Card Type"
       }
     },
     "proxy_setup_recurring": {

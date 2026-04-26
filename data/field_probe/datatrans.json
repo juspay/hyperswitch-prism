@@ -603,7 +603,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"currency\":\"USD\",\"refno\":\"probe_proxy_txn_001\",\"amount\":1000,\"card\":{\"expiryMonth\":\"03\",\"expiryYear\":\"30\",\"number\":\"4111111111111111\",\"cvv\":\"123\",\"type\":\"PLAIN\"},\"autoSettle\":true,\"option\":null}"
+          "body": "{\"currency\":\"USD\",\"refno\":\"probe_proxy_txn_001\",\"amount\":1000,\"card\":{\"expiryMonth\":\"{{{{$card_exp_month}}}}\",\"expiryYear\":\"}}\",\"number\":\"{{{{$card_number}}}}\",\"cvv\":\"{{{{$card_cvc}}}}\",\"type\":\"PLAIN\"},\"autoSettle\":true,\"option\":null}"
         }
       }
     },

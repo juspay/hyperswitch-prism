@@ -554,37 +554,8 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_proxy_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "card_proxy": {
-            "card_number": "4111111111111111",
-            "card_exp_month": "03",
-            "card_exp_year": "2030",
-            "card_cvc": "123",
-            "card_holder_name": "John Doe"
-          },
-          "address": {
-            "billing_address": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://imerchantsolutions.com/api/payments",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-api-key": "probe_key"
-          },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"reference\":\"probe_proxy_txn_001\",\"card\":{\"number\":\"4111111111111111\",\"cvv\":\"123\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"holder\":\"John Doe\"},\"shopperEmail\":null,\"shopperName\":{\"firstName\":null,\"lastName\":null},\"telephoneNumber\":null,\"billing\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"deliveryAddress\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"manualCapture\":false}"
-        }
+        "status": "error",
+        "error": "Invalid data format: payment_method_data.card.card_exp_month. Expected format: MM"
       }
     },
     "proxy_setup_recurring": {

@@ -591,7 +591,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"capture_method\":\"AUTOMATIC\",\"payment_method\":{\"type\":\"CARD\",\"card\":{\"channel_properties\":{\"success_return_url\":\"https://example.com/return\",\"failure_return_url\":\"https://example.com/return\",\"skip_three_d_secure\":true},\"card_information\":{\"card_number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvv\":\"123\",\"cardholder_name\":\"John Doe\",\"cardholder_email\":\"test@example.com\",\"cardholder_phone_number\":\"+14155552671\"}},\"reusability\":\"ONE_TIME_USE\",\"reference_id\":\"probe_proxy_txn_001\"}}"
+          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"capture_method\":\"AUTOMATIC\",\"payment_method\":{\"type\":\"CARD\",\"card\":{\"channel_properties\":{\"success_return_url\":\"https://example.com/return\",\"failure_return_url\":\"https://example.com/return\",\"skip_three_d_secure\":true},\"card_information\":{\"card_number\":\"{{{{$card_number}}}}\",\"expiry_month\":\"{{{{$card_exp_month}}}}\",\"expiry_year\":\"{{{{$card_exp_year}}}}\",\"cvv\":\"{{{{$card_cvc}}}}\",\"cardholder_name\":\"John Doe\",\"cardholder_email\":\"test@example.com\",\"cardholder_phone_number\":\"+14155552671\"}},\"reusability\":\"ONE_TIME_USE\",\"reference_id\":\"probe_proxy_txn_001\"}}"
         }
       }
     },

@@ -18,8 +18,6 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "authorize",
     "capture",
     "get",
-    "proxy_authorize",
-    "proxy_setup_recurring",
     "refund",
     "refund_get",
     "setup_recurring",
@@ -111,68 +109,6 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
             minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
         }),
-        ..Default::default()
-    }
-}
-
-pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
-    PaymentServiceProxyAuthorizeRequest {
-        merchant_transaction_id: Some("probe_proxy_txn_001".to_string()),
-        amount: Some(Money {
-            minor_amount: 1000,             // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
-        }),
-        card_proxy: Some(ProxyCardDetails {
-            // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
-            card_number: Some(Secret::new("4111111111111111".to_string())), // Card Identification.
-            card_exp_month: Some(Secret::new("03".to_string())),
-            card_exp_year: Some(Secret::new("2030".to_string())),
-            card_cvc: Some(Secret::new("123".to_string())),
-            card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
-            ..Default::default()
-        }),
-        address: Some(PaymentAddress {
-            billing_address: Some(Address {
-                ..Default::default()
-            }),
-            ..Default::default()
-        }),
-        capture_method: Some(CaptureMethod::Automatic.into()),
-        auth_type: AuthenticationType::NoThreeDs.into(),
-        return_url: Some("https://example.com/return".to_string()),
-        ..Default::default()
-    }
-}
-
-pub fn build_proxy_setup_recurring_request() -> PaymentServiceProxySetupRecurringRequest {
-    PaymentServiceProxySetupRecurringRequest {
-        merchant_recurring_payment_id: "probe_proxy_mandate_001".to_string(),
-        amount: Some(Money {
-            minor_amount: 0,                // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
-        }),
-        card_proxy: Some(ProxyCardDetails {
-            // Card proxy for vault-aliased payments.
-            card_number: Some(Secret::new("4111111111111111".to_string())), // Card Identification.
-            card_exp_month: Some(Secret::new("03".to_string())),
-            card_exp_year: Some(Secret::new("2030".to_string())),
-            card_cvc: Some(Secret::new("123".to_string())),
-            card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
-            ..Default::default()
-        }),
-        address: Some(PaymentAddress {
-            billing_address: Some(Address {
-                ..Default::default()
-            }),
-            ..Default::default()
-        }),
-        customer_acceptance: Some(CustomerAcceptance {
-            acceptance_type: AcceptanceType::Offline.into(), // Type of acceptance (e.g., online, offline).
-            accepted_at: 0, // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
-            ..Default::default()
-        }),
-        auth_type: AuthenticationType::NoThreeDs.into(),
-        setup_future_usage: Some(FutureUsage::OffSession.into()),
         ..Default::default()
     }
 }
@@ -494,30 +430,6 @@ pub async fn process_get(
     Ok(format!("status: {:?}", response.status()))
 }
 
-// Flow: PaymentService.ProxyAuthorize
-#[allow(dead_code)]
-pub async fn process_proxy_authorize(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .proxy_authorize(build_proxy_authorize_request(), &HashMap::new(), None)
-        .await?;
-    Ok(format!("status: {:?}", response.status()))
-}
-
-// Flow: PaymentService.ProxySetupRecurring
-#[allow(dead_code)]
-pub async fn process_proxy_setup_recurring(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .proxy_setup_recurring(build_proxy_setup_recurring_request(), &HashMap::new(), None)
-        .await?;
-    Ok(format!("status: {:?}", response.status()))
-}
-
 // Flow: RefundService.Get
 #[allow(dead_code)]
 pub async fn process_refund_get(
@@ -583,13 +495,11 @@ async fn main() {
         "process_authorize" => process_authorize(&client, "txn_001").await,
         "process_capture" => process_capture(&client, "txn_001").await,
         "process_get" => process_get(&client, "txn_001").await,
-        "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
-        "process_proxy_setup_recurring" => process_proxy_setup_recurring(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
         "process_setup_recurring" => process_setup_recurring(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_get, process_proxy_authorize, process_proxy_setup_recurring, process_refund_get, process_setup_recurring, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_get, process_refund_get, process_setup_recurring, process_void", flow);
             return;
         }
     };

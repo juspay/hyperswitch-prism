@@ -607,7 +607,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"auth\":{\"login\":\"probe_user\",\"tranKey\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"nonce\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"seed\":\"2020-01-01T00:00:00+00:00\"},\"payment\":{\"reference\":\"probe_proxy_txn_001\",\"description\":\"Probe payment\",\"amount\":{\"currency\":\"USD\",\"total\":1000}},\"instrument\":{\"card\":{\"number\":\"4111111111111111\",\"expiration\":\"03/30\",\"cvv\":\"123\"}},\"ipAddress\":\"1.2.3.4\",\"userAgent\":\"Mozilla/5.0 (probe-bot)\"}"
+          "body": "{\"auth\":{\"login\":\"probe_user\",\"tranKey\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"nonce\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"seed\":\"2020-01-01T00:00:00+00:00\"},\"payment\":{\"reference\":\"probe_proxy_txn_001\",\"description\":\"Probe payment\",\"amount\":{\"currency\":\"USD\",\"total\":1000}},\"instrument\":{\"card\":{\"number\":\"{{{{$card_number}}}}\",\"expiration\":\"{{{{$card_exp_month}}}}/}}\",\"cvv\":\"{{{{$card_cvc}}}}\"}},\"ipAddress\":\"1.2.3.4\",\"userAgent\":\"Mozilla/5.0 (probe-bot)\"}"
         }
       }
     },

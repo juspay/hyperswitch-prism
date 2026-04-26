@@ -2907,40 +2907,13 @@ impl ForeignTryFrom<grpc_api_types::payments::ProxyCardDetails>
         card: grpc_api_types::payments::ProxyCardDetails,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(payment_method_data::Card {
-            card_number: RawCardNumber(card.card_number.ok_or(
-                IntegrationError::InvalidDataFormat {
-                    field_name: "unknown",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Missing card number".to_string()),
-                        ..Default::default()
-                    },
-                },
-            )?),
-            card_exp_month: card
-                .card_exp_month
-                .ok_or(IntegrationError::InvalidDataFormat {
-                    field_name: "unknown",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Missing Card Expiry Month".to_string()),
-                        ..Default::default()
-                    },
-                })?,
-            card_exp_year: card
-                .card_exp_year
-                .ok_or(IntegrationError::InvalidDataFormat {
-                    field_name: "unknown",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Missing Card Expiry Year".to_string()),
-                        ..Default::default()
-                    },
-                })?,
-            card_cvc: card.card_cvc.ok_or(IntegrationError::InvalidDataFormat {
-                field_name: "unknown",
-                context: IntegrationErrorContext {
-                    additional_context: Some("Missing CVC".to_string()),
-                    ..Default::default()
-                },
-            })?,
+            card_number: RawCardNumber(
+                //card number token is already stored in token_data , so we can update the value to internal transformation value.
+                "{{{{$card_number}}}}".to_string().into(),
+            ),
+            card_exp_month: "{{{{$card_exp_month}}}}".to_string().into(),
+            card_exp_year: "{{{{$card_exp_year}}}}".to_string().into(),
+            card_cvc: "{{{{$card_cvc}}}}".to_string().into(),
             card_issuer: card.card_issuer,
             card_network: None,
             card_type: card.card_type,

@@ -626,7 +626,7 @@
             "via": "HyperSwitch",
             "x-transaction-channel-entry": "XX"
           },
-          "body": "{\"request_id\":\"probe_proxy_txn_001\",\"idempotency_key\":\"probe_proxy_txn_001\",\"order_id\":\"probe_proxy_txn_001\",\"data\":{\"customer_id\":\"cus_default\",\"amount\":1000,\"currency\":\"USD\",\"payment\":{\"payment_id\":\"probe_proxy_txn_001\",\"payment_method\":\"CREDIT\",\"transaction_type\":\"FULL\",\"number_installments\":1,\"card\":{\"number\":\"4111111111111111\",\"expiration_month\":\"03\",\"expiration_year\":\"30\",\"cardholder_name\":\"John Doe\",\"security_code\":\"123\"}}}}"
+          "body": "{\"request_id\":\"probe_proxy_txn_001\",\"idempotency_key\":\"probe_proxy_txn_001\",\"order_id\":\"probe_proxy_txn_001\",\"data\":{\"customer_id\":\"cus_default\",\"amount\":1000,\"currency\":\"USD\",\"payment\":{\"payment_id\":\"probe_proxy_txn_001\",\"payment_method\":\"CREDIT\",\"transaction_type\":\"FULL\",\"number_installments\":1,\"card\":{\"number\":\"{{{{$card_number}}}}\",\"expiration_month\":\"{{{{$card_exp_month}}}}\",\"expiration_year\":\"}}\",\"cardholder_name\":\"John Doe\",\"security_code\":\"{{{{$card_cvc}}}}\"}}}}"
         }
       }
     },

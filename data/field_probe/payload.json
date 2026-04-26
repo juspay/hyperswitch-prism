@@ -693,7 +693,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "amount=10.0&payment_method%5Bcard%5D%5Bcard_number%5D=4111111111111111&payment_method%5Bcard%5D%5Bexpiry%5D=03%2F30&payment_method%5Bcard%5D%5Bcard_code%5D=123&type=payment&payment_method%5Btype%5D=card&payment_method%5Bbilling_address%5D%5Bcity%5D=Seattle&payment_method%5Bbilling_address%5D%5Bcountry_code%5D=US&payment_method%5Bbilling_address%5D%5Bpostal_code%5D=98101&payment_method%5Bbilling_address%5D%5Bstate_province%5D=WA&payment_method%5Bbilling_address%5D%5Bstreet_address%5D=123+Main+St&payment_method%5Bkeep_active%5D=false"
+          "body": "amount=10.0&payment_method%5Bcard%5D%5Bcard_number%5D=%7B%7B%7B%7B%24card_number%7D%7D%7D%7D&payment_method%5Bcard%5D%5Bexpiry%5D=%7B%7B%7B%7B%24card_exp_month%7D%7D%7D%7D%2F%7D%7D&payment_method%5Bcard%5D%5Bcard_code%5D=%7B%7B%7B%7B%24card_cvc%7D%7D%7D%7D&type=payment&payment_method%5Btype%5D=card&payment_method%5Bbilling_address%5D%5Bcity%5D=Seattle&payment_method%5Bbilling_address%5D%5Bcountry_code%5D=US&payment_method%5Bbilling_address%5D%5Bpostal_code%5D=98101&payment_method%5Bbilling_address%5D%5Bstate_province%5D=WA&payment_method%5Bbilling_address%5D%5Bstreet_address%5D=123+Main+St&payment_method%5Bkeep_active%5D=false"
         }
       }
     },
@@ -744,7 +744,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "amount=0.0&payment_method%5Bcard%5D%5Bcard_number%5D=4111111111111111&payment_method%5Bcard%5D%5Bexpiry%5D=03%2F30&payment_method%5Bcard%5D%5Bcard_code%5D=123&type=payment&payment_method%5Btype%5D=card&payment_method%5Bbilling_address%5D%5Bcity%5D=Seattle&payment_method%5Bbilling_address%5D%5Bcountry_code%5D=US&payment_method%5Bbilling_address%5D%5Bpostal_code%5D=98101&payment_method%5Bbilling_address%5D%5Bstate_province%5D=WA&payment_method%5Bbilling_address%5D%5Bstreet_address%5D=123+Main+St&payment_method%5Bkeep_active%5D=true"
+          "body": "amount=0.0&payment_method%5Bcard%5D%5Bcard_number%5D=%7B%7B%7B%7B%24card_number%7D%7D%7D%7D&payment_method%5Bcard%5D%5Bexpiry%5D=%7B%7B%7B%7B%24card_exp_month%7D%7D%7D%7D%2F%7D%7D&payment_method%5Bcard%5D%5Bcard_code%5D=%7B%7B%7B%7B%24card_cvc%7D%7D%7D%7D&type=payment&payment_method%5Btype%5D=card&payment_method%5Bbilling_address%5D%5Bcity%5D=Seattle&payment_method%5Bbilling_address%5D%5Bcountry_code%5D=US&payment_method%5Bbilling_address%5D%5Bpostal_code%5D=98101&payment_method%5Bbilling_address%5D%5Bstate_province%5D=WA&payment_method%5Bbilling_address%5D%5Bstreet_address%5D=123+Main+St&payment_method%5Bkeep_active%5D=true"
         }
       }
     },

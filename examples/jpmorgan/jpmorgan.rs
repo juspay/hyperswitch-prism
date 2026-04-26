@@ -20,7 +20,6 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "create_client_authentication_token",
     "create_server_authentication_token",
     "get",
-    "proxy_authorize",
     "refund",
     "refund_get",
     "token_authorize",
@@ -163,44 +162,6 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
         }),
         state: Some(ConnectorState {
             // State Information.
-            access_token: Some(AccessToken {
-                // Access token obtained from connector.
-                token: Some(Secret::new("probe_access_token".to_string())), // The token string.
-                expires_in_seconds: Some(3600), // Expiration timestamp (seconds since epoch).
-                token_type: Some("Bearer".to_string()), // Token type (e.g., "Bearer", "Basic").
-            }),
-            ..Default::default()
-        }),
-        ..Default::default()
-    }
-}
-
-pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
-    PaymentServiceProxyAuthorizeRequest {
-        merchant_transaction_id: Some("probe_proxy_txn_001".to_string()),
-        amount: Some(Money {
-            minor_amount: 1000,             // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
-        }),
-        card_proxy: Some(ProxyCardDetails {
-            // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
-            card_number: Some(Secret::new("4111111111111111".to_string())), // Card Identification.
-            card_exp_month: Some(Secret::new("03".to_string())),
-            card_exp_year: Some(Secret::new("2030".to_string())),
-            card_cvc: Some(Secret::new("123".to_string())),
-            card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
-            ..Default::default()
-        }),
-        address: Some(PaymentAddress {
-            billing_address: Some(Address {
-                ..Default::default()
-            }),
-            ..Default::default()
-        }),
-        capture_method: Some(CaptureMethod::Automatic.into()),
-        auth_type: AuthenticationType::NoThreeDs.into(),
-        return_url: Some("https://example.com/return".to_string()),
-        state: Some(ConnectorState {
             access_token: Some(AccessToken {
                 // Access token obtained from connector.
                 token: Some(Secret::new("probe_access_token".to_string())), // The token string.
@@ -580,18 +541,6 @@ pub async fn process_get(
     Ok(format!("status: {:?}", response.status()))
 }
 
-// Flow: PaymentService.ProxyAuthorize
-#[allow(dead_code)]
-pub async fn process_proxy_authorize(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .proxy_authorize(build_proxy_authorize_request(), &HashMap::new(), None)
-        .await?;
-    Ok(format!("status: {:?}", response.status()))
-}
-
 // Flow: RefundService.Get
 #[allow(dead_code)]
 pub async fn process_refund_get(
@@ -654,12 +603,11 @@ async fn main() {
             process_create_server_authentication_token(&client, "txn_001").await
         }
         "process_get" => process_get(&client, "txn_001").await,
-        "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
         "process_token_authorize" => process_token_authorize(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_client_authentication_token, process_create_server_authentication_token, process_get, process_proxy_authorize, process_refund_get, process_token_authorize, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_client_authentication_token, process_create_server_authentication_token, process_get, process_refund_get, process_token_authorize, process_void", flow);
             return;
         }
     };

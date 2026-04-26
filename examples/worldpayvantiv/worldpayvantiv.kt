@@ -21,7 +21,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.WorldpayvantivConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "incremental_authorization", "proxy_authorize", "refund", "refund_get", "reverse", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "incremental_authorization", "refund", "refund_get", "reverse", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -261,34 +261,6 @@ fun incrementalAuthorization(txnId: String, config: ConnectorConfig = _defaultCo
     println("Status: ${response.status.name}")
 }
 
-// Flow: PaymentService.ProxyAuthorize
-fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentClient(config)
-    val request = PaymentServiceProxyAuthorizeRequest.newBuilder().apply {
-        merchantTransactionId = "probe_proxy_txn_001"
-        amountBuilder.apply {
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-        cardProxyBuilder.apply {  // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
-            cardNumberBuilder.value = "4111111111111111"  // Card Identification.
-            cardExpMonthBuilder.value = "03"
-            cardExpYearBuilder.value = "2030"
-            cardCvcBuilder.value = "123"
-            cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
-        }
-        addressBuilder.apply {
-            billingAddressBuilder.apply {
-            }
-        }
-        captureMethod = CaptureMethod.AUTOMATIC
-        authType = AuthenticationType.NO_THREE_DS
-        returnUrl = "https://example.com/return"
-    }.build()
-    val response = client.proxy_authorize(request)
-    println("Status: ${response.status.name}")
-}
-
 // Flow: PaymentService.Refund
 fun refund(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -343,11 +315,10 @@ fun main(args: Array<String>) {
         "capture" -> capture(txnId)
         "get" -> get(txnId)
         "incrementalAuthorization" -> incrementalAuthorization(txnId)
-        "proxyAuthorize" -> proxyAuthorize(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
         "reverse" -> reverse(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, incrementalAuthorization, proxyAuthorize, refund, refundGet, reverse, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, incrementalAuthorization, refund, refundGet, reverse, void")
     }
 }

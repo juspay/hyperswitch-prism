@@ -583,7 +583,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "requestType=sale&userName=probe_user&password=probe_pass&accountId=probe_id&accountType=R&accountNumber=4111111111111111&accountAccessory=0330&transactionCode=probe_proxy_txn_001&csc=123&transactionIndustryType=EC&transactionCategoryCode=EC&holderName=John&holderType=P&amount=1000"
+          "body": "requestType=sale&userName=probe_user&password=probe_pass&accountId=probe_id&accountType=R&accountNumber=%7B%7B%7B%7B%24card_number%7D%7D%7D%7D&accountAccessory=%7B%7B%7B%7B%24card_exp_month%7D%7D%7D%7D%7D%7D&transactionCode=probe_proxy_txn_001&csc=%7B%7B%7B%7B%24card_cvc%7D%7D%7D%7D&transactionIndustryType=EC&transactionCategoryCode=EC&holderName=John&holderType=P&amount=1000"
         }
       }
     },
@@ -622,7 +622,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "requestType=account-verification&userName=probe_user&password=probe_pass&accountId=probe_id&transactionIndustryType=EC&transactionCategoryCode=EC&holderName=John&holderType=P&transactionCode=probe_proxy_mandate_001&accountType=R&accountNumber=4111111111111111&accountAccessory=0330&csc=123"
+          "body": "requestType=account-verification&userName=probe_user&password=probe_pass&accountId=probe_id&transactionIndustryType=EC&transactionCategoryCode=EC&holderName=John&holderType=P&transactionCode=probe_proxy_mandate_001&accountType=R&accountNumber=%7B%7B%7B%7B%24card_number%7D%7D%7D%7D&accountAccessory=%7B%7B%7B%7B%24card_exp_month%7D%7D%7D%7D%7D%7D&csc=%7B%7B%7B%7B%24card_cvc%7D%7D%7D%7D"
         }
       }
     },

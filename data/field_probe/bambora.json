@@ -586,7 +586,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"order_number\":\"probe_proxy_txn_001\",\"amount\":10.0,\"payment_method\":\"card\",\"card\":{\"name\":\"Doe\",\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"30\",\"cvd\":\"123\",\"complete\":true},\"billing\":{\"name\":\"Doe\"}}"
+          "body": "{\"order_number\":\"probe_proxy_txn_001\",\"amount\":10.0,\"payment_method\":\"card\",\"card\":{\"name\":\"Doe\",\"number\":\"{{{{$card_number}}}}\",\"expiry_month\":\"{{{{$card_exp_month}}}}\",\"expiry_year\":\"}}\",\"cvd\":\"{{{{$card_cvc}}}}\",\"complete\":true},\"billing\":{\"name\":\"Doe\"}}"
         }
       }
     },

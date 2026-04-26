@@ -569,7 +569,7 @@
             "via": "HyperSwitch",
             "x-merchantid": "probe_merchant"
           },
-          "body": "{\"merchant_id\":\"probe_merchant\",\"payment_method_type\":\"CARD\",\"card_number\":\"4111111111111111\",\"card_security_code\":\"123\",\"card_exp_month\":\"03\",\"card_exp_year\":\"2030\",\"name_on_card\":\"John Doe\",\"format\":\"json\",\"redirect_after_payment\":true,\"order\":{\"order_id\":\"probe_proxy_txn_001\",\"amount\":10.0,\"currency\":\"USD\",\"return_url\":\"https://example.com/return\"}}"
+          "body": "{\"merchant_id\":\"probe_merchant\",\"payment_method_type\":\"CARD\",\"card_number\":\"{{{{$card_number}}}}\",\"card_security_code\":\"{{{{$card_cvc}}}}\",\"card_exp_month\":\"{{{{$card_exp_month}}}}\",\"card_exp_year\":\"{{{{$card_exp_year}}}}\",\"name_on_card\":\"John Doe\",\"format\":\"json\",\"redirect_after_payment\":true,\"order\":{\"order_id\":\"probe_proxy_txn_001\",\"amount\":10.0,\"currency\":\"USD\",\"return_url\":\"https://example.com/return\"}}"
         }
       }
     },

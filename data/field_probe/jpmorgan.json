@@ -651,46 +651,8 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_proxy_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "card_proxy": {
-            "card_number": "4111111111111111",
-            "card_exp_month": "03",
-            "card_exp_year": "2030",
-            "card_cvc": "123",
-            "card_holder_name": "John Doe"
-          },
-          "address": {
-            "billing_address": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "state": {
-            "access_token": {
-              "token": "probe_access_token",
-              "expires_in_seconds": 3600,
-              "token_type": "Bearer"
-            }
-          }
-        },
-        "sample": {
-          "url": "https://api-mock.payments.jpmorgan.com/api/v2/payments",
-          "method": "Post",
-          "headers": {
-            "authorization": "Bearer probe_access_token",
-            "content-type": "application/json",
-            "merchant-id": "DefaultMerchantId",
-            "request-id": "probe_proxy_txn_001",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030}}}}"
-        }
+        "status": "error",
+        "error": "Failed to encode connector request"
       }
     },
     "proxy_setup_recurring": {

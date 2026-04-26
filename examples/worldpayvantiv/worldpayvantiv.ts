@@ -7,7 +7,7 @@
 
 import { PaymentClient, RefundClient, types } from 'hyperswitch-prism';
 const { Environment, AuthenticationType, CaptureMethod, Currency } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "get", "incremental_authorization", "proxy_authorize", "refund", "refund_get", "reverse", "void"];
+export const SUPPORTED_FLOWS = ["authorize", "capture", "get", "incremental_authorization", "refund", "refund_get", "reverse", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -84,30 +84,6 @@ function _buildIncrementalAuthorizationRequest(): types.IPaymentServiceIncrement
             "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         },
         "reason": "incremental_auth_probe"  // Optional Fields.
-    };
-}
-
-function _buildProxyAuthorizeRequest(): types.IPaymentServiceProxyAuthorizeRequest {
-    return {
-        "merchantTransactionId": "probe_proxy_txn_001",
-        "amount": {
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        },
-        "cardProxy": {  // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
-            "cardNumber": {"value": "4111111111111111"},  // Card Identification.
-            "cardExpMonth": {"value": "03"},
-            "cardExpYear": {"value": "2030"},
-            "cardCvc": {"value": "123"},
-            "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
-        },
-        "address": {
-            "billingAddress": {
-            }
-        },
-        "captureMethod": CaptureMethod.AUTOMATIC,
-        "authType": AuthenticationType.NO_THREE_DS,
-        "returnUrl": "https://example.com/return"
     };
 }
 
@@ -299,15 +275,6 @@ async function incrementalAuthorization(merchantTransactionId: string, config: t
     return incrementalResponse;
 }
 
-// Flow: PaymentService.ProxyAuthorize
-async function proxyAuthorize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
-
-    const proxyResponse = await paymentClient.proxyAuthorize(_buildProxyAuthorizeRequest());
-
-    return proxyResponse;
-}
-
 // Flow: PaymentService.Refund
 async function refund(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -347,7 +314,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, incrementalAuthorization, proxyAuthorize, refund, refundGet, reverse, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildIncrementalAuthorizationRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildReverseRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, incrementalAuthorization, refund, refundGet, reverse, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildIncrementalAuthorizationRequest, _buildRefundRequest, _buildRefundGetRequest, _buildReverseRequest, _buildVoidRequest
 };
 
 // CLI runner

@@ -756,7 +756,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"request_id\":\"confirm_probe_proxy_txn_001\",\"payment_method\":{\"card\":{\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvc\":\"123\",\"name\":\"John Doe\"},\"type\":\"card\"},\"payment_method_options\":{\"card\":{\"auto_capture\":true}},\"return_url\":\"https://example.com/return\",\"device_data\":null}"
+          "body": "{\"request_id\":\"confirm_probe_proxy_txn_001\",\"payment_method\":{\"card\":{\"number\":\"{{{{$card_number}}}}\",\"expiry_month\":\"{{{{$card_exp_month}}}}\",\"expiry_year\":\"{{{{$card_exp_year}}}}\",\"cvc\":\"{{{{$card_cvc}}}}\",\"name\":\"John Doe\"},\"type\":\"card\"},\"payment_method_options\":{\"card\":{\"auto_capture\":true}},\"return_url\":\"https://example.com/return\",\"device_data\":null}"
         }
       }
     },
