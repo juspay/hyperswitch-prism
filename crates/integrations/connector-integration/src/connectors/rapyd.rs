@@ -42,7 +42,8 @@ use serde::Serialize;
 use std::fmt::Debug;
 use transformers::{
     CaptureRequest, RapydAuthType, RapydClientAuthRequest, RapydClientAuthResponse,
-    RapydCreateOrderRequest, RapydCreateOrderResponse, RapydPaymentsRequest,
+    RapydCreateOrderRequest, RapydCreateOrderResponse, RapydIncrementalAuthRequest,
+    RapydIncrementalAuthResponse, RapydPaymentsRequest,
     RapydPaymentsResponse as RapydCaptureResponse, RapydPaymentsResponse as RapydPSyncResponse,
     RapydPaymentsResponse, RapydPaymentsResponse as RapydVoidResponse,
     RapydPaymentsResponse as RapydAuthorizeResponse, RapydRefundRequest, RefundResponse,
@@ -62,16 +63,6 @@ pub const BASE64_ENGINE_URL_SAFE: base64::engine::GeneralPurpose =
     base64::engine::general_purpose::URL_SAFE;
 
 // Trait implementations with generic type parameters
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Rapyd<T>
-{
-}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ClientAuthentication for Rapyd<T>
@@ -346,6 +337,12 @@ macros::create_all_prerequisites!(
             request_body: RapydCreateOrderRequest,
             response_body: RapydCreateOrderResponse,
             router_data: RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+        ),
+        (
+            flow: IncrementalAuthorization,
+            request_body: RapydIncrementalAuthRequest,
+            response_body: RapydIncrementalAuthResponse,
+            router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -790,4 +787,55 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     > for Rapyd<T>
 {
 }
+
+// IncrementalAuthorization implementation — POST to
+// /v1/payments/{payment_id} with an updated `amount`.
+// Rapyd's native incremental authorization uses the Update Payment endpoint
+// (requires the payment method to support adjustable amounts and the payment
+// to be in ACT state, i.e., authorized but not yet captured).
+// Docs: https://docs.rapyd.net/en/update-payment.html
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Rapyd,
+    curl_request: Json(RapydIncrementalAuthRequest),
+    curl_response: RapydIncrementalAuthResponse,
+    flow_name: IncrementalAuthorization,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsIncrementalAuthorizationData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let url = self.get_url(req)?;
+            let url_path = url.strip_prefix(self.connector_base_url_payments(req))
+                .unwrap_or(&url);
+            let body = self.get_request_body(req)?
+                .map(|content| content.get_inner_value().expose())
+                .unwrap_or_default();
+            self.build_headers(req, "post", url_path, &body)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let connector_payment_id = req
+                .request
+                .connector_transaction_id
+                .get_connector_transaction_id()
+                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })
+                .attach_printable("Missing connector_transaction_id for incremental authorization")?;
+            Ok(format!(
+                "{}/v1/payments/{}",
+                self.connector_base_url_payments(req),
+                connector_payment_id
+            ))
+        }
+    }
+);
+
 // SourceVerification implementations for all flows

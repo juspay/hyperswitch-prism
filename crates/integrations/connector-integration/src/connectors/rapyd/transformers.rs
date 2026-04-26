@@ -1,11 +1,13 @@
 use common_utils::{ext_traits::OptionExt, request::Method, FloatMajorUnit, StringMajorUnit};
 use domain_types::{
-    connector_flow::{Authorize, Capture, ClientAuthenticationToken, CreateOrder},
+    connector_flow::{
+        Authorize, Capture, ClientAuthenticationToken, CreateOrder, IncrementalAuthorization,
+    },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse, PaymentCreateOrderData,
         PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData,
+        PaymentsIncrementalAuthorizationData, PaymentsResponseData,
         RapydClientAuthenticationResponse as RapydClientAuthenticationResponseDomain,
         RefundFlowData, RefundsData, RefundsResponseData, ResponseId,
     },
@@ -929,6 +931,177 @@ impl TryFrom<ResponseRouterData<RapydCreateOrderResponse, Self>>
                 },
                 ..item.router_data
             }),
+        }
+    }
+}
+
+// =============================================================================
+// Incremental Authorization
+// =============================================================================
+//
+// Rapyd increments the authorized amount on a payment via the
+// Update Payment endpoint:
+//   POST /v1/payments/{payment_id}
+//   body: { "amount": "<major units>" }
+//
+// Preconditions (from Rapyd docs):
+//   - The original payment must be in `ACT` (active) status — i.e. authorized
+//     but not yet captured.
+//   - The underlying payment method must support adjustable amounts
+//     (i.e. `payment_method_options.is_adjustable` is true for the method).
+//   - Currency cannot be changed by the update.
+//
+// Docs: https://docs.rapyd.net/en/update-payment.html
+
+#[derive(Debug, Serialize, Clone)]
+pub struct RapydIncrementalAuthRequest {
+    /// Updated authorization amount in the connector's major unit format.
+    pub amount: StringMajorUnit,
+    /// Optional reason forwarded via the request description for audit trails.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        RapydRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for RapydIncrementalAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: RapydRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(
+                item.router_data.request.minor_amount,
+                item.router_data.request.currency,
+            )
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
+        Ok(Self {
+            amount,
+            description: item.router_data.request.reason.clone(),
+        })
+    }
+}
+
+/// Response for Rapyd's Update Payment endpoint is the standard Rapyd response
+/// envelope (status + data). We deserialize into the same shape as the normal
+/// payment response but map it into the `IncrementalAuthorizationResponse`
+/// variant rather than `TransactionResponse`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RapydIncrementalAuthResponse {
+    pub status: Status,
+    pub data: Option<ResponseData>,
+}
+
+impl TryFrom<ResponseRouterData<RapydIncrementalAuthResponse, Self>>
+    for RouterDataV2<
+        IncrementalAuthorization,
+        PaymentFlowData,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<RapydIncrementalAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let is_http_success = item.http_code >= 200 && item.http_code < 300;
+        let is_status_success = item.response.status.error_code.is_empty()
+            || item.response.status.error_code.eq_ignore_ascii_case("SUCCESS");
+
+        match (&item.response.data, is_http_success && is_status_success) {
+            (Some(data), true) => {
+                // Derive AuthorizationStatus from the Rapyd payment state.
+                // After a successful increment, the payment should remain in
+                // `ACT` with `pending_capture`, which we treat as Success.
+                let authorization_status = match get_status(
+                    data.status.to_owned(),
+                    data.next_action.to_owned(),
+                ) {
+                    common_enums::AttemptStatus::Authorized
+                    | common_enums::AttemptStatus::Charged
+                    | common_enums::AttemptStatus::PartialCharged => {
+                        common_enums::AuthorizationStatus::Success
+                    }
+                    common_enums::AttemptStatus::Authorizing
+                    | common_enums::AttemptStatus::AuthenticationPending
+                    | common_enums::AttemptStatus::Pending => {
+                        common_enums::AuthorizationStatus::Processing
+                    }
+                    common_enums::AttemptStatus::Failure
+                    | common_enums::AttemptStatus::Voided => {
+                        common_enums::AuthorizationStatus::Failure
+                    }
+                    _ => common_enums::AuthorizationStatus::Processing,
+                };
+
+                Ok(Self {
+                    response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                        status: authorization_status,
+                        connector_authorization_id: Some(data.id.clone()),
+                        status_code: item.http_code,
+                    }),
+                    ..item.router_data
+                })
+            }
+            _ => {
+                let (code, message, reason) = match &item.response.data {
+                    Some(data) => (
+                        data.failure_code
+                            .clone()
+                            .unwrap_or_else(|| item.response.status.error_code.clone()),
+                        item.response
+                            .status
+                            .status
+                            .clone()
+                            .unwrap_or_default(),
+                        data.failure_message
+                            .clone()
+                            .or_else(|| item.response.status.message.clone()),
+                    ),
+                    None => (
+                        item.response.status.error_code.clone(),
+                        item.response.status.status.clone().unwrap_or_default(),
+                        item.response.status.message.clone(),
+                    ),
+                };
+
+                Ok(Self {
+                    response: Err(ErrorResponse {
+                        status_code: item.http_code,
+                        code,
+                        message,
+                        reason,
+                        attempt_status: None,
+                        connector_transaction_id: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                    }),
+                    ..item.router_data
+                })
+            }
         }
     }
 }
