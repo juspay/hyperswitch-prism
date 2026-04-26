@@ -413,13 +413,18 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            // Cashfree PSync URL uses the merchant order_id, not cf_payment_id.
-            // Try reference_id (connector_order_reference_id from gRPC) first,
-            // then connector_request_reference_id (merchant_transaction_id).
+            // Cashfree PSync URL is keyed by the merchant order id, not by
+            // cf_payment_id. Match Razorpay's pattern (`razorpay.rs:582`) by
+            // preferring `connector_order_id` — the proto-level slot for an
+            // order id carried over from CreateOrder/Authorize — and only
+            // falling back to the legacy `reference_id` /
+            // `connector_request_reference_id` paths for callers that haven't
+            // populated it.
             let order_id = req
                 .resource_common_data
-                .reference_id
+                .connector_order_id
                 .as_ref()
+                .or(req.resource_common_data.reference_id.as_ref())
                 .unwrap_or(&req.resource_common_data.connector_request_reference_id);
             let base_url = self.connector_base_url(req);
             Ok(format!("{base_url}pg/orders/{order_id}/payments"))
