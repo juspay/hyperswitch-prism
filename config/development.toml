@@ -79,6 +79,7 @@ authipay.base_url = "https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-g
 stax.base_url = "https://apiprod.fattlabs.com"
 trustpayments.base_url = "https://webservices.securetrading.net"
 fiservemea.base_url = "https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2/payments"
+billdesk.base_url = "https://pguat.billdesk.io/payments/ve1_2/"
 datatrans.base_url = "https://api.sandbox.datatrans.com"
 silverflow.base_url = "https://api-sbx.silverflow.co/v1"
 celero.base_url = "https://sandbox.gotnpgateway.com"
