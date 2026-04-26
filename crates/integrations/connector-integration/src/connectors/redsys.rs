@@ -134,6 +134,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Redsys<T>
 {
+    fn requires_pre_authentication(&self) -> bool {
+        true
+    }
+
+    // Redsys does not require a PostAuthenticate call — the challenge result
+    // is submitted directly via the Authorize flow with redirection_response.
+    fn requires_post_authentication(&self) -> bool {
+        false
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

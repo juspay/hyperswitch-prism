@@ -11,6 +11,9 @@ domain_types = { path = "../../types-traits/domain_types" }
 common_enums = { path = "../../common/common_enums", package = "ucs_common_enums" }
 common_utils = { path = "../../common/common_utils", package = "ucs_common_utils" }
 hyperswitch_masking = { version = "0.0.1", default-features = false, features = ["alloc", "serde", "time"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+base64 = "0.21.2"
 
 [dev-dependencies]
 prost = { workspace = true }

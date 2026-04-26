@@ -1184,12 +1184,15 @@ dependencies = [
 name = "composite-service"
 version = "0.1.0"
 dependencies = [
+ "base64 0.21.7",
  "connector-integration",
  "domain_types",
  "grpc-api-types",
  "hyperswitch_masking",
  "prost 0.14.3",
  "prost-types 0.14.3",
+ "serde",
+ "serde_json",
  "tonic 0.14.5",
  "ucs_common_enums",
  "ucs_common_utils",
