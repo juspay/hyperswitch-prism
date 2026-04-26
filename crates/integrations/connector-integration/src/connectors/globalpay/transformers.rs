@@ -382,8 +382,6 @@ pub struct GlobalpayPaymentsRequest<T: PaymentMethodDataTypes> {
 
 #[derive(Debug, Serialize)]
 pub struct GlobalpayPaymentMethod<T: PaymentMethodDataTypes> {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub name: Option<Secret<String>>,
     pub entry_mode: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card: Option<GlobalpayCard<T>>,
@@ -402,8 +400,6 @@ pub struct GlobalpayCard<T: PaymentMethodDataTypes> {
     pub expiry_month: Secret<String>,
     pub expiry_year: Secret<String>,
     pub cvv: Secret<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cvv_indicator: Option<String>,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -442,22 +438,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     },
                 )?;
 
-                // Determine cvv_indicator based on whether CVV is provided
-                let cvv_indicator = if card_data.card_cvc.peek().is_empty() {
-                    Some("NOT_PRESENT".to_string())
-                } else {
-                    Some("PRESENT".to_string())
-                };
-
                 GlobalpayPaymentMethod {
-                    name: item.request.customer_name.clone().map(Secret::new),
                     entry_mode: constants::ENTRY_MODE_ECOM.to_string(),
                     card: Some(GlobalpayCard {
                         number: card_data.card_number.clone(),
                         expiry_month: card_data.card_exp_month.clone(),
                         expiry_year: expiry_year_2digit,
                         cvv: card_data.card_cvc.clone(),
-                        cvv_indicator,
                     }),
                     apm: None,
                     id: None,
@@ -476,7 +463,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 };
 
                 GlobalpayPaymentMethod {
-                    name: item.request.customer_name.clone().map(Secret::new),
                     entry_mode: constants::ENTRY_MODE_ECOM.to_string(),
                     card: None,
                     apm: Some(GlobalpayApm {
@@ -490,7 +476,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let token = t.token.clone();
 
                 GlobalpayPaymentMethod {
-                    name: item.request.customer_name.clone().map(Secret::new),
                     entry_mode: constants::ENTRY_MODE_ECOM.to_string(),
                     card: None,
                     apm: None,
