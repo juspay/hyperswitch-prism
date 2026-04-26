@@ -10,41 +10,6 @@
       "scenario": "no3ds_auto_capture_credit_card"
     }
   ],
-  "scenario_depends_on": {
-    "sync_upi_collect": [
-      "create_order",
-      {
-        "suite": "authorize",
-        "scenario": "no3ds_auto_capture_upi_collect",
-        "context_map": {
-          "connector_transaction_id": "res.connectorTransactionId",
-          "merchant_transaction_id": "req.merchant_transaction_id"
-        }
-      }
-    ],
-    "sync_upi_intent": [
-      "create_order",
-      {
-        "suite": "authorize",
-        "scenario": "no3ds_auto_capture_upi_intent",
-        "context_map": {
-          "connector_transaction_id": "res.connectorTransactionId",
-          "merchant_transaction_id": "req.merchant_transaction_id"
-        }
-      }
-    ],
-    "sync_upi_qr": [
-      "create_order",
-      {
-        "suite": "authorize",
-        "scenario": "no3ds_auto_capture_upi_qr",
-        "context_map": {
-          "connector_transaction_id": "res.connectorTransactionId",
-          "merchant_transaction_id": "req.merchant_transaction_id"
-        }
-      }
-    ]
-  },
   "dependency_scope": "scenario",
   "strict_dependencies": false
 }
