@@ -4159,7 +4159,8 @@ message PinelabsOnlineConfig {
 
 message ImerchantsolutionsConfig {
   SecretString api_key = 1;
-  optional string base_url = 2;
+  optional SecretString merchant_id = 2;
+  optional string base_url = 3;
 }
 
 // ConnectorSpecificConfig message with oneof containing all connector

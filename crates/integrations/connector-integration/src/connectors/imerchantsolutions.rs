@@ -220,6 +220,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
     pub(crate) const X_API_KEY: &str = "X-Api-Key";
+    pub(crate) const X_MERCHANT_ID: &str = "X-Merchant-Id";
 }
 
 macros::create_all_prerequisites!(
@@ -332,10 +333,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     },
                 }
             })?;
-        Ok(vec![(
-            headers::X_API_KEY.to_string(),
-            auth.api_key.into_masked(),
-        )])
+
+        let mut auth_header = vec![(headers::X_API_KEY.to_string(), auth.api_key.into_masked())];
+
+        if let Some(merchant_id) = auth.merchant_id {
+            auth_header.push((
+                headers::X_MERCHANT_ID.to_string(),
+                merchant_id.into_masked(),
+            ));
+        }
+
+        Ok(auth_header)
     }
 
     fn build_error_response(

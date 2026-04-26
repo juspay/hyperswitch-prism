@@ -255,6 +255,7 @@ pub enum ConnectorSpecificConfig {
     },
     Imerchantsolutions {
         api_key: Secret<String>,
+        merchant_id: Option<Secret<String>>,
         base_url: Option<String>,
     },
     Bambora {
@@ -1940,6 +1941,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
+                merchant_id: imerchantsolutions.merchant_id,
                 base_url: imerchantsolutions.base_url,
             }),
         }
@@ -2072,6 +2074,12 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
             ConnectorEnum::Imerchantsolutions => match auth {
                 ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Imerchantsolutions {
                     api_key: api_key.clone(),
+                    merchant_id: None,
+                    base_url: None,
+                }),
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Imerchantsolutions {
+                    api_key: api_key.clone(),
+                    merchant_id: Some(key1.clone()),
                     base_url: None,
                 }),
                 _ => Err(err().into()),

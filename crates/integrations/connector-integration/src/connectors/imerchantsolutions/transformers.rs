@@ -15,7 +15,7 @@ use domain_types::{
     utils::is_payment_failure,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeOptionInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -28,6 +28,7 @@ const IMERCHANTSOLUTIONS: &str = "imerchantsolutions";
 
 pub struct ImerchantsolutionsAuthType {
     pub(super) api_key: Secret<String>,
+    pub(super) merchant_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -42,9 +43,34 @@ impl TryFrom<&ConnectorSpecificConfig> for ImerchantsolutionsAuthType {
     type Error = error_stack::Report<errors::IntegrationError>;
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorSpecificConfig::Imerchantsolutions { api_key, .. } => Ok(Self {
-                api_key: api_key.to_owned(),
-            }),
+            ConnectorSpecificConfig::Imerchantsolutions {
+                api_key,
+                merchant_id,
+                ..
+            } => {
+                let is_platform_key = api_key.clone().expose().starts_with("pk_");
+                if is_platform_key {
+                    if merchant_id.is_none() {
+                        return Err(errors::IntegrationError::FailedToObtainAuthType {
+                            context: errors::IntegrationErrorContext {
+                                suggested_action: Some("Provide `merchant_id` when using a platform API key (prefix `pk_`).".to_string()),
+                                doc_url: Some("https://imerchantsolutions.com/docs/partners#authentication".to_string()),
+                                additional_context: Some("Received platform API key (prefix: `pk_`) but `merchant_id` was None.".to_string()),
+                            },
+                        }
+                        .into());
+                    } else {
+                        return Ok(Self {
+                            api_key: api_key.to_owned(),
+                            merchant_id: merchant_id.clone(),
+                        });
+                    }
+                }
+                Ok(Self {
+                    api_key: api_key.to_owned(),
+                    merchant_id: None,
+                })
+            }
             _ => Err(errors::IntegrationError::FailedToObtainAuthType {
                 context: errors::IntegrationErrorContext {
                     suggested_action: Some("Provide AuthType as HeaderKey".to_string()),
