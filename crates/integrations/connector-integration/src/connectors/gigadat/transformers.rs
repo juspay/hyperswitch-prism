@@ -604,11 +604,7 @@ impl From<GigadatPayoutStatus> for PayoutStatus {
         match item {
             GigadatPayoutStatus::StatusSuccess => Self::Success,
             GigadatPayoutStatus::StatusPending => Self::RequiresFulfillment,
-            // STATUS_INITED means transaction is created and initiated but not yet completed
-            // For PayoutStage (Quote): Use RequiresCreation as next step is Create
-            // For PayoutTransfer (Fulfill): Use Initiated as deposit has been initiated
-            // Note: This mapping is context-dependent, caller should interpret appropriately
-            GigadatPayoutStatus::StatusInited => Self::Initiated,
+            GigadatPayoutStatus::StatusInited => Self::Pending,
             GigadatPayoutStatus::StatusRejected
             | GigadatPayoutStatus::StatusExpired
             | GigadatPayoutStatus::StatusRejected1
@@ -663,7 +659,7 @@ impl TryFrom<ResponseRouterData<GigadatPayoutSyncResponse, Self>>
         let payout_status = match &response.status {
             GigadatPayoutStatus::StatusSuccess => PayoutStatus::Success,
             GigadatPayoutStatus::StatusPending => PayoutStatus::RequiresFulfillment,
-            GigadatPayoutStatus::StatusInited => PayoutStatus::Initiated,  // Show as Initiated, not RequiresCreation
+            GigadatPayoutStatus::StatusInited => PayoutStatus::Pending,
             GigadatPayoutStatus::StatusRejected
             | GigadatPayoutStatus::StatusExpired
             | GigadatPayoutStatus::StatusRejected1
