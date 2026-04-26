@@ -23,7 +23,7 @@ use uuid::Uuid;
 use crate::harness::{
     auto_gen::resolve_auto_generate,
     connector_override::{
-        apply_connector_overrides, connector_override_context_map, connector_pre_request_http_hook,
+        apply_connector_overrides, connector_pre_request_http_hook,
         context_deferred_paths_for_connector, normalize_tonic_request_for_connector,
         transform_response_for_connector, PreRequestHttpHook,
     },
@@ -4323,33 +4323,6 @@ fn execute_single_scenario_with_context(
 
     // Apply any explicit dependency path mappings from suite_spec.json.
     apply_context_map(explicit_context_entries, &mut effective_req);
-
-    // Per-connector context_map patch from `<connector>/override.json`.
-    // Lets a single connector inject dependency-derived fields without
-    // changing the suite-level context_map shared by all connectors.
-    //
-    // Applied against ALL dependencies (not only those with an explicit
-    // suite-level context_map), so a connector can reach into the req/res of
-    // a dep that the global spec didn't wire through.  For each dependency,
-    // `apply_context_map` silently skips keys that don't resolve, so listing
-    // the same mapping against every dep is safe.
-    if let Ok(Some(connector_map)) = connector_override_context_map(connector, suite, scenario) {
-        let connector_entries: Vec<ExplicitContextEntry> = dependency_reqs
-            .iter()
-            .zip(dependency_res.iter())
-            .map(|(req, res)| {
-                (
-                    connector_map
-                        .iter()
-                        .map(|(k, v)| (k.clone(), v.clone()))
-                        .collect(),
-                    req.clone(),
-                    res.clone(),
-                )
-            })
-            .collect();
-        apply_context_map(&connector_entries, &mut effective_req);
-    }
 
     // Fallback generation for unresolved non-context placeholders.
     resolve_auto_generate(&mut effective_req)?;

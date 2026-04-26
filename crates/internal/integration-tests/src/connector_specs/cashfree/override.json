@@ -20,27 +20,11 @@
             "vpa_id": { "value": "testsuccess@gocash" }
           }
         }
-      },
-      "context_map": {
-        "connector_order_id": "res.connectorOrderId"
-      }
-    },
-    "no3ds_auto_capture_upi_intent": {
-      "context_map": {
-        "connector_order_id": "res.connectorOrderId"
-      }
-    },
-    "no3ds_auto_capture_upi_qr": {
-      "context_map": {
-        "connector_order_id": "res.connectorOrderId"
       }
     }
   },
   "get": {
     "sync_upi_collect": {
-      "context_map": {
-        "connector_order_reference_id": "req.merchant_order_id"
-      },
       "pre_request_http": {
         "url": "https://sandbox.cashfree.com/pg/view/simulate",
         "method": "POST",
@@ -51,17 +35,11 @@
       }
     },
     "sync_upi_intent": {
-      "context_map": {
-        "connector_order_reference_id": "req.merchant_order_id"
-      },
       "assert": {
         "status": { "one_of": ["CHARGED", "AUTHORIZED"] }
       }
     },
     "sync_upi_qr": {
-      "context_map": {
-        "connector_order_reference_id": "req.merchant_order_id"
-      },
       "assert": {
         "status": { "one_of": ["CHARGED", "AUTHORIZED"] }
       }

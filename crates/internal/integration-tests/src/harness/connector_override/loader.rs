@@ -12,12 +12,6 @@ pub struct ScenarioOverridePatch {
     pub grpc_req: Option<Value>,
     #[serde(rename = "assert", default)]
     pub assert_rules: Option<BTreeMap<String, Value>>,
-    /// Connector-specific context map patch. Keys are target paths in the
-    /// scenario request; values are `req.` / `res.` source references into the
-    /// scenario's dependency payloads. Applied AFTER the suite-level
-    /// `context_map`, so it can fill in fields the suite doesn't set.
-    #[serde(default)]
-    pub context_map: Option<BTreeMap<String, String>>,
     /// Fire an HTTP request (fire-and-forget) before this scenario runs.
     /// Used to drive sandbox simulators that settle a payment outside of the
     /// normal connector API surface — e.g. Cashfree's `/pg/view/simulate`
@@ -109,21 +103,6 @@ pub fn load_scenario_pre_request_http(
 ) -> Result<Option<PreRequestHttpHook>, ScenarioError> {
     Ok(load_scenario_override_patch(connector, suite, scenario)?
         .and_then(|patch| patch.pre_request_http))
-}
-
-/// Loads optional per-connector `context_map` patch for a given scenario.
-///
-/// Used to inject dependency-derived fields into the effective request for
-/// connectors whose sync/flow transformers require fields the default suite
-/// context_map doesn't set (e.g. PhonePe reads `connector_order_reference_id`
-/// from the sync request as its `merchant_order_id`).
-pub fn load_scenario_override_context_map(
-    connector: &str,
-    suite: &str,
-    scenario: &str,
-) -> Result<Option<BTreeMap<String, String>>, ScenarioError> {
-    Ok(load_scenario_override_patch(connector, suite, scenario)?
-        .and_then(|patch| patch.context_map))
 }
 
 /// Path to `<connector>/webhook_payload.json` under connector override root.

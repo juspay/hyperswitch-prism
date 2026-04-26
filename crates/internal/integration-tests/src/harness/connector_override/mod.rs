@@ -96,15 +96,6 @@ pub fn connector_pre_request_http_hook(
     loader::load_scenario_pre_request_http(connector, suite, scenario)
 }
 
-/// Returns the connector's per-scenario `context_map` override, if any.
-pub fn connector_override_context_map(
-    connector: &str,
-    suite: &str,
-    scenario: &str,
-) -> Result<Option<BTreeMap<String, String>>, ScenarioError> {
-    loader::load_scenario_override_context_map(connector, suite, scenario)
-}
-
 /// Applies connector override patches to request payload and assertions.
 pub fn apply_connector_overrides(
     connector: &str,
