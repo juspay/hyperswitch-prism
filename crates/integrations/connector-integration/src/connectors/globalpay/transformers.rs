@@ -303,41 +303,24 @@ pub struct GlobalpayNotifications {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum InitiatorType {
+pub enum Initiator {
     Merchant,
     Payer,
 }
 
 #[derive(Debug, Serialize)]
-pub struct Initiator {
-    #[serde(rename = "type")]
-    pub initiator_type: Option<InitiatorType>,
-    pub id: Option<String>,
-    pub stored_credential: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum StoredCredentialType {
+pub enum Model {
     Installment,
     Recurring,
-    Unscheduled,
     Subscription,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum StoredCredentialSequence {
-    First,
-    Subsequent,
+    Unscheduled,
 }
 
 #[derive(Debug, Serialize)]
 pub struct StoredCredential {
-    #[serde(rename = "type")]
-    pub credential_type: Option<StoredCredentialType>,
-    pub sequence: Option<StoredCredentialSequence>,
-    pub initiator: Option<InitiatorType>,
+    pub model: Option<Model>,
+    pub sequence: Option<Sequence>,
 }
 
 // ===== APM / BANK REDIRECT STRUCTURES =====
@@ -371,19 +354,15 @@ pub struct GlobalpayPaymentsRequest<T: PaymentMethodDataTypes> {
     pub country: common_enums::CountryAlpha2,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub capture_mode: Option<GlobalpayCaptureMode>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub initiator: Option<Initiator>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub notifications: Option<GlobalpayNotifications>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub stored_credential: Option<StoredCredential>,
     pub payment_method: GlobalpayPaymentMethod<T>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct GlobalpayPaymentMethod<T: PaymentMethodDataTypes> {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub name: Option<Secret<String>>,
     pub entry_mode: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card: Option<GlobalpayCard<T>>,
@@ -402,8 +381,6 @@ pub struct GlobalpayCard<T: PaymentMethodDataTypes> {
     pub expiry_month: Secret<String>,
     pub expiry_year: Secret<String>,
     pub cvv: Secret<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cvv_indicator: Option<String>,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -433,6 +410,34 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let item = &wrapper.router_data;
+
+        let (initiator, stored_credential, connector_mandate_id) =
+            if item.request.is_mandate_payment() {
+                let connector_mandate_id = item.request.connector_mandate_id();
+
+                let initiator = Some(match item.request.off_session {
+                    Some(true) => Initiator::Merchant,
+                    _ => Initiator::Payer,
+                });
+
+                let stored_credential = Some(StoredCredential {
+                    model: Some(if connector_mandate_id.is_some() {
+                        Model::Recurring
+                    } else {
+                        Model::Unscheduled
+                    }),
+                    sequence: Some(if connector_mandate_id.is_some() {
+                        Sequence::Subsequent
+                    } else {
+                        Sequence::First
+                    }),
+                });
+
+                (initiator, stored_credential, connector_mandate_id)
+            } else {
+                (None, None, None)
+            };
+
         let payment_method = match &item.request.payment_method_data {
             PaymentMethodData::Card(card_data) => {
                 // Convert to 2-digit year using built-in helper method
@@ -442,22 +447,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     },
                 )?;
 
-                // Determine cvv_indicator based on whether CVV is provided
-                let cvv_indicator = if card_data.card_cvc.peek().is_empty() {
-                    Some("NOT_PRESENT".to_string())
-                } else {
-                    Some("PRESENT".to_string())
-                };
-
                 GlobalpayPaymentMethod {
-                    name: item.request.customer_name.clone().map(Secret::new),
                     entry_mode: constants::ENTRY_MODE_ECOM.to_string(),
                     card: Some(GlobalpayCard {
                         number: card_data.card_number.clone(),
                         expiry_month: card_data.card_exp_month.clone(),
                         expiry_year: expiry_year_2digit,
                         cvv: card_data.card_cvc.clone(),
-                        cvv_indicator,
                     }),
                     apm: None,
                     id: None,
@@ -476,7 +472,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 };
 
                 GlobalpayPaymentMethod {
-                    name: item.request.customer_name.clone().map(Secret::new),
                     entry_mode: constants::ENTRY_MODE_ECOM.to_string(),
                     card: None,
                     apm: Some(GlobalpayApm {
@@ -490,13 +485,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let token = t.token.clone();
 
                 GlobalpayPaymentMethod {
-                    name: item.request.customer_name.clone().map(Secret::new),
                     entry_mode: constants::ENTRY_MODE_ECOM.to_string(),
                     card: None,
                     apm: None,
                     id: Some(token),
                 }
             }
+            PaymentMethodData::MandatePayment => GlobalpayPaymentMethod {
+                entry_mode: constants::ENTRY_MODE_ECOM.to_string(),
+                card: None,
+                apm: None,
+                id: connector_mandate_id.map(Secret::new),
+            },
             _ => {
                 return Err(error_stack::report!(IntegrationError::NotImplemented(
                     "Payment method not supported".to_string(),
@@ -547,9 +547,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone(),
             country,
             capture_mode,
-            initiator: None,
+            initiator,
             notifications,
-            stored_credential: None,
+            stored_credential,
             payment_method,
         })
     }
