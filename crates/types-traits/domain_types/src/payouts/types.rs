@@ -1098,11 +1098,31 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceStageRequest>
             common_enums::Currency::foreign_try_from(curr)?
         };
 
+        use hyperswitch_masking::ExposeInterface;
+        let email = value.customer.as_ref().and_then(|c| c.email.clone())
+            .and_then(|e| common_utils::pii::Email::try_from(e.expose()).ok());
+        let name = value.customer.as_ref().and_then(|c| c.name.clone())
+            .map(hyperswitch_masking::Secret::new);
+        let phone = value.customer.as_ref()
+            .and_then(|c| {
+                c.phone_number.as_ref().map(|phone| {
+                    let country_code = c.phone_country_code.as_deref().unwrap_or("+1");
+                    hyperswitch_masking::Secret::new(format!("{}{}", country_code, phone))
+                })
+            });
+        let user_ip = value.browser_info.as_ref()
+            .and_then(|b| b.ip_address.clone())
+            .map(hyperswitch_masking::Secret::new);
+
         Ok(Self {
             merchant_quote_id: value.merchant_quote_id.clone(),
             amount: common_utils::types::MinorUnit::new(amount.minor_amount),
             source_currency,
             destination_currency,
+            email,
+            name,
+            mobile: phone,
+            user_ip,
         })
     }
 }

@@ -226,7 +226,6 @@ macros::macro_connector_payout_implementation!(
 );
 
 // ===== PAYOUT TRANSFER FLOW (MANUAL IMPLEMENTATION) =====
-// Note: PayoutTransfer is excluded from the macro above to allow a full implementation here
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::MandateRevokeV2 for Gigadat<T>
@@ -278,13 +277,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         req: &RouterDataV2<PayoutStage, PayoutFlowData, PayoutStageRequest, PayoutStageResponse>,
     ) -> CustomResult<Option<RequestContent>, IntegrationError> {
-        // GigadatRouterData is private, construct the request directly
+
         let auth = gigadat::GigadatAuthType::try_from(&req.connector_config)
             .change_context(IntegrationError::FailedToObtainAuthType {
                 context: Default::default(),
             })?;
 
-        // Get site from auth
         let site = auth.site.ok_or_else(|| {
             IntegrationError::InvalidConnectorConfig {
                 config: "missing 'site' in connector config",
@@ -292,17 +290,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
         })?;
 
-        // Use placeholder values for required fields not available in PayoutStageRequest
-        let email = common_utils::pii::Email::try_from("customer@example.com".to_string())
-            .change_context(IntegrationError::InvalidDataFormat {
-                field_name: "email",
-                context: Default::default(),
-            })?;
-        let name = Secret::new("Customer Name".to_string());
-        let mobile = Secret::new("+14165551234".to_string());
-        let user_ip = Secret::new("127.0.0.1".to_string());
+        let email = req.request.email.clone().ok_or(IntegrationError::MissingRequiredField {
+            field_name: "email",
+            context: Default::default(),
+        })?;
+        let name = req.request.name.clone().ok_or(IntegrationError::MissingRequiredField {
+            field_name: "name",
+            context: Default::default(),
+        })?;
+        let mobile = req.request.mobile.clone().ok_or(IntegrationError::MissingRequiredField {
+            field_name: "mobile",
+            context: Default::default(),
+        })?;
+        let user_ip = req.request.user_ip.clone().ok_or(IntegrationError::MissingRequiredField {
+            field_name: "user_ip",
+            context: Default::default(),
+        })?;
 
-        // Convert MerchantId to CustomerId
         let customer_id = common_utils::id_type::CustomerId::try_from(
             std::borrow::Cow::from(
                 req.resource_common_data.merchant_id.get_string_repr()
@@ -312,10 +316,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             context: Default::default(),
         })?;
 
-        // Determine sandbox mode - use connector config test_mode if available, default to true for safety
         let sandbox = auth.test_mode.unwrap_or(true);
 
-        // Convert amount
         let amount = self
             .amount_converter
             .convert(req.request.amount, req.request.destination_currency)
@@ -426,7 +428,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
     ) -> CustomResult<Option<RequestContent>, IntegrationError> {
-        Ok(None)  // GET has no body
+        Ok(None)
     }
 
     fn handle_response_v2(
@@ -498,9 +500,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             },
         )?;
 
-        // Try to extract token from multiple sources:
-        // 1. payout_method_data.psp_token (passed in request for testing/manual flows)
-        // 2. raw_connector_response (set by previous PayoutStage/PayoutCreate call in automated flows)
         
         let token = req.request.payout_method_data.as_ref()
             .and_then(|pmd| {
@@ -511,7 +510,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 }
             })
             .or_else(|| {
-                // Fallback to raw_connector_response
                 req.resource_common_data.raw_connector_response.as_ref()
                     .map(|s| s.peek().clone())
                     .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
@@ -621,7 +619,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         req: &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
     ) -> CustomResult<String, IntegrationError> {
-        // Extract transfer_id (quote_id) from request
         let transfer_id = req.request.connector_payout_id.as_ref()
             .or(req.request.connector_quote_id.as_ref())
             .ok_or(IntegrationError::MissingRequiredField {
@@ -629,9 +626,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 context: Default::default(),
             })?;
 
-        // Try to extract token from multiple sources (in order of preference):
-        // 1. payout_method_data.psp_token (passed in request for testing/manual flows)
-        // 2. raw_connector_response (set by previous PayoutStage call in automated flows)
         
         let token = req.request.payout_method_data.as_ref()
             .and_then(|pmd| {
@@ -642,7 +636,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 }
             })
             .or_else(|| {
-                // Fallback to raw_connector_response from PayoutStage
                 req.resource_common_data.raw_connector_response.as_ref()
                     .map(|s| s.peek().clone())
                     .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
@@ -673,7 +666,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
     ) -> CustomResult<Option<RequestContent>, IntegrationError> {
-        Ok(None)  // POST with no body
+        Ok(None)
     }
 
     fn handle_response_v2(

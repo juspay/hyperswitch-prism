@@ -655,7 +655,6 @@ impl TryFrom<ResponseRouterData<GigadatPayoutSyncResponse, Self>>
         let response = &item.response;
         let router_data = &item.router_data;
 
-        // Better status mapping for PayoutGet - show actual status from connector
         let payout_status = match &response.status {
             GigadatPayoutStatus::StatusSuccess => PayoutStatus::Success,
             GigadatPayoutStatus::StatusPending => PayoutStatus::RequiresFulfillment,
@@ -671,7 +670,7 @@ impl TryFrom<ResponseRouterData<GigadatPayoutSyncResponse, Self>>
             response: Ok(PayoutGetResponse {
                 merchant_payout_id: None,
                 payout_status,
-                connector_payout_id: None,  // Sync doesn't return transaction_id
+                connector_payout_id: None,
                 status_code: item.http_code,
             }),
             ..router_data.clone()
@@ -729,9 +728,6 @@ pub struct GigadatPayoutStageResponse {
 }
 
 // ===== REQUEST TRANSFORMER (PAYOUT STAGE) =====
-// Note: PayoutStageRequest only has amount, source_currency, destination_currency, merchant_quote_id
-// Additional required data (payout_method_data, billing info, browser info) must be passed via metadata
-// Using placeholder values for now - in production, these should come from customer metadata
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         &GigadatRouterData<
@@ -760,7 +756,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let auth = GigadatAuthType::try_from(&item.router_data.connector_config)?;
 
-        // Get site from auth
         let site = auth.site.ok_or_else(|| {
             Report::from(IntegrationError::InvalidConnectorConfig {
                 config: "missing 'site' in connector config",
@@ -768,7 +763,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })
         })?;
 
-        // Convert amount using FloatMajorUnit
         let amount = item
             .connector
             .amount_converter
@@ -780,18 +774,31 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             })?;
 
-        // Use placeholder values for fields not available in PayoutStageRequest
-        // These should ideally come from connector metadata or customer profile
-        let email = common_utils::pii::Email::try_from("customer@example.com".to_string())
-            .change_context(IntegrationError::InvalidDataFormat {
+        let email = item.router_data.request.email.clone().ok_or(
+            IntegrationError::MissingRequiredField {
                 field_name: "email",
                 context: Default::default(),
-            })?;
-        let name = Secret::new("Customer Name".to_string());
-        let mobile = Secret::new("+14165551234".to_string());
-        let user_ip = Secret::new("127.0.0.1".to_string());
+            },
+        )?;
+        let name = item.router_data.request.name.clone().ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "name",
+                context: Default::default(),
+            },
+        )?;
+        let mobile = item.router_data.request.mobile.clone().ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "mobile",
+                context: Default::default(),
+            },
+        )?;
+        let user_ip = item.router_data.request.user_ip.clone().ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "user_ip",
+                context: Default::default(),
+            },
+        )?;
 
-        // Convert MerchantId to CustomerId by converting through string
         let customer_id = id_type::CustomerId::try_from(
             std::borrow::Cow::from(
                 item.router_data.resource_common_data.merchant_id.get_string_repr()
@@ -801,7 +808,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             context: Default::default(),
         })?;
 
-        // Determine sandbox mode - use connector config test_mode, default to true for safety
         let sandbox = auth.test_mode.unwrap_or(true);
 
         Ok(Self {
