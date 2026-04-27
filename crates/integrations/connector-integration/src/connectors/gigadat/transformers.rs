@@ -1,13 +1,20 @@
-use common_enums::{AttemptStatus, Currency, RefundStatus};
+use common_enums::{AttemptStatus, Currency, PayoutStatus, RefundStatus};
 use common_utils::{id_type, request::Method, types::FloatMajorUnit};
 use domain_types::{
-    connector_flow::{Authorize, PSync, Refund},
+    connector_flow::{Authorize, PayoutCreate, PayoutGet, PayoutStage, PSync, PayoutTransfer, Refund},
     connector_types::{
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{BankRedirectData, PaymentMethodData, PaymentMethodDataTypes},
+    payouts::{
+        payouts_types::{
+            PayoutCreateRequest, PayoutCreateResponse, PayoutFlowData as PayoutsFlowData,
+            PayoutGetRequest, PayoutGetResponse, PayoutStageRequest, PayoutStageResponse,
+            PayoutTransferRequest, PayoutTransferResponse,
+        },
+    },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
@@ -55,6 +62,7 @@ pub struct GigadatAuthType {
     pub access_token: Secret<String>,
     pub security_token: Secret<String>,
     pub site: Option<String>,
+    pub test_mode: Option<bool>,
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for GigadatAuthType {
@@ -67,12 +75,14 @@ impl TryFrom<&ConnectorSpecificConfig> for GigadatAuthType {
                 access_token,
                 security_token,
                 site,
+                test_mode,
                 ..
             } => Ok(Self {
                 security_token: security_token.to_owned(),
                 access_token: access_token.to_owned(),
                 campaign_id: campaign_id.to_owned(),
                 site: site.clone(),
+                test_mode: *test_mode,
             }),
             _ => Err(Report::new(IntegrationError::FailedToObtainAuthType {
                 context: Default::default(),
@@ -552,5 +562,306 @@ impl TryFrom<ResponseRouterData<GigadatRefundResponse, Self>>
         });
 
         Ok(router_data)
+    }
+}
+
+// ===== PAYOUT RESPONSE TYPES =====
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GigadatPayoutMeta {
+    pub token: Secret<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GigadatPayoutData {
+    pub transaction_id: String,
+    #[serde(rename = "type")]
+    pub transaction_type: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GigadatPayoutResponse {
+    pub id: String,
+    pub status: GigadatPayoutStatus,
+    pub data: GigadatPayoutData,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum GigadatPayoutStatus {
+    StatusInited,
+    StatusSuccess,
+    StatusRejected,
+    StatusRejected1,
+    StatusExpired,
+    StatusAborted1,
+    StatusPending,
+    StatusFailed,
+}
+
+impl From<GigadatPayoutStatus> for PayoutStatus {
+    fn from(item: GigadatPayoutStatus) -> Self {
+        match item {
+            GigadatPayoutStatus::StatusSuccess => Self::Success,
+            GigadatPayoutStatus::StatusPending => Self::RequiresFulfillment,
+            GigadatPayoutStatus::StatusInited => Self::Pending,
+            GigadatPayoutStatus::StatusRejected
+            | GigadatPayoutStatus::StatusExpired
+            | GigadatPayoutStatus::StatusRejected1
+            | GigadatPayoutStatus::StatusAborted1
+            | GigadatPayoutStatus::StatusFailed => Self::Failure,
+        }
+    }
+}
+
+// ===== RESPONSE TRANSFORMER (PAYOUT TRANSFER) =====
+impl TryFrom<ResponseRouterData<GigadatPayoutResponse, Self>>
+    for RouterDataV2<PayoutTransfer, PayoutsFlowData, PayoutTransferRequest, PayoutTransferResponse>
+{
+    type Error = Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<GigadatPayoutResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+        let router_data = &item.router_data;
+
+        Ok(Self {
+            response: Ok(PayoutTransferResponse {
+                merchant_payout_id: None,
+                payout_status: PayoutStatus::from(response.status.clone()),
+                connector_payout_id: Some(response.data.transaction_id.clone()),
+                status_code: item.http_code,
+            }),
+            ..router_data.clone()
+        })
+    }
+}
+
+// ===== PAYOUT SYNC RESPONSE =====
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GigadatPayoutSyncResponse {
+    pub status: GigadatPayoutStatus,
+}
+
+impl TryFrom<ResponseRouterData<GigadatPayoutSyncResponse, Self>>
+    for RouterDataV2<PayoutGet, PayoutsFlowData, PayoutGetRequest, PayoutGetResponse>
+{
+    type Error = Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<GigadatPayoutSyncResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+        let router_data = &item.router_data;
+
+        let payout_status = match &response.status {
+            GigadatPayoutStatus::StatusSuccess => PayoutStatus::Success,
+            GigadatPayoutStatus::StatusPending => PayoutStatus::RequiresFulfillment,
+            GigadatPayoutStatus::StatusInited => PayoutStatus::Pending,
+            GigadatPayoutStatus::StatusRejected
+            | GigadatPayoutStatus::StatusExpired
+            | GigadatPayoutStatus::StatusRejected1
+            | GigadatPayoutStatus::StatusAborted1
+            | GigadatPayoutStatus::StatusFailed => PayoutStatus::Failure,
+        };
+
+        Ok(Self {
+            response: Ok(PayoutGetResponse {
+                merchant_payout_id: None,
+                payout_status,
+                connector_payout_id: None,
+                status_code: item.http_code,
+            }),
+            ..router_data.clone()
+        })
+    }
+}
+
+// ===== RESPONSE TRANSFORMER (PAYOUT CREATE) =====
+impl TryFrom<ResponseRouterData<GigadatPayoutResponse, Self>>
+    for RouterDataV2<PayoutCreate, PayoutsFlowData, PayoutCreateRequest, PayoutCreateResponse>
+{
+    type Error = Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<GigadatPayoutResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+        let router_data = &item.router_data;
+
+        Ok(Self {
+            response: Ok(PayoutCreateResponse {
+                merchant_payout_id: None,
+                payout_status: PayoutStatus::from(response.status.clone()),
+                connector_payout_id: Some(response.data.transaction_id.clone()),
+                status_code: item.http_code,
+            }),
+            ..router_data.clone()
+        })
+    }
+}
+
+// ===== PAYOUT STAGE REQUEST/RESPONSE =====
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GigadatPayoutStageRequest {
+    pub amount: FloatMajorUnit,
+    pub campaign: Secret<String>,
+    pub currency: Currency,
+    pub email: common_utils::pii::Email,
+    pub mobile: Secret<String>,
+    pub name: Secret<String>,
+    pub site: String,
+    pub transaction_id: String,
+    #[serde(rename = "type")]
+    pub transaction_type: GigadatTransactionType,
+    pub user_id: id_type::CustomerId,
+    pub user_ip: Secret<String>,
+    pub sandbox: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GigadatPayoutStageResponse {
+    pub token: Secret<String>,
+    pub data: GigadatPayoutData,
+}
+
+// ===== REQUEST TRANSFORMER (PAYOUT STAGE) =====
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        &GigadatRouterData<
+            RouterDataV2<
+                PayoutStage,
+                PayoutsFlowData,
+                PayoutStageRequest,
+                PayoutStageResponse,
+            >,
+            T,
+        >,
+    > for GigadatPayoutStageRequest
+{
+    type Error = Report<IntegrationError>;
+
+    fn try_from(
+        item: &GigadatRouterData<
+            RouterDataV2<
+                PayoutStage,
+                PayoutsFlowData,
+                PayoutStageRequest,
+                PayoutStageResponse,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let auth = GigadatAuthType::try_from(&item.router_data.connector_config)?;
+
+        let site = auth.site.ok_or_else(|| {
+            Report::from(IntegrationError::InvalidConnectorConfig {
+                config: "missing 'site' in connector config",
+                context: Default::default(),
+            })
+        })?;
+
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(
+                item.router_data.request.amount,
+                item.router_data.request.destination_currency,
+            )
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
+
+        let email = item.router_data.request.email.clone().ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "email",
+                context: Default::default(),
+            },
+        )?;
+        let name = item.router_data.request.name.clone().ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "name",
+                context: Default::default(),
+            },
+        )?;
+        let mobile = item.router_data.request.mobile.clone().ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "mobile",
+                context: Default::default(),
+            },
+        )?;
+        let user_ip = item.router_data.request.user_ip.clone().ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "user_ip",
+                context: Default::default(),
+            },
+        )?;
+
+        let customer_id = id_type::CustomerId::try_from(
+            std::borrow::Cow::from(
+                item.router_data.resource_common_data.merchant_id.get_string_repr()
+            )
+        ).change_context(IntegrationError::InvalidDataFormat {
+            field_name: "customer_id",
+            context: Default::default(),
+        })?;
+
+        let sandbox = auth.test_mode.unwrap_or(true);
+
+        Ok(Self {
+            amount,
+            campaign: auth.campaign_id,
+            currency: item.router_data.request.destination_currency,
+            email,
+            mobile,
+            name,
+            site,
+            transaction_id: item
+                .router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            transaction_type: GigadatTransactionType::Eto,
+            user_id: customer_id,
+            user_ip,
+            sandbox,
+        })
+    }
+}
+
+// ===== RESPONSE TRANSFORMER (PAYOUT STAGE) =====
+impl TryFrom<ResponseRouterData<GigadatPayoutStageResponse, Self>>
+    for RouterDataV2<PayoutStage, PayoutsFlowData, PayoutStageRequest, PayoutStageResponse>
+{
+    type Error = Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<GigadatPayoutStageResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+        let router_data = &item.router_data;
+
+        // Store token in connector_metadata as JSON
+        let connector_metadata = serde_json::json!({
+            "token": response.token.peek().clone()
+        });
+        let connector_metadata_string = connector_metadata.to_string();
+
+        Ok(Self {
+            response: Ok(PayoutStageResponse {
+                merchant_payout_id: None,
+                payout_status: PayoutStatus::RequiresCreation,
+                connector_payout_id: Some(response.data.transaction_id.clone()),
+                status_code: item.http_code,
+                connector_metadata: Some(connector_metadata_string.clone()),
+            }),
+            resource_common_data: PayoutsFlowData {
+                raw_connector_response: Some(Secret::new(connector_metadata_string)),
+                ..router_data.resource_common_data.clone()
+            },
+            ..router_data.clone()
+        })
     }
 }

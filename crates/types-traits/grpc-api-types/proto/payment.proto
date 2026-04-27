@@ -3997,6 +3997,7 @@ message GigadatConfig {
   SecretString security_token = 3;
   optional string base_url = 50;
   optional string site = 51;
+  optional bool test_mode = 52;
 }
 
 message PhonepeConfig {

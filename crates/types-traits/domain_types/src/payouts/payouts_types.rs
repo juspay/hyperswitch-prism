@@ -138,6 +138,10 @@ pub struct PayoutStageRequest {
     pub amount: common_utils::types::MinorUnit,
     pub source_currency: common_enums::Currency,
     pub destination_currency: common_enums::Currency,
+    pub email: Option<common_utils::pii::Email>,
+    pub name: Option<hyperswitch_masking::Secret<String>>,
+    pub mobile: Option<hyperswitch_masking::Secret<String>>,
+    pub user_ip: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -146,6 +150,7 @@ pub struct PayoutStageResponse {
     pub payout_status: common_enums::PayoutStatus,
     pub connector_payout_id: Option<String>,
     pub status_code: u16,
+    pub connector_metadata: Option<String>,
 }
 
 #[derive(Debug, Clone)]
