@@ -302,6 +302,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             field_name: "mobile",
             context: Default::default(),
         })?;
+        tracing::info!(
+            "GIGADAT PAYOUT STAGE: mobile being sent = {}",
+            mobile.peek()
+        );
         let user_ip = req.request.user_ip.clone().ok_or(IntegrationError::MissingRequiredField {
             field_name: "user_ip",
             context: Default::default(),

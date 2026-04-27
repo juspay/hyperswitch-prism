@@ -1107,7 +1107,15 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceStageRequest>
             .and_then(|c| {
                 c.phone_number.as_ref().map(|phone| {
                     let country_code = c.phone_country_code.as_deref().unwrap_or("+1");
-                    hyperswitch_masking::Secret::new(format!("{}{}", country_code, phone))
+                    let country_code_clean = country_code.trim_start_matches('+');
+                    let formatted_mobile = format!("{}{}", country_code_clean, phone);
+                    tracing::info!(
+                        "GIGADAT DEBUG: raw_country_code={}, raw_phone={}, formatted_mobile={}",
+                        country_code,
+                        phone,
+                        formatted_mobile
+                    );
+                    hyperswitch_masking::Secret::new(formatted_mobile)
                 })
             });
         let user_ip = value.browser_info.as_ref()
