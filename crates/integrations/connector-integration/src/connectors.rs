@@ -238,3 +238,6 @@ pub use self::trustly::Trustly;
 
 pub mod itaubank;
 pub use self::itaubank::Itaubank;
+
+pub mod imerchantsolutions;
+pub use self::imerchantsolutions::Imerchantsolutions;

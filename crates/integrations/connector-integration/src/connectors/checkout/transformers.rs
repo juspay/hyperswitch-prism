@@ -2038,6 +2038,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentsResponseEnum, Self>>
         Ok(Self {
             response: Ok(PaymentsResponseData::MultipleCaptureResponse {
                 capture_sync_response_list,
+                status_code: item.http_code,
             }),
             ..item.router_data
         })
