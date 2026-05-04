@@ -2825,10 +2825,12 @@ impl From<SyncStatus> for AttemptStatus {
             SyncStatus::Voided => Self::Voided,
             SyncStatus::CouldNotVoid => Self::VoidFailed,
             SyncStatus::GeneralError => Self::Failure,
-            SyncStatus::RefundSettledSuccessfully
-            | SyncStatus::RefundPendingSettlement => Self::Pending,
-            SyncStatus::FDSPendingReview
-            | SyncStatus::FDSAuthorizedPendingReview => Self::Unresolved,
+            SyncStatus::RefundSettledSuccessfully | SyncStatus::RefundPendingSettlement => {
+                Self::Pending
+            }
+            SyncStatus::FDSPendingReview | SyncStatus::FDSAuthorizedPendingReview => {
+                Self::Unresolved
+            }
         }
     }
 }
