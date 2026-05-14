@@ -8,6 +8,17 @@ import {
   type StateManager,
 } from "./state.js";
 import type { SessionManager } from "./session-manager.js";
+import { getConfig, type PrResolverConfig } from "./config.js";
+import {
+  PrResolverService,
+  getRecentPrResolverEvents,
+  loadRuntimeOverlay,
+  mergeWithOverlay,
+  onPrResolverEvent,
+  saveRuntimeOverlay,
+  validateOverlay,
+  type PrResolverRuntimeOverlay,
+} from "./pr-resolver/index.js";
 
 /**
  * Cadence at which the supervisor reaps zombie children (PID gone) and
@@ -26,11 +37,11 @@ const TERM_GRACE_MS = 5_000;
 const REPLAY_BUFFER_LIMIT = 500;
 
 /**
- * Inbound messages prefixed with this string are handled by the supervisor
- * itself (session CRUD, lifecycle). Anything else is forwarded to the
- * engine for the dashboard's subscribed session.
+ * Inbound messages prefixed with these strings are handled by the supervisor
+ * itself (session CRUD, lifecycle, PR-resolver controls). Anything else is
+ * forwarded to the engine for the dashboard's subscribed session.
  */
-const CONTROL_PREFIXES = ["sessions:"] as const;
+const CONTROL_PREFIXES = ["sessions:", "pr-resolver:"] as const;
 
 interface ActiveChild {
   sessionId: string;
@@ -112,6 +123,14 @@ export class SessionSupervisor {
   private active = new Map<string, ActiveChild>();
   private reapTimer: NodeJS.Timeout | null = null;
   private shuttingDown = false;
+  /** Lazily booted in `bootPrResolver` when the effective config has enabled=true. */
+  private prResolver: PrResolverService | null = null;
+  private prResolverUnsub: (() => void) | null = null;
+  private prResolverTask: Promise<void> | null = null;
+  /** User-set runtime overlay loaded from `~/.byne/pr-resolver-config.json`. */
+  private prResolverOverlay: PrResolverRuntimeOverlay = {};
+  /** Merged config currently driving the running service. */
+  private prResolverEffective: PrResolverConfig | null = null;
 
   constructor(
     private state: StateManager,
@@ -132,6 +151,171 @@ export class SessionSupervisor {
 
     process.on("SIGTERM", () => void this.shutdown("SIGTERM"));
     process.on("SIGINT", () => void this.shutdown("SIGINT"));
+
+    // PR Resolver — opt-in via prResolver.enabled. Fire-and-forget boot so a
+    // slow `gh repo clone` on first run doesn't block the WS server from
+    // accepting dashboards.
+    void this.bootPrResolver();
+  }
+
+  // ─── PR Resolver lifecycle ─────────────────────────────────────────────
+
+  private getBasePrResolverConfig(): PrResolverConfig | null {
+    try {
+      return getConfig().prResolver;
+    } catch {
+      return null;
+    }
+  }
+
+  private getEffectivePrResolverConfig(): PrResolverConfig | null {
+    const base = this.getBasePrResolverConfig();
+    if (!base) return null;
+    return mergeWithOverlay(base, this.prResolverOverlay);
+  }
+
+  /**
+   * Boot-time entry point: load the runtime overlay, then start the service
+   * if the merged config has enabled=true and githubRepo set. Safe to call
+   * once at construction; later mutations go through `reconfigurePrResolver`.
+   */
+  private async bootPrResolver(): Promise<void> {
+    if (!this.getBasePrResolverConfig()) return;
+    this.prResolverOverlay = loadRuntimeOverlay();
+    await this.startPrResolverIfEnabled();
+  }
+
+  private async startPrResolverIfEnabled(): Promise<void> {
+    const effective = this.getEffectivePrResolverConfig();
+    if (!effective) return;
+    this.prResolverEffective = effective;
+
+    if (!effective.enabled) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `\x1b[90m[supervisor] PR Resolver disabled (config.yml + runtime overlay).\x1b[0m`
+      );
+      return;
+    }
+    if (!effective.githubRepo) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[supervisor] prResolver.enabled is true but githubRepo is empty — skipping boot`
+      );
+      return;
+    }
+
+    try {
+      this.prResolver = new PrResolverService(effective, getConfig());
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[supervisor] PR Resolver init failed:`,
+        err instanceof Error ? err.message : err
+      );
+      return;
+    }
+
+    // Broadcast every event from the resolver to all dashboards. The bus
+    // also keeps a 500-entry replay buffer so late-joining dashboards catch
+    // up via the `pr-resolver:snapshot` we send on hello.
+    this.prResolverUnsub = onPrResolverEvent((event) => {
+      this.broadcastControl(`pr-resolver:${event.type}`, {
+        ...event.payload,
+        timestamp: event.timestamp,
+      });
+    });
+
+    // eslint-disable-next-line no-console
+    console.log(
+      `\x1b[1m\x1b[35m[supervisor]\x1b[0m PR Resolver enabled · repo=${effective.githubRepo} · trigger="${effective.trigger}" · interval=${effective.pollInterval}s`
+    );
+
+    this.prResolverTask = this.prResolver
+      .runForever()
+      .catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error(
+          `[supervisor] PR Resolver crashed:`,
+          err instanceof Error ? err.stack ?? err.message : err
+        );
+        this.broadcastControl("pr-resolver:crash", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
+  }
+
+  private async stopPrResolver(): Promise<void> {
+    if (!this.prResolver) return;
+    this.prResolver.cancel();
+    this.prResolverUnsub?.();
+    this.prResolverUnsub = null;
+    try {
+      await Promise.race([this.prResolverTask, sleep(TERM_GRACE_MS)]);
+    } catch {
+      /* best-effort drain */
+    }
+    this.prResolver = null;
+    this.prResolverTask = null;
+  }
+
+  /**
+   * Apply a new runtime overlay: validate, persist, stop the running service,
+   * start it again with the merged config. Errors short-circuit before any
+   * side effect.
+   */
+  private async reconfigurePrResolver(
+    newOverlay: PrResolverRuntimeOverlay
+  ): Promise<{ ok: boolean; errors?: string[] }> {
+    const validation = validateOverlay(newOverlay);
+    if (!validation.ok) {
+      return { ok: false, errors: validation.errors };
+    }
+    // Persist before stopping so a crash mid-restart still picks up the
+    // intended config on the next supervisor boot.
+    try {
+      saveRuntimeOverlay(newOverlay);
+    } catch (err) {
+      return {
+        ok: false,
+        errors: [
+          `Failed to write overlay: ${err instanceof Error ? err.message : String(err)}`,
+        ],
+      };
+    }
+    this.prResolverOverlay = newOverlay;
+    await this.stopPrResolver();
+    await this.startPrResolverIfEnabled();
+    this.broadcastPrResolverSnapshot();
+    return { ok: true };
+  }
+
+  /** Build the per-dashboard snapshot payload. Shared by hello + broadcast. */
+  private buildPrResolverSnapshotPayload(): Record<string, unknown> {
+    const effective =
+      this.prResolverEffective ?? this.getEffectivePrResolverConfig();
+    const stateSnap = this.prResolver?.getStateSnapshot() ?? null;
+    return {
+      enabled: !!effective?.enabled,
+      autoApprove: !!effective?.autoApprove,
+      githubRepo: effective?.githubRepo ?? "",
+      trigger: effective?.trigger ?? "",
+      effectiveConfig: effective ? toEffectiveView(effective) : null,
+      runtimeOverlay: this.prResolverOverlay,
+      running: this.prResolver?.isRunning() ?? false,
+      lastCycle: this.prResolver?.getLastCycleSummary() ?? null,
+      state: stateSnap,
+      prMachines: stateSnap?.pr_machines ?? {},
+      recentEvents: getRecentPrResolverEvents(200),
+    };
+  }
+
+  /** Broadcast a fresh pr-resolver:snapshot to every connected dashboard. */
+  private broadcastPrResolverSnapshot(): void {
+    this.broadcastControl(
+      "pr-resolver:snapshot",
+      this.buildPrResolverSnapshotPayload()
+    );
   }
 
   /**
@@ -258,6 +442,18 @@ export class SessionSupervisor {
       type: "sessions:snapshot",
       payload: { sessions: this.state.listSessions() },
     }));
+
+    // Push a PR Resolver snapshot too — recent events + persisted state +
+    // current cycle status + the form fields the dashboard renders. Lets
+    // the PrResolverPage render immediately without waiting for the next
+    // emitted event.
+    this.sendRaw(
+      ws,
+      JSON.stringify({
+        type: "pr-resolver:snapshot",
+        payload: this.buildPrResolverSnapshotPayload(),
+      })
+    );
 
     if (dc.sessionId) {
       const buf = this.replayBuffers.get(dc.sessionId);
@@ -479,6 +675,175 @@ export class SessionSupervisor {
             error: err instanceof Error ? err.message : String(err),
           });
         }
+        return;
+      }
+      // ─── PR Resolver controls ────────────────────────────────────────
+      case "pr-resolver:poll-now": {
+        if (!this.prResolver) {
+          this.send(ws, "pr-resolver:poll-now:error", {
+            error: "PR Resolver is not enabled",
+          });
+          return;
+        }
+        if (this.prResolver.isRunning()) {
+          this.send(ws, "pr-resolver:poll-now:error", {
+            error: "Cycle already in progress",
+          });
+          return;
+        }
+        // Fire-and-forget so the WS reply is immediate; the dashboard sees
+        // cycle_start / cycle_end events via the broadcast.
+        void this.prResolver.runOnce().catch((err) => {
+          // eslint-disable-next-line no-console
+          console.error(
+            `[supervisor] pr-resolver poll-now failed:`,
+            err instanceof Error ? err.message : err
+          );
+        });
+        this.send(ws, "pr-resolver:poll-now:ack", { ok: true });
+        return;
+      }
+      case "pr-resolver:state:request": {
+        if (!this.prResolver) {
+          this.send(ws, "pr-resolver:state:response", {
+            enabled: false,
+          });
+          return;
+        }
+        this.send(ws, "pr-resolver:state:response", {
+          enabled: true,
+          running: this.prResolver.isRunning(),
+          lastCycle: this.prResolver.getLastCycleSummary(),
+          state: this.prResolver.getStateSnapshot(),
+        });
+        return;
+      }
+      case "pr-resolver:configure": {
+        const overlay = (payload.overlay ?? {}) as PrResolverRuntimeOverlay;
+        const result = await this.reconfigurePrResolver(overlay);
+        if (result.ok) {
+          this.send(ws, "pr-resolver:configure:ack", { ok: true });
+        } else {
+          this.send(ws, "pr-resolver:configure:error", {
+            errors: result.errors ?? ["unknown error"],
+          });
+        }
+        return;
+      }
+      case "pr-resolver:toggle": {
+        const enabled = !!payload.enabled;
+        const overlay: PrResolverRuntimeOverlay = {
+          ...this.prResolverOverlay,
+          enabled,
+        };
+        const result = await this.reconfigurePrResolver(overlay);
+        if (result.ok) {
+          this.send(ws, "pr-resolver:configure:ack", { ok: true });
+        } else {
+          this.send(ws, "pr-resolver:configure:error", {
+            errors: result.errors ?? ["unknown error"],
+          });
+        }
+        return;
+      }
+      case "pr-resolver:approve": {
+        if (!this.prResolver) {
+          this.send(ws, "pr-resolver:approve:error", {
+            error: "PR Resolver is not enabled",
+          });
+          return;
+        }
+        const prNumber = Number(payload.prNumber);
+        if (!Number.isFinite(prNumber)) {
+          this.send(ws, "pr-resolver:approve:error", {
+            error: "Invalid prNumber",
+          });
+          return;
+        }
+        const note = typeof payload.note === "string" ? payload.note : undefined;
+        const result = await this.prResolver.approvePr(prNumber, note);
+        if (result.ok) {
+          this.send(ws, "pr-resolver:approve:ack", { prNumber });
+          this.broadcastPrResolverSnapshot();
+        } else {
+          this.send(ws, "pr-resolver:approve:error", {
+            prNumber,
+            error: result.error ?? "unknown",
+          });
+        }
+        return;
+      }
+      case "pr-resolver:reject": {
+        if (!this.prResolver) {
+          this.send(ws, "pr-resolver:reject:error", {
+            error: "PR Resolver is not enabled",
+          });
+          return;
+        }
+        const prNumber = Number(payload.prNumber);
+        if (!Number.isFinite(prNumber)) {
+          this.send(ws, "pr-resolver:reject:error", {
+            error: "Invalid prNumber",
+          });
+          return;
+        }
+        const reason =
+          typeof payload.reason === "string" ? payload.reason : undefined;
+        const result = await this.prResolver.rejectPr(prNumber, reason);
+        if (result.ok) {
+          this.send(ws, "pr-resolver:reject:ack", { prNumber });
+          this.broadcastPrResolverSnapshot();
+        } else {
+          this.send(ws, "pr-resolver:reject:error", {
+            prNumber,
+            error: result.error ?? "unknown",
+          });
+        }
+        return;
+      }
+      case "pr-resolver:retry": {
+        if (!this.prResolver) {
+          this.send(ws, "pr-resolver:retry:error", {
+            error: "PR Resolver is not enabled",
+          });
+          return;
+        }
+        const prNumber = Number(payload.prNumber);
+        if (!Number.isFinite(prNumber)) {
+          this.send(ws, "pr-resolver:retry:error", {
+            error: "Invalid prNumber",
+          });
+          return;
+        }
+        const result = await this.prResolver.retryPr(prNumber);
+        if (result.ok) {
+          this.send(ws, "pr-resolver:retry:ack", { prNumber });
+          this.broadcastPrResolverSnapshot();
+        } else {
+          this.send(ws, "pr-resolver:retry:error", {
+            prNumber,
+            error: result.error ?? "unknown",
+          });
+        }
+        return;
+      }
+      case "pr-resolver:diff:request": {
+        if (!this.prResolver) {
+          this.send(ws, "pr-resolver:diff:response", {
+            prNumber: Number(payload.prNumber),
+            error: "PR Resolver is not enabled",
+          });
+          return;
+        }
+        const prNumber = Number(payload.prNumber);
+        const machine = this.prResolver
+          .getStateSnapshot()
+          .pr_machines[String(prNumber)];
+        this.send(ws, "pr-resolver:diff:response", {
+          prNumber,
+          diff: machine?.diffPreview ?? "",
+          status: machine?.status ?? null,
+        });
         return;
       }
       default:
@@ -755,6 +1120,22 @@ export class SessionSupervisor {
     console.log(`[supervisor] shutting down (${reason}) — ${this.active.size} active session(s)`);
     if (this.reapTimer) clearInterval(this.reapTimer);
 
+    // Stop the PR Resolver before everything else — gives an in-flight cycle
+    // a chance to finish gracefully (the service polls cancelled between
+    // gates).
+    if (this.prResolver) {
+      this.prResolver.cancel();
+      this.prResolverUnsub?.();
+      try {
+        await Promise.race([
+          this.prResolverTask,
+          sleep(TERM_GRACE_MS),
+        ]);
+      } catch {
+        /* ignore — best-effort drain */
+      }
+    }
+
     for (const ac of this.active.values()) {
       try { ac.child.kill("SIGTERM"); } catch { /* ignore */ }
     }
@@ -797,5 +1178,25 @@ export function sessionRuntimeSummary(s: SessionRecord) {
     sessionId: s.sessionId,
     pid: s.pid,
     status: s.status,
+  };
+}
+
+/**
+ * Public projection of PrResolverConfig — only the fields the dashboard is
+ * allowed to render in the settings form. Drops cargo commands and access
+ * lists so they can't be changed from a browser tab.
+ */
+function toEffectiveView(cfg: PrResolverConfig) {
+  return {
+    enabled: cfg.enabled,
+    autoApprove: cfg.autoApprove,
+    githubRepo: cfg.githubRepo,
+    trigger: cfg.trigger,
+    pollInterval: cfg.pollInterval,
+    maxConcurrent: cfg.maxConcurrent,
+    maxBuildLoops: cfg.maxBuildLoops,
+    maxCommentsPerCycle: cfg.maxCommentsPerCycle,
+    grpcTestEnabled: cfg.grpcTestEnabled,
+    grpcPort: cfg.grpcPort,
   };
 }

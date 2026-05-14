@@ -118,3 +118,45 @@ parityAutopilot:
       - "crates/router/"
     forbiddenPrismDirs:
       - "crates/types-traits/"
+
+# PR Resolver — polls GitHub for review comments tagged with `trigger` and
+# drives Claude to fix them via cargo build/clippy fix-loop. The supervisor
+# only boots the polling loop when `enabled: true` AND `githubRepo` is set.
+# Most users override `enabled` and `githubRepo` via .env so the values
+# aren't committed.
+prResolver:
+  enabled: false
+  autoApprove: false # when true, the resolver pushes immediately after build/clippy pass. When false, the dashboard waits for the user to approve from the PR detail page.
+  githubRepo: "" # e.g. "juspay/hyperswitch-prism" — set via TENXGRACE_PR_RESOLVER_GITHUB_REPO
+  trigger: "@HS-prism-bot"
+  pollInterval: 300 # seconds between polls
+  maxConcurrent: 1 # MVP: one PR at a time. Raise once clone-pool ships.
+  maxBuildLoops: 3 # max cargo build/clippy retries per sub-task
+  maxCommentsPerCycle: 20
+  # Path defaults are resolved at load time when left blank:
+  #   stateFilePath → ~/.tenxgrace/pr-resolver-state.json
+  #   worktreePath  → ~/.tenxgrace/pr-resolver/worktree
+  #   promptsDir    → <projectRoot>/grace/pr-resolver/prompts
+  stateFilePath: ""
+  worktreePath: ""
+  promptsDir: ""
+  cargoBuild:
+    command: cargo
+    args: ["build", "--package", "connector-integration"]
+  cargoClippy:
+    command: cargo
+    args: ["clippy", "--package", "connector-integration", "--", "-D", "warnings"]
+  allowedAssociations: ["MEMBER", "OWNER", "COLLABORATOR"]
+  allowedUsers: []
+  blockedUsers: []
+  # Phase B: gRPC verification step. Runs after build/clippy pass — tries to
+  # extract `grpcurl` commands from the PR's "## Testing" section, falls back
+  # to generating them via Claude (using grpc-test-gen.md) when missing.
+  grpcTestEnabled: false
+  grpcPort: 8000
+  grpcTestTimeoutMs: 30000
+  maxGrpcCommands: 5
+  # Cargo build/clippy hard timeout. Cold-cache builds on hyperswitch-prism
+  # can take 15-25 minutes; the resolver used to default to 15 minutes which
+  # produced misleading "build failed" entries that were actually timeouts.
+  cargoTimeoutMs: 1800000  # 30 minutes

@@ -74,6 +74,13 @@ export interface ClaudeCodeRunOptions {
    * relevant claude invocation. Does NOT affect the spawn args.
    */
   sessionLabel?: string;
+  /**
+   * If set, invoked once per line of stdout from `claude --verbose`. Used
+   * by the PR Resolver to stream live progress through to the dashboard.
+   * The line is ANSI-stripped before the callback fires; the underlying
+   * stdout capture for the final result is unchanged.
+   */
+  onStdoutLine?: (line: string) => void;
 }
 
 function dbg(...args: unknown[]) {
@@ -286,10 +293,32 @@ export async function runClaudeCode<T = unknown>(
     });
 
     // Capture stdout into a buffer AND mirror it to process.stdout so the
-    // user still sees claude's progress output in the engine logs.
+    // user still sees claude's progress output in the engine logs. When the
+    // caller passes `onStdoutLine`, also line-buffer the stream and fire
+    // the callback per line so the PR Resolver can pipe live progress to
+    // the dashboard.
+    let stdoutLineBuffer = "";
+    // eslint-disable-next-line no-control-regex
+    const ansiRe = /\x1b\[[0-9;]*m/g;
     child.stdout!.on("data", (chunk: Buffer) => {
       stdoutChunks.push(chunk);
       process.stdout.write(chunk);
+      if (opts.onStdoutLine) {
+        stdoutLineBuffer += chunk.toString("utf8");
+        let idx: number;
+        while ((idx = stdoutLineBuffer.indexOf("\n")) >= 0) {
+          const raw = stdoutLineBuffer.slice(0, idx);
+          stdoutLineBuffer = stdoutLineBuffer.slice(idx + 1);
+          const cleaned = raw.replace(ansiRe, "").replace(/\r$/, "");
+          if (cleaned.trim().length > 0) {
+            try {
+              opts.onStdoutLine(cleaned);
+            } catch {
+              /* swallow — user callback shouldn't kill the run */
+            }
+          }
+        }
+      }
     });
 
     // Capture stderr for error diagnostics AND mirror to process.stderr.

@@ -20,3 +20,6 @@ export type { ClaudeCodeRunOptions, ClaudeCodeHealthResult } from "./tools/claud
 // Unified runner factory exports (preferred for new code)
 export { runAI, checkAIHealth, getConfiguredRunner, withRunner } from "./tools/runner-factory.js";
 export type { AIRunOptions, AIHealthResult, RunnerInterface } from "./tools/runner-factory.js";
+
+// PR Resolver exports
+export * from "./pr-resolver/index.js";

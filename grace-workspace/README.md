@@ -179,9 +179,62 @@ Then `pnpm build` and your new step is wired into the pipeline.
     │       ├── checkpoints/
     │       │   ├── index.ts            # ALL_CHECKPOINTS (run order)
     │       │   └── *.ts                # one file per checkpoint
+    │       ├── pr-resolver/            # PR Resolver — see below
     │       ├── engine.ts               # runs checkpoints, handles retries
     │       └── llm.ts                  # LLM client
     ├── cli/                            # the `10xgrace` command (used by `pnpm dev`)
     └── dashboard/                      # React + Vite live view (the UI you use)
 ```
+
+The PR resolver also keeps its prompts at repo root, outside this workspace:
+
+```
+hyperswitch-prism/
+└── grace/pr-resolver/prompts/          # *.md prompts loaded at runtime
+```
+
+---
+
+## PR Resolver (optional tab)
+
+The **PR Resolver** tab is an opt-in feature that polls a GitHub repo for review-thread comments tagged with a trigger (default `@HS-prism-bot`), groups them by connector, and drives Claude through a cargo build/clippy fix loop to resolve each one. Output lands as a per-thread reply on GitHub plus a Kanban view in the dashboard.
+
+### Enabling
+
+The resolver is off by default. To turn it on:
+
+1. Make sure the `gh` CLI is logged in on this host (`gh auth login`). The resolver shells out to it for all GitHub access — no token in code.
+2. In `.env` (or your shell):
+   ```bash
+   BYNE_PR_RESOLVER_ENABLED=true
+   BYNE_PR_RESOLVER_GITHUB_REPO=juspay/hyperswitch-prism   # or your fork
+   BYNE_PR_RESOLVER_TRIGGER=@HS-prism-bot                  # optional
+   ```
+3. Restart `pnpm dev`. The supervisor boots the resolver in-process, the dashboard sidebar gains a **PR Resolver** entry, and the page connects to live state.
+
+### What lives where
+
+- **`grace/pr-resolver/prompts/*.md`** — the resolution and fix-loop prompts. Edit these without rebuilding; the loader reads from disk per call. Frontmatter declares the variables.
+- **`packages/core/src/pr-resolver/`** — TS port of the service. `service.ts` is the orchestrator with the six freshness gates; `resolver.ts` drives one Claude session per connector sub-task; `cargo-loop.ts` runs `cargo build`/`clippy` and resumes the same Claude session with errors on failure; `worktree.ts` wraps the working clone at `~/.byne/pr-resolver/worktree/`.
+- **`~/.byne/pr-resolver-state.json`** — persisted thread state (fixed / failed / build_blocked) so PRs don't get retried after they're already resolved.
+
+### CLI
+
+For ad-hoc runs without the supervisor:
+
+```bash
+pnpm build
+node packages/cli/dist/index.js pr-resolver --once    # one cycle, exit
+node packages/cli/dist/index.js pr-resolver           # watch loop
+```
+
+### Tweaking the prompts
+
+The prompts are pure Markdown with YAML frontmatter and Mustache placeholders. The loader's contract is documented in `grace/pr-resolver/prompts/README.md`. Common edits:
+
+- Tighten the per-comment scope rule (e.g. "only this single file, not the whole connector").
+- Add a `## Examples` section with known-good rewrites for your codebase.
+- Swap the answer-instruction tone at the end.
+
+No restart needed — the next cycle re-reads the file.
 

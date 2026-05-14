@@ -70,6 +70,16 @@ program
   .description("Ping the configured hosted LLM and print its raw response")
   .action(() => testLlmCommand());
 
+program
+  .command("pr-resolver")
+  .description("Run the PR Resolver service (polls GitHub for tagged review comments and fixes them)")
+  .option("--once", "Run a single poll cycle and exit (default: watch)")
+  .option("--config <path>", "Path to config.yml")
+  .action(async (opts) => {
+    const { prResolverCommand } = await import("./commands/pr-resolver.js");
+    await prResolverCommand(opts);
+  });
+
 const sessionsCmd = program
   .command("sessions")
   .description("Manage per-phase Claude CLI sessions (Phase 12 persistence)");
