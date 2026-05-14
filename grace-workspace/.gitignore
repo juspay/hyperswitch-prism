@@ -41,3 +41,8 @@ coverage/
 
 # Local opencode scratch dir created by the runner
 .10xgrace-opencode-tmp/
+
+# Parity Autopilot derived artifacts (regenerated every heartbeat)
+parity-dashboard.md
+connectors/
+.cache/

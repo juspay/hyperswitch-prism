@@ -135,11 +135,22 @@ function parseConnectorAndFlow(title: string): { connector: string; flow: string
   //   "parity(stripe/capture): metadata.user_id mismatch"
   //   "stripe: capture flow returns wrong currency"
   const titleLower = title.toLowerCase();
+
   const parens = titleLower.match(/parity\(([^/]+)\/([^)]+)\)/);
   if (parens) return { connector: parens[1].trim(), flow: parens[2].trim() };
 
   const bracket = titleLower.match(/\[parity\]\s*([^/\s]+)\s*\/\s*([^/\s]+)/);
   if (bracket) return { connector: bracket[1].trim(), flow: bracket[2].trim() };
+
+  // Validation-service shape: "[Shadow-Validation-Diff][integ] <connector> / <flow> (router|request)"
+  // Strip leading [...] groups, then read "conn / flow" optionally followed by "(suffix)".
+  const stripped = titleLower.replace(/^\s*(?:\[[^\]]+\]\s*)+/, "");
+  const shadow = stripped.match(/^([a-z0-9_]+)\s*\/\s*([a-z0-9_]+)(?:\s*\(([a-z0-9_]+)\))?/);
+  if (shadow) {
+    const suffix = shadow[3];
+    const flow = suffix ? `${shadow[2]}-${suffix}` : shadow[2];
+    return { connector: shadow[1], flow };
+  }
 
   const colon = titleLower.match(/^([a-z0-9_-]+)\s*:\s*(authorize|capture|refund|void|psync|rsync|webhook|setup_mandate|repeat_payment|dispute)/);
   if (colon) return { connector: colon[1], flow: colon[2] };

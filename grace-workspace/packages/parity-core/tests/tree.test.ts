@@ -20,6 +20,22 @@ describe("parseConnectorAndFlow", () => {
       flow: "capture",
     });
   });
+  it("parses validation-service shape (router suffix)", () => {
+    expect(
+      parseConnectorAndFlow("[Shadow-Validation-Diff][integ] fiserv / authorize (router)"),
+    ).toEqual({ connector: "fiserv", flow: "authorize-router" });
+  });
+  it("parses validation-service shape (request suffix)", () => {
+    expect(
+      parseConnectorAndFlow("[Shadow-Validation-Diff][integ] adyen / psync (request)"),
+    ).toEqual({ connector: "adyen", flow: "psync-request" });
+  });
+  it("parses validation-service shape without suffix", () => {
+    expect(parseConnectorAndFlow("[Shadow-Validation-Diff][integ] stripe / capture")).toEqual({
+      connector: "stripe",
+      flow: "capture",
+    });
+  });
   it("falls back to unknown/unknown on no match", () => {
     expect(parseConnectorAndFlow("random title")).toEqual({ connector: "unknown", flow: "unknown" });
   });
