@@ -1,22 +1,28 @@
 {
-  "name": "@byne/cli",
+  "name": "@byne/parity-core",
   "version": "0.1.0",
   "type": "module",
-  "bin": {
-    "byne": "dist/index.js"
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@byne/core": "workspace:*",
-    "@byne/parity-core": "workspace:*",
-    "commander": "^12.1.0"
+    "commander": "^12.1.0",
+    "execa": "^9.4.0",
+    "yaml": "^2.5.1"
   },
   "devDependencies": {
     "@types/node": "^20.16.0",
-    "typescript": "^5.6.2"
+    "typescript": "^5.6.2",
+    "vitest": "^2.1.0"
   }
 }

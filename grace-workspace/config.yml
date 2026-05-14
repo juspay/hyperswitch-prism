@@ -70,3 +70,51 @@ checkpoints:
   pr_review:
     requireHumanApproval: false
     humanApprovalTimeoutMs: 300000
+
+# Parity Autopilot — see grace-workspace/docs/parity-autopilot-plan.md
+# Paths can be overridden per machine via env vars (PARITY_PRISM_PATH,
+# PARITY_ORACLE_PATH, PARITY_BRIDGE_PATH, PARITY_CREDS_PATH). Keep secrets
+# (creds.json) out of this committed file by leaving credsPath empty here
+# and exporting PARITY_CREDS_PATH locally.
+parityAutopilot:
+  prismPath: /Users/tushar.shukla/Downloads/Work/euler-ucs/hyperswitch-prism
+  oracleReadOnlyPath: ""   # set PARITY_ORACLE_PATH to a hyperswitch clone (read-only)
+  bridgeWritePath: ""      # set PARITY_BRIDGE_PATH (often same as oracle path) to enable hs-bridge locus
+  credsPath: ""            # set PARITY_CREDS_PATH to abs path of creds.json
+
+  github:
+    owner: juspay
+    repo: hyperswitch-cloud
+    rootIssue: 15576
+    actor: ""              # your GitHub login; sweep filters "PRs you authored" by this
+
+  grpc:
+    port: 8000
+    metricsPort: 8080
+    bootTimeoutMs: 30000
+    callTimeoutMs: 60000
+
+  cache:
+    dir: .cache
+    treeTtlMs: 21600000    # 6h
+
+  llm:
+    runner: "claude-code"
+    understandModel: ""
+    planModel: ""
+    executeModel: ""
+
+  heartbeat:
+    pickOldestFirst: true
+    maxInflightClaimed: 1
+    sweepStalePrDays: 7
+    rcaStaleHours: 24
+
+  rules:
+    forbiddenOracleDirs:
+      - "crates/hyperswitch_connectors/"
+      - "crates/hyperswitch_domain_models/"
+      - "crates/api_models/"
+      - "crates/router/"
+    forbiddenPrismDirs:
+      - "crates/types-traits/"

@@ -5,6 +5,7 @@ import { statusCommand } from "./commands/status.js";
 import { replayCommand } from "./commands/replay.js";
 import { historyCommand } from "./commands/history.js";
 import { testLlmCommand } from "./commands/test-llm.js";
+import { registerParityCommands } from "@byne/parity-core";
 
 const program = new Command();
 program
@@ -88,6 +89,8 @@ sessionsCmd
     const { sessionsPruneCommand } = await import("./commands/sessions-prune.js");
     await sessionsPruneCommand(opts);
   });
+
+registerParityCommands(program);
 
 program.parseAsync(process.argv).catch((err) => {
   // eslint-disable-next-line no-console
