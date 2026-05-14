@@ -1,4 +1,4 @@
-import { runAI } from "@byne/core";
+import { runAI } from "@10xgrace/core";
 import type { ParityConfig } from "../config.js";
 import { UNDERSTAND_SYSTEM, buildUnderstandUser } from "../prompts/understand.js";
 import type { Leaf, Locus, UnderstandingResult } from "../types.js";

@@ -449,7 +449,7 @@ function Header({
               lineHeight: 1.2,
             }}
           >
-            Byne
+            10XGRACE
           </div>
           <div style={{ fontSize: 10, color: T.textMuted, marginTop: 2 }}>
             spec-driven dev · 12 checkpoints

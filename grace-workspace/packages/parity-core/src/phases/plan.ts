@@ -1,4 +1,4 @@
-import { runAI } from "@byne/core";
+import { runAI } from "@10xgrace/core";
 import type { ParityConfig } from "../config.js";
 import { PLAN_SYSTEM, buildPlanUser } from "../prompts/plan.js";
 import type { Leaf, PlanResult } from "../types.js";

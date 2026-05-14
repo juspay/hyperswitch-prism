@@ -8,7 +8,7 @@ import {
   StateManager,
   loadConfig,
   setConfig,
-} from "@byne/core";
+} from "@10xgrace/core";
 
 interface SupervisorOpts {
   config?: string;
@@ -71,7 +71,7 @@ function assertProjectRoot(projectRoot: string): void {
     // eslint-disable-next-line no-console
     console.error(
       "\x1b[31m[supervisor] projectRoot is not configured.\x1b[0m\n" +
-        "  Set BYNE_PROJECT_ROOT to the absolute path of the target repo, " +
+        "  Set TENXGRACE_PROJECT_ROOT to the absolute path of the target repo, " +
         "or set `projectRoot:` in config.yml."
     );
     process.exit(1);
@@ -80,7 +80,7 @@ function assertProjectRoot(projectRoot: string): void {
     // eslint-disable-next-line no-console
     console.error(
       `\x1b[31m[supervisor] projectRoot does not exist:\x1b[0m ${projectRoot}\n` +
-        "  Check BYNE_PROJECT_ROOT or `projectRoot:` in config.yml."
+        "  Check TENXGRACE_PROJECT_ROOT or `projectRoot:` in config.yml."
     );
     process.exit(1);
   }

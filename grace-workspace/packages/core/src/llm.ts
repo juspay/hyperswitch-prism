@@ -304,7 +304,7 @@ export async function callLlm(opts: LlmCallOptions): Promise<string> {
   }
   if (!cfg.apiKey) {
     throw new Error(
-      "llm.apiKey is not set. Edit config.yml (or export BYNE_LLM_API_KEY)."
+      "llm.apiKey is not set. Edit config.yml (or export TENXGRACE_LLM_API_KEY)."
     );
   }
   if (opts.tools && opts.tools.length > 0 && !opts.toolHandlers) {

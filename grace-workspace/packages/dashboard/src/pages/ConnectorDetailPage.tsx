@@ -4,8 +4,19 @@ import { useSessions } from "../hooks/useSessions";
 import { SidebarLayout } from "../components/NavigationSidebar";
 import { UnifiedCreateSessionModal, type SessionWithTaskInput } from "../components/UnifiedCreateSessionModal";
 import { T } from "../theme";
-import type { Connector, ConnectorPaymentMethod } from "../types/connector";
+import type {
+  Connector,
+  ConnectorPaymentMethod,
+  ConnectorFlow,
+  ConnectorStatus,
+} from "../types/connector";
 import connectorsData from "../data/connectors.json";
+
+type ViewAxis = "methods" | "flows";
+
+type Row =
+  | { kind: "method"; data: ConnectorPaymentMethod }
+  | { kind: "flow"; data: ConnectorFlow };
 
 const CONTROL_WS_PORT =
   (import.meta.env.VITE_WS_PORT as string | undefined) ?? "3142";
@@ -18,8 +29,10 @@ export function ConnectorDetailPage() {
   const navigate = useNavigate();
   const { sessions, controlStatus, createSession, startSession } = useSessions(CONTROL_WS_URL);
   const [activeTab, setActiveTab] = useState<TabType>("not-implemented");
+  const [viewAxis, setViewAxis] = useState<ViewAxis>("methods");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMethod, setSelectedMethod] = useState<ConnectorPaymentMethod | null>(null);
+  const [selectedFlow, setSelectedFlow] = useState<ConnectorFlow | null>(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [pendingSessionName, setPendingSessionName] = useState<string | null>(null);
   
@@ -47,50 +60,58 @@ export function ConnectorDetailPage() {
     );
   }, [connectors, connectorName]);
 
-  const filteredMethods = useMemo(() => {
+  const tabStatus: Record<TabType, ConnectorStatus> = {
+    "supported": "supported",
+    "not-implemented": "not_implemented",
+    "not-supported": "not_supported",
+  };
+
+  const filteredRows = useMemo<Row[]>(() => {
     if (!connector) return [];
+    const wanted = tabStatus[activeTab];
+    const query = searchQuery.trim().toLowerCase();
 
-    let methods = connector.paymentMethods;
-
-    // Filter by tab
-    switch (activeTab) {
-      case "supported":
-        methods = methods.filter((m) => m.status === "supported");
-        break;
-      case "not-implemented":
-        methods = methods.filter((m) => m.status === "not_implemented");
-        break;
-      case "not-supported":
-        methods = methods.filter((m) => m.status === "not_supported");
-        break;
+    if (viewAxis === "methods") {
+      let methods = connector.paymentMethods.filter((m) => m.status === wanted);
+      if (query) {
+        methods = methods.filter(
+          (m) =>
+            m.method.toLowerCase().includes(query) ||
+            m.category.toLowerCase().includes(query)
+        );
+      }
+      return methods
+        .sort((a, b) => a.category.localeCompare(b.category))
+        .map<Row>((m) => ({ kind: "method", data: m }));
     }
 
-    // Filter by search
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      methods = methods.filter(
-        (m) =>
-          m.method.toLowerCase().includes(query) ||
-          m.category.toLowerCase().includes(query)
-      );
+    let flows = connector.flows.filter((f) => f.status === wanted);
+    if (query) {
+      flows = flows.filter((f) => f.name.toLowerCase().includes(query));
     }
-
-    return methods.sort((a, b) => a.category.localeCompare(b.category));
-  }, [connector, activeTab, searchQuery]);
+    return flows
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map<Row>((f) => ({ kind: "flow", data: f }));
+  }, [connector, activeTab, searchQuery, viewAxis]);
 
   const stats = useMemo(() => {
     if (!connector) return { supported: 0, notImplemented: 0, notSupported: 0, total: 0 };
+    const source = viewAxis === "methods" ? connector.stats : connector.flowStats;
     return {
-      supported: connector.paymentMethods.filter((m) => m.status === "supported").length,
-      notImplemented: connector.paymentMethods.filter((m) => m.status === "not_implemented").length,
-      notSupported: connector.paymentMethods.filter((m) => m.status === "not_supported").length,
-      total: connector.paymentMethods.length,
+      supported: source.supported,
+      notImplemented: source.notImplemented,
+      notSupported: source.notSupported,
+      total: source.total,
     };
-  }, [connector]);
+  }, [connector, viewAxis]);
 
-  const handleRowClick = (method: ConnectorPaymentMethod) => {
-    if (activeTab === "not-implemented") {
-      setSelectedMethod(method);
+  const handleRowClick = (row: Row) => {
+    if (activeTab !== "not-implemented") return;
+    if (row.kind === "method") {
+      setSelectedMethod(row.data);
+      setShowTaskModal(true);
+    } else {
+      setSelectedFlow(row.data);
       setShowTaskModal(true);
     }
   };
@@ -194,6 +215,31 @@ export function ConnectorDetailPage() {
           </div>
         </header>
 
+        {/* Axis pivot — Payment Methods vs Flows */}
+        <div
+          style={{
+            padding: "16px 32px 0",
+            background: T.bgSidebar,
+            display: "flex",
+            gap: 8,
+            alignItems: "center",
+          }}
+        >
+          <span style={{ fontSize: 12, color: T.textMuted, fontWeight: 600 }}>
+            VIEW:
+          </span>
+          <AxisPill
+            label="Payment Methods"
+            active={viewAxis === "methods"}
+            onClick={() => setViewAxis("methods")}
+          />
+          <AxisPill
+            label="Flows / APIs"
+            active={viewAxis === "flows"}
+            onClick={() => setViewAxis("flows")}
+          />
+        </div>
+
         {/* Stats Overview */}
         <div
           style={{
@@ -283,16 +329,23 @@ export function ConnectorDetailPage() {
             }}
           >
             <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>
-              {activeTab === "supported" && "Supported Payment Methods"}
-              {activeTab === "not-implemented" && "Not Implemented Payment Methods"}
-              {activeTab === "not-supported" && "Not Supported Payment Methods"}
+              {(() => {
+                const noun = viewAxis === "methods" ? "Payment Methods" : "Flows";
+                if (activeTab === "supported") return `Supported ${noun}`;
+                if (activeTab === "not-implemented") return `Not Implemented ${noun}`;
+                return `Not Supported ${noun}`;
+              })()}
             </h2>
             <div style={{ position: "relative" }}>
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search payment methods..."
+                placeholder={
+                  viewAxis === "methods"
+                    ? "Search payment methods..."
+                    : "Search flows..."
+                }
                 style={{
                   padding: "8px 12px 8px 36px",
                   borderRadius: 6,
@@ -348,7 +401,7 @@ export function ConnectorDetailPage() {
                       width: "40%",
                     }}
                   >
-                    Payment Method
+                    {viewAxis === "methods" ? "Payment Method" : "Flow"}
                   </th>
                   <th
                     style={{
@@ -360,7 +413,7 @@ export function ConnectorDetailPage() {
                       width: "30%",
                     }}
                   >
-                    Category
+                    {viewAxis === "methods" ? "Category" : "Service"}
                   </th>
                   <th
                     style={{
@@ -377,7 +430,7 @@ export function ConnectorDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredMethods.length === 0 ? (
+                {filteredRows.length === 0 ? (
                   <tr>
                     <td
                       colSpan={3}
@@ -387,18 +440,22 @@ export function ConnectorDetailPage() {
                         color: T.textMuted,
                       }}
                     >
-                      No payment methods found in this category.
+                      No {viewAxis === "methods" ? "payment methods" : "flows"} found in this category.
                       {searchQuery && " Try adjusting your search."}
                     </td>
                   </tr>
                 ) : (
-                  filteredMethods.map((method, idx) => (
-                    <MethodRow
-                      key={`${method.category}-${method.method}`}
-                      method={method}
+                  filteredRows.map((row, idx) => (
+                    <DataRow
+                      key={
+                        row.kind === "method"
+                          ? `m-${row.data.category}-${row.data.method}`
+                          : `f-${row.data.name}`
+                      }
+                      row={row}
                       isEven={idx % 2 === 1}
                       isClickable={activeTab === "not-implemented"}
-                      onClick={() => handleRowClick(method)}
+                      onClick={() => handleRowClick(row)}
                     />
                   ))
                 )}
@@ -413,14 +470,15 @@ export function ConnectorDetailPage() {
               color: T.textSubtle,
             }}
           >
-            Showing {filteredMethods.length}{" "}
+            Showing {filteredRows.length}{" "}
             {activeTab === "supported" && "supported"}
             {activeTab === "not-implemented" && "not implemented"}
-            {activeTab === "not-supported" && "not supported"} payment methods
+            {activeTab === "not-supported" && "not supported"}{" "}
+            {viewAxis === "methods" ? "payment methods" : "flows"}
           </div>
         </section>
 
-        {/* Task Modal */}
+        {/* Task Modal — payment method gap */}
         {showTaskModal && selectedMethod && connector && (
           <UnifiedCreateSessionModal
             defaultSourcePath={defaultProjectRoot}
@@ -441,11 +499,41 @@ export function ConnectorDetailPage() {
               createSession(input);
               setShowTaskModal(false);
               setSelectedMethod(null);
-              // useEffect will detect the new session and auto-start it
             }}
             onClose={() => {
               setShowTaskModal(false);
               setSelectedMethod(null);
+            }}
+            wsConnected={controlStatus === "open"}
+          />
+        )}
+
+        {/* Task Modal — flow gap */}
+        {showTaskModal && selectedFlow && connector && (
+          <UnifiedCreateSessionModal
+            defaultSourcePath={defaultProjectRoot}
+            defaultTaskValues={{
+              title: `Implement ${selectedFlow.name} flow for ${connector.name}`,
+              flow: selectedFlow.name,
+              targetConnectors: [connector.name],
+              description:
+                `Implement the ${selectedFlow.name} flow for ${connector.name} connector.\n\n` +
+                `Documentation: ${connector.filePath}`,
+            }}
+            onCreate={(input: SessionWithTaskInput) => {
+              createSession(input);
+              setShowTaskModal(false);
+              setSelectedFlow(null);
+            }}
+            onCreateAndStart={async (input: SessionWithTaskInput) => {
+              setPendingSessionName(input.name);
+              createSession(input);
+              setShowTaskModal(false);
+              setSelectedFlow(null);
+            }}
+            onClose={() => {
+              setShowTaskModal(false);
+              setSelectedFlow(null);
             }}
             wsConnected={controlStatus === "open"}
           />
@@ -548,25 +636,44 @@ function TabButton({
   );
 }
 
-function MethodRow({
-  method,
+const STATUS_CONFIG: Record<
+  ConnectorStatus,
+  { label: string; color: string; bgColor: string }
+> = {
+  supported: { label: "✓ Supported", color: T.success, bgColor: T.successSoft },
+  not_implemented: { label: "⚠ Not Implemented", color: T.warn, bgColor: T.warnSoft },
+  not_supported: { label: "✕ Not Supported", color: T.textSubtle, bgColor: T.border },
+  error: { label: "? Error", color: T.error, bgColor: T.errorSoft },
+};
+
+function flowService(flowName: string): string {
+  // "Pay.Capture" → "Pay"; "MerchantAuthentication.Authenticate" → "MerchantAuthentication".
+  // Plain names (e.g. "PaymentService.Authorize") split on the first ".".
+  const dot = flowName.indexOf(".");
+  return dot > 0 ? flowName.slice(0, dot) : "—";
+}
+
+function flowLabel(flowName: string): string {
+  const dot = flowName.indexOf(".");
+  return dot > 0 ? flowName.slice(dot + 1) : flowName;
+}
+
+function DataRow({
+  row,
   isEven,
   isClickable,
   onClick,
 }: {
-  method: ConnectorPaymentMethod;
+  row: Row;
   isEven: boolean;
   isClickable: boolean;
   onClick: () => void;
 }) {
-  const statusConfig = {
-    supported: { label: "✓ Supported", color: T.success, bgColor: T.successSoft },
-    not_implemented: { label: "⚠ Not Implemented", color: T.warn, bgColor: T.warnSoft },
-    not_supported: { label: "✕ Not Supported", color: T.textSubtle, bgColor: T.border },
-    error: { label: "? Error", color: T.error, bgColor: T.errorSoft },
-  };
-
-  const status = statusConfig[method.status];
+  const status = STATUS_CONFIG[row.kind === "method" ? row.data.status : row.data.status];
+  const primaryLabel =
+    row.kind === "method" ? row.data.method : flowLabel(row.data.name);
+  const secondaryLabel =
+    row.kind === "method" ? row.data.category : flowService(row.data.name);
 
   return (
     <tr
@@ -592,7 +699,7 @@ function MethodRow({
           fontWeight: 500,
         }}
       >
-        {method.method}
+        {primaryLabel}
         {isClickable && (
           <span
             style={{
@@ -613,7 +720,7 @@ function MethodRow({
           color: T.textMuted,
         }}
       >
-        {method.category}
+        {secondaryLabel}
       </td>
       <td
         style={{
@@ -636,6 +743,35 @@ function MethodRow({
         </span>
       </td>
     </tr>
+  );
+}
+
+function AxisPill({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: "6px 14px",
+        borderRadius: 999,
+        border: `1px solid ${active ? T.accent : T.border}`,
+        background: active ? T.accentSoft : "transparent",
+        color: active ? T.accent : T.textMuted,
+        fontSize: 12,
+        fontWeight: 600,
+        cursor: "pointer",
+        transition: "all 150ms",
+      }}
+    >
+      {label}
+    </button>
   );
 }
 

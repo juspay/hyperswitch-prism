@@ -1,4 +1,4 @@
-# Byne + Grace Workflow Adoption Plan
+# 10XGRACE + Grace Workflow Adoption Plan
 
 ## Correct Grace Pattern Analysis
 
@@ -47,7 +47,7 @@ Orchestrator Agent (1_orchestrator.md)
 
 ---
 
-## Byne Adoption of Grace Patterns
+## 10XGRACE Adoption of Grace Patterns
 
 ### Input File Format (Grace-Compliant)
 
@@ -155,7 +155,7 @@ Use the **Task tool** to spawn the subagent with a **minimal prompt**:
 Task(
   subagent_type="general",
   description="Implement {FEATURE_TYPE} for {FEATURE}",
-  prompt="Read and follow the workflow defined in byne/workflow/2_feature_agent.md
+  prompt="Read and follow the workflow defined in 10xgrace/workflow/2_feature_agent.md
 
 Variables:
   FEATURE: <feature name, exact casing from features file>
@@ -165,7 +165,7 @@ Variables:
 )
 ```
 
-**Do NOT read `byne/workflow/2_feature_agent.md` yourself.** The subagent reads the file on its own.
+**Do NOT read `10xgrace/workflow/2_feature_agent.md` yourself.** The subagent reads the file on its own.
 
 **WAIT** for the Task to return. The next feature's Task call goes in a SEPARATE, SUBSEQUENT message.
 
@@ -245,7 +245,7 @@ Spawn the **Requirements Agent**:
 Task(
   subagent_type="general",
   description="Discover requirements for {FEATURE}",
-  prompt="Read and follow the workflow defined in byne/workflow/2.1_requirements.md
+  prompt="Read and follow the workflow defined in 10xgrace/workflow/2.1_requirements.md
 
 Variables:
   FEATURE_NAME: <feature name, exact casing>
@@ -263,7 +263,7 @@ Spawn the **L2 Spec Agent**:
 Task(
   subagent_type="general",
   description="Generate L2 spec for {FEATURE}",
-  prompt="Read and follow the workflow defined in byne/workflow/2.2_l2_spec.md
+  prompt="Read and follow the workflow defined in 10xgrace/workflow/2.2_l2_spec.md
 
 Variables:
   FEATURE: <feature name>
@@ -290,7 +290,7 @@ Spawn the **L3 Spec Agent**:
 Task(
   subagent_type="general",
   description="Generate L3 spec for {FEATURE}",
-  prompt="Read and follow the workflow defined in byne/workflow/2.3_l3_spec.md
+  prompt="Read and follow the workflow defined in 10xgrace/workflow/2.3_l3_spec.md
 
 Variables:
   FEATURE: <feature name>
@@ -314,7 +314,7 @@ Spawn the **L4 Spec Agent**:
 Task(
   subagent_type="general",
   description="Generate L4 spec for {FEATURE}",
-  prompt="Read and follow the workflow defined in byne/workflow/2.4_l4_spec.md
+  prompt="Read and follow the workflow defined in 10xgrace/workflow/2.4_l4_spec.md
 
 Variables:
   FEATURE: <feature name>
@@ -338,7 +338,7 @@ Spawn the **Implementation Agent**:
 Task(
   subagent_type="general",
   description="Implement {FEATURE}",
-  prompt="Read and follow the workflow defined in byne/workflow/2.5_implementation.md
+  prompt="Read and follow the workflow defined in 10xgrace/workflow/2.5_implementation.md
 
 Variables:
   FEATURE: <feature name>
@@ -387,7 +387,7 @@ Spawn the **PR Agent**:
 Task(
   subagent_type="general",
   description="Commit and create PR for {FEATURE}",
-  prompt="Read and follow the workflow defined in byne/workflow/2.6_pr.md
+  prompt="Read and follow the workflow defined in 10xgrace/workflow/2.6_pr.md
 
 Variables:
   FEATURE: <feature name>
@@ -516,7 +516,7 @@ Create PR for {FEATURE} on branch {DEV_BRANCH}.
 ### config.yml (Minimal)
 
 ```yaml
-# Byne with Grace workflow
+# 10XGRACE with Grace workflow
 projectRoot: ../hyperswitch-control-center
 
 # Grace workflow settings
@@ -527,7 +527,7 @@ credsFile: /Users/jeeva.ramachandran/Downloads/creds.json
 # LLM settings
 llm:
   baseUrl: "https://grid.ai.juspay.net/v1/chat/completions"
-  apiKey: ""  # Set via env BYNE_LLM_API_KEY
+  apiKey: ""  # Set via env TENXGRACE_LLM_API_KEY
   model: "kimi-latest"
 
 # Subagent settings
@@ -551,14 +551,14 @@ Uses existing file at `/Users/jeeva.ramachandran/Downloads/creds.json`.
 
 ```bash
 # Run orchestrator for multiple features
-byne orchestrate \
+10xgrace orchestrate \
   --type UIComponent \
   --features features.json \
   --branch feat/apple-pay \
   --creds /Users/jeeva.ramachandran/Downloads/creds.json
 
 # Run single feature through pipeline
-byne feature \
+10xgrace feature \
   --name ApplePayButton \
   --type UIComponent \
   --branch feat/apple-pay
@@ -569,7 +569,7 @@ byne feature \
 ## File Structure (Final)
 
 ```
-byne/
+10xgrace/
 ├── config.yml                              # Minimal config
 ├── features.json                           # Simple array
 ├── workflow/                               # Grace-style workflow files
@@ -606,7 +606,7 @@ byne/
 
 ## Grace Pattern Compliance Verification
 
-| Pattern | Grace | Byne Adoption |
+| Pattern | Grace | 10XGRACE Adoption |
 |---------|-------|---------------|
 | Input format | Simple array `["A", "B"]` | ✅ `features.json: ["ApplePayButton", "..."]` |
 | Variable substitution | `{VAR}` | ✅ Uses `{FEATURE}`, `{BRANCH}`, etc. |

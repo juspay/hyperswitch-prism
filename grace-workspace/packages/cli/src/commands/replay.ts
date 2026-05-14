@@ -1,5 +1,5 @@
 import { runCommand } from "./run.js";
-import type { CheckpointId } from "@byne/core";
+import type { CheckpointId } from "@10xgrace/core";
 
 interface ReplayOpts {
   from: CheckpointId;

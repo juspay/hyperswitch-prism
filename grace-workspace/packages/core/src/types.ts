@@ -151,13 +151,21 @@ export interface TaskDefinition {
   /** Optional model override for the selected runner */
   runnerModel?: string;
 
-  // ========== GRACE/Byne WORKFLOW FIELDS ==========
+  // ========== GRACE/10XGRACE WORKFLOW FIELDS ==========
 
   /**
    * GRACE: {PAYMENT_METHOD} equivalent
    * The payment method to implement (Card, Wallet, BankTransfer, etc.)
    */
   paymentMethod?: string;
+
+  /**
+   * GRACE: Flow / API to implement (e.g. "Pay.Capture", "Pay.Refund",
+   * "Event.HandleEvent"). Used when the task targets a connector flow
+   * gap instead of a payment-method gap. Mutually exclusive with
+   * paymentMethod in practice but both fields are optional.
+   */
+  flow?: string;
 
   /**
    * GRACE: Target connectors
@@ -206,7 +214,7 @@ export interface TaskDefinition {
   estimatedComplexity?: "low" | "medium" | "high";
 
   /**
-   * Byne: Requirements discovery results
+   * 10XGRACE: Requirements discovery results
    * Populated by Requirements checkpoint
    */
   requirements?: {

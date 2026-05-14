@@ -1,8 +1,8 @@
-# Comprehensive Byne to Grace Workflow Migration Plan
+# Comprehensive 10XGRACE to Grace Workflow Migration Plan
 
 ## 1. Executive Summary
 
-Transform Byne into a Grace-compatible workflow system for implementing payment method support across multiple connectors.
+Transform 10XGRACE into a Grace-compatible workflow system for implementing payment method support across multiple connectors.
 
 **Goal**: Automate adding Card/Wallet/BankTransfer payment methods to Stripe/Adyen/Checkout connectors.
 
@@ -100,20 +100,20 @@ Level 2: Connector Agent (2_connector.md)
 
 ---
 
-## 3. Byne Migration to Grace Pattern
+## 3. 10XGRACE Migration to Grace Pattern
 
-### 3.1 Byne's New Purpose
+### 3.1 10XGRACE's New Purpose
 
-Byne will implement payment method support (not flows):
+10XGRACE will implement payment method support (not flows):
 
 - **Payment Method**: Card, Wallet, BankTransfer, BNPL
 - **Connectors**: Stripe, Adyen, Checkout, etc.
 - **Example**: "Implement Card payment method support for Stripe"
 
-### 3.2 Byne Architecture (Identical to Grace)
+### 3.2 10XGRACE Architecture (Identical to Grace)
 
 ```
-Level 1: Orchestrator (byne/workflow/1_orchestrator.md)
+Level 1: Orchestrator (10xgrace/workflow/1_orchestrator.md)
 ├── Reads: connectors.json ["Stripe", "Adyen"]
 ├── Variable: PAYMENT_METHOD="Card"
 ├── Actions:
@@ -122,7 +122,7 @@ Level 1: Orchestrator (byne/workflow/1_orchestrator.md)
 │   └── For each connector:
 │       └── Spawn Connector Agent (wait)
 │
-Level 2: Connector Agent (byne/workflow/2_connector.md)
+Level 2: Connector Agent (10xgrace/workflow/2_connector.md)
 ├── Variable: CONNECTOR="Stripe"
 ├── Actions:
 │   ├── Spawn Requirements Agent - Analyze connector
@@ -133,9 +133,9 @@ Level 2: Connector Agent (byne/workflow/2_connector.md)
 │   └── Spawn PR Agent
 ```
 
-### 3.3 Byne vs Grace Comparison
+### 3.3 10XGRACE vs Grace Comparison
 
-| Aspect      | Grace           | Byne (New)          |
+| Aspect      | Grace           | 10XGRACE (New)          |
 | ----------- | --------------- | ------------------- |
 | Domain      | Payment flows   | Payment methods     |
 | Variable    | FLOW            | PAYMENT_METHOD      |
@@ -153,7 +153,7 @@ Level 2: Connector Agent (byne/workflow/2_connector.md)
 
 ```
 /Users/tushar.shukla/Downloads/Work/euler-ucs/hyperswitch-prism/
-├── byne/
+├── 10xgrace/
 │   └── workflow/
 │       ├── 1_orchestrator.md
 │       ├── 2_connector.md
@@ -207,7 +207,7 @@ Else: spawn Connector Agent
 
 Task(
 description="Add {PAYMENT_METHOD} to {CONNECTOR}",
-prompt="Read byne/workflow/2_connector.md
+prompt="Read 10xgrace/workflow/2_connector.md
 Variables:
 CONNECTOR: <name>
 PAYMENT_METHOD: {PAYMENT_METHOD}
@@ -376,7 +376,7 @@ Create PR for {CONNECTOR} {PAYMENT_METHOD} support.
 ```
 Task(
   description="Add Card support to connectors",
-  prompt="Read byne/workflow/1_orchestrator.md
+  prompt="Read 10xgrace/workflow/1_orchestrator.md
 
 Variables:
   PAYMENT_METHOD: Card
@@ -452,7 +452,7 @@ Variables:
 
 ## 7. Success Criteria
 
-- [ ] 6 workflow files in `byne/workflow/`
+- [ ] 6 workflow files in `10xgrace/workflow/`
 - [ ] Uses same connectors.json format as Grace
 - [ ] Reads from shared creds.json
 - [ ] Sequential connector processing
@@ -465,12 +465,12 @@ Variables:
 
 ## 8. Integration with Existing Grace
 
-Both Grace and Byne workflows coexist:
+Both Grace and 10XGRACE workflows coexist:
 
 ```
 hyperswitch-prism/
 ├── grace/workflow/     # Payment flows (BankDebit, Wallet)
-├── byne/workflow/      # Payment methods (Card, BankTransfer)
+├── 10xgrace/workflow/      # Payment methods (Card, BankTransfer)
 ├── connectors.json     # Shared connector list
 └── creds.json          # Shared credentials
 ```
@@ -478,7 +478,7 @@ hyperswitch-prism/
 Usage:
 
 - Grace: `FLOW=BankDebit, CONNECTORS_FILE=connectors.json`
-- Byne: `PAYMENT_METHOD=Card, CONNECTORS_FILE=connectors.json`
+- 10XGRACE: `PAYMENT_METHOD=Card, CONNECTORS_FILE=connectors.json`
 
 ---
 
@@ -495,6 +495,6 @@ Usage:
 
 ## 10. Conclusion
 
-This migration transforms Byne from a standalone frontend tool into a Grace-compatible workflow for payment method implementation. The architecture mirrors Grace exactly, enabling consistent automation across both payment flows and payment methods.
+This migration transforms 10XGRACE from a standalone frontend tool into a Grace-compatible workflow for payment method implementation. The architecture mirrors Grace exactly, enabling consistent automation across both payment flows and payment methods.
 
 **Key Achievement**: Unified workflow system for all connector automation needs.

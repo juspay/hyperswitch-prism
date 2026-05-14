@@ -1,11 +1,11 @@
-import { callLlm, getConfig, loadConfig, setConfig } from "@byne/core";
+import { callLlm, getConfig, loadConfig, setConfig } from "@10xgrace/core";
 
 export async function testLlmCommand(): Promise<void> {
   const cfg = loadConfig();
   setConfig(cfg);
 
   // eslint-disable-next-line no-console
-  console.log(`\x1b[1mByne · LLM health check\x1b[0m`);
+  console.log(`\x1b[1m10XGRACE · LLM health check\x1b[0m`);
   // eslint-disable-next-line no-console
   console.log(`  baseUrl: ${cfg.llm.baseUrl || "\x1b[31m<not set>\x1b[0m"}`);
   // eslint-disable-next-line no-console

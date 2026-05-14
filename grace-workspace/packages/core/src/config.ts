@@ -66,7 +66,7 @@ export interface CsddConfig {
    * SessionManager.create() symlinks this into each new session's
    * worktree as `<projectRoot>/creds.json` so credentials propagate
    * to every isolated workspace without copy-and-rotate. Override
-   * via BYNE_CREDS_PATH env var (recommended — keeps secrets out of
+   * via TENXGRACE_CREDS_PATH env var (recommended — keeps secrets out of
    * the committed config.yml).
    */
   credsPath?: string;
@@ -184,7 +184,7 @@ function deepMerge<T>(base: T, over: Partial<T>): T {
 
 export function loadConfig(explicitPath?: string): CsddConfig {
   // Load .env from cwd before reading process.env so contributors can set
-  // BYNE_PROJECT_ROOT / BYNE_LLM_API_KEY without touching their shell rc.
+  // TENXGRACE_PROJECT_ROOT / TENXGRACE_LLM_API_KEY without touching their shell rc.
   // Existing process.env values win (override: false).
   dotenv.config({ path: path.resolve(process.cwd(), ".env"), override: false });
 
@@ -192,7 +192,7 @@ export function loadConfig(explicitPath?: string): CsddConfig {
     explicitPath,
     path.resolve(process.cwd(), "config.yml"),
     path.resolve(process.cwd(), "config.yaml"),
-    path.resolve(process.cwd(), "byne.config.yml"),
+    path.resolve(process.cwd(), "10xgrace.config.yml"),
   ].filter(Boolean) as string[];
 
   let loaded: Partial<CsddConfig> | undefined;
@@ -209,24 +209,24 @@ export function loadConfig(explicitPath?: string): CsddConfig {
   const merged = loaded ? deepMerge(DEFAULTS, loaded) : DEFAULTS;
 
   // Env var overrides for secrets
-  if (process.env.BYNE_LLM_API_KEY) merged.llm.apiKey = process.env.BYNE_LLM_API_KEY;
-  if (process.env.BYNE_LLM_BASE_URL) merged.llm.baseUrl = process.env.BYNE_LLM_BASE_URL;
-  if (process.env.BYNE_LLM_MODEL) merged.llm.model = process.env.BYNE_LLM_MODEL;
-  if (process.env.BYNE_PROJECT_ROOT) merged.projectRoot = process.env.BYNE_PROJECT_ROOT;
-  // Phase 10: BYNE_CREDS_PATH points at the user's connector creds.json so
+  if (process.env.TENXGRACE_LLM_API_KEY) merged.llm.apiKey = process.env.TENXGRACE_LLM_API_KEY;
+  if (process.env.TENXGRACE_LLM_BASE_URL) merged.llm.baseUrl = process.env.TENXGRACE_LLM_BASE_URL;
+  if (process.env.TENXGRACE_LLM_MODEL) merged.llm.model = process.env.TENXGRACE_LLM_MODEL;
+  if (process.env.TENXGRACE_PROJECT_ROOT) merged.projectRoot = process.env.TENXGRACE_PROJECT_ROOT;
+  // Phase 10: TENXGRACE_CREDS_PATH points at the user's connector creds.json so
   // SessionManager can symlink it into every new session worktree. Resolve
   // to absolute path so consumers don't need to know the supervisor's cwd.
-  if (process.env.BYNE_CREDS_PATH) {
-    merged.credsPath = path.resolve(process.env.BYNE_CREDS_PATH);
+  if (process.env.TENXGRACE_CREDS_PATH) {
+    merged.credsPath = path.resolve(process.env.TENXGRACE_CREDS_PATH);
   } else if (merged.credsPath && !path.isAbsolute(merged.credsPath)) {
     merged.credsPath = path.resolve(merged.credsPath);
   }
   // Phase 13: env override for the grace issue repo. Lets developers point
   // at a fork (e.g. shuklatushar226/grace for testing) without editing
   // config.yml. Empty / unset → config.yml or DEFAULTS value wins.
-  if (process.env.BYNE_GRACE_ISSUE_REPO) {
+  if (process.env.TENXGRACE_GRACE_ISSUE_REPO) {
     merged.checkpoints.l2_review.graceIssueRepo =
-      process.env.BYNE_GRACE_ISSUE_REPO;
+      process.env.TENXGRACE_GRACE_ISSUE_REPO;
   }
 
   if (usedPath) {

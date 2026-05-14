@@ -4,7 +4,7 @@ import { useSessions } from "../hooks/useSessions";
 import { SidebarLayout } from "../components/NavigationSidebar";
 import { UnifiedCreateSessionModal, type SessionWithTaskInput } from "../components/UnifiedCreateSessionModal";
 import { T } from "../theme";
-import type { Connector, NotImplementedItem } from "../types/connector";
+import type { Connector, MethodGap } from "../types/connector";
 import connectorsData from "../data/connectors.json";
 import { Link } from "react-router-dom";
 
@@ -12,7 +12,7 @@ const CONTROL_WS_PORT =
   (import.meta.env.VITE_WS_PORT as string | undefined) ?? "3142";
 const CONTROL_WS_URL = `ws://${location.hostname}:${CONTROL_WS_PORT}`;
 
-function generateDefaultDescription(connector: Connector, notImplemented: NotImplementedItem[]): string {
+function generateDefaultDescription(connector: Connector, notImplemented: MethodGap[]): string {
   const lines = [
     `Implement payment flows for ${connector.name} connector.`,
     "",
@@ -51,7 +51,7 @@ export function ConnectorsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showOnlyNotImplemented, setShowOnlyNotImplemented] = useState(false);
   const [selectedConnector, setSelectedConnector] = useState<Connector | null>(null);
-  const [selectedNotImplemented, setSelectedNotImplemented] = useState<NotImplementedItem[]>([]);
+  const [selectedNotImplemented, setSelectedNotImplemented] = useState<MethodGap[]>([]);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [pendingSessionName, setPendingSessionName] = useState<string | null>(null);
   
@@ -87,7 +87,9 @@ export function ConnectorsPage() {
     }
 
     if (showOnlyNotImplemented) {
-      filtered = filtered.filter((c) => c.stats.notImplemented > 0);
+      filtered = filtered.filter(
+        (c) => c.stats.notImplemented > 0 || c.flowStats.notImplemented > 0
+      );
     }
 
     return filtered.sort((a, b) => a.name.localeCompare(b.name));
@@ -100,9 +102,10 @@ export function ConnectorsPage() {
 
   const handleRowClick = (connector: Connector) => {
     // Find all not-implemented items for this connector
-    const notImplemented = connector.paymentMethods
+    const notImplemented: MethodGap[] = connector.paymentMethods
       .filter((pm) => pm.status === "not_implemented")
       .map((pm) => ({
+        kind: "method",
         connector: connector.name,
         category: pm.category,
         method: pm.method,
@@ -209,7 +212,7 @@ export function ConnectorsPage() {
                 onChange={(e) => setShowOnlyNotImplemented(e.target.checked)}
                 style={{ display: "none" }}
               />
-              <span>⚠️ Not Implemented Only</span>
+              <span>⚠️ Show only with gaps</span>
             </label>
           </div>
         </header>
@@ -253,6 +256,12 @@ export function ConnectorsPage() {
             value={connectors.filter((c) => c.stats.notImplemented === 0).length}
             color={T.success}
             bgColor={T.successSoft}
+          />
+          <StatBadge
+            label="Flow Gaps"
+            value={connectors.reduce((s, c) => s + c.flowStats.notImplemented, 0)}
+            color={T.warn}
+            bgColor={T.warnSoft}
           />
         </div>
 
@@ -329,6 +338,17 @@ export function ConnectorsPage() {
                       borderBottom: `1px solid ${T.border}`,
                     }}
                   >
+                    Flows
+                  </th>
+                  <th
+                    style={{
+                      padding: "14px 16px",
+                      textAlign: "center",
+                      fontWeight: 600,
+                      color: T.text,
+                      borderBottom: `1px solid ${T.border}`,
+                    }}
+                  >
                     Status
                   </th>
                 </tr>
@@ -337,7 +357,7 @@ export function ConnectorsPage() {
                 {filteredConnectors.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={6}
                       style={{
                         padding: "40px 20px",
                         textAlign: "center",
@@ -564,6 +584,15 @@ function ConnectorRow({
           borderBottom: `1px solid ${T.border}`,
         }}
       >
+        <FlowCluster stats={connector.flowStats} />
+      </td>
+      <td
+        style={{
+          padding: "14px 16px",
+          textAlign: "center",
+          borderBottom: `1px solid ${T.border}`,
+        }}
+      >
         <span
           style={{
             padding: "4px 10px",
@@ -578,6 +607,32 @@ function ConnectorRow({
         </span>
       </td>
     </tr>
+  );
+}
+
+function FlowCluster({ stats }: { stats: Connector["flowStats"] }) {
+  return (
+    <Link
+      to="#"
+      onClick={(e) => e.preventDefault()}
+      style={{
+        display: "inline-flex",
+        gap: 6,
+        alignItems: "center",
+        fontSize: 11,
+        fontWeight: 600,
+        color: T.textMuted,
+        cursor: "default",
+        textDecoration: "none",
+      }}
+      title={`${stats.supported} supported · ${stats.notImplemented} not implemented · ${stats.notSupported} not supported (of ${stats.total} flows)`}
+    >
+      <span style={{ color: T.success }}>{stats.supported}✓</span>
+      <span style={{ color: stats.notImplemented > 0 ? T.warn : T.textSubtle }}>
+        {stats.notImplemented}⚠
+      </span>
+      <span style={{ color: T.textSubtle }}>{stats.notSupported}✕</span>
+    </Link>
   );
 }
 

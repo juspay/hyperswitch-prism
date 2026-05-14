@@ -1,10 +1,10 @@
-# Byne
+# 10XGRACE
 
 An automated pipeline that turns a frontend task description into a working PR. It walks the task through 16 checkpoints — spec generation, design review, code generation, compile, visual diff, Cypress, Playwright, PR review — and retries from a safe point if anything fails. Built for the **hyperswitch-control-center** (ReScript + React) repo.
 
 You drive the pipeline from the **dashboard UI** at <http://localhost:3141>. The terminal is only for starting things up.
 
-![Byne dashboard](docs/dashboard.png)
+![10XGRACE dashboard](docs/dashboard.png)
 
 > Drop a screenshot of the running dashboard at `docs/dashboard.png` to render it here.
 
@@ -24,7 +24,7 @@ You need all of the following:
 
 ### Step 2 — Install dependencies
 
-From the `byne` repo root:
+From the `10xgrace` repo root:
 
 ```bash
 pnpm install
@@ -47,7 +47,7 @@ llm:
   protocol: openai                                # "anthropic" if your gateway speaks Anthropic
 ```
 
-That's it for configuration — Byne picks everything up from this file at startup.
+That's it for configuration — 10XGRACE picks everything up from this file at startup.
 
 ### Step 4 — Start opencode in a separate terminal tab
 
@@ -59,7 +59,7 @@ opencode serve
 
 It listens on `http://127.0.0.1:4096`, which matches `opencode.attachUrl` in `config.yml`. **Keep this tab open** for the whole session — the pipeline calls into it for code-generation steps.
 
-### Step 5 — Start Byne (engine + dashboard)
+### Step 5 — Start 10XGRACE (engine + dashboard)
 
 Back in your **first terminal**, run:
 
@@ -100,7 +100,7 @@ Two ways, depending on what you want:
 
 ## How to remove the database and start fresh
 
-All run history lives in a local SQLite file at `~/.byne/pipeline.sqlite`. To wipe everything and start over:
+All run history lives in a local SQLite file at `~/.10xgrace/pipeline.sqlite`. To wipe everything and start over:
 
 ```bash
 pnpm clear
@@ -111,7 +111,7 @@ This removes the DB, the WAL files, and the resume pointer, then bounces the eng
 If you'd rather do it manually:
 
 ```bash
-rm -rf ~/.byne
+rm -rf ~/.10xgrace
 ```
 
 ---
@@ -169,7 +169,7 @@ Then `pnpm build` and your new step is wired into the pipeline.
 ## Project layout
 
 ```
-byne/
+10xgrace/
 ├── config.yml                          # all your settings live here
 ├── examples/sample-task.json           # example input
 └── packages/
@@ -181,7 +181,7 @@ byne/
     │       │   └── *.ts                # one file per checkpoint
     │       ├── engine.ts               # runs checkpoints, handles retries
     │       └── llm.ts                  # LLM client
-    ├── cli/                            # the `byne` command (used by `pnpm dev`)
+    ├── cli/                            # the `10xgrace` command (used by `pnpm dev`)
     └── dashboard/                      # React + Vite live view (the UI you use)
 ```
 

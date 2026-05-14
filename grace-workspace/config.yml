@@ -1,11 +1,11 @@
-# Byne pipeline configuration
+# 10XGRACE pipeline configuration
 # Fill in llm.baseUrl and llm.apiKey below, then start the engine with `pnpm dev`.
 
-projectRoot: /Users/tushar.shukla/Downloads/Work/euler-ucs/hyperswitch-prism # target repo. Override per-machine with BYNE_PROJECT_ROOT env var (recommended).
+projectRoot: /Users/tushar.shukla/Downloads/Work/euler-ucs/hyperswitch-prism # target repo. Override per-machine with TENXGRACE_PROJECT_ROOT env var (recommended).
 # Absolute path to the connector creds.json. SessionManager symlinks this
 # into every new session worktree so the grpc-server + agents find creds
 # at <worktree>/creds.json without per-worktree copying. Override per-machine
-# with BYNE_CREDS_PATH (recommended — keeps secrets out of this committed file).
+# with TENXGRACE_CREDS_PATH (recommended — keeps secrets out of this committed file).
 # credsPath: /absolute/path/to/creds.json
 devServerUrl: http://localhost:9000 # hyperswitch webpack-dev-server default
 designMatchThreshold: 0.90
@@ -48,7 +48,7 @@ llm:
   authScheme: "Bearer" # prefix; set to "" to send raw key
   extraHeaders: {} # any custom headers your gateway requires
     # x-tenant-id: juspay
-    # x-client:    byne
+    # x-client:    10xgrace
 
 checkpoints:
   compiler:

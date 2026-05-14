@@ -230,7 +230,7 @@ export async function runClaudeCode<T = unknown>(
   const cc = getConfig().claudeCode;
   // Caller override > config.yml > default. Env vars are escape hatches only.
   const model =
-    opts.model ?? process.env.BYNE_CLAUDE_CODE_MODEL ?? cc.model;
+    opts.model ?? process.env.TENXGRACE_CLAUDE_CODE_MODEL ?? cc.model;
 
   const args: string[] = [];
 

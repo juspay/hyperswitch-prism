@@ -1,12 +1,12 @@
-# Byne + Grace Workflow Integration Plan
+# 10XGRACE + Grace Workflow Integration Plan
 
 ## Overview
 
-This document outlines how to adapt Byne's frontend automation pipeline to use Grace's hierarchical agent-based workflow architecture for implementing payment connector features.
+This document outlines how to adapt 10XGRACE's frontend automation pipeline to use Grace's hierarchical agent-based workflow architecture for implementing payment connector features.
 
 ### Current State
 
-**Byne (Frontend Pipeline)**
+**10XGRACE (Frontend Pipeline)**
 - Linear 17-checkpoint pipeline for hyperswitch-control-center (ReScript/React)
 - Uses OpenCode CLI for implementation steps
 - Supports concurrent file processing (4 workers)
@@ -23,7 +23,7 @@ This document outlines how to adapt Byne's frontend automation pipeline to use G
 
 A hybrid system that:
 1. Uses Grace's hierarchical agent orchestration
-2. Maintains Byne's 17-checkpoint pipeline per feature
+2. Maintains 10XGRACE's 17-checkpoint pipeline per feature
 3. Processes multiple features sequentially (never parallel)
 4. Integrates with existing `creds.json` for credentials
 5. Supports both frontend and backend automation
@@ -97,7 +97,7 @@ A hybrid system that:
 ### New Workflow Directory
 
 ```
-byne/
+10xgrace/
 ├── workflow/                              # NEW: Markdown workflow files
 │   ├── 1_orchestrator.md                  # Top-level coordinator
 │   ├── 2_feature_agent.md                 # Per-feature handler
@@ -112,7 +112,7 @@ byne/
 ### New Configuration Files
 
 ```
-byne/
+10xgrace/
 ├── config.yml                             # EXTENDED: Add grace section
 ├── features.json                          # NEW: Feature list (like connectors.json)
 ├── creds.json -> /Users/jeeva.ramachandran/Downloads/creds.json  # SYMLINK
@@ -121,7 +121,7 @@ byne/
 ### Modified Source Files
 
 ```
-byne/packages/core/src/
+10xgrace/packages/core/src/
 ├── agents/                                # NEW: Agent runners
 │   ├── orchestrator.ts
 │   ├── feature-agent.ts
@@ -143,7 +143,7 @@ byne/packages/core/src/
 ### Extended config.yml
 
 ```yaml
-# Existing byne configuration
+# Existing 10xgrace configuration
 projectRoot: ../hyperswitch-control-center
 devServerUrl: http://localhost:9000
 designMatchThreshold: 0.90
@@ -690,7 +690,7 @@ describe('feature pipeline', () => {
 
 ## Migration Guide
 
-### For Existing Byne Users
+### For Existing 10XGRACE Users
 
 1. **Update config.yml**: Add `grace:` section
 2. **Create features.json**: Migrate from single task

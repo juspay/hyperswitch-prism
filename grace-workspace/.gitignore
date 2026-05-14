@@ -25,7 +25,7 @@ yarn-error.log*
 # Local config overrides
 config.local.yml
 config.local.yaml
-byne.config.local.yml
+10xgrace.config.local.yml
 
 # Editor / OS
 .DS_Store
@@ -40,4 +40,4 @@ coverage/
 .nyc_output/
 
 # Local opencode scratch dir created by the runner
-.byne-opencode-tmp/
+.10xgrace-opencode-tmp/

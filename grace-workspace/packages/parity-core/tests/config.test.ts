@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-// We can't easily import loadParityConfig without it also importing @byne/core's loader.
+// We can't easily import loadParityConfig without it also importing @10xgrace/core's loader.
 // Sanity check: env-var override path works without touching disk.
 describe("env overrides", () => {
   const tmp = mkdtempSync(join(tmpdir(), "parity-config-test-"));

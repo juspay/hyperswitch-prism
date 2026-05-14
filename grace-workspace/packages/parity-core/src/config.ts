@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { loadConfig as loadBaseConfig } from "@byne/core";
+import { loadConfig as loadBaseConfig } from "@10xgrace/core";
 
 export interface ParityConfig {
   prismPath: string;

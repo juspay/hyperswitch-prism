@@ -21,11 +21,11 @@ export interface SubmittedTask {
   runner?: "opencode" | "claude-code";
   /** Optional model override for the selected runner */
   runnerModel?: string;
-  /** Grace/Byne workflow: Payment method to implement (e.g., "Card", "Wallet", "BankTransfer") */
+  /** Grace/10XGRACE workflow: Payment method to implement (e.g., "Card", "Wallet", "BankTransfer") */
   paymentMethod?: string;
-  /** Grace/Byne workflow: Target connector names to implement for */
+  /** Grace/10XGRACE workflow: Target connector names to implement for */
   targetConnectors?: string[];
-  /** Grace/Byne workflow: Payment method category */
+  /** Grace/10XGRACE workflow: Payment method category */
   paymentMethodCategory?:
     | "card"
     | "wallet"
@@ -37,9 +37,9 @@ export interface SubmittedTask {
     | "gift_card"
     | "pay_later"
     | string;
-  /** Grace/Byne workflow: Priority classification */
+  /** Grace/10XGRACE workflow: Priority classification */
   priority?: "critical" | "high" | "medium" | "low";
-  /** Grace/Byne workflow: Connector documentation URLs */
+  /** Grace/10XGRACE workflow: Connector documentation URLs */
   connectorDocs?: Array<{
     connector: string;
     urls: Array<{
@@ -55,9 +55,9 @@ export interface SubmittedTask {
       verified?: boolean;
     }>;
   }>;
-  /** Grace/Byne workflow: Implementation prerequisites */
+  /** Grace/10XGRACE workflow: Implementation prerequisites */
   prerequisites?: string[];
-  /** Grace/Byne workflow: Estimated complexity */
+  /** Grace/10XGRACE workflow: Estimated complexity */
   estimatedComplexity?: "low" | "medium" | "high";
 }
 
@@ -110,7 +110,7 @@ export function TaskForm({
   const [runner, setRunner] = useState<"opencode" | "claude-code">("opencode");
   const [runnerModel, setRunnerModel] = useState("");
 
-  // Grace/Byne workflow: Payment method fields
+  // Grace/10XGRACE workflow: Payment method fields
   const [paymentMethod, setPaymentMethod] = useState("");
   const [targetConnectors, setTargetConnectors] = useState("");
   const [paymentMethodCategory, setPaymentMethodCategory] = useState<
@@ -190,7 +190,7 @@ export function TaskForm({
       // AI Runner fields
       runner,
       runnerModel: runnerModel.trim() || undefined,
-      // Grace/Byne workflow fields
+      // Grace/10XGRACE workflow fields
       paymentMethod: paymentMethod.trim() || undefined,
       targetConnectors: targetConnectors
         ? targetConnectors.split(",").map((s) => s.trim()).filter(Boolean)
@@ -337,7 +337,7 @@ export function TaskForm({
         />
       </div>
 
-      {/* Grace/Byne workflow: Core payment method fields */}
+      {/* Grace/10XGRACE workflow: Core payment method fields */}
       <div style={{ marginBottom: 10 }}>
         <label style={label}>Payment Method (e.g., Card, Wallet, BankTransfer)</label>
         <input
@@ -508,7 +508,7 @@ export function TaskForm({
             />
           </div>
 
-          {/* Grace/Byne workflow: Additional fields */}
+          {/* Grace/10XGRACE workflow: Additional fields */}
           <div style={{ marginBottom: 10, paddingTop: 10, borderTop: `1px dashed ${T.border}` }}>
             <label style={{ ...label, color: T.accent }}>Payment Method Category</label>
             <select

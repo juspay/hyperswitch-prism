@@ -1,4 +1,4 @@
-import { StateManager } from "@byne/core";
+import { StateManager } from "@10xgrace/core";
 
 export async function historyCommand(): Promise<void> {
   const state = new StateManager();

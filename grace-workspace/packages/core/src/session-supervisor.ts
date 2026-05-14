@@ -53,7 +53,7 @@ interface DashboardClient {
  *  - re-use an existing run row (resume): pass `runId`
  *  - request the resumed run start at a specific checkpoint: pass `startFrom`
  *
- * Captured automatically from a child engine's `__BYNE_RESPAWN__` stdout
+ * Captured automatically from a child engine's `__TENXGRACE_RESPAWN__` stdout
  * marker so a `runs:resume` from the dashboard cleanly transitions to a
  * fresh child engine pointed at the same run.
  */
@@ -498,7 +498,7 @@ export class SessionSupervisor {
    * The spawned child connects back to the supervisor's control WS as an
    * engine client; events flow through that bidirectional pipe.
    *
-   * The spawned child's stdout is line-parsed for `__BYNE_RESPAWN__ <json>`
+   * The spawned child's stdout is line-parsed for `__TENXGRACE_RESPAWN__ <json>`
    * markers; if one is seen, on the child's next exit we automatically call
    * `startSession(sessionId, capturedIntent)` to roll into a fresh engine.
    */
@@ -606,7 +606,7 @@ export class SessionSupervisor {
       while ((nl = stdoutBuffer.indexOf("\n")) >= 0) {
         const line = stdoutBuffer.slice(0, nl);
         stdoutBuffer = stdoutBuffer.slice(nl + 1);
-        const m = line.match(/__BYNE_RESPAWN__\s+(\{[^}]*\})/);
+        const m = line.match(/__TENXGRACE_RESPAWN__\s+(\{[^}]*\})/);
         if (m) {
           try {
             pendingRespawn = JSON.parse(m[1]) as StartIntent;

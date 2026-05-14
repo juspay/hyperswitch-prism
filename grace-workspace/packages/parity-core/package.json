@@ -1,5 +1,5 @@
 {
-  "name": "@byne/parity-core",
+  "name": "@10xgrace/parity-core",
   "version": "0.1.0",
   "type": "module",
   "main": "dist/index.js",
@@ -15,7 +15,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@byne/core": "workspace:*",
+    "@10xgrace/core": "workspace:*",
     "commander": "^12.1.0",
     "execa": "^9.4.0",
     "yaml": "^2.5.1"

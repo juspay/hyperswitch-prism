@@ -44,7 +44,7 @@ export const preflightCheckpoint: Checkpoint = {
       execSync(`git checkout -b ${branchName}`, { cwd: projectRoot, stdio: "pipe" });
 
       // Verify creds.json exists. Phase 10: SessionManager.create()
-      // symlinks BYNE_CREDS_PATH into <projectRoot>/creds.json at session
+      // symlinks TENXGRACE_CREDS_PATH into <projectRoot>/creds.json at session
       // creation, so for sessions created post-fix this resolves through
       // the symlink. Older sessions may still warn here.
       const credsPath = path.join(projectRoot, "creds.json");
@@ -52,7 +52,7 @@ export const preflightCheckpoint: Checkpoint = {
         ctx.log("[preflight] Credentials file found", "info");
       } else {
         ctx.log(
-          "[preflight] Warning: creds.json not found. Set BYNE_CREDS_PATH in your env so future sessions get a symlink.",
+          "[preflight] Warning: creds.json not found. Set TENXGRACE_CREDS_PATH in your env so future sessions get a symlink.",
           "warn"
         );
       }
@@ -84,7 +84,7 @@ export const preflightCheckpoint: Checkpoint = {
         if (existsSync(devTomlPath)) {
           try {
             const original = readFileSync(devTomlPath, "utf-8");
-            const snapshotPath = devTomlPath + ".byne-original";
+            const snapshotPath = devTomlPath + ".10xgrace-original";
             if (!existsSync(snapshotPath)) {
               writeFileSync(snapshotPath, original, "utf-8");
             }

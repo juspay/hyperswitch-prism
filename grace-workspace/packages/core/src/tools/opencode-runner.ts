@@ -62,7 +62,7 @@ export interface OpencodeHealthResult {
  */
 export async function checkOpencodeHealth(): Promise<OpencodeHealthResult> {
   const oc = getConfig().opencode;
-  const url = process.env.BYNE_OPENCODE_ATTACH ?? oc.attachUrl ?? "";
+  const url = process.env.TENXGRACE_OPENCODE_ATTACH ?? oc.attachUrl ?? "";
 
   if (!url) {
     return { connected: false, url: "(not configured)", error: "No attachUrl configured — opencode will spawn fresh processes" };
@@ -123,9 +123,9 @@ export async function runOpencode<T = unknown>(
   const oc = getConfig().opencode;
   // Caller override > config.yml > default. Env vars are escape hatches only.
   const attachUrl =
-    process.env.BYNE_OPENCODE_ATTACH ?? oc.attachUrl ?? "";
+    process.env.TENXGRACE_OPENCODE_ATTACH ?? oc.attachUrl ?? "";
   const model =
-    opts.model ?? process.env.BYNE_OPENCODE_MODEL ?? oc.model;
+    opts.model ?? process.env.TENXGRACE_OPENCODE_MODEL ?? oc.model;
 
   const args = ["run"];
   if (attachUrl) {
@@ -208,8 +208,8 @@ export async function runOpencode<T = unknown>(
     const stray = path.join(absCwd, name);
     fs.rm(stray, { force: true }).catch(() => undefined);
   }
-  // Also clean up the .byne-opencode-tmp directory if it exists
-  fs.rm(path.join(absCwd, ".byne-opencode-tmp"), { recursive: true, force: true }).catch(() => undefined);
+  // Also clean up the .10xgrace-opencode-tmp directory if it exists
+  fs.rm(path.join(absCwd, ".10xgrace-opencode-tmp"), { recursive: true, force: true }).catch(() => undefined);
 
   const elapsed = Date.now() - startedAt;
   const raw = Buffer.concat(stdoutChunks).toString("utf-8");

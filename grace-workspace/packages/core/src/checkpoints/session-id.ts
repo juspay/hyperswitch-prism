@@ -20,10 +20,10 @@ import { createHash } from "node:crypto";
  * intentional behaviour — connector implementation effort is cumulative;
  * the L2/L3/codegen Claudes remember what was tried before. To get a fresh
  * conversation, the user must explicitly delete the jsonl (e.g. via
- * `byne sessions prune` or a future targeted reset command).
+ * `10xgrace sessions prune` or a future targeted reset command).
  */
 
-const BYNE_NAMESPACE = "byne-grace-pipeline";
+const TENXGRACE_NAMESPACE = "10xgrace-grace-pipeline";
 
 /** Lowercase + strip every non-alphanumeric character (no replacement, no
  *  underscores). Lossy on purpose so display variants ("Card 3DS" /
@@ -68,7 +68,7 @@ export function deriveClaudeSessionId(
 ): string {
   const fname = friendlySessionName(connector, flow, phase);
   const hex = createHash("sha1")
-    .update(`${BYNE_NAMESPACE}/${fname}`)
+    .update(`${TENXGRACE_NAMESPACE}/${fname}`)
     .digest("hex");
   return [
     hex.slice(0, 8),

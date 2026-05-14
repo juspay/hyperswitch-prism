@@ -14,10 +14,10 @@ importers:
 
   packages/cli:
     dependencies:
-      '@byne/core':
+      '@10xgrace/core':
         specifier: workspace:*
         version: link:../core
-      '@byne/parity-core':
+      '@10xgrace/parity-core':
         specifier: workspace:*
         version: link:../parity-core
       commander:
@@ -101,7 +101,7 @@ importers:
 
   packages/parity-core:
     dependencies:
-      '@byne/core':
+      '@10xgrace/core':
         specifier: workspace:*
         version: link:../core
       commander:

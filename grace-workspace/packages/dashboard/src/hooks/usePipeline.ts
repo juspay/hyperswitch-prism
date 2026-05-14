@@ -44,7 +44,7 @@ export interface JourneyEvent {
 /**
  * Per-attempt record for retry history. Matches the core `AttemptRecord`
  * shape but kept duplicated here because the dashboard package doesn't
- * depend on @byne/core.
+ * depend on @10xgrace/core.
  */
 export interface AttemptRecord {
   artifacts: Record<string, unknown>;

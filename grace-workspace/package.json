@@ -1,5 +1,5 @@
 {
-  "name": "byne",
+  "name": "10xgrace",
   "private": true,
   "version": "0.1.0",
   "scripts": {
@@ -8,7 +8,7 @@
     "dev": "concurrently --kill-others-on-fail -n core,cli,dashboard,supervisor -c cyan,magenta,green,yellow \"pnpm -C packages/core dev\" \"pnpm -C packages/cli dev\" \"pnpm -C packages/dashboard dev\" \"node packages/cli/dist/index.js supervisor\"",
     "supervisor": "node packages/cli/dist/index.js supervisor",
     "engine": "node packages/cli/dist/index.js run",
-    "clear": "rm -f ~/.byne/pipeline.sqlite ~/.byne/pipeline.sqlite-wal ~/.byne/pipeline.sqlite-shm ~/.byne/resume.json && rm -rf ~/.byne/sessions && echo '✓ Cleared local DB and per-session worktrees. Restart pnpm dev.'",
+    "clear": "rm -f ~/.10xgrace/pipeline.sqlite ~/.10xgrace/pipeline.sqlite-wal ~/.10xgrace/pipeline.sqlite-shm ~/.10xgrace/resume.json && rm -rf ~/.10xgrace/sessions && echo '✓ Cleared local DB and per-session worktrees. Restart pnpm dev.'",
     "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {

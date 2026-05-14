@@ -1,5 +1,5 @@
 import { execa, type ExecaError } from "execa";
-import { runAI } from "@byne/core";
+import { runAI } from "@10xgrace/core";
 import type { ParityConfig } from "../config.js";
 import { EXECUTE_SYSTEM, buildExecuteUser } from "../prompts/execute.js";
 import { branchName, classifyTarget, validateDiff } from "../locus.js";

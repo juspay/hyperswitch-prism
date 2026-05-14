@@ -1,4 +1,4 @@
-import { StateManager } from "@byne/core";
+import { StateManager } from "@10xgrace/core";
 import { setTimeout as delay } from "node:timers/promises";
 import type { ParityConfig } from "./config.js";
 import { loadParityConfig } from "./config.js";

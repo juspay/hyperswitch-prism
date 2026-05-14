@@ -1,11 +1,11 @@
 import { useState, useMemo } from "react";
 import { T } from "../theme";
-import type { Connector, NotImplementedItem, ConnectorPaymentMethod } from "../types/connector";
+import type { Connector, MethodGap, ConnectorPaymentMethod } from "../types/connector";
 import type { SessionCopyStrategy } from "../hooks/useSessions";
 
 interface Props {
   connector: Connector;
-  notImplemented?: NotImplementedItem[];
+  notImplemented?: MethodGap[];
   selectedMethod?: ConnectorPaymentMethod;
   onClose: () => void;
   onCreateSession: (input: {
@@ -36,9 +36,10 @@ export function CreateConnectorTaskModal({
   // Determine mode: single method or multiple methods
   const isSingleMethodMode = !!selectedMethod;
   
-  const items = useMemo(() => {
+  const items = useMemo<MethodGap[]>(() => {
     if (selectedMethod) {
       return [{
+        kind: "method",
         connector: connector.name,
         category: selectedMethod.category,
         method: selectedMethod.method,
@@ -64,7 +65,7 @@ export function CreateConnectorTaskModal({
 
   // Group not implemented by category
   const groupedByCategory = useMemo(() => {
-    const groups = new Map<string, NotImplementedItem[]>();
+    const groups = new Map<string, MethodGap[]>();
     for (const item of items) {
       const existing = groups.get(item.category) || [];
       existing.push(item);
@@ -424,7 +425,7 @@ function StatBox({
 
 function generateDefaultDescription(
   connector: Connector,
-  items: NotImplementedItem[],
+  items: MethodGap[],
   selectedMethod?: ConnectorPaymentMethod
 ): string {
   if (selectedMethod) {

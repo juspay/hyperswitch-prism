@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { StateManager } from "@byne/core";
+import { StateManager } from "@10xgrace/core";
 
 /**
  * Phase 12: prune stale Claude session jsonl files from
@@ -181,7 +181,7 @@ export async function sessionsPruneCommand(
   const verb = opts.dryRun ? "would delete" : "deleted";
   // eslint-disable-next-line no-console
   console.log(
-    `byne sessions prune: ${verb} ${deleted} file(s), freed ${mb} MB. ` +
+    `10xgrace sessions prune: ${verb} ${deleted} file(s), freed ${mb} MB. ` +
       `Skipped ${skippedActive} active, ${skippedFresh} newer than cutoff (${opts.olderThan ?? "30d"}).`
   );
 }

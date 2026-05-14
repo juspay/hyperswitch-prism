@@ -1,5 +1,11 @@
 import { Link, useLocation } from "react-router-dom";
 import { T } from "../theme";
+import connectorsData from "../data/connectors.json";
+import type { Connector } from "../types/connector";
+
+const CONNECTORS = connectorsData as Connector[];
+const CONNECTOR_COUNT = CONNECTORS.length;
+const FLOW_COUNT = CONNECTORS[0]?.flows.length ?? 0;
 
 const SIDEBAR_WIDTH = 240;
 
@@ -68,7 +74,7 @@ export function NavigationSidebar() {
                 lineHeight: 1.2,
               }}
             >
-              Byne
+              10XGRACE
             </div>
             <div style={{ fontSize: 10, color: T.textMuted, marginTop: 2 }}>
               spec-driven dev
@@ -129,7 +135,7 @@ export function NavigationSidebar() {
       >
         <div>Grace Workflow v2.3</div>
         <div style={{ marginTop: 4, opacity: 0.7 }}>
-          {NAV_ITEMS[1]?.label && `${(window as any).__CONNECTOR_COUNT__ || "86"} connectors`}
+          {`${CONNECTOR_COUNT} connectors · ${FLOW_COUNT} flows`}
         </div>
       </div>
     </aside>

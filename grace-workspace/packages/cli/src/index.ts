@@ -5,12 +5,12 @@ import { statusCommand } from "./commands/status.js";
 import { replayCommand } from "./commands/replay.js";
 import { historyCommand } from "./commands/history.js";
 import { testLlmCommand } from "./commands/test-llm.js";
-import { registerParityCommands } from "@byne/parity-core";
+import { registerParityCommands } from "@10xgrace/parity-core";
 
 const program = new Command();
 program
-  .name("byne")
-  .description("Byne · checkpoint-based spec-driven development pipeline")
+  .name("10xgrace")
+  .description("10XGRACE · checkpoint-based spec-driven development pipeline")
   .version("0.1.0");
 
 program

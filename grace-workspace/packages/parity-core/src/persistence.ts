@@ -1,4 +1,4 @@
-import { StateManager } from "@byne/core";
+import { StateManager } from "@10xgrace/core";
 import type { Leaf } from "./types.js";
 
 interface DbLike {

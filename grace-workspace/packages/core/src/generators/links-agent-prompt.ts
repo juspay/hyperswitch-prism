@@ -4,7 +4,7 @@ import type { TaskDefinition } from "../types.js";
  * Links Agent Prompt
  *
  * Follows grace/workflow/2.1_links.md but skips the Context Loading phase
- * (those files don't exist in Byne workspace).
+ * (those files don't exist in 10XGRACE workspace).
  */
 
 export const LINKS_AGENT_SYSTEM = `You are the Links Agent.
@@ -128,7 +128,7 @@ export function buildLinksAgentUserPayload(
           connectorDocUrls: task.connectorDocUrls,
           targetFiles: task.targetFiles,
           projectRoot: task.projectRoot,
-          // Grace/Byne workflow fields
+          // Grace/10XGRACE workflow fields
           paymentMethod: task.paymentMethod,
           targetConnectors: task.targetConnectors,
           paymentMethodCategory: task.paymentMethodCategory,

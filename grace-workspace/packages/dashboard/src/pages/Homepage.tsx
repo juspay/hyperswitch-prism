@@ -84,7 +84,7 @@ export function Homepage() {
         }}
       >
         <div>
-          <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Byne · Sessions</h1>
+          <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>10XGRACE · Sessions</h1>
           <span style={{ fontSize: 12, color: T.textMuted }}>
             Each session is an isolated worktree on disk + its own engine process.
           </span>

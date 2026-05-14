@@ -71,7 +71,7 @@ export const taskCheckpoint: Checkpoint = {
           attachments: Array.isArray(payload.attachments)
             ? payload.attachments
             : undefined,
-          // GRACE/Byne workflow fields
+          // GRACE/10XGRACE workflow fields
           paymentMethod: payload.paymentMethod,
           targetConnectors: Array.isArray(payload.targetConnectors)
             ? payload.targetConnectors

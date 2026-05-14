@@ -7,6 +7,8 @@ export interface TaskDefinition {
   description: string;
   paymentMethod: string;
   category: string;
+  /** When the task targets a connector flow gap rather than a payment-method gap. */
+  flow?: string;
   targetConnectors: string[];
   priority: "critical" | "high" | "medium" | "low";
   acceptanceCriteria: string[];
@@ -28,6 +30,7 @@ interface UnifiedCreateSessionModalProps {
     title?: string;
     paymentMethod?: string;
     category?: string;
+    flow?: string;
     targetConnectors?: string[];
     description?: string;
   };
@@ -61,19 +64,28 @@ export function UnifiedCreateSessionModal({
   // Task fields
   const [paymentMethod, setPaymentMethod] = useState(defaultTaskValues?.paymentMethod || "");
   const [category, setCategory] = useState(defaultTaskValues?.category || "");
+  const [flow] = useState(defaultTaskValues?.flow || "");
   const [targetConnectors, setTargetConnectors] = useState(
     defaultTaskValues?.targetConnectors?.join(", ") || ""
   );
   const [taskDescription, setTaskDescription] = useState(defaultTaskValues?.description || "");
   const [priority, setPriority] = useState<TaskDefinition["priority"]>("medium");
-  const [acceptanceCriteria, setAcceptanceCriteria] = useState<string[]>([
-    "Authorization flow works correctly",
-    "Error handling follows existing patterns",
-    "Tests pass for the new payment method",
-  ]);
+  const [acceptanceCriteria, setAcceptanceCriteria] = useState<string[]>(
+    flow
+      ? [
+          `${flow} flow returns a valid response`,
+          "Error mapping follows existing connector patterns",
+          "Integration test covers the new flow",
+        ]
+      : [
+          "Authorization flow works correctly",
+          "Error handling follows existing patterns",
+          "Tests pass for the new payment method",
+        ]
+  );
   const [newCriterion, setNewCriterion] = useState("");
 
-  const hasTask = showTaskSection && paymentMethod;
+  const hasTask = showTaskSection && Boolean(paymentMethod || flow);
   
   const canSubmit = sessionName.trim() && sourcePath.trim() && wsConnected && !isCreating;
 
@@ -91,6 +103,7 @@ export function UnifiedCreateSessionModal({
         description: taskDescription.trim(),
         paymentMethod: paymentMethod.trim(),
         category: category.trim() || "Unknown",
+        flow: flow.trim() || undefined,
         targetConnectors: targetConnectors
           .split(",")
           .map((s) => s.trim())
@@ -100,13 +113,14 @@ export function UnifiedCreateSessionModal({
         runner,
         runnerModel: runnerModel.trim() || undefined,
       };
-      
+
       // DEBUG: Log what's being sent
       console.log("[DASHBOARD] Building initialTask:", {
         runner,
         runnerModel: runnerModel.trim() || undefined,
         hasTask,
         paymentMethod: paymentMethod.trim(),
+        flow: flow.trim() || undefined,
         fullTask: input.initialTask,
       });
     }

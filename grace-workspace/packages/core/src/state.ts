@@ -203,7 +203,7 @@ export class StateManager {
   constructor(dbPath?: string) {
     const p =
       dbPath ??
-      path.join(process.env.HOME ?? ".", ".byne", "pipeline.sqlite");
+      path.join(process.env.HOME ?? ".", ".10xgrace", "pipeline.sqlite");
     fs.mkdirSync(path.dirname(p), { recursive: true });
     this.db = new Database(p);
     this.db.pragma("journal_mode = WAL");

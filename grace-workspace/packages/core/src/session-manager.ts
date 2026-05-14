@@ -29,7 +29,7 @@ export interface CreateSessionInput {
 
 /**
  * Owns the on-disk lifecycle of a session's isolated workspace under
- * `~/.byne/sessions/<id>/<projectName>`. Database state is delegated to
+ * `~/.10xgrace/sessions/<id>/<projectName>`. Database state is delegated to
  * StateManager; this class only deals with directories, git worktrees,
  * and disk usage.
  */
@@ -41,7 +41,7 @@ export class SessionManager {
     rootDir?: string
   ) {
     this.root =
-      rootDir ?? path.join(os.homedir(), ".byne", "sessions");
+      rootDir ?? path.join(os.homedir(), ".10xgrace", "sessions");
     fs.mkdirSync(this.root, { recursive: true });
   }
 
@@ -155,7 +155,7 @@ export class SessionManager {
   /**
    * Phase 10: undo session-scoped config rewrites that preflight did at
    * run start. Currently restores `<projectRoot>/config/development.toml`
-   * from the sibling `.byne-original` snapshot if present. Called from
+   * from the sibling `.10xgrace-original` snapshot if present. Called from
    * SessionSupervisor.onChildExit so the worktree returns to a clean
    * state after each run. Idempotent — safe to call multiple times.
    */
@@ -167,7 +167,7 @@ export class SessionManager {
       "config",
       "development.toml"
     );
-    const snapshotPath = devTomlPath + ".byne-original";
+    const snapshotPath = devTomlPath + ".10xgrace-original";
     if (fs.existsSync(snapshotPath)) {
       try {
         const original = fs.readFileSync(snapshotPath, "utf-8");
@@ -289,7 +289,7 @@ export class SessionManager {
     // cp -R with exclusions for the heavyweight ones. Using rsync would be
     // nicer but we don't want to add a system-tool dep.
     const entries = fs.readdirSync(sourcePath, { withFileTypes: true });
-    const skip = new Set(["node_modules", "target", ".byne", "dist"]);
+    const skip = new Set(["node_modules", "target", ".10xgrace", "dist"]);
     for (const entry of entries) {
       if (skip.has(entry.name)) continue;
       const src = path.join(sourcePath, entry.name);

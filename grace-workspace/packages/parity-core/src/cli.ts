@@ -3,7 +3,7 @@ import { loadParityConfig } from "./config.js";
 import { runDashboardOnly, runHeartbeat, runLoop, runSweepOnly } from "./orchestrator.js";
 import { getIssue } from "./github/client.js";
 import { getLeafRow } from "./persistence.js";
-import { StateManager } from "@byne/core";
+import { StateManager } from "@10xgrace/core";
 import { extendForParity } from "./persistence.js";
 
 function parseInterval(s: string): number {

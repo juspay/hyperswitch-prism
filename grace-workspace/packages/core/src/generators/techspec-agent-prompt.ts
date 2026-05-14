@@ -123,7 +123,7 @@ export function buildTechspecAgentUserPayload(
           connectorDocUrls: task.connectorDocUrls,
           targetFiles: task.targetFiles,
           projectRoot: task.projectRoot,
-          // Grace/Byne workflow fields
+          // Grace/10XGRACE workflow fields
           paymentMethod: task.paymentMethod,
           targetConnectors: task.targetConnectors,
           paymentMethodCategory: task.paymentMethodCategory,

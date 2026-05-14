@@ -286,13 +286,13 @@ function WorkflowPageInner({
       return;
     }
     const defaultName =
-      localStorage.getItem("byne.agentName") || "Riddhi's subagent";
+      localStorage.getItem("10xgrace.agentName") || "Riddhi's subagent";
     const name = window.prompt(
       "Name your subagent (this name appears in every auto-mode log):",
       defaultName
     );
     if (!name || !name.trim()) return;
-    localStorage.setItem("byne.agentName", name.trim());
+    localStorage.setItem("10xgrace.agentName", name.trim());
     send("auto-mode:set", { enabled: true, agentName: name.trim() });
   };
 

@@ -17,7 +17,7 @@ import {
   type PipelineContext,
   type PipelineOptions,
   type TaskDefinition,
-} from "@byne/core";
+} from "@10xgrace/core";
 
 interface RunOpts {
   taskFile?: string;
@@ -52,7 +52,7 @@ const ARTIFACT_KEYS_BY_STAGE: Record<string, string[]> = {
   // Phase 12: include per-phase Claude session ids so manual rewind forces a
   // fresh `claude --session-id <new>` call instead of resuming a stale
   // conversation. The on-disk jsonl files at ~/.claude/projects/<...>/<uuid>.jsonl
-  // survive until the `byne sessions prune` command reaps them.
+  // survive until the `10xgrace sessions prune` command reaps them.
   l2_gen: ["l2", "l2LinksSessionId", "l2TechspecSessionId"],
   // Phase 13: also clear l2GraceIssueUrl so a post-rewind re-approval files
   // a fresh issue at juspay/grace instead of being silently skipped by the
@@ -103,7 +103,7 @@ export async function runCommand(opts: RunOpts): Promise<void> {
     const pruned = await state.pruneEmptyRuns();
     if (pruned > 0) {
       // eslint-disable-next-line no-console
-      console.log(`\x1b[90m[byne] pruned ${pruned} empty run(s)\x1b[0m`);
+      console.log(`\x1b[90m[10xgrace] pruned ${pruned} empty run(s)\x1b[0m`);
     }
   } catch {
     /* ignore */
@@ -122,7 +122,7 @@ export async function runCommand(opts: RunOpts): Promise<void> {
     if (cleared > 0) {
       // eslint-disable-next-line no-console
       console.log(
-        `\x1b[33m[byne] recovered ${cleared} stale session lock(s) from a prior crash\x1b[0m`
+        `\x1b[33m[10xgrace] recovered ${cleared} stale session lock(s) from a prior crash\x1b[0m`
       );
     }
   } catch {
@@ -131,7 +131,7 @@ export async function runCommand(opts: RunOpts): Promise<void> {
 
   // node --watch handoff: check for a pending resume intent written by a prior
   // dashboard "resume from stage" click.
-  const resumeFile = path.join(os.homedir(), ".byne", "resume.json");
+  const resumeFile = path.join(os.homedir(), ".10xgrace", "resume.json");
   let autoResume: { runId: string; startFrom?: CheckpointId } | undefined;
   try {
     if (fs.existsSync(resumeFile)) {
@@ -140,12 +140,12 @@ export async function runCommand(opts: RunOpts): Promise<void> {
       fs.unlinkSync(resumeFile); // consume it
       // eslint-disable-next-line no-console
       console.log(
-        `\x1b[35m[byne] handoff file consumed: resume=${autoResume?.runId} startFrom=${autoResume?.startFrom ?? "(auto)"}\x1b[0m`
+        `\x1b[35m[10xgrace] handoff file consumed: resume=${autoResume?.runId} startFrom=${autoResume?.startFrom ?? "(auto)"}\x1b[0m`
       );
     }
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.error(`[byne] bad handoff file:`, err);
+    console.error(`[10xgrace] bad handoff file:`, err);
   }
   if (autoResume && !opts.resume) opts.resume = autoResume.runId;
   if (autoResume?.startFrom && !opts.startFrom)
@@ -161,7 +161,7 @@ export async function runCommand(opts: RunOpts): Promise<void> {
     if (!preLoad) {
       // eslint-disable-next-line no-console
       console.warn(
-        `\x1b[33m[byne] resume target ${opts.resume} not found — falling back to a fresh run\x1b[0m`
+        `\x1b[33m[10xgrace] resume target ${opts.resume} not found — falling back to a fresh run\x1b[0m`
       );
       opts.resume = undefined;
       opts.startFrom = undefined;
@@ -183,7 +183,7 @@ export async function runCommand(opts: RunOpts): Promise<void> {
 
     // eslint-disable-next-line no-console
     console.log(
-      `\x1b[90m[byne] loaded run ${runId} — saved checkpoint states:\x1b[0m`
+      `\x1b[90m[10xgrace] loaded run ${runId} — saved checkpoint states:\x1b[0m`
     );
     for (const cp of ALL_CHECKPOINTS) {
       const st = saved.checkpointStates[cp.id] ?? "(none)";
@@ -202,19 +202,19 @@ export async function runCommand(opts: RunOpts): Promise<void> {
         opts.startFrom = firstUnfinished.id;
         // eslint-disable-next-line no-console
         console.log(
-          `\x1b[35m[byne] auto-resuming at "${firstUnfinished.id}" (first non-passed)\x1b[0m`
+          `\x1b[35m[10xgrace] auto-resuming at "${firstUnfinished.id}" (first non-passed)\x1b[0m`
         );
       } else {
         // eslint-disable-next-line no-console
         console.log(
-          `\x1b[32m[byne] run was already complete — nothing to resume\x1b[0m`
+          `\x1b[32m[10xgrace] run was already complete — nothing to resume\x1b[0m`
         );
         return;
       }
     } else {
       // eslint-disable-next-line no-console
       console.log(
-        `\x1b[35m[byne] explicit resume at "${opts.startFrom}"\x1b[0m`
+        `\x1b[35m[10xgrace] explicit resume at "${opts.startFrom}"\x1b[0m`
       );
     }
 
@@ -240,12 +240,12 @@ export async function runCommand(opts: RunOpts): Promise<void> {
         }
         // eslint-disable-next-line no-console
         console.log(
-          `\x1b[35m[byne] rewind: reset retry counters for ${clearedStages.length} stage(s) from "${opts.startFrom}"\x1b[0m`
+          `\x1b[35m[10xgrace] rewind: reset retry counters for ${clearedStages.length} stage(s) from "${opts.startFrom}"\x1b[0m`
         );
         if (clearedKeys.length > 0) {
           // eslint-disable-next-line no-console
           console.log(
-            `\x1b[35m[byne] rewind: cleared artifacts: ${clearedKeys.join(", ")}\x1b[0m`
+            `\x1b[35m[10xgrace] rewind: cleared artifacts: ${clearedKeys.join(", ")}\x1b[0m`
           );
         }
         // Persist the rewound state so the DB reflects reality before engine.run
@@ -283,7 +283,7 @@ export async function runCommand(opts: RunOpts): Promise<void> {
       }
     }
     // eslint-disable-next-line no-console
-    console.log(`[byne] Using task-specified runner: ${cfg.runner}${task.runnerModel ? ` (${task.runnerModel})` : ''}`);
+    console.log(`[10xgrace] Using task-specified runner: ${cfg.runner}${task.runnerModel ? ` (${task.runnerModel})` : ''}`);
   }
 
   // Resolve the owning session. Precedence: CLI flag > task.sessionId > default.
@@ -299,7 +299,7 @@ export async function runCommand(opts: RunOpts): Promise<void> {
   // Override projectRoot from the session row so the engine always sees the
   // session-scoped path. For the default session this is the same as
   // cfg.projectRoot — but for any future session it's the per-session
-  // worktree under ~/.byne/sessions/<id>/<projectName>.
+  // worktree under ~/.10xgrace/sessions/<id>/<projectName>.
   const session = state.getSession(sessionId);
   if (session?.projectRoot) {
     task.projectRoot = session.projectRoot;
@@ -346,7 +346,7 @@ export async function runCommand(opts: RunOpts): Promise<void> {
       if (msg.type === "pipeline:abort") {
         // eslint-disable-next-line no-console
         console.log(
-          "\x1b[31m[byne] pipeline:abort received from dashboard — releasing session lock and exiting\x1b[0m"
+          "\x1b[31m[10xgrace] pipeline:abort received from dashboard — releasing session lock and exiting\x1b[0m"
         );
         bus.emit("pipeline:abort", undefined, { error: "cancelled from dashboard" });
         // Release the session lock with a 'cancelled' terminal status so
@@ -358,7 +358,7 @@ export async function runCommand(opts: RunOpts): Promise<void> {
           state.releaseSession(sessionId, ctx.runId, "cancelled");
         } catch (err) {
           // eslint-disable-next-line no-console
-          console.error(`[byne] abort: releaseSession failed:`, err);
+          console.error(`[10xgrace] abort: releaseSession failed:`, err);
         }
         try {
           const entry = process.argv[1];
@@ -380,7 +380,7 @@ export async function runCommand(opts: RunOpts): Promise<void> {
         const label = pipelineOptions.agentName || "auto-reviewer";
         // eslint-disable-next-line no-console
         console.log(
-          `\x1b[35m[byne] auto-mode ${pipelineOptions.autoMode ? "ON" : "OFF"} (agent: ${label})\x1b[0m`
+          `\x1b[35m[10xgrace] auto-mode ${pipelineOptions.autoMode ? "ON" : "OFF"} (agent: ${label})\x1b[0m`
         );
         bus.emit("auto-mode:state", undefined, {
           enabled: pipelineOptions.autoMode,
@@ -401,7 +401,7 @@ export async function runCommand(opts: RunOpts): Promise<void> {
           );
           // eslint-disable-next-line no-console
           console.log(
-            `\x1b[90m[byne] runs:list → ${withHistory.length} run(s)\x1b[0m`
+            `\x1b[90m[10xgrace] runs:list → ${withHistory.length} run(s)\x1b[0m`
           );
           bus.emit("runs:list:response", undefined, { runs: withHistory });
         } catch (err) {
@@ -439,17 +439,17 @@ export async function runCommand(opts: RunOpts): Promise<void> {
         if (supervised) {
           // eslint-disable-next-line no-console
           console.log(
-            `\x1b[35m[byne] runs:new received — emitting respawn intent and exiting cleanly\x1b[0m`
+            `\x1b[35m[10xgrace] runs:new received — emitting respawn intent and exiting cleanly\x1b[0m`
           );
           await emitRespawnAndExit(state, sessionId, ctx.runId, {});
           return;
         }
         try {
-          const resumePath = path.join(os.homedir(), ".byne", "resume.json");
+          const resumePath = path.join(os.homedir(), ".10xgrace", "resume.json");
           if (fs.existsSync(resumePath)) fs.unlinkSync(resumePath);
           // eslint-disable-next-line no-console
           console.log(
-            `\x1b[35m[byne] runs:new received — restarting engine for a fresh run\x1b[0m`
+            `\x1b[35m[10xgrace] runs:new received — restarting engine for a fresh run\x1b[0m`
           );
           try {
             const entry =
@@ -462,7 +462,7 @@ export async function runCommand(opts: RunOpts): Promise<void> {
             }
           } catch (err) {
             // eslint-disable-next-line no-console
-            console.error(`[byne] runs:new: failed to bounce entry file:`, err);
+            console.error(`[10xgrace] runs:new: failed to bounce entry file:`, err);
           }
           setTimeout(() => process.exit(0), 250);
         } catch (err) {
@@ -482,7 +482,7 @@ export async function runCommand(opts: RunOpts): Promise<void> {
           bus.emit("runs:resuming", undefined, target);
           // eslint-disable-next-line no-console
           console.log(
-            `\x1b[35m[byne] resume requested for ${target.runId}${target.startFrom ? ` from ${target.startFrom}` : ""} — emitting respawn intent and exiting\x1b[0m`
+            `\x1b[35m[10xgrace] resume requested for ${target.runId}${target.startFrom ? ` from ${target.startFrom}` : ""} — emitting respawn intent and exiting\x1b[0m`
           );
           await emitRespawnAndExit(state, sessionId, ctx.runId, {
             runId: target.runId,
@@ -492,16 +492,16 @@ export async function runCommand(opts: RunOpts): Promise<void> {
         }
 
         try {
-          fs.mkdirSync(path.join(os.homedir(), ".byne"), { recursive: true });
+          fs.mkdirSync(path.join(os.homedir(), ".10xgrace"), { recursive: true });
           fs.writeFileSync(
-            path.join(os.homedir(), ".byne", "resume.json"),
+            path.join(os.homedir(), ".10xgrace", "resume.json"),
             JSON.stringify(target),
             "utf-8"
           );
           bus.emit("runs:resuming", undefined, target);
           // eslint-disable-next-line no-console
           console.log(
-            `\x1b[35m[byne] resume requested for ${target.runId}${target.startFrom ? ` from ${target.startFrom}` : ""} — restarting engine\x1b[0m`
+            `\x1b[35m[10xgrace] resume requested for ${target.runId}${target.startFrom ? ` from ${target.startFrom}` : ""} — restarting engine\x1b[0m`
           );
           try {
             const entry =
@@ -514,7 +514,7 @@ export async function runCommand(opts: RunOpts): Promise<void> {
             }
           } catch (err) {
             // eslint-disable-next-line no-console
-            console.error(`[byne] resume: failed to bounce entry file:`, err);
+            console.error(`[10xgrace] resume: failed to bounce entry file:`, err);
           }
           setTimeout(() => process.exit(0), 250);
         } catch (err) {
@@ -619,15 +619,15 @@ export async function runCommand(opts: RunOpts): Promise<void> {
   }
 
   // eslint-disable-next-line no-console
-  console.log(`\x1b[1m\x1b[35m[byne] runId=${runId}\x1b[0m`);
+  console.log(`\x1b[1m\x1b[35m[10xgrace] runId=${runId}\x1b[0m`);
   // eslint-disable-next-line no-console
-  console.log(`\x1b[90m[byne] project=${task.projectRoot}\x1b[0m`);
+  console.log(`\x1b[90m[10xgrace] project=${task.projectRoot}\x1b[0m`);
   // eslint-disable-next-line no-console
   console.log(
-    `\x1b[90m[byne] taskFromUi=${pipelineOptions.taskFromUi} dashboard=${pipelineOptions.dashboard} llm=${cfg.llm.model}@${cfg.llm.baseUrl}\x1b[0m`
+    `\x1b[90m[10xgrace] taskFromUi=${pipelineOptions.taskFromUi} dashboard=${pipelineOptions.dashboard} llm=${cfg.llm.model}@${cfg.llm.baseUrl}\x1b[0m`
   );
   // eslint-disable-next-line no-console
-  console.log(`\x1b[90m[byne] built from ${new Date().toISOString()} runtime load\x1b[0m`);
+  console.log(`\x1b[90m[10xgrace] built from ${new Date().toISOString()} runtime load\x1b[0m`);
 
   // Pre-flight: check AI runner connectivity
   const aiHealth = await checkAIHealth();
@@ -635,22 +635,22 @@ export async function runCommand(opts: RunOpts): Promise<void> {
   if (aiHealth.connected) {
     // eslint-disable-next-line no-console
     console.log(
-      `\x1b[32m[byne] ✓ ${runnerLabel} connected (${aiHealth.connectionInfo}${aiHealth.latencyMs ? `, ${aiHealth.latencyMs}ms` : ""})\x1b[0m`
+      `\x1b[32m[10xgrace] ✓ ${runnerLabel} connected (${aiHealth.connectionInfo}${aiHealth.latencyMs ? `, ${aiHealth.latencyMs}ms` : ""})\x1b[0m`
     );
   } else {
     // eslint-disable-next-line no-console
     console.log(
-      `\x1b[31m[byne] ✕ ${runnerLabel} NOT connected — ${aiHealth.error}\x1b[0m`
+      `\x1b[31m[10xgrace] ✕ ${runnerLabel} NOT connected — ${aiHealth.error}\x1b[0m`
     );
     if (aiHealth.runner === "opencode") {
       // eslint-disable-next-line no-console
       console.log(
-        `\x1b[33m[byne]   Implementation steps may fail. Start opencode with: opencode serve\x1b[0m`
+        `\x1b[33m[10xgrace]   Implementation steps may fail. Start opencode with: opencode serve\x1b[0m`
       );
     } else {
       // eslint-disable-next-line no-console
       console.log(
-        `\x1b[33m[byne]   Implementation steps may fail. Ensure 'claude' CLI is installed.\x1b[0m`
+        `\x1b[33m[10xgrace]   Implementation steps may fail. Ensure 'claude' CLI is installed.\x1b[0m`
       );
     }
   }
@@ -670,7 +670,7 @@ export async function runCommand(opts: RunOpts): Promise<void> {
       // future Phase 3 supervisor double-spawned. Surface the message
       // without polluting the log with a stack trace.
       // eslint-disable-next-line no-console
-      console.error(`\x1b[31m[byne] ${err.message}\x1b[0m`);
+      console.error(`\x1b[31m[10xgrace] ${err.message}\x1b[0m`);
       bus?.emit("pipeline:abort", undefined, { error: err.message });
       process.exitCode = 2;
     } else {
@@ -700,7 +700,7 @@ function inferCheckpoint(msg: string): "pipeline" | CheckpointId {
  * by printing a recognized marker line on stdout, then releases the session
  * lock and exits cleanly.
  *
- * The marker MUST be the literal `__BYNE_RESPAWN__ <json>` so the supervisor's
+ * The marker MUST be the literal `__TENXGRACE_RESPAWN__ <json>` so the supervisor's
  * line-buffered stdout parser picks it up. The JSON payload accepts:
  *   - `runId?: string`   — re-use this run row (resume); supervisor skips enqueueRun
  *   - `startFrom?: string` — start the resumed run at this checkpoint id
@@ -718,7 +718,7 @@ async function emitRespawnAndExit(
   intent: { runId?: string; startFrom?: CheckpointId }
 ): Promise<void> {
   // eslint-disable-next-line no-console
-  console.log(`__BYNE_RESPAWN__ ${JSON.stringify(intent)}`);
+  console.log(`__TENXGRACE_RESPAWN__ ${JSON.stringify(intent)}`);
   try {
     state.releaseSession(sessionId, runId, "cancelled");
   } catch {

@@ -1,9 +1,9 @@
 {
-  "name": "@byne/cli",
+  "name": "@10xgrace/cli",
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "byne": "dist/index.js"
+    "10xgrace": "dist/index.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -11,8 +11,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@byne/core": "workspace:*",
-    "@byne/parity-core": "workspace:*",
+    "@10xgrace/core": "workspace:*",
+    "@10xgrace/parity-core": "workspace:*",
     "commander": "^12.1.0"
   },
   "devDependencies": {

@@ -1,4 +1,4 @@
-import { StateManager, ALL_CHECKPOINTS } from "@byne/core";
+import { StateManager, ALL_CHECKPOINTS } from "@10xgrace/core";
 
 const COLOR: Record<string, string> = {
   idle: "\x1b[90m",
