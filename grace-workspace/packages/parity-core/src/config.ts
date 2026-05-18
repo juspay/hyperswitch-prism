@@ -87,10 +87,12 @@ export function loadParityConfig(explicitPath?: string): ParityConfig {
 
   const cfg = merge(DEFAULTS, raw);
 
-  cfg.prismPath = process.env.PARITY_PRISM_PATH ?? cfg.prismPath;
+  // Resolution order: PARITY_*-specific env var → parityAutopilot.* from config.yml →
+  // existing 10XGRACE env vars (reused so operators don't repeat themselves).
+  cfg.prismPath = process.env.PARITY_PRISM_PATH ?? cfg.prismPath ?? process.env.TENXGRACE_PROJECT_ROOT ?? "";
   cfg.oracleReadOnlyPath = process.env.PARITY_ORACLE_PATH ?? cfg.oracleReadOnlyPath;
   cfg.bridgeWritePath = process.env.PARITY_BRIDGE_PATH ?? cfg.bridgeWritePath;
-  cfg.credsPath = process.env.PARITY_CREDS_PATH ?? cfg.credsPath;
+  cfg.credsPath = process.env.PARITY_CREDS_PATH ?? cfg.credsPath ?? process.env.TENXGRACE_CREDS_PATH ?? "";
 
   if (!cfg.prismPath) throw new Error("parityAutopilot.prismPath is empty (set PARITY_PRISM_PATH)");
   if (!existsSync(cfg.prismPath)) throw new Error(`prismPath does not exist: ${cfg.prismPath}`);
