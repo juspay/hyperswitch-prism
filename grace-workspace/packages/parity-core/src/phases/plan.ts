@@ -38,6 +38,9 @@ export async function runPlan(opts: { cfg: ParityConfig; leaf: Leaf; understandM
       label: `parity/plan/${opts.leaf.number}`,
       model: opts.cfg.llm.planModel || undefined,
       rawText: true,
+      // Bridge-target plans can take >10 min; let the agent run until it's done.
+      // Cancellation is still available via the dashboard's "Cancel run (SIGTERM)" button.
+      timeoutMs: 0,
       ...(effective === "claude-code"
         ? {
             claudeSessionId: opts.sessionId,

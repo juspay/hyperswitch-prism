@@ -54,6 +54,9 @@ export async function runUnderstand(opts: { cfg: ParityConfig; leaf: Leaf; sessi
       label: `parity/understand/${opts.leaf.number}`,
       model: opts.cfg.llm.understandModel || undefined,
       rawText: true,
+      // Bridge-target understandings can take >10 min; let the agent run until it's done.
+      // Cancellation is still available via the dashboard's "Cancel run (SIGTERM)" button.
+      timeoutMs: 0,
       // claudeSessionId + sessionLabel are claude-code only; opencode throws.
       ...(effective === "claude-code"
         ? {

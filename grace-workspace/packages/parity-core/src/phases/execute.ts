@@ -90,6 +90,9 @@ export async function runExecute(opts: {
       model: opts.cfg.llm.executeModel || undefined,
       rawText: true,
       allowWrite: true,
+      // EXECUTE runs cargo + edits; bridge-target executes can take >10 min.
+      // Cancellation is still available via the dashboard's "Cancel run (SIGTERM)" button.
+      timeoutMs: 0,
       ...(effective === "claude-code"
         ? {
             claudeSessionId: opts.sessionId,

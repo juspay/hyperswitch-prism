@@ -144,10 +144,12 @@ export async function runOpencode<T = unknown>(
   );
 
   const timeoutMs = opts.timeoutMs ?? oc.timeoutMs ?? 10 * 60 * 1000;
+  const timeoutEnabled = Number.isFinite(timeoutMs) && timeoutMs > 0;
   const startedAt = Date.now();
+  const timeoutTag = timeoutEnabled ? ` · timeout=${Math.round(timeoutMs / 1000)}s` : " · timeout=disabled";
   // eslint-disable-next-line no-console
   console.log(
-    `\x1b[36m[opencode] → ${opts.label} · attach=${attachUrl} · cwd=${absCwd} · model=${model} · prompt=${prompt.length}ch\x1b[0m`
+    `\x1b[36m[opencode] → ${opts.label} · attach=${attachUrl} · cwd=${absCwd} · model=${model}${timeoutTag} · prompt=${prompt.length}ch\x1b[0m`
   );
 
   // Capture stdout and stderr to extract the model's answer and error details.
@@ -174,22 +176,24 @@ export async function runOpencode<T = unknown>(
       process.stderr.write(chunk);
     });
 
-    const timer = setTimeout(() => {
-      dbg(`timeout after ${timeoutMs}ms — killing opencode`);
-      child.kill("SIGTERM");
-      setTimeout(() => child.kill("SIGKILL"), 5000).unref();
-      const stderr = Buffer.concat(stderrChunks).toString("utf-8").trim();
-      const detail = stderr ? ` — stderr: ${stderr.slice(-500)}` : "";
-      reject(new Error(`opencode timed out after ${timeoutMs}ms (label: ${opts.label})${detail}`));
-    }, timeoutMs);
-    timer.unref();
+    const timer: NodeJS.Timeout | null = timeoutEnabled
+      ? setTimeout(() => {
+          dbg(`timeout after ${timeoutMs}ms — killing opencode`);
+          child.kill("SIGTERM");
+          setTimeout(() => child.kill("SIGKILL"), 5000).unref();
+          const stderr = Buffer.concat(stderrChunks).toString("utf-8").trim();
+          const detail = stderr ? ` — stderr: ${stderr.slice(-500)}` : "";
+          reject(new Error(`opencode timed out after ${timeoutMs}ms (label: ${opts.label})${detail}`));
+        }, timeoutMs)
+      : null;
+    timer?.unref();
 
     child.on("error", (err) => {
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
       reject(new Error(`opencode spawn failed: ${err.message}`));
     });
     child.on("exit", (code, signal) => {
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
       const stderr = Buffer.concat(stderrChunks).toString("utf-8").trim();
       const detail = stderr ? ` — stderr: ${stderr.slice(-500)}` : "";
       if (signal) {

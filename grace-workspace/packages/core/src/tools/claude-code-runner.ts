@@ -264,12 +264,14 @@ export async function runClaudeCode<T = unknown>(
   args.push(prompt);
 
   const timeoutMs = opts.timeoutMs ?? cc.timeoutMs ?? 10 * 60 * 1000;
+  const timeoutEnabled = Number.isFinite(timeoutMs) && timeoutMs > 0;
   const startedAt = Date.now();
   const sessionMode = isResume ? `resume(${sessionId.slice(0, 8)}…)` : `new(${sessionId.slice(0, 8)}…)`;
   const friendlyTag = opts.sessionLabel ? ` · session=${opts.sessionLabel}` : "";
+  const timeoutTag = timeoutEnabled ? ` · timeout=${Math.round(timeoutMs / 1000)}s` : " · timeout=disabled";
   // eslint-disable-next-line no-console
   console.log(
-    `\x1b[36m[claude-code] → ${opts.label} · cwd=${absCwd} · model=${model ?? "default"} · ${sessionMode}${friendlyTag} · prompt=${prompt.length}ch\x1b[0m`
+    `\x1b[36m[claude-code] → ${opts.label} · cwd=${absCwd} · model=${model ?? "default"} · ${sessionMode}${friendlyTag}${timeoutTag} · prompt=${prompt.length}ch\x1b[0m`
   );
 
   // Capture stdout and stderr to extract the model's answer and error details.
@@ -296,22 +298,24 @@ export async function runClaudeCode<T = unknown>(
       process.stderr.write(chunk);
     });
 
-    const timer = setTimeout(() => {
-      dbg(`timeout after ${timeoutMs}ms — killing claude`);
-      child.kill("SIGTERM");
-      setTimeout(() => child.kill("SIGKILL"), 5000).unref();
-      const stderr = Buffer.concat(stderrChunks).toString("utf-8").trim();
-      const detail = stderr ? ` — stderr: ${stderr.slice(-500)}` : "";
-      reject(new Error(`claude timed out after ${timeoutMs}ms (label: ${opts.label})${detail}`));
-    }, timeoutMs);
-    timer.unref();
+    const timer: NodeJS.Timeout | null = timeoutEnabled
+      ? setTimeout(() => {
+          dbg(`timeout after ${timeoutMs}ms — killing claude`);
+          child.kill("SIGTERM");
+          setTimeout(() => child.kill("SIGKILL"), 5000).unref();
+          const stderr = Buffer.concat(stderrChunks).toString("utf-8").trim();
+          const detail = stderr ? ` — stderr: ${stderr.slice(-500)}` : "";
+          reject(new Error(`claude timed out after ${timeoutMs}ms (label: ${opts.label})${detail}`));
+        }, timeoutMs)
+      : null;
+    timer?.unref();
 
     child.on("error", (err) => {
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
       reject(new Error(`claude spawn failed: ${err.message}`));
     });
     child.on("exit", (code, signal) => {
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
       const stderr = Buffer.concat(stderrChunks).toString("utf-8").trim();
       const detail = stderr ? ` — stderr: ${stderr.slice(-500)}` : "";
       if (signal) {
