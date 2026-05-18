@@ -3346,6 +3346,7 @@ impl
             order_details: None,
             minor_amount_authorized: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -3474,6 +3475,7 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
             order_details,
             l2_l3_data: l2_l3_data.map(Box::new),
             minor_amount_authorized: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -3571,6 +3573,7 @@ impl
             order_details: None,
             minor_amount_authorized: None,
             l2_l3_data: l2_l3_data.map(Box::new),
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -3648,6 +3651,7 @@ impl
             order_details: None,
             minor_amount_authorized: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -3719,6 +3723,7 @@ impl ForeignTryFrom<(PaymentServiceVoidRequest, Connectors, &MaskedMetadata)> fo
             order_details: None,
             minor_amount_authorized: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -5291,7 +5296,10 @@ pub fn generate_payment_sync_response(
                     connector_response,
                     incremental_authorization_allowed,
                     payment_method_update: None,
-                    sender_payment_instrument_id: None,
+                    sender_payment_instrument_id: router_data_v2
+                        .resource_common_data
+                        .sender_payment_instrument_id
+                        .clone(),
                 })
             }
             PaymentsResponseData::MultipleCaptureResponse {
@@ -5383,7 +5391,10 @@ pub fn generate_payment_sync_response(
                     connector_response,
                     incremental_authorization_allowed: None,
                     payment_method_update: None,
-                    sender_payment_instrument_id: None,
+                    sender_payment_instrument_id: router_data_v2
+                        .resource_common_data
+                        .sender_payment_instrument_id
+                        .clone(),
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -6390,6 +6401,7 @@ impl
             order_details: None,
             minor_amount_authorized: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -6498,6 +6510,7 @@ impl
             order_details: None,
             minor_amount_authorized: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -7103,6 +7116,7 @@ impl
             order_details: None,
             minor_amount_authorized: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -7179,6 +7193,7 @@ impl
             order_details: None,
             minor_amount_authorized: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -7522,6 +7537,7 @@ impl
             order_details: None,
             minor_amount_authorized: None,
             l2_l3_data: l2_l3_data.map(Box::new),
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -7628,6 +7644,7 @@ impl
             order_details: None,
             minor_amount_authorized: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -8700,6 +8717,7 @@ impl
             order_details: None,
             minor_amount_authorized: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -9212,6 +9230,7 @@ impl
             order_details: None,
             minor_amount_authorized: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -9391,6 +9410,7 @@ impl
             order_details: None,
             minor_amount_authorized: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -9539,6 +9559,7 @@ impl
             order_details: None,
             minor_amount_authorized: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -11278,6 +11299,7 @@ impl
             order_details: None,
             minor_amount_authorized: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -11369,6 +11391,7 @@ impl
             order_details: None,
             minor_amount_authorized: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -11467,6 +11490,7 @@ impl
             order_details: None,
             minor_amount_authorized: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -11543,6 +11567,7 @@ impl
             order_details: None,
             minor_amount_authorized: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
