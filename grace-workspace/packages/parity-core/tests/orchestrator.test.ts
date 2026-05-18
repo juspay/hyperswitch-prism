@@ -282,6 +282,57 @@ describe("runHeartbeat", () => {
     const understandCall = vi.mocked(runUnderstand).mock.calls.at(-1);
     expect(understandCall?.[0].cfg.llm.runner).toBe("claude-code");
   });
+
+  it("bridgePathOverride threads into cfg passed to runExecute", async () => {
+    vi.mocked(walkTree).mockResolvedValue([mkLeaf({ number: 100 })]);
+    const { runExecute } = await import("../src/phases/execute.js");
+
+    await runHeartbeat({
+      leafNumber: 100,
+      dryRun: true,
+      bridgePathOverride: "/from-cli/hyperswitch",
+    });
+
+    const execCall = vi.mocked(runExecute).mock.calls.at(-1);
+    expect(execCall?.[0].cfg.bridgeWritePath).toBe("/from-cli/hyperswitch");
+  });
+
+  it("oraclePathOverride threads into cfg passed to runExecute", async () => {
+    vi.mocked(walkTree).mockResolvedValue([mkLeaf({ number: 100 })]);
+    const { runExecute } = await import("../src/phases/execute.js");
+
+    await runHeartbeat({
+      leafNumber: 100,
+      dryRun: true,
+      oraclePathOverride: "/from-cli/oracle",
+    });
+
+    const execCall = vi.mocked(runExecute).mock.calls.at(-1);
+    expect(execCall?.[0].cfg.oracleReadOnlyPath).toBe("/from-cli/oracle");
+  });
+
+  it("verifyLeaf is called with exec.target so hs-bridge can short-circuit", async () => {
+    vi.mocked(walkTree).mockResolvedValue([mkLeaf({ number: 100 })]);
+    const { runExecute } = await import("../src/phases/execute.js");
+    const { verifyLeaf } = await import("../src/verify/grpc.js");
+
+    // Override execute to return target=hyperswitch-bridge for this test
+    vi.mocked(runExecute).mockResolvedValueOnce({
+      ok: true,
+      target: "hyperswitch-bridge",
+      repoRoot: "/tmp/hyperswitch",
+      branch: "parity/bridge/test",
+      changedFiles: ["crates/external_services/src/grpc_client/unified_connector_service.rs"],
+      buildTail: "ok",
+      clippyTail: "ok",
+      testTail: "ok",
+    });
+
+    await runHeartbeat({ leafNumber: 100, dryRun: true });
+
+    const verifyCall = vi.mocked(verifyLeaf).mock.calls.at(-1);
+    expect(verifyCall?.[2]).toBe("hyperswitch-bridge");
+  });
 });
 
 // Sanity: the @10xgrace/core mock exported a `withRunner` so phase modules that

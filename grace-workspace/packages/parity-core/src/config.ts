@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { loadConfig as loadBaseConfig } from "@10xgrace/core";
 
 export interface ParityConfig {
@@ -93,6 +94,27 @@ export function loadParityConfig(explicitPath?: string): ParityConfig {
 
   if (!cfg.prismPath) throw new Error("parityAutopilot.prismPath is empty (set PARITY_PRISM_PATH)");
   if (!existsSync(cfg.prismPath)) throw new Error(`prismPath does not exist: ${cfg.prismPath}`);
+
+  // Bridge & oracle are optional. When set they must be sane — fail fast so the
+  // operator hits a clear error before the agent burns 3-4 min on UNDERSTAND.
+  if (cfg.bridgeWritePath) {
+    if (!existsSync(cfg.bridgeWritePath)) {
+      throw new Error(
+        `parityAutopilot.bridgeWritePath does not exist: ${cfg.bridgeWritePath} (unset PARITY_BRIDGE_PATH to disable hs-bridge support)`,
+      );
+    }
+    if (!existsSync(join(cfg.bridgeWritePath, ".git"))) {
+      throw new Error(`bridgeWritePath is not a git repo: ${cfg.bridgeWritePath}`);
+    }
+    if (!existsSync(join(cfg.bridgeWritePath, "crates/external_services"))) {
+      throw new Error(
+        `bridgeWritePath does not look like a hyperswitch clone (missing crates/external_services): ${cfg.bridgeWritePath}`,
+      );
+    }
+  }
+  if (cfg.oracleReadOnlyPath && !existsSync(cfg.oracleReadOnlyPath)) {
+    throw new Error(`oracleReadOnlyPath does not exist: ${cfg.oracleReadOnlyPath}`);
+  }
 
   return cfg;
 }

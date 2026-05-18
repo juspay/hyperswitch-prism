@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import type { ParityConfig } from "../config.js";
-import type { Leaf, VerifyResult } from "../types.js";
+import type { Leaf, LocusTarget, VerifyResult } from "../types.js";
 import { diffField, extractPayload, type PayloadSpec } from "./payloads.js";
 
 interface ServerHandle {
@@ -124,7 +124,34 @@ function renderResult(opts: {
   return lines.join("\n");
 }
 
-export async function verifyLeaf(cfg: ParityConfig, leaf: Leaf): Promise<VerifyResult> {
+export async function verifyLeaf(cfg: ParityConfig, leaf: Leaf, target: LocusTarget = "prism"): Promise<VerifyResult> {
+  // hs-bridge fixes live in hyperswitch, not prism. Booting prism's grpc-server
+  // would test the unchanged downstream transformer, not the bridge fix. Also
+  // the `parity:<flow>:<field> hit` tracing marker the agent adds lives in
+  // hyperswitch's binary, so prism's log can't possibly grep-match it.
+  //
+  // Instead we let the EXECUTE phase's `cargo nextest run -p external_services`
+  // BE the verify gate — the EXECUTE prompt requires the agent to add a unit
+  // test that exercises the patched serializer.
+  if (target === "hyperswitch-bridge") {
+    return {
+      ok: true,
+      markdown: [
+        "## gRPC Verification",
+        "",
+        "**Skipped for hs-bridge target.**",
+        "",
+        "Bridge fixes are verified by the regression test the EXECUTE phase added in",
+        "`crates/external_services/`, which `cargo nextest run -p external_services` already",
+        "ran during EXECUTE. PR creation gate is satisfied by EXECUTE passing.",
+        "",
+        "_(Running prism's grpc-server here would test the unchanged downstream transformer,",
+        "not the bridge fix. The tracing-marker check would also fail because the marker",
+        "lives in hyperswitch's binary, not prism's.)_",
+      ].join("\n"),
+    };
+  }
+
   const spec = await extractPayload(cfg, leaf);
   if (!spec) {
     return {

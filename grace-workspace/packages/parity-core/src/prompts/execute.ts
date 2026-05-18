@@ -33,12 +33,28 @@ Output as JSON at end:
 \`\`\`
 `;
 
+const BRIDGE_TEST_MANDATE = `
+
+## Mandatory regression test (target=hyperswitch-bridge)
+
+Because the verify gate for bridge fixes IS the cargo nextest run from this phase, you MUST add at least one Rust unit test that exercises the patched code path.
+
+Place it inside \`crates/external_services/src/grpc_client/unified_connector_service.rs\` under a \`#[cfg(test)] mod tests\` block, or in a sibling file in the same crate.
+
+The test should:
+1. Construct an instance of the relevant internal type (e.g. \`PaymentsAuthorizeData\` for an Authorize-flow bridge fix) with realistic values from the leaf's diff body.
+2. Call the bridge serializer you modified.
+3. Assert that the resulting proto message has the field set correctly.
+
+Without this test, \`cargo nextest run -p external_services\` won't actually exercise your change and the PR will be opened with no real coverage. There is no separate gRPC verify for bridge fixes — this test IS the verification.`;
+
 export function buildExecuteUser(planMarkdown: string, repoRoot: string, target: "prism" | "hyperswitch-bridge"): string {
+  const tail = target === "hyperswitch-bridge" ? BRIDGE_TEST_MANDATE : "";
   return `Target repo root: ${repoRoot}
 Locus target: ${target}
 
 Plan to apply:
 ${planMarkdown}
 
-Apply now.`;
+Apply now.${tail}`;
 }

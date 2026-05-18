@@ -64,13 +64,21 @@ export interface HeartbeatDeps {
   dryRun?: boolean;
   /** Override parityAutopilot.llm.runner for this heartbeat (e.g. force claude-code regardless of config). */
   runnerOverride?: RunnerType;
+  /** Override parityAutopilot.bridgeWritePath for this heartbeat (CLI --bridge-path). */
+  bridgePathOverride?: string;
+  /** Override parityAutopilot.oracleReadOnlyPath for this heartbeat (CLI --oracle-path). */
+  oraclePathOverride?: string;
 }
 
 export async function runHeartbeat(deps: HeartbeatDeps = {}): Promise<HeartbeatResult> {
   const baseCfg = deps.cfg ?? loadParityConfig();
-  const cfg: ParityConfig = deps.runnerOverride
-    ? { ...baseCfg, llm: { ...baseCfg.llm, runner: deps.runnerOverride } }
-    : baseCfg;
+  // Build an effective cfg applying any per-heartbeat overrides.
+  const cfg: ParityConfig = {
+    ...baseCfg,
+    llm: deps.runnerOverride ? { ...baseCfg.llm, runner: deps.runnerOverride } : baseCfg.llm,
+    bridgeWritePath: deps.bridgePathOverride ?? baseCfg.bridgeWritePath,
+    oracleReadOnlyPath: deps.oraclePathOverride ?? baseCfg.oracleReadOnlyPath,
+  };
   const state = deps.state ?? new StateManager();
   extendForParity(state);
   const workspaceRoot = deps.workspaceRoot ?? process.cwd();
@@ -214,9 +222,9 @@ export async function runHeartbeat(deps: HeartbeatDeps = {}): Promise<HeartbeatR
     }
     emit({ phase: "execute", status: "ok", target: exec.target, branch: exec.branch });
 
-    // GRPC_VERIFY
+    // GRPC_VERIFY (short-circuited for hs-bridge — see verify/grpc.ts)
     emit({ phase: "verify", status: "start" });
-    const verify = await verifyLeaf(cfg, pick);
+    const verify = await verifyLeaf(cfg, pick, exec.target);
     if (!dryRun) {
       await transition({ repo: issueRepo, issue: pick.number, add: [], comment: verify.markdown });
     } else {

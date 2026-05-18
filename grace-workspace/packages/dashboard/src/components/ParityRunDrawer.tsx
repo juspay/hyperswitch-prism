@@ -14,6 +14,7 @@ interface PhaseState {
   markdown?: string;
   branch?: string;
   target?: string;
+  locus?: string;
 }
 
 const PHASE_ORDER: PhaseId[] = [
@@ -165,6 +166,7 @@ export function ParityRunDrawer({ leaf, onClose, onLockChange }: { leaf: ParityL
         markdown: ev.markdown ?? cur.markdown,
         branch: ev.branch ?? cur.branch,
         target: ev.target ?? cur.target,
+        locus: ev.locus ?? cur.locus,
       };
       return next;
     });
@@ -283,6 +285,26 @@ export function ParityRunDrawer({ leaf, onClose, onLockChange }: { leaf: ParityL
                 })}
               </ol>
             </section>
+
+            {phases.understand?.locus === "hs-bridge" && (
+              <section
+                style={{
+                  ...section,
+                  background: T.warnSoft,
+                  borderTop: `2px solid ${T.warn}`,
+                  borderBottom: `2px solid ${T.warn}`,
+                }}
+              >
+                <div style={{ fontSize: 12, color: T.text, lineHeight: 1.6 }}>
+                  <strong>⚠ This fix targets the UCS bridge in <code style={inlineCodeStrong}>juspay/hyperswitch</code>, not prism.</strong>
+                  <br />
+                  Branch will be cut from <code style={inlineCodeStrong}>origin/main</code> of the configured bridge clone.
+                  <br />
+                  If you click <em>Run live →</em>, a draft PR will be opened against{" "}
+                  <strong>juspay/hyperswitch</strong> (not <code style={inlineCodeStrong}>juspay/hyperswitch-prism</code>).
+                </div>
+              </section>
+            )}
 
             {phases.understand?.markdown && (
               <section style={section}>
@@ -458,6 +480,13 @@ const inlineCode: React.CSSProperties = {
   padding: "1px 6px",
   borderRadius: 4,
   fontSize: 11,
+};
+const inlineCodeStrong: React.CSSProperties = {
+  background: T.codeBg,
+  padding: "1px 6px",
+  borderRadius: 4,
+  fontSize: 11,
+  fontWeight: 700,
 };
 const codeBlock: React.CSSProperties = {
   background: T.codeBg,

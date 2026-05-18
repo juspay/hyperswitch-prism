@@ -36,11 +36,27 @@ export function registerParityCommands(program: Command): void {
         return v as "claude-code" | "opencode";
       },
     )
-    .action(async (opts: { leaf?: number; dryRun?: boolean; runner?: "claude-code" | "opencode" }) => {
+    .option(
+      "--bridge-path <path>",
+      "Override PARITY_BRIDGE_PATH for this heartbeat (hyperswitch clone with the UCS bridge crate).",
+    )
+    .option(
+      "--oracle-path <path>",
+      "Override PARITY_ORACLE_PATH for this heartbeat (read-only hyperswitch clone for oracle reference).",
+    )
+    .action(async (opts: {
+      leaf?: number;
+      dryRun?: boolean;
+      runner?: "claude-code" | "opencode";
+      bridgePath?: string;
+      oraclePath?: string;
+    }) => {
       const r = await runHeartbeat({
         leafNumber: opts.leaf,
         dryRun: opts.dryRun,
         runnerOverride: opts.runner,
+        bridgePathOverride: opts.bridgePath,
+        oraclePathOverride: opts.oraclePath,
       });
       // eslint-disable-next-line no-console
       console.log(JSON.stringify(r, null, 2));

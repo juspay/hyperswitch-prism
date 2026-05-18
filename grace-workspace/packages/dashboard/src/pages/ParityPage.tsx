@@ -14,6 +14,16 @@ interface LockState {
   startedAt?: number;
 }
 
+interface ConfigStatus {
+  prismPath: string;
+  oracleReadOnlyPath: string;
+  bridgeWritePath: string;
+  hasOracle: boolean;
+  hasBridge: boolean;
+  runner: string;
+  githubActor: string;
+}
+
 interface TreeResponse {
   leaves?: ParityLeaf[];
   error?: string;
@@ -28,6 +38,8 @@ export function ParityPage() {
   const [search, setSearch] = useState<string>("");
   const [lock, setLock] = useState<LockState>({ busy: false });
   const [activeLeaf, setActiveLeaf] = useState<ParityLeaf | null>(null);
+  const [config, setConfig] = useState<ConfigStatus | null>(null);
+  const [configError, setConfigError] = useState<string | null>(null);
 
   async function pollLock() {
     try {
@@ -39,6 +51,19 @@ export function ParityPage() {
     pollLock();
     const t = setInterval(pollLock, 5000);
     return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/parity/config")
+      .then(async (r) => {
+        const data = await r.json();
+        if (!r.ok) {
+          setConfigError(data.error ?? `HTTP ${r.status}`);
+          return;
+        }
+        setConfig(data as ConfigStatus);
+      })
+      .catch((e) => setConfigError(String(e)));
   }, []);
 
   async function load() {
@@ -135,6 +160,57 @@ export function ParityPage() {
           >
             {error}
           </div>
+        )}
+
+        {configError && (
+          <div
+            style={{
+              background: T.warnSoft,
+              color: T.warn,
+              padding: "10px 14px",
+              borderRadius: 8,
+              border: `1px solid ${T.warn}`,
+              marginBottom: 16,
+              fontSize: 12,
+            }}
+          >
+            <strong>Config load failed:</strong> {configError}
+          </div>
+        )}
+
+        {config && (
+          <section
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 16,
+              padding: "10px 14px",
+              background: T.bgElev,
+              border: `1px solid ${T.border}`,
+              borderRadius: 6,
+              marginBottom: 16,
+              fontSize: 12,
+              color: T.text,
+            }}
+          >
+            <ConfigRow label="prism" value={config.prismPath} ok />
+            <ConfigRow
+              label="oracle"
+              value={config.hasOracle ? config.oracleReadOnlyPath : "not configured (PARITY_ORACLE_PATH)"}
+              ok={config.hasOracle}
+            />
+            <ConfigRow
+              label="bridge"
+              value={
+                config.hasBridge
+                  ? config.bridgeWritePath
+                  : "not configured (PARITY_BRIDGE_PATH) — hs-bridge leaves will escalate"
+              }
+              ok={config.hasBridge}
+            />
+            <ConfigRow label="runner" value={config.runner} ok />
+            {config.githubActor && <ConfigRow label="actor" value={`@${config.githubActor}`} ok />}
+          </section>
         )}
 
         {!error && leaves && (
@@ -348,6 +424,19 @@ export function ParityPage() {
         )}
       </div>
     </SidebarLayout>
+  );
+}
+
+function ConfigRow({ label, value, ok }: { label: string; value: string; ok: boolean }) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "baseline", gap: 6 }}>
+      <strong style={{ color: T.textMuted }}>{label}:</strong>{" "}
+      {ok ? (
+        <code style={{ background: T.codeBg, padding: "1px 6px", borderRadius: 4, fontSize: 11 }}>{value}</code>
+      ) : (
+        <span style={{ color: T.warn }}>{value}</span>
+      )}
+    </span>
   );
 }
 

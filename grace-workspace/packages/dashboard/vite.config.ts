@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import { spawn, type ChildProcess } from "node:child_process";
 import { readFile, readdir, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 const WORKSPACE_ROOT = resolve(__dirname, "..", "..");
@@ -83,6 +84,9 @@ function spawnHeartbeat(leaf: number, dryRun: boolean, runner?: "claude-code" | 
   if (dryRun) args.push("--dry-run");
   if (runner) args.push("--runner", runner);
   const child = spawn(process.execPath, args, {
+    // Detach into a new process group so we can signal the whole tree
+    // (claude grandchild included) via `kill(-pgid, ...)` on cancel.
+    detached: true,
     cwd: WORKSPACE_ROOT,
     env: process.env,
     stdio: ["ignore", "pipe", "pipe"],
@@ -219,6 +223,40 @@ function parityApiPlugin(): Plugin {
           return;
         }
 
+        // ---------- CONFIG status -----------------------------------------
+        if (path === "/api/parity/config" && req.method === "GET") {
+          try {
+            // Dynamic import keeps the plugin compatible with parity-core's
+            // ESM dist and avoids circular import at vite config load time.
+            const configModuleUrl = pathToFileURL(
+              resolve(WORKSPACE_ROOT, "packages/parity-core/dist/config.js"),
+            ).href;
+            const mod = (await import(/* @vite-ignore */ configModuleUrl)) as {
+              loadParityConfig: (explicitPath?: string) => any;
+            };
+            // Vite's cwd here is packages/dashboard; the base @10xgrace/core loader
+            // resolves config.yml from process.cwd(), so we must pass the workspace
+            // root explicitly or it won't find the config.
+            const cfg = mod.loadParityConfig(resolve(WORKSPACE_ROOT, "config.yml"));
+            res.statusCode = 200;
+            res.setHeader("content-type", "application/json");
+            res.end(JSON.stringify({
+              prismPath: cfg.prismPath,
+              oracleReadOnlyPath: cfg.oracleReadOnlyPath,
+              bridgeWritePath: cfg.bridgeWritePath,
+              hasOracle: Boolean(cfg.oracleReadOnlyPath),
+              hasBridge: Boolean(cfg.bridgeWritePath),
+              runner: cfg.llm?.runner ?? "claude-code",
+              githubActor: cfg.github?.actor ?? "",
+            }));
+          } catch (e) {
+            res.statusCode = 500;
+            res.setHeader("content-type", "application/json");
+            res.end(JSON.stringify({ error: (e as Error).message }));
+          }
+          return;
+        }
+
         // ---------- LOCK status -------------------------------------------
         if (path === "/api/parity/lock" && req.method === "GET") {
           res.statusCode = 200;
@@ -295,10 +333,25 @@ function parityApiPlugin(): Plugin {
             res.end(JSON.stringify({ ok: true, message: "no active run" }));
             return;
           }
-          try { activeRun.child.kill("SIGTERM"); } catch { /* ignore */ }
+          // Spawned with `detached: true` so the child is the leader of its own
+          // process group. Sending the signal to -pid reaches every descendant
+          // (e.g. the `claude` grandchild that ignores SIGTERM to its parent).
+          const pid = activeRun.child.pid;
+          try {
+            if (pid) {
+              try { process.kill(-pid, "SIGTERM"); } catch { activeRun.child.kill("SIGTERM"); }
+              // Escalate to SIGKILL after 5s if the group is still alive.
+              setTimeout(() => {
+                if (!activeRun || activeRun.done) return;
+                try { process.kill(-pid, "SIGKILL"); } catch { /* already gone */ }
+              }, 5000);
+            } else {
+              activeRun.child.kill("SIGTERM");
+            }
+          } catch { /* ignore */ }
           res.statusCode = 200;
           res.setHeader("content-type", "application/json");
-          res.end(JSON.stringify({ ok: true, message: "SIGTERM sent" }));
+          res.end(JSON.stringify({ ok: true, message: "SIGTERM sent to process group" }));
           return;
         }
 
