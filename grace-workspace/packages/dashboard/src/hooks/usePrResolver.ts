@@ -78,6 +78,9 @@ export interface EffectiveConfig {
   maxConcurrent: number;
   maxBuildLoops: number;
   maxCommentsPerCycle: number;
+  grpcTestEnabled: boolean;
+  grpcPort: number;
+  grpcServerStartTimeoutMs: number;
 }
 
 export type PrMachineStatus =
@@ -106,6 +109,8 @@ export interface PrMachine {
   branch: string;
   status: PrMachineStatus;
   threadIds: string[];
+  /** Parallel to threadIds; carries the trigger comment id we processed. */
+  triggerCommentIds: string[];
   connectors: string[];
   remoteSha?: string;
   localSha?: string;
@@ -115,6 +120,7 @@ export interface PrMachine {
   testCommands?: string[];
   testResults?: GrpcTestResultRecord[];
   testCommandsSource?: "extracted" | "generated" | "none";
+  testGenerationReply?: string;
   startedAt: string;
   updatedAt: string;
 }
@@ -167,6 +173,8 @@ export interface UsePrResolverResult {
   diffForPr: Record<string, { diff: string; status: PrMachineStatus | null }>;
   /** Rolling tail of `claude --verbose` stdout per PR (last ~300 lines). */
   resolverStreams: Record<string, string[]>;
+  /** Rolling tail of `cargo run -p grpc-server` stdout/stderr per PR (cap 200). */
+  grpcServerLogs: Record<string, string[]>;
   /** Last error from a server-rejected control message. */
   lastError: { kind: string; message: string } | null;
 }
@@ -263,6 +271,9 @@ export function usePrResolver(controlUrl: string): UsePrResolverResult {
     Record<string, { diff: string; status: PrMachineStatus | null }>
   >({});
   const [resolverStreams, setResolverStreams] = useState<
+    Record<string, string[]>
+  >({});
+  const [grpcServerLogs, setGrpcServerLogs] = useState<
     Record<string, string[]>
   >({});
   const [lastError, setLastError] = useState<
@@ -686,6 +697,34 @@ export function usePrResolver(controlUrl: string): UsePrResolverResult {
             }
           }
           break;
+        case "pr-resolver:grpc_server_log":
+          if (pr !== undefined) {
+            const line = String(p.line ?? "");
+            if (line) {
+              setGrpcServerLogs((prev) => {
+                const key = String(pr);
+                const next = [...(prev[key] ?? []), line];
+                if (next.length > 200) next.splice(0, next.length - 200);
+                return { ...prev, [key]: next };
+              });
+            }
+          }
+          break;
+        case "pr-resolver:grpc_server_probe":
+          if (pr !== undefined) {
+            const attempt = Number(p.attempt ?? 0);
+            const ok = p.ok === true;
+            setGrpcServerLogs((prev) => {
+              const key = String(pr);
+              const note = ok
+                ? `[probe #${attempt}] server is healthy ✓`
+                : `[probe #${attempt}] not ready yet — retrying in 2s`;
+              const next = [...(prev[key] ?? []), note];
+              if (next.length > 200) next.splice(0, next.length - 200);
+              return { ...prev, [key]: next };
+            });
+          }
+          break;
         case "pr-resolver:state_changed":
           // Optional re-snapshot trigger — request state explicitly.
           wsRef.current?.send(
@@ -1012,6 +1051,7 @@ export function usePrResolver(controlUrl: string): UsePrResolverResult {
     requestDiff,
     diffForPr,
     resolverStreams,
+    grpcServerLogs,
     lastError,
   };
 }

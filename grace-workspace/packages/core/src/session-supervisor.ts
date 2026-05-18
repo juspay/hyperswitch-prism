@@ -1198,5 +1198,6 @@ function toEffectiveView(cfg: PrResolverConfig) {
     maxCommentsPerCycle: cfg.maxCommentsPerCycle,
     grpcTestEnabled: cfg.grpcTestEnabled,
     grpcPort: cfg.grpcPort,
+    grpcServerStartTimeoutMs: cfg.grpcServerStartTimeoutMs,
   };
 }

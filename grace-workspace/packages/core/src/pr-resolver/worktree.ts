@@ -68,29 +68,82 @@ export async function ensureWorktree(input: {
 }
 
 /**
- * Prepare the clone for a fresh PR run: discard any leftover changes from
- * a previous cycle and `gh pr checkout` onto the PR branch.
+ * Prepare the clone for a fresh PR run. Three jobs:
  *
- * We deliberately do NOT run `git fetch origin` (the broad form). On
- * macOS's case-insensitive APFS, repos with branches that only differ in
- * casing (e.g. `Billdesk-xyne` and `billdesk-xyne`) make the broad fetch
- * refuse to write conflicting refs and exit non-zero. `gh pr checkout`
- * fetches just `refs/pull/<N>/head` (and the branch it lands on),
- * sidestepping the issue entirely.
+ *   1. Discard any uncommitted changes from a previous cycle.
+ *   2. Fetch the PR's head ref directly (no broad `git fetch origin` —
+ *      that explodes on macOS case-insensitive filesystems when the repo
+ *      has case-collision branches like `Billdesk-xyne` / `billdesk-xyne`).
+ *   3. Force-reset the local branch to the remote tip via `git checkout -B`
+ *      so any *committed* divergence from a prior aborted run is wiped
+ *      cleanly. This replaces `gh pr checkout`, which refuses to fast-
+ *      forward a diverging local branch.
  */
 export async function prepareForPr(input: {
   worktreePath: string;
   prNumber: number;
 }): Promise<{ ok: boolean; error?: string }> {
+  // 1. Discard uncommitted state.
   await run("git", ["reset", "--hard", "HEAD"], input.worktreePath);
   await run("git", ["clean", "-fd"], input.worktreePath);
-  const checkout = await run(
+
+  // 2. Fetch the PR's head — `pull/<N>/head` is a GitHub-provided alias
+  //    that doesn't go through the broad refspec.
+  const fetched = await run(
+    "git",
+    ["fetch", "origin", `pull/${input.prNumber}/head`],
+    input.worktreePath
+  );
+  if (fetched.exitCode !== 0) {
+    return {
+      ok: false,
+      error: `git fetch pull/${input.prNumber}/head failed: ${fetched.stderr || fetched.stdout}`,
+    };
+  }
+
+  // 3. Look up the PR's branch name so the local label matches what
+  //    pushBranch expects later.
+  const view = await run(
     "gh",
-    ["pr", "checkout", String(input.prNumber)],
+    [
+      "pr",
+      "view",
+      String(input.prNumber),
+      "--json",
+      "headRefName",
+      "--jq",
+      ".headRefName",
+    ],
+    input.worktreePath
+  );
+  if (view.exitCode !== 0) {
+    return {
+      ok: false,
+      error: `gh pr view failed: ${view.stderr || view.stdout}`,
+    };
+  }
+  const branchName = view.stdout.trim();
+  if (!branchName) {
+    return {
+      ok: false,
+      error: `Could not determine head_ref for PR #${input.prNumber}`,
+    };
+  }
+
+  // 4. Force-create-or-reset the local branch to the fetched commit.
+  //    `-B` (capital) is the key: creates if missing, *resets* if existing.
+  //    This is what makes the prepare step idempotent regardless of what
+  //    state a prior aborted cycle left on the worktree.
+  const checkout = await run(
+    "git",
+    ["checkout", "-B", branchName, "FETCH_HEAD"],
     input.worktreePath
   );
   if (checkout.exitCode !== 0) {
-    return { ok: false, error: `gh pr checkout failed: ${checkout.stderr}` };
+    return {
+      ok: false,
+      error: `git checkout -B ${branchName} failed: ${checkout.stderr || checkout.stdout}`,
+    };
   }
   return { ok: true };
 }

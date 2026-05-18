@@ -20,6 +20,15 @@ export interface ProcessedThreadEntry {
   instruction_preview?: string;
   resolution_summary?: string;
   error?: string;
+  /**
+   * GraphQL node id of the trigger comment that produced this entry. Used
+   * for per-trigger-comment dedup in `filterTriggeredThreads` — a fresh
+   * trigger reply in the same thread has a different id, so the new comment
+   * is picked up instead of being silently skipped under per-thread dedup.
+   * Optional for backward compat with state.json entries written before
+   * this schema landed.
+   */
+  last_trigger_comment_id?: string;
 }
 
 export interface BuildFailureEntry {
@@ -60,6 +69,12 @@ export interface PrMachine {
   branch: string;
   status: PrMachineStatus;
   threadIds: string[];
+  /**
+   * Trigger comment IDs parallel to `threadIds` (same length, same order).
+   * Carried through approval / rejection so we can write the per-trigger
+   * dedup key into `processed_threads.last_trigger_comment_id`.
+   */
+  triggerCommentIds: string[];
   connectors: string[];
   /** origin/<branch> SHA at the moment the resolver picked the PR up. */
   remoteSha?: string;
@@ -77,6 +92,12 @@ export interface PrMachine {
   testResults?: GrpcTestResultRecord[];
   /** Phase B: whether the commands were extracted or generated. */
   testCommandsSource?: "extracted" | "generated" | "none";
+  /**
+   * Phase B: raw Claude reply from the test-generation call. Stored so the
+   * dashboard can show what came back when the extractor produced zero
+   * commands — usually means the prompt didn't fence the bash block.
+   */
+  testGenerationReply?: string;
   startedAt: string;
   updatedAt: string;
 }
@@ -158,6 +179,10 @@ export class PrResolverStateManager {
    * Thread IDs the poll loop should skip. Excludes `build_blocked` — those
    * need to be re-evaluated each cycle because the build may have been
    * fixed by a new commit (see {@link shouldSkipBuild}).
+   *
+   * @deprecated Prefer {@link getProcessedFilters} so the filter can
+   * distinguish per-trigger-comment dedup (new) from legacy per-thread.
+   * Retained because external callers/tests may still use it.
    */
   getProcessedIds(): Set<string> {
     const out = new Set<string>();
@@ -165,6 +190,40 @@ export class PrResolverStateManager {
       if (entry.status !== "build_blocked") out.add(tid);
     }
     return out;
+  }
+
+  /**
+   * Returns the two dedup structures `filterTriggeredThreads` consults:
+   *  - `triggerCommentIds`: any trigger comment id we've recorded as
+   *    fixed/failed. A NEW trigger comment in the same thread has a
+   *    different id → not in the set → picked up.
+   *  - `legacyThreadProcessedAt`: thread id → `processed_at` epoch ms.
+   *    Used for entries that pre-date the per-trigger-comment schema. The
+   *    filter compares the trigger comment's `createdAt` against this
+   *    timestamp — a strictly newer comment is treated as fresh work,
+   *    everything else is skipped. As fixes flow through the new code
+   *    path, each entry gets `last_trigger_comment_id` populated and
+   *    graduates out of this bucket.
+   *
+   * `build_blocked` entries are excluded from both — they're meant to be
+   * re-evaluated each cycle until a new HEAD SHA arrives.
+   */
+  getProcessedFilters(): {
+    triggerCommentIds: Set<string>;
+    legacyThreadProcessedAt: Map<string, number>;
+  } {
+    const triggerCommentIds = new Set<string>();
+    const legacyThreadProcessedAt = new Map<string, number>();
+    for (const [tid, entry] of Object.entries(this.state.processed_threads)) {
+      if (entry.status === "build_blocked") continue;
+      if (entry.last_trigger_comment_id) {
+        triggerCommentIds.add(entry.last_trigger_comment_id);
+      } else {
+        const ts = Date.parse(entry.processed_at);
+        legacyThreadProcessedAt.set(tid, Number.isNaN(ts) ? 0 : ts);
+      }
+    }
+    return { triggerCommentIds, legacyThreadProcessedAt };
   }
 
   getProcessedThreads(): Record<string, ProcessedThreadEntry> {
@@ -223,6 +282,8 @@ export class PrResolverStateManager {
     path: string;
     instruction: string;
     resolutionSummary?: string;
+    /** Trigger comment id; required for per-trigger-comment dedup to work. */
+    triggerCommentId?: string;
   }): void {
     this.state.processed_threads[input.threadId] = {
       pr_number: input.prNumber,
@@ -232,16 +293,23 @@ export class PrResolverStateManager {
       path: input.path,
       instruction_preview: input.instruction.slice(0, 200),
       resolution_summary: (input.resolutionSummary ?? "").slice(0, 500),
+      last_trigger_comment_id: input.triggerCommentId,
     };
     this.save();
   }
 
-  markFailed(threadId: string, prNumber: number, error: string): void {
+  markFailed(
+    threadId: string,
+    prNumber: number,
+    error: string,
+    triggerCommentId?: string
+  ): void {
     this.state.processed_threads[threadId] = {
       pr_number: prNumber,
       processed_at: new Date().toISOString(),
       status: "failed",
       error: error.slice(0, 3000),
+      last_trigger_comment_id: triggerCommentId,
     };
     this.save();
   }
@@ -329,6 +397,8 @@ export class PrResolverStateManager {
       branch: input.branch ?? existing?.branch ?? "",
       status: input.status ?? existing?.status ?? "noticed",
       threadIds: input.threadIds ?? existing?.threadIds ?? [],
+      triggerCommentIds:
+        input.triggerCommentIds ?? existing?.triggerCommentIds ?? [],
       connectors: input.connectors ?? existing?.connectors ?? [],
       remoteSha: input.remoteSha ?? existing?.remoteSha,
       localSha: input.localSha ?? existing?.localSha,
@@ -338,6 +408,7 @@ export class PrResolverStateManager {
       testCommands: input.testCommands ?? existing?.testCommands,
       testResults: input.testResults ?? existing?.testResults,
       testCommandsSource: input.testCommandsSource ?? existing?.testCommandsSource,
+      testGenerationReply: input.testGenerationReply ?? existing?.testGenerationReply,
       startedAt: existing?.startedAt ?? now,
       updatedAt: now,
     };

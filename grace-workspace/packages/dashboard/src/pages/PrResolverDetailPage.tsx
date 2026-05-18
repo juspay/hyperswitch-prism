@@ -82,6 +82,7 @@ export function PrResolverDetailPage() {
     requestDiff,
     diffForPr,
     resolverStreams,
+    grpcServerLogs,
     lastError,
   } = usePrResolver(CONTROL_WS_URL);
 
@@ -216,6 +217,7 @@ export function PrResolverDetailPage() {
               diff={diffForPr[String(prNumber)]?.diff ?? machine?.diffPreview ?? ""}
               buildFailure={buildFailures[String(prNumber)] ?? null}
               resolverStream={resolverStreams[String(prNumber)] ?? []}
+              grpcServerLog={grpcServerLogs[String(prNumber)] ?? []}
               onApprove={(note) => approvePr(prNumber, note)}
               onReject={(reason) => rejectPr(prNumber, reason)}
               onRetry={() => retryPr(prNumber)}
@@ -555,6 +557,7 @@ function MainPanel({
   diff,
   buildFailure,
   resolverStream,
+  grpcServerLog,
   onApprove,
   onReject,
   onRetry,
@@ -569,6 +572,7 @@ function MainPanel({
   diff: string;
   buildFailure: { branch: string; head_sha: string; failed_at: string; error: string } | null;
   resolverStream: string[];
+  grpcServerLog: string[];
   onApprove: (note?: string) => void;
   onReject: (reason?: string) => void;
   onRetry: () => void;
@@ -623,6 +627,7 @@ function MainPanel({
           prNumber={prNumber}
           buildFailure={buildFailure}
           resolverStream={resolverStream}
+          grpcServerLog={grpcServerLog}
         />
       )}
 
@@ -650,6 +655,7 @@ function DefaultStagePanel({
   prNumber,
   buildFailure,
   resolverStream,
+  grpcServerLog,
 }: {
   stage: StageDef;
   status: StageStatus;
@@ -658,6 +664,7 @@ function DefaultStagePanel({
   prNumber: number;
   buildFailure: { branch: string; head_sha: string; failed_at: string; error: string } | null;
   resolverStream: string[];
+  grpcServerLog: string[];
 }) {
   if (stage.id === "notice") {
     return (
@@ -706,7 +713,13 @@ function DefaultStagePanel({
     );
   }
   if (stage.id === "grpc_test") {
-    return <GrpcTestPanel machine={machine} status={status} />;
+    return (
+      <GrpcTestPanel
+        machine={machine}
+        status={status}
+        grpcServerLog={grpcServerLog}
+      />
+    );
   }
   if (stage.id === "baseline" && buildFailure) {
     return (
@@ -878,9 +891,11 @@ function RetryBanner({
 function GrpcTestPanel({
   machine,
   status,
+  grpcServerLog,
 }: {
   machine: PrMachine | null;
   status: StageStatus;
+  grpcServerLog: string[];
 }) {
   if (!machine) {
     return (
@@ -894,6 +909,7 @@ function GrpcTestPanel({
   const commands = machine.testCommands ?? [];
   const results = machine.testResults ?? [];
   const source = machine.testCommandsSource ?? "none";
+  const generationReply = machine.testGenerationReply ?? "";
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <PanelCard>
@@ -927,6 +943,30 @@ function GrpcTestPanel({
           </ol>
         </PanelCard>
       )}
+      {commands.length === 0 && generationReply && (
+        <PanelCard>
+          <h3 style={{ ...subTitle, margin: "0 0 8px" }}>
+            Claude reply (no commands parsed)
+          </h3>
+          <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 6 }}>
+            The test-gen extractor couldn't find <code style={code}>grpcurl</code>{" "}
+            lines in this response. Either Claude declined to produce commands,
+            or the output didn't match the expected shape. Paste-able for
+            debugging:
+          </div>
+          <pre style={prePanel}>{generationReply.slice(0, 8_000)}</pre>
+        </PanelCard>
+      )}
+      {commands.length === 0 && !generationReply && status !== "passed" && (
+        <PanelCard>
+          <div style={{ fontSize: 12, color: T.textMuted, lineHeight: 1.5 }}>
+            No commands and no Claude reply on file. If the stage hard-failed,
+            check the machine's reason (shown in the retry banner) — likely{" "}
+            <code style={code}>grpcurl</code> isn't installed on this host, or
+            the test-gen Claude call threw before returning.
+          </div>
+        </PanelCard>
+      )}
       {results.length > 0 && (
         <PanelCard>
           <h3 style={{ ...subTitle, margin: "0 0 8px" }}>Results</h3>
@@ -937,7 +977,56 @@ function GrpcTestPanel({
           </div>
         </PanelCard>
       )}
+      {grpcServerLog.length > 0 && (
+        <ServerLogPanel lines={grpcServerLog} />
+      )}
     </div>
+  );
+}
+
+function ServerLogPanel({ lines }: { lines: string[] }) {
+  const scrollRef = useRef<HTMLPreElement | null>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [lines]);
+  return (
+    <PanelCard>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 8,
+        }}
+      >
+        <h3 style={{ ...subTitle, margin: 0 }}>Server live output</h3>
+        <span style={{ fontSize: 10, color: T.textMuted }}>
+          {lines.length} line{lines.length === 1 ? "" : "s"} · `cargo run -p grpc-server`
+        </span>
+      </div>
+      <pre
+        ref={scrollRef}
+        style={{
+          margin: 0,
+          padding: 12,
+          background: "#1f1810",
+          color: "#f0e0c4",
+          borderRadius: 6,
+          fontSize: 11,
+          lineHeight: 1.45,
+          fontFamily:
+            "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+          maxHeight: 360,
+          overflowY: "auto",
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
+        }}
+      >
+        {lines.join("\n")}
+      </pre>
+    </PanelCard>
   );
 }
 

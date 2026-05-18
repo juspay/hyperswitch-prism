@@ -52,11 +52,13 @@ function isGrpcurl(line: string): boolean {
 }
 
 /**
- * Pull the first ```bash fenced block out of a Claude reply. Used when
- * test commands are generated rather than parsed from the PR body.
+ * Pull grpcurl invocations out of a Claude reply. Tries fenced ```bash
+ * blocks first; if that yields nothing, scans the whole reply for lines
+ * starting with `grpcurl` — so a Claude reply that forgot the fence
+ * still produces usable commands.
  */
 export function extractCommandsFromClaudeReply(reply: string): string[] {
-  const out: string[] = [];
+  const fenced: string[] = [];
   const re = /```(?:bash|sh|shell)?\s*\n([\s\S]+?)\n```/g;
   let match: RegExpExecArray | null;
   while ((match = re.exec(reply)) !== null) {
@@ -65,10 +67,22 @@ export function extractCommandsFromClaudeReply(reply: string): string[] {
       const line = raw.trim();
       if (!line || line.startsWith("#")) continue;
       if (isGrpcurl(line)) {
-        out.push(line);
-        if (out.length >= MAX_COMMANDS) return out;
+        fenced.push(line);
+        if (fenced.length >= MAX_COMMANDS) return fenced;
       }
     }
   }
-  return out;
+  if (fenced.length > 0) return fenced;
+
+  // Fenceless fallback: scan the whole reply.
+  const fallback: string[] = [];
+  for (const raw of reply.split("\n")) {
+    const line = raw.trim();
+    if (!line || line.startsWith("#")) continue;
+    if (isGrpcurl(line)) {
+      fallback.push(line);
+      if (fallback.length >= MAX_COMMANDS) return fallback;
+    }
+  }
+  return fallback;
 }

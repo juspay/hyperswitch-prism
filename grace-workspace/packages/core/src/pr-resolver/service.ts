@@ -173,10 +173,13 @@ export class PrResolverService {
     const sha = await headSha(this.cfg.worktreePath);
     emitPrResolverEvent("push_done", { pr: prNumber, sha });
 
-    // Reply on each tracked thread. We only have thread IDs at this point —
-    // the resolveSummaries map (populated during the same supervisor's
-    // resolve phase) supplies the per-thread summary if it's still in memory.
-    for (const threadId of machine.threadIds) {
+    // Reply on each tracked thread. We loop with an index so we can pair
+    // each threadId with its trigger comment id (parallel array on the
+    // machine), which is what gets written into processed_threads for the
+    // per-trigger-comment dedup.
+    for (let i = 0; i < machine.threadIds.length; i++) {
+      const threadId = machine.threadIds[i]!;
+      const triggerCommentId = machine.triggerCommentIds?.[i];
       const summary = this.resolveSummaries.get(threadId) ?? "";
       const detail = summary
         ? summary.slice(0, 500)
@@ -191,6 +194,7 @@ export class PrResolverService {
       }
       this.state.markFixed({
         threadId,
+        triggerCommentId,
         prNumber,
         commitSha: sha,
         path: "",
@@ -291,7 +295,9 @@ export class PrResolverService {
       };
     }
 
-    for (const threadId of machine.threadIds) {
+    for (let i = 0; i < machine.threadIds.length; i++) {
+      const threadId = machine.threadIds[i]!;
+      const triggerCommentId = machine.triggerCommentIds?.[i];
       const body = note
         ? `Resolution rejected by reviewer: ${note}\n\n— *PR Resolver*`
         : `Resolution rejected. Feel free to refine your comment and re-trigger.\n\n— *PR Resolver*`;
@@ -299,7 +305,8 @@ export class PrResolverService {
       this.state.markFailed(
         threadId,
         prNumber,
-        note ? `Rejected: ${note}` : "Rejected from dashboard"
+        note ? `Rejected: ${note}` : "Rejected from dashboard",
+        triggerCommentId
       );
       emitPrResolverEvent("reply_posted", {
         pr: prNumber,
@@ -455,10 +462,12 @@ export class PrResolverService {
    */
   private async pollAndFilter(): Promise<TriggeredThread[]> {
     const prs = await this.github.fetchOpenPrsWithThreads();
-    const processedIds = this.state.getProcessedIds();
+    // New: per-trigger-comment dedup with legacy per-thread fallback.
+    // See `getProcessedFilters` for the two-bucket semantics.
+    const processed = this.state.getProcessedFilters();
     const all: TriggeredThread[] = [];
     for (const pr of prs) {
-      all.push(...filterTriggeredThreads(pr, this.cfg.trigger, processedIds));
+      all.push(...filterTriggeredThreads(pr, this.cfg.trigger, processed));
     }
     if (all.length === 0) return [];
 
@@ -477,7 +486,8 @@ export class PrResolverService {
         this.state.markFailed(
           t.threadId,
           t.prNumber,
-          `Unauthorized: ${t.author} (${t.authorAssociation})`
+          `Unauthorized: ${t.author} (${t.authorAssociation})`,
+          t.commentNodeId
         );
       }
       emitPrResolverEvent("comment_unauthorized", {
@@ -542,6 +552,7 @@ export class PrResolverService {
       branch,
       status: "preparing",
       threadIds: threads.map((t) => t.threadId),
+      triggerCommentIds: threads.map((t) => t.commentNodeId),
       connectors: machineConnectors,
     });
 
@@ -660,6 +671,7 @@ export class PrResolverService {
       status: "resolving",
       remoteSha: currentSha || (await headSha(this.cfg.worktreePath)),
       threadIds: stillOpen.map((t) => t.threadId),
+      triggerCommentIds: stillOpen.map((t) => t.commentNodeId),
     });
 
     // (👀 reactions already posted by pollAndFilter the moment we accepted
@@ -729,6 +741,7 @@ export class PrResolverService {
         this.state.upsertPrMachine({
           prNumber,
           threadIds: stillOpen.map((t) => t.threadId),
+          triggerCommentIds: stillOpen.map((t) => t.commentNodeId),
         });
       }
     } else {
@@ -777,7 +790,7 @@ export class PrResolverService {
       const error = err instanceof Error ? err.message : String(err);
       emitPrResolverEvent("subtask_failed", { pr: prNumber, connector, error });
       for (const t of threads) {
-        this.state.markFailed(t.threadId, prNumber, error);
+        this.state.markFailed(t.threadId, prNumber, error, t.commentNodeId);
       }
       counts.failed = threads.length;
       return counts;
@@ -795,7 +808,7 @@ export class PrResolverService {
         detail: reason,
       });
       for (const t of threads) {
-        this.state.markFailed(t.threadId, prNumber, reason);
+        this.state.markFailed(t.threadId, prNumber, reason, t.commentNodeId);
       }
       counts.skipped = threads.length;
       return counts;
@@ -824,23 +837,26 @@ export class PrResolverService {
         output: cargo.errorOutput.slice(-2000),
       });
       for (const t of threads) {
-        this.state.markFailed(t.threadId, prNumber, reason);
+        this.state.markFailed(t.threadId, prNumber, reason, t.commentNodeId);
       }
       counts.failed = threads.length;
       return counts;
     }
 
-    // Phase B: gRPC verification step
+    // Phase B: gRPC verification step. With grpcTestEnabled, a missing
+    // grpcurl binary or an empty command list now hard-fails (was
+    // previously a soft skip) — without verification we don't ship.
     if (this.cfg.grpcTestEnabled) {
       const grpcResult = await this.runGrpcTestStep({
         subTask,
         prInfo,
         sessionId: claudeSessionId,
       });
-      if (!grpcResult.passed && !grpcResult.skipped) {
+      if (!grpcResult.passed) {
+        const failedCount = grpcResult.results.filter((r) => !r.ok).length;
         const reason = grpcResult.reason
           ? `gRPC test failed: ${grpcResult.reason}`
-          : `gRPC test failed (${grpcResult.results.filter((r) => !r.ok).length}/${grpcResult.results.length} commands failed)`;
+          : `gRPC test failed (${failedCount}/${grpcResult.results.length} commands failed)`;
         await revertAll(this.cfg.worktreePath);
         emitPrResolverEvent("subtask_failed", {
           pr: prNumber,
@@ -848,7 +864,7 @@ export class PrResolverService {
           error: reason,
         });
         for (const t of threads) {
-          this.state.markFailed(t.threadId, prNumber, reason);
+          this.state.markFailed(t.threadId, prNumber, reason, t.commentNodeId);
         }
         counts.failed = threads.length;
         return counts;
@@ -979,6 +995,7 @@ export class PrResolverService {
       }
       this.state.markFixed({
         threadId: t.threadId,
+        triggerCommentId: t.commentNodeId,
         prNumber,
         commitSha: sha,
         path: t.path,
@@ -991,15 +1008,19 @@ export class PrResolverService {
   // ─── Phase B: gRPC verification ─────────────────────────────────────
 
   /**
-   * Resolve a list of grpcurl commands for this sub-task. Tries the PR body
-   * first (parser); falls back to a Claude generation call that resumes the
-   * resolver's session so it inherits all the connector context.
+   * Generate grpcurl commands when the PR body lacks a Testing section.
+   * Uses a FRESH Claude session (not the resolver's) — the resolver session
+   * was primed with full tool access for code edits, and mixing in a small
+   * "output a bash block" task is a context-mixing risk. The extra tokens
+   * are cheap relative to a clean separation.
+   *
+   * Returns both the parsed commands and the raw reply so the dashboard
+   * can surface what Claude said when the parser misses everything.
    */
   private async generateTestCommands(
     subTask: SubTask,
-    prInfo: PRInfo | null,
-    sessionId: string
-  ): Promise<string[]> {
+    prInfo: PRInfo | null
+  ): Promise<{ commands: string[]; reply: string; error?: string }> {
     const diff = await capturePrDiff(
       this.cfg.worktreePath,
       subTask.prBranch,
@@ -1022,25 +1043,20 @@ export class PrResolverService {
     let reply = "";
     try {
       const { result } = await runClaudeCode<string>({
-        skillBody: "",
-        userPayload: rendered,
+        // Fresh session — the rendered prompt is the full skill body.
+        skillBody: rendered,
+        userPayload: "",
         cwd: this.cfg.worktreePath,
         label: `pr-resolver-testgen-${subTask.connector}-pr${subTask.prNumber}`,
-        sessionLabel: `pr-resolver-pr${subTask.prNumber}-${subTask.connector}`,
+        sessionLabel: `pr-resolver-testgen-pr${subTask.prNumber}-${subTask.connector}`,
         timeoutMs: this.rootConfig.claudeCode.timeoutMs,
         rawText: true,
         allowWrite: false,
-        claudeSessionId: sessionId,
-        incremental: true,
       });
       reply = result;
     } catch (err) {
-      emitPrResolverEvent("grpc_test_skipped", {
-        pr: subTask.prNumber,
-        connector: subTask.connector,
-        reason: `generation failed: ${err instanceof Error ? err.message : String(err)}`,
-      });
-      return [];
+      const error = err instanceof Error ? err.message : String(err);
+      return { commands: [], reply: "", error };
     }
     const cmds = extractCommandsFromClaudeReply(reply).slice(
       0,
@@ -1051,7 +1067,7 @@ export class PrResolverService {
       connector: subTask.connector,
       count: cmds.length,
     });
-    return cmds;
+    return { commands: cmds, reply };
   }
 
   /**
@@ -1068,29 +1084,26 @@ export class PrResolverService {
     passed: boolean;
     commands: string[];
     results: GrpcTestResultRecord[];
-    skipped: boolean;
     reason?: string;
   }> {
-    const { subTask, prInfo, sessionId } = input;
+    const { subTask, prInfo } = input;
 
     if (!(await isGrpcurlInstalled())) {
-      emitPrResolverEvent("grpc_test_skipped", {
+      const reason =
+        "grpcurl is not installed on the host. Install it (brew install grpcurl) or set prResolver.grpcTestEnabled=false to skip this stage.";
+      emitPrResolverEvent("grpc_test_fail", {
         pr: subTask.prNumber,
         connector: subTask.connector,
-        reason: "grpcurl not installed on host",
+        reason,
       });
-      return {
-        passed: true,
-        commands: [],
-        results: [],
-        skipped: true,
-        reason: "grpcurl not installed",
-      };
+      return { passed: false, commands: [], results: [], reason };
     }
 
     // Source the commands.
     let commands: string[] = [];
     let source: "extracted" | "generated" | "none" = "none";
+    let generationReply = "";
+    let generationError: string | undefined;
     if (prInfo?.body) {
       commands = extractTestCommandsFromBody(prInfo.body).slice(
         0,
@@ -1106,7 +1119,10 @@ export class PrResolverService {
       }
     }
     if (commands.length === 0) {
-      commands = await this.generateTestCommands(subTask, prInfo, sessionId);
+      const gen = await this.generateTestCommands(subTask, prInfo);
+      commands = gen.commands;
+      generationReply = gen.reply;
+      generationError = gen.error;
       source = commands.length > 0 ? "generated" : "none";
     }
 
@@ -1114,21 +1130,19 @@ export class PrResolverService {
       prNumber: subTask.prNumber,
       testCommands: commands,
       testCommandsSource: source,
+      testGenerationReply: generationReply || undefined,
     });
 
     if (commands.length === 0) {
-      emitPrResolverEvent("grpc_test_skipped", {
+      const reason = generationError
+        ? `Test-gen Claude call failed: ${generationError}`
+        : "Could not extract or generate any grpcurl commands. Add a `## Testing` section to the PR body, or check the test-gen Claude reply for diagnostics.";
+      emitPrResolverEvent("grpc_test_fail", {
         pr: subTask.prNumber,
         connector: subTask.connector,
-        reason: "no commands extracted or generated",
+        reason,
       });
-      return {
-        passed: true,
-        commands: [],
-        results: [],
-        skipped: true,
-        reason: "no commands",
-      };
+      return { passed: false, commands: [], results: [], reason };
     }
 
     // Start server.
@@ -1140,6 +1154,26 @@ export class PrResolverService {
     const server = new GrpcServerProcess({
       worktreePath: this.cfg.worktreePath,
       port: this.cfg.grpcPort,
+      healthTimeoutMs: this.cfg.grpcServerStartTimeoutMs,
+      onStderr: (line) => {
+        emitPrResolverEvent("grpc_server_log", {
+          pr: subTask.prNumber,
+          connector: subTask.connector,
+          line,
+        });
+      },
+      onProbe: (attempt, ok) => {
+        // Probe events are quiet — emit every 5th attempt so the dashboard
+        // sees "still waiting" rhythm without flooding the WS.
+        if (attempt === 1 || ok || attempt % 5 === 0) {
+          emitPrResolverEvent("grpc_server_probe", {
+            pr: subTask.prNumber,
+            connector: subTask.connector,
+            attempt,
+            ok,
+          });
+        }
+      },
     });
     try {
       await server.start();
@@ -1154,7 +1188,6 @@ export class PrResolverService {
         passed: false,
         commands,
         results: [],
-        skipped: false,
         reason,
       };
     }
@@ -1219,7 +1252,6 @@ export class PrResolverService {
       passed: allPassed,
       commands,
       results,
-      skipped: false,
     };
   }
 

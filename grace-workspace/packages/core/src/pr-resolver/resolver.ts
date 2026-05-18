@@ -58,6 +58,7 @@ function buildThreadView(subTask: SubTask) {
       has_original: hasOriginal,
       thread_transcript: t.threadTranscript,
       diff_hunk: t.diffHunk ? t.diffHunk : undefined,
+      is_outdated: t.isOutdated,
     };
   });
 }

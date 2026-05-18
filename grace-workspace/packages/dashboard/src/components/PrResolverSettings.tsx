@@ -20,6 +20,9 @@ const FIELD_LABELS = {
   maxConcurrent: "Max concurrent PRs",
   maxBuildLoops: "Max build-fix loops",
   maxCommentsPerCycle: "Max comments per cycle",
+  grpcTestEnabled: "Run gRPC verification step",
+  grpcPort: "gRPC server port",
+  grpcServerStartTimeoutMs: "gRPC server start timeout (seconds)",
 } as const;
 
 /**
@@ -212,8 +215,99 @@ export function PrResolverSettings({
             max={500}
           />
         </Field>
+        <Field label={FIELD_LABELS.grpcTestEnabled}>
+          <BooleanToggle
+            value={form.grpcTestEnabled}
+            onChange={(v) => updateField("grpcTestEnabled", v)}
+            onLabel="Run grpcurl tests after build/clippy"
+            offLabel="Skip the gRPC verification stage"
+          />
+        </Field>
+        <Field label={FIELD_LABELS.grpcPort}>
+          <NumberInput
+            value={form.grpcPort}
+            onChange={(v) => updateField("grpcPort", v)}
+            min={1}
+            max={65535}
+          />
+        </Field>
+        <Field label={FIELD_LABELS.grpcServerStartTimeoutMs}>
+          <NumberInput
+            value={Math.round((form.grpcServerStartTimeoutMs ?? 0) / 1000)}
+            onChange={(seconds) =>
+              updateField(
+                "grpcServerStartTimeoutMs",
+                Math.max(30, seconds) * 1000
+              )
+            }
+            min={30}
+            max={3600}
+          />
+        </Field>
       </div>
     </Card>
+  );
+}
+
+function BooleanToggle({
+  value,
+  onChange,
+  onLabel,
+  offLabel,
+}: {
+  value: boolean;
+  onChange: (v: boolean) => void;
+  onLabel: string;
+  offLabel: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!value)}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "8px 12px",
+        borderRadius: 6,
+        border: `1px solid ${value ? T.accent : T.border}`,
+        background: value ? T.accentSoft : T.bg,
+        color: T.text,
+        fontSize: 12,
+        fontWeight: 500,
+        cursor: "pointer",
+        textAlign: "left",
+      }}
+    >
+      <span
+        style={{
+          width: 30,
+          height: 16,
+          borderRadius: 999,
+          background: value ? T.accent : T.border,
+          position: "relative",
+          transition: "background 200ms ease",
+          display: "inline-block",
+          flexShrink: 0,
+        }}
+      >
+        <span
+          style={{
+            position: "absolute",
+            top: 2,
+            left: value ? 16 : 2,
+            width: 12,
+            height: 12,
+            borderRadius: "50%",
+            background: "#fff",
+            transition: "left 200ms ease",
+          }}
+        />
+      </span>
+      <span style={{ color: T.textMuted }}>
+        {value ? onLabel : offLabel}
+      </span>
+    </button>
   );
 }
 
@@ -311,6 +405,9 @@ function toOverlay(form: EffectiveConfig): RuntimeOverlay {
     maxConcurrent: form.maxConcurrent,
     maxBuildLoops: form.maxBuildLoops,
     maxCommentsPerCycle: form.maxCommentsPerCycle,
+    grpcTestEnabled: form.grpcTestEnabled,
+    grpcPort: form.grpcPort,
+    grpcServerStartTimeoutMs: form.grpcServerStartTimeoutMs,
   };
 }
 

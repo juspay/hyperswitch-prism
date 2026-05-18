@@ -18,6 +18,10 @@ For each item below, the **`Original review comment`** is what the reviewer actu
 {{#threads}}
 ### Comment {{number}} — `{{path}}:{{line}}`
 
+{{#is_outdated}}
+> ⚠️ **GitHub marks this thread outdated** — the original line anchor may have shifted since the comment was posted (someone pushed commits that moved the surrounding code). The `line` above is no longer reliable. Locate the relevant code by the diff hunk + surrounding context inside `{{path}}` rather than trusting the line number.
+
+{{/is_outdated}}
 {{#has_original}}
 **Original review comment** by @{{original_author}}:
 > {{original_comment}}

@@ -17,6 +17,10 @@ This is fix attempt {{loop_iteration}}. Please fix the errors below while STILL 
 {{#threads}}
 ### Comment {{number}} — `{{path}}:{{line}}`
 
+{{#is_outdated}}
+> ⚠️ Thread is marked outdated — line anchor may have shifted; locate by context inside `{{path}}`.
+
+{{/is_outdated}}
 {{#has_original}}
 **Original review comment** by @{{original_author}}:
 > {{original_comment}}

@@ -293,66 +293,89 @@ export class GitHubClient {
 }
 
 /**
- * Return threads that contain the trigger tag and have not been processed yet.
+ * Return threads that contain the trigger tag and represent fresh work.
  *
- * The trigger tag is matched case-insensitively. If the tag appears in a reply
- * (not the root comment) the instruction is extracted from that reply; the
- * path/line come from the thread metadata.
+ * Trigger match is case-insensitive. If the tag appears in multiple comments
+ * in the same thread, we use the **latest** one — earlier triggers were
+ * either already processed (and the new trigger is a follow-up) or are
+ * superseded by the more recent ask. Path/line come from the thread.
+ *
+ * Dedup is **per trigger comment id**, not per thread, so a fresh
+ * `@trigger` reply in an already-resolved thread surfaces as new work.
+ * A `legacyThreadIds` fallback handles state.json entries that pre-date
+ * the per-trigger-comment schema (they get one final per-thread skip
+ * until they're re-processed under the new code path).
+ *
+ * `isOutdated` is NOT a hard skip; we propagate it on the TriggeredThread
+ * so the resolver prompt can warn Claude that line anchors may have moved.
  */
 export function filterTriggeredThreads(
   pr: PRInfo,
   trigger: string,
-  processedIds: Set<string>
+  processed: {
+    triggerCommentIds: Set<string>;
+    legacyThreadProcessedAt: Map<string, number>;
+  }
 ): TriggeredThread[] {
   const triggerLower = trigger.toLowerCase();
   const triggerRegex = new RegExp(escapeRegex(trigger), "gi");
   const out: TriggeredThread[] = [];
 
   for (const thread of pr.threads) {
-    if (thread.isResolved || thread.isOutdated) continue;
-    if (processedIds.has(thread.id)) continue;
+    if (thread.isResolved) continue;
 
-    let instruction: string | undefined;
-    let author = "unknown";
-    let authorAssociation = "NONE";
-    let diffHunk = "";
-    let commentNodeId = "";
-
+    // Find the LATEST trigger comment in the thread (was: first/break).
+    // GitHub returns comments in chronological order, so the last match
+    // is the most recent ask.
+    let triggerComment: ReviewComment | undefined;
     for (const comment of thread.comments) {
       if (comment.body.toLowerCase().includes(triggerLower)) {
-        instruction = comment.body.replace(triggerRegex, "").trim();
-        author = comment.author;
-        authorAssociation = comment.authorAssociation;
-        commentNodeId = comment.id;
-        diffHunk =
-          comment.diffHunk || (thread.comments[0]?.diffHunk ?? "");
-        break;
+        triggerComment = comment;
+      }
+    }
+    if (!triggerComment) continue;
+
+    // Skip if we already processed THIS specific trigger comment.
+    if (processed.triggerCommentIds.has(triggerComment.id)) continue;
+    // Back-compat: legacy state.json entries without a stored trigger id
+    // — compare the trigger comment's createdAt against the entry's
+    // processed_at. A NEWER trigger comment means the user added a fresh
+    // ask after the last resolve; we should pick it up. An older-or-equal
+    // comment is the same one we already handled; skip.
+    const legacyProcessedAt = processed.legacyThreadProcessedAt.get(thread.id);
+    if (legacyProcessedAt !== undefined) {
+      const triggerAt = Date.parse(triggerComment.createdAt);
+      if (!Number.isFinite(triggerAt) || triggerAt <= legacyProcessedAt) {
+        continue;
       }
     }
 
-    if (instruction !== undefined) {
-      const root = thread.comments[0];
-      const originalCommentBody = root?.body ?? "";
-      const originalAuthor = root?.author ?? "unknown";
-      const threadTranscript = thread.comments
-        .map((c) => `@${c.author}: ${c.body}`)
-        .join("\n---\n");
-      out.push({
-        threadId: thread.id,
-        prNumber: pr.number,
-        prBranch: pr.headRef,
-        path: thread.path,
-        line: thread.line,
-        instruction,
-        author,
-        originalCommentBody,
-        originalAuthor,
-        threadTranscript,
-        diffHunk,
-        commentNodeId,
-        authorAssociation,
-      });
-    }
+    const instruction = triggerComment.body.replace(triggerRegex, "").trim();
+    const root = thread.comments[0];
+    const originalCommentBody = root?.body ?? "";
+    const originalAuthor = root?.author ?? "unknown";
+    const threadTranscript = thread.comments
+      .map((c) => `@${c.author}: ${c.body}`)
+      .join("\n---\n");
+    const diffHunk =
+      triggerComment.diffHunk || (thread.comments[0]?.diffHunk ?? "");
+
+    out.push({
+      threadId: thread.id,
+      prNumber: pr.number,
+      prBranch: pr.headRef,
+      path: thread.path,
+      line: thread.line,
+      instruction,
+      author: triggerComment.author,
+      originalCommentBody,
+      originalAuthor,
+      threadTranscript,
+      diffHunk,
+      commentNodeId: triggerComment.id,
+      authorAssociation: triggerComment.authorAssociation,
+      isOutdated: thread.isOutdated,
+    });
   }
 
   return out;

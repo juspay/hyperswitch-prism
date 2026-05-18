@@ -156,6 +156,10 @@ prResolver:
   grpcPort: 8000
   grpcTestTimeoutMs: 30000
   maxGrpcCommands: 5
+  # How long we wait for `cargo run -p grpc-server` to become healthy. 10 min
+  # covers a cold-cache build on hyperswitch-prism; if you keep hitting the
+  # ceiling, bump it from the dashboard's Settings card.
+  grpcServerStartTimeoutMs: 600000
   # Cargo build/clippy hard timeout. Cold-cache builds on hyperswitch-prism
   # can take 15-25 minutes; the resolver used to default to 15 minutes which
   # produced misleading "build failed" entries that were actually timeouts.

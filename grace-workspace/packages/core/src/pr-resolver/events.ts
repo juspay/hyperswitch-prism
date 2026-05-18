@@ -44,6 +44,8 @@ export type PrResolverEventType =
   | "grpc_test_extracted"
   | "grpc_test_generated"
   | "grpc_server_starting"
+  | "grpc_server_log"
+  | "grpc_server_probe"
   | "grpc_server_ready"
   | "grpc_server_stopped"
   | "grpc_test_command"
@@ -73,6 +75,8 @@ const MAX_RECENT = 500;
  */
 const NON_REPLAY_TYPES: ReadonlySet<PrResolverEventType> = new Set([
   "resolver_stream",
+  "grpc_server_log",
+  "grpc_server_probe",
 ]);
 
 const emitter = new EventEmitter();

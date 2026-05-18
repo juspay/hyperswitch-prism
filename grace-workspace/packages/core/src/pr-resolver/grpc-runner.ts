@@ -1,4 +1,5 @@
 import { type ChildProcess, spawn } from "node:child_process";
+import { connect } from "node:net";
 import { execa } from "execa";
 
 /**
@@ -10,9 +11,10 @@ import { execa } from "execa";
  * resolve cycle. Future work: keep it warm across retries.
  */
 
-const HEALTH_TIMEOUT_MS = 120_000;
+const DEFAULT_HEALTH_TIMEOUT_MS = 10 * 60 * 1000; // 10 min — cold cargo build
 const HEALTH_POLL_MS = 2_000;
 const STOP_GRACE_MS = 5_000;
+const STDERR_TAIL_CAP = 60;
 const DEFAULT_CARGO_BIN = "cargo";
 
 export interface GrpcServerOptions {
@@ -21,14 +23,20 @@ export interface GrpcServerOptions {
   cargoBin?: string;
   /** Extra env passed through, e.g. RUST_LOG, BYNE creds. */
   env?: NodeJS.ProcessEnv;
+  /** Wall-clock budget for spawn + compile + first healthy probe. */
+  healthTimeoutMs?: number;
   /** Called with each line of server stderr for log streaming. */
   onStderr?: (line: string) => void;
+  /** Called once per `grpcurl list` probe attempt. */
+  onProbe?: (attempt: number, ok: boolean) => void;
 }
 
 export class GrpcServerProcess {
   private child: ChildProcess | null = null;
   private exited = false;
   private exitReason: string | null = null;
+  /** Rolling tail of stderr lines; included in the timeout error message. */
+  private stderrTail: string[] = [];
 
   constructor(private readonly opts: GrpcServerOptions) {}
 
@@ -36,7 +44,11 @@ export class GrpcServerProcess {
     if (this.child) {
       throw new Error("GrpcServerProcess.start: already running");
     }
-    const args = ["run", "-p", "grpc-server"];
+    // `--bin grpc-server` matches Byne's grpc-server-lifecycle checkpoint
+    // (the historically-working pattern). `-p grpc-server` works too for a
+    // single-bin package, but `--bin` is unambiguous if a future Cargo.toml
+    // adds an extra binary target.
+    const args = ["run", "--bin", "grpc-server"];
     const child = spawn(this.opts.cargoBin ?? DEFAULT_CARGO_BIN, args, {
       cwd: this.opts.worktreePath,
       stdio: ["ignore", "pipe", "pipe"],
@@ -51,6 +63,27 @@ export class GrpcServerProcess {
       while ((idx = stderrBuf.indexOf("\n")) >= 0) {
         const line = stderrBuf.slice(0, idx);
         stderrBuf = stderrBuf.slice(idx + 1);
+        this.stderrTail.push(line);
+        if (this.stderrTail.length > STDERR_TAIL_CAP) {
+          this.stderrTail.shift();
+        }
+        this.opts.onStderr?.(line);
+      }
+    });
+    // Cargo writes "Compiling …" to stdout too, so mirror it through onStderr
+    // for the dashboard's live view; users don't need to know the channel
+    // distinction.
+    let stdoutBuf = "";
+    child.stdout?.on("data", (chunk: Buffer) => {
+      stdoutBuf += chunk.toString("utf8");
+      let idx;
+      while ((idx = stdoutBuf.indexOf("\n")) >= 0) {
+        const line = stdoutBuf.slice(0, idx);
+        stdoutBuf = stdoutBuf.slice(idx + 1);
+        this.stderrTail.push(line);
+        if (this.stderrTail.length > STDERR_TAIL_CAP) {
+          this.stderrTail.shift();
+        }
         this.opts.onStderr?.(line);
       }
     });
@@ -64,34 +97,58 @@ export class GrpcServerProcess {
   }
 
   private async waitForHealthy(): Promise<void> {
-    const deadline = Date.now() + HEALTH_TIMEOUT_MS;
+    const timeoutMs = this.opts.healthTimeoutMs ?? DEFAULT_HEALTH_TIMEOUT_MS;
+    const deadline = Date.now() + timeoutMs;
+    let attempt = 0;
     while (Date.now() < deadline) {
       if (this.exited) {
+        const tail = this.stderrTail.slice(-15).join("\n");
         throw new Error(
-          `grpc-server exited before becoming healthy (${this.exitReason ?? "?"}).`
+          `grpc-server exited before becoming healthy (${this.exitReason ?? "?"}).` +
+            (tail ? `\n\nLast output:\n${tail}` : "")
         );
       }
+      attempt += 1;
       const ok = await this.probe();
+      this.opts.onProbe?.(attempt, ok);
       if (ok) return;
       await sleep(HEALTH_POLL_MS);
     }
+    const tail = this.stderrTail.slice(-15).join("\n");
     await this.stop().catch(() => undefined);
     throw new Error(
-      `grpc-server didn't become healthy within ${HEALTH_TIMEOUT_MS}ms (port ${this.opts.port}).`
+      `grpc-server didn't become healthy within ${Math.round(timeoutMs / 1000)}s ` +
+        `(port ${this.opts.port}). Bump prResolver.grpcServerStartTimeoutMs from the dashboard ` +
+        `if your machine needs longer.` +
+        (tail ? `\n\nLast output:\n${tail}` : "")
     );
   }
 
-  private async probe(): Promise<boolean> {
-    try {
-      const result = await execa(
-        "grpcurl",
-        ["-plaintext", `localhost:${this.opts.port}`, "list"],
-        { reject: false, timeout: 5_000 }
-      );
-      return result.exitCode === 0;
-    } catch {
-      return false;
-    }
+  /**
+   * Health probe via raw TCP connect. We used to shell out to
+   * `grpcurl … list`, but that requires gRPC reflection to be enabled on
+   * the server — if it's compiled out or disabled, the probe never
+   * succeeds even though the binary is up and serving real RPCs. A TCP
+   * connect proves the gRPC service has bound to the port, which is what
+   * we actually want to know.
+   */
+  private probe(): Promise<boolean> {
+    return new Promise((resolve) => {
+      const socket = connect(this.opts.port, "127.0.0.1");
+      const timer = setTimeout(() => {
+        socket.destroy();
+        resolve(false);
+      }, 2_000);
+      socket.once("connect", () => {
+        clearTimeout(timer);
+        socket.end();
+        resolve(true);
+      });
+      socket.once("error", () => {
+        clearTimeout(timer);
+        resolve(false);
+      });
+    });
   }
 
   async stop(): Promise<void> {

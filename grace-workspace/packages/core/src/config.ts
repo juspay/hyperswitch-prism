@@ -127,6 +127,13 @@ export interface PrResolverConfig {
   grpcPort: number;
   /** Per-grpcurl-invocation timeout in ms. */
   grpcTestTimeoutMs: number;
+  /**
+   * Wall clock budget for `cargo run -p grpc-server` to spawn + compile +
+   * answer its first `grpcurl list` probe. Default 10 min — enough for a
+   * cold-cache grpc-server build on hyperswitch-prism. Subsequent runs in
+   * the same worktree are typically a few seconds.
+   */
+  grpcServerStartTimeoutMs: number;
   /** Max command count we'll execute per sub-task (caps both extractor and generator). */
   maxGrpcCommands: number;
   /**
@@ -255,6 +262,7 @@ const DEFAULTS: CsddConfig = {
     grpcTestTimeoutMs: 30_000,
     maxGrpcCommands: 5,
     cargoTimeoutMs: 30 * 60 * 1000, // 30 min — cold-cache build budget
+    grpcServerStartTimeoutMs: 10 * 60 * 1000, // 10 min — cold cargo run + first probe
   },
   checkpoints: {
     compiler: { command: "npm", args: ["run", "re:build"] },

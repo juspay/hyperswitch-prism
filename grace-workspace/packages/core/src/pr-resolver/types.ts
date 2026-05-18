@@ -68,6 +68,13 @@ export interface TriggeredThread {
   diffHunk: string;
   commentNodeId: string;
   authorAssociation: string;
+  /**
+   * True if GitHub marks the thread outdated (anchor lines moved since the
+   * comment was posted). The filter no longer hard-skips these; instead
+   * the resolver prompt receives a warning so Claude re-locates the change
+   * by context rather than trusting the line number.
+   */
+  isOutdated: boolean;
 }
 
 /** All triggered threads on a single PR scoped to one connector. */

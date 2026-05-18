@@ -20,6 +20,7 @@ export interface PrResolverRuntimeOverlay {
   maxCommentsPerCycle?: number;
   grpcTestEnabled?: boolean;
   grpcPort?: number;
+  grpcServerStartTimeoutMs?: number;
 }
 
 const ALLOWED_KEYS = new Set<keyof PrResolverRuntimeOverlay>([
@@ -33,6 +34,7 @@ const ALLOWED_KEYS = new Set<keyof PrResolverRuntimeOverlay>([
   "maxCommentsPerCycle",
   "grpcTestEnabled",
   "grpcPort",
+  "grpcServerStartTimeoutMs",
 ]);
 
 export function defaultRuntimeOverlayPath(): string {
