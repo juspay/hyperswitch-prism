@@ -32,7 +32,7 @@ function renderPrBody(opts: {
     `Parity fix for ${leaf.connector}/${leaf.flow} per #${leaf.number}.`,
     "",
     "## Linked Issue",
-    `Closes-when-merged: ${leaf.url} (human closes — autopilot will not).`,
+    `Closes-when-merged: ${leaf.url} (autopilot will close after merge; re-open if the shadow-validation service re-files this fingerprint).`,
     "",
     understanding.markdown ?? "",
     "",

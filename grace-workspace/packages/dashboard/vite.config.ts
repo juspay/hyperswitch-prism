@@ -11,6 +11,7 @@ const PARITY_CACHE_DIR = join(WORKSPACE_ROOT, ".cache");
 const PARITY_DASHBOARD_MD = join(WORKSPACE_ROOT, "parity-dashboard.md");
 const PARITY_CONNECTORS_DIR = join(WORKSPACE_ROOT, "connectors");
 const CLI_DIST = resolve(WORKSPACE_ROOT, "packages/cli/dist/index.js");
+const DASHBOARD_STALE_MS = 5 * 60_000;
 
 async function newestTreeFile(): Promise<string | null> {
   try {
@@ -22,6 +23,30 @@ async function newestTreeFile(): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+// Singleton: at most one in-flight force-refresh per dev server. Concurrent callers await the same promise.
+let refreshInFlight: Promise<void> | null = null;
+
+function forceRefreshTree(): Promise<void> {
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = new Promise<void>((resolveRefresh, rejectRefresh) => {
+    const child = spawn(process.execPath, [CLI_DIST, "parity", "dashboard", "--force"], {
+      cwd: WORKSPACE_ROOT,
+      env: process.env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stderr = "";
+    child.stderr?.on("data", (b) => (stderr += b.toString()));
+    child.on("error", (err) => rejectRefresh(err));
+    child.on("close", (code) => {
+      if (code === 0) resolveRefresh();
+      else rejectRefresh(new Error(`parity dashboard --force exited ${code}: ${stderr.slice(-500)}`));
+    });
+  }).finally(() => {
+    refreshInFlight = null;
+  });
+  return refreshInFlight;
 }
 
 // --- SSE bridge for autopilot heartbeats ----------------------------------
@@ -177,21 +202,39 @@ function parityApiPlugin(): Plugin {
         const url = new URL(req.url, "http://localhost");
         const path = url.pathname;
 
-        // ---------- READ-ONLY endpoints (unchanged) -----------------------
+        // ---------- READ-ONLY endpoints (with auto-stale refresh) ----------
         if (path === "/api/parity/tree.json") {
-          const treePath = await newestTreeFile();
+          const force = url.searchParams.get("force") === "1";
+          let treePath = await newestTreeFile();
+          let st = treePath ? await stat(treePath).catch(() => null) : null;
+          const isMissing = !treePath;
+          const isStale = !!st && Date.now() - st.mtimeMs > DASHBOARD_STALE_MS;
+          let refreshError: string | null = null;
+          if (force || isMissing || isStale) {
+            try {
+              await forceRefreshTree();
+              treePath = await newestTreeFile();
+              st = treePath ? await stat(treePath).catch(() => null) : null;
+            } catch (err) {
+              refreshError = (err as Error).message;
+              // Fall through and serve the stale cache if we have one;
+              // only 404 if there is truly no cache to serve.
+            }
+          }
           if (!treePath) {
-            res.statusCode = 404;
+            res.statusCode = 503;
             res.setHeader("content-type", "application/json");
-            res.end(JSON.stringify({ error: "no parity tree cache found — run `10xgrace parity dashboard` first" }));
+            res.end(JSON.stringify({
+              error: refreshError ?? "no parity tree cache; run `10xgrace parity dashboard` first",
+            }));
             return;
           }
-          const st = await stat(treePath).catch(() => null);
           const raw = await readFile(treePath, "utf8");
           res.statusCode = 200;
           res.setHeader("content-type", "application/json");
           res.setHeader("x-parity-source", treePath);
           res.setHeader("x-parity-mtime", st ? new Date(st.mtimeMs).toISOString() : "");
+          if (refreshError) res.setHeader("x-parity-refresh-error", refreshError.slice(0, 200));
           res.end(raw);
           return;
         }

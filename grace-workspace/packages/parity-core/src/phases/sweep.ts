@@ -1,6 +1,6 @@
 import type { ParityConfig } from "../config.js";
 import { commentIssue, viewPr } from "../github/client.js";
-import { LABELS, transition } from "../github/labels.js";
+import { LABELS, transition, type ParityLabel } from "../github/labels.js";
 import type { Leaf, LinkedPR } from "../types.js";
 import { detectLabelBackfills } from "../dashboard/derive.js";
 
@@ -9,6 +9,7 @@ export interface SweepReport {
   remindersSent: number;
   mergedClaimed: number;
   blocked: number;
+  autoClosed: number;
 }
 
 function isStale(prCreatedAt: string, days: number): boolean {
@@ -24,10 +25,32 @@ function failureIsCosmetic(checks: { name: string; conclusion: string | null }[]
 }
 
 export async function runSweep(cfg: ParityConfig, leaves: Leaf[]): Promise<SweepReport> {
-  const report: SweepReport = { fixedLabels: 0, remindersSent: 0, mergedClaimed: 0, blocked: 0 };
+  const report: SweepReport = { fixedLabels: 0, remindersSent: 0, mergedClaimed: 0, blocked: 0, autoClosed: 0 };
   const issueRepo = `${cfg.github.owner}/${cfg.github.repo}`;
 
   for (const leaf of leaves) {
+    // Auto-close: any linked PR merged AND issue still open → close (regardless of PR author).
+    // Combines label-flip + comment + close into one audit-traced transition.
+    const anyMerged = leaf.linkedPRs.find((p) => p.state === "merged");
+    if (anyMerged && leaf.state === "OPEN") {
+      const hasMergedLabel = leaf.labels.includes(LABELS.MERGED);
+      const removes: ParityLabel[] = hasMergedLabel
+        ? []
+        : ([LABELS.PR_OPEN, LABELS.CLAIMED].filter((l) => leaf.labels.includes(l)) as ParityLabel[]);
+      const adds: ParityLabel[] = hasMergedLabel ? [] : [LABELS.MERGED];
+      await transition({
+        repo: issueRepo,
+        issue: leaf.number,
+        remove: removes,
+        add: adds,
+        comment: `Auto-closed by parity autopilot — linked PR ${anyMerged.url} merged. Re-open if the shadow-validation service re-files this fingerprint.`,
+        close: { reason: "completed" },
+      });
+      if (!hasMergedLabel) report.mergedClaimed++;
+      report.autoClosed++;
+      continue;
+    }
+
     const fix = detectLabelBackfills(leaf);
     if (fix) {
       await transition({
@@ -42,19 +65,6 @@ export async function runSweep(cfg: ParityConfig, leaves: Leaf[]): Promise<Sweep
 
     const ourPRs = leaf.linkedPRs.filter((p) => p.author === cfg.github.actor);
     for (const pr of ourPRs) {
-      if (pr.state === "merged") {
-        if (!leaf.labels.includes(LABELS.MERGED)) {
-          await transition({
-            repo: issueRepo,
-            issue: leaf.number,
-            remove: [LABELS.PR_OPEN, LABELS.CLAIMED],
-            add: [LABELS.MERGED],
-            comment: `Merge tracked: ${pr.url}`,
-          });
-          report.mergedClaimed++;
-        }
-        continue;
-      }
       if (pr.state !== "open") continue;
 
       const detail = await viewPr(pr.repo, pr.number).catch(() => null);

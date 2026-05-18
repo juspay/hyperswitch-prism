@@ -46,3 +46,6 @@ coverage/
 parity-dashboard.md
 connectors/
 .cache/
+
+# Playwright MCP browser snapshots / console logs (debug artifacts from agent sessions)
+.playwright-mcp/

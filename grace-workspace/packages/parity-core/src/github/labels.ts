@@ -1,4 +1,4 @@
-import { commentIssue, editIssueLabels, getIssue } from "./client.js";
+import { closeIssue, commentIssue, editIssueLabels, getIssue, type CloseReason } from "./client.js";
 
 export const LABELS = {
   CLAIMED: "parity:autopilot-claimed",
@@ -17,6 +17,8 @@ export interface TransitionOpts {
   remove?: ParityLabel[];
   add: ParityLabel[];
   comment: string;
+  /** Optionally close the issue after the label flip + audit comment. */
+  close?: { reason?: CloseReason };
 }
 
 export interface TransitionResult {
@@ -71,6 +73,11 @@ export async function transition(opts: TransitionOpts): Promise<TransitionResult
   for (const l of opts.remove ?? []) {
     if (afterLabels.has(l)) return { raced: true, reason: `expected to remove ${l} but still present` };
   }
+
+  if (opts.close) {
+    await closeIssue(opts.repo, opts.issue, { reason: opts.close.reason });
+  }
+
   return { raced: false };
 }
 

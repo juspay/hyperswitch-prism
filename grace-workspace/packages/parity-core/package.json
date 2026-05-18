@@ -17,6 +17,7 @@
   "dependencies": {
     "@10xgrace/core": "workspace:*",
     "commander": "^12.1.0",
+    "dotenv": "^16.4.5",
     "execa": "^9.4.0",
     "yaml": "^2.5.1"
   },

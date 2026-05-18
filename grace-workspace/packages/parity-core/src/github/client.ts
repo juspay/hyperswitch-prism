@@ -72,6 +72,17 @@ export async function commentIssue(repo: string, number: number, body: string): 
   await ghRun(["issue", "comment", String(number), "--repo", repo, "--body-file", "-"], { input: body });
 }
 
+export type CloseReason = "completed" | "not_planned";
+
+export async function closeIssue(
+  repo: string,
+  number: number,
+  opts: { reason?: CloseReason } = {},
+): Promise<void> {
+  const reason = opts.reason ?? "completed";
+  await ghRun(["issue", "close", String(number), "--repo", repo, "--reason", reason]);
+}
+
 export interface GhPrView {
   number: number;
   state: string;

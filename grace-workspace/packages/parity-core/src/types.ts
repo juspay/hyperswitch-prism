@@ -5,7 +5,7 @@ export type LeafStatus =
   | "pr-open"
   | "pr-merged"
   | "blocked"
-  | "superseded"
+  | "closed"
   | "not-applicable";
 
 export type Locus =
@@ -33,6 +33,7 @@ export interface Leaf {
   labels: string[];
   createdAt: string;
   url: string;
+  state: "OPEN" | "CLOSED";
   linkedPRs: LinkedPR[];
   parentTracking: number;
   connector: string;

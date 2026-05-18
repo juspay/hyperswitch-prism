@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import dotenv from "dotenv";
 import { loadConfig as loadBaseConfig } from "@10xgrace/core";
 
 export interface ParityConfig {
@@ -77,6 +78,13 @@ function merge<T>(a: T, b: Partial<T> | undefined): T {
 }
 
 export function loadParityConfig(explicitPath?: string): ParityConfig {
+  // Load .env from the workspace root (alongside config.yml) so PARITY_* env
+  // vars resolve regardless of the caller's cwd. The base loader does this
+  // too but always relative to process.cwd() — which doesn't help when the
+  // Vite dev server runs from packages/dashboard/.
+  if (explicitPath) {
+    dotenv.config({ path: join(dirname(explicitPath), ".env"), override: false });
+  }
   const base = loadBaseConfig(explicitPath) as any;
   const raw = base?.parityAutopilot as Partial<ParityConfig> | undefined;
   if (!raw) {

@@ -11,6 +11,7 @@ function mkLeaf(over: Partial<Leaf> = {}): Leaf {
     labels: [],
     createdAt: "2025-01-01T00:00:00Z",
     url: "https://github.com/x/y/issues/1",
+    state: "OPEN",
     linkedPRs: [],
     parentTracking: 1000,
     connector: "stripe",
@@ -37,6 +38,28 @@ describe("deriveStatus", () => {
   });
   it("returns no-pr by default", () => {
     expect(deriveStatus(mkLeaf())).toBe("no-pr");
+  });
+
+  it("returns pr-merged when issue CLOSED with a merged linked PR", () => {
+    expect(
+      deriveStatus(mkLeaf({ state: "CLOSED", linkedPRs: [{ repo: "x/y", number: 9, state: "merged" }] })),
+    ).toBe("pr-merged");
+  });
+
+  it("returns closed when issue CLOSED without any merged PR", () => {
+    expect(deriveStatus(mkLeaf({ state: "CLOSED" }))).toBe("closed");
+  });
+
+  it("returns closed when issue CLOSED with an open-only PR (e.g., dupe close)", () => {
+    expect(
+      deriveStatus(mkLeaf({ state: "CLOSED", linkedPRs: [{ repo: "x/y", number: 9, state: "open" }] })),
+    ).toBe("closed");
+  });
+
+  it("CLOSED state overrides labels (e.g., stale parity:fix-pr-open label on a closed issue)", () => {
+    expect(
+      deriveStatus(mkLeaf({ state: "CLOSED", labels: [LABELS.PR_OPEN], linkedPRs: [] })),
+    ).toBe("closed");
   });
 });
 

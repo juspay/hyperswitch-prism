@@ -3,6 +3,9 @@ import type { Leaf, LeafStatus, Locus } from "../types.js";
 
 export function deriveStatus(leaf: Leaf): LeafStatus {
   const labels = new Set(leaf.labels);
+  if (leaf.state === "CLOSED") {
+    return leaf.linkedPRs.some((p) => p.state === "merged") ? "pr-merged" : "closed";
+  }
   if (labels.has(LABELS.MERGED) || leaf.linkedPRs.some((p) => p.state === "merged")) return "pr-merged";
   if (labels.has(LABELS.PR_OPEN) || leaf.linkedPRs.some((p) => p.state === "open")) return "pr-open";
   if (labels.has(LABELS.BLOCKED)) return "blocked";

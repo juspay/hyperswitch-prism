@@ -30,7 +30,7 @@ function group(leaves: Leaf[]): ConnectorBucket[] {
 }
 
 function countByStatus(leaves: Leaf[]): Record<string, number> {
-  const c = { "no-pr": 0, "pr-open": 0, "pr-merged": 0, blocked: 0, "not-applicable": 0, superseded: 0 } as Record<string, number>;
+  const c = { "no-pr": 0, "pr-open": 0, "pr-merged": 0, blocked: 0, "not-applicable": 0, closed: 0 } as Record<string, number>;
   for (const l of leaves) c[deriveStatus(l)]++;
   return c;
 }

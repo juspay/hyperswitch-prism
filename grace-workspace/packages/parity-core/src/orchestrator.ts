@@ -278,12 +278,15 @@ export async function runLoop(intervalMs: number, deps: HeartbeatDeps = {}): Pro
   }
 }
 
-export async function runDashboardOnly(deps: HeartbeatDeps = {}): Promise<void> {
+export async function runDashboardOnly(
+  deps: HeartbeatDeps = {},
+  opts: { force?: boolean } = {},
+): Promise<void> {
   const cfg = deps.cfg ?? loadParityConfig();
   const state = deps.state ?? new StateManager();
   extendForParity(state);
   const workspaceRoot = deps.workspaceRoot ?? process.cwd();
-  const leaves = await walkTree(cfg);
+  const leaves = await walkTree(cfg, { force: opts.force });
   for (const l of leaves) upsertLeaf(state, l, deriveStatus(l));
   await writeDashboardFiles(workspaceRoot, leaves, cfg);
 }

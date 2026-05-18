@@ -11,12 +11,13 @@ const cfg = {
 const leaves: Leaf[] = [
   {
     number: 100, title: "[parity] stripe / capture / currency", body: "", labels: [],
-    createdAt: "2025-01-02T00:00:00Z", url: "https://x", linkedPRs: [],
+    createdAt: "2025-01-02T00:00:00Z", url: "https://x", state: "OPEN", linkedPRs: [],
     parentTracking: 15601, connector: "stripe", flow: "capture",
   },
   {
     number: 101, title: "stripe: authorize amount", body: "", labels: [LABELS.PR_OPEN],
-    createdAt: "2025-01-01T00:00:00Z", url: "https://x", linkedPRs: [{ repo: "x/y", number: 9, state: "open" }],
+    createdAt: "2025-01-01T00:00:00Z", url: "https://x", state: "OPEN",
+    linkedPRs: [{ repo: "x/y", number: 9, state: "open" }],
     parentTracking: 15601, connector: "stripe", flow: "authorize",
   },
 ];

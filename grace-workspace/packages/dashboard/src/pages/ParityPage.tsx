@@ -66,10 +66,11 @@ export function ParityPage() {
       .catch((e) => setConfigError(String(e)));
   }, []);
 
-  async function load() {
+  async function load(opts: { force?: boolean } = {}) {
     setError(null);
     try {
-      const res = await fetch("/api/parity/tree.json");
+      const qs = opts.force ? "?force=1" : "";
+      const res = await fetch(`/api/parity/tree.json${qs}`);
       const data = (await res.json()) as ParityLeaf[] | TreeResponse;
       if (!res.ok) {
         setError((data as TreeResponse).error ?? `HTTP ${res.status}`);
@@ -127,7 +128,8 @@ export function ParityPage() {
           <div style={{ fontSize: 12, color: T.textMuted }}>
             {refreshedAt ? `tree cache mtime: ${refreshedAt}` : "loading…"}{" "}
             <button
-              onClick={load}
+              onClick={() => load({ force: true })}
+              title="Force a fresh GitHub fetch (bypass cache)"
               style={{
                 marginLeft: 8,
                 background: T.accentSoft,
@@ -142,7 +144,7 @@ export function ParityPage() {
               ↻ refresh
             </button>{" "}
             <span style={{ marginLeft: 8, color: T.textSubtle }}>
-              (run <code style={{ background: T.codeBg, padding: "1px 5px", borderRadius: 4 }}>10xgrace parity dashboard</code> to regenerate)
+              (auto-refreshes if cache &gt; 5 min old)
             </span>
           </div>
         </header>

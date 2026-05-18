@@ -14,6 +14,7 @@ export interface ParityLeaf {
   labels: string[];
   createdAt: string;
   url: string;
+  state: "OPEN" | "CLOSED";
   linkedPRs: LinkedPR[];
   parentTracking: number;
   connector: string;
@@ -25,7 +26,7 @@ export type LeafStatus =
   | "pr-open"
   | "pr-merged"
   | "blocked"
-  | "superseded"
+  | "closed"
   | "not-applicable";
 
 const LABELS = {
@@ -39,6 +40,9 @@ const LABELS = {
 
 export function deriveStatus(leaf: ParityLeaf): LeafStatus {
   const labels = new Set(leaf.labels);
+  if (leaf.state === "CLOSED") {
+    return leaf.linkedPRs.some((p) => p.state === "merged") ? "pr-merged" : "closed";
+  }
   if (labels.has(LABELS.MERGED) || leaf.linkedPRs.some((p) => p.state === "merged")) return "pr-merged";
   if (labels.has(LABELS.PR_OPEN) || leaf.linkedPRs.some((p) => p.state === "open")) return "pr-open";
   if (labels.has(LABELS.BLOCKED)) return "blocked";
@@ -52,8 +56,8 @@ export function statusColor(s: LeafStatus): { fg: string; bg: string } {
     case "pr-open":   return { fg: "#0a5687", bg: "#cfe4f4" };
     case "no-pr":     return { fg: "#8a6204", bg: "#fbe6c0" };
     case "blocked":   return { fg: "#8a1a1a", bg: "#f8d4d4" };
+    case "closed":    return { fg: "#5b21b6", bg: "#e9d5ff" };
     case "not-applicable":
-    case "superseded":
     default:          return { fg: "#666", bg: "#e8e3d6" };
   }
 }

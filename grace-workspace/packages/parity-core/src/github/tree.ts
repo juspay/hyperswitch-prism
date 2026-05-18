@@ -199,6 +199,7 @@ async function flattenSubtree(
     labels,
     createdAt: node.createdAt ?? new Date().toISOString(),
     url: node.url,
+    state: node.state?.toUpperCase() === "CLOSED" ? "CLOSED" : "OPEN",
     linkedPRs,
     parentTracking,
     connector,
@@ -206,10 +207,12 @@ async function flattenSubtree(
   });
 }
 
-export async function walkTree(cfg: ParityConfig): Promise<Leaf[]> {
+export async function walkTree(cfg: ParityConfig, opts: { force?: boolean } = {}): Promise<Leaf[]> {
   const cachePath = join(cfg.cache.dir, dailyTreeCachePath(cfg.cache.dir).split("/").pop()!);
-  const fresh = await readIfFresh<Leaf[]>(cachePath, cfg.cache.treeTtlMs);
-  if (fresh) return fresh;
+  if (!opts.force) {
+    const fresh = await readIfFresh<Leaf[]>(cachePath, cfg.cache.treeTtlMs);
+    if (fresh) return fresh;
+  }
 
   const leaves: Leaf[] = [];
   await flattenSubtree(cfg, cfg.github.rootIssue, cfg.github.rootIssue, leaves);

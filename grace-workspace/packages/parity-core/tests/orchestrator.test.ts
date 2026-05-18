@@ -133,6 +133,7 @@ function mkLeaf(over: Partial<Leaf> = {}): Leaf {
     labels: [],
     createdAt: "2025-01-02T00:00:00Z",
     url: "https://github.com/juspay/hyperswitch-cloud/issues/100",
+    state: "OPEN",
     linkedPRs: [],
     parentTracking: 15601,
     connector: "stripe",

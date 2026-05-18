@@ -74,10 +74,11 @@ export function registerParityCommands(program: Command): void {
   parity
     .command("dashboard")
     .description("Regenerate parity-dashboard.md and connectors/*.md only (no claim, no edits)")
-    .action(async () => {
-      await runDashboardOnly();
+    .option("--force", "Bypass the tree cache TTL and re-fetch from GitHub")
+    .action(async (opts: { force?: boolean }) => {
+      await runDashboardOnly({}, { force: opts.force });
       // eslint-disable-next-line no-console
-      console.log("dashboard refreshed");
+      console.log(opts.force ? "dashboard refreshed (forced GitHub re-fetch)" : "dashboard refreshed");
     });
 
   parity
