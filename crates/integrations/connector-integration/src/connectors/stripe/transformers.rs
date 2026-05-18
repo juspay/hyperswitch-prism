@@ -5956,13 +5956,19 @@ impl<T: Clone + Serialize + Debug + Sync + Send + 'static + PaymentMethodDataTyp
         let request = &_item.router_data.request;
 
         let tos_acceptance_date = Some(
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map_err(|_| IntegrationError::InvalidDataFormat {
-                    field_name: "system_time",
-                    context: IntegrationErrorContext::default(),
-                })?
-                .as_secs() as i64,
+            i64::try_from(
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map_err(|_| IntegrationError::InvalidDataFormat {
+                        field_name: "system_time",
+                        context: IntegrationErrorContext::default(),
+                    })?
+                    .as_secs(),
+            )
+            .map_err(|_| IntegrationError::InvalidDataFormat {
+                field_name: "system_time",
+                context: IntegrationErrorContext::default(),
+            })?,
         );
 
         let tos_acceptance_ip = request.tos_acceptance_ip.clone().ok_or_else(|| {
@@ -6106,7 +6112,7 @@ impl<T: Clone + Serialize + Debug + Sync + Send + 'static + PaymentMethodDataTyp
                     addr.zip.clone(),
                     addr.city.clone(),
                     addr.state.clone(),
-                    addr.country.clone(),
+                    addr.country,
                 )
             });
 
