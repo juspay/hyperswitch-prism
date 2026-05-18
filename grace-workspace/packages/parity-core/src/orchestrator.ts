@@ -1,4 +1,4 @@
-import { StateManager } from "@10xgrace/core";
+import { StateManager, type RunnerType } from "@10xgrace/core";
 import { setTimeout as delay } from "node:timers/promises";
 import type { ParityConfig } from "./config.js";
 import { loadParityConfig } from "./config.js";
@@ -15,6 +15,7 @@ import { runHandoff } from "./phases/handoff.js";
 import { runSweep } from "./phases/sweep.js";
 import { escalate } from "./escalation.js";
 import { extendForParity, newHeartbeatId, recordHeartbeat, saveSessionIds, upsertLeaf, getLeafRow } from "./persistence.js";
+import { emit } from "./progress.js";
 import type { Leaf } from "./types.js";
 
 export type HeartbeatOutcome =
@@ -34,7 +35,7 @@ export interface HeartbeatResult {
 
 function decideNextLeaf(leaves: Leaf[], cfg: ParityConfig): Leaf | null {
   const ourClaim = leaves.find((l) => l.labels.includes(LABELS.CLAIMED));
-  if (ourClaim) return ourClaim; // resume
+  if (ourClaim) return ourClaim;
 
   const skipParents = new Set(
     leaves.filter((l) => l.labels.includes(LABELS.SKIP)).map((l) => l.parentTracking),
@@ -57,34 +58,72 @@ export interface HeartbeatDeps {
   cfg?: ParityConfig;
   state?: StateManager;
   workspaceRoot?: string;
+  /** Run autopilot for this specific leaf instead of FIFO pick. */
+  leafNumber?: number;
+  /** Skip CLAIM + HANDOFF + comment posts + parity:blocked transitions. Agents + cargo + grpc verify still run. */
+  dryRun?: boolean;
+  /** Override parityAutopilot.llm.runner for this heartbeat (e.g. force claude-code regardless of config). */
+  runnerOverride?: RunnerType;
 }
 
 export async function runHeartbeat(deps: HeartbeatDeps = {}): Promise<HeartbeatResult> {
-  const cfg = deps.cfg ?? loadParityConfig();
+  const baseCfg = deps.cfg ?? loadParityConfig();
+  const cfg: ParityConfig = deps.runnerOverride
+    ? { ...baseCfg, llm: { ...baseCfg.llm, runner: deps.runnerOverride } }
+    : baseCfg;
   const state = deps.state ?? new StateManager();
   extendForParity(state);
   const workspaceRoot = deps.workspaceRoot ?? process.cwd();
+  const dryRun = deps.dryRun ?? false;
+  const issueRepo = `${cfg.github.owner}/${cfg.github.repo}`;
 
   const id = newHeartbeatId();
   const startedAt = Date.now();
   recordHeartbeat(state, { id, startedAt, outcome: "started" });
 
   try {
+    emit({ phase: "discover", status: "start" });
     const leaves = await walkTree(cfg);
+    emit({ phase: "discover", status: "ok", leafCount: leaves.length });
+
     for (const l of leaves) upsertLeaf(state, l, deriveStatus(l));
     await writeDashboardFiles(workspaceRoot, leaves, cfg);
-    await runSweep(cfg, leaves);
+    emit({ phase: "refresh", status: "ok" });
 
-    const pick = decideNextLeaf(leaves, cfg);
+    // Skip sweep in dry-run — its job is to write labels and post reminders.
+    if (!dryRun) {
+      await runSweep(cfg, leaves);
+      emit({ phase: "sweep", status: "ok" });
+    }
+
+    let pick: Leaf | null;
+    if (deps.leafNumber !== undefined) {
+      pick = leaves.find((l) => l.number === deps.leafNumber) ?? null;
+      if (!pick) {
+        emit({ phase: "decide", status: "fail", reason: `leaf #${deps.leafNumber} not in tree` });
+        recordHeartbeat(state, { id, startedAt, completedAt: Date.now(), outcome: "error", detail: `leaf #${deps.leafNumber} not in tree` });
+        emit({ phase: "done", outcome: "error", detail: `leaf #${deps.leafNumber} not in tree` });
+        return { id, outcome: "error", detail: `leaf #${deps.leafNumber} not in tree` };
+      }
+    } else {
+      pick = decideNextLeaf(leaves, cfg);
+    }
+
     if (!pick) {
+      emit({ phase: "decide", status: "ok" });
+      emit({ phase: "done", outcome: "no-work" });
       recordHeartbeat(state, { id, startedAt, completedAt: Date.now(), outcome: "no-work" });
       return { id, outcome: "no-work" };
     }
+    emit({ phase: "decide", status: "ok", picked: pick.number });
 
-    const issueRepo = `${cfg.github.owner}/${cfg.github.repo}`;
-
-    // CLAIM (idempotent — skipped if we already hold)
-    if (!pick.labels.includes(LABELS.CLAIMED)) {
+    // CLAIM
+    if (dryRun) {
+      emit({ phase: "claim", status: "skipped-dry-run", detail: `would claim #${pick.number}` });
+      // eslint-disable-next-line no-console
+      console.log(`[dry-run] skipping claim of #${pick.number} (no label, no comment)`);
+    } else if (!pick.labels.includes(LABELS.CLAIMED)) {
+      emit({ phase: "claim", status: "start" });
       const claimResult = await transition({
         repo: issueRepo,
         issue: pick.number,
@@ -92,48 +131,71 @@ export async function runHeartbeat(deps: HeartbeatDeps = {}): Promise<HeartbeatR
         comment: `Claimed by @${cfg.github.actor}\n\nautopilot-claim heartbeat=${id}`,
       });
       if (claimResult.raced) {
+        emit({ phase: "claim", status: "raced", detail: claimResult.reason });
+        emit({ phase: "done", outcome: "raced", detail: claimResult.reason, pickedLeaf: pick.number });
         recordHeartbeat(state, { id, startedAt, completedAt: Date.now(), pickedLeaf: pick.number, outcome: "raced", detail: claimResult.reason });
         return { id, outcome: "raced", pickedLeaf: pick.number, detail: claimResult.reason };
       }
+      emit({ phase: "claim", status: "ok" });
     } else {
-      // Confirm we are the claim author
       const fresh = await getIssue(issueRepo, pick.number);
       const author = lastClaimAuthor(fresh.comments ?? []);
       if (author && cfg.github.actor && author !== cfg.github.actor) {
+        emit({ phase: "claim", status: "raced", detail: `claim held by @${author}` });
+        emit({ phase: "done", outcome: "raced", detail: `claim held by @${author}`, pickedLeaf: pick.number });
         recordHeartbeat(state, { id, startedAt, completedAt: Date.now(), pickedLeaf: pick.number, outcome: "raced", detail: `claim held by @${author}` });
         return { id, outcome: "raced", pickedLeaf: pick.number };
       }
+      emit({ phase: "claim", status: "ok", detail: "already held" });
     }
 
     const row = getLeafRow(state, pick.number);
 
     // UNDERSTAND
+    emit({ phase: "understand", status: "start" });
     const understand = await runUnderstand({ cfg, leaf: pick, sessionId: row?.understand_sid ?? undefined });
     if (understand.sessionId) saveSessionIds(state, pick.number, { understand: understand.sessionId });
     if (!understand.ok || !understand.markdown) {
-      await escalate({ cfg, issue: pick.number, step: "understand", ...understand.escalation! });
+      emit({ phase: "understand", status: "fail" });
+      await escalate({ cfg, issue: pick.number, step: "understand", ...understand.escalation!, dryRun });
+      emit({ phase: "done", outcome: "escalated", detail: understand.escalation?.blocker, pickedLeaf: pick.number });
       recordHeartbeat(state, { id, startedAt, completedAt: Date.now(), pickedLeaf: pick.number, outcome: "escalated", detail: understand.escalation?.blocker });
       return { id, outcome: "escalated", pickedLeaf: pick.number };
     }
-    // Post the summary as a comment
-    await transition({ repo: issueRepo, issue: pick.number, add: [], comment: understand.markdown });
+    emit({ phase: "understand", status: "ok", confidence: understand.confidence, locus: understand.locus ?? undefined, markdown: understand.markdown });
 
-    // Refresh leaf with the new comment so deriveLocusFromComments works
-    const fresh = await getIssue(issueRepo, pick.number);
-    const locusFromComments = deriveLocusFromComments(fresh.comments ?? []);
-    const effectiveLocus = locusFromComments ?? understand.locus ?? null;
+    let effectiveLocus = understand.locus ?? null;
+    if (dryRun) {
+      // eslint-disable-next-line no-console
+      console.log(`[dry-run] not posting understanding summary to #${pick.number}`);
+    } else {
+      await transition({ repo: issueRepo, issue: pick.number, add: [], comment: understand.markdown });
+      const fresh = await getIssue(issueRepo, pick.number);
+      effectiveLocus = deriveLocusFromComments(fresh.comments ?? []) ?? effectiveLocus;
+    }
 
     // PLAN
+    emit({ phase: "plan", status: "start" });
     const plan = await runPlan({ cfg, leaf: pick, understandMarkdown: understand.markdown, sessionId: row?.plan_sid ?? undefined });
     if (plan.sessionId) saveSessionIds(state, pick.number, { plan: plan.sessionId });
     if (!plan.ok || !plan.markdown) {
-      await escalate({ cfg, issue: pick.number, step: "plan", ...plan.escalation! });
+      emit({ phase: "plan", status: "fail" });
+      await escalate({ cfg, issue: pick.number, step: "plan", ...plan.escalation!, dryRun });
+      emit({ phase: "done", outcome: "escalated", detail: plan.escalation?.blocker, pickedLeaf: pick.number });
       recordHeartbeat(state, { id, startedAt, completedAt: Date.now(), pickedLeaf: pick.number, outcome: "escalated", detail: plan.escalation?.blocker });
       return { id, outcome: "escalated", pickedLeaf: pick.number };
     }
-    await transition({ repo: issueRepo, issue: pick.number, add: [LABELS.RCA_DONE], comment: plan.markdown });
+    emit({ phase: "plan", status: "ok", markdown: plan.markdown });
+
+    if (dryRun) {
+      // eslint-disable-next-line no-console
+      console.log(`[dry-run] not posting implementation plan to #${pick.number} (no parity:rca-complete label)`);
+    } else {
+      await transition({ repo: issueRepo, issue: pick.number, add: [LABELS.RCA_DONE], comment: plan.markdown });
+    }
 
     // EXECUTE
+    emit({ phase: "execute", status: "start" });
     const exec = await runExecute({
       cfg,
       leaf: pick,
@@ -144,32 +206,50 @@ export async function runHeartbeat(deps: HeartbeatDeps = {}): Promise<HeartbeatR
     });
     if (exec.sessionId) saveSessionIds(state, pick.number, { execute: exec.sessionId });
     if (!exec.ok) {
-      await escalate({ cfg, issue: pick.number, step: "execute", ...exec.escalation! });
+      emit({ phase: "execute", status: "fail", target: exec.target, branch: exec.branch, tail: exec.buildTail });
+      await escalate({ cfg, issue: pick.number, step: "execute", ...exec.escalation!, dryRun });
+      emit({ phase: "done", outcome: "escalated", detail: exec.escalation?.blocker, pickedLeaf: pick.number });
       recordHeartbeat(state, { id, startedAt, completedAt: Date.now(), pickedLeaf: pick.number, outcome: "escalated", detail: exec.escalation?.blocker });
       return { id, outcome: "escalated", pickedLeaf: pick.number };
     }
+    emit({ phase: "execute", status: "ok", target: exec.target, branch: exec.branch });
 
     // GRPC_VERIFY
+    emit({ phase: "verify", status: "start" });
     const verify = await verifyLeaf(cfg, pick);
-    await transition({ repo: issueRepo, issue: pick.number, add: [], comment: verify.markdown });
+    if (!dryRun) {
+      await transition({ repo: issueRepo, issue: pick.number, add: [], comment: verify.markdown });
+    } else {
+      // eslint-disable-next-line no-console
+      console.log(`[dry-run] not posting grpc verification block to #${pick.number}`);
+    }
     if (!verify.ok) {
-      // No PR. Heartbeat ends. Next heartbeat re-enters at UNDERSTAND because we leave CLAIMED on.
+      emit({ phase: "verify", status: "fail", markdown: verify.markdown, reason: verify.reason });
+      emit({ phase: "done", outcome: "verify-failed", detail: verify.reason, pickedLeaf: pick.number });
       recordHeartbeat(state, { id, startedAt, completedAt: Date.now(), pickedLeaf: pick.number, outcome: "verify-failed", detail: verify.reason });
       return { id, outcome: "verify-failed", pickedLeaf: pick.number, detail: verify.reason };
     }
+    emit({ phase: "verify", status: "ok", markdown: verify.markdown });
 
     // HANDOFF
-    const handoff = await runHandoff({ cfg, leaf: pick, understanding: understand, planMarkdown: plan.markdown, exec, verify });
+    emit({ phase: "handoff", status: dryRun ? "skipped-dry-run" : "start" });
+    const handoff = await runHandoff({ cfg, leaf: pick, understanding: understand, planMarkdown: plan.markdown, exec, verify, dryRun });
     if (!handoff.ok) {
-      await escalate({ cfg, issue: pick.number, step: "handoff", ...handoff.escalation! });
+      emit({ phase: "handoff", status: "fail" });
+      await escalate({ cfg, issue: pick.number, step: "handoff", ...handoff.escalation!, dryRun });
+      emit({ phase: "done", outcome: "escalated", detail: handoff.escalation?.blocker, pickedLeaf: pick.number });
       recordHeartbeat(state, { id, startedAt, completedAt: Date.now(), pickedLeaf: pick.number, outcome: "escalated", detail: handoff.escalation?.blocker });
       return { id, outcome: "escalated", pickedLeaf: pick.number };
     }
+    emit({ phase: "handoff", status: dryRun ? "skipped-dry-run" : "ok", prUrl: handoff.prUrl });
 
-    recordHeartbeat(state, { id, startedAt, completedAt: Date.now(), pickedLeaf: pick.number, outcome: "pr-opened", detail: handoff.prUrl });
-    return { id, outcome: "pr-opened", pickedLeaf: pick.number, detail: handoff.prUrl };
+    const outcome: HeartbeatOutcome = "pr-opened";
+    emit({ phase: "done", outcome, detail: handoff.prUrl, pickedLeaf: pick.number });
+    recordHeartbeat(state, { id, startedAt, completedAt: Date.now(), pickedLeaf: pick.number, outcome, detail: handoff.prUrl });
+    return { id, outcome, pickedLeaf: pick.number, detail: handoff.prUrl };
   } catch (err) {
     const msg = (err as Error).message || String(err);
+    emit({ phase: "done", outcome: "error", detail: msg });
     recordHeartbeat(state, { id, startedAt, completedAt: Date.now(), outcome: "error", detail: msg });
     return { id, outcome: "error", detail: msg };
   }
@@ -179,12 +259,10 @@ export async function runLoop(intervalMs: number, deps: HeartbeatDeps = {}): Pro
   const cfg = deps.cfg ?? loadParityConfig();
   const state = deps.state ?? new StateManager();
   while (true) {
-    const r = await runHeartbeat({ cfg, state, workspaceRoot: deps.workspaceRoot });
-    // Brief log to stdout for operators
+    const r = await runHeartbeat({ ...deps, cfg, state });
     // eslint-disable-next-line no-console
     console.log(`[parity] heartbeat ${r.id} → ${r.outcome}${r.pickedLeaf ? ` leaf=#${r.pickedLeaf}` : ""}${r.detail ? ` :: ${r.detail}` : ""}`);
     if (r.outcome === "no-work") {
-      // back off harder when there's nothing to do
       await delay(Math.min(intervalMs * 2, 30 * 60 * 1000));
     } else {
       await delay(intervalMs);

@@ -24,8 +24,24 @@ export function registerParityCommands(program: Command): void {
   parity
     .command("tick")
     .description("Run one heartbeat (one leaf max) and exit")
-    .action(async () => {
-      const r = await runHeartbeat();
+    .option("--leaf <n>", "Run autopilot for a specific leaf number (overrides FIFO pick)", (v) => parseInt(v, 10))
+    .option("--dry-run", "Skip claim + handoff: no GitHub label, no comment, no PR. Agents + cargo + grpc verify still run.")
+    .option(
+      "--runner <name>",
+      "Override LLM runner for this heartbeat (claude-code | opencode). Defaults to parityAutopilot.llm.runner from config.yml.",
+      (v: string) => {
+        if (v !== "claude-code" && v !== "opencode") {
+          throw new Error(`--runner must be claude-code or opencode, got: ${v}`);
+        }
+        return v as "claude-code" | "opencode";
+      },
+    )
+    .action(async (opts: { leaf?: number; dryRun?: boolean; runner?: "claude-code" | "opencode" }) => {
+      const r = await runHeartbeat({
+        leafNumber: opts.leaf,
+        dryRun: opts.dryRun,
+        runnerOverride: opts.runner,
+      });
       // eslint-disable-next-line no-console
       console.log(JSON.stringify(r, null, 2));
       process.exit(r.outcome === "error" ? 1 : 0);

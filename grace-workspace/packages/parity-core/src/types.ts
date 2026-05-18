@@ -1,3 +1,5 @@
+export type { RunnerType } from "@10xgrace/core";
+
 export type LeafStatus =
   | "no-pr"
   | "pr-open"

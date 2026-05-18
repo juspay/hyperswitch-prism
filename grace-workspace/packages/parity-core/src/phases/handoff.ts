@@ -78,10 +78,18 @@ export async function runHandoff(opts: {
   planMarkdown: string;
   exec: ExecuteResult;
   verify: VerifyResult;
+  dryRun?: boolean;
 }): Promise<HandoffResult> {
   const { cfg, leaf, exec } = opts;
   if (!exec.ok || exec.target === "escalate") {
     return { ok: false, escalation: { blocker: "Cannot hand off failed execute", tried: "runHandoff guard", question: "Should not reach here." } };
+  }
+
+  if (opts.dryRun) {
+    // Dry-run: agents + cargo + grpc verify all ran. We do NOT commit, push, open a PR,
+    // or transition any GitHub label. The execute branch is left checked out in the local
+    // prism repo so the operator can inspect the diff before promoting to a live run.
+    return { ok: true, prUrl: "(dry-run — no PR created)" };
   }
 
   const oneLiner = leaf.title.replace(/^\[parity\]\s*/i, "").slice(0, 60);

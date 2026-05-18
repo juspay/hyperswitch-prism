@@ -1,4 +1,4 @@
-import { runAI } from "@10xgrace/core";
+import { runAI, withRunner, type RunnerType } from "@10xgrace/core";
 import type { ParityConfig } from "../config.js";
 import { PLAN_SYSTEM, buildPlanUser } from "../prompts/plan.js";
 import type { Leaf, PlanResult } from "../types.js";
@@ -29,14 +29,24 @@ export function parsePlan(text: string): PlanResult {
 }
 
 export async function runPlan(opts: { cfg: ParityConfig; leaf: Leaf; understandMarkdown: string; sessionId?: string }): Promise<PlanResult & { sessionId?: string }> {
-  const ai = await runAI({
-    system: PLAN_SYSTEM,
-    user: buildPlanUser(opts.leaf, opts.understandMarkdown),
-    label: `parity/plan/${opts.leaf.number}`,
-    model: opts.cfg.llm.planModel || undefined,
-    sessionId: opts.sessionId,
-  } as any);
-  const text = typeof (ai as any).output === "string" ? (ai as any).output : JSON.stringify((ai as any).output ?? "");
+  const effective: RunnerType = opts.cfg.llm.runner ?? "claude-code";
+  const ai = await withRunner(effective, () =>
+    runAI<string>({
+      skillBody: PLAN_SYSTEM,
+      userPayload: buildPlanUser(opts.leaf, opts.understandMarkdown),
+      cwd: opts.cfg.prismPath,
+      label: `parity/plan/${opts.leaf.number}`,
+      model: opts.cfg.llm.planModel || undefined,
+      rawText: true,
+      ...(effective === "claude-code"
+        ? {
+            claudeSessionId: opts.sessionId,
+            sessionLabel: `parity-${opts.leaf.connector}-${opts.leaf.flow}-plan`,
+          }
+        : {}),
+    }),
+  );
+  const text = typeof ai.result === "string" ? ai.result : JSON.stringify(ai.result ?? "");
   const parsed = parsePlan(text);
-  return { ...parsed, sessionId: (ai as any).sessionId };
+  return { ...parsed, sessionId: ai.sessionId };
 }

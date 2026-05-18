@@ -19,6 +19,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { id: "home", label: "Home", icon: "🏠", path: "/" },
   { id: "connectors", label: "Payment Processors", icon: "💳", path: "/connectors" },
+  { id: "parity", label: "Parity Checker", icon: "⚖️", path: "/parity" },
 ];
 
 export function NavigationSidebar() {
@@ -87,6 +88,8 @@ export function NavigationSidebar() {
       <nav style={{ flex: 1, padding: "16px 12px" }}>
         {NAV_ITEMS.map((item) => {
           const isActive = currentPath === item.path;
+          const isActiveOrChild =
+            isActive || (item.path !== "/" && currentPath.startsWith(item.path + "/"));
           return (
             <Link
               key={item.id}
@@ -99,20 +102,20 @@ export function NavigationSidebar() {
                 borderRadius: 8,
                 marginBottom: 4,
                 textDecoration: "none",
-                color: isActive ? T.text : T.textMuted,
-                background: isActive ? T.accentSoft : "transparent",
-                borderLeft: isActive ? `3px solid ${T.accent}` : "3px solid transparent",
-                fontWeight: isActive ? 600 : 500,
+                color: isActiveOrChild ? T.text : T.textMuted,
+                background: isActiveOrChild ? T.accentSoft : "transparent",
+                borderLeft: isActiveOrChild ? `3px solid ${T.accent}` : "3px solid transparent",
+                fontWeight: isActiveOrChild ? 600 : 500,
                 fontSize: 14,
                 transition: "all 150ms ease",
               }}
               onMouseEnter={(e) => {
-                if (!isActive) {
+                if (!isActiveOrChild) {
                   e.currentTarget.style.background = T.bgElev;
                 }
               }}
               onMouseLeave={(e) => {
-                if (!isActive) {
+                if (!isActiveOrChild) {
                   e.currentTarget.style.background = "transparent";
                 }
               }}

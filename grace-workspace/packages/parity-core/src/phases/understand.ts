@@ -1,4 +1,4 @@
-import { runAI } from "@10xgrace/core";
+import { runAI, withRunner, type RunnerType } from "@10xgrace/core";
 import type { ParityConfig } from "../config.js";
 import { UNDERSTAND_SYSTEM, buildUnderstandUser } from "../prompts/understand.js";
 import type { Leaf, Locus, UnderstandingResult } from "../types.js";
@@ -45,14 +45,25 @@ export function parseUnderstandingSummary(text: string): ParseResult {
 }
 
 export async function runUnderstand(opts: { cfg: ParityConfig; leaf: Leaf; sessionId?: string }): Promise<UnderstandingResult & { sessionId?: string }> {
-  const ai = await runAI({
-    system: UNDERSTAND_SYSTEM,
-    user: buildUnderstandUser(opts.leaf, opts.cfg),
-    label: `parity/understand/${opts.leaf.number}`,
-    model: opts.cfg.llm.understandModel || undefined,
-    sessionId: opts.sessionId,
-  } as any);
-  const text = typeof (ai as any).output === "string" ? (ai as any).output : JSON.stringify((ai as any).output ?? "");
+  const effective: RunnerType = opts.cfg.llm.runner ?? "claude-code";
+  const ai = await withRunner(effective, () =>
+    runAI<string>({
+      skillBody: UNDERSTAND_SYSTEM,
+      userPayload: buildUnderstandUser(opts.leaf, opts.cfg),
+      cwd: opts.cfg.prismPath,
+      label: `parity/understand/${opts.leaf.number}`,
+      model: opts.cfg.llm.understandModel || undefined,
+      rawText: true,
+      // claudeSessionId + sessionLabel are claude-code only; opencode throws.
+      ...(effective === "claude-code"
+        ? {
+            claudeSessionId: opts.sessionId,
+            sessionLabel: `parity-${opts.leaf.connector}-${opts.leaf.flow}-understand`,
+          }
+        : {}),
+    }),
+  );
+  const text = typeof ai.result === "string" ? ai.result : JSON.stringify(ai.result ?? "");
   const parsed = parseUnderstandingSummary(text);
-  return { ...parsed, sessionId: (ai as any).sessionId };
+  return { ...parsed, sessionId: ai.sessionId };
 }
