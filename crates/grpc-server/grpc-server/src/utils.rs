@@ -520,6 +520,7 @@ macro_rules! implement_connector_operation {
                 reference_id: &metadata_payload.reference_id,
                 resource_id: &metadata_payload.resource_id,
                 shadow_mode: metadata_payload.shadow_mode,
+                merchant_id: metadata_payload.merchant_id.as_str(),
             };
             let response_result = external_services::service::execute_connector_processing_step(
                 &config.proxy,
