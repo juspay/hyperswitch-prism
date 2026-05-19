@@ -529,6 +529,7 @@ pub struct TruelayerPSyncResponse {
     status: TruelayerPaymentStatus,
     failure_reason: Option<String>,
     failure_stage: Option<String>,
+    payment_source: Option<TruelayerPaymentSource>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
@@ -593,6 +594,9 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
                     Ok(Self {
                         resource_common_data: PaymentFlowData {
                             status,
+                            sender_payment_instrument_id: response
+                                .payment_source
+                                .and_then(|source| source.id),
                             ..item.router_data.resource_common_data
                         },
                         response: Ok(PaymentsResponseData::TransactionResponse {

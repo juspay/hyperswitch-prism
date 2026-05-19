@@ -2036,6 +2036,24 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 response_audience: twoc_twop_paco.response_audience,
                 base_url: twoc_twop_paco.base_url,
             }),
+            AuthType::Bamboraapac(bamboraapac) => Ok(Self::Bamboraapac {
+                username: bamboraapac.username.ok_or_else(err)?,
+                password: bamboraapac.password.ok_or_else(err)?,
+                account_number: bamboraapac.account_number.ok_or_else(err)?,
+                base_url: bamboraapac.base_url,
+            }),
+            AuthType::Placetopay(placetopay) => Ok(Self::Placetopay {
+                login: placetopay.login.ok_or_else(err)?,
+                tran_key: placetopay.tran_key.ok_or_else(err)?,
+                base_url: placetopay.base_url,
+            }),
+            AuthType::Finix(finix) => Ok(Self::Finix {
+                finix_user_name: finix.finix_user_name.ok_or_else(err)?,
+                finix_password: finix.finix_password.ok_or_else(err)?,
+                merchant_identity_id: finix.merchant_identity_id.ok_or_else(err)?,
+                merchant_id: finix.merchant_id.ok_or_else(err)?,
+                base_url: finix.base_url,
+            }),
         }
     }
 }

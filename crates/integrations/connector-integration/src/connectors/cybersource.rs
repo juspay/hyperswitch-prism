@@ -13,15 +13,15 @@ use domain_types::{
     connector_flow::{
         Authenticate, Authorize, Capture, ClientAuthenticationToken, IncrementalAuthorization,
         MandateRevoke, PSync, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
-        SetupMandate, Void,
+        SetupMandate, Void, VoidPC,
     },
     connector_types::{
         ClientAuthenticationTokenRequestData, MandateRevokeRequestData, MandateRevokeResponseData,
         PaymentFlowData, PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        SetupMandateRequestData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, SetupMandateRequestData,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::ErrorResponse,
@@ -52,11 +52,13 @@ use transformers::{
     CybersourcePaymentsIncrementalAuthorizationRequest,
     CybersourcePaymentsIncrementalAuthorizationResponse, CybersourcePaymentsRequest,
     CybersourcePaymentsResponse, CybersourcePaymentsResponse as CybersourceCaptureResponse,
+    CybersourcePaymentsResponse as CybersourceVoidPCResponse,
     CybersourcePaymentsResponse as CybersourceVoidResponse,
     CybersourcePaymentsResponse as CybersourceSetupMandateResponse,
     CybersourcePaymentsResponse as CybersourceRepeatPaymentResponse, CybersourceRefundRequest,
     CybersourceRefundResponse, CybersourceRepeatPaymentRequest, CybersourceRsyncResponse,
-    CybersourceTransactionResponse, CybersourceVoidRequest, CybersourceZeroMandateRequest,
+    CybersourceTransactionResponse, CybersourceVoidPCRequest, CybersourceVoidRequest,
+    CybersourceZeroMandateRequest,
 };
 
 use super::macros;
@@ -96,6 +98,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Cybersource<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentVoidPostCaptureV2 for Cybersource<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -241,6 +247,12 @@ macros::create_all_prerequisites!(
             request_body: CybersourceVoidRequest,
             response_body: CybersourceVoidResponse,
             router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ),
+        (
+            flow: VoidPC,
+            request_body: CybersourceVoidPCRequest,
+            response_body: CybersourceVoidPCResponse,
+            router_data: RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
         ),
         (
             flow: Refund,
@@ -821,6 +833,44 @@ macros::macro_connector_implementation!(
     }
 );
 
+// Add implementation for VoidPC (post-capture reversal)
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Cybersource,
+    curl_request: Json(CybersourceVoidPCRequest),
+    curl_response: CybersourceVoidPCResponse,
+    flow_name: VoidPC,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsCancelPostCaptureData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // VoidPostCapture voids a CAPTURE (not an authorization).
+            // CyberSource uses a dedicated endpoint for capture voids:
+            //   POST /pts/v2/captures/{capture_id}/voids
+            // The authorization-reversal endpoint (/pts/v2/payments/{id}/reversals)
+            // is for pre-capture reversals only and requires reversalInformation.amountDetails.
+            let capture_id = req.request.connector_transaction_id.clone();
+            Ok(format!(
+                "{}pts/v2/captures/{capture_id}/voids",
+                self.connector_base_url_payments(req),
+            ))
+        }
+    }
+);
+
 // Add implementation for Refund
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
@@ -1260,7 +1310,6 @@ macros::macro_connector_flow_status_impls!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
-        VoidPC,
         CreateOrder,
         ServerSessionAuthenticationToken,
         PaymentMethodToken,

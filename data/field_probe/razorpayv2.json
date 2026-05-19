@@ -231,7 +231,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "apple_pay": {
+            "apple_pay_sdk": {
               "payment_data": {
                 "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
               },
@@ -271,7 +271,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "apple_pay": {
+            "apple_pay_sdk": {
               "payment_data": {
                 "decrypted_data": {
                   "application_primary_account_number": "4111111111111111",
@@ -606,7 +606,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "bluecode": {}
+            "bluecode_redirect": {}
           },
           "capture_method": "AUTOMATIC",
           "address": {
@@ -1226,7 +1226,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "google_pay": {
+            "google_pay_sdk": {
               "type": "CARD",
               "description": "Visa 1111",
               "info": {
@@ -1269,7 +1269,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "google_pay": {
+            "google_pay_sdk": {
               "type": "CARD",
               "description": "Visa 1111",
               "info": {
@@ -1797,7 +1797,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "mifinity": {
+            "mifinity_redirect": {
               "date_of_birth": "1990-01-01",
               "language_preference": "en"
             }
@@ -2648,7 +2648,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "samsung_pay": {
+            "samsung_pay_sdk": {
               "payment_credential": {
                 "method": "3DS",
                 "recurring_payment": false,

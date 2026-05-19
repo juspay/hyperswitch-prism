@@ -355,6 +355,7 @@ pub struct EventProcessingParams<'a> {
     pub resource_id: &'a Option<String>,
     pub shadow_mode: bool,
     pub tenant_id: &'a str,
+    pub merchant_id: &'a str,
     pub return_raw_connector_data: bool,
 }
 
@@ -450,6 +451,10 @@ where
                     req.add_header(
                         consts::X_CONNECTOR_NAME,
                         Maskable::Masked(Secret::new(event_params.connector_name.to_string())),
+                    );
+                    req.add_header(
+                        consts::X_MERCHANT_ID,
+                        Maskable::Masked(Secret::new(event_params.merchant_id.to_string())),
                     );
                 }
                 req

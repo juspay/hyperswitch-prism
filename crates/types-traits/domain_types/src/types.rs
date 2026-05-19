@@ -553,6 +553,132 @@ impl Connectors {
             ConnectorEnum::Novalnet => {
                 patched.novalnet.apply(params_patch);
             }
+            ConnectorEnum::Forte => {
+                patched.forte.apply(params_patch);
+            }
+            ConnectorEnum::Bambora => {
+                patched.bambora.apply(params_patch);
+            }
+            ConnectorEnum::Bamboraapac => {
+                patched.bamboraapac.apply(params_patch);
+            }
+            ConnectorEnum::Barclaycard => {
+                patched.barclaycard.apply(params_patch);
+            }
+            ConnectorEnum::Billwerk => {
+                patched.billwerk.apply(params_patch);
+            }
+            ConnectorEnum::Bluesnap => {
+                patched.bluesnap.apply(params_patch);
+            }
+            ConnectorEnum::Calida => {
+                patched.calida.apply(params_patch);
+            }
+            ConnectorEnum::Cashfree => {
+                patched.cashfree.apply(params_patch);
+            }
+            ConnectorEnum::Celero => {
+                patched.celero.apply(params_patch);
+            }
+            ConnectorEnum::Cryptopay => {
+                patched.cryptopay.apply(params_patch);
+            }
+            ConnectorEnum::Datatrans => {
+                patched.datatrans.apply(params_patch);
+            }
+            ConnectorEnum::Finix => {
+                patched.finix.apply(params_patch);
+            }
+            ConnectorEnum::Fiservcommercehub => {
+                patched.fiservcommercehub.apply(params_patch);
+            }
+            ConnectorEnum::Fiservemea => {
+                patched.fiservemea.apply(params_patch);
+            }
+            ConnectorEnum::Globalpay => {
+                patched.globalpay.apply(params_patch);
+            }
+            ConnectorEnum::Helcim => {
+                patched.helcim.apply(params_patch);
+            }
+            ConnectorEnum::Hipay => {
+                patched.hipay.apply(params_patch);
+            }
+            ConnectorEnum::Imerchantsolutions => {
+                patched.imerchantsolutions.apply(params_patch);
+            }
+            ConnectorEnum::Jpmorgan => {
+                patched.jpmorgan.apply(params_patch);
+            }
+            ConnectorEnum::Loonio => {
+                patched.loonio.apply(params_patch);
+            }
+            ConnectorEnum::Mifinity => {
+                patched.mifinity.apply(params_patch);
+            }
+            ConnectorEnum::Mollie => {
+                patched.mollie.apply(params_patch);
+            }
+            ConnectorEnum::Multisafepay => {
+                patched.multisafepay.apply(params_patch);
+            }
+            ConnectorEnum::Nexixpay => {
+                patched.nexixpay.apply(params_patch);
+            }
+            ConnectorEnum::Payload => {
+                patched.payload.apply(params_patch);
+            }
+            ConnectorEnum::Payme => {
+                patched.payme.apply(params_patch);
+            }
+            ConnectorEnum::Placetopay => {
+                patched.placetopay.apply(params_patch);
+            }
+            ConnectorEnum::Powertranz => {
+                patched.powertranz.apply(params_patch);
+            }
+            ConnectorEnum::Revolv3 => {
+                patched.revolv3.apply(params_patch);
+            }
+            ConnectorEnum::Sanlam => {
+                patched.sanlam.apply(params_patch);
+            }
+            ConnectorEnum::Shift4 => {
+                patched.shift4.apply(params_patch);
+            }
+            ConnectorEnum::Silverflow => {
+                patched.silverflow.apply(params_patch);
+            }
+            ConnectorEnum::Stax => {
+                patched.stax.apply(params_patch);
+            }
+            ConnectorEnum::Truelayer => {
+                patched.truelayer.apply(params_patch);
+            }
+            ConnectorEnum::Trustly => {
+                patched.trustly.apply(params_patch);
+            }
+            ConnectorEnum::Trustpayments => {
+                patched.trustpayments.apply(params_patch);
+            }
+            ConnectorEnum::Tsys => {
+                patched.tsys.apply(params_patch);
+            }
+            ConnectorEnum::Wellsfargo => {
+                patched.wellsfargo.apply(params_patch);
+            }
+            ConnectorEnum::Worldpayvantiv => {
+                patched.worldpayvantiv.apply(params_patch);
+            }
+            ConnectorEnum::Worldpayxml => {
+                patched.worldpayxml.apply(params_patch);
+            }
+            ConnectorEnum::Zift => {
+                patched.zift.apply(params_patch);
+            }
+            ConnectorEnum::Gigadat => {
+                patched.gigadat.apply(params_patch);
+            }
             ConnectorEnum::Trustpay => {
                 // TrustPay uses ConnectorParamsWithMoreUrls which has different fields
                 let trustpay_patch = ConnectorParamsWithMoreUrlsPatch {
@@ -568,7 +694,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay",
+                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, multisafepay, nexixpay, payload, payme, placetopay, powertranz, revolv3, sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat",
                             connector
                         )),
                         ..Default::default()
@@ -1033,7 +1159,7 @@ impl<
                 // ============================================================================
                 // DIGITAL WALLETS - Direct conversions
                 // ============================================================================
-                grpc_api_types::payments::payment_method::PaymentMethod::Bluecode(_) => Ok(
+                grpc_api_types::payments::payment_method::PaymentMethod::BluecodeRedirect(_) => Ok(
                     Self::Wallet(payment_method_data::WalletData::BluecodeRedirect {}),
                 ),
                 grpc_api_types::payments::payment_method::PaymentMethod::RevolutPay(_) => {
@@ -1046,7 +1172,22 @@ impl<
                         payment_method_data::AliPayRedirection {},
                     )),
                 ),
-                grpc_api_types::payments::payment_method::PaymentMethod::AliPayHk(_) => Ok(
+                grpc_api_types::payments::payment_method::PaymentMethod::RevolutPayRedirect(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::RevolutPay(
+                        payment_method_data::RevolutPayData {},
+                    )))
+                }
+                grpc_api_types::payments::payment_method::PaymentMethod::SatispayRedirect(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::Satispay(
+                        payment_method_data::SatispayData {},
+                    )))
+                }
+                grpc_api_types::payments::payment_method::PaymentMethod::WeroRedirect(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::Wero(
+                        payment_method_data::WeroData {},
+                    )))
+                }
+                grpc_api_types::payments::payment_method::PaymentMethod::AliPayHkRedirect(_) => Ok(
                     Self::Wallet(payment_method_data::WalletData::AliPayHkRedirect(
                         payment_method_data::AliPayHkRedirection {},
                     )),
@@ -1162,7 +1303,7 @@ impl<
                         Box::new(payment_method_data::WeChatPayRedirection {}),
                     )))
                 }
-                grpc_api_types::payments::payment_method::PaymentMethod::Mifinity(
+                grpc_api_types::payments::payment_method::PaymentMethod::MifinityRedirect(
                     mifinity_data,
                 ) => Ok(Self::Wallet(payment_method_data::WalletData::Mifinity(
                     payment_method_data::MifinityData {
@@ -1175,7 +1316,7 @@ impl<
                         language_preference: mifinity_data.language_preference,
                     },
                 ))),
-                grpc_api_types::payments::payment_method::PaymentMethod::ApplePay(apple_wallet) => {
+                grpc_api_types::payments::payment_method::PaymentMethod::ApplePaySdk(apple_wallet) => {
                     let payment_data = apple_wallet.payment_data.ok_or_else(|| {
                         IntegrationError::InvalidDataFormat { field_name: "payment_method.apple_pay.payment_data", context: IntegrationErrorContext { additional_context: Some("Apple Pay payment data is required".to_string()), ..Default::default() } }
                     })?;
@@ -1224,7 +1365,7 @@ impl<
                         wallet_data,
                     )))
                 }
-                grpc_api_types::payments::payment_method::PaymentMethod::GooglePay(
+                grpc_api_types::payments::payment_method::PaymentMethod::GooglePaySdk(
                     google_wallet,
                 ) => {
                     let info = google_wallet.info.ok_or_else(|| {
@@ -1330,7 +1471,7 @@ impl<
                         },
                     ),
                 )),
-                grpc_api_types::payments::payment_method::PaymentMethod::Paze(paze_wallet) => {
+                grpc_api_types::payments::payment_method::PaymentMethod::PazeSdk(paze_wallet) => {
                     let paze_wallet_data = match paze_wallet.paze_data {
                         Some(grpc_api_types::payments::paze_wallet::PazeData::CompleteResponse(
                             complete_response,
@@ -1351,7 +1492,7 @@ impl<
                         paze_wallet_data,
                     ))))
                 }
-                grpc_api_types::payments::payment_method::PaymentMethod::SamsungPay(
+                grpc_api_types::payments::payment_method::PaymentMethod::SamsungPaySdk(
                     samsung_pay,
                 ) => {
                 let credential = samsung_pay
@@ -2232,8 +2373,8 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 // ============================================================================
                 // DIGITAL WALLETS - PaymentMethodType mappings
                 // ============================================================================
-                grpc_api_types::payments::payment_method::PaymentMethod::ApplePay(_) => Ok(Some(PaymentMethodType::ApplePay)),
-                grpc_api_types::payments::payment_method::PaymentMethod::GooglePay(_) => Ok(Some(PaymentMethodType::GooglePay)),
+                grpc_api_types::payments::payment_method::PaymentMethod::ApplePaySdk(_) => Ok(Some(PaymentMethodType::ApplePay)),
+                grpc_api_types::payments::payment_method::PaymentMethod::GooglePaySdk(_) => Ok(Some(PaymentMethodType::GooglePay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::ApplePayThirdPartySdk(_) => Ok(Some(PaymentMethodType::ApplePay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::GooglePayThirdPartySdk(_) => Ok(Some(PaymentMethodType::GooglePay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::PaypalSdk(_) => Ok(Some(PaymentMethodType::Paypal)),
@@ -2244,10 +2385,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::WeChatPayRedirect(_) => Ok(Some(PaymentMethodType::WeChatPay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::AliPayRedirect(_) => Ok(Some(PaymentMethodType::AliPay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::RevolutPay(_) => Ok(Some(PaymentMethodType::RevolutPay)),
-                grpc_api_types::payments::payment_method::PaymentMethod::Mifinity(_) => Ok(Some(PaymentMethodType::Mifinity)),
-                grpc_api_types::payments::payment_method::PaymentMethod::Bluecode(_) => Ok(Some(PaymentMethodType::Bluecode)),
-                grpc_api_types::payments::payment_method::PaymentMethod::Paze(_) => Ok(Some(PaymentMethodType::Paze)),
-                grpc_api_types::payments::payment_method::PaymentMethod::AliPayHk(_) => Ok(Some(PaymentMethodType::AliPayHk)),
+                grpc_api_types::payments::payment_method::PaymentMethod::MifinityRedirect(_) => Ok(Some(PaymentMethodType::Mifinity)),
+                grpc_api_types::payments::payment_method::PaymentMethod::BluecodeRedirect(_) => Ok(Some(PaymentMethodType::Bluecode)),
+                grpc_api_types::payments::payment_method::PaymentMethod::PazeSdk(_) => Ok(Some(PaymentMethodType::Paze)),
+                grpc_api_types::payments::payment_method::PaymentMethod::AliPayHkRedirect(_) => Ok(Some(PaymentMethodType::AliPayHk)),
                 grpc_api_types::payments::payment_method::PaymentMethod::DanaRedirect(_) => Ok(Some(PaymentMethodType::Dana)),
                 grpc_api_types::payments::payment_method::PaymentMethod::GcashRedirect(_) => Ok(Some(PaymentMethodType::Gcash)),
                 grpc_api_types::payments::payment_method::PaymentMethod::GoPayRedirect(_) => Ok(Some(PaymentMethodType::GoPay)),
@@ -2258,7 +2399,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::TwintRedirect(_) => Ok(Some(PaymentMethodType::Twint)),
                 grpc_api_types::payments::payment_method::PaymentMethod::VippsRedirect(_) => Ok(Some(PaymentMethodType::Vipps)),
                 grpc_api_types::payments::payment_method::PaymentMethod::SwishQr(_) => Ok(Some(PaymentMethodType::Swish)),
-                grpc_api_types::payments::payment_method::PaymentMethod::SamsungPay(_) => Ok(Some(PaymentMethodType::SamsungPay)),
+                grpc_api_types::payments::payment_method::PaymentMethod::SamsungPaySdk(_) => Ok(Some(PaymentMethodType::SamsungPay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::MbWay(_) => Ok(Some(PaymentMethodType::MbWay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Satispay(_) => Ok(Some(PaymentMethodType::Satispay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Wero(_) => Ok(Some(PaymentMethodType::Wero)),
@@ -2269,9 +2410,13 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::PayuRedirect(_) => Ok(Some(PaymentMethodType::PayU)),
                 grpc_api_types::payments::payment_method::PaymentMethod::EasebuzzRedirect(_) => Ok(Some(PaymentMethodType::EaseBuzz)),
                 grpc_api_types::payments::payment_method::PaymentMethod::MobilePayRedirect(_) => Ok(Some(PaymentMethodType::MobilePay)),
-                grpc_api_types::payments::payment_method::PaymentMethod::Venmo(_) => Ok(Some(PaymentMethodType::Venmo)),
-                grpc_api_types::payments::payment_method::PaymentMethod::Skrill(_) => Ok(Some(PaymentMethodType::Skrill)),
-                grpc_api_types::payments::payment_method::PaymentMethod::Paysera(_) => Ok(Some(PaymentMethodType::Paysera)),
+                grpc_api_types::payments::payment_method::PaymentMethod::VenmoRedirect(_) => Ok(Some(PaymentMethodType::Venmo)),
+                grpc_api_types::payments::payment_method::PaymentMethod::SkrillRedirect(_) => Ok(Some(PaymentMethodType::Skrill)),
+                grpc_api_types::payments::payment_method::PaymentMethod::PayseraRedirect(_) => Ok(Some(PaymentMethodType::Paysera)),
+                grpc_api_types::payments::payment_method::PaymentMethod::RevolutPayRedirect(_) => Ok(Some(PaymentMethodType::RevolutPay)),
+                grpc_api_types::payments::payment_method::PaymentMethod::SatispayRedirect(_) => Ok(Some(PaymentMethodType::Satispay)),
+                grpc_api_types::payments::payment_method::PaymentMethod::WeroRedirect(_) => Ok(Some(PaymentMethodType::Wero)),
+
                 // ============================================================================
                 // BANK TRANSFERS - PaymentMethodType mappings
                 // ============================================================================
@@ -3994,6 +4139,7 @@ impl
             minor_amount_authorized: None,
             merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -4124,6 +4270,7 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
             l2_l3_data: l2_l3_data.map(Box::new),
             minor_amount_authorized: None,
             merchant_request_id: value.merchant_request_id.clone(),
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -4209,6 +4356,7 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             minor_amount_authorized: None,
             merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: l2_l3_data.map(Box::new),
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -4291,6 +4439,7 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
             order_details,
             minor_amount_authorized: None,
             merchant_request_id: None,
+            sender_payment_instrument_id: None,
             l2_l3_data: l2_l3_data.map(Box::new),
         })
     }
@@ -4404,6 +4553,7 @@ impl
             minor_amount_authorized: None,
             merchant_request_id: None,
             l2_l3_data: l2_l3_data.map(Box::new),
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -4491,6 +4641,7 @@ impl
             minor_amount_authorized: None,
             merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -4563,6 +4714,7 @@ impl ForeignTryFrom<(PaymentServiceVoidRequest, Connectors, &MaskedMetadata)> fo
             minor_amount_authorized: None,
             merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -5139,15 +5291,15 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             } => Ok(Self::Reward),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
-                    Some(grpc_api_types::payments::payment_method::PaymentMethod::ApplePay(_)),
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::ApplePaySdk(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
-                    Some(grpc_api_types::payments::payment_method::PaymentMethod::GooglePay(_)),
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::GooglePaySdk(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
-                    Some(grpc_api_types::payments::payment_method::PaymentMethod::SamsungPay(_)),
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::SamsungPaySdk(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -5175,11 +5327,11 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
-                    Some(grpc_api_types::payments::payment_method::PaymentMethod::Mifinity(_)),
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::MifinityRedirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
-                    Some(grpc_api_types::payments::payment_method::PaymentMethod::Bluecode(_)),
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::BluecodeRedirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -5199,7 +5351,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
-                    Some(grpc_api_types::payments::payment_method::PaymentMethod::AliPayHk(_)),
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::AliPayHkRedirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -5276,6 +5428,18 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::EasebuzzRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::RevolutPayRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::SatispayRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::WeroRedirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -6236,7 +6400,10 @@ pub fn generate_payment_sync_response(
                     connector_response,
                     incremental_authorization_allowed,
                     payment_method_update: None,
-                    sender_payment_instrument_id: None,
+                    sender_payment_instrument_id: router_data_v2
+                        .resource_common_data
+                        .sender_payment_instrument_id
+                        .clone(),
                 })
             }
             PaymentsResponseData::MultipleCaptureResponse {
@@ -6328,7 +6495,10 @@ pub fn generate_payment_sync_response(
                     connector_response,
                     incremental_authorization_allowed: None,
                     payment_method_update: None,
-                    sender_payment_instrument_id: None,
+                    sender_payment_instrument_id: router_data_v2
+                        .resource_common_data
+                        .sender_payment_instrument_id
+                        .clone(),
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -7329,6 +7499,33 @@ impl
 
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
 
+        // PaymentServiceReverseRequest has no `state` field. Connectors that require an
+        // OAuth Bearer token for post-capture reversal (e.g. JPMorgan) can pass the token
+        // via `connector_feature_data` as a JSON object:
+        //   {"access_token": "<token>", "token_type": "Bearer", "expires_in": 3600}
+        let connector_feature_data = value
+            .connector_feature_data
+            .map(|m| ForeignTryFrom::foreign_try_from((m, "connector_feature_data")))
+            .transpose()?;
+
+        let access_token =
+            connector_feature_data
+                .as_ref()
+                .and_then(|serde_val: &SecretSerdeValue| {
+                    let obj = serde_val.peek();
+                    let token_str = obj.get("access_token").and_then(|v| v.as_str())?;
+                    let token_type = obj
+                        .get("token_type")
+                        .and_then(|v| v.as_str())
+                        .map(str::to_string);
+                    let expires_in = obj.get("expires_in").and_then(|v| v.as_i64());
+                    Some(ServerAuthenticationTokenResponseData {
+                        access_token: Secret::new(token_str.to_string()),
+                        token_type,
+                        expires_in,
+                    })
+                });
+
         Ok(Self {
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -7344,10 +7541,10 @@ impl
             connector_customer: None,
             description: None,
             return_url: None,
-            connector_feature_data: None,
+            connector_feature_data,
             amount_captured: None,
             minor_amount_captured: None,
-            access_token: None,
+            access_token,
             session_token: None,
             reference_id: None,
             connector_order_id: None,
@@ -7369,6 +7566,7 @@ impl
             minor_amount_authorized: None,
             merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -7478,6 +7676,7 @@ impl
             minor_amount_authorized: None,
             merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -8093,6 +8292,7 @@ impl
             minor_amount_authorized: None,
             merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -8194,6 +8394,7 @@ impl
             minor_amount_authorized: None,
             merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -8544,6 +8745,7 @@ impl
             minor_amount_authorized: None,
             merchant_request_id: None,
             l2_l3_data: l2_l3_data.map(Box::new),
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -8652,6 +8854,7 @@ impl
             minor_amount_authorized: None,
             merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -9774,6 +9977,7 @@ impl
             minor_amount_authorized: None,
             merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -10288,6 +10492,7 @@ impl
             minor_amount_authorized: None,
             merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -10464,6 +10669,7 @@ impl
             minor_amount_authorized: None,
             merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -10614,6 +10820,7 @@ impl
             minor_amount_authorized: None,
             merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -12385,6 +12592,7 @@ impl
             minor_amount_authorized: None,
             merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -12477,6 +12685,7 @@ impl
             minor_amount_authorized: None,
             merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -12576,6 +12785,7 @@ impl
             minor_amount_authorized: None,
             merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -12653,6 +12863,7 @@ impl
             minor_amount_authorized: None,
             merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
