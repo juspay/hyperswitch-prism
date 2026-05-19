@@ -201,6 +201,7 @@ default_impl_verify_webhook_source_v2!(
         Stripe,
         Trustpayments,
         Tsys,
+        TwocTwopPaco,
         Volt,
         Wellsfargo,
         Worldpay,

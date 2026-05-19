@@ -1,9 +1,11 @@
 {
   "connector": "globalpay",
   "supported_suites": [
+    "MerchantAuthenticationService/CreateServerAuthenticationToken",
     "PaymentService/Authorize",
     "PaymentService/Capture",
     "MerchantAuthenticationService/CreateClientAuthenticationToken",
+    "MerchantAuthenticationService/CreateServerAuthenticationToken",
     "PaymentService/Get",
     "RecurringPaymentService/Charge",
     "PaymentService/Refund",

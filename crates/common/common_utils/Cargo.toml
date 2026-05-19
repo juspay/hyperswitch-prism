@@ -44,6 +44,7 @@ nanoid = "0.4.0"
 regex = "1.11.1"
 semver = { version = "1.0.26", features = ["serde"] }
 openssl = { version = "0.10", features = ["vendored"] }
+josekit = "0.8.7"
 
 # Optional features
 [features]

@@ -103,6 +103,7 @@ struct EventParams<'a> {
     resource_id: &'a Option<String>,
     shadow_mode: bool,
     tenant_id: &'a str,
+    merchant_id: &'a str,
 }
 
 /// Helper function for converting CardDetails to TokenData with structured types
@@ -408,6 +409,7 @@ impl CustomerService for Customer {
                         resource_id: &metadata_payload.resource_id,
                         shadow_mode: metadata_payload.shadow_mode,
                         tenant_id: &metadata_payload.tenant_id,
+                        merchant_id: metadata_payload.merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
                     };
 
@@ -536,6 +538,7 @@ impl Payments {
             resource_id: &metadata_payload.resource_id,
             shadow_mode: metadata_payload.shadow_mode,
             tenant_id: &metadata_payload.tenant_id,
+            merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
         };
 
@@ -656,6 +659,7 @@ impl Payments {
             resource_id: &metadata_payload.resource_id,
             shadow_mode: metadata_payload.shadow_mode,
             tenant_id: &metadata_payload.tenant_id,
+            merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
         };
 
@@ -1041,6 +1045,7 @@ impl PaymentService for Payments {
                         resource_id: &metadata_payload.resource_id,
                         shadow_mode: metadata_payload.shadow_mode,
                         tenant_id: &metadata_payload.tenant_id,
+                        merchant_id: metadata_payload.merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
                     };
 
@@ -2169,6 +2174,7 @@ impl PaymentMethod {
             resource_id: &metadata_payload.resource_id,
             shadow_mode: metadata_payload.shadow_mode,
             tenant_id: &metadata_payload.tenant_id,
+            merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
         };
 
@@ -2277,6 +2283,7 @@ impl MerchantAuthentication {
             resource_id: event_params.resource_id,
             shadow_mode: event_params.shadow_mode,
             tenant_id: event_params.tenant_id,
+            merchant_id: event_params.merchant_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
         };
 
@@ -2391,6 +2398,7 @@ impl MerchantAuthentication {
             resource_id: event_params.resource_id,
             shadow_mode: event_params.shadow_mode,
             tenant_id: event_params.tenant_id,
+            merchant_id: event_params.merchant_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
         };
 
@@ -2565,6 +2573,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         resource_id: &metadata_payload.resource_id,
                         shadow_mode: metadata_payload.shadow_mode,
                         tenant_id: &metadata_payload.tenant_id,
+                        merchant_id: metadata_payload.merchant_id.as_str(),
                     };
 
                     let session_response = Box::pin(self.handle_session_token(
@@ -2681,6 +2690,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         resource_id: &metadata_payload.resource_id,
                         shadow_mode: metadata_payload.shadow_mode,
                         tenant_id: &metadata_payload.tenant_id,
+                        merchant_id: metadata_payload.merchant_id.as_str(),
                     };
 
                     // Reuse the existing handle_access_token function which now uses
@@ -2893,6 +2903,7 @@ impl RecurringPaymentService for RecurringPayments {
                         resource_id: &metadata_payload.resource_id,
                         shadow_mode: metadata_payload.shadow_mode,
                         tenant_id: &metadata_payload.tenant_id,
+                        merchant_id: metadata_payload.merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
                     };
 

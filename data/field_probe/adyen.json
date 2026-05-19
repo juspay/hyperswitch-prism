@@ -2563,8 +2563,21 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: void_post_capture flow for adyen"
+        "status": "supported",
+        "proto_request": {
+          "merchant_reverse_id": "probe_reverse_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v68/payments/probe_connector_txn_001/reversals",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"merchantAccount\":\"probe_merchant\",\"reference\":\"probe_reverse_001\"}"
+        }
       }
     },
     "setup_recurring": {

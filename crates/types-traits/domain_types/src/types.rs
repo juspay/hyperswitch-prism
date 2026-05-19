@@ -393,6 +393,7 @@ pub struct Connectors {
     pub easebuzz: ConnectorParams,
     pub imerchantsolutions: ConnectorParams,
     pub axisbank: ConnectorParams,
+    pub twoc_twop_paco: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -552,6 +553,132 @@ impl Connectors {
             ConnectorEnum::Novalnet => {
                 patched.novalnet.apply(params_patch);
             }
+            ConnectorEnum::Forte => {
+                patched.forte.apply(params_patch);
+            }
+            ConnectorEnum::Bambora => {
+                patched.bambora.apply(params_patch);
+            }
+            ConnectorEnum::Bamboraapac => {
+                patched.bamboraapac.apply(params_patch);
+            }
+            ConnectorEnum::Barclaycard => {
+                patched.barclaycard.apply(params_patch);
+            }
+            ConnectorEnum::Billwerk => {
+                patched.billwerk.apply(params_patch);
+            }
+            ConnectorEnum::Bluesnap => {
+                patched.bluesnap.apply(params_patch);
+            }
+            ConnectorEnum::Calida => {
+                patched.calida.apply(params_patch);
+            }
+            ConnectorEnum::Cashfree => {
+                patched.cashfree.apply(params_patch);
+            }
+            ConnectorEnum::Celero => {
+                patched.celero.apply(params_patch);
+            }
+            ConnectorEnum::Cryptopay => {
+                patched.cryptopay.apply(params_patch);
+            }
+            ConnectorEnum::Datatrans => {
+                patched.datatrans.apply(params_patch);
+            }
+            ConnectorEnum::Finix => {
+                patched.finix.apply(params_patch);
+            }
+            ConnectorEnum::Fiservcommercehub => {
+                patched.fiservcommercehub.apply(params_patch);
+            }
+            ConnectorEnum::Fiservemea => {
+                patched.fiservemea.apply(params_patch);
+            }
+            ConnectorEnum::Globalpay => {
+                patched.globalpay.apply(params_patch);
+            }
+            ConnectorEnum::Helcim => {
+                patched.helcim.apply(params_patch);
+            }
+            ConnectorEnum::Hipay => {
+                patched.hipay.apply(params_patch);
+            }
+            ConnectorEnum::Imerchantsolutions => {
+                patched.imerchantsolutions.apply(params_patch);
+            }
+            ConnectorEnum::Jpmorgan => {
+                patched.jpmorgan.apply(params_patch);
+            }
+            ConnectorEnum::Loonio => {
+                patched.loonio.apply(params_patch);
+            }
+            ConnectorEnum::Mifinity => {
+                patched.mifinity.apply(params_patch);
+            }
+            ConnectorEnum::Mollie => {
+                patched.mollie.apply(params_patch);
+            }
+            ConnectorEnum::Multisafepay => {
+                patched.multisafepay.apply(params_patch);
+            }
+            ConnectorEnum::Nexixpay => {
+                patched.nexixpay.apply(params_patch);
+            }
+            ConnectorEnum::Payload => {
+                patched.payload.apply(params_patch);
+            }
+            ConnectorEnum::Payme => {
+                patched.payme.apply(params_patch);
+            }
+            ConnectorEnum::Placetopay => {
+                patched.placetopay.apply(params_patch);
+            }
+            ConnectorEnum::Powertranz => {
+                patched.powertranz.apply(params_patch);
+            }
+            ConnectorEnum::Revolv3 => {
+                patched.revolv3.apply(params_patch);
+            }
+            ConnectorEnum::Sanlam => {
+                patched.sanlam.apply(params_patch);
+            }
+            ConnectorEnum::Shift4 => {
+                patched.shift4.apply(params_patch);
+            }
+            ConnectorEnum::Silverflow => {
+                patched.silverflow.apply(params_patch);
+            }
+            ConnectorEnum::Stax => {
+                patched.stax.apply(params_patch);
+            }
+            ConnectorEnum::Truelayer => {
+                patched.truelayer.apply(params_patch);
+            }
+            ConnectorEnum::Trustly => {
+                patched.trustly.apply(params_patch);
+            }
+            ConnectorEnum::Trustpayments => {
+                patched.trustpayments.apply(params_patch);
+            }
+            ConnectorEnum::Tsys => {
+                patched.tsys.apply(params_patch);
+            }
+            ConnectorEnum::Wellsfargo => {
+                patched.wellsfargo.apply(params_patch);
+            }
+            ConnectorEnum::Worldpayvantiv => {
+                patched.worldpayvantiv.apply(params_patch);
+            }
+            ConnectorEnum::Worldpayxml => {
+                patched.worldpayxml.apply(params_patch);
+            }
+            ConnectorEnum::Zift => {
+                patched.zift.apply(params_patch);
+            }
+            ConnectorEnum::Gigadat => {
+                patched.gigadat.apply(params_patch);
+            }
             ConnectorEnum::Trustpay => {
                 // TrustPay uses ConnectorParamsWithMoreUrls which has different fields
                 let trustpay_patch = ConnectorParamsWithMoreUrlsPatch {
@@ -567,7 +694,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay",
+                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, multisafepay, nexixpay, payload, payme, placetopay, powertranz, revolv3, sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat",
                             connector
                         )),
                         ..Default::default()
@@ -2634,6 +2761,7 @@ pub struct AuthorizationRequest {
     pub tokenization_strategy: Option<grpc_payment_types::Tokenization>,
     pub test_mode: Option<bool>,
     pub payment_method_token: Option<Secret<String>>,
+    pub merchant_request_id: Option<String>,
 }
 
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
@@ -2719,6 +2847,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             order_details: Some(req.order_details),
             test_mode: req.test_mode,
             payment_method_token: None,
+            merchant_request_id: req.merchant_request_id,
         }
     }
 }
@@ -2779,6 +2908,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             tokenization_strategy: None,
             test_mode: req.test_mode,
             payment_method_token: None,
+            merchant_request_id: None,
         }
     }
 }
@@ -3988,7 +4118,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -4118,6 +4250,8 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
             order_details,
             l2_l3_data: l2_l3_data.map(Box::new),
             minor_amount_authorized: None,
+            merchant_request_id: value.merchant_request_id.clone(),
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -4168,7 +4302,7 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             status: common_enums::AttemptStatus::Pending,
             payment_method: PaymentMethod::Card,
             address,
-            auth_type: common_enums::AuthenticationType::default(),
+            auth_type: common_enums::AuthenticationType::foreign_try_from(value.auth_type)?,
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_transaction_id,
             ),
@@ -4201,7 +4335,9 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             recurring_mandate_payment_data: None,
             order_details,
             minor_amount_authorized: None,
+            merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: l2_l3_data.map(Box::new),
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -4283,6 +4419,8 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
             recurring_mandate_payment_data: None,
             order_details,
             minor_amount_authorized: None,
+            merchant_request_id: None,
+            sender_payment_instrument_id: None,
             l2_l3_data: l2_l3_data.map(Box::new),
         })
     }
@@ -4394,7 +4532,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: None,
             l2_l3_data: l2_l3_data.map(Box::new),
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -4480,7 +4620,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -4551,7 +4693,9 @@ impl ForeignTryFrom<(PaymentServiceVoidRequest, Connectors, &MaskedMetadata)> fo
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -6209,7 +6353,10 @@ pub fn generate_payment_sync_response(
                     captured_at: None,
                     customer_name: None,
                     email: None,
-                    connector_customer_id: None,
+                    connector_customer_id: router_data_v2
+                        .resource_common_data
+                        .connector_customer
+                        .clone(),
                     merchant_order_id: None,
                     metadata: None,
                     status_code: status_code as u32,
@@ -6222,6 +6369,10 @@ pub fn generate_payment_sync_response(
                     connector_response,
                     incremental_authorization_allowed,
                     payment_method_update: None,
+                    sender_payment_instrument_id: router_data_v2
+                        .resource_common_data
+                        .sender_payment_instrument_id
+                        .clone(),
                 })
             }
             PaymentsResponseData::MultipleCaptureResponse {
@@ -6313,6 +6464,10 @@ pub fn generate_payment_sync_response(
                     connector_response,
                     incremental_authorization_allowed: None,
                     payment_method_update: None,
+                    sender_payment_instrument_id: router_data_v2
+                        .resource_common_data
+                        .sender_payment_instrument_id
+                        .clone(),
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -6403,6 +6558,7 @@ pub fn generate_payment_sync_response(
                 redirection_data: None,
                 incremental_authorization_allowed: None,
                 payment_method_update: None,
+                sender_payment_instrument_id: None,
             })
         }
     }
@@ -6507,6 +6663,7 @@ impl
             connector_feature_data,
             test_mode: value.test_mode,
             payment_method,
+            merchant_request_id: value.merchant_request_id.clone(),
         })
     }
 }
@@ -6567,6 +6724,7 @@ impl
             connector_feature_data,
             test_mode: value.test_mode,
             payment_method,
+            merchant_request_id: value.merchant_request_id.clone(),
         })
     }
 }
@@ -7214,6 +7372,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             redirection_data: None,
             incremental_authorization_allowed: None,
             payment_method_update: payment_method_update_grpc,
+            sender_payment_instrument_id: value.sender_payment_instrument_id,
         })
     }
 }
@@ -7309,10 +7468,32 @@ impl
 
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
 
+        // PaymentServiceReverseRequest has no `state` field. Connectors that require an
+        // OAuth Bearer token for post-capture reversal (e.g. JPMorgan) can pass the token
+        // via `connector_feature_data` as a JSON object:
+        //   {"access_token": "<token>", "token_type": "Bearer", "expires_in": 3600}
         let connector_feature_data = value
             .connector_feature_data
-            .map(|m| ForeignTryFrom::foreign_try_from((m, "feature_data")))
+            .map(|m| ForeignTryFrom::foreign_try_from((m, "connector_feature_data")))
             .transpose()?;
+
+        let access_token =
+            connector_feature_data
+                .as_ref()
+                .and_then(|serde_val: &SecretSerdeValue| {
+                    let obj = serde_val.peek();
+                    let token_str = obj.get("access_token").and_then(|v| v.as_str())?;
+                    let token_type = obj
+                        .get("token_type")
+                        .and_then(|v| v.as_str())
+                        .map(str::to_string);
+                    let expires_in = obj.get("expires_in").and_then(|v| v.as_i64());
+                    Some(ServerAuthenticationTokenResponseData {
+                        access_token: Secret::new(token_str.to_string()),
+                        token_type,
+                        expires_in,
+                    })
+                });
 
         Ok(Self {
             merchant_id: merchant_id_from_header,
@@ -7332,7 +7513,7 @@ impl
             connector_feature_data,
             amount_captured: None,
             minor_amount_captured: None,
-            access_token: None,
+            access_token,
             session_token: None,
             reference_id: None,
             connector_order_id: None,
@@ -7352,7 +7533,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -7460,7 +7643,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -8074,7 +8259,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -8174,7 +8361,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -8523,7 +8712,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: None,
             l2_l3_data: l2_l3_data.map(Box::new),
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -8630,7 +8821,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -9751,7 +9944,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -10264,7 +10459,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -10439,7 +10636,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -10588,7 +10787,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -12358,7 +12559,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -12449,7 +12652,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -12547,7 +12752,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -12623,7 +12830,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -13223,6 +13432,7 @@ pub fn tokenized_authorize_to_base(
         statement_descriptor_suffix: None,
         threeds_completion_indicator: None,
         tokenization_strategy: None,
+        merchant_request_id: None,
     }
 }
 
@@ -13393,6 +13603,7 @@ pub fn proxied_authorize_to_base(
         tokenization_strategy: None,
         setup_mandate_details: None,
         test_mode: None,
+        merchant_request_id: None,
     })
 }
 

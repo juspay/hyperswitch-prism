@@ -317,6 +317,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: easebuzz::EasebuzzErrorResponse = res
             .response
@@ -410,7 +411,8 @@ macros::macro_connector_implementation!(
             &self,
             res: Response,
             _event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            _connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
             let response: easebuzz::EasebuzzErrorResponse = res
                 .response
                 .parse_struct("EasebuzzErrorResponse")
@@ -542,6 +544,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         res: Response,
         _event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: easebuzz::EasebuzzErrorResponse = res
             .response
@@ -610,7 +613,8 @@ macros::macro_connector_implementation!(
             &self,
             res: Response,
             _event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            _connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
             let response: easebuzz::EasebuzzErrorResponse = res
                 .response
                 .parse_struct("EasebuzzErrorResponse")
@@ -679,7 +683,8 @@ macros::macro_connector_implementation!(
             &self,
             res: Response,
             _event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            _connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
             let response: easebuzz::EasebuzzErrorResponse = res
                 .response
                 .parse_struct("EasebuzzErrorResponse")
@@ -766,7 +771,8 @@ macros::macro_connector_implementation!(
             &self,
             res: Response,
             _event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            _connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
             let response: easebuzz::EasebuzzErrorResponse = res
                 .response
                 .parse_struct("EasebuzzErrorResponse")
@@ -853,7 +859,8 @@ macros::macro_connector_implementation!(
             &self,
             res: Response,
             _event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            _connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
             let response: easebuzz::EasebuzzErrorResponse = res
                 .response
                 .parse_struct("EasebuzzErrorResponse")
