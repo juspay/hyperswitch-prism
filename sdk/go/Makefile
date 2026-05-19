@@ -11,7 +11,7 @@ include $(REPO_ROOT)/sdk/common.mk
 
 # Go-specific paths
 GENERATED_GO     := $(SDK_ROOT)/generated
-UNIFFI_GO        := $(SDK_ROOT)/uniffi
+UNIFFI_GO        := $(SDK_ROOT)/generated/uniffi
 PAYMENTS_PKG     := $(SDK_ROOT)/payments
 BINDGEN_GO       := $(HOME)/.cargo/bin/uniffi-bindgen-go
 PROTOC_GEN_GO    := $(shell which protoc-gen-go 2>/dev/null || echo $(GOPATH)/bin/protoc-gen-go || echo $(HOME)/go/bin/protoc-gen-go)
@@ -153,14 +153,15 @@ test-webhook:
 # Remove generated files.
 # ---------------------------------------------------------------------------
 clean:
-	rm -rf $(GENERATED_GO)/*
-	@# Remove generated uniffi files but preserve manual cgo.go and native libraries
+	@# Remove generated protobuf files
+	rm -f $(GENERATED_GO)/payments/*.pb.go
+	@# Remove generated uniffi files but preserve cgo.go and native libraries
 	@find $(UNIFFI_GO)/connector_service_ffi -maxdepth 1 -type f \
 		! -name 'cgo.go' \
 		! -name '*.dylib' \
 		! -name '*.so' \
 		-delete 2>/dev/null || true
-	rm -f $(PAYMENTS_PKG)/client.go
+	rm -f $(PAYMENTS_PKG)/zz_generated_client.go
 	cd $(SDK_ROOT) && go clean ./...
 
 # ---------------------------------------------------------------------------
@@ -171,5 +172,5 @@ dist: build
 	@echo "Building Go SDK distribution..."
 	@mkdir -p $(ARTIFACTS_DIR)/sdk-go
 	@tar czf $(ARTIFACTS_DIR)/sdk-go/prism-go-$(PACKAGE_VERSION).tar.gz \
-		-C $(SDK_ROOT) go.mod payments/ uniffi/ generated/ README.md
+		-C $(SDK_ROOT) go.mod payments/ generated/ README.md
 	@echo "Distribution created in $(ARTIFACTS_DIR)/sdk-go/"

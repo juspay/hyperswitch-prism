@@ -57,8 +57,8 @@ JS_GRPC_CLIENT_OUT         = SDK_ROOT  / "javascript/src/payments/_generated_grp
 JS_GRPC_EXAMPLE_FLOWS_OUT  = REPO_ROOT / "examples/_generated_grpc_example_flows.js"
 PY_GRPC_CLIENT_OUT         = SDK_ROOT  / "python/src/payments/_generated_grpc_client.py"
 KOTLIN_GRPC_CLIENT_OUT     = SDK_ROOT  / "java/src/main/kotlin/payments/GrpcClient.kt"
-GO_CLIENT_OUT              = SDK_ROOT  / "go/payments/client.go"
-GO_UNIFFI_BINDINGS         = SDK_ROOT  / "go/uniffi/connector_service_ffi/connector_service_ffi.go"
+GO_CLIENT_OUT              = SDK_ROOT  / "go/payments/zz_generated_client.go"
+GO_UNIFFI_BINDINGS         = SDK_ROOT  / "go/generated/uniffi/connector_service_ffi/connector_service_ffi.go"
 
 # ── Jinja2 environment ──────────────────────────────────────────────────────
 
