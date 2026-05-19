@@ -2868,30 +2868,27 @@ impl<F> TryFrom<ResponseRouterData<CybersourcePaymentsResponse, Self>>
                 .clone()
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
         );
-        let response = if post_capture_void_status.is_post_capture_void_failure() {
-            // Build the error response manually so we can ensure `attempt_status` is
-            // `None`. The VoidPC flow must not propagate an attempt status that
-            // would update the payment's overall status.
-            let mut error = get_error_response(
-                &item.response.error_information,
-                &item.response.processor_information,
-                &item.response.risk_information,
-                None,
-                item.http_code,
-                item.response.id.clone(),
-            );
-            error.attempt_status = None;
-            Err(error)
-        } else {
-            Ok(PaymentsResponseData::PostCaptureVoidResponse {
+        let description = post_capture_void_status
+            .is_post_capture_void_failure()
+            .then(|| {
+                get_error_response(
+                    &item.response.error_information,
+                    &item.response.processor_information,
+                    &item.response.risk_information,
+                    None,
+                    item.http_code,
+                    item.response.id.clone(),
+                )
+                .reason
+            })
+            .flatten();
+        Ok(Self {
+            response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
                 post_capture_void_status,
                 connector_reference_id: Some(item.response.id.clone()),
-                description: None,
+                description,
                 status_code: item.http_code,
-            })
-        };
-        Ok(Self {
-            response,
+            }),
             ..item.router_data
         })
     }
