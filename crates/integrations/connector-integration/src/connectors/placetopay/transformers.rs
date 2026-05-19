@@ -342,6 +342,10 @@ impl From<PlacetopayTransactionStatus> for common_enums::AttemptStatus {
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayStatusResponse {
     status: PlacetopayTransactionStatus,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    message: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    reason: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -414,11 +418,21 @@ impl TryFrom<ResponseRouterData<PlacetopayVoidPcResponse, Self>>
                 common_enums::PostCaptureVoidStatus::Pending
             }
         };
+        let description = post_capture_void_status
+            .is_post_capture_void_failure()
+            .then(|| {
+                inner
+                    .status
+                    .message
+                    .clone()
+                    .or_else(|| inner.status.reason.clone())
+            })
+            .flatten();
         Ok(Self {
             response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
                 post_capture_void_status,
                 connector_reference_id: Some(inner.internal_reference.to_string()),
-                description: None,
+                description,
                 status_code: item.http_code,
             }),
             ..item.router_data
