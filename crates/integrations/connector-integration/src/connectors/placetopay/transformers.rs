@@ -2,9 +2,9 @@ use common_utils::types::MinorUnit;
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Void, VoidPC},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsCancelPostCaptureData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
-        RefundsData, RefundsResponseData, ResponseId,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -513,8 +513,7 @@ impl<F> TryFrom<ResponseRouterData<PlacetopayVoidPCResponse, Self>>
     fn try_from(
         item: ResponseRouterData<PlacetopayVoidPCResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let post_capture_void_status =
-            map_placetopay_void_pc_status(item.response.status.status);
+        let post_capture_void_status = map_placetopay_void_pc_status(item.response.status.status);
         let description = post_capture_void_status
             .is_post_capture_void_failure()
             .then(|| "VoidPostCapture failed".to_string());

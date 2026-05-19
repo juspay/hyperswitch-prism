@@ -507,7 +507,7 @@ connector_id: placetopay
 doc: docs/connectors/placetopay.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, proxy_authorize, refund, void
+flows: authorize, capture, get, proxy_authorize, refund, reverse, void
 examples_python: examples/placetopay/placetopay.py
 
 ## Powertranz

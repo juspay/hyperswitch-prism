@@ -10,9 +10,9 @@ use domain_types::router_data::ConnectorSpecificConfig;
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void, VoidPC},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsCancelPostCaptureData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
-        RefundsData, RefundsResponseData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::ErrorResponse,

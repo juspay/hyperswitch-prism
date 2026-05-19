@@ -180,7 +180,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Peachpayments](connectors/peachpayments.md) | ✓ | ✓ | x | ✓ | x | ✓ | x | ⚠ | ✓ | x | x | ✓ | ✓ | x | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ✓ | ✓ |
 | [PhonePe](connectors/phonepe.md) | ✓ | ✓ | x | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | x | ⚠ | x | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | x | x | ✓ | ✓ |
 | [Pinelabsonline](connectors/pinelabsonline.md) | ? | ? | x | ? | ? | ? | x | ⚠ | ⚠ | ? | ⚠ | ? | ⚠ | ⚠ | ⚠ | ? | x | ⚠ | ⚠ | ✓ | x | x | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ |
-| [PlacetoPay](connectors/placetopay.md) | ✓ | ✓ | ⚠ | ✓ | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ? | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ |
+| [PlacetoPay](connectors/placetopay.md) | ✓ | ✓ | ✓ | ✓ | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ? | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ |
 | [Powertranz](connectors/powertranz.md) | ✓ | ✓ | ⚠ | ✓ | x | ✓ | x | ⚠ | ✓ | x | x | ✓ | ✓ | x | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ |
 | [Ppro](connectors/ppro.md) | ✓ | ✓ | x | ✓ | ⚠ | ✓ | x | ✓ | x | ? | ? | x | x | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ✓ |
 | [Rapyd](connectors/rapyd.md) | ✓ | ✓ | x | ✓ | ? | ✓ | ⚠ | ⚠ | ? | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | x | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ |
