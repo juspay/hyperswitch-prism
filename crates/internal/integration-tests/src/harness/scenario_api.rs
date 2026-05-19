@@ -4701,6 +4701,7 @@ fn grpc_method_for_suite(suite: &str, spec: Option<&SuiteSpec>) -> Result<String
         "PaymentService/ProxySetupRecurring" => "types.PaymentService/ProxySetupRecurring",
         "PaymentMethodService/Eligibility" => "types.PaymentMethodService/Eligibility",
         "EventService/HandleEvent" => "types.EventService/HandleEvent",
+        "EventService/NotifyConnector" => "types.EventService/NotifyConnector",
         "SurchargeService/Calculate" => "types.SurchargeService/Calculate",
         _ => {
             return Err(ScenarioError::UnsupportedSuite {
@@ -4731,6 +4732,7 @@ pub fn all_known_suites() -> &'static [&'static str] {
         "PaymentService/CreateOrder",
         "PaymentService/Get",
         "EventService/HandleEvent",
+        "EventService/NotifyConnector",
         "PaymentService/IncrementalAuthorization",
         "PaymentMethodService/Eligibility",
         "PaymentMethodAuthenticationService/PostAuthenticate",

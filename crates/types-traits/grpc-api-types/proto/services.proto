@@ -91,6 +91,9 @@ service EventService {
   // Verify webhook source and return a unified typed response.
   // Response mirrors PaymentService.Get / RefundService.Get / DisputeService.Get.
   rpc HandleEvent(EventServiceHandleRequest) returns (EventServiceHandleResponse);
+
+  // Notify connectors about surcharge events (payment succeeded, refund succeeded, refund failed).
+  rpc NotifyConnectors(NotifyConnectorsRequest) returns (NotifyConnectorsResponse);
 }
 
 // ============================================================================

@@ -464,6 +464,16 @@ enum WebhookEventType {
   RECOVERY_INVOICE_CANCEL = 40;  // Recovery invoice cancelled
 }
 
+// Type of event for outgoing connector notifications (not webhooks)
+enum NotifyEventType {
+  NOTIFY_EVENT_TYPE_UNSPECIFIED = 0; // Default unspecified event
+
+  // Surcharge events
+  SURCHARGE_PAYMENT_SUCCEEDED = 1; // Surcharge payment succeeded
+  SURCHARGE_REFUND_SUCCEEDED = 2;  // Surcharge refund succeeded
+  SURCHARGE_REFUND_FAILED = 3;     // Surcharge refund failed
+}
+
 // Currency codes (ISO 4217)
 // Note: Using enum for type safety. Consider string for flexibility.
 enum Currency {
@@ -1362,6 +1372,49 @@ message EventServiceHandleResponse {
 
   // Suggested HTTP response to send back to the connector for webhook acknowledgement
   optional EventAckResponse event_ack_response = 5;
+}
+
+// Request for notifying connectors about surcharge events
+message NotifyConnectorsRequest {
+  // Merchant identification
+  string merchant_id = 1;
+
+  // Unique event identifier
+  string event_id = 2;
+
+  // Event type
+  NotifyEventType event_type = 3;
+
+  // Event content with notify connector content 
+  NotifyConnectorContent content = 4;
+
+  // Timestamp when the event occurred (Unix timestamp in seconds)
+  int64 timestamp = 5;
+}
+
+
+// Content of an event
+message NotifyConnectorContent {
+  oneof content {
+    // surcharge details 
+    SurchargeDetails surcharge_details = 1;
+  }
+}
+
+
+// Surcharge details object
+message SurchargeDetails {
+  // Connector surcharge identifier
+  string connector_surcharge_id = 1;
+}
+
+// Response for notifying connectors
+message NotifyConnectorsResponse {
+  // Status of the notification
+  OperationStatus status = 1;
+
+  // Optional error information if notification failed
+  optional ErrorInfo error = 2;
 }
 
 // Suggested HTTP response for webhook acknowledgement (status, headers, body).
