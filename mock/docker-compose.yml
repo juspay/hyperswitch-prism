@@ -1,0 +1,21 @@
+# Run the mock in Docker.
+#
+# Single port exposed:
+#   * 8777  — HTTP (Stripe-shape API + browser redirect page + admin webhook trigger)
+#
+# Inside the container the server binds 0.0.0.0:8777 so it's reachable from the host.
+# Typical usage: run grpc-server on the host (port 8000), point its
+# `dummy.base_url` at http://host.docker.internal:8777/dummy/ (or use the
+# in-repo config which defaults to localhost:8777/dummy/).
+
+services:
+  mock:
+    build:
+      context: ..
+      dockerfile: mock/Dockerfile
+    ports:
+      - "8777:8777"
+    environment:
+      DUMMY_BACKEND_BIND: "0.0.0.0:8777"
+      MOCK_DUMMY_PUBLIC_URL: "http://localhost:8777"
+      RUST_LOG: "info,mock=debug"

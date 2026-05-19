@@ -23,7 +23,8 @@ members = [
   "crates/ffi/ffi",
   "crates/internal/uniffi-bindgen",
   "crates/internal/field-probe",
-  "crates/internal/integration-tests"
+  "crates/internal/integration-tests",
+  "mock"
 ]
 exclude = [
   "examples/example-rs",

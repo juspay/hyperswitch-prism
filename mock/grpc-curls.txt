@@ -1,0 +1,83 @@
+# A1: Card success → CHARGED
+grpcurl -plaintext -H 'x-connector: dummy' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy' -H 'x-merchant-id: m_grpcurl_run' -H 'x-tenant-id: default' -H 'x-request-id: rid_a1' -d '{"merchant_transaction_id":"probe_txn_001","amount":{"minor_amount":1000,"currency":"USD"},"payment_method":{"card":{"card_number":{"value":"4242424242424242"},"card_exp_month":{"value":"03"},"card_exp_year":{"value":"2030"},"card_cvc":{"value":"737"},"card_holder_name":{"value":"John Doe"}}},"capture_method":"AUTOMATIC","address":{"billing_address":{}},"auth_type":"NO_THREE_DS","return_url":"https://example.com/return"}' localhost:8000 types.PaymentService/Authorize
+
+# A2: Card decline → FAILURE
+grpcurl -plaintext -H 'x-connector: dummy' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy' -H 'x-merchant-id: m_grpcurl_run' -H 'x-tenant-id: default' -H 'x-request-id: rid_a2' -d '{"merchant_transaction_id":"probe_txn_001","amount":{"minor_amount":1000,"currency":"USD"},"payment_method":{"card":{"card_number":{"value":"4000000000000002"},"card_exp_month":{"value":"03"},"card_exp_year":{"value":"2030"},"card_cvc":{"value":"737"},"card_holder_name":{"value":"John Doe"}}},"capture_method":"AUTOMATIC","address":{"billing_address":{}},"auth_type":"NO_THREE_DS","return_url":"https://example.com/return"}' localhost:8000 types.PaymentService/Authorize
+
+# A3: Card 3DS → AUTHENTICATION_PENDING + redirect URL
+grpcurl -plaintext -emit-defaults -H 'x-connector: dummy' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy' -H 'x-merchant-id: m_grpcurl_run' -H 'x-tenant-id: default' -H 'x-request-id: rid_a3' -d '{"merchant_transaction_id":"probe_txn_001","amount":{"minor_amount":1000,"currency":"USD"},"payment_method":{"card":{"card_number":{"value":"4000003800000446"},"card_exp_month":{"value":"03"},"card_exp_year":{"value":"2030"},"card_cvc":{"value":"737"},"card_holder_name":{"value":"John Doe"}}},"capture_method":"AUTOMATIC","address":{"billing_address":{}},"auth_type":"NO_THREE_DS","return_url":"https://example.com/return"}' localhost:8000 types.PaymentService/Authorize
+
+# A4: UPI success → CHARGED
+grpcurl -plaintext -H 'x-connector: dummy' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy' -H 'x-merchant-id: m_grpcurl_run' -H 'x-tenant-id: default' -H 'x-request-id: rid_a4' -d '{"merchant_transaction_id":"probe_txn_001","amount":{"minor_amount":1000,"currency":"USD"},"payment_method":{"upi_collect":{"vpa_id":{"value":"success@upi"}}},"capture_method":"AUTOMATIC","address":{"billing_address":{}},"auth_type":"NO_THREE_DS","return_url":"https://example.com/return"}' localhost:8000 types.PaymentService/Authorize
+
+# A5: UPI failure → FAILURE
+grpcurl -plaintext -H 'x-connector: dummy' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy' -H 'x-merchant-id: m_grpcurl_run' -H 'x-tenant-id: default' -H 'x-request-id: rid_a5' -d '{"merchant_transaction_id":"probe_txn_001","amount":{"minor_amount":1000,"currency":"USD"},"payment_method":{"upi_collect":{"vpa_id":{"value":"failure@upi"}}},"capture_method":"AUTOMATIC","address":{"billing_address":{}},"auth_type":"NO_THREE_DS","return_url":"https://example.com/return"}' localhost:8000 types.PaymentService/Authorize
+
+# A6: Bancontact → AUTHENTICATION_PENDING + redirect URL
+grpcurl -plaintext -emit-defaults -H 'x-connector: dummy' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy' -H 'x-merchant-id: m_grpcurl_run' -H 'x-tenant-id: default' -H 'x-request-id: rid_a6' -d '{"merchant_transaction_id":"probe_txn_001","amount":{"minor_amount":1000,"currency":"USD"},"payment_method":{"bancontact_card":{"card_number":{"value":"4111111111111111"},"card_exp_month":{"value":"03"},"card_exp_year":{"value":"2030"},"card_holder_name":{"value":"John Doe"}}},"capture_method":"AUTOMATIC","address":{"billing_address":{}},"auth_type":"NO_THREE_DS","return_url":"https://example.com/return"}' localhost:8000 types.PaymentService/Authorize
+
+# A7: iDeal → AUTHENTICATION_PENDING + redirect URL
+grpcurl -plaintext -emit-defaults -H 'x-connector: dummy' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy' -H 'x-merchant-id: m_grpcurl_run' -H 'x-tenant-id: default' -H 'x-request-id: rid_a7' -d '{"merchant_transaction_id":"probe_txn_001","amount":{"minor_amount":1000,"currency":"USD"},"payment_method":{"ideal":{}},"capture_method":"AUTOMATIC","address":{"billing_address":{}},"auth_type":"NO_THREE_DS","return_url":"https://example.com/return"}' localhost:8000 types.PaymentService/Authorize
+
+# A8: Trustly → AUTHENTICATION_PENDING + redirect URL
+grpcurl -plaintext -emit-defaults -H 'x-connector: dummy' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy' -H 'x-merchant-id: m_grpcurl_run' -H 'x-tenant-id: default' -H 'x-request-id: rid_a8' -d '{"merchant_transaction_id":"probe_txn_001","amount":{"minor_amount":1000,"currency":"USD"},"payment_method":{"trustly":{}},"capture_method":"AUTOMATIC","address":{"billing_address":{}},"auth_type":"NO_THREE_DS","return_url":"https://example.com/return"}' localhost:8000 types.PaymentService/Authorize
+
+# A9: Blik → AUTHENTICATION_PENDING + redirect URL
+grpcurl -plaintext -emit-defaults -H 'x-connector: dummy' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy' -H 'x-merchant-id: m_grpcurl_run' -H 'x-tenant-id: default' -H 'x-request-id: rid_a9' -d '{"merchant_transaction_id":"probe_txn_001","amount":{"minor_amount":1000,"currency":"USD"},"payment_method":{"blik":{}},"capture_method":"AUTOMATIC","address":{"billing_address":{}},"auth_type":"NO_THREE_DS","return_url":"https://example.com/return"}' localhost:8000 types.PaymentService/Authorize
+
+# A10: MbWay → AUTHENTICATION_PENDING + redirect URL
+grpcurl -plaintext -emit-defaults -H 'x-connector: dummy' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy' -H 'x-merchant-id: m_grpcurl_run' -H 'x-tenant-id: default' -H 'x-request-id: rid_a10' -d '{"merchant_transaction_id":"probe_txn_001","amount":{"minor_amount":1000,"currency":"USD"},"payment_method":{"mb_way":{}},"capture_method":"AUTOMATIC","address":{"billing_address":{}},"auth_type":"NO_THREE_DS","return_url":"https://example.com/return"}' localhost:8000 types.PaymentService/Authorize
+
+# A11: Satispay → AUTHENTICATION_PENDING + redirect URL
+grpcurl -plaintext -emit-defaults -H 'x-connector: dummy' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy' -H 'x-merchant-id: m_grpcurl_run' -H 'x-tenant-id: default' -H 'x-request-id: rid_a11' -d '{"merchant_transaction_id":"probe_txn_001","amount":{"minor_amount":1000,"currency":"USD"},"payment_method":{"satispay":{}},"capture_method":"AUTOMATIC","address":{"billing_address":{}},"auth_type":"NO_THREE_DS","return_url":"https://example.com/return"}' localhost:8000 types.PaymentService/Authorize
+
+# A12: Wero → AUTHENTICATION_PENDING + redirect URL
+grpcurl -plaintext -emit-defaults -H 'x-connector: dummy' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy' -H 'x-merchant-id: m_grpcurl_run' -H 'x-tenant-id: default' -H 'x-request-id: rid_a12' -d '{"merchant_transaction_id":"probe_txn_001","amount":{"minor_amount":1000,"currency":"USD"},"payment_method":{"wero":{}},"capture_method":"AUTOMATIC","address":{"billing_address":{}},"auth_type":"NO_THREE_DS","return_url":"https://example.com/return"}' localhost:8000 types.PaymentService/Authorize
+
+# A13: AliPay Redirect → AUTHENTICATION_PENDING + redirect URL
+grpcurl -plaintext -emit-defaults -H 'x-connector: dummy' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy' -H 'x-merchant-id: m_grpcurl_run' -H 'x-tenant-id: default' -H 'x-request-id: rid_a13' -d '{"merchant_transaction_id":"probe_txn_001","amount":{"minor_amount":1000,"currency":"USD"},"payment_method":{"ali_pay_redirect":{}},"capture_method":"AUTOMATIC","address":{"billing_address":{}},"auth_type":"NO_THREE_DS","return_url":"https://example.com/return"}' localhost:8000 types.PaymentService/Authorize
+
+# A14: WeChat Pay QR → AUTHENTICATION_PENDING + redirect URL
+grpcurl -plaintext -emit-defaults -H 'x-connector: dummy' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy' -H 'x-merchant-id: m_grpcurl_run' -H 'x-tenant-id: default' -H 'x-request-id: rid_a14' -d '{"merchant_transaction_id":"probe_txn_001","amount":{"minor_amount":1000,"currency":"USD"},"payment_method":{"we_chat_pay_qr":{}},"capture_method":"AUTOMATIC","address":{"billing_address":{}},"auth_type":"NO_THREE_DS","return_url":"https://example.com/return"}' localhost:8000 types.PaymentService/Authorize
+
+# A15: Revolut Pay → AUTHENTICATION_PENDING + redirect URL
+grpcurl -plaintext -emit-defaults -H 'x-connector: dummy' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy' -H 'x-merchant-id: m_grpcurl_run' -H 'x-tenant-id: default' -H 'x-request-id: rid_a15' -d '{"merchant_transaction_id":"probe_txn_001","amount":{"minor_amount":1000,"currency":"USD"},"payment_method":{"revolut_pay":{}},"capture_method":"AUTOMATIC","address":{"billing_address":{}},"auth_type":"NO_THREE_DS","return_url":"https://example.com/return"}' localhost:8000 types.PaymentService/Authorize
+
+# B1: Authorize MANUAL (Card 4242) → AUTHORIZED
+grpcurl -plaintext -H 'x-connector: dummy' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy' -H 'x-merchant-id: m_grpcurl_run' -H 'x-tenant-id: default' -H 'x-request-id: rid_b1' -d '{"merchant_transaction_id":"probe_txn_001","amount":{"minor_amount":1000,"currency":"USD"},"payment_method":{"card":{"card_number":{"value":"4242424242424242"},"card_exp_month":{"value":"03"},"card_exp_year":{"value":"2030"},"card_cvc":{"value":"737"},"card_holder_name":{"value":"John Doe"}}},"capture_method":"MANUAL","address":{"billing_address":{}},"auth_type":"NO_THREE_DS","return_url":"https://example.com/return"}' localhost:8000 types.PaymentService/Authorize
+
+# B2: PSync (replace <CTID> with B1.connectorTransactionId) → AUTHORIZED
+grpcurl -plaintext -H 'x-connector: dummy' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy' -H 'x-merchant-id: m_grpcurl_run' -H 'x-tenant-id: default' -H 'x-request-id: rid_b2' -d '{"merchant_transaction_id":"probe_merchant_txn_001","connector_transaction_id":"<CTID>","amount":{"minor_amount":1000,"currency":"USD"}}' localhost:8000 types.PaymentService/Get
+
+# B3: Capture (replace <CTID>) → CHARGED
+grpcurl -plaintext -H 'x-connector: dummy' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy' -H 'x-merchant-id: m_grpcurl_run' -H 'x-tenant-id: default' -H 'x-request-id: rid_b3' -d '{"merchant_capture_id":"probe_capture_001","connector_transaction_id":"<CTID>","amount_to_capture":{"minor_amount":1000,"currency":"USD"}}' localhost:8000 types.PaymentService/Capture
+
+# B4: PSync after capture (replace <CTID>) → CHARGED
+grpcurl -plaintext -H 'x-connector: dummy' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy' -H 'x-merchant-id: m_grpcurl_run' -H 'x-tenant-id: default' -H 'x-request-id: rid_b4' -d '{"merchant_transaction_id":"probe_merchant_txn_001","connector_transaction_id":"<CTID>","amount":{"minor_amount":1000,"currency":"USD"}}' localhost:8000 types.PaymentService/Get
+
+# B5: Refund full (replace <CTID>) → REFUND_SUCCESS
+grpcurl -plaintext -H 'x-connector: dummy' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy' -H 'x-merchant-id: m_grpcurl_run' -H 'x-tenant-id: default' -H 'x-request-id: rid_b5' -d '{"merchant_refund_id":"probe_refund_001","connector_transaction_id":"<CTID>","payment_amount":1000,"refund_amount":{"minor_amount":1000,"currency":"USD"},"reason":"customer_request"}' localhost:8000 types.PaymentService/Refund
+
+# B6: RefundSync (replace <CTID> and <REFUND_ID> from B5.connectorRefundId) → REFUND_SUCCESS
+grpcurl -plaintext -H 'x-connector: dummy' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy' -H 'x-merchant-id: m_grpcurl_run' -H 'x-tenant-id: default' -H 'x-request-id: rid_b6' -d '{"merchant_refund_id":"probe_refund_001","connector_transaction_id":"<CTID>","refund_id":"<REFUND_ID>"}' localhost:8000 types.RefundService/Get
+
+# C1: Authorize MANUAL (fresh PI for void) → AUTHORIZED
+grpcurl -plaintext -H 'x-connector: dummy' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy' -H 'x-merchant-id: m_grpcurl_run' -H 'x-tenant-id: default' -H 'x-request-id: rid_c1' -d '{"merchant_transaction_id":"probe_txn_001","amount":{"minor_amount":1000,"currency":"USD"},"payment_method":{"card":{"card_number":{"value":"4242424242424242"},"card_exp_month":{"value":"03"},"card_exp_year":{"value":"2030"},"card_cvc":{"value":"737"},"card_holder_name":{"value":"John Doe"}}},"capture_method":"MANUAL","address":{"billing_address":{}},"auth_type":"NO_THREE_DS","return_url":"https://example.com/return"}' localhost:8000 types.PaymentService/Authorize
+
+# C2: Void (replace <CTID>) → VOIDED
+grpcurl -plaintext -H 'x-connector: dummy' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy' -H 'x-merchant-id: m_grpcurl_run' -H 'x-tenant-id: default' -H 'x-request-id: rid_c2' -d '{"merchant_void_id":"probe_void_001","connector_transaction_id":"<CTID>"}' localhost:8000 types.PaymentService/Void
+
+# C3: PSync after void (replace <CTID>) → VOIDED
+grpcurl -plaintext -H 'x-connector: dummy' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy' -H 'x-merchant-id: m_grpcurl_run' -H 'x-tenant-id: default' -H 'x-request-id: rid_c3' -d '{"merchant_transaction_id":"probe_merchant_txn_001","connector_transaction_id":"<CTID>","amount":{"minor_amount":1000,"currency":"USD"}}' localhost:8000 types.PaymentService/Get
+
+# D1: Bancontact authorize (capture redirect URL from response, visit it externally with `curl`, then call D2)
+grpcurl -plaintext -emit-defaults -H 'x-connector: dummy' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy' -H 'x-merchant-id: m_grpcurl_run' -H 'x-tenant-id: default' -H 'x-request-id: rid_d1' -d '{"merchant_transaction_id":"probe_txn_001","amount":{"minor_amount":1000,"currency":"USD"},"payment_method":{"bancontact_card":{"card_number":{"value":"4111111111111111"},"card_exp_month":{"value":"03"},"card_exp_year":{"value":"2030"},"card_holder_name":{"value":"John Doe"}}},"capture_method":"AUTOMATIC","address":{"billing_address":{}},"auth_type":"NO_THREE_DS","return_url":"https://example.com/return"}' localhost:8000 types.PaymentService/Authorize
+
+# D2: PSync after visiting redirect URL (replace <CTID>) → CHARGED
+grpcurl -plaintext -H 'x-connector: dummy' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy' -H 'x-merchant-id: m_grpcurl_run' -H 'x-tenant-id: default' -H 'x-request-id: rid_d2' -d '{"merchant_transaction_id":"probe_merchant_txn_001","connector_transaction_id":"<CTID>","amount":{"minor_amount":1000,"currency":"USD"}}' localhost:8000 types.PaymentService/Get
+
+# E1: iDeal authorize (capture redirect URL, visit it externally with `?reject=1`, then call E2)
+grpcurl -plaintext -emit-defaults -H 'x-connector: dummy' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy' -H 'x-merchant-id: m_grpcurl_run' -H 'x-tenant-id: default' -H 'x-request-id: rid_e1' -d '{"merchant_transaction_id":"probe_txn_001","amount":{"minor_amount":1000,"currency":"USD"},"payment_method":{"ideal":{}},"capture_method":"AUTOMATIC","address":{"billing_address":{}},"auth_type":"NO_THREE_DS","return_url":"https://example.com/return"}' localhost:8000 types.PaymentService/Authorize
+
+# E2: PSync after reject (replace <CTID>) → FAILURE, error.connectorDetails.code = redirect_rejected
+grpcurl -plaintext -H 'x-connector: dummy' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy' -H 'x-merchant-id: m_grpcurl_run' -H 'x-tenant-id: default' -H 'x-request-id: rid_e2' -d '{"merchant_transaction_id":"probe_merchant_txn_001","connector_transaction_id":"<CTID>","amount":{"minor_amount":1000,"currency":"USD"}}' localhost:8000 types.PaymentService/Get

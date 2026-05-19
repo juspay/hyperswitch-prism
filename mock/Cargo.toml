@@ -1,0 +1,26 @@
+[package]
+name = "mock"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "mock"
+path = "src/main.rs"
+
+[dependencies]
+axum = { version = "0.7", features = ["macros"] }
+tokio = { version = "1", features = ["full"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["trace", "cors"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_qs = { version = "0.13", features = ["axum"] }
+dashmap = "6"
+uuid = { workspace = true, features = ["v4", "serde"] }
+tracing = { workspace = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+thiserror = { workspace = true }
+chrono = { version = "0.4", features = ["serde"] }
+anyhow = "1"
