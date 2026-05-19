@@ -206,7 +206,7 @@ func buildCybersourceConfig(auth map[string]interface{}) *pb.ConnectorSpecificCo
 		Config: &pb.ConnectorSpecificConfig_Cybersource{Cybersource: cfg},
 	}
 }
-
+//
 // buildAuthorizeDotNetConfig builds an AuthorizedotnetConfig from auth credentials.
 func buildAuthorizeDotNetConfig(auth map[string]interface{}) *pb.ConnectorSpecificConfig {
 	cfg := &pb.AuthorizedotnetConfig{}

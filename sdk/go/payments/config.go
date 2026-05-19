@@ -1,5 +1,5 @@
 package payments
-
+//
 import pb "github.com/juspay/hyperswitch-prism/sdk/go/generated/payments"
 
 // NewConnectorConfig creates a ConnectorConfig with the given connector config and environment.

@@ -123,3 +123,4 @@ func printConnectorResults(results []*ConnectorResult) {
 		fmt.Println(green("\nAll tests PASSED"))
 	}
 }
+//

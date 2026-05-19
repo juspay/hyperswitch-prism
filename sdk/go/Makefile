@@ -1,7 +1,7 @@
 .PHONY: all build generate generate-proto generate-bindings generate-flows test test-mock clean install \
         test-package test-package-mock test-composite test-webhook
 
-# SDK-specific paths
+# SDK-specific paths 
 MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 SDK_ROOT     := $(MAKEFILE_DIR)
 REPO_ROOT    := $(shell cd $(SDK_ROOT)/../.. && pwd)
