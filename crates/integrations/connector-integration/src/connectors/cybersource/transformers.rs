@@ -35,7 +35,6 @@ use domain_types::{
         PaymentMethodDataTypes, RawCardNumber, SamsungPayWalletData, WalletData,
     },
     payouts::{
-        payout_method_data::PayoutMethodData,
         payouts_types::{PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse},
     },
     router_data::{
@@ -1280,12 +1279,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-fn truncate_string(state: &Secret<String>, max_len: usize) -> Secret<String> {
-    let exposed = state.clone().expose();
-    let truncated = exposed.get(..max_len).unwrap_or(&exposed);
-    Secret::new(truncated.to_string())
-}
-
 fn build_bill_to(
     address_details: Option<&Address>,
     email: pii::Email,
@@ -1311,7 +1304,7 @@ fn build_bill_to(
                     addr.state
                         .remove_new_line()
                         .as_ref()
-                        .map(|state| truncate_string(state, 20)) //NOTE: Cybersource connector throws error if billing state exceeds 20 characters, so truncation is done to avoid payment failure
+                        .map(|state| utils::truncate_secret_string(state, 20)) //NOTE: Cybersource connector throws error if billing state exceeds 20 characters, so truncation is done to avoid payment failure
                 }),
                 postal_code: addr.zip.remove_new_line(),
                 country: addr.country,
@@ -5811,44 +5804,26 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             business_application_id: CybersourcePayoutBusinessType::PersonToPerson,
         };
 
-        let payment_information = match request.payout_method_data.as_ref().ok_or_else(|| {
-            IntegrationError::MissingRequiredField {
-                field_name: "payout_method_data",
-                context: Default::default(),
-            }
-        })? {
-            PayoutMethodData::Card(card) => {
-                let card_type = card
-                    .card_network
-                    .as_ref()
-                    .and_then(|network| payout_card_network_to_type(network).map(str::to_string))
-                    .or_else(|| {
-                        domain_types::utils::get_card_issuer(&card.card_number.get_card_no())
-                            .ok()
-                            .map(card_issuer_to_string)
-                    });
-                CybersourcePayoutPaymentInformation::Card(Box::new(
-                    CybersourcePayoutCardPaymentInformation {
-                        card: CybersourcePayoutCard {
-                            number: card.card_number.clone(),
-                            expiration_month: card.expiry_month.clone(),
-                            expiration_year: card.expiry_year.clone(),
-                            card_type,
-                        },
-                    },
-                ))
-            }
-            PayoutMethodData::Bank(_)
-            | PayoutMethodData::Wallet(_)
-            | PayoutMethodData::BankRedirect(_)
-            | PayoutMethodData::Passthrough(_) => {
-                return Err(IntegrationError::not_implemented(
-                    "Cybersource payouts: only card payouts are supported",
-                    Default::default(),
-                )
-                .into());
-            }
-        };
+        let card = utils::get_payout_card(&request.payout_method_data)?;
+        let card_type = card
+            .card_network
+            .as_ref()
+            .and_then(|network| utils::card_network_to_type_code(network).map(str::to_string))
+            .or_else(|| {
+                domain_types::utils::get_card_issuer(&card.card_number.get_card_no())
+                    .ok()
+                    .map(card_issuer_to_string)
+            });
+        let payment_information = CybersourcePayoutPaymentInformation::Card(Box::new(
+            CybersourcePayoutCardPaymentInformation {
+                card: CybersourcePayoutCard {
+                    number: card.card_number.clone(),
+                    expiration_month: card.expiry_month.clone(),
+                    expiration_year: card.expiry_year.clone(),
+                    card_type,
+                },
+            },
+        ));
 
         Ok(Self {
             client_reference_information,
@@ -5896,7 +5871,7 @@ fn build_recipient_info(
         }
     })?;
     // Cybersource rejects administrativeArea > 20 chars on the recipient side, same as billing.
-    let administrative_area = truncate_string(&administrative_area_raw, 20);
+    let administrative_area = utils::truncate_secret_string(&administrative_area_raw, 20);
     let postal_code = request.get_optional_billing_zip().ok_or_else(|| {
         IntegrationError::MissingRequiredField {
             field_name: "address.billing_address.address.zip",
@@ -5921,21 +5896,6 @@ fn build_recipient_info(
         country,
         phone_number,
     })
-}
-
-fn payout_card_network_to_type(network: &common_enums::CardNetwork) -> Option<&'static str> {
-    match network {
-        common_enums::CardNetwork::Visa => Some("001"),
-        common_enums::CardNetwork::Mastercard => Some("002"),
-        common_enums::CardNetwork::AmericanExpress => Some("003"),
-        common_enums::CardNetwork::Discover => Some("004"),
-        common_enums::CardNetwork::DinersClub => Some("005"),
-        common_enums::CardNetwork::JCB => Some("007"),
-        common_enums::CardNetwork::Maestro => Some("042"),
-        common_enums::CardNetwork::CartesBancaires => Some("036"),
-        common_enums::CardNetwork::UnionPay => Some("062"),
-        _ => None,
-    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]

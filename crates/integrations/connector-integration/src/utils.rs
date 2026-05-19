@@ -20,6 +20,7 @@ use domain_types::{
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
+    payouts::payout_method_data::{CardPayout, PayoutMethodData},
     router_data::ErrorResponse,
     router_response_types::Response,
 };
@@ -578,5 +579,106 @@ fn collect_values_by_removing_signature(value: &Value, signature: &str) -> Vec<S
             .values()
             .flat_map(|v| collect_values_by_removing_signature(v, signature))
             .collect(),
+    }
+}
+
+// ===== PAYOUT UTILITIES =====
+
+/// Format a card expiry year as 4 digits.
+/// If the input is 2 digits (e.g. "30"), prepend "20" (e.g. "2030").
+/// Otherwise returns the year unchanged.
+pub fn format_expiry_year(year: &Secret<String>) -> Secret<String> {
+    let y = year.peek();
+    if y.len() == 2 {
+        Secret::new(format!("20{y}"))
+    } else {
+        Secret::new(y.clone())
+    }
+}
+
+/// Build a card holder name from an explicit name or from billing first/last names.
+/// Returns `None` if no name information is available.
+pub fn build_card_holder_name(
+    explicit_name: &Option<Secret<String>>,
+    billing_first_name: Option<Secret<String>>,
+    billing_last_name: Option<Secret<String>>,
+) -> Option<Secret<String>> {
+    explicit_name.clone().or_else(|| {
+        let first = billing_first_name.map(|n| n.expose()).unwrap_or_default();
+        let last = billing_last_name.map(|n| n.expose()).unwrap_or_default();
+        let full = format!("{first} {last}").trim().to_string();
+        if full.is_empty() {
+            None
+        } else {
+            Some(Secret::new(full))
+        }
+    })
+}
+
+
+
+/// Extract payout card details from `PayoutMethodData`.
+/// Returns an error if the data is missing or not a card.
+pub fn get_payout_card(
+    payout_method_data: &Option<PayoutMethodData>,
+) -> Result<&CardPayout, Report<IntegrationError>> {
+    match payout_method_data {
+        Some(PayoutMethodData::Card(card)) => Ok(card),
+        Some(_other) => Err(IntegrationError::not_implemented(
+            "Payouts: only card payouts are supported",
+            Default::default(),
+        )
+        .into()),
+        None => Err(IntegrationError::MissingRequiredField {
+            field_name: "payout_method_data",
+            context: Default::default(),
+        }
+        .into()),
+    }
+}
+
+/// Map a card network to its Cybersource-style 3-digit type code.
+pub fn card_network_to_type_code(network: &common_enums::CardNetwork) -> Option<&'static str> {
+    match network {
+        common_enums::CardNetwork::Visa => Some("001"),
+        common_enums::CardNetwork::Mastercard => Some("002"),
+        common_enums::CardNetwork::AmericanExpress => Some("003"),
+        common_enums::CardNetwork::Discover => Some("004"),
+        common_enums::CardNetwork::DinersClub => Some("005"),
+        common_enums::CardNetwork::JCB => Some("007"),
+        common_enums::CardNetwork::Maestro => Some("042"),
+        common_enums::CardNetwork::CartesBancaires => Some("036"),
+        common_enums::CardNetwork::UnionPay => Some("062"),
+        _ => None,
+    }
+}
+
+/// Truncate a secret string to a maximum length.
+pub fn truncate_secret_string(value: &Secret<String>, max_len: usize) -> Secret<String> {
+    let s = value.peek();
+    if s.len() > max_len {
+        Secret::new(s.chars().take(max_len).collect())
+    } else {
+        Secret::new(s.clone())
+    }
+}
+
+/// Build an [`ErrorResponse`] from connector error fields.
+pub fn build_error_response(
+    code: String,
+    message: String,
+    status_code: u16,
+    connector_transaction_id: Option<String>,
+) -> ErrorResponse {
+    ErrorResponse {
+        code,
+        message: message.clone(),
+        reason: Some(message),
+        status_code,
+        attempt_status: None,
+        connector_transaction_id,
+        network_decline_code: None,
+        network_advice_code: None,
+        network_error_message: None,
     }
 }

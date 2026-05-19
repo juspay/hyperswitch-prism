@@ -12,7 +12,6 @@ use domain_types::{
     },
     payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes},
     payouts::{
-        payout_method_data::PayoutMethodData,
         payouts_types::{
             PayoutFlowData, PayoutGetRequest, PayoutGetResponse, PayoutTransferRequest,
             PayoutTransferResponse, PayoutVoidRequest, PayoutVoidResponse,
@@ -82,40 +81,14 @@ where
 {
     match payment_method_data {
         PaymentMethodData::Card(_) => {
-            // Convert 2-digit year to 4-digit year (e.g., "30" -> "2030")
-            let year_str = card.card_exp_year.peek();
-            let formatted_year = if year_str.len() == 2 {
-                Secret::new(format!("20{}", year_str))
-            } else {
-                card.card_exp_year.clone()
-            };
+            let formatted_year = crate::utils::format_expiry_year(&card.card_exp_year);
 
-            // Use card_holder_name from card data, or construct from billing address, or use a default
-            let card_holder_name = if let Some(ref holder_name) = card.card_holder_name {
-                holder_name.clone()
-            } else if let Some(billing_addr) = billing_address {
-                // Construct from billing address first_name and last_name
-                let first_name = billing_addr
-                    .address
-                    .first_name
-                    .as_ref()
-                    .map(|n| n.peek().clone())
-                    .unwrap_or_default();
-                let last_name = billing_addr
-                    .address
-                    .last_name
-                    .as_ref()
-                    .map(|n| n.peek().clone())
-                    .unwrap_or_default();
-
-                if !first_name.is_empty() || !last_name.is_empty() {
-                    Secret::new(format!("{} {}", first_name, last_name).trim().to_string())
-                } else {
-                    Secret::new(DEFAULT_CARD_HOLDER_NAME.to_string())
-                }
-            } else {
-                Secret::new(DEFAULT_CARD_HOLDER_NAME.to_string())
-            };
+            let card_holder_name = crate::utils::build_card_holder_name(
+                &card.card_holder_name,
+                billing_address.and_then(|b| b.address.first_name.clone()),
+                billing_address.and_then(|b| b.address.last_name.clone()),
+            )
+            .unwrap_or_else(|| Secret::new(DEFAULT_CARD_HOLDER_NAME.to_string()));
 
             let card_data = requests::WorldpayxmlCard {
                 card_number: Secret::new(card.card_number.peek().to_string()),
@@ -1090,22 +1063,17 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
                 let response = xml_response.as_ref();
 
                 // Check for top-level error first
-                if let Some(error) = &response.reply.error {
-                    return Ok(Self {
-                        response: Err(ErrorResponse {
-                            code: error.code.clone(),
-                            message: error.message.clone(),
-                            reason: Some(error.message.clone()),
-                            status_code: item.http_code,
-                            attempt_status: None,
-                            connector_transaction_id: None,
-                            network_decline_code: None,
-                            network_advice_code: None,
-                            network_error_message: None,
-                        }),
-                        ..router_data.clone()
-                    });
-                }
+        if let Some(error) = &response.reply.error {
+            return Ok(Self {
+                response: Err(crate::utils::build_error_response(
+                    error.code.clone(),
+                    error.message.clone(),
+                    item.http_code,
+                    None,
+                )),
+                ..router_data.clone()
+            });
+        }
 
                 // Extract order status
                 let order_status = response.reply.order_status.as_ref().ok_or(
@@ -1276,51 +1244,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let auth = WorldpayxmlAuthType::try_from(&router_data.connector_config)?;
         let request = &router_data.request;
 
-        let card = match request.payout_method_data.as_ref() {
-            Some(PayoutMethodData::Card(card)) => card,
-            Some(_) => {
-                return Err(IntegrationError::not_implemented(
-                    "Worldpay XML payouts: only card payouts are supported",
-                    Default::default(),
-                )
-                .into())
-            }
-            None => {
-                return Err(IntegrationError::MissingRequiredField {
-                    field_name: "payout_method_data",
-                    context: Default::default(),
-                }
-                .into())
-            }
-        };
+        let card = crate::utils::get_payout_card(&request.payout_method_data)?;
 
-        let year_str = card.expiry_year.peek();
-        let formatted_year = if year_str.len() == 2 {
-            Secret::new(format!("20{}", year_str))
-        } else {
-            card.expiry_year.clone()
-        };
+        let formatted_year = crate::utils::format_expiry_year(&card.expiry_year);
 
-        let card_holder_name = card.card_holder_name.clone().or_else(|| {
-            let first = router_data
-                .request
-                .get_billing_first_name()
-                .ok()
-                .map(|n| n.expose())
-                .unwrap_or_default();
-            let last = router_data
-                .request
-                .get_billing_last_name()
-                .ok()
-                .map(|n| n.expose())
-                .unwrap_or_default();
-            let full = format!("{} {}", first, last).trim().to_string();
-            if full.is_empty() {
-                None
-            } else {
-                Some(Secret::new(full))
-            }
-        });
+        let card_holder_name = crate::utils::build_card_holder_name(
+            &card.card_holder_name,
+            router_data.request.get_billing_first_name().ok(),
+            router_data.request.get_billing_last_name().ok(),
+        );
 
         let billing_address = match (
             router_data.request.get_optional_billing_line1(),
@@ -1407,17 +1339,12 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlPayoutTransferResponse, Se
 
         if let Some(error) = &response.reply.error {
             return Ok(Self {
-                response: Err(ErrorResponse {
-                    code: error.code.clone(),
-                    message: error.message.clone(),
-                    reason: Some(error.message.clone()),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
-                }),
+                response: Err(crate::utils::build_error_response(
+                    error.code.clone(),
+                    error.message.clone(),
+                    item.http_code,
+                    None,
+                )),
                 ..router_data.clone()
             });
         }
@@ -1431,17 +1358,12 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlPayoutTransferResponse, Se
 
         if let Some(error) = &order_status.error {
             return Ok(Self {
-                response: Err(ErrorResponse {
-                    code: error.code.clone(),
-                    message: error.message.clone(),
-                    reason: Some(error.message.clone()),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: Some(order_status.order_code.clone()),
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
-                }),
+                response: Err(crate::utils::build_error_response(
+                    error.code.clone(),
+                    error.message.clone(),
+                    item.http_code,
+                    Some(order_status.order_code.clone()),
+                )),
                 ..router_data.clone()
             });
         }
@@ -1518,17 +1440,12 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlPayoutGetResponse, Self>>
 
         if let Some(error) = &response.reply.error {
             return Ok(Self {
-                response: Err(ErrorResponse {
-                    code: error.code.clone(),
-                    message: error.message.clone(),
-                    reason: Some(error.message.clone()),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
-                }),
+                response: Err(crate::utils::build_error_response(
+                    error.code.clone(),
+                    error.message.clone(),
+                    item.http_code,
+                    None,
+                )),
                 ..router_data.clone()
             });
         }
@@ -1542,17 +1459,12 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlPayoutGetResponse, Self>>
 
         if let Some(error) = &order_status.error {
             return Ok(Self {
-                response: Err(ErrorResponse {
-                    code: error.code.clone(),
-                    message: error.message.clone(),
-                    reason: Some(error.message.clone()),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: Some(order_status.order_code.clone()),
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
-                }),
+                response: Err(crate::utils::build_error_response(
+                    error.code.clone(),
+                    error.message.clone(),
+                    item.http_code,
+                    Some(order_status.order_code.clone()),
+                )),
                 ..router_data.clone()
             });
         }
@@ -1632,17 +1544,12 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlPayoutVoidResponse, Self>>
 
         if let Some(error) = &response.reply.error {
             return Ok(Self {
-                response: Err(ErrorResponse {
-                    code: error.code.clone(),
-                    message: error.message.clone(),
-                    reason: Some(error.message.clone()),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
-                }),
+                response: Err(crate::utils::build_error_response(
+                    error.code.clone(),
+                    error.message.clone(),
+                    item.http_code,
+                    None,
+                )),
                 ..router_data.clone()
             });
         }
