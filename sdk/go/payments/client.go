@@ -1,6 +1,6 @@
 // AUTO-GENERATED — do not edit by hand.
 // Source: services.proto ∩ bindings/uniffi.rs  |  Regenerate: make generate
-//
+
 package payments
 
 import (
