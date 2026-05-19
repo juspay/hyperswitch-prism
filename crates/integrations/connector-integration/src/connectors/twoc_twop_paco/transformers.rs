@@ -893,8 +893,8 @@ pub struct PacoPaymentResultBlock {
 pub struct AresAcsChallenge {
     #[serde(default, rename = "acsURL", alias = "acsUrl")]
     pub acs_url: Option<String>,
-    #[serde(default, alias = "cReq", alias = "creqB64")]
-    pub creq: Option<Secret<String>>,
+    #[serde(default, rename = "rawCreq", alias = "raw_creq")]
+    pub raw_creq: Option<Secret<String>>,
     #[serde(default, rename = "threeDSSessionData")]
     pub three_ds_session_data: Option<Secret<String>>,
     #[serde(default, rename = "authentication3DSVersion")]
@@ -1027,7 +1027,7 @@ where
                         if let Some(challenge) = block.ares_acs_challenge.as_ref() {
                             let acs_url = challenge.acs_url.clone().unwrap_or_default();
                             let mut form_fields: HashMap<String, String> = HashMap::new();
-                            if let Some(creq) = &challenge.creq {
+                            if let Some(creq) = &challenge.raw_creq {
                                 form_fields.insert("creq".to_string(), creq.peek().clone());
                             }
                             if let Some(session_data) = &challenge.three_ds_session_data {
@@ -1094,6 +1094,7 @@ where
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status,
+                    raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
                     ..router_data.resource_common_data
                 },
                 response: Err(error),
@@ -1109,6 +1110,7 @@ where
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
                 ..router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1160,6 +1162,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status,
+                    raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
                     ..router_data.resource_common_data
                 },
                 response: Err(error),
@@ -1174,6 +1177,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
                 ..router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1224,6 +1228,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status,
+                    raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
                     ..router_data.resource_common_data
                 },
                 response: Err(error),
@@ -1238,6 +1243,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
                 ..router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1288,6 +1294,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status,
+                    raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
                     ..router_data.resource_common_data
                 },
                 response: Err(error),
@@ -1302,6 +1309,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
                 ..router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1486,6 +1494,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status,
+                    raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
                     ..router_data.resource_common_data
                 },
                 response: Err(error),
@@ -1501,6 +1510,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
                 ..router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {

@@ -525,6 +525,7 @@ pub struct PaymentFlowData {
     /// Required by connectors (e.g. 2C2P PACO) that demand a per-request
     /// idempotency token on their wire envelope.
     pub merchant_request_id: Option<String>,
+    pub sender_payment_instrument_id: Option<String>,
 }
 
 impl PaymentFlowData {
@@ -4437,6 +4438,9 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Interpayments(_) => {
                 Ok(Self::Surcharge(SurchargeConnectorEnum::Interpayments))
             }
+            AuthType::Bamboraapac(_) => Ok(Self::Payment(ConnectorEnum::Bamboraapac)),
+            AuthType::Placetopay(_) => Ok(Self::Payment(ConnectorEnum::Placetopay)),
+            AuthType::Finix(_) => Ok(Self::Payment(ConnectorEnum::Finix)),
         }
     }
 }

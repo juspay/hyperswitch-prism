@@ -836,8 +836,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by jpmorgan connector"
+        "status": "error",
+        "error": "Failed to obtain authentication type"
       }
     },
     "setup_recurring": {

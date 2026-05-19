@@ -13,7 +13,13 @@ const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
-    // connectorConfig: { placetopay: { apiKey: { value: 'YOUR_API_KEY' } } },
+    connectorConfig: {
+        placetopay: {
+            login: { value: 'YOUR_LOGIN' },
+            tranKey: { value: 'YOUR_TRAN_KEY' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
+    },
 };
 
 

@@ -3,8 +3,8 @@ mod responses;
 pub mod transformers;
 
 use domain_types::router_data::ConnectorSpecificConfig;
-use requests::{JpmorganClientAuthRequest, *};
-use responses::{JpmorganClientAuthResponse, *};
+use requests::{JpmorganClientAuthRequest, JpmorganVoidPcRequest, *};
+use responses::{JpmorganClientAuthResponse, JpmorganVoidPcResponse, *};
 
 use std::fmt::Debug;
 
@@ -17,14 +17,14 @@ use common_utils::{
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund, RepeatPayment,
-        ServerAuthenticationToken, SetupMandate, Void,
+        ServerAuthenticationToken, SetupMandate, Void, VoidPC,
     },
     connector_types::{
         ClientAuthenticationTokenRequestData, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        SetupMandateRequestData,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData, SetupMandateRequestData,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::ErrorResponse,
@@ -122,6 +122,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Jpmorgan<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentVoidPostCaptureV2 for Jpmorgan<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -269,6 +273,12 @@ macros::create_all_prerequisites!(
             request_body: JpmorganRepeatPaymentRequest<T>,
             response_body: JpmorganRepeatPaymentResponse,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: VoidPC,
+            request_body: JpmorganVoidPcRequest,
+            response_body: JpmorganVoidPcResponse,
+            router_data: RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -384,6 +394,34 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         })
     }
 }
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Jpmorgan,
+    curl_request: Json(JpmorganVoidPcRequest),
+    curl_response: JpmorganVoidPcResponse,
+    flow_name: VoidPC,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsCancelPostCaptureData,
+    flow_response: PaymentsResponseData,
+    http_method: Patch,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/payments/{}", self.connector_base_url(req), req.request.connector_transaction_id))
+        }
+    }
+);
 
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_error_response_v2],
@@ -768,7 +806,5 @@ macros::macro_connector_flow_status_impls!(
         PaymentMethodToken,
         CreateConnectorCustomer,
     ],
-    not_supported: [
-        VoidPC,
-    ],
+    not_supported: [],
 );

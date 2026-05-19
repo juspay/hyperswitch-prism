@@ -13,7 +13,15 @@ const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
-    // connectorConfig: { finix: { apiKey: { value: 'YOUR_API_KEY' } } },
+    connectorConfig: {
+        finix: {
+            finixUserName: { value: 'YOUR_FINIX_USER_NAME' },
+            finixPassword: { value: 'YOUR_FINIX_PASSWORD' },
+            merchantIdentityId: { value: 'YOUR_MERCHANT_IDENTITY_ID' },
+            merchantId: { value: 'YOUR_MERCHANT_ID' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
+    },
 };
 
 

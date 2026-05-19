@@ -111,6 +111,7 @@ impl DisputeService for Disputes {
                         resource_id,
                         shadow_mode,
                         tenant_id,
+                        merchant_id,
                         ..
                     } = request_data.extracted_metadata;
                     let payments_connector =
@@ -167,6 +168,7 @@ impl DisputeService for Disputes {
                         resource_id: &resource_id,
                         shadow_mode,
                         tenant_id: &tenant_id,
+                        merchant_id: merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
                     };
 
@@ -336,6 +338,7 @@ impl DisputeService for Disputes {
                         resource_id,
                         shadow_mode,
                         tenant_id,
+                        merchant_id,
                         ..
                     } = request_data.extracted_metadata;
                     let payments_connector =
@@ -393,6 +396,7 @@ impl DisputeService for Disputes {
                         resource_id: &resource_id,
                         shadow_mode,
                         tenant_id: &tenant_id,
+                        merchant_id: merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
                     };
 
