@@ -19,6 +19,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.05.19.0
+
+### Features
+
+- **connector:**
+  - Implement Reverse (VoidPostCapture) for jpmorgan ([#1281](https://github.com/juspay/connector-service/pull/1281)) ([`c33f182`](https://github.com/juspay/connector-service/commit/c33f182db4c95c4bbce96b9d5caf88da46894d41))
+  - Implement Reverse (VoidPostCapture) for authipay ([#1298](https://github.com/juspay/connector-service/pull/1298)) ([`af473c4`](https://github.com/juspay/connector-service/commit/af473c4c8758ae6a07d88b6a0d8f83f8c44cb71b))
+
+### Bug Fixes
+
+- **connector:** [Truelayer] Populate sender_payment_instrument_id from psync response ([#1362](https://github.com/juspay/connector-service/pull/1362)) ([`79cfb69`](https://github.com/juspay/connector-service/commit/79cfb69eaa559081f9ded1dc98ce5201bd0e874d))
+
+**Full Changelog:** [`2026.05.18.1...2026.05.19.0`](https://github.com/juspay/connector-service/compare/2026.05.18.1...2026.05.19.0)
+
+- - -
+
 ## 2026.05.18.1
 
 ### Features
