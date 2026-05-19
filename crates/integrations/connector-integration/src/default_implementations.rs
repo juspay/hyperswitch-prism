@@ -127,6 +127,7 @@ default_impl_verify_webhook_source_v2!(
         Calida,
         Cashtocode,
         Cryptopay,
+        Dummy,
         Fiuu,
         Imerchantsolutions,
         Noon,

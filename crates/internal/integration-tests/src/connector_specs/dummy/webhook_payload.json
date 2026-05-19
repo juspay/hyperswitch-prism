@@ -1,0 +1,50 @@
+{
+  "_webhook_config": {
+    "signature_header": null,
+    "signature_algorithm": "none",
+    "webhook_secret_key": null
+  },
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "event": "payment_succeeded",
+          "payment_id": "DUMMY-pi_succeeded_001",
+          "merchant_reference_id": "dummy_webhook_payment_succeeded",
+          "amount": 2000
+        }
+      },
+      "merchant_event_id": "dummy_webhook_payment_succeeded"
+    }
+  },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "event": "payment_failed",
+          "payment_id": "DUMMY-pi_failed_001",
+          "merchant_reference_id": "dummy_webhook_payment_failed",
+          "amount": 2000
+        }
+      },
+      "merchant_event_id": "dummy_webhook_payment_failed"
+    }
+  },
+  "refund_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "event": "refund_succeeded",
+          "payment_id": "DUMMY-pi_succeeded_001",
+          "refund_id": "DUMMY-re_succeeded_001",
+          "merchant_reference_id": "dummy_webhook_refund",
+          "amount": 2000
+        }
+      },
+      "merchant_event_id": "dummy_webhook_refund"
+    }
+  }
+}

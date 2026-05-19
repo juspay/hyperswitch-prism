@@ -338,6 +338,7 @@ pub struct Connectors {
     pub aci: ConnectorParams,
     pub trustpay: ConnectorParamsWithMoreUrls,
     pub stripe: ConnectorParams,
+    pub dummy: ConnectorParams,
     pub cybersource: ConnectorParams,
     pub worldpay: ConnectorParams,
     pub worldpayvantiv: ConnectorParams,
@@ -11569,6 +11570,17 @@ ConnectorSpecificClientAuthenticationResponse::Cybersource(cybersource_data) => 
                         grpc_api_types::payments::RevolutClientAuthenticationResponse {
                             order_id: revolut_data.order_id,
                             token: Some(revolut_data.token),
+                        },
+                    ),
+                ),
+            }
+        }
+        ConnectorSpecificClientAuthenticationResponse::Dummy(dummy_data) => {
+            grpc_api_types::payments::ConnectorSpecificClientAuthenticationResponse {
+                connector: Some(
+                    grpc_api_types::payments::connector_specific_client_authentication_response::Connector::Dummy(
+                        grpc_api_types::payments::DummyClientAuthenticationResponse {
+                            client_secret: Some(dummy_data.client_secret),
                         },
                     ),
                 ),

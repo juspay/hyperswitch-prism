@@ -8,6 +8,12 @@
         "shop_name": "test_shop_name"
       }
     },
+    "dummy": {
+      "connector_account_details": {
+        "auth_type": "HeaderKey",
+        "api_key": "test_dummy_api_key"
+      }
+    },
     "authorizedotnet": {
       "connector_account_details": {
         "auth_type": "BodyKey",

@@ -754,6 +754,7 @@ enum Connector {
   AXISBANK = 119;
   EASEBUZZ = 120;
   TWOC_TWOP_PACO = 121;
+  DUMMY = 122;
 }
 
 // Payment method types
@@ -1569,6 +1570,7 @@ message ConnectorSpecificClientAuthenticationResponse {
     NexinetsClientAuthenticationResponse nexinets = 24;
     NexixpayClientAuthenticationResponse nexixpay = 25;
     RevolutClientAuthenticationResponse revolut = 26;
+    DummyClientAuthenticationResponse dummy = 27;
   }
 }
 
@@ -1714,6 +1716,11 @@ message RevolutClientAuthenticationResponse {
 
 // Stripe SDK initialization data — client_secret for stripe.confirmPayment()
 message StripeClientAuthenticationResponse {
+  SecretString client_secret = 1;
+}
+
+// Dummy SDK initialization data — mock client_secret for local testing
+message DummyClientAuthenticationResponse {
   SecretString client_secret = 1;
 }
 
@@ -4239,6 +4246,11 @@ message EasebuzzConfig {
   optional string secondary_base_url = 51;
 }
 
+message DummyConfig {
+  SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
 message TruelayerConfig {
   SecretString client_id = 1;
   SecretString client_secret = 2;
@@ -4572,6 +4584,9 @@ message ConnectorSpecificConfig {
 
     // INTERPAYMENTS = 126
     InterpaymentsConfig interpayments = 126;
+
+    // DUMMY = 122
+    DummyConfig dummy = 127;
   }
 }
 

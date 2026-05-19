@@ -83,6 +83,9 @@ pub use self::trustpay::Trustpay;
 pub mod stripe;
 pub use self::stripe::Stripe;
 
+pub mod dummy;
+pub use self::dummy::Dummy;
+
 pub mod cybersource;
 pub use self::cybersource::Cybersource;
 

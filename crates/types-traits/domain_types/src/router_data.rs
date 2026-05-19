@@ -214,6 +214,10 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         base_url: Option<String>,
     },
+    Dummy {
+        api_key: Secret<String>,
+        base_url: Option<String>,
+    },
     Calida {
         api_key: Secret<String>,
         base_url: Option<String>,
@@ -775,6 +779,7 @@ impl ConnectorSpecificConfig {
         }
         extract_base_url!(
             Stripe { api_key },
+            Dummy { api_key },
             Calida { api_key },
             Celero { api_key },
             Helcim { api_key },
@@ -1186,6 +1191,7 @@ impl ConnectorSpecificConfig {
         connectors.insert(
             connector_key!(
                 Stripe { api_key },
+                Dummy { api_key },
                 Calida { api_key },
                 Celero { api_key },
                 Helcim { api_key },
@@ -1769,6 +1775,10 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: stripe.api_key.ok_or_else(err)?,
                 base_url: stripe.base_url,
             }),
+            AuthType::Dummy(dummy) => Ok(Self::Dummy {
+                api_key: dummy.api_key.ok_or_else(err)?,
+                base_url: dummy.base_url,
+            }),
             AuthType::Trustpay(trustpay) => Ok(Self::Trustpay {
                 api_key: trustpay.api_key.ok_or_else(err)?,
                 project_id: trustpay.project_id.ok_or_else(err)?,
@@ -2092,6 +2102,13 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 // --- HeaderKey connectors ---
                 ConnectorEnum::Stripe => match auth {
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Stripe {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Dummy => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Dummy {
                         api_key: api_key.clone(),
                         base_url: None,
                     }),

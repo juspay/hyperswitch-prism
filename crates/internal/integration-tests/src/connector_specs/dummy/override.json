@@ -1,0 +1,156 @@
+{
+  "PaymentService/Authorize": {
+    "threeds_manual_capture_credit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4000002760003184"
+            }
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_google_pay_encrypted": {
+      "grpc_req": {}
+    },
+    "no3ds_auto_capture_ideal": {
+      "grpc_req": {
+        "setup_future_usage": null
+      }
+    },
+    "no3ds_auto_capture_giropay": {
+      "grpc_req": {}
+    },
+    "no3ds_auto_capture_bancontact": {
+      "grpc_req": {
+        "setup_future_usage": null
+      }
+    },
+    "no3ds_auto_capture_afterpay_clearpay": {
+      "grpc_req": {
+        "setup_future_usage": null
+      }
+    },
+    "no3ds_auto_capture_alipay": {
+      "grpc_req": {
+        "setup_future_usage": null
+      }
+    },
+    "no3ds_auto_capture_przelewy24": {
+      "grpc_req": {
+        "setup_future_usage": null
+      }
+    },
+    "no3ds_auto_capture_eps": {
+      "grpc_req": {
+        "setup_future_usage": null
+      }
+    },
+    "no3ds_auto_capture_sepa_bank_transfer": {
+      "grpc_req": {}
+    },
+    "no3ds_auto_capture_ach_bank_transfer": {
+      "grpc_req": {
+        "setup_future_usage": null
+      }
+    },
+    "no3ds_auto_capture_bacs_bank_transfer": {
+      "grpc_req": {}
+    },
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4000000000000002"
+            }
+          }
+        }
+      },
+      "assert": {
+        "status": null,
+        "error.connector_details.message": {
+          "contains": "declin"
+        }
+      }
+    },
+    "no3ds_auto_capture_upi_collect": {
+      "grpc_req": {}
+    },
+    "no3ds_auto_capture_upi_intent": {
+      "grpc_req": {}
+    },
+    "no3ds_auto_capture_upi_qr": {
+      "grpc_req": {}
+    }
+  },
+  "PaymentService/SetupRecurring": {
+    "setup_recurring_with_order_context": {
+      "grpc_req": {
+        "off_session": null
+      }
+    }
+  },
+  "RecurringPaymentService/Revoke": {
+    "revoke_with_reason": {
+      "assert": {
+        "status": {
+          "one_of": ["REVOKED", "INACTIVE", "MANDATE_REVOKE_FAILED"]
+        },
+        "error": null
+      }
+    }
+  },
+  "PaymentService/VerifyRedirectResponse": {
+    "verify_redirect_basic": {
+      "grpc_req": {
+        "request_details": {
+          "uri": "https://example.com/payment/redirect?dummy_status=success&dummy_id=DUMMY-pi_test_12345"
+        }
+      }
+    },
+    "verify_redirect_with_params": {
+      "grpc_req": {
+        "request_details": {
+          "uri": "https://example.com/payment/redirect?dummy_status=success&dummy_id=DUMMY-pi_test_67890"
+        }
+      }
+    },
+    "verify_redirect_fail_tampered": {
+      "grpc_req": {
+        "request_details": {
+          "uri": "https://example.com/payment/redirect?status=success&payment_id=tampered_xyz"
+        }
+      },
+      "assert": {
+        "source_verified": {
+          "equals": true
+        },
+        "error": {
+          "must_exist": true
+        }
+      }
+    }
+  },
+  "EventService/HandleEvent": {
+    "invalid_signature": {
+      "grpc_req": {
+        "request_details": {
+          "method": "HTTP_METHOD_POST",
+          "headers": {},
+          "body": "{\"event\":\"unknown_event_xyz\"}"
+        },
+        "merchant_event_id": "dummy_webhook_invalid"
+      },
+      "assert": {
+        "event_status": {
+          "one_of": [
+            "EVENT_STATUS_FAILED",
+            "EVENT_STATUS_COMPLETE"
+          ]
+        }
+      }
+    }
+  }
+}
