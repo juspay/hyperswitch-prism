@@ -2493,19 +2493,22 @@ impl<F> TryFrom<ResponseRouterData<BankofamericaPaymentsResponse, Self>>
                     }
                     _ => common_enums::PostCaptureVoidStatus::Failed,
                 };
-                let response = if void_status.is_post_capture_void_failure() {
-                    let mut error = get_error_response(
-                        &info_response.error_information,
-                        &info_response.processor_information,
-                        &info_response.risk_information,
-                        None,
-                        item.http_code,
-                        info_response.id.clone(),
-                    );
-                    error.attempt_status = None;
-                    Err(error)
-                } else {
-                    Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                let description = void_status
+                    .is_post_capture_void_failure()
+                    .then(|| {
+                        get_error_response(
+                            &info_response.error_information,
+                            &info_response.processor_information,
+                            &info_response.risk_information,
+                            None,
+                            item.http_code,
+                            info_response.id.clone(),
+                        )
+                        .reason
+                    })
+                    .flatten();
+                Ok(Self {
+                    response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
                         post_capture_void_status: void_status,
                         connector_reference_id: Some(
                             info_response
@@ -2514,12 +2517,9 @@ impl<F> TryFrom<ResponseRouterData<BankofamericaPaymentsResponse, Self>>
                                 .clone()
                                 .unwrap_or(info_response.id.clone()),
                         ),
-                        description: None,
+                        description,
                         status_code: item.http_code,
-                    })
-                };
-                Ok(Self {
-                    response,
+                    }),
                     ..item.router_data
                 })
             }
