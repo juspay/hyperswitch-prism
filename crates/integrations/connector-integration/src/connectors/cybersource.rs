@@ -59,7 +59,7 @@ use transformers::{
     CybersourcePaymentsResponse as CybersourceRepeatPaymentResponse,
     CybersourcePayoutFulfillRequest, CybersourceRefundRequest, CybersourceRefundResponse,
     CybersourceRepeatPaymentRequest, CybersourceRsyncResponse, CybersourceTransactionResponse,
-    CybersourceVoidRequest, CybersourceZeroMandateRequest, CybersourceVoidPCRequest
+    CybersourceVoidPCRequest, CybersourceVoidRequest, CybersourceZeroMandateRequest,
 };
 
 use super::macros;

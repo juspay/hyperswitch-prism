@@ -14,7 +14,8 @@ use cards;
 use domain_types::{
     connector_flow::{
         Authenticate, Authorize, Capture, ClientAuthenticationToken, IncrementalAuthorization,
-        PayoutTransfer, PostAuthenticate, PreAuthenticate, RepeatPayment, SetupMandate, Void, VoidPC,
+        PayoutTransfer, PostAuthenticate, PreAuthenticate, RepeatPayment, SetupMandate, Void,
+        VoidPC,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
