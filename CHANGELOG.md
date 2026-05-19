@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.04.15.0-hotfix5
+
+### Features
+
+- **shadow:** Add x-merchant-id header to outgoing shadow mode requests ([#1370](https://github.com/juspay/connector-service/pull/1370)) ([`dcd150c`](https://github.com/juspay/connector-service/commit/dcd150c69d4998ac3d5673144746dc5c923a95f1))
+
+**Full Changelog:** [`2026.04.15.0-hotfix4...2026.04.15.0-hotfix5`](https://github.com/juspay/connector-service/compare/2026.04.15.0-hotfix4...2026.04.15.0-hotfix5)
+
+- - -
+
 ## 2026.04.15.0-hotfix4
 
 ### Features
