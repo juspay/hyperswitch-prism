@@ -52,7 +52,8 @@ generate-proto:
 		--go_out=$(GENERATED_GO) \
 		--go_opt=paths=source_relative \
 		$(addprefix $(PROTO_DIR)/,$(PROTO_FILES_GO))
-	@echo "Proto stubs generated in $(GENERATED_GO)/"
+	@mv $(GENERATED_GO)/*.pb.go $(GENERATED_GO)/payments/ 2>/dev/null || true
+	@echo "Proto stubs generated in $(GENERATED_GO)/payments/"
 
 # ---------------------------------------------------------------------------
 # generate-bindings
@@ -66,6 +67,7 @@ generate-bindings: build-ffi-lib
 		--out-dir $(UNIFFI_GO) \
 		--no-format
 	@cp $(LIBRARY) $(UNIFFI_GO)/connector_service_ffi/
+	@rm -rf $(UNIFFI_GO)/superposition_client $(UNIFFI_GO)/superposition_types
 	@echo "Go bindings generated in $(UNIFFI_GO)/"
 
 # ---------------------------------------------------------------------------
@@ -161,6 +163,7 @@ clean:
 		! -name '*.dylib' \
 		! -name '*.so' \
 		-delete 2>/dev/null || true
+	@rm -rf $(UNIFFI_GO)/superposition_client $(UNIFFI_GO)/superposition_types
 	rm -f $(PAYMENTS_PKG)/zz_generated_client.go
 	cd $(SDK_ROOT) && go clean ./...
 
