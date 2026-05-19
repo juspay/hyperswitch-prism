@@ -5,8 +5,14 @@ use grpc_api_types::payments::{
     CustomerServiceCreateRequest, CustomerServiceCreateResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
-    PaymentServiceAuthorizeRequest, PaymentServiceCaptureRequest, PaymentServiceGetRequest,
-    PaymentServiceRefundRequest, PaymentServiceVoidRequest, RefundServiceGetRequest,
+    PaymentMethodAuthenticationServiceAuthenticateRequest,
+    PaymentMethodAuthenticationServiceAuthenticateResponse,
+    PaymentMethodAuthenticationServicePostAuthenticateRequest,
+    PaymentMethodAuthenticationServicePostAuthenticateResponse,
+    PaymentMethodAuthenticationServicePreAuthenticateRequest,
+    PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentServiceAuthorizeRequest,
+    PaymentServiceCaptureRequest, PaymentServiceGetRequest, PaymentServiceRefundRequest,
+    PaymentServiceVoidRequest, RefundServiceGetRequest,
 };
 
 use crate::utils::{
@@ -64,13 +70,23 @@ impl
         &CompositeAuthorizeRequest,
         Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
         Option<&CustomerServiceCreateResponse>,
+        Option<&PaymentMethodAuthenticationServiceAuthenticateResponse>,
+        Option<&PaymentMethodAuthenticationServicePostAuthenticateResponse>,
     )> for PaymentServiceAuthorizeRequest
 {
     fn foreign_from(
-        (item, access_token_response, create_customer_response): (
+        (
+            item,
+            access_token_response,
+            create_customer_response,
+            authenticate_response,
+            post_authenticate_response,
+        ): (
             &CompositeAuthorizeRequest,
             Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
             Option<&CustomerServiceCreateResponse>,
+            Option<&PaymentMethodAuthenticationServiceAuthenticateResponse>,
+            Option<&PaymentMethodAuthenticationServicePostAuthenticateResponse>,
         ),
     ) -> Self {
         let connector_customer_id_from_req = item
@@ -93,6 +109,18 @@ impl
             connector_customer_id,
         });
 
+        // Prefer authentication_data from post-auth, then from authenticate, then from request
+        let authentication_data = post_authenticate_response
+            .and_then(|r| r.authentication_data.clone())
+            .or_else(|| authenticate_response.and_then(|r| r.authentication_data.clone()))
+            .or_else(|| item.authentication_data.clone());
+
+        // Prefer connector_feature_data from post-auth, then authenticate, then request
+        let connector_feature_data = post_authenticate_response
+            .and_then(|r| r.connector_feature_data.clone())
+            .or_else(|| authenticate_response.and_then(|r| r.connector_feature_data.clone()))
+            .or_else(|| item.connector_feature_data.clone());
+
         Self {
             merchant_transaction_id: item.merchant_transaction_id.clone(),
             amount: item.amount,
@@ -104,9 +132,9 @@ impl
             address: item.address.clone(),
             auth_type: item.auth_type,
             enrolled_for_3ds: item.enrolled_for_3ds,
-            authentication_data: item.authentication_data.clone(),
+            authentication_data,
             metadata: item.metadata.clone(),
-            connector_feature_data: item.connector_feature_data.clone(),
+            connector_feature_data,
             return_url: item.return_url.clone(),
             webhook_url: item.webhook_url.clone(),
             complete_authorize_url: item.complete_authorize_url.clone(),
@@ -137,6 +165,7 @@ impl
             continue_redirection_url: item.continue_redirection_url.clone(),
             l2_l3_data: item.l2_l3_data.clone(),
             connector_order_id: item.connector_order_id.clone(),
+            merchant_request_id: item.merchant_request_id.clone(),
         }
     }
 }
@@ -199,6 +228,7 @@ impl
             connector_order_reference_id: item.connector_order_reference_id.clone(),
             test_mode: item.test_mode,
             payment_experience: item.payment_experience,
+            merchant_request_id: item.merchant_request_id.clone(),
         }
     }
 }
@@ -263,6 +293,7 @@ impl
             test_mode: item.test_mode,
             payment_method_type: item.payment_method_type,
             customer_id: item.customer_id.clone(),
+            merchant_request_id: item.merchant_request_id.clone(),
         }
     }
 }
@@ -323,6 +354,7 @@ impl
             payment_method_type: item.payment_method_type,
             connector_feature_data: item.connector_feature_data.clone(),
             refund_amount: item.refund_amount,
+            merchant_request_id: item.merchant_request_id.clone(),
         }
     }
 }
@@ -382,9 +414,111 @@ impl
             state: resolved_state,
             test_mode: item.test_mode,
             merchant_order_id: item.merchant_order_id.clone(),
+            merchant_request_id: item.merchant_request_id.clone(),
         }
     }
 }
+
+// ── AuthN transformers ────────────────────────────────────────────────────────
+
+impl ForeignFrom<&CompositeAuthorizeRequest>
+    for PaymentMethodAuthenticationServicePreAuthenticateRequest
+{
+    fn foreign_from(item: &CompositeAuthorizeRequest) -> Self {
+        Self {
+            merchant_order_id: item.merchant_transaction_id.clone(),
+            amount: item.amount,
+            payment_method: item.payment_method.clone(),
+            customer: item.customer.clone(),
+            address: item.address.clone(),
+            enrolled_for_3ds: item.enrolled_for_3ds.unwrap_or(false),
+            metadata: item.metadata.clone(),
+            connector_feature_data: item.connector_feature_data.clone(),
+            return_url: item.return_url.clone(),
+            continue_redirection_url: item.continue_redirection_url.clone(),
+            browser_info: item.browser_info.clone(),
+            state: None,
+            capture_method: item.capture_method,
+            description: item.description.clone(),
+        }
+    }
+}
+
+impl
+    ForeignFrom<(
+        &CompositeAuthorizeRequest,
+        Option<&PaymentMethodAuthenticationServicePreAuthenticateResponse>,
+    )> for PaymentMethodAuthenticationServiceAuthenticateRequest
+{
+    fn foreign_from(
+        (item, pre_auth_response): (
+            &CompositeAuthorizeRequest,
+            Option<&PaymentMethodAuthenticationServicePreAuthenticateResponse>,
+        ),
+    ) -> Self {
+        Self {
+            merchant_order_id: item.merchant_transaction_id.clone(),
+            amount: item.amount,
+            payment_method: item.payment_method.clone(),
+            customer: item.customer.clone(),
+            address: item.address.clone(),
+            // Pass authentication_data from pre-auth response if available, else from payload
+            authentication_data: pre_auth_response
+                .and_then(|r| r.authentication_data.clone())
+                .or_else(|| item.authentication_data.clone()),
+            metadata: item.metadata.clone(),
+            // Carry connector_feature_data from pre-auth response if available, else from payload
+            connector_feature_data: pre_auth_response
+                .and_then(|r| r.connector_feature_data.clone())
+                .or_else(|| item.connector_feature_data.clone()),
+            return_url: item.return_url.clone(),
+            continue_redirection_url: item.continue_redirection_url.clone(),
+            browser_info: item.browser_info.clone(),
+            state: None,
+            redirection_response: item.redirection_response.clone(),
+            capture_method: item.capture_method,
+        }
+    }
+}
+
+impl
+    ForeignFrom<(
+        &CompositeAuthorizeRequest,
+        Option<&PaymentMethodAuthenticationServiceAuthenticateResponse>,
+    )> for PaymentMethodAuthenticationServicePostAuthenticateRequest
+{
+    fn foreign_from(
+        (item, auth_response): (
+            &CompositeAuthorizeRequest,
+            Option<&PaymentMethodAuthenticationServiceAuthenticateResponse>,
+        ),
+    ) -> Self {
+        Self {
+            merchant_order_id: item.merchant_transaction_id.clone(),
+            amount: item.amount,
+            payment_method: item.payment_method.clone(),
+            customer: item.customer.clone(),
+            address: item.address.clone(),
+            authentication_data: auth_response
+                .and_then(|r| r.authentication_data.clone())
+                .or_else(|| item.authentication_data.clone()),
+            connector_order_reference_id: auth_response
+                .and_then(|r| r.connector_transaction_id.clone()),
+            metadata: item.metadata.clone(),
+            connector_feature_data: auth_response
+                .and_then(|r| r.connector_feature_data.clone())
+                .or_else(|| item.connector_feature_data.clone()),
+            return_url: item.return_url.clone(),
+            continue_redirection_url: item.continue_redirection_url.clone(),
+            browser_info: item.browser_info.clone(),
+            state: None,
+            redirection_response: item.redirection_response.clone(),
+            capture_method: item.capture_method,
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 impl ForeignFrom<(&CompositeCaptureRequest, &ConnectorEnum)>
     for MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
@@ -441,6 +575,7 @@ impl
             state: resolved_state,
             test_mode: item.test_mode,
             merchant_order_id: item.merchant_order_id.clone(),
+            merchant_request_id: item.merchant_request_id.clone(),
         }
     }
 }

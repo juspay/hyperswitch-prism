@@ -665,5 +665,16 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             juspay_public_key: s(),
             base_url: None,
         },
+        ConnectorEnum::TwocTwopPaco => ConnectorSpecificConfig::TwocTwopPaco {
+            access_token: s(),
+            office_id: s(),
+            paco_kid: s(),
+            merchant_signing_private_key: s(),
+            merchant_encryption_private_key: s(),
+            paco_signing_public_key: s(),
+            paco_encryption_public_key: s(),
+            response_audience: None,
+            base_url: None,
+        },
     }
 }

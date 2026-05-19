@@ -253,7 +253,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "mifinity": {
+            "mifinity_redirect": {
               "date_of_birth": "1990-01-01",
               "language_preference": "en"
             }

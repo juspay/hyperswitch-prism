@@ -9,6 +9,7 @@ use common_utils::{
     ext_traits::{ByteSliceExt, ValueExt},
     FloatMajorUnit,
 };
+use domain_types::router_data::ConnectorSpecificConfig;
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund},
     connector_types::{
@@ -196,6 +197,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: hyperpg::HyperpgErrorResponse = res
             .response

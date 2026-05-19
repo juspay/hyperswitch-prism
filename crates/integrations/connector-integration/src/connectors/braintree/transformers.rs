@@ -8,7 +8,7 @@ use common_utils::{
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken, RSync,
-        RepeatPayment, Void,
+        RepeatPayment, Void, VoidPC,
     },
     connector_types::{
         self, AmountInfo, ApplePayPaymentRequest, ApplePaySessionResponse,
@@ -18,11 +18,11 @@ use domain_types::{
         GpayMerchantInfo, GpayShippingAddressParameters, GpayTokenParameters,
         GpayTokenizationSpecification, GpayTransactionInfo, MandateReference, NextActionCall,
         PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
-        PaymentRequestMetadata, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, PaypalClientAuthenticationResponse,
-        PaypalTransactionInfo, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, ResponseId, SdkNextAction, SecretInfoToInitiateSdk,
-        ThirdPartySdkSessionResponse,
+        PaymentRequestMetadata, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        PaypalClientAuthenticationResponse, PaypalTransactionInfo, RefundFlowData, RefundSyncData,
+        RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId, SdkNextAction,
+        SecretInfoToInitiateSdk, ThirdPartySdkSessionResponse,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
@@ -2930,6 +2930,151 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         status,
                         ..item.router_data.resource_common_data
                     },
+                    response,
+                    ..item.router_data
+                })
+            }
+        }
+    }
+}
+
+// VoidPostCapture (Reverse) flow — Braintree uses the same reverseTransaction mutation
+// for both pre-capture voids and post-capture reversals.
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VoidPCInputData {
+    transaction_id: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct VoidPCVariables {
+    input: VoidPCInputData,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BraintreeVoidPCRequest {
+    query: String,
+    variables: VoidPCVariables,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        BraintreeRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for BraintreeVoidPCRequest
+{
+    type Error = Report<IntegrationError>;
+
+    fn try_from(
+        item: BraintreeRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let query = constants::VOID_TRANSACTION_MUTATION.to_string();
+        let variables = VoidPCVariables {
+            input: VoidPCInputData {
+                transaction_id: item.router_data.request.connector_transaction_id.clone(),
+            },
+        };
+        Ok(Self { query, variables })
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct VoidPCResponseTransactionBody {
+    id: String,
+    status: BraintreePaymentStatus,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct VoidPCTransactionData {
+    reversal: VoidPCResponseTransactionBody,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VoidPCResponseData {
+    reverse_transaction: VoidPCTransactionData,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct VoidPCResponse {
+    data: VoidPCResponseData,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum BraintreeVoidPCResponse {
+    VoidPCResponse(Box<VoidPCResponse>),
+    ErrorResponse(Box<ErrorResponse>),
+}
+
+impl TryFrom<ResponseRouterData<BraintreeVoidPCResponse, Self>>
+    for RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>
+{
+    type Error = Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<BraintreeVoidPCResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            BraintreeVoidPCResponse::ErrorResponse(error_response) => Ok(Self {
+                response: build_error_response(&error_response.errors, item.http_code)
+                    .map_err(|err| *err),
+                ..item.router_data
+            }),
+            BraintreeVoidPCResponse::VoidPCResponse(void_pc_response) => {
+                let reversal_data = void_pc_response.data.reverse_transaction.reversal;
+                let post_capture_void_status = match reversal_data.status {
+                    BraintreePaymentStatus::Voided => {
+                        common_enums::PostCaptureVoidStatus::Succeeded
+                    }
+                    BraintreePaymentStatus::Failed
+                    | BraintreePaymentStatus::GatewayRejected
+                    | BraintreePaymentStatus::ProcessorDeclined
+                    | BraintreePaymentStatus::SettlementDeclined
+                    | BraintreePaymentStatus::AuthorizedExpired => {
+                        common_enums::PostCaptureVoidStatus::Failed
+                    }
+                    BraintreePaymentStatus::Authorized
+                    | BraintreePaymentStatus::Authorizing
+                    | BraintreePaymentStatus::Settling
+                    | BraintreePaymentStatus::Settled
+                    | BraintreePaymentStatus::SettlementPending
+                    | BraintreePaymentStatus::SettlementConfirmed
+                    | BraintreePaymentStatus::SubmittedForSettlement => {
+                        common_enums::PostCaptureVoidStatus::Pending
+                    }
+                };
+                let response = if post_capture_void_status.is_post_capture_void_failure() {
+                    Err(create_failure_error_response(
+                        reversal_data.status,
+                        None,
+                        item.http_code,
+                    ))
+                } else {
+                    Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                        post_capture_void_status,
+                        connector_reference_id: Some(reversal_data.id),
+                        description: None,
+                        status_code: item.http_code,
+                    })
+                };
+                Ok(Self {
                     response,
                     ..item.router_data
                 })

@@ -8,7 +8,8 @@
     "PaymentService/Refund",
     "RefundService/Get",
     "MerchantAuthenticationService/CreateServerAuthenticationToken",
-    "PaymentService/Void", 
+    "PaymentService/Void",
+    "PaymentService/Reverse",
     "PaymentService/SetupRecurring",
     "RecurringPaymentService/Charge"
   ]

@@ -20,7 +20,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.BraintreeConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("capture", "create_client_authentication_token", "get", "refund", "tokenize", "void")
+val SUPPORTED_FLOWS = listOf<String>("capture", "create_client_authentication_token", "get", "refund", "reverse", "tokenize", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -83,6 +83,13 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
     }.build()
 }
 
+private fun buildReverseRequest(connectorTransactionIdStr: String): PaymentServiceReverseRequest {
+    return PaymentServiceReverseRequest.newBuilder().apply {
+        merchantReverseId = "probe_reverse_001"  // Identification.
+        connectorTransactionId = connectorTransactionIdStr
+    }.build()
+}
+
 private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceVoidRequest {
     return PaymentServiceVoidRequest.newBuilder().apply {
         merchantVoidId = "probe_void_001"  // Identification.
@@ -134,6 +141,14 @@ fun refund(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Done: ${response.status.name}")
 }
 
+// Flow: PaymentService.Reverse
+fun reverse(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = buildReverseRequest("probe_connector_txn_001")
+    val response = client.reverse(request)
+    println("Status: ${response.status.name}")
+}
+
 // Flow: PaymentMethodService.Tokenize
 fun tokenize(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentMethodClient(config)
@@ -179,8 +194,9 @@ fun main(args: Array<String>) {
         "createClientAuthenticationToken" -> createClientAuthenticationToken(txnId)
         "get" -> get(txnId)
         "refund" -> refund(txnId)
+        "reverse" -> reverse(txnId)
         "tokenize" -> tokenize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, createClientAuthenticationToken, get, refund, tokenize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: capture, createClientAuthenticationToken, get, refund, reverse, tokenize, void")
     }
 }

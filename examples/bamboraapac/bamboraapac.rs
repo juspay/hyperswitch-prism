@@ -30,7 +30,23 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
 fn build_client() -> ConnectorClient {
     // Configure the connector with authentication
     let config = ConnectorConfig {
-        connector_config: None, // TODO: Add your connector config here,
+        connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Bamboraapac(
+                BamboraapacConfig {
+                    username: Some(hyperswitch_masking::Secret::new(
+                        "YOUR_USERNAME".to_string(),
+                    )), // Authentication credential
+                    password: Some(hyperswitch_masking::Secret::new(
+                        "YOUR_PASSWORD".to_string(),
+                    )), // Authentication credential
+                    account_number: Some(hyperswitch_masking::Secret::new(
+                        "YOUR_ACCOUNT_NUMBER".to_string(),
+                    )), // Authentication credential
+                    base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
+                    ..Default::default()
+                },
+            )),
+        }),
         options: Some(SdkOptions {
             environment: Environment::Sandbox.into(),
         }),

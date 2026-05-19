@@ -5,11 +5,11 @@ use std::fmt::Debug;
 use common_enums::CurrencyUnit;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, types::MinorUnit};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void, VoidPC},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -28,7 +28,8 @@ use transformers as authipay;
 use transformers::{
     AuthipayAuthorizeResponse, AuthipayCaptureRequest, AuthipayCaptureResponse,
     AuthipayPaymentsRequest, AuthipayRefundRequest, AuthipayRefundResponse,
-    AuthipayRefundSyncResponse, AuthipaySyncResponse, AuthipayVoidRequest, AuthipayVoidResponse,
+    AuthipayRefundSyncResponse, AuthipaySyncResponse, AuthipayVoidPCRequest,
+    AuthipayVoidPCResponse, AuthipayVoidRequest, AuthipayVoidResponse,
 };
 
 use super::macros;
@@ -66,6 +67,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Authipay<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentVoidPostCaptureV2 for Authipay<T>
 {
 }
 
@@ -161,6 +167,12 @@ macros::create_all_prerequisites!(
             flow: RSync,
             response_body: AuthipayRefundSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: VoidPC,
+            request_body: AuthipayVoidPCRequest,
+            response_body: AuthipayVoidPCResponse,
+            router_data: RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -386,7 +398,50 @@ macros::macro_connector_implementation!(
     }
 );
 
-// VoidPC flow - Empty implementation (not supported)
+// VoidPC flow - Reverse/VoidPostCapture: cancel a captured (PostAuth) payment before settlement
+// Uses requestType: VoidTransaction (distinct from Void which uses VoidPreAuthTransactions)
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Authipay,
+    curl_request: Json(AuthipayVoidPCRequest),
+    curl_response: AuthipayVoidPCResponse,
+    flow_name: VoidPC,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsCancelPostCaptureData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let auth = authipay::AuthipayAuthType::try_from(&req.connector_config)
+                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
+
+            // Build the request to get the body for HMAC signature
+            let connector_req = AuthipayVoidPCRequest::try_from(req)?;
+            let request_body_str = serde_json::to_string(&connector_req)
+                .change_context(IntegrationError::RequestEncodingFailed { context: Default::default() })?;
+
+            // Generate headers with HMAC signature
+            self.build_headers_with_signature(
+                &auth,
+                &request_body_str,
+            )
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let transaction_id = &req.request.connector_transaction_id;
+            let base_url = self.connector_base_url_payments(req);
+            Ok(format!("{base_url}/{transaction_id}"))
+        }
+    }
+);
 
 // Capture flow - Capture an authorized payment
 macros::macro_connector_implementation!(
@@ -585,6 +640,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: authipay::AuthipayErrorResponse = if res.response.is_empty() {
             authipay::AuthipayErrorResponse::default()
@@ -620,7 +676,6 @@ macros::macro_connector_flow_status_impls!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
         IncrementalAuthorization,
-        VoidPC,
         SetupMandate,
         RepeatPayment,
         ServerSessionAuthenticationToken,

@@ -27,7 +27,18 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
 fn build_client() -> ConnectorClient {
     // Configure the connector with authentication
     let config = ConnectorConfig {
-        connector_config: None, // TODO: Add your connector config here,
+        connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Placetopay(
+                PlacetopayConfig {
+                    login: Some(hyperswitch_masking::Secret::new("YOUR_LOGIN".to_string())), // Authentication credential
+                    tran_key: Some(hyperswitch_masking::Secret::new(
+                        "YOUR_TRAN_KEY".to_string(),
+                    )), // Authentication credential
+                    base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
+                    ..Default::default()
+                },
+            )),
+        }),
         options: Some(SdkOptions {
             environment: Environment::Sandbox.into(),
         }),

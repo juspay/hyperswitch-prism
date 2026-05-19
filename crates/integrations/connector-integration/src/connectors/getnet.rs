@@ -1,5 +1,6 @@
 pub mod transformers;
 
+use domain_types::router_data::ConnectorSpecificConfig;
 use std::fmt::Debug;
 
 use base64::Engine;
@@ -229,6 +230,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: getnet::GetnetErrorResponse = res
             .response

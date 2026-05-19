@@ -406,6 +406,8 @@ fn create_payment_get_request(transaction_id: &str) -> PaymentServiceGetRequest 
         connector_order_reference_id: None,
         test_mode: None,
         payment_experience: None,
+
+        merchant_request_id: None,
     }
 }
 
@@ -428,6 +430,8 @@ fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCapture
         state: None,
         test_mode: None,
         merchant_order_id: None,
+
+        merchant_request_id: None,
     }
 }
 
@@ -482,6 +486,8 @@ fn create_refund_request(transaction_id: &str) -> PaymentServiceRefundRequest {
         state: None,
         payment_method_type: None,
         customer_id: Some("TEST_CONNECTOR".to_string()),
+
+        merchant_request_id: None,
     }
 }
 
@@ -500,6 +506,8 @@ fn create_refund_get_request(transaction_id: &str, refund_id: &str) -> RefundSer
         connector_feature_data: None,
         payment_method_type: None,
         refund_amount: None,
+
+        merchant_request_id: None,
     }
 }
 
