@@ -2,10 +2,15 @@ use crate::{connectors::getnet::GetnetRouterData, types::ResponseRouterData};
 use common_enums::{AttemptStatus, AuthenticationType, Currency, RefundStatus};
 use common_utils::{id_type::CustomerId, request::Method, types::MinorUnit, Email};
 use domain_types::errors::{ConnectorError, IntegrationError};
+use domain_types::router_request_types::AuthenticationData;
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, ServerAuthenticationToken, Void},
+    connector_flow::{
+        Authenticate, Authorize, Capture, PSync, PostAuthenticate, PreAuthenticate, RSync, Refund,
+        ServerAuthenticationToken, Void,
+    },
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsPostAuthenticateData, PaymentsPreAuthenticateData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId, ServerAuthenticationTokenRequestData,
         ServerAuthenticationTokenResponseData,
@@ -19,9 +24,10 @@ use domain_types::{
     router_response_types::RedirectForm,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use std::str::FromStr;
 use time::{Duration as TimeDuration, OffsetDateTime};
 
 const TRANSACTION_TYPE_FULL: &str = "FULL";
@@ -281,6 +287,20 @@ pub struct GetnetPayment<T: PaymentMethodDataTypes> {
     pub boleto: Option<GetnetBoleto>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bizum: Option<GetnetBizum>,
+    // 3DS authentication result fields — populated inline on the `/payments`
+    // payload after PreAuthenticate / Authenticate / PostAuthenticate produce
+    // an `AuthenticationData`. All `Option`-wrapped with `skip_serializing_if`
+    // so non-3DS card requests serialize identically to the pre-3DS shape.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub xid: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eci: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ucaf: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tdsdsxid: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tdsver: Option<String>,
 }
 
 // ===== BOLETO-SHAPED REQUEST (different endpoint, different schema) =====
@@ -863,6 +883,34 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
             }
         };
 
+        // When this Authorize is the final leg of a 3DS trio
+        // (PreAuthenticate -> Authenticate [-> PostAuthenticate] -> Authorize),
+        // UCS forwards the resulting `AuthenticationData` here. Globalgetnet's
+        // `/payments` endpoint rejects `data.payment.three_ds` as a sub-object
+        // but accepts inline fields: xid / eci / ucaf / tdsdsxid / tdsver. We
+        // populate them only on the Card branch when 3DS is active AND we have
+        // an authentication result; otherwise the fields stay None and
+        // `skip_serializing_if` keeps the wire format identical to the no-3DS
+        // case (preserving the gateway-driven frictionless path).
+        let (xid_field, eci_field, ucaf_field, tdsdsxid_field, tdsver_field) =
+            if matches!(
+                item.resource_common_data.auth_type,
+                AuthenticationType::ThreeDs
+            ) {
+                match item.request.authentication_data.as_ref() {
+                    Some(ad) => (
+                        ad.transaction_id.clone(),
+                        ad.eci.clone(),
+                        ad.cavv.clone(),
+                        ad.ds_trans_id.clone(),
+                        ad.message_version.as_ref().map(|v| v.to_string()),
+                    ),
+                    None => (None, None, None, None, None),
+                }
+            } else {
+                (None, None, None, None, None)
+            };
+
         let payment = GetnetPayment {
             payment_method: payment_method.to_string(),
             transaction_type: TRANSACTION_TYPE_FULL.to_string(),
@@ -874,6 +922,11 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
             pix: None,
             boleto: None,
             bizum: None,
+            xid: xid_field,
+            eci: eci_field,
+            ucaf: ucaf_field,
+            tdsdsxid: tdsdsxid_field,
+            tdsver: tdsver_field,
         };
 
         // The schema for /dpm/payments-gwproxy/v2/payments rejects *every* shape of
@@ -1516,6 +1569,603 @@ impl TryFrom<ResponseRouterData<GetnetVoidResponse, Self>>
                 network_txn_id: None,
                 connector_response_reference_id: item.response.order_id.clone(),
                 incremental_authorization_allowed: None,
+                status_code: item.http_code,
+            }),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// =====================================================================
+// 3DS FLOW SURFACE: PreAuthenticate / Authenticate / PostAuthenticate
+// =====================================================================
+//
+// Globalgetnet exposes three companion endpoints under the
+// `/dpm/security-gwproxy/v2/` prefix:
+//
+//   * POST `/enrolments-initial`  -> PreAuthenticate
+//   * POST `/enrolments-continue` -> Authenticate
+//   * POST `/validations`         -> PostAuthenticate (CRES validation after ACS)
+//
+// All three share an identical *response* schema (`GetnetThreeDsResponse`)
+// even though some fields are only populated on certain legs. Sandbox
+// behavior: `status` strings are lowercased ("pending enrollment continue")
+// so deserialization uses `alias =` to accept both canonical and
+// sandbox-shaped variants, plus an English / British spelling pair for the
+// enrolment/enrollment word.
+
+#[derive(Debug, Serialize)]
+pub struct GetnetPreAuthenticateRequest {
+    pub operation: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub currency: Option<Currency>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub term_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub md: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    pub extra_fields: GetnetThreeDsExtraFields,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GetnetThreeDsExtraFields {
+    pub billing_address: GetnetThreeDsAddress,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shipping_address: Option<GetnetThreeDsAddress>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GetnetThreeDsAddress {
+    pub street: Secret<String>,
+    pub number: Secret<String>,
+    /// ISO 3166-1 alpha-2 country code (e.g. `"BR"`).
+    pub country: String,
+    pub postal_code: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GetnetAuthenticateRequest {
+    pub transaction_id: String,
+    pub xid: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GetnetPostAuthenticateRequest {
+    /// CRES received at `term_url` after the ACS challenge completes.
+    pub token: String,
+}
+
+/// Shared response schema across the three 3DS endpoints. Field semantics:
+///   * `transaction_id` / `xid` — opaque correlators. `transaction_id` is
+///     the long string set by `enrolments-initial`; `xid` is the short
+///     Base64-ish token also set on initial. After `enrolments-continue`
+///     the server may rotate `md` to a new opaque token but `transaction_id`
+///     and `xid` remain stable.
+///   * `protocol` — e.g. `"3DS2.3.1"` or `"3DS2.2.0"`. The `tdsver` field
+///     on `/payments` wants the version *without* the `"3DS"` prefix
+///     (see `protocol_to_msg_version`).
+///   * `tds_method_content` — HTML fragment for the DDC iframe form
+///     (empty when DDC is not required).
+///   * `redirect_html_template` — auto-POSTing HTML form to the ACS for the
+///     challenge (empty when frictionless).
+///   * `acs_redirect_form` — structured representation of the same
+///     auto-POST form. Preferred over `redirect_html_template` when both
+///     are populated because it lets the caller render the form natively
+///     instead of injecting HTML.
+///   * `eci` / `cavv` / `ds_trans_id` — final authentication artifacts
+///     produced on the frictionless `enrolments-continue` exit or after
+///     `validations` for the challenge path. These flow back to
+///     `data.payment.{xid,eci,ucaf,tdsdsxid,tdsver}` on `/payments`.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct GetnetThreeDsResponse {
+    #[serde(default)]
+    pub transaction_id: Option<String>,
+    #[serde(default)]
+    pub xid: Option<String>,
+    #[serde(default)]
+    pub tx_id: Option<i64>,
+    #[serde(default)]
+    pub md: Option<String>,
+    #[serde(default)]
+    pub protocol: Option<String>,
+    #[serde(default)]
+    pub status: Option<GetnetThreeDsStatus>,
+    #[serde(default)]
+    pub operation: Option<String>,
+    #[serde(default)]
+    pub tds_method_content: Option<String>,
+    #[serde(default)]
+    pub redirect_html_template: Option<String>,
+    #[serde(default)]
+    pub acs_redirect_form: Option<GetnetAcsRedirectForm>,
+    #[serde(default)]
+    pub eci: Option<String>,
+    #[serde(default)]
+    pub cavv: Option<Secret<String>>,
+    #[serde(default)]
+    pub ds_trans_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct GetnetAcsRedirectForm {
+    pub action_url: String,
+    #[serde(default)]
+    pub method: Option<String>,
+    #[serde(default)]
+    pub creq: Option<Secret<String>>,
+    #[serde(rename = "threeDSSessionData", default)]
+    pub three_ds_session_data: Option<Secret<String>>,
+}
+
+/// `StatusTransaction` enum from the Globalgetnet API. Sandbox lowercases
+/// the values so all variants carry case-insensitive aliases. The
+/// `Enrolment`/`Enrollment` doublet matches both UK and US spellings.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+pub enum GetnetThreeDsStatus {
+    #[serde(rename = "Authenticated", alias = "authenticated")]
+    Authenticated,
+    #[serde(rename = "Denied", alias = "denied")]
+    Denied,
+    #[serde(rename = "Pending", alias = "pending")]
+    Pending,
+    #[serde(rename = "Pending Challenge", alias = "pending challenge")]
+    PendingChallenge,
+    #[serde(
+        rename = "Pending Enrolment Continue",
+        alias = "pending enrolment continue",
+        alias = "Pending Enrollment Continue",
+        alias = "pending enrollment continue"
+    )]
+    PendingEnrolmentContinue,
+    #[serde(other)]
+    Unknown,
+}
+
+pub type GetnetPreAuthenticateResponse = GetnetThreeDsResponse;
+pub type GetnetAuthenticateResponse = GetnetThreeDsResponse;
+pub type GetnetPostAuthenticateResponse = GetnetThreeDsResponse;
+
+/// Strip the leading `"3DS"` from a protocol string. `"3DS2.3.1"` → `"2.3.1"`.
+/// Returns `None` if input is `None` or doesn't start with `"3DS"`.
+fn protocol_to_msg_version(protocol: Option<&str>) -> Option<String> {
+    protocol.and_then(|p| p.strip_prefix("3DS").map(|s| s.to_string()))
+}
+
+/// Build the address block required by `enrolments-initial.extra_fields.billing_address`.
+/// The Globalgetnet sandbox returns HTTP 500 when this object is absent, so we always
+/// populate it — falling back to Brazilian-style placeholders only when the caller
+/// didn't supply a billing address.
+fn build_threeds_address<T: PaymentMethodDataTypes>(
+    item: &RouterDataV2<
+        PreAuthenticate,
+        PaymentFlowData,
+        PaymentsPreAuthenticateData<T>,
+        PaymentsResponseData,
+    >,
+) -> GetnetThreeDsAddress {
+    let billing_details = item
+        .resource_common_data
+        .get_optional_billing()
+        .and_then(|addr| addr.address.clone());
+
+    let street = billing_details
+        .as_ref()
+        .and_then(|d| d.line1.clone())
+        .unwrap_or_else(|| Secret::new("Address".to_string()));
+    let number = billing_details
+        .as_ref()
+        .and_then(|d| d.line2.clone())
+        .unwrap_or_else(|| Secret::new("S/N".to_string()));
+    let country = billing_details
+        .as_ref()
+        .and_then(|d| d.country.map(|c| c.to_string()))
+        .unwrap_or_else(|| "BR".to_string());
+    let postal_code = billing_details
+        .as_ref()
+        .and_then(|d| d.zip.clone())
+        .unwrap_or_else(|| Secret::new("00000000".to_string()));
+
+    GetnetThreeDsAddress {
+        street,
+        number,
+        country,
+        postal_code,
+    }
+}
+
+// ===== PreAuthenticate request: `POST /dpm/security-gwproxy/v2/enrolments-initial` =====
+
+impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        GetnetRouterData<
+            RouterDataV2<
+                PreAuthenticate,
+                PaymentFlowData,
+                PaymentsPreAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for GetnetPreAuthenticateRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        wrapper: GetnetRouterData<
+            RouterDataV2<
+                PreAuthenticate,
+                PaymentFlowData,
+                PaymentsPreAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let item = &wrapper.router_data;
+
+        // TODO: Globalgetnet supports both "CREDIT" and "DEBIT" operations, but
+        // for cards (the only PM supported on this leg today) the 3DS enrolment
+        // ride uses "CREDIT" regardless of underlying card type. Revisit if/when
+        // a debit-card 3DS scenario surfaces from QA.
+        let operation = "CREDIT".to_string();
+
+        let billing_address = build_threeds_address(item);
+
+        Ok(Self {
+            operation,
+            currency: item.request.currency,
+            amount: Some(item.request.amount),
+            term_url: item.request.router_return_url.as_ref().map(|u| u.to_string()),
+            md: Some(
+                item.resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            ),
+            description: None,
+            extra_fields: GetnetThreeDsExtraFields {
+                billing_address,
+                shipping_address: None,
+            },
+        })
+    }
+}
+
+// ===== Authenticate request: `POST /dpm/security-gwproxy/v2/enrolments-continue` =====
+//
+// Field-mapping convention used across this connector:
+//   * `AuthenticationData.threeds_server_transaction_id` carries Globalgetnet's
+//     `transaction_id` (the long opaque string from `enrolments-initial`).
+//   * `AuthenticationData.transaction_id` carries Globalgetnet's `xid` (the
+//     short Base64-ish token from `enrolments-initial`).
+// The two flow inputs are echoed back here so the gateway can match the
+// continue call to the original enrolment record.
+impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        GetnetRouterData<
+            RouterDataV2<
+                Authenticate,
+                PaymentFlowData,
+                PaymentsAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for GetnetAuthenticateRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        wrapper: GetnetRouterData<
+            RouterDataV2<
+                Authenticate,
+                PaymentFlowData,
+                PaymentsAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let item = &wrapper.router_data;
+        let auth_data = item.request.authentication_data.as_ref().ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "request.authentication_data",
+                context: Default::default(),
+            },
+        )?;
+
+        let transaction_id = auth_data.threeds_server_transaction_id.clone().ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "authentication_data.threeds_server_transaction_id",
+                context: Default::default(),
+            },
+        )?;
+        let xid = auth_data.transaction_id.clone().ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "authentication_data.transaction_id",
+                context: Default::default(),
+            },
+        )?;
+
+        Ok(Self {
+            transaction_id,
+            xid,
+        })
+    }
+}
+
+// ===== PostAuthenticate request: `POST /dpm/security-gwproxy/v2/validations` =====
+//
+// The CRES token is the Base64-encoded ACS response posted to the merchant's
+// `term_url` after the customer completes the browser challenge. UCS forwards
+// it via `request.redirect_response.payload` — a `SecretSerdeValue` carrying
+// the form fields keyed by name (typically `cres` or `CRES`).
+impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        GetnetRouterData<
+            RouterDataV2<
+                PostAuthenticate,
+                PaymentFlowData,
+                PaymentsPostAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for GetnetPostAuthenticateRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        wrapper: GetnetRouterData<
+            RouterDataV2<
+                PostAuthenticate,
+                PaymentFlowData,
+                PaymentsPostAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let payload = wrapper
+            .router_data
+            .request
+            .get_redirect_response_payload()
+            .change_context(IntegrationError::MissingRequiredField {
+                field_name: "request.redirect_response.payload",
+                context: Default::default(),
+            })?;
+        let payload_json = payload.expose();
+        // Accept either `cres` (canonical) or `CRES` (some browser-driven
+        // posts uppercase form-field names).
+        let token = payload_json
+            .get("cres")
+            .or_else(|| payload_json.get("CRES"))
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "request.redirect_response.payload.cres",
+                context: Default::default(),
+            })?;
+
+        Ok(Self { token })
+    }
+}
+
+// ===== 3DS Response shared helpers =====
+
+/// Build a `RedirectForm` from whichever 3DS-response field is populated.
+/// Precedence: structured `acs_redirect_form` first (the most parser-friendly
+/// shape and the one returned on challenge flows), then either of the HTML
+/// fragments (`redirect_html_template` for the full ACS auto-POST page,
+/// `tds_method_content` for the DDC iframe). Returns `None` when none of
+/// these are present (frictionless / no DDC).
+fn build_threeds_redirection(response: &GetnetThreeDsResponse) -> Option<RedirectForm> {
+    if let Some(form) = response.acs_redirect_form.as_ref() {
+        let method = match form.method.as_deref() {
+            Some(m) if m.eq_ignore_ascii_case("GET") => Method::Get,
+            _ => Method::Post,
+        };
+        let mut form_fields = std::collections::HashMap::new();
+        if let Some(creq) = form.creq.as_ref() {
+            form_fields.insert("creq".to_string(), creq.peek().clone());
+        }
+        if let Some(sd) = form.three_ds_session_data.as_ref() {
+            form_fields.insert("threeDSSessionData".to_string(), sd.peek().clone());
+        }
+        return Some(RedirectForm::Form {
+            endpoint: form.action_url.clone(),
+            method,
+            form_fields,
+        });
+    }
+    if let Some(html) = response
+        .redirect_html_template
+        .as_ref()
+        .filter(|s| !s.is_empty())
+    {
+        return Some(RedirectForm::Html {
+            html_data: html.clone(),
+        });
+    }
+    if let Some(html) = response
+        .tds_method_content
+        .as_ref()
+        .filter(|s| !s.is_empty())
+    {
+        return Some(RedirectForm::Html {
+            html_data: html.clone(),
+        });
+    }
+    None
+}
+
+/// Build the `AuthenticationData` payload that travels between flows.
+/// Always populated with whichever fields the response carried.
+fn build_threeds_authentication_data(response: &GetnetThreeDsResponse) -> AuthenticationData {
+    let message_version = protocol_to_msg_version(response.protocol.as_deref())
+        .and_then(|v| common_utils::types::SemanticVersion::from_str(&v).ok());
+    AuthenticationData {
+        trans_status: None,
+        eci: response.eci.clone(),
+        cavv: response.cavv.clone(),
+        ucaf_collection_indicator: None,
+        // Map Globalgetnet `transaction_id` -> AuthenticationData.threeds_server_transaction_id.
+        threeds_server_transaction_id: response.transaction_id.clone(),
+        message_version,
+        ds_trans_id: response.ds_trans_id.clone(),
+        acs_transaction_id: None,
+        // Map Globalgetnet `xid` -> AuthenticationData.transaction_id.
+        transaction_id: response.xid.clone(),
+        network_params: None,
+        exemption_indicator: None,
+    }
+}
+
+/// Map the three-state Globalgetnet status to a UCS `AttemptStatus`.
+fn threeds_status_to_attempt(status: Option<&GetnetThreeDsStatus>) -> AttemptStatus {
+    match status {
+        Some(GetnetThreeDsStatus::Authenticated) => AttemptStatus::AuthenticationSuccessful,
+        Some(GetnetThreeDsStatus::Denied) => AttemptStatus::AuthenticationFailed,
+        Some(GetnetThreeDsStatus::PendingChallenge)
+        | Some(GetnetThreeDsStatus::PendingEnrolmentContinue)
+        | Some(GetnetThreeDsStatus::Pending) => AttemptStatus::AuthenticationPending,
+        Some(GetnetThreeDsStatus::Unknown) | None => AttemptStatus::AuthenticationPending,
+    }
+}
+
+// ===== PreAuthenticate response → RouterDataV2 =====
+
+impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<GetnetPreAuthenticateResponse, Self>>
+    for RouterDataV2<
+        PreAuthenticate,
+        PaymentFlowData,
+        PaymentsPreAuthenticateData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<GetnetPreAuthenticateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let redirection_data = build_threeds_redirection(&item.response).map(Box::new);
+        let authentication_data = Some(build_threeds_authentication_data(&item.response));
+        let status = threeds_status_to_attempt(item.response.status.as_ref());
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::PreAuthenticateResponse {
+                authentication_data,
+                redirection_data,
+                connector_response_reference_id: item.response.transaction_id.clone(),
+                status_code: item.http_code,
+            }),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// ===== Authenticate response → RouterDataV2 =====
+
+impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<GetnetAuthenticateResponse, Self>>
+    for RouterDataV2<
+        Authenticate,
+        PaymentFlowData,
+        PaymentsAuthenticateData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<GetnetAuthenticateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let status = threeds_status_to_attempt(item.response.status.as_ref());
+
+        // Per the API spec:
+        //   * `Authenticated` (frictionless) -> redirection_data: None,
+        //     authentication_data carries the final eci/cavv/ds_trans_id/xid.
+        //   * `Pending Challenge` -> redirection_data carries the ACS auto-POST
+        //     form (preferred via `acs_redirect_form`, fall back to HTML).
+        //     authentication_data is a partial passthrough so the next leg
+        //     (PostAuthenticate) can re-correlate the session.
+        //   * `Denied` -> neither.
+        let (redirection_data, authentication_data) = match item.response.status {
+            Some(GetnetThreeDsStatus::Authenticated) => (
+                None,
+                Some(build_threeds_authentication_data(&item.response)),
+            ),
+            Some(GetnetThreeDsStatus::PendingChallenge) => (
+                build_threeds_redirection(&item.response).map(Box::new),
+                Some(build_threeds_authentication_data(&item.response)),
+            ),
+            Some(GetnetThreeDsStatus::Denied) => (None, None),
+            _ => (
+                build_threeds_redirection(&item.response).map(Box::new),
+                Some(build_threeds_authentication_data(&item.response)),
+            ),
+        };
+
+        let resource_id = item
+            .response
+            .transaction_id
+            .clone()
+            .map(ResponseId::ConnectorTransactionId);
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::AuthenticateResponse {
+                resource_id,
+                redirection_data,
+                authentication_data,
+                connector_response_reference_id: item.response.transaction_id.clone(),
+                status_code: item.http_code,
+            }),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// ===== PostAuthenticate response → RouterDataV2 =====
+
+impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<GetnetPostAuthenticateResponse, Self>>
+    for RouterDataV2<
+        PostAuthenticate,
+        PaymentFlowData,
+        PaymentsPostAuthenticateData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<GetnetPostAuthenticateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let status = threeds_status_to_attempt(item.response.status.as_ref());
+        let authentication_data = match item.response.status {
+            Some(GetnetThreeDsStatus::Denied) => None,
+            _ => Some(build_threeds_authentication_data(&item.response)),
+        };
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::PostAuthenticateResponse {
+                authentication_data,
+                connector_response_reference_id: item.response.transaction_id.clone(),
                 status_code: item.http_code,
             }),
             resource_common_data: PaymentFlowData {

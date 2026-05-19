@@ -7,9 +7,13 @@ use base64::Engine;
 use common_enums::CurrencyUnit;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, types::MinorUnit};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, ServerAuthenticationToken, Void},
+    connector_flow::{
+        Authenticate, Authorize, Capture, PSync, PostAuthenticate, PreAuthenticate, RSync, Refund,
+        ServerAuthenticationToken, Void,
+    },
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsPostAuthenticateData, PaymentsPreAuthenticateData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ServerAuthenticationTokenRequestData,
         ServerAuthenticationTokenResponseData,
@@ -28,10 +32,12 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    self as getnet, GetnetAccessTokenRequest, GetnetAccessTokenResponse, GetnetAuthorizeRequest,
-    GetnetAuthorizeResponse, GetnetCaptureRequest, GetnetCaptureResponse, GetnetRefundRequest,
-    GetnetRefundResponse, GetnetRefundSyncResponse, GetnetSyncResponse, GetnetVoidRequest,
-    GetnetVoidResponse,
+    self as getnet, GetnetAccessTokenRequest, GetnetAccessTokenResponse, GetnetAuthenticateRequest,
+    GetnetAuthenticateResponse, GetnetAuthorizeRequest, GetnetAuthorizeResponse,
+    GetnetCaptureRequest, GetnetCaptureResponse, GetnetPostAuthenticateRequest,
+    GetnetPostAuthenticateResponse, GetnetPreAuthenticateRequest, GetnetPreAuthenticateResponse,
+    GetnetRefundRequest, GetnetRefundResponse, GetnetRefundSyncResponse, GetnetSyncResponse,
+    GetnetVoidRequest, GetnetVoidResponse,
 };
 
 use super::macros;
@@ -55,6 +61,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Getnet<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentPreAuthenticateV2<T> for Getnet<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentAuthenticateV2<T> for Getnet<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentPostAuthenticateV2<T> for Getnet<T>
 {
 }
 
@@ -165,6 +186,24 @@ macros::create_all_prerequisites!(
             request_body: GetnetAccessTokenRequest,
             response_body: GetnetAccessTokenResponse,
             router_data: RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+        ),
+        (
+            flow: PreAuthenticate,
+            request_body: GetnetPreAuthenticateRequest,
+            response_body: GetnetPreAuthenticateResponse,
+            router_data: RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: Authenticate,
+            request_body: GetnetAuthenticateRequest,
+            response_body: GetnetAuthenticateResponse,
+            router_data: RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: PostAuthenticate,
+            request_body: GetnetPostAuthenticateRequest,
+            response_body: GetnetPostAuthenticateResponse,
+            router_data: RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -526,6 +565,102 @@ macros::macro_connector_implementation!(
     }
 );
 
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Getnet,
+    curl_request: Json(GetnetPreAuthenticateRequest),
+    curl_response: GetnetPreAuthenticateResponse,
+    flow_name: PreAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPreAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let access_token = req.resource_common_data.get_access_token()
+                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })
+                .attach_printable("Failed to obtain access token")?;
+            Ok(self.build_headers(&access_token))
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/dpm/security-gwproxy/v2/enrolments-initial", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Getnet,
+    curl_request: Json(GetnetAuthenticateRequest),
+    curl_response: GetnetAuthenticateResponse,
+    flow_name: Authenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let access_token = req.resource_common_data.get_access_token()
+                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })
+                .attach_printable("Failed to obtain access token")?;
+            Ok(self.build_headers(&access_token))
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/dpm/security-gwproxy/v2/enrolments-continue", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Getnet,
+    curl_request: Json(GetnetPostAuthenticateRequest),
+    curl_response: GetnetPostAuthenticateResponse,
+    flow_name: PostAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPostAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let access_token = req.resource_common_data.get_access_token()
+                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })
+                .attach_printable("Failed to obtain access token")?;
+            Ok(self.build_headers(&access_token))
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/dpm/security-gwproxy/v2/validations", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
 macros::macro_connector_flow_status_impls!(
     connector: Getnet,
     generic_type: T,
@@ -535,10 +670,7 @@ macros::macro_connector_flow_status_impls!(
         SetupMandate,
         RepeatPayment,
         MandateRevoke,
-        PreAuthenticate,
-        Authenticate,
         PaymentMethodToken,
-        PostAuthenticate,
         CreateConnectorCustomer,
     ],
     not_supported: [
