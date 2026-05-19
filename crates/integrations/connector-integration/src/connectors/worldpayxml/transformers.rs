@@ -1262,9 +1262,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlVoidPCResponse, Self>>
         if let Some(error) = &response.reply.error {
             let payments_response_data = PaymentsResponseData::PostCaptureVoidResponse {
                 post_capture_void_status: common_enums::PostCaptureVoidStatus::Failed,
-                connector_reference_id: Some(
-                    router_data.request.connector_transaction_id.clone(),
-                ),
+                connector_reference_id: Some(router_data.request.connector_transaction_id.clone()),
                 description: Some(error.message.clone()),
                 status_code: item.http_code,
             };
