@@ -1,4 +1,7 @@
 //! Utilities for cryptographic algorithms
+
+pub mod jose;
+
 use std::ops::Deref;
 
 use error_stack::ResultExt;

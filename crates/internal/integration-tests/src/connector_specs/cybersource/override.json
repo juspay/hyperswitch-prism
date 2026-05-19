@@ -127,6 +127,80 @@
         },
         "metadata": {
           "value": "{}"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_year": {
+              "value": "20"
+            }
+          }
+        }
+      },
+      "assert": {
+        "error.connector_details.message": { "must_exist": true }
+      }
+    }
+  },
+  "PaymentService/Void": {
+    "void_authorized_payment": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        }
+      }
+    },
+    "void_without_cancellation_reason": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        },
+        "cancellation_reason": "requested_by_customer"
+      }
+    }
+  },
+  "PaymentService/SetupRecurring": {
+    "PaymentService/SetupRecurring": {
+      "grpc_req": {
+        "metadata": {
+          "value": "{\"disable_avs\":false,\"disable_cvn\":false}"
+        },
+        "connector_feature_data": {
+          "value": "{\"disable_avs\":false,\"disable_cvn\":false}"
+        }
+      }
+    },
+    "setup_recurring": {
+      "grpc_req": {
+        "metadata": {
+          "value": "{\"disable_avs\":false,\"disable_cvn\":false}"
+        },
+        "connector_feature_data": {
+          "value": "{\"disable_avs\":false,\"disable_cvn\":false}"
+        }
+      }
+    },
+    "setup_recurring_with_webhook": {
+      "grpc_req": {
+        "metadata": {
+          "value": "{\"disable_avs\":false,\"disable_cvn\":false}"
+        },
+        "connector_feature_data": {
+          "value": "{\"disable_avs\":false,\"disable_cvn\":false}"
+        }
+      }
+    },
+    "setup_recurring_with_order_context": {
+      "grpc_req": {
+        "metadata": {
+          "value": "{\"disable_avs\":false,\"disable_cvn\":false}"
+        },
+        "connector_feature_data": {
+          "value": "{\"disable_avs\":false,\"disable_cvn\":false}"
         }
       }
     }

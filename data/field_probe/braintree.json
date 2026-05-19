@@ -746,8 +746,22 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: void_post_capture flow for braintree"
+        "status": "supported",
+        "proto_request": {
+          "merchant_reverse_id": "probe_reverse_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://payments.sandbox.braintree-api.com/graphql",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "braintree-version": "2019-01-01",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"query\":\"mutation voidTransaction($input:  ReverseTransactionInput!) { reverseTransaction(input: $input) { clientMutationId reversal { ...  on Transaction { id legacyId amount { value currencyCode } status } } } }\",\"variables\":{\"input\":{\"transactionId\":\"probe_connector_txn_001\"}}}"
+        }
       }
     },
     "setup_recurring": {

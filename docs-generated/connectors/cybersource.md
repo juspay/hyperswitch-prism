@@ -139,7 +139,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py#L274) · [JavaScript](../../examples/cybersource/cybersource.js) · [Kotlin](../../examples/cybersource/cybersource.kt#L126) · [Rust](../../examples/cybersource/cybersource.rs#L339)
+**Examples:** [Python](../../examples/cybersource/cybersource.py#L280) · [JavaScript](../../examples/cybersource/cybersource.js) · [Kotlin](../../examples/cybersource/cybersource.kt#L133) · [Rust](../../examples/cybersource/cybersource.rs#L347)
 
 ### Card Payment (Authorize + Capture)
 
@@ -153,25 +153,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py#L293) · [JavaScript](../../examples/cybersource/cybersource.js) · [Kotlin](../../examples/cybersource/cybersource.kt#L142) · [Rust](../../examples/cybersource/cybersource.rs#L355)
+**Examples:** [Python](../../examples/cybersource/cybersource.py#L299) · [JavaScript](../../examples/cybersource/cybersource.js) · [Kotlin](../../examples/cybersource/cybersource.kt#L149) · [Rust](../../examples/cybersource/cybersource.rs#L363)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py#L318) · [JavaScript](../../examples/cybersource/cybersource.js) · [Kotlin](../../examples/cybersource/cybersource.kt#L164) · [Rust](../../examples/cybersource/cybersource.rs#L378)
+**Examples:** [Python](../../examples/cybersource/cybersource.py#L324) · [JavaScript](../../examples/cybersource/cybersource.js) · [Kotlin](../../examples/cybersource/cybersource.kt#L171) · [Rust](../../examples/cybersource/cybersource.rs#L386)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py#L343) · [JavaScript](../../examples/cybersource/cybersource.js) · [Kotlin](../../examples/cybersource/cybersource.kt#L186) · [Rust](../../examples/cybersource/cybersource.rs#L401)
+**Examples:** [Python](../../examples/cybersource/cybersource.py#L349) · [JavaScript](../../examples/cybersource/cybersource.js) · [Kotlin](../../examples/cybersource/cybersource.kt#L193) · [Rust](../../examples/cybersource/cybersource.rs#L409)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py#L365) · [JavaScript](../../examples/cybersource/cybersource.js) · [Kotlin](../../examples/cybersource/cybersource.kt#L205) · [Rust](../../examples/cybersource/cybersource.rs#L420)
+**Examples:** [Python](../../examples/cybersource/cybersource.py#L371) · [JavaScript](../../examples/cybersource/cybersource.js) · [Kotlin](../../examples/cybersource/cybersource.kt#L212) · [Rust](../../examples/cybersource/cybersource.rs#L428)
 
 ## API Reference
 
@@ -189,6 +189,7 @@ Retrieve current payment status from the connector.
 | [RecurringPaymentService.Revoke](#recurringpaymentservicerevoke) | Mandates | `RecurringPaymentServiceRevokeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
+| [PaymentService.Reverse](#paymentservicereverse) | Payments | `PaymentServiceReverseRequest` |
 | [PaymentService.TokenAuthorize](#paymentservicetokenauthorize) | Payments | `PaymentServiceTokenAuthorizeRequest` |
 | [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
 
@@ -395,7 +396,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L411) · [Kotlin](../../examples/cybersource/cybersource.kt#L258) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L418) · [Kotlin](../../examples/cybersource/cybersource.kt#L265) · [Rust](../../examples/cybersource/cybersource.rs)
 
 #### PaymentService.Capture
 
@@ -406,7 +407,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L420) · [Kotlin](../../examples/cybersource/cybersource.kt#L270) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L427) · [Kotlin](../../examples/cybersource/cybersource.kt#L277) · [Rust](../../examples/cybersource/cybersource.rs)
 
 #### PaymentService.Get
 
@@ -417,7 +418,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L429) · [Kotlin](../../examples/cybersource/cybersource.kt#L280) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L436) · [Kotlin](../../examples/cybersource/cybersource.kt#L287) · [Rust](../../examples/cybersource/cybersource.rs)
 
 #### PaymentService.IncrementalAuthorization
 
@@ -428,7 +429,7 @@ Increase the authorized amount for an existing payment. Enables you to capture a
 | **Request** | `PaymentServiceIncrementalAuthorizationRequest` |
 | **Response** | `PaymentServiceIncrementalAuthorizationResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L438) · [Kotlin](../../examples/cybersource/cybersource.kt#L288) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L445) · [Kotlin](../../examples/cybersource/cybersource.kt#L295) · [Rust](../../examples/cybersource/cybersource.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -439,7 +440,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L465) · [Kotlin](../../examples/cybersource/cybersource.kt#L362) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L472) · [Kotlin](../../examples/cybersource/cybersource.kt#L369) · [Rust](../../examples/cybersource/cybersource.rs)
 
 #### PaymentService.Refund
 
@@ -450,7 +451,18 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L492) · [Kotlin](../../examples/cybersource/cybersource.kt#L437) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L499) · [Kotlin](../../examples/cybersource/cybersource.kt#L444) · [Rust](../../examples/cybersource/cybersource.rs)
+
+#### PaymentService.Reverse
+
+Reverse a captured payment in full. Initiates a complete refund when you need to cancel a settled transaction rather than just an authorization.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceReverseRequest` |
+| **Response** | `PaymentServiceReverseResponse` |
+
+**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L517) · [Kotlin](../../examples/cybersource/cybersource.kt#L466) · [Rust](../../examples/cybersource/cybersource.rs)
 
 #### PaymentService.TokenAuthorize
 
@@ -461,7 +473,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L510) · [Kotlin](../../examples/cybersource/cybersource.kt#L459) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L526) · [Kotlin](../../examples/cybersource/cybersource.kt#L474) · [Rust](../../examples/cybersource/cybersource.rs)
 
 #### PaymentService.Void
 
@@ -472,7 +484,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts) · [Kotlin](../../examples/cybersource/cybersource.kt#L483) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts) · [Kotlin](../../examples/cybersource/cybersource.kt#L498) · [Rust](../../examples/cybersource/cybersource.rs)
 
 ### Refunds
 
@@ -485,7 +497,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L501) · [Kotlin](../../examples/cybersource/cybersource.kt#L447) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L508) · [Kotlin](../../examples/cybersource/cybersource.kt#L454) · [Rust](../../examples/cybersource/cybersource.rs)
 
 ### Mandates
 
@@ -498,7 +510,7 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L474) · [Kotlin](../../examples/cybersource/cybersource.kt#L394) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L481) · [Kotlin](../../examples/cybersource/cybersource.kt#L401) · [Rust](../../examples/cybersource/cybersource.rs)
 
 #### RecurringPaymentService.Revoke
 
@@ -509,7 +521,7 @@ Cancel an existing recurring payment mandate. Stops future automatic charges on 
 | **Request** | `RecurringPaymentServiceRevokeRequest` |
 | **Response** | `RecurringPaymentServiceRevokeResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L483) · [Kotlin](../../examples/cybersource/cybersource.kt#L425) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L490) · [Kotlin](../../examples/cybersource/cybersource.kt#L432) · [Rust](../../examples/cybersource/cybersource.rs)
 
 ### Authentication
 
@@ -522,7 +534,7 @@ Execute 3DS challenge or frictionless verification. Authenticates customer via b
 | **Request** | `PaymentMethodAuthenticationServiceAuthenticateRequest` |
 | **Response** | `PaymentMethodAuthenticationServiceAuthenticateResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L402) · [Kotlin](../../examples/cybersource/cybersource.kt#L223) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L409) · [Kotlin](../../examples/cybersource/cybersource.kt#L230) · [Rust](../../examples/cybersource/cybersource.rs)
 
 #### PaymentMethodAuthenticationService.PostAuthenticate
 
@@ -533,7 +545,7 @@ Validate authentication results with the issuing bank. Processes bank's authenti
 | **Request** | `PaymentMethodAuthenticationServicePostAuthenticateRequest` |
 | **Response** | `PaymentMethodAuthenticationServicePostAuthenticateResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L447) · [Kotlin](../../examples/cybersource/cybersource.kt#L304) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L454) · [Kotlin](../../examples/cybersource/cybersource.kt#L311) · [Rust](../../examples/cybersource/cybersource.rs)
 
 #### PaymentMethodAuthenticationService.PreAuthenticate
 
@@ -544,4 +556,4 @@ Initiate 3DS flow before payment authorization. Collects device data and prepare
 | **Request** | `PaymentMethodAuthenticationServicePreAuthenticateRequest` |
 | **Response** | `PaymentMethodAuthenticationServicePreAuthenticateResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L456) · [Kotlin](../../examples/cybersource/cybersource.kt#L334) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L463) · [Kotlin](../../examples/cybersource/cybersource.kt#L341) · [Rust](../../examples/cybersource/cybersource.rs)

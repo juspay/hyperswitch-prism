@@ -111,6 +111,39 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Redsys<T>
 {
+    fn next_authentication_step(
+        &self,
+        auth_type: common_enums::AuthenticationType,
+        payment_method: common_enums::PaymentMethod,
+        redirect_state: connector_types::RedirectState,
+        completed_step: Option<connector_types::AuthenticationStep>,
+    ) -> connector_types::AuthenticationStep {
+        use connector_types::{AuthenticationStep, RedirectState};
+
+        if auth_type == common_enums::AuthenticationType::ThreeDs
+            && payment_method == common_enums::PaymentMethod::Card
+        {
+            match (redirect_state, completed_step) {
+                (RedirectState::InitialRequest, None) => AuthenticationStep::PreAuthenticate,
+
+                (RedirectState::InitialRequest, Some(AuthenticationStep::PreAuthenticate)) => {
+                    AuthenticationStep::Authenticate
+                }
+
+                (RedirectState::InitialRequest, Some(AuthenticationStep::Authenticate)) => {
+                    AuthenticationStep::Authorize
+                }
+
+                (RedirectState::RedirectWithParams, None) => AuthenticationStep::Authenticate,
+
+                (RedirectState::RedirectWithoutParams, None) => AuthenticationStep::Authorize,
+
+                _ => AuthenticationStep::Authorize,
+            }
+        } else {
+            AuthenticationStep::Authorize
+        }
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -220,6 +253,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: responses::RedsysErrorResponse = res
             .response
@@ -435,8 +469,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        self.build_error_response(res, event_builder)
+        self.build_error_response(res, event_builder, _connector_config)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -627,8 +662,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        self.build_error_response(res, event_builder)
+        self.build_error_response(res, event_builder, _connector_config)
     }
 
     fn get_content_type(&self) -> &'static str {

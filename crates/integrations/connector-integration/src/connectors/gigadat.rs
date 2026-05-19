@@ -261,6 +261,7 @@ macros::macro_connector_implementation!(
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         // Refund has different error format
         let response: gigadat::GigadatRefundErrorResponse = res
@@ -386,6 +387,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: gigadat::GigadatErrorResponse = res
             .response

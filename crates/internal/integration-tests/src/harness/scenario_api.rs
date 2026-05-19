@@ -4206,9 +4206,23 @@ fn template_with_dep_res(template: &str, dependency_res: &[Value]) -> String {
 
 /// Fires the configured pre-request HTTP hook. Fire-and-forget: network
 /// errors are logged (when debug env is set) but do not fail the scenario.
+///
+/// When `hook.url` is `None`, the hook degenerates to a pure sleep of
+/// `timeout_secs` seconds — used to wait out sandbox-side dedup/rate windows.
 #[allow(clippy::print_stdout)]
 fn fire_pre_request_http_hook(hook: &PreRequestHttpHook, dependency_res: &[Value]) {
-    let url = template_with_dep_res(&hook.url, dependency_res);
+    let Some(url_template) = hook.url.as_ref() else {
+        thread::sleep(Duration::from_secs(hook.timeout_secs));
+        if std::env::var("UCS_DEBUG_PRE_REQUEST_HOOK").as_deref() == Ok("1") {
+            println!(
+                "[suite_run_test] pre_request_http → slept {}s (no url)",
+                hook.timeout_secs
+            );
+        }
+        return;
+    };
+
+    let url = template_with_dep_res(url_template, dependency_res);
     let body = hook
         .body
         .as_ref()

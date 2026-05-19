@@ -450,6 +450,7 @@ impl TryFrom<SanlamWebhookEvent> for WebhookDetailsResponse {
                         minor_amount_captured: None,
                         payment_method_update: None,
                         status_code: 200,
+                        sender_payment_instrument_id: None,
                     })
                 } else {
                     Ok(Self {
@@ -469,6 +470,7 @@ impl TryFrom<SanlamWebhookEvent> for WebhookDetailsResponse {
                         error_message: None,
                         error_reason: None,
                         status_code: 200,
+                        sender_payment_instrument_id: None,
                     })
                 }
             }

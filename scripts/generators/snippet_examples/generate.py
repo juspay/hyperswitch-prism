@@ -261,13 +261,13 @@ def _generate_connector_config_typescript(
         fields_str = "\n".join(field_lines)
         return (
             f"    {config_field}: {{\n"
-            f"        {connector_name}: {{\n"
+            f"        {_to_camel(connector_name)}: {{\n"
             f"{fields_str}\n"
             f"        }}\n"
             f"    }},"
         )
     # Fallback — no proto metadata found for this connector
-    return f"    // {config_field}: {{ {connector_name}: {{ apiKey: {{ value: 'YOUR_API_KEY' }} }} }},"
+    return f"    // {config_field}: {{ {_to_camel(connector_name)}: {{ apiKey: {{ value: 'YOUR_API_KEY' }} }} }},"
 
 
 def _generate_connector_config_kotlin(connector_name: str, indent: str = "    ") -> str:

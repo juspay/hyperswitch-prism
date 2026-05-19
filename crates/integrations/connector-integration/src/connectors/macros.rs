@@ -306,6 +306,58 @@ macro_rules! expand_fn_get_request_body {
             }
         }
     };
+
+    // Hand the JSON-serialised request to `preprocess_request_bytes` so the
+    // connector can wrap it (JOSE encrypt, HMAC seal, …) before it hits the
+    // wire. Symmetric to `preprocess_response_bytes`.
+    (
+        $connector: ty,
+        $curl_req: ty,
+        $content_type: ident,
+        $curl_res: ty,
+        $flow: ident,
+        $resource_common_data: ty,
+        $request: ty,
+        $response: ty,
+        preprocess_request
+    ) => {
+        paste::paste! {
+            fn get_request_body(
+                &self,
+                req: &RouterDataV2<$flow, $resource_common_data, $request, $response>,
+            ) -> CustomResult<Option<macro_types::RequestContent>, macro_types::IntegrationError>
+            {
+                use error_stack::ResultExt;
+                let bridge = self.[< $flow:snake >];
+                let input_data = [< $connector RouterData >] {
+                    connector: self.to_owned(),
+                    router_data: req.clone()
+};
+                let request = bridge.request_body(input_data)?;
+                let json_bytes = serde_json::to_vec(&request).change_context(
+                    macro_types::IntegrationError::RequestEncodingFailed {
+                        context: domain_types::errors::IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Verify the connector's request struct serialises to JSON cleanly."
+                                    .to_string(),
+                            ),
+                            doc_url: Some(
+                                "https://docs.hyperswitch.io/prism/architecture/concepts/error-codes"
+                                    .to_string(),
+                            ),
+                            additional_context: Some(
+                                "Failed to JSON-serialise the request body before handing it to \
+                                 `preprocess_request_bytes`."
+                                    .to_string(),
+                            ),
+                        },
+                    },
+                )?;
+                let preprocessed = self.preprocess_request_bytes(req, json_bytes)?;
+                Ok(Some(macro_types::RequestContent::RawBytes(preprocessed)))
+            }
+        }
+    };
 }
 pub(crate) use expand_fn_get_request_body;
 
@@ -410,15 +462,79 @@ macro_rules! expand_default_functions {
             &self,
             res: Response,
             event_builder: Option<&mut events::Event>,
+            connector_config: &macro_types::ConnectorSpecificConfig,
         ) -> CustomResult<ErrorResponse, macro_types::ConnectorError> {
-            self.build_error_response(res, event_builder)
+            self.build_error_response(res, event_builder, connector_config)
         }
     };
 }
 pub(crate) use expand_default_functions;
 
 macro_rules! macro_connector_implementation {
-    // MOST SPECIFIC PATTERNS FIRST - Version with preprocess_response: true and curl_request
+    // Most specific arm: both preprocess hooks enabled. Used by connectors
+    // that wrap the body in a cryptographic envelope on both directions.
+    (
+        connector_default_implementations: [$($function_name: ident), *],
+        connector: $connector: ident,
+        curl_request: $content_type:ident($curl_req: ty),
+        curl_response:$curl_res: ty,
+        flow_name:$flow: ident,
+        resource_common_data:$resource_common_data: ty,
+        flow_request:$request: ty,
+        flow_response:$response: ty,
+        http_method: $http_method_type:ident,
+        preprocess_request: true,
+        preprocess_response: true,
+        generic_type: $generic_type:tt,
+        [$($bounds:tt)*],
+        other_functions: {
+            $($function_def: tt)*
+        }
+    ) => {
+        impl <$generic_type: $($bounds)*>
+            ConnectorIntegrationV2<
+                $flow,
+                $resource_common_data,
+                $request,
+                $response,
+            > for $connector<$generic_type>
+        {
+            fn get_http_method(&self) -> common_utils::request::Method {
+                common_utils::request::Method::$http_method_type
+            }
+            $($function_def)*
+            $(
+                macros::expand_default_functions!(
+                    function: $function_name,
+                    flow_name:$flow,
+                    resource_common_data:$resource_common_data,
+                    flow_request:$request,
+                    flow_response:$response,
+                );
+            )*
+            macros::expand_fn_get_request_body!(
+                $connector,
+                $curl_req,
+                $content_type,
+                $curl_res,
+                $flow,
+                $resource_common_data,
+                $request,
+                $response,
+                preprocess_request
+            );
+            macros::expand_fn_handle_response!(
+                $connector,
+                $flow,
+                $resource_common_data,
+                $request,
+                $response,
+                preprocess_enabled
+            );
+        }
+    };
+
+    // Version with preprocess_response: true and curl_request
     (
         connector_default_implementations: [$($function_name: ident), *],
         connector: $connector: ident,
@@ -1180,7 +1296,7 @@ macro_rules! expand_imports {
             pub(super) use common_utils::{errors::CustomResult, events, request::RequestContent};
             pub(super) use domain_types::{
                 errors::{ConnectorError, IntegrationError},
-                router_data::ErrorResponse,
+                router_data::{ConnectorSpecificConfig, ErrorResponse},
                 router_data_v2::RouterDataV2,
                 router_response_types::Response,
             };

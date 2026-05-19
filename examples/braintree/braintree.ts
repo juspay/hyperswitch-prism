@@ -7,7 +7,7 @@
 
 import { PaymentClient, MerchantAuthenticationClient, PaymentMethodClient, types } from 'hyperswitch-prism';
 const { Environment, Currency } = types;
-export const SUPPORTED_FLOWS = ["capture", "create_client_authentication_token", "get", "refund", "tokenize", "void"];
+export const SUPPORTED_FLOWS = ["capture", "create_client_authentication_token", "get", "refund", "reverse", "tokenize", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -81,6 +81,13 @@ function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServ
     };
 }
 
+function _buildReverseRequest(connectorTransactionId: string): types.IPaymentServiceReverseRequest {
+    return {
+        "merchantReverseId": "probe_reverse_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId
+    };
+}
+
 function _buildTokenizeRequest(): types.IPaymentMethodServiceTokenizeRequest {
     return {
         "amount": {  // Payment Information.
@@ -148,6 +155,15 @@ async function refund(merchantTransactionId: string, config: types.IConnectorCon
     return refundResponse;
 }
 
+// Flow: PaymentService.Reverse
+async function reverse(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const reverseResponse = await paymentClient.reverse(_buildReverseRequest('probe_connector_txn_001'));
+
+    return reverseResponse;
+}
+
 // Flow: PaymentMethodService.Tokenize
 async function tokenize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentMethodClient = new PaymentMethodClient(config);
@@ -169,7 +185,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    capture, createClientAuthenticationToken, get, refund, tokenize, voidPayment, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildGetRequest, _buildRefundRequest, _buildTokenizeRequest, _buildVoidRequest
+    capture, createClientAuthenticationToken, get, refund, reverse, tokenize, voidPayment, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildGetRequest, _buildRefundRequest, _buildReverseRequest, _buildTokenizeRequest, _buildVoidRequest
 };
 
 // CLI runner

@@ -27,7 +27,12 @@ pub struct ScenarioOverridePatch {
 /// response at dep_res index 1).
 #[derive(Debug, Clone, Deserialize)]
 pub struct PreRequestHttpHook {
-    pub url: String,
+    /// When `Some`, fire an HTTP request to the URL before the scenario runs.
+    /// When `None`, the hook degenerates to a pure sleep of `timeout_secs`
+    /// seconds — useful for waiting out sandbox-side dedup/rate windows
+    /// without needing an unreachable URL as a sleep vehicle.
+    #[serde(default)]
+    pub url: Option<String>,
     #[serde(default = "default_http_method")]
     pub method: String,
     #[serde(default)]

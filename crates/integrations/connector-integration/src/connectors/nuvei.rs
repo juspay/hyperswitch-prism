@@ -1,6 +1,7 @@
 use common_utils::{
     consts, errors::CustomResult, events, ext_traits::BytesExt, types::StringMajorUnit,
 };
+use domain_types::router_data::ConnectorSpecificConfig;
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, CreateOrder, PSync, RSync, Refund,
@@ -281,6 +282,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: Result<NuveiErrorResponse, Report<common_utils::errors::ParsingError>> =
             res.response.parse_struct("nuvei ErrorResponse");
