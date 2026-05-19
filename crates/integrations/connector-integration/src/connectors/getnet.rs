@@ -285,15 +285,29 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            use domain_types::payment_method_data::{PaymentMethodData, VoucherData};
+            use domain_types::payment_method_data::{BankTransferData, PaymentMethodData, VoucherData};
 
-            // Boleto is posted to a dedicated subpath with a *different* request schema.
-            // Everything else (card / future wallets / etc.) targets the canonical
-            // `/payments` endpoint. The discriminator must match the one used inside
-            // `TryFrom<...> for GetnetAuthorizeRequest` so URL and body never drift.
+            // Boleto, Pix QR, and the canonical `/payments` endpoint all use
+            // different subpaths with *different* request schemas. The
+            // discriminator must match the one used inside `TryFrom<...> for
+            // GetnetAuthorizeRequest` so URL and body never drift.
+            //
+            // Note: Pix Automatico (`Pix` PM with `setup_future_usage ==
+            // OffSession`) still falls through to `/payments` here, but the
+            // body-side TryFrom returns `NotSupported` before the request fires,
+            // so this branch is unreachable at runtime for that case.
             let path = match &req.request.payment_method_data {
                 PaymentMethodData::Voucher(VoucherData::Boleto(_)) => {
                     "/dpm/payments-gwproxy/v2/payments/boleto"
+                }
+                PaymentMethodData::BankTransfer(bt)
+                    if matches!(bt.as_ref(), BankTransferData::Pix { .. })
+                        && !matches!(
+                            req.request.setup_future_usage,
+                            Some(common_enums::FutureUsage::OffSession)
+                        ) =>
+                {
+                    "/dpm/payments-gwproxy/v2/payments/qrcode/pix"
                 }
                 _ => "/dpm/payments-gwproxy/v2/payments",
             };

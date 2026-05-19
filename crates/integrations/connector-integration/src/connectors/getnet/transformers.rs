@@ -173,6 +173,8 @@ pub enum GetnetPaymentStatus {
     Error,
     Canceled,
     Cancelled,
+    /// Pix QR has elapsed its expiration window without payment — terminal failure.
+    Expired,
     #[serde(rename = "REQUIRES_ACTION")]
     RequiresAction,
     Redirect,
@@ -195,7 +197,8 @@ impl From<&GetnetPaymentStatus> for AttemptStatus {
             | GetnetPaymentStatus::Open => Self::Pending,
             GetnetPaymentStatus::Denied
             | GetnetPaymentStatus::Failed
-            | GetnetPaymentStatus::Error => Self::Failure,
+            | GetnetPaymentStatus::Error
+            | GetnetPaymentStatus::Expired => Self::Failure,
             GetnetPaymentStatus::Canceled | GetnetPaymentStatus::Cancelled => Self::Voided,
             GetnetPaymentStatus::RequiresAction | GetnetPaymentStatus::Redirect => {
                 Self::AuthenticationPending
@@ -214,7 +217,8 @@ impl From<&GetnetPaymentStatus> for RefundStatus {
             | GetnetPaymentStatus::Open => Self::Pending,
             GetnetPaymentStatus::Denied
             | GetnetPaymentStatus::Failed
-            | GetnetPaymentStatus::Error => Self::Failure,
+            | GetnetPaymentStatus::Error
+            | GetnetPaymentStatus::Expired => Self::Failure,
             _ => Self::Pending,
         }
     }
@@ -230,14 +234,18 @@ impl From<&GetnetPaymentStatus> for RefundStatus {
 ///                   (BRL voucher — different shape: no top-level `order_id`,
 ///                   nested `data.order` object, required `data.customer` with `name`,
 ///                   `data.boleto.expiration_date` in DD/MM/YYYY, no installments/transaction_type).
+///   * `Pix`       → posted to `/dpm/payments-gwproxy/v2/payments/qrcode/pix`
+///                   (instant Pix QR — flat shape with `amount`, `currency`, `order_id`,
+///                   `customer_id`, `idempotency_key`; NO `data` wrapper, NO `request_id`).
 ///
 /// The discriminant is the `PaymentMethodData` of the request. `#[serde(untagged)]`
-/// makes serde flatten one of the two shapes onto the wire without an extra wrapper.
+/// makes serde flatten one of the shapes onto the wire without an extra wrapper.
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum GetnetAuthorizeRequest<T: PaymentMethodDataTypes> {
     Standard(GetnetStandardAuthorize<T>),
     Boleto(GetnetBoletoAuthorize),
+    Pix(GetnetPixAuthorize),
 }
 
 #[derive(Debug, Serialize)]
@@ -350,6 +358,21 @@ pub struct GetnetBoletoBlock {
 pub struct GetnetBoletoPayment {
     pub payment_method: String,
     pub payment_id: String,
+}
+
+// ===== PIX-QR REQUEST (different endpoint, flat schema) =====
+//
+// Body posted to `/dpm/payments-gwproxy/v2/payments/qrcode/pix`. Unlike the
+// `Standard` and `Boleto` shapes this is *flat* — no `data` wrapper and no
+// `request_id`. `amount` serializes as a JSON integer (cents) thanks to the
+// `MinorUnit` Serialize impl.
+#[derive(Debug, Serialize)]
+pub struct GetnetPixAuthorize {
+    pub amount: MinorUnit,
+    pub currency: Currency,
+    pub order_id: String,
+    pub customer_id: String,
+    pub idempotency_key: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -756,16 +779,41 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 }));
             }
             PaymentMethodData::BankTransfer(bt) => {
-                // Pix lives behind a separate endpoint that returns 404 on this seller.
-                // Surface a clear runtime error rather than silently sending a request
-                // the gateway will reject as schema-invalid.
                 if matches!(bt.as_ref(), BankTransferData::Pix { .. }) {
-                    return Err(IntegrationError::NotSupported {
-                        message: "Pix / PixAutomatico requires a Globalgetnet seller account with those payment methods enabled. The current sandbox account (country=AR) does not have access. Contact integration support to enable.".to_string(),
-                        connector: "Getnet",
-                        context: Default::default(),
+                    // Pix Automatico (recurring / off-session) is NOT exposed via the
+                    // Globalgetnet Regional API — the Subscriptions API (`/rpy/*`)
+                    // accepts only credit/debit cards, the `/payments/qrcode/<sub>`
+                    // family contains only the instant `pix` variant, and the
+                    // `Combined Payments` docs explicitly state APMs like PIX are not
+                    // supported. Surface a precise runtime error so callers know to
+                    // use the merchant-direct integration instead of debugging seller
+                    // configuration.
+                    if matches!(
+                        item.request.setup_future_usage,
+                        Some(common_enums::FutureUsage::OffSession)
+                    ) {
+                        return Err(IntegrationError::NotSupported {
+                            message: "Pix Automatico is not exposed via the Globalgetnet Regional API. Only Pix QR (instant) is supported. Use the merchant-direct integration if Pix Automatico is required.".to_string(),
+                            connector: "Getnet",
+                            context: Default::default(),
+                        }
+                        .into());
                     }
-                    .into());
+                    // Pix QR (instant) — flat body posted to
+                    // `/dpm/payments-gwproxy/v2/payments/qrcode/pix`.
+                    let customer_id = item
+                        .resource_common_data
+                        .get_customer_id()
+                        .unwrap_or_else(|_| CustomerId::default())
+                        .get_string_repr()
+                        .to_string();
+                    return Ok(Self::Pix(GetnetPixAuthorize {
+                        amount: item.request.minor_amount,
+                        currency: item.request.currency,
+                        order_id: request_ref_id,
+                        customer_id,
+                        idempotency_key: uuid::Uuid::new_v4().to_string(),
+                    }));
                 }
             }
             PaymentMethodData::BankRedirect(BankRedirectData::Bizum {}) => {
@@ -869,33 +917,80 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GetnetAuthorizeResponse {
     pub payment_id: String,
+    #[serde(default)]
     pub order_id: Option<String>,
+    #[serde(default)]
     pub amount: Option<serde_json::Value>,
+    #[serde(default)]
     pub currency: Option<Currency>,
     pub status: GetnetPaymentStatus,
+    #[serde(default)]
     pub payment_method: Option<String>,
+    #[serde(default)]
     pub received_at: Option<String>,
+    #[serde(default)]
     pub transaction_id: Option<String>,
+    #[serde(default)]
     pub authorization_code: Option<String>,
+    #[serde(default)]
     pub brand: Option<GetnetCardBrand>,
     // Pix QR
+    #[serde(default)]
     pub qr_code_value: Option<Secret<String>>,
+    #[serde(default)]
     pub qr_code_url: Option<String>,
     // Bizum / 3DS redirect
+    #[serde(default)]
     pub redirect_url: Option<String>,
     // Legacy single-field boleto fields (older schemas / planned future endpoints).
+    #[serde(default)]
     pub barcode: Option<Secret<String>>,
+    #[serde(default)]
     pub digitable_line: Option<Secret<String>>,
+    #[serde(default)]
     pub download_url: Option<String>,
+    #[serde(default)]
     pub expires_at: Option<String>,
     /// Boleto-endpoint nested response: present when the request was routed to
     /// `/dpm/payments-gwproxy/v2/payments/boleto`. We surface the full object as
     /// `connector_metadata` so downstream callers can render the barcode / PDF link.
+    #[serde(default)]
     pub boleto: Option<GetnetBoletoResponseDetails>,
     // Nested next-step for redirect challenges
+    #[serde(default)]
     pub next_step: Option<GetnetNextStep>,
     // Optional nested payment object that may carry method-specific response
+    #[serde(default)]
     pub payment: Option<serde_json::Value>,
+    /// Pix-QR endpoint nested response: present when the request was routed to
+    /// `/dpm/payments-gwproxy/v2/payments/qrcode/pix`. Carries the EMV BR Code
+    /// `qr_code` ("Copia e Cola"), creation/expiration timestamps, and PSP code.
+    #[serde(default)]
+    pub additional_data: Option<GetnetPixAdditionalData>,
+    /// Pix-QR endpoint accompaniment fields. Present so deserialization doesn't
+    /// fail on unknown-shape responses.
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub is_split: Option<bool>,
+}
+
+/// Pix-QR `additional_data` block. The `qr_code` field is the EMV BR Code
+/// "Copia e Cola" payload (a self-describing payment string, NOT a URL); the
+/// SDK is expected to either render it as a QR code or display it for the
+/// customer to copy/paste into their banking app.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct GetnetPixAdditionalData {
+    #[serde(default)]
+    pub transaction_id: Option<String>,
+    #[serde(default)]
+    pub qr_code: Option<String>,
+    #[serde(default)]
+    pub creation_date_qrcode: Option<String>,
+    #[serde(default)]
+    pub expiration_date_qrcode: Option<String>,
+    #[serde(default)]
+    pub psp_code: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -980,12 +1075,24 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
             status = AttemptStatus::AuthenticationPending;
         }
 
-        // Boleto wins exclusivity here — its response has a dedicated nested `boleto`
-        // object, so we surface the *whole* object as `connector_metadata` (the
-        // digitable line, barcode, PDF link, expiration etc. all live inside it).
-        // Falls back to the generic shape if `boleto` is absent.
+        // Surface method-specific response data via `connector_metadata` so the
+        // SDK can render barcode / digitable line / Pix QR string. Precedence:
+        //   1. Boleto: dedicated nested `boleto` object → serialize as-is.
+        //   2. Pix QR: dedicated `additional_data` block (carries the EMV BR
+        //      Code `qr_code` string + expiration) → serialize as-is.
+        //   3. Generic fallback for legacy / other shapes.
         let connector_metadata = if let Some(boleto_details) = &item.response.boleto {
             serde_json::to_value(boleto_details).ok()
+        } else if let Some(pix_details) = &item.response.additional_data {
+            // The presence of `additional_data.qr_code` is the strongest signal
+            // that this response came from `/payments/qrcode/pix`. Pix QR is not
+            // a redirect flow, so we do not set redirection_data — the SDK is
+            // expected to present the EMV BR Code to the customer.
+            if pix_details.qr_code.is_some() {
+                serde_json::to_value(pix_details).ok()
+            } else {
+                serde_json::to_value(&item.response).ok()
+            }
         } else if item.response.qr_code_value.is_some()
             || item.response.qr_code_url.is_some()
             || item.response.barcode.is_some()
@@ -1116,16 +1223,22 @@ impl TryFrom<ResponseRouterData<GetnetCaptureResponse, Self>>
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GetnetSyncResponse {
     pub payment_id: String,
+    #[serde(default)]
     pub order_id: Option<String>,
     pub status: GetnetPaymentStatus,
+    #[serde(default)]
     pub payment: Option<GetnetSyncPaymentDetails>,
+    #[serde(default)]
     pub records: Option<Vec<GetnetSyncRecord>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GetnetSyncPaymentDetails {
+    #[serde(default)]
     pub payment_method: String,
+    #[serde(default)]
     pub transaction_type: String,
+    #[serde(default)]
     pub card: Option<GetnetSyncCardDetails>,
 }
 
