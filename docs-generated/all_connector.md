@@ -139,7 +139,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Celero](connectors/celero.md) | ✓ | ✓ | ⚠ | ✓ | x | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | x | x | x | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ |
 | [Checkout.com](connectors/checkout.md) | ✓ | ✓ | x | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ✓ | ✓ | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ |
 | [CryptoPay](connectors/cryptopay.md) | ✓ | x | x | x | x | ⚠ | x | ⚠ | ⚠ | x | ⚠ | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | x | x | x | x | x | ⚠ | x | x | ✓ | ✓ |
-| [CyberSource](connectors/cybersource.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ✓ | ⚠ | ? | ✓ | ? | ✓ | ? | ✓ | ✓ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ? | ✓ | ✓ | ✓ | x | ⚠ | x | x | ⚠ | ⚠ |
+| [CyberSource](connectors/cybersource.md) | ✓ | ✓ | ✓ | ✓ | ⚠ | ✓ | ✓ | ⚠ | ? | ✓ | ? | ✓ | ? | ✓ | ✓ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ? | ✓ | ✓ | ✓ | x | ⚠ | x | x | ⚠ | ⚠ |
 | [Datatrans](connectors/datatrans.md) | ✓ | ✓ | ✓ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ |
 | [dLocal](connectors/dlocal.md) | ✓ | ✓ | x | ✓ | x | ✓ | x | ⚠ | ✓ | ⚠ | x | ✓ | ✓ | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | ⚠ | x | x | x | ⚠ | ⚠ | ⚠ | x | ⚠ | ⚠ |
 | [Easebuzz](connectors/easebuzz.md) | ✓ | ⚠ | ⚠ | ✓ | ✓ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ |
