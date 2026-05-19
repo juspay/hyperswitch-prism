@@ -4555,8 +4555,8 @@ message ConnectorSpecificConfig {
     // FINIX = 111
     FinixConfig finix = 124;
 
-    // INTERPAYMENTS = 122
-    InterpaymentsConfig interpayments = 122;
+    // INTERPAYMENTS = 125
+    InterpaymentsConfig interpayments = 125;
   }
 }
 
