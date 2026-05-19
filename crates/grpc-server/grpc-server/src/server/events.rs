@@ -243,6 +243,37 @@ impl EventService for EventServiceImpl {
         )
         .await
     }
+
+    #[tracing::instrument(
+        name = "EventService::notify_connectors",
+        skip(self, _request),
+        fields(
+            name = common_utils::consts::NAME,
+            service_name = tracing::field::Empty,
+            service_method = "NotifyConnectors",
+            request_body = tracing::field::Empty,
+            response_body = tracing::field::Empty,
+            error_message = tracing::field::Empty,
+            merchant_id = tracing::field::Empty,
+            gateway = tracing::field::Empty,
+            request_id = tracing::field::Empty,
+            status_code = tracing::field::Empty,
+            message_ = "Golden Log Line (incoming)",
+            response_time = tracing::field::Empty,
+            tenant_id = tracing::field::Empty,
+            flow = tracing::field::Empty, // to be updated with flow and domain changes 
+            flow_specific_fields.status = tracing::field::Empty,
+        )
+    )]
+    async fn notify_connectors(
+        &self,
+        _request: tonic::Request<grpc_api_types::payments::NotifyConnectorsRequest>,
+    ) -> Result<tonic::Response<grpc_api_types::payments::NotifyConnectorsResponse>, tonic::Status>
+    {
+        Err(tonic::Status::internal(
+            "notify_connectors not yet implemented",
+        ))
+    }
 }
 
 /// For connectors requiring external webhook source verification (e.g., PayPal).
