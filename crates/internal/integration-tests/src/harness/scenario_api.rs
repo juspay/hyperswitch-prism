@@ -363,10 +363,10 @@ fn maybe_execute_browser_automation_for_suite(
     effective_req: &mut Value,
 ) -> Result<(), ScenarioError> {
     // Convention-based Google Pay token generation
-    // If the request has payment_method.google_pay.tokenization_data.encrypted_data.token,
+    // If the request has payment_method.google_pay_sdk.tokenization_data.encrypted_data.token,
     // automatically generate a real token via browser automation
-    if let Some(token_field) =
-        effective_req.pointer("/payment_method/google_pay/tokenization_data/encrypted_data/token")
+    if let Some(token_field) = effective_req
+        .pointer("/payment_method/google_pay_sdk/tokenization_data/encrypted_data/token")
     {
         if token_field.is_string() {
             return execute_google_pay_token_generation(suite, scenario, connector, effective_req);
@@ -971,7 +971,7 @@ fn execute_google_pay_token_generation(
     };
 
     // 9. Inject the token into the request.
-    let target_path = "payment_method.google_pay.tokenization_data.encrypted_data.token";
+    let target_path = "payment_method.google_pay_sdk.tokenization_data.encrypted_data.token";
     if !set_json_path_value(effective_req, target_path, token_value) {
         return Err(ScenarioError::GrpcurlExecution {
             message: format!(

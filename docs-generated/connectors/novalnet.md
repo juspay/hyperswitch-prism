@@ -319,7 +319,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-  "google_pay": {
+  "google_pay_sdk": {
     "type": "CARD",
     "description": "Visa 1111",
     "info": {
@@ -340,7 +340,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-  "apple_pay": {
+  "apple_pay_sdk": {
     "payment_data": {
       "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
     },
