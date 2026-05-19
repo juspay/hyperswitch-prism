@@ -200,9 +200,11 @@ test: build-ffi-lib ## Run all SDK smoke tests (builds FFI, runs sequentially)
 	@echo; echo "═══ Python FFI ═══"; echo
 	@$(MAKE) -C $(REPO_ROOT)/sdk/python test-package CONNECTORS=$(CONNECTORS) 2>&1 
 	@echo; echo "═══ JavaScript FFI ═══"; echo
-	@$(MAKE) -C $(REPO_ROOT)/sdk/javascript test-package CONNECTORS=$(CONNECTORS) 2>&1 
+	@$(MAKE) -C $(REPO_ROOT)/sdk/javascript test-package CONNECTORS=$(CONNECTORS) 2>&1
+	@echo; echo "═══ Go FFI ═══"; echo
+	@$(MAKE) -C $(REPO_ROOT)/sdk/go test-package CONNECTORS=$(CONNECTORS) 2>&1
 	@echo; echo "═══ Kotlin FFI ═══"; echo
-	@$(MAKE) -C $(REPO_ROOT)/sdk/java test-package CONNECTORS=$(CONNECTORS) 2>&1 
+	@$(MAKE) -C $(REPO_ROOT)/sdk/java test-package CONNECTORS=$(CONNECTORS) 2>&1
 	@echo; echo "All SDK smoke tests passed."
 
 test-rust: build-ffi-lib ## Run Rust FFI smoke test
@@ -318,6 +320,9 @@ test-javascript: build-ffi-lib ## Build FFI → Run JavaScript smoke test
 test-java: build-ffi-lib ## Build FFI → Run Java smoke test
 	@$(MAKE) -C $(REPO_ROOT)/sdk/java test-package CONNECTORS=$(CONNECTORS)
 
+test-go: build-ffi-lib ## Build FFI → Run Go smoke test
+	@$(MAKE) -C $(REPO_ROOT)/sdk/go test-package CONNECTORS=$(CONNECTORS)
+
 # ---------------------------------------------------------------------------
 # Test Mock targets - run smoke tests in mock mode (no real HTTP)
 # ---------------------------------------------------------------------------
@@ -329,6 +334,8 @@ test-mock: build-ffi-lib ## Run all SDK smoke tests in MOCK mode (verifies req_t
 	@$(MAKE) -C $(REPO_ROOT)/sdk/python test-package-mock CONNECTORS=$(CONNECTORS) 2>&1
 	@echo; echo "═══ JavaScript FFI (MOCK) ═══"; echo
 	@$(MAKE) -C $(REPO_ROOT)/sdk/javascript test-package-mock CONNECTORS=$(CONNECTORS) 2>&1
+	@echo; echo "═══ Go FFI (MOCK) ═══"; echo
+	@$(MAKE) -C $(REPO_ROOT)/sdk/go test-package-mock CONNECTORS=$(CONNECTORS) 2>&1
 	@echo; echo "═══ Kotlin FFI (MOCK) ═══"; echo
 	@$(MAKE) -C $(REPO_ROOT)/sdk/java test-package-mock CONNECTORS=$(CONNECTORS) 2>&1
 	@echo; echo "All SDK mock smoke tests completed."

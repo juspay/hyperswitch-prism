@@ -662,6 +662,54 @@ def run_kotlin_test_batch(
         return [SDKResult("kotlin", c, "error", error=str(e)[:200]) for c in connectors]
 
 
+def run_go_test_batch(
+    repo_root: Path, connectors: List[str], mock: bool
+) -> List[SDKResult]:
+    """Run Go smoke test for all connectors, parse text output."""
+    smoke_test_dir = repo_root / "sdk" / "go" / "smoke-test"
+
+    creds_src = repo_root / "creds.json"
+    if creds_src.exists():
+        shutil.copy(creds_src, smoke_test_dir / "creds.json")
+
+    cmd = [
+        "go", "run", ".",
+        "--connectors", ",".join(connectors),
+        "--creds-file", "creds.json",
+    ]
+    if mock:
+        cmd.append("--mock")
+
+    env = os.environ.copy()
+    env["FLOWS_JSON_PATH"] = str(repo_root / "sdk" / "generated" / "flows.json")
+    env["NO_COLOR"] = "1"
+
+    try:
+        result = subprocess.run(
+            cmd, cwd=str(smoke_test_dir),
+            capture_output=True, text=True, timeout=300, env=env
+        )
+
+        combined = result.stdout + result.stderr
+        print(f"  [Go debug] rc={result.returncode} stdout={len(result.stdout)} stderr={len(result.stderr)}")
+        print(f"  [Go debug] first 200 chars: {repr(combined[:200])}")
+        print(f"  [Go debug] contains 'Testing': {'--- Testing' in combined}")
+
+        if hasattr(__builtins__, '_VERBOSE') and __builtins__._VERBOSE:
+            if result.stdout:
+                print(f"\n  [Go stdout]\n{result.stdout[-10000:]}")
+            if result.stderr:
+                print(f"\n  [Go stderr]\n{result.stderr[-10000:]}")
+
+        return parse_multi_connector_text_output(
+            "go", connectors, combined
+        )
+    except subprocess.TimeoutExpired:
+        return [SDKResult("go", c, "error", error="timeout") for c in connectors]
+    except Exception as e:
+        return [SDKResult("go", c, "error", error=str(e)[:200]) for c in connectors]
+
+
 def run_rust_test_batch(
     repo_root: Path, connectors: List[str], mock: bool
 ) -> List[SDKResult]:
@@ -918,6 +966,8 @@ def main() -> None:
             return sdk, run_kotlin_test_batch(repo_root, connectors, args.mock)
         elif sdk == "rust":
             return sdk, run_rust_test_batch(repo_root, connectors, args.mock)
+        elif sdk == "go":
+            return sdk, run_go_test_batch(repo_root, connectors, args.mock)
         return sdk, []
 
     with ThreadPoolExecutor(max_workers=len(sdks)) as executor:

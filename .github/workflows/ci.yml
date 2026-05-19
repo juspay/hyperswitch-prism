@@ -610,6 +610,11 @@ jobs:
             sdk/javascript/package-lock.json
             sdk/tests/package.json
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
       - name: Cache pip dependencies
         uses: actions/cache@v4
         with:
@@ -627,6 +632,9 @@ jobs:
         run: |
           cd sdk/javascript && npm ci && cd ../..
           cd sdk/tests && npm install && cd ../..
+
+      - name: Install Go dependencies
+        run: cd sdk/go && go mod download && cd ../..
 
       - uses: Swatinem/rust-cache@v2.7.8
         with:
@@ -706,7 +714,7 @@ jobs:
         shell: bash
         run: |
           echo "Running SDK mock tests (no real HTTP calls)"
-          python3 scripts/run_smoke_tests_parallel.py --mock --connectors stripe --sdks python,javascript,kotlin,rust
+          python3 scripts/run_smoke_tests_parallel.py --mock --connectors stripe --sdks python,javascript,kotlin,rust,go
 
   # ── CI Gate ───────────────────────────────────────────────────────────────
   # Single required status check. Passes if all jobs succeeded, were skipped,
