@@ -1,5 +1,5 @@
 use crate::types::ResponseRouterData;
-use common_enums::CountryAlpha2;
+use common_enums::{CountryAlpha2, CountryAlpha3};
 use common_utils::types::FloatMajorUnit;
 use domain_types::{
     connector_flow::SurchargeCalculate,
@@ -46,7 +46,8 @@ pub struct InterpaymentsErrorResponse {
 #[serde(rename_all = "camelCase")]
 pub struct InterPaymentsSurchargeRequest {
     pub amount: FloatMajorUnit,
-    pub region: CountryAlpha2,
+    pub region: Secret<String>,
+    pub country: CountryAlpha3,
     // Card Bin
     pub nicn: String,
     pub m_tx_id: Option<String>,
@@ -75,7 +76,11 @@ impl
         let amount =
             super::InterPaymentsAmountConvertor::convert(req.request.amount, req.request.currency)?;
 
-        let region = req.request.country.ok_or_else(|| {
+        let region = req.request.postal_code.clone();
+
+        let country = req.request.country.map(|country| {
+            CountryAlpha2::from_alpha2_to_alpha3(country)
+        }).ok_or_else(|| {
             error_stack::report!(IntegrationError::MissingRequiredField {
                 field_name: "country",
                 context: Default::default(),
@@ -85,6 +90,7 @@ impl
         Ok(Self {
             amount,
             region,
+            country,
             nicn: req.request.card_bin.clone(),
             m_tx_id: Some(
                 req.resource_common_data
