@@ -1,0 +1,7 @@
+# FFI binary libraries (built dynamically, not committed)
+*.dylib
+*.so
+*.dll
+
+# Build artifacts
+/uniffi
