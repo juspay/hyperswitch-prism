@@ -582,11 +582,6 @@ fn collect_values_by_removing_signature(value: &Value, signature: &str) -> Vec<S
     }
 }
 
-// ===== PAYOUT UTILITIES =====
-
-/// Format a card expiry year as 4 digits.
-/// If the input is 2 digits (e.g. "30"), prepend "20" (e.g. "2030").
-/// Otherwise returns the year unchanged.
 pub fn format_expiry_year(year: &Secret<String>) -> Secret<String> {
     let y = year.peek();
     if y.len() == 2 {
@@ -596,8 +591,6 @@ pub fn format_expiry_year(year: &Secret<String>) -> Secret<String> {
     }
 }
 
-/// Build a card holder name from an explicit name or from billing first/last names.
-/// Returns `None` if no name information is available.
 pub fn build_card_holder_name(
     explicit_name: &Option<Secret<String>>,
     billing_first_name: Option<Secret<String>>,
@@ -615,10 +608,6 @@ pub fn build_card_holder_name(
     })
 }
 
-
-
-/// Extract payout card details from `PayoutMethodData`.
-/// Returns an error if the data is missing or not a card.
 pub fn get_payout_card(
     payout_method_data: &Option<PayoutMethodData>,
 ) -> Result<&CardPayout, Report<IntegrationError>> {
@@ -637,7 +626,6 @@ pub fn get_payout_card(
     }
 }
 
-/// Map a card network to its Cybersource-style 3-digit type code.
 pub fn card_network_to_type_code(network: &common_enums::CardNetwork) -> Option<&'static str> {
     match network {
         common_enums::CardNetwork::Visa => Some("001"),
@@ -653,7 +641,6 @@ pub fn card_network_to_type_code(network: &common_enums::CardNetwork) -> Option<
     }
 }
 
-/// Truncate a secret string to a maximum length.
 pub fn truncate_secret_string(value: &Secret<String>, max_len: usize) -> Secret<String> {
     let s = value.peek();
     if s.len() > max_len {
@@ -663,7 +650,6 @@ pub fn truncate_secret_string(value: &Secret<String>, max_len: usize) -> Secret<
     }
 }
 
-/// Build an [`ErrorResponse`] from connector error fields.
 pub fn build_error_response(
     code: String,
     message: String,

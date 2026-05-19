@@ -320,8 +320,6 @@ pub struct WorldpayxmlOrderInquiry {
 pub type WorldpayxmlRSyncRequest = WorldpayxmlPSyncRequest;
 
 // ===== PAYOUT REQUESTS =====
-// PoFulfill in hyperswitch maps to PayoutTransfer in prism — sends a <submit><order>
-// with a <FAST_ACCESS_SSL> payment-method element. Card-only.
 
 #[derive(Debug, Serialize)]
 #[serde(rename = "paymentService")]
@@ -364,9 +362,6 @@ pub struct WorldpayxmlPayoutPaymentDetails {
 
 #[derive(Debug, Serialize)]
 pub enum WorldpayxmlPayoutPaymentMethod {
-    // Worldpay's FastAccess Disbursement payment-method element name is
-    // `FF_DISBURSE-SSL` (mixed underscore + hyphen, not "FAST_ACCESS_SSL").
-    // Verified against Worldpay DTD via hyperswitch reference.
     #[serde(rename = "FF_DISBURSE-SSL")]
     FastAccessSsl(WorldpayxmlFastAccess),
 }
@@ -384,10 +379,6 @@ pub struct WorldpayxmlFastAccess {
 pub struct WorldpayxmlPayoutRecipient {
     #[serde(rename = "paymentInstrument")]
     pub payment_instrument: WorldpayxmlPayoutPaymentInstrument,
-    // Recipient's address is the inner address shape directly. Wrapping it in
-    // WorldpayxmlBillingAddress (as the payments-side billingAddress does) would
-    // emit a nested <address><address>...</address></address> and trip the
-    // Worldpay DTD validator.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<WorldpayxmlAddress>,
 }
@@ -453,8 +444,6 @@ pub struct WorldpayxmlPayoutVoidModify {
 pub struct WorldpayxmlPayoutCancelOrderModification {
     #[serde(rename = "@orderCode")]
     pub order_code: String,
-    // Worldpay XML requires <cancelRefund/> here (not <cancel/>) for fulfilled-payout
-    // reversal. <cancel/> would be a payments-side void, which is the wrong semantic.
     #[serde(rename = "cancelRefund")]
     pub cancel_refund: WorldpayxmlCancelRefund,
 }

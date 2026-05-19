@@ -11,11 +11,9 @@ use domain_types::{
         RefundsResponseData, ResponseId,
     },
     payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes},
-    payouts::{
-        payouts_types::{
-            PayoutFlowData, PayoutGetRequest, PayoutGetResponse, PayoutTransferRequest,
-            PayoutTransferResponse, PayoutVoidRequest, PayoutVoidResponse,
-        },
+    payouts::payouts_types::{
+        PayoutFlowData, PayoutGetRequest, PayoutGetResponse, PayoutTransferRequest,
+        PayoutTransferResponse, PayoutVoidRequest, PayoutVoidResponse,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -1063,17 +1061,17 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
                 let response = xml_response.as_ref();
 
                 // Check for top-level error first
-        if let Some(error) = &response.reply.error {
-            return Ok(Self {
-                response: Err(crate::utils::build_error_response(
-                    error.code.clone(),
-                    error.message.clone(),
-                    item.http_code,
-                    None,
-                )),
-                ..router_data.clone()
-            });
-        }
+                if let Some(error) = &response.reply.error {
+                    return Ok(Self {
+                        response: Err(crate::utils::build_error_response(
+                            error.code.clone(),
+                            error.message.clone(),
+                            item.http_code,
+                            None,
+                        )),
+                        ..router_data.clone()
+                    });
+                }
 
                 // Extract order status
                 let order_status = response.reply.order_status.as_ref().ok_or(

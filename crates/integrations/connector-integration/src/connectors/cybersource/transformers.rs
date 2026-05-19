@@ -34,9 +34,7 @@ use domain_types::{
         GooglePayDecryptedData, GooglePayWalletData, NetworkTokenData, PaymentMethodData,
         PaymentMethodDataTypes, RawCardNumber, SamsungPayWalletData, WalletData,
     },
-    payouts::{
-        payouts_types::{PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse},
-    },
+    payouts::payouts_types::{PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse},
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorSpecificConfig, ErrorResponse,
         PazeDecryptedData,
