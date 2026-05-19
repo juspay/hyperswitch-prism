@@ -14,7 +14,7 @@ GENERATED_GO     := $(SDK_ROOT)/generated
 UNIFFI_GO        := $(SDK_ROOT)/generated/uniffi
 PAYMENTS_PKG     := $(SDK_ROOT)/payments
 BINDGEN_GO       := $(HOME)/.cargo/bin/uniffi-bindgen-go
-PROTOC_GEN_GO    := $(shell which protoc-gen-go 2>/dev/null || echo $(GOPATH)/bin/protoc-gen-go || echo $(HOME)/go/bin/protoc-gen-go)
+PROTOC_GEN_GO    := $(shell which protoc-gen-go 2>/dev/null || echo $(HOME)/go/bin/protoc-gen-go)
 
 # Proto excludes (same as Java SDK)
 PROTO_EXCLUDES := health_check.proto composite_payment.proto composite_services.proto
@@ -49,6 +49,7 @@ generate-proto:
 	@mkdir -p $(GENERATED_GO)/payments
 	@cd $(REPO_ROOT) && protoc \
 		-I $(PROTO_DIR) \
+		--plugin=protoc-gen-go=$(PROTOC_GEN_GO) \
 		--go_out=$(GENERATED_GO) \
 		--go_opt=paths=source_relative \
 		$(addprefix $(PROTO_DIR)/,$(PROTO_FILES_GO))

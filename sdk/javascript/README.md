@@ -5,7 +5,7 @@
 A high-performance, type-safe Node.js SDK for payment processing through Hyperswitch Prism. Connect to 100+ payment processors through a single, unified API.
 
 [![npm version](https://badge.fury.io/js/hyperswitch-prism.svg)](https://www.npmjs.com/package/hyperswitch-prism)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 ---
 

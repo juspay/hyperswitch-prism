@@ -5,7 +5,7 @@
 A high-performance, type-safe Java/Kotlin SDK for payment processing through Hyperswitch Prism. Connect to 100+ payment processors through a single, unified API.
 
 [![Maven Central](https://img.shields.io/maven-central/v/io.hyperswitch/prism.svg)](https://central.sonatype.com/artifact/io.hyperswitch/prism)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 ---
 
