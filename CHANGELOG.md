@@ -19,6 +19,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.05.19.1
+
+### Features
+
+- **connector:**
+  - Implement Reverse (VoidPostCapture) for fiservemea ([#1301](https://github.com/juspay/connector-service/pull/1301)) ([`bdb37e0`](https://github.com/juspay/connector-service/commit/bdb37e04f56154acedae77cd4c0ce051e6fa5a2a))
+  - Implement Reverse (VoidPostCapture) for adyen ([#1277](https://github.com/juspay/connector-service/pull/1277)) ([`4656d5c`](https://github.com/juspay/connector-service/commit/4656d5c22c0ceada5004a8cb366e0577330961f8))
+  - Implement Reverse (VoidPostCapture) for cybersource ([#1278](https://github.com/juspay/connector-service/pull/1278)) ([`0d48651`](https://github.com/juspay/connector-service/commit/0d48651caca2d64514fc31add3dcc208493e9e7f))
+
+### Refactors
+
+- **proto:** Group wallet payment methods by flow type ([#1356](https://github.com/juspay/connector-service/pull/1356)) ([`df6b261`](https://github.com/juspay/connector-service/commit/df6b2611c8227a2e43f2d8c0c2b9f99c0c567151))
+
+### Testing
+
+- **nuvei:** Harden integration test overrides ([#1299](https://github.com/juspay/connector-service/pull/1299)) ([`3286746`](https://github.com/juspay/connector-service/commit/32867461eaabdbfa58810404d00c7c064eb9ec7c))
+
+**Full Changelog:** [`2026.05.19.0...2026.05.19.1`](https://github.com/juspay/connector-service/compare/2026.05.19.0...2026.05.19.1)
+
+- - -
+
 ## 2026.05.19.0
 
 ### Features
