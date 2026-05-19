@@ -2,6 +2,3 @@
 *.dylib
 *.so
 *.dll
-
-# Build artifacts
-/uniffi

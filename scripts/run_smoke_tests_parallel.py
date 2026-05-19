@@ -409,7 +409,7 @@ def parse_text_output(sdk: str, connector: str, output: str) -> SDKResult:
                     # Check for pass/fail status - but ignore status messages like "Status: MANDATE_REVOKE_FAILED"
                     # which contain "FAILED" but aren't actual test failures
                     is_status_message = 'status:' in rest.lower()
-                    
+
                     if 'PASSED' in rest or 'MOCK VERIFIED' in rest:
                         flows.append(FlowResult(flow_name, "passed"))
                     elif 'SKIPPED' in rest:
@@ -426,6 +426,16 @@ def parse_text_output(sdk: str, connector: str, output: str) -> SDKResult:
                         elif 'FAILED' in next_line and 'status:' not in next_line.lower():
                             detail = next_line.split('—', 1)[1].strip() if '—' in next_line else None
                             flows.append(FlowResult(flow_name, "failed", detail))
+                elif 'PASSED' in rest or 'SKIPPED' in rest or 'FAILED' in rest or 'MOCK VERIFIED' in rest:
+                    # Go SDK format: [flow] PASSED / [flow] FAILED / [flow] SKIPPED
+                    # (no "running..." keyword)
+                    if 'PASSED' in rest or 'MOCK VERIFIED' in rest:
+                        flows.append(FlowResult(flow_name, "passed"))
+                    elif 'SKIPPED' in rest:
+                        flows.append(FlowResult(flow_name, "skipped"))
+                    elif 'FAILED' in rest and 'status:' not in rest.lower():
+                        detail = rest.split('—', 1)[1].strip() if '—' in rest else None
+                        flows.append(FlowResult(flow_name, "failed", detail))
 
         elif 'passed' in line_stripped.lower() and 'skipped' in line_stripped.lower() and (
             'passed,' in line_stripped.lower() or 'passed)' in line_stripped.lower()
@@ -691,9 +701,6 @@ def run_go_test_batch(
         )
 
         combined = result.stdout + result.stderr
-        print(f"  [Go debug] rc={result.returncode} stdout={len(result.stdout)} stderr={len(result.stderr)}")
-        print(f"  [Go debug] first 200 chars: {repr(combined[:200])}")
-        print(f"  [Go debug] contains 'Testing': {'--- Testing' in combined}")
 
         if hasattr(__builtins__, '_VERBOSE') and __builtins__._VERBOSE:
             if result.stdout:
