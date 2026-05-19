@@ -5,15 +5,15 @@ use domain_types::errors::{ConnectorError, IntegrationError};
 use domain_types::router_request_types::AuthenticationData;
 use domain_types::{
     connector_flow::{
-        Authenticate, Authorize, Capture, PSync, PostAuthenticate, PreAuthenticate, RSync, Refund,
-        ServerAuthenticationToken, Void,
+        Authenticate, Authorize, Capture, PSync, PaymentMethodToken, PostAuthenticate,
+        PreAuthenticate, RSync, Refund, ServerAuthenticationToken, Void,
     },
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsPostAuthenticateData, PaymentsPreAuthenticateData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData,
+        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
+        PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        ResponseId, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
     payment_method_data::{
         BankRedirectData, BankTransferData, PaymentMethodData, PaymentMethodDataTypes,
@@ -395,9 +395,24 @@ pub struct GetnetPixAuthorize {
     pub idempotency_key: String,
 }
 
+/// Card block sent on the `/payments` standard-shape Authorize request.
+///
+/// Two mutually-exclusive ways to identify the PAN:
+///   * `number` — raw PAN, sent when the caller has not pre-tokenized
+///     the card via the Cofre `PaymentMethodToken` flow.
+///   * `number_token` — opaque 128-char hex token returned by Cofre
+///     (`POST /dpm/cofre-gw-proxy/v1/tokens/card`). Used when UCS stashed
+///     the token in `PaymentFlowData.session_token` on a previous leg.
+///
+/// Both are `Option`-wrapped with `skip_serializing_if = "Option::is_none"` so
+/// the on-wire JSON contains *exactly one* of the two fields and the legacy
+/// no-token shape is byte-identical to before.
 #[derive(Debug, Serialize)]
 pub struct GetnetCard<T: PaymentMethodDataTypes> {
-    pub number: RawCardNumber<T>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub number: Option<RawCardNumber<T>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub number_token: Option<String>,
     pub expiration_month: Secret<String>,
     pub expiration_year: Secret<String>,
     pub cardholder_name: Secret<String>,
@@ -865,8 +880,19 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                         field_name: "payment_method.card.card_holder_name",
                         context: Default::default(),
                     })?;
+                // Prefer the Cofre token when present. UCS stashes the token
+                // returned by `PaymentMethodToken` on `session_token`; when set,
+                // we send `number_token` instead of the raw PAN. Globalgetnet
+                // rejects bodies that include `number` and `number_token` (or
+                // `bin`) together, so this is strictly one-or-the-other.
+                let (number, number_token) =
+                    match item.resource_common_data.get_session_token().ok() {
+                        Some(token) => (None, Some(token)),
+                        None => (Some(card_data.card_number.clone()), None),
+                    };
                 Some(GetnetCard {
-                    number: card_data.card_number.clone(),
+                    number,
+                    number_token,
                     expiration_month: card_data.card_exp_month.clone(),
                     expiration_year,
                     cardholder_name,
@@ -2172,6 +2198,100 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 status,
                 ..item.router_data.resource_common_data
             },
+            ..item.router_data
+        })
+    }
+}
+
+// =====================================================================
+// PAYMENT METHOD TOKEN (Cofre tokenization)
+// =====================================================================
+//
+// Globalgetnet's Cofre service exchanges a raw PAN for an opaque,
+// reusable token usable on subsequent `/payments` and `/security-gwproxy`
+// calls. Endpoint: `POST /dpm/cofre-gw-proxy/v1/tokens/card`.
+//
+// The wire request is intentionally tiny — *only* the PAN — and the
+// response is `{ "number_token": "<128 hex chars>" }`. The token then
+// rides back to the merchant via `PaymentFlowData.session_token`, which
+// the Authorize TryFrom reads to switch the `data.payment.card` block
+// from `number` to `number_token` (see `GetnetCard<T>`).
+
+#[derive(Debug, Serialize)]
+pub struct GetnetTokenizeRequest<T: PaymentMethodDataTypes> {
+    /// Raw PAN. Serializes with the same convention as every other
+    /// `card_number` field in this transformer (`RawCardNumber<T>`).
+    pub card_number: RawCardNumber<T>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct GetnetTokenizeResponse {
+    /// 128-char hex token returned by Cofre. Reused by Authorize as
+    /// `data.payment.card.number_token`.
+    pub number_token: String,
+}
+
+impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        GetnetRouterData<
+            RouterDataV2<
+                PaymentMethodToken,
+                PaymentFlowData,
+                PaymentMethodTokenizationData<T>,
+                PaymentMethodTokenResponse,
+            >,
+            T,
+        >,
+    > for GetnetTokenizeRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        wrapper: GetnetRouterData<
+            RouterDataV2<
+                PaymentMethodToken,
+                PaymentFlowData,
+                PaymentMethodTokenizationData<T>,
+                PaymentMethodTokenResponse,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let item = &wrapper.router_data;
+        match &item.request.payment_method_data {
+            PaymentMethodData::Card(card_data) => Ok(Self {
+                card_number: card_data.card_number.clone(),
+            }),
+            _ => Err(IntegrationError::NotSupported {
+                message: "Only card tokenization supported".to_string(),
+                connector: "Getnet",
+                context: Default::default(),
+            }
+            .into()),
+        }
+    }
+}
+
+impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<GetnetTokenizeResponse, Self>>
+    for RouterDataV2<
+        PaymentMethodToken,
+        PaymentFlowData,
+        PaymentMethodTokenizationData<T>,
+        PaymentMethodTokenResponse,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<GetnetTokenizeResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        // PaymentMethodToken doesn't drive an AttemptStatus transition;
+        // leave `resource_common_data.status` untouched.
+        Ok(Self {
+            response: Ok(PaymentMethodTokenResponse {
+                token: item.response.number_token,
+            }),
             ..item.router_data
         })
     }

@@ -2132,6 +2132,31 @@ impl PaymentMethod {
             PaymentFlowData::foreign_try_from((request.clone(), connectors, metadata))
                 .map_err(|e| e.into_grpc_status())?;
 
+        // Thread the OAuth access_token from `state.access_token` into `PaymentFlowData`
+        // when the connector declares it needs one — mirrors the Authorize path so that
+        // OAuth-gated tokenize endpoints (e.g. Globalgetnet's Cofre) work consistently.
+        let payment_flow_data = {
+            let should_do_access_token =
+                connector_data.connector.should_do_access_token(None);
+            if should_do_access_token {
+                let access_token = request
+                    .state
+                    .as_ref()
+                    .and_then(|state| state.access_token.as_ref())
+                    .ok_or_else(|| {
+                        tonic::Status::invalid_argument(
+                            "Connector requires an access token; provide it via state.access_token",
+                        )
+                    })?;
+                let access_token_data =
+                    ServerAuthenticationTokenResponseData::foreign_try_from(access_token)
+                        .into_grpc_status()?;
+                payment_flow_data.set_access_token(Some(access_token_data))
+            } else {
+                payment_flow_data
+            }
+        };
+
         // Get payment method token request data
 
         let payment_method_token_request_data =
