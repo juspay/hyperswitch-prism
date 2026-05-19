@@ -1256,20 +1256,20 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlVoidPCResponse, Self>>
         let response = &item.response;
         let router_data = &item.router_data;
 
-        // Check for top-level error first
+        // Map a top-level <error> reply to PostCaptureVoidResponse with Failed status,
+        // surfacing the connector's error message via `description` (per WorldpayVantiv /
+        // Payload convention for VoidPC).
         if let Some(error) = &response.reply.error {
+            let payments_response_data = PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status: common_enums::PostCaptureVoidStatus::Failed,
+                connector_reference_id: Some(
+                    router_data.request.connector_transaction_id.clone(),
+                ),
+                description: Some(error.message.clone()),
+                status_code: item.http_code,
+            };
             return Ok(Self {
-                response: Err(ErrorResponse {
-                    code: error.code.clone(),
-                    message: error.message.clone(),
-                    reason: Some(error.message.clone()),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
-                }),
+                response: Ok(payments_response_data),
                 ..router_data.clone()
             });
         }
