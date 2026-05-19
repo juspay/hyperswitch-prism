@@ -18,9 +18,15 @@ SUPPORTED_FLOWS = ["capture", "create_customer", "get", "recurring_charge", "ref
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    # connector_config=payment_pb2.ConnectorSpecificConfig(
-    #     finix=payment_pb2.FinixConfig(api_key=...),
-    # ),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        finix=payment_pb2.FinixConfig(
+            finix_user_name=payment_methods_pb2.SecretString(value="YOUR_FINIX_USER_NAME"),
+            finix_password=payment_methods_pb2.SecretString(value="YOUR_FINIX_PASSWORD"),
+            merchant_identity_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_IDENTITY_ID"),
+            merchant_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ID"),
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
 
 

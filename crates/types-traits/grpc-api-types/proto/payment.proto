@@ -3644,6 +3644,13 @@ message BamboraConfig {
   optional string base_url = 50;
 }
 
+message BamboraapacConfig {
+  SecretString username = 1;
+  SecretString password = 2;
+  SecretString account_number = 3;
+  optional string base_url = 50;
+}
+
 message CalidaConfig {
   SecretString api_key = 1;
   optional string base_url = 50;
@@ -3783,6 +3790,14 @@ message DatatransConfig {
 message FiservemeaConfig {
   SecretString api_key = 1;
   SecretString api_secret = 2;
+  optional string base_url = 50;
+}
+
+message FinixConfig {
+  SecretString finix_user_name = 1;
+  SecretString finix_password = 2;
+  SecretString merchant_identity_id = 3;
+  SecretString merchant_id = 4;
   optional string base_url = 50;
 }
 
@@ -4140,6 +4155,12 @@ message PayloadCurrencyAuthData {
 
 message PayloadConfig {
   map<string, PayloadCurrencyAuthData> auth_key_map = 1;
+  optional string base_url = 50;
+}
+
+message PlacetopayConfig {
+  SecretString login = 1;
+  SecretString tran_key = 2;
   optional string base_url = 50;
 }
 
@@ -4518,6 +4539,15 @@ message ConnectorSpecificConfig {
 
     // TWOC_TWOP_PACO = 121
     TwocTwopPacoConfig twoc_twop_paco = 121;
+
+    // BAMBORAAPAC = 7
+    BamboraapacConfig bamboraapac = 122;
+
+    // PLACETOPAY = 65
+    PlacetopayConfig placetopay = 123;
+
+    // FINIX = 111
+    FinixConfig finix = 124;
   }
 }
 

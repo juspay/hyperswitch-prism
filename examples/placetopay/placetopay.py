@@ -14,9 +14,13 @@ SUPPORTED_FLOWS = ["authorize", "capture", "get", "proxy_authorize", "refund", "
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    # connector_config=payment_pb2.ConnectorSpecificConfig(
-    #     placetopay=payment_pb2.PlacetopayConfig(api_key=...),
-    # ),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        placetopay=payment_pb2.PlacetopayConfig(
+            login=payment_methods_pb2.SecretString(value="YOUR_LOGIN"),
+            tran_key=payment_methods_pb2.SecretString(value="YOUR_TRAN_KEY"),
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
 
 
