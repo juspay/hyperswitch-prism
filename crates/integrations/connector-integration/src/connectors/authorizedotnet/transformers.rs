@@ -1399,14 +1399,12 @@ impl<F> TryFrom<ResponseRouterData<AuthorizedotnetVoidPCResponse, Self>>
             http_code,
         } = value;
         let inner = &response.0;
-        let raw_connector_response = router_data
-            .resource_common_data
-            .raw_connector_response
-            .clone();
 
         // VoidPC carries its outcome through PostCaptureVoidStatus, so map the
         // Authorize.net response directly instead of going through the generic
-        // AttemptStatus-deriving helper used by the other payment flows.
+        // AttemptStatus-deriving helper used by the other payment flows. Failures
+        // are surfaced as PostCaptureVoidStatus::Failed with the error text in
+        // `description`, rather than as ErrorResponse.
         let connector_response_data = match &inner.transaction_response {
             Some(TransactionResponse::AuthorizedotnetTransactionResponse(trans_res)) => {
                 convert_to_additional_payment_method_connector_response(trans_res).map(
@@ -1421,15 +1419,13 @@ impl<F> TryFrom<ResponseRouterData<AuthorizedotnetVoidPCResponse, Self>>
         let response_description = inner.messages.message.first().map(|m| m.text.clone());
 
         let response_result = if inner.messages.result_code == ResultCode::Error {
-            let (error_code, error_message) = extract_error_details(inner, None);
-            Err(create_error_response(
-                http_code,
-                error_code,
-                error_message,
-                AttemptStatus::VoidFailed,
-                None,
-                raw_connector_response,
-            ))
+            let (_error_code, error_message) = extract_error_details(inner, None);
+            Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status: common_enums::PostCaptureVoidStatus::Failed,
+                connector_reference_id: None,
+                description: Some(error_message),
+                status_code: http_code,
+            })
         } else {
             match &inner.transaction_response {
                 Some(TransactionResponse::AuthorizedotnetTransactionResponse(trans_res)) => {
@@ -1455,29 +1451,26 @@ impl<F> TryFrom<ResponseRouterData<AuthorizedotnetVoidPCResponse, Self>>
                         }
                         AuthorizedotnetPaymentStatus::Declined
                         | AuthorizedotnetPaymentStatus::Error => {
-                            let (error_code, error_message) =
+                            let (_error_code, error_message) =
                                 extract_error_details(inner, Some(trans_res));
-                            Err(create_error_response(
-                                http_code,
-                                error_code,
-                                error_message,
-                                AttemptStatus::VoidFailed,
-                                Some(trans_res.transaction_id.clone()),
-                                raw_connector_response,
-                            ))
+                            Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                                post_capture_void_status:
+                                    common_enums::PostCaptureVoidStatus::Failed,
+                                connector_reference_id: Some(trans_res.transaction_id.clone()),
+                                description: Some(error_message),
+                                status_code: http_code,
+                            })
                         }
                     }
                 }
                 Some(TransactionResponse::AuthorizedotnetTransactionResponseError(_)) => {
-                    let (error_code, error_message) = extract_error_details(inner, None);
-                    Err(create_error_response(
-                        http_code,
-                        error_code,
-                        error_message,
-                        AttemptStatus::VoidFailed,
-                        None,
-                        raw_connector_response,
-                    ))
+                    let (_error_code, error_message) = extract_error_details(inner, None);
+                    Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                        post_capture_void_status: common_enums::PostCaptureVoidStatus::Failed,
+                        connector_reference_id: None,
+                        description: Some(error_message),
+                        status_code: http_code,
+                    })
                 }
                 None => Ok(PaymentsResponseData::PostCaptureVoidResponse {
                     post_capture_void_status: common_enums::PostCaptureVoidStatus::Succeeded,
