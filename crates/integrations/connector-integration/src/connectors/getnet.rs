@@ -285,7 +285,19 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}/dpm/payments-gwproxy/v2/payments", self.connector_base_url_payments(req)))
+            use domain_types::payment_method_data::{PaymentMethodData, VoucherData};
+
+            // Boleto is posted to a dedicated subpath with a *different* request schema.
+            // Everything else (card / future wallets / etc.) targets the canonical
+            // `/payments` endpoint. The discriminator must match the one used inside
+            // `TryFrom<...> for GetnetAuthorizeRequest` so URL and body never drift.
+            let path = match &req.request.payment_method_data {
+                PaymentMethodData::Voucher(VoucherData::Boleto(_)) => {
+                    "/dpm/payments-gwproxy/v2/payments/boleto"
+                }
+                _ => "/dpm/payments-gwproxy/v2/payments",
+            };
+            Ok(format!("{}{}", self.connector_base_url_payments(req), path))
         }
     }
 );
