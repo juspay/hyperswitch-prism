@@ -288,10 +288,16 @@ where
                     }
 
                     let error_response = match body.status_code {
-                        500..=511 => {
-                            connector.get_5xx_error_response(body.clone(), event.as_deref_mut())?
-                        }
-                        _ => connector.get_error_response_v2(body.clone(), event.as_deref_mut())?,
+                        500..=511 => connector.get_5xx_error_response(
+                            body.clone(),
+                            event.as_deref_mut(),
+                            &updated_router_data.connector_config,
+                        )?,
+                        _ => connector.get_error_response_v2(
+                            body.clone(),
+                            event.as_deref_mut(),
+                            &updated_router_data.connector_config,
+                        )?,
                     };
                     if let Some(evt) = event {
                         evt.set_error_response(&error_response);
@@ -349,6 +355,7 @@ pub struct EventProcessingParams<'a> {
     pub resource_id: &'a Option<String>,
     pub shadow_mode: bool,
     pub tenant_id: &'a str,
+    pub merchant_id: &'a str,
     pub return_raw_connector_data: bool,
 }
 
@@ -444,6 +451,10 @@ where
                     req.add_header(
                         consts::X_CONNECTOR_NAME,
                         Maskable::Masked(Secret::new(event_params.connector_name.to_string())),
+                    );
+                    req.add_header(
+                        consts::X_MERCHANT_ID,
+                        Maskable::Masked(Secret::new(event_params.merchant_id.to_string())),
                     );
                 }
                 req

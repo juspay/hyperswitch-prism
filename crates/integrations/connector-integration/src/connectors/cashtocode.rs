@@ -136,6 +136,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_reason: None,
             network_txn_id: None,
             payment_method_update: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -261,6 +262,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: cashtocode::CashtocodeErrorResponse = res
             .response

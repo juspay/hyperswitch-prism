@@ -1,4 +1,17 @@
 {
+  "PaymentService/Authorize": {
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_exp_year": {
+              "value": "98"
+            }
+          }
+        }
+      }
+    }
+  },
   "PaymentService/Void": {
     "void_authorized_payment": {
       "grpc_req": {

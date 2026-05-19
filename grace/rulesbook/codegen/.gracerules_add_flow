@@ -88,6 +88,19 @@ This workflow adds specific flows to an existing connector implementation.
 **IF CONNECTOR EXISTS:**
 - Skip Phase 0 and proceed directly to Phase 1
 
+### PHASE 1.0: TECH SPEC DISCOVERY & RECOVERY (MANDATORY)
+
+The tech spec at `grace/rulesbook/codegen/references/{connector_name}/technical_specification.md` is a hard dependency for every downstream subagent (Prerequisite Validation, Flow Implementation). If the file is missing at this point, recover via the Links → Tech Spec dependency chain — do NOT hard-stop on the PHASE 2 availability check.
+
+Procedure:
+
+1. **Check** for the spec at `grace/rulesbook/codegen/references/{connector_name}/technical_specification.md`. If present, proceed to PHASE 1 below.
+2. **If missing — recover**:
+   - **(Re-)spawn the Links Agent** via the Task tool with workflow file `grace/workflow/2.1_links.md`. Skip this step if `data/integration-source-links.json` already has a non-empty array under `"{Connector_Name}"` or `"{connector_name}"`.
+   - **(Re-)spawn the Tech Spec Agent** via the Task tool with workflow file `grace/workflow/2.2_techspec.md`. The Tech Spec Agent picks Path A (`grace techspec` CLI when `grace/.env` is configured) or Path B (Claude-native, following `.skills/generate-tech-spec/references/techspec-generation-native.md`) based on its internal environment check.
+   - **Re-check** the canonical path.
+3. **Hard stop** only if the spec is still missing after recovery. Capture the failure reason from whichever recovery subagent returned FAILED so the report names the root cause.
+
 ### PHASE 1: TECH SPEC READING & CONNECTOR STATE ANALYSIS
 1. **MANDATORY**: Read tech spec from grace/rulesbook/codegen/references/{connector_name}/technical_specification.md
 2. **MANDATORY**: Extract flow-specific requirements from tech spec
@@ -99,7 +112,7 @@ This workflow adds specific flows to an existing connector implementation.
 ### PHASE 2: PREREQUISITE VALIDATION
 1. **MANDATORY**: Verify connector foundation exists (confirm Phase 0 result)
 2. **MANDATORY**: Confirm prerequisite flows are implemented
-3. **MANDATORY**: Validate tech spec availability
+3. **MANDATORY**: Confirm tech spec is present after PHASE 1.0 Discovery & Recovery; treat missing-after-recovery as a hard error
 4. **MANDATORY**: Extract flow-specific requirements from tech spec
 
 ### PHASE 3: FLOW IMPLEMENTATION (Sequential Subagent Delegation)

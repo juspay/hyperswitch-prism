@@ -1,4 +1,95 @@
 {
+  "PaymentService/Authorize": {
+    "no3ds_auto_capture_credit_card": {
+      "grpc_req": {
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_debit_card": {
+      "grpc_req": {
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
+    },
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card": {
+      "grpc_req": {
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "AUTHORIZED",
+            "CHARGED"
+          ]
+        }
+      }
+    },
+    "no3ds_manual_capture_debit_card": {
+      "grpc_req": {
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "AUTHORIZED",
+            "CHARGED"
+          ]
+        }
+      }
+    },
+    "threeds_manual_capture_credit_card": {
+      "grpc_req": {
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "AUTHENTICATION_PENDING",
+            "PENDING",
+            "AUTHORIZED",
+            "CHARGED"
+          ]
+        }
+      }
+    },
+    "no3ds_auto_capture_sepa_bank_transfer": {
+      "grpc_req": {
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
+    }
+  },
   "PaymentService/SetupRecurring": {
     "setup_recurring": {
       "grpc_req": {
@@ -18,7 +109,138 @@
             }
           }
         },
-        "return_url": "https://example.com/payment/return"
+        "return_url": "https://example.com/payment/return",
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        },
+        "browser_info": {
+          "language": "en-US"
+        }
+      }
+    },
+    "PaymentService/SetupRecurring": {
+      "grpc_req": {
+        "return_url": "https://example.com/payment/return",
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        },
+        "browser_info": {
+          "language": "en-US"
+        }
+      }
+    },
+    "setup_recurring_with_order_context": {
+      "grpc_req": {
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        },
+        "browser_info": {
+          "language": "en-US"
+        }
+      }
+    },
+    "setup_recurring_with_webhook": {
+      "grpc_req": {
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        },
+        "browser_info": {
+          "language": "en-US"
+        }
+      }
+    }
+  },
+  "RecurringPaymentService/Charge": {
+    "recurring_charge": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4200000000000000"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2030"
+            },
+            "card_cvc": {
+              "value": "123"
+            },
+            "card_type": "credit"
+          }
+        }
+      }
+    },
+    "RecurringPaymentService/Charge": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4200000000000000"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2030"
+            },
+            "card_cvc": {
+              "value": "123"
+            },
+            "card_type": "credit"
+          }
+        }
+      }
+    },
+    "recurring_charge_low_amount": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4200000000000000"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2030"
+            },
+            "card_cvc": {
+              "value": "123"
+            },
+            "card_type": "credit"
+          }
+        }
+      }
+    },
+    "recurring_charge_with_order_context": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4200000000000000"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2030"
+            },
+            "card_cvc": {
+              "value": "123"
+            },
+            "card_type": "credit"
+          }
+        }
       }
     }
   }

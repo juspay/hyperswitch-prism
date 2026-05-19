@@ -5,11 +5,14 @@ use std::fmt::Debug;
 use common_enums::CurrencyUnit;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
-    connector_flow::{Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund, Void},
+    connector_flow::{
+        Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund, Void, VoidPC,
+    },
     connector_types::{
         ClientAuthenticationTokenRequestData, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -28,8 +31,8 @@ use transformers::{
     self as datatrans, DatatransCaptureRequest, DatatransCaptureResponse,
     DatatransClientAuthRequest, DatatransClientAuthResponse, DatatransPaymentsRequest,
     DatatransPaymentsResponse, DatatransRefundRequest, DatatransRefundResponse,
-    DatatransRefundSyncResponse, DatatransSyncResponse, DatatransVoidRequest,
-    DatatransVoidResponse,
+    DatatransRefundSyncResponse, DatatransSyncResponse, DatatransVoidPCRequest,
+    DatatransVoidPCResponse, DatatransVoidRequest, DatatransVoidResponse,
 };
 
 use super::macros;
@@ -62,6 +65,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Datatrans<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentVoidPostCaptureV2 for Datatrans<T>
 {
 }
 
@@ -145,6 +153,12 @@ macros::create_all_prerequisites!(
             request_body: DatatransVoidRequest,
             response_body: DatatransVoidResponse,
             router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ),
+        (
+            flow: VoidPC,
+            request_body: DatatransVoidPCRequest,
+            response_body: DatatransVoidPCResponse,
+            router_data: RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
         ),
         (
             flow: Refund,
@@ -287,6 +301,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: datatrans::DatatransErrorResponse = if res.response.is_empty() {
             datatrans::DatatransErrorResponse::default()
@@ -440,6 +455,35 @@ macros::macro_connector_implementation!(
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Datatrans,
+    curl_request: Json(DatatransVoidPCRequest),
+    curl_response: DatatransVoidPCResponse,
+    flow_name: VoidPC,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsCancelPostCaptureData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let transaction_id = req.request.connector_transaction_id.clone();
+            Ok(format!("{}/v1/transactions/{}/cancel", self.connector_base_url_payments(req), transaction_id))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Datatrans,
     curl_request: Json(DatatransRefundRequest),
     curl_response: DatatransRefundResponse,
     flow_name: Refund,
@@ -528,7 +572,6 @@ macros::macro_connector_flow_status_impls!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
         IncrementalAuthorization,
-        VoidPC,
         SetupMandate,
         RepeatPayment,
         CreateOrder,

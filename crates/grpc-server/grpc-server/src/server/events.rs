@@ -304,6 +304,7 @@ async fn verify_webhook_source_external(
         resource_id: &metadata_payload.resource_id,
         shadow_mode: metadata_payload.shadow_mode,
         tenant_id: &metadata_payload.tenant_id,
+        merchant_id: metadata_payload.merchant_id.as_str(),
         return_raw_connector_data: config.common.return_raw_connector_data,
     };
 

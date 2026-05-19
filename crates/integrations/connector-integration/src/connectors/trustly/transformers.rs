@@ -4,7 +4,7 @@ use common_enums::{self, AttemptStatus, CountryAlpha2, Currency};
 use common_utils::{
     pii::{self, IpAddress},
     request::Method,
-    CustomerId, StringMajorUnit,
+    StringMajorUnit,
 };
 use domain_types::{
     connector_flow::{Authorize, Refund},
@@ -101,7 +101,7 @@ pub struct TrustlyPaymentRequestParams {
 #[serde(rename_all = "PascalCase")]
 pub struct TrustlyPaymentRequestData {
     attributes: TrustlyPaymentRequestAttributes,
-    end_user_i_d: CustomerId,
+    end_user_i_d: String,
     message_i_d: String,
     notification_u_r_l: String,
     password: Secret<String>,
@@ -371,7 +371,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                 let data = TrustlyPaymentRequestData {
                     attributes,
-                    end_user_i_d: item.router_data.request.get_customer_id()?,
+                    end_user_i_d: item
+                        .router_data
+                        .resource_common_data
+                        .get_connector_customer_id()?,
                     message_i_d: item
                         .router_data
                         .resource_common_data
@@ -751,7 +754,7 @@ pub struct TrustlyWebhookData {
     pub messageid: Secret<String>,
     pub orderid: String,
     pub enduserid: Option<String>,
-    pub accountid: Option<Secret<String>>,
+    pub accountid: Option<String>,
     pub verified: Option<String>,
     pub notificationid: String,
     pub timestamp: Option<String>,
@@ -848,7 +851,8 @@ pub fn get_webhook_event(event: TrustlyWebhookMethod) -> domain_types::connector
 pub fn get_trustly_payment_webhook_status(event: &TrustlyWebhookMethod) -> AttemptStatus {
     match event {
         TrustlyWebhookMethod::Credit => AttemptStatus::Charged,
-        TrustlyWebhookMethod::Debit | TrustlyWebhookMethod::Cancel => AttemptStatus::Failure,
+        TrustlyWebhookMethod::Debit => AttemptStatus::Failure,
+        TrustlyWebhookMethod::Cancel => AttemptStatus::Voided,
         TrustlyWebhookMethod::Account | TrustlyWebhookMethod::Pending => AttemptStatus::Pending,
         _ => AttemptStatus::Pending,
     }

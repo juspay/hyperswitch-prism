@@ -130,6 +130,15 @@ pub struct JpmorganVoidRequest {
     pub is_void: bool,
 }
 
+/// VoidPC (post-capture void/reversal) request — JPMorgan uses the same PATCH endpoint
+/// and the same `{"isVoid": true}` body regardless of whether the payment has been
+/// captured or not.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganVoidPcRequest {
+    pub is_void: bool,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganRefundRequest {

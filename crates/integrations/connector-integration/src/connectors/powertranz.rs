@@ -279,6 +279,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         // Try to parse as payment/refund response first (has iso_response_code)
         let error_response = if let Ok(payment_response) = res

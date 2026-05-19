@@ -86,7 +86,7 @@ api_tags_tags_psync = { value = "", schema = { type = "string" } }
 environment = { position = 1, schema = { type = "string", enum = ["sandbox", "development", "production"] } }
 
 # Connector dimension - determines which payment processor URLs to use
-connector = { position = 2, schema = { type = "string", enum = ["stripe", "adyen", "paypal", "razorpay", "checkout", "braintree", "worldpay", "cybersource", "payme", "bluesnap", "fiserv", "trustpay", "volt", "hipay", "xendit", "phonepe", "cashfree", "payu", "paytm", "dlocal", "rapyd", "aci", "nuvei", "forte", "authorizedotnet", "elavon", "bamboraapac", "billwerk", "paysafe", "worldpayvantiv", "worldpayxml", "tsys", "bankofamerica", "powertranz", "revolut", "airwallex", "bambora", "shift4", "multisafepay", "iatapay", "jpmorgan", "nmi", "nexixpay", "authipay", "stax", "trustpayments", "fiservemea", "datatrans", "silverflow", "celero", "globalpay", "razorpayv2", "fiuu", "payload", "cashtocode", "novalnet", "nexinets", "noon", "mifinity", "calida", "cryptopay", "helcim", "placetopay", "barclaycard"] } }
+connector = { position = 2, schema = { type = "string", enum = ["stripe", "adyen", "paypal", "razorpay", "checkout", "braintree", "worldpay", "cybersource", "payme", "bluesnap", "fiserv", "trustpay", "volt", "hipay", "xendit", "phonepe", "cashfree", "payu", "paytm", "dlocal", "rapyd", "aci", "nuvei", "forte", "authorizedotnet", "elavon", "bamboraapac", "billwerk", "paysafe", "worldpayvantiv", "worldpayxml", "tsys", "bankofamerica", "powertranz", "revolut", "airwallex", "bambora", "shift4", "multisafepay", "iatapay", "jpmorgan", "nmi", "nexixpay", "authipay", "stax", "trustpayments", "fiservemea", "datatrans", "silverflow", "celero", "globalpay", "razorpayv2", "fiuu", "payload", "cashtocode", "novalnet", "nexinets", "noon", "mifinity", "calida", "cryptopay", "helcim", "placetopay", "barclaycard", "gigadat", "loonio", "mollie", "sanlam", "truelayer", "trustly", "zift", "revolv3", "fiservcommercehub", "finix", "wellsfargo", "imerchantsolutions"] } }
 
 # ============================================================================
 # Development Environment Overrides
@@ -481,6 +481,66 @@ connector_base_url = "https://sandbox.payme.io/api/"
 _context_ = { connector = "barclaycard" }
 connector_base_url = "https://api.smartpayfuse-test.barclaycard"
 
+# Finix
+[[overrides]]
+_context_ = { connector = "finix" }
+connector_base_url = "https://finix.api.com/"
+
+# Fiserv Commerce Hub
+[[overrides]]
+_context_ = { connector = "fiservcommercehub" }
+connector_base_url = "https://api.fiservapps.com/commerce-hub/v1/"
+
+# Gigadat
+[[overrides]]
+_context_ = { connector = "gigadat" }
+connector_base_url = "https://api.gigadatsolutions.com/"
+
+# iMerchant Solutions
+[[overrides]]
+_context_ = { connector = "imerchantsolutions" }
+connector_base_url = "https://api.imerchantsolutions.com/"
+
+# Loonio
+[[overrides]]
+_context_ = { connector = "loonio" }
+connector_base_url = "https://api.loonio.com/"
+
+# Mollie
+[[overrides]]
+_context_ = { connector = "mollie" }
+connector_base_url = "https://api.mollie.com/v2/"
+
+# Revolv3
+[[overrides]]
+_context_ = { connector = "revolv3" }
+connector_base_url = "https://api.revolv3.com/"
+
+# Sanlam
+[[overrides]]
+_context_ = { connector = "sanlam" }
+connector_base_url = "https://api.sanlampay.com/"
+
+# TrueLayer
+[[overrides]]
+_context_ = { connector = "truelayer" }
+connector_base_url = "https://api.truelayer.com/"
+
+# Trustly
+[[overrides]]
+_context_ = { connector = "trustly" }
+connector_base_url = "https://api.trustly.com/v1/"
+
+# Wells Fargo
+[[overrides]]
+_context_ = { connector = "wellsfargo" }
+connector_base_url = "https://api.wellsfargo.com/payments/v1/"
+
+# Zift
+[[overrides]]
+_context_ = { connector = "zift" }
+connector_base_url = "https://api.zift.io/"
+
 # ============================================================================
 # Production Environment Overrides
 # ============================================================================
@@ -730,3 +790,63 @@ connector_base_url = "https://live.payme.io/api/"
 [[overrides]]
 _context_ = { connector = "barclaycard", environment = "production" }
 connector_base_url = "https://api.smartpayfuse.barclaycard"
+
+# Finix Production
+[[overrides]]
+_context_ = { connector = "finix", environment = "production" }
+connector_base_url = "https://finix.api.com/"
+
+# Fiserv Commerce Hub Production
+[[overrides]]
+_context_ = { connector = "fiservcommercehub", environment = "production" }
+connector_base_url = "https://api.fiservapps.com/commerce-hub/v1/"
+
+# Gigadat Production
+[[overrides]]
+_context_ = { connector = "gigadat", environment = "production" }
+connector_base_url = "https://api.gigadatsolutions.com/"
+
+# iMerchant Solutions Production
+[[overrides]]
+_context_ = { connector = "imerchantsolutions", environment = "production" }
+connector_base_url = "https://api.imerchantsolutions.com/"
+
+# Loonio Production
+[[overrides]]
+_context_ = { connector = "loonio", environment = "production" }
+connector_base_url = "https://api.loonio.com/"
+
+# Mollie Production
+[[overrides]]
+_context_ = { connector = "mollie", environment = "production" }
+connector_base_url = "https://api.mollie.com/v2/"
+
+# Revolv3 Production
+[[overrides]]
+_context_ = { connector = "revolv3", environment = "production" }
+connector_base_url = "https://api.revolv3.com/"
+
+# Sanlam Production
+[[overrides]]
+_context_ = { connector = "sanlam", environment = "production" }
+connector_base_url = "https://api.sanlampay.com/"
+
+# TrueLayer Production
+[[overrides]]
+_context_ = { connector = "truelayer", environment = "production" }
+connector_base_url = "https://api.truelayer.com/"
+
+# Trustly Production
+[[overrides]]
+_context_ = { connector = "trustly", environment = "production" }
+connector_base_url = "https://api.trustly.com/v1/"
+
+# Wells Fargo Production
+[[overrides]]
+_context_ = { connector = "wellsfargo", environment = "production" }
+connector_base_url = "https://api.wellsfargo.com/payments/v1/"
+
+# Zift Production
+[[overrides]]
+_context_ = { connector = "zift", environment = "production" }
+connector_base_url = "https://api.zift.io/"

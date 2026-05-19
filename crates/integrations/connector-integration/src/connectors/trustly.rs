@@ -160,6 +160,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: TrustlyErrorResponse = res
             .response
@@ -283,6 +284,46 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(trustly::get_webhook_event(webhook_body.method))
     }
 
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<
+        Option<domain_types::connector_types::WebhookResourceReference>,
+        error_stack::Report<errors::WebhookError>,
+    > {
+        let webhook_body: TrustlyWebhookBody = request
+            .body
+            .parse_struct("TrustlyWebhookBody")
+            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
+
+        let webhook_resource_reference = match webhook_body.method {
+            trustly::TrustlyWebhookMethod::Credit
+            | trustly::TrustlyWebhookMethod::Debit
+            | trustly::TrustlyWebhookMethod::Cancel
+            | trustly::TrustlyWebhookMethod::Account
+            | trustly::TrustlyWebhookMethod::Pending => {
+                domain_types::connector_types::WebhookResourceReference::Payment(
+                    domain_types::connector_types::PaymentWebhookReference {
+                        connector_transaction_id: Some(webhook_body.params.data.orderid.clone()),
+                        merchant_transaction_id: None,
+                    },
+                )
+            }
+            trustly::TrustlyWebhookMethod::PayoutConfirmation
+            | trustly::TrustlyWebhookMethod::PayoutFailed => {
+                domain_types::connector_types::WebhookResourceReference::Refund(
+                    domain_types::connector_types::RefundWebhookReference {
+                        connector_refund_id: Some(webhook_body.params.data.orderid.clone()),
+                        merchant_refund_id: None,
+                        connector_transaction_id: Some(webhook_body.params.data.orderid.clone()),
+                    },
+                )
+            }
+        };
+
+        Ok(Some(webhook_resource_reference))
+    }
+
     fn process_payment_webhook(
         &self,
         request: RequestDetails,
@@ -320,6 +361,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             minor_amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,
+            sender_payment_instrument_id: details.params.data.accountid.clone(),
         })
     }
 

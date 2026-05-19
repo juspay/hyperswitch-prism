@@ -1029,6 +1029,7 @@ impl TryFrom<RevolutWebhookBody> for WebhookDetailsResponse {
             amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,
+            sender_payment_instrument_id: None,
         })
     }
 }

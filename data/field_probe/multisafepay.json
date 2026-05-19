@@ -299,7 +299,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "google_pay": {
+            "google_pay_sdk": {
               "type": "CARD",
               "description": "Visa 1111",
               "info": {
@@ -344,7 +344,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "google_pay": {
+            "google_pay_sdk": {
               "type": "CARD",
               "description": "Visa 1111",
               "info": {
