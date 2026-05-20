@@ -145,6 +145,12 @@ export interface PrMachine {
   testResults?: GrpcTestResultRecord[];
   testCommandsSource?: "extracted" | "generated" | "none";
   testGenerationReply?: string;
+  /** Reviewer-facing markdown summary generated async after cargo + grpc pass. */
+  reviewSummary?: string;
+  /** Lifecycle of the async review-summary call. */
+  reviewSummaryStatus?: "generating" | "ready" | "failed";
+  /** Error string when reviewSummaryStatus === "failed". */
+  reviewSummaryError?: string;
   startedAt: string;
   updatedAt: string;
 }
@@ -236,6 +242,17 @@ interface SnapshotPayload {
     timestamp: number;
     payload: Record<string, unknown>;
   }>;
+  /**
+   * Per-PR rolling tails of high-frequency stream events (resolver_stream,
+   * grpc_server_log). These bypass `recentEvents` because they're too noisy
+   * to share that 500-entry budget, so the supervisor maintains separate
+   * per-PR buffers and ships them here. The hook seeds resolverStreams /
+   * grpcServerLogs from this so the panels survive reconnects.
+   */
+  streamTails?: Record<
+    string,
+    { resolverStream?: string[]; grpcServerLog?: string[] }
+  >;
 }
 
 function emptyBoard(): PrResolverBoardState {
@@ -457,6 +474,11 @@ export function usePrResolver(controlUrl: string): UsePrResolverResult {
       const pr = typeof p.pr === "number" ? p.pr : undefined;
       const connector =
         typeof p.connector === "string" ? p.connector : undefined;
+      // Snapshot replay passes the original event timestamp through `p.timestamp`.
+      // Live broadcasts include it via supervisor's appendPrStreamTail teeing.
+      // Fall back to Date.now() if neither is present (defensive).
+      const ts =
+        typeof p.timestamp === "number" ? (p.timestamp as number) : Date.now();
 
       switch (type) {
         case "pr-resolver:cycle_start":
@@ -491,7 +513,7 @@ export function usePrResolver(controlUrl: string): UsePrResolverResult {
                 type: "pr_start",
                 text: "Started",
                 detail: `${count} comment(s)`,
-                timestamp: Date.now(),
+                timestamp: ts,
               },
             });
           }
@@ -523,19 +545,29 @@ export function usePrResolver(controlUrl: string): UsePrResolverResult {
                 text: `${connector ? `[${connector}] ` : ""}${String(p.name ?? p.gate ?? "gate")}`,
                 detail: String(p.detail ?? ""),
                 passed: p.passed === true,
-                timestamp: Date.now(),
+                timestamp: ts,
               },
             });
           }
           break;
         case "pr-resolver:subtask_start":
           if (pr !== undefined) {
+            // Wipe the local Claude live-output buffer so a retry / requeue
+            // doesn't keep streaming the prior cycle's final lines for the
+            // ~50s the new session is in flight.
+            setResolverStreams((prev) => {
+              const key = String(pr);
+              if (!prev[key]) return prev;
+              const next = { ...prev };
+              delete next[key];
+              return next;
+            });
             upsertPrCard(pr, {
               stepToAdd: {
                 type: "subtask",
                 text: `[${connector ?? "?"}] sub-task start`,
                 detail: `${p.commentCount ?? "?"} comment(s)`,
-                timestamp: Date.now(),
+                timestamp: ts,
               },
             });
           }
@@ -548,7 +580,7 @@ export function usePrResolver(controlUrl: string): UsePrResolverResult {
                 text: `[${connector ?? "?"}] committed`,
                 detail: String(p.sha ?? "").slice(0, 8),
                 passed: true,
-                timestamp: Date.now(),
+                timestamp: ts,
               },
             });
           }
@@ -561,7 +593,7 @@ export function usePrResolver(controlUrl: string): UsePrResolverResult {
                 text: `[${connector ?? "?"}] failed`,
                 detail: String(p.error ?? ""),
                 passed: false,
-                timestamp: Date.now(),
+                timestamp: ts,
               },
             });
           }
@@ -575,7 +607,7 @@ export function usePrResolver(controlUrl: string): UsePrResolverResult {
                 text: type === "pr-resolver:build_fail" ? "build fail" : "clippy fail",
                 detail: String(p.outputTail ?? "").slice(-200),
                 passed: false,
-                timestamp: Date.now(),
+                timestamp: ts,
               },
             });
           }
@@ -588,7 +620,7 @@ export function usePrResolver(controlUrl: string): UsePrResolverResult {
                 type: "cargo",
                 text: type === "pr-resolver:build_pass" ? "build pass" : "clippy pass",
                 passed: true,
-                timestamp: Date.now(),
+                timestamp: ts,
               },
             });
           }
@@ -602,18 +634,27 @@ export function usePrResolver(controlUrl: string): UsePrResolverResult {
                 type: "grpc_test",
                 text: `gRPC test commands ${verb}`,
                 detail: `${p.count ?? 0} command(s)`,
-                timestamp: Date.now(),
+                timestamp: ts,
               },
             });
           }
           break;
         case "pr-resolver:grpc_server_starting":
           if (pr !== undefined) {
+            // Wipe the local grpc-server log so a re-run doesn't show the
+            // prior cycle's server logs alongside the new ones.
+            setGrpcServerLogs((prev) => {
+              const key = String(pr);
+              if (!prev[key]) return prev;
+              const next = { ...prev };
+              delete next[key];
+              return next;
+            });
             upsertPrCard(pr, {
               stepToAdd: {
                 type: "grpc_test",
                 text: `gRPC server starting (port ${p.port ?? "?"})`,
-                timestamp: Date.now(),
+                timestamp: ts,
               },
             });
           }
@@ -625,7 +666,7 @@ export function usePrResolver(controlUrl: string): UsePrResolverResult {
                 type: "grpc_test",
                 text: "gRPC server ready",
                 passed: true,
-                timestamp: Date.now(),
+                timestamp: ts,
               },
             });
           }
@@ -636,7 +677,7 @@ export function usePrResolver(controlUrl: string): UsePrResolverResult {
               stepToAdd: {
                 type: "grpc_test",
                 text: "gRPC server stopped",
-                timestamp: Date.now(),
+                timestamp: ts,
               },
             });
           }
@@ -648,7 +689,7 @@ export function usePrResolver(controlUrl: string): UsePrResolverResult {
                 type: "grpc_test",
                 text: "gRPC test command",
                 detail: String(p.command ?? ""),
-                timestamp: Date.now(),
+                timestamp: ts,
               },
             });
           }
@@ -660,7 +701,7 @@ export function usePrResolver(controlUrl: string): UsePrResolverResult {
                 type: "grpc_test",
                 text: `gRPC test pass (${p.count ?? 0} cmds)`,
                 passed: true,
-                timestamp: Date.now(),
+                timestamp: ts,
               },
             });
           }
@@ -673,7 +714,7 @@ export function usePrResolver(controlUrl: string): UsePrResolverResult {
                 text: `gRPC test fail (${p.failed ?? "?"} / ${p.total ?? "?"})`,
                 detail: String(p.reason ?? ""),
                 passed: false,
-                timestamp: Date.now(),
+                timestamp: ts,
               },
             });
           }
@@ -685,7 +726,7 @@ export function usePrResolver(controlUrl: string): UsePrResolverResult {
                 type: "grpc_test",
                 text: "gRPC test skipped",
                 detail: String(p.reason ?? ""),
-                timestamp: Date.now(),
+                timestamp: ts,
               },
             });
           }
@@ -699,7 +740,7 @@ export function usePrResolver(controlUrl: string): UsePrResolverResult {
                 text: "pushed",
                 detail: String(p.sha ?? "").slice(0, 8),
                 passed: true,
-                timestamp: Date.now(),
+                timestamp: ts,
               },
             });
           }
@@ -710,7 +751,7 @@ export function usePrResolver(controlUrl: string): UsePrResolverResult {
               stepToAdd: {
                 type: "reply",
                 text: "reply posted",
-                timestamp: Date.now(),
+                timestamp: ts,
               },
             });
           }
@@ -753,6 +794,122 @@ export function usePrResolver(controlUrl: string): UsePrResolverResult {
               const next = [...(prev[key] ?? []), note];
               if (next.length > 200) next.splice(0, next.length - 200);
               return { ...prev, [key]: next };
+            });
+          }
+          break;
+        case "pr-resolver:grpc_test_plan_generated":
+          if (pr !== undefined) {
+            const steps = Number(p.steps ?? 0);
+            upsertPrCard(pr, {
+              stepToAdd: {
+                type: "grpc_test",
+                text: "test plan generated",
+                detail: `${steps} step(s)`,
+                timestamp: ts,
+              },
+            });
+          }
+          break;
+        case "pr-resolver:grpc_test_step_start":
+          if (pr !== undefined) {
+            const name = String(p.name ?? "?");
+            const dep = String(p.depends_on ?? "");
+            upsertPrCard(pr, {
+              stepToAdd: {
+                type: "grpc_test",
+                text: `▶ ${name}`,
+                detail: dep ? `depends on: ${dep}` : undefined,
+                timestamp: ts,
+              },
+            });
+          }
+          break;
+        case "pr-resolver:grpc_test_step_pass":
+          if (pr !== undefined) {
+            const name = String(p.name ?? "?");
+            const ms = Number(p.durationMs ?? 0);
+            upsertPrCard(pr, {
+              stepToAdd: {
+                type: "grpc_test",
+                text: `✓ ${name}`,
+                detail: ms ? `${ms}ms` : undefined,
+                passed: true,
+                timestamp: ts,
+              },
+            });
+          }
+          break;
+        case "pr-resolver:grpc_test_step_fail":
+          if (pr !== undefined) {
+            const name = String(p.name ?? "?");
+            const exitCode = p.exitCode;
+            const misses = Array.isArray(p.misses) ? p.misses : [];
+            upsertPrCard(pr, {
+              stepToAdd: {
+                type: "grpc_test",
+                text: `✗ ${name}`,
+                detail:
+                  (exitCode !== undefined ? `exit=${exitCode}` : "") +
+                  (misses.length ? ` misses=${misses.join(",")}` : "") +
+                  (typeof p.stderrTail === "string" && p.stderrTail
+                    ? `\n${p.stderrTail}`
+                    : ""),
+                passed: false,
+                timestamp: ts,
+              },
+            });
+          }
+          break;
+        case "pr-resolver:grpc_test_step_skipped":
+          if (pr !== undefined) {
+            const name = String(p.name ?? "?");
+            upsertPrCard(pr, {
+              stepToAdd: {
+                type: "grpc_test",
+                text: `⊘ ${name}`,
+                detail: String(p.reason ?? "(skipped)"),
+                timestamp: ts,
+              },
+            });
+          }
+          break;
+        case "pr-resolver:review_summary_started":
+          if (pr !== undefined) {
+            upsertPrCard(pr, {
+              stepToAdd: {
+                type: "review_summary",
+                text: "Generating reviewer summary…",
+                timestamp: ts,
+              },
+            });
+          }
+          break;
+        case "pr-resolver:review_summary_generated":
+          if (pr !== undefined) {
+            upsertPrCard(pr, {
+              stepToAdd: {
+                type: "review_summary",
+                text: "Reviewer summary ready",
+                detail:
+                  typeof p.summaryChars === "number"
+                    ? `${p.summaryChars} chars`
+                    : undefined,
+                passed: true,
+                timestamp: ts,
+              },
+            });
+          }
+          break;
+        case "pr-resolver:review_summary_failed":
+          if (pr !== undefined) {
+            upsertPrCard(pr, {
+              stepToAdd: {
+                type: "review_summary",
+                text: "Reviewer summary failed",
+                detail: String(p.error ?? "unknown"),
+                passed: false,
+                timestamp: ts,
+              },
             });
           }
           break;
@@ -849,9 +1006,33 @@ export function usePrResolver(controlUrl: string): UsePrResolverResult {
           if (p.recentEvents && Array.isArray(p.recentEvents)) {
             prCardsRef.current.clear();
             for (const e of p.recentEvents) {
-              applyEventRef.current(`pr-resolver:${e.type}`, e.payload);
+              // Pass the event's original emission time through `timestamp`
+              // on the payload, so the timeline shows when things actually
+              // happened rather than collapsing every row to refresh-time.
+              applyEventRef.current(`pr-resolver:${e.type}`, {
+                ...e.payload,
+                timestamp: e.timestamp,
+              });
             }
             recomputeBoardRef.current();
+          }
+          // Seed the live-stream panels from the supervisor's per-PR rolling
+          // tails. resolver_stream / grpc_server_log are NON_REPLAY_TYPES so
+          // they aren't in `recentEvents` — without this seed, refreshing the
+          // page mid-cycle wipes the panel.
+          if (p.streamTails && typeof p.streamTails === "object") {
+            const nextResolver: Record<string, string[]> = {};
+            const nextGrpc: Record<string, string[]> = {};
+            for (const [pr, tails] of Object.entries(p.streamTails)) {
+              if (tails?.resolverStream?.length) {
+                nextResolver[pr] = [...tails.resolverStream];
+              }
+              if (tails?.grpcServerLog?.length) {
+                nextGrpc[pr] = [...tails.grpcServerLog];
+              }
+            }
+            setResolverStreams(nextResolver);
+            setGrpcServerLogs(nextGrpc);
           }
           return;
         }
@@ -924,6 +1105,11 @@ export function usePrResolver(controlUrl: string): UsePrResolverResult {
           if (p.state) {
             setProcessedThreads(p.state.processed_threads ?? {});
             setBuildFailures(p.state.build_failures ?? {});
+            // Without this, `state_changed` triggers a refetch but the PR
+            // machine map (status / reviewSummary / testStepResults) never
+            // actually updates — so approval gates and stage panels show
+            // stale state until the next full snapshot.
+            setPrMachines(p.state.pr_machines ?? {});
           }
           return;
         }

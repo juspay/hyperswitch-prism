@@ -108,16 +108,20 @@ export function PrResolverDetailPage() {
     [machine, card]
   );
 
-  // Auto-select the current stage when entering or when status moves.
+  // Auto-select the current stage when entering or when status moves. We
+  // wait until the machine has actually landed via WS — otherwise the first
+  // render (machine = null, everything `idle`) would lock the rail onto
+  // "Noticed" and never reselect once the real status arrives.
   const [selectedStageId, setSelectedStageId] = useState<string | null>(null);
   useEffect(() => {
+    if (!machine) return;
     const running = STAGES.find((s) => stageStatuses[s.id] === "running");
     const lastDone = [...STAGES]
       .reverse()
       .find((s) => stageStatuses[s.id] === "passed" || stageStatuses[s.id] === "failed");
     const next = running ?? lastDone ?? STAGES[0]!;
     setSelectedStageId((prev) => prev ?? next.id);
-  }, [stageStatuses]);
+  }, [stageStatuses, machine]);
 
   // Lazy-load the diff when the user lands on the Approval stage.
   useEffect(() => {
@@ -215,6 +219,7 @@ export function PrResolverDetailPage() {
               machine={machine}
               card={card}
               prNumber={prNumber}
+              running={running}
               autoApprove={autoApprove}
               diff={diffForPr[String(prNumber)]?.diff ?? machine?.diffPreview ?? ""}
               buildFailure={buildFailures[String(prNumber)] ?? null}
@@ -566,6 +571,7 @@ function MainPanel({
   onRetry,
   onRequestChanges,
   onRequestDiff,
+  running,
 }: {
   stage: StageDef;
   status: StageStatus;
@@ -577,6 +583,7 @@ function MainPanel({
   buildFailure: { branch: string; head_sha: string; failed_at: string; error: string } | null;
   resolverStream: string[];
   grpcServerLog: string[];
+  running: boolean;
   onApprove: (note?: string) => void;
   onReject: (reason?: string) => void;
   onRetry: () => void;
@@ -609,10 +616,15 @@ function MainPanel({
         <StatusChip status={status} />
       </div>
 
-      {/* Retry banner — visible regardless of selected stage when terminal */}
-      {machine && (machine.status === "failed" || machine.status === "rejected") && (
-        <RetryBanner machine={machine} onRetry={onRetry} />
-      )}
+      {/* Retry banner — visible regardless of selected stage when terminal,
+          or when the machine is stuck in a non-terminal state while no cycle
+          is running (typical ENOSPC / crashed-mid-cycle scenario). */}
+      {machine &&
+        (machine.status === "failed" ||
+          machine.status === "rejected" ||
+          (!running && isStuckStatus(machine.status))) && (
+          <RetryBanner machine={machine} running={running} onRetry={onRetry} />
+        )}
 
       {stage.id === "approval" ? (
         <ApprovalPanel
@@ -843,14 +855,34 @@ function ResolverStreamPanel({ lines }: { lines: string[] }) {
 
 function RetryBanner({
   machine,
+  running,
   onRetry,
 }: {
   machine: PrMachine;
+  running: boolean;
   onRetry: () => void;
 }) {
   const isRejected = machine.status === "rejected";
+  const isStuck = !running && isStuckStatus(machine.status);
+  const tone = isStuck ? "stuck" : isRejected ? "rejected" : "failed";
+  const palette = {
+    stuck: { bg: T.warnSoft, border: T.warn + "55" },
+    rejected: { bg: T.warnSoft, border: T.warn + "55" },
+    failed: { bg: T.errorSoft, border: T.error + "55" },
+  }[tone];
+  const heading = isStuck
+    ? `Stuck mid-cycle in '${machine.status}'`
+    : isRejected
+      ? "Rejected"
+      : "Failed";
+  const detail = isStuck
+    ? `The resolver isn't running, so this PR isn't going to move on its own. ` +
+      `Most often this is a disk-space / crashed-cycle situation — fix the ` +
+      `underlying cause, then click Retry to clear state and requeue.`
+    : `Retry clears this PR's thread + machine state so the next poll cycle picks it up fresh.`;
   return (
     <div
+      data-testid={`retry-banner-${tone}`}
       style={{
         display: "flex",
         alignItems: "center",
@@ -858,19 +890,18 @@ function RetryBanner({
         gap: 12,
         padding: 12,
         marginBottom: 16,
-        background: isRejected ? T.warnSoft : T.errorSoft,
-        border: `1px solid ${(isRejected ? T.warn : T.error) + "55"}`,
+        background: palette.bg,
+        border: `1px solid ${palette.border}`,
         borderRadius: 8,
       }}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>
-          {isRejected ? "Rejected" : "Failed"}
+          {heading}
           {machine.reason ? `: ${machine.reason}` : ""}
         </span>
-        <span style={{ fontSize: 11, color: T.textMuted }}>
-          Retry clears this PR's thread + machine state so the next poll
-          cycle picks it up fresh.
+        <span style={{ fontSize: 11, color: T.textMuted, lineHeight: 1.5 }}>
+          {detail}
         </span>
       </div>
       <button
@@ -888,9 +919,19 @@ function RetryBanner({
           whiteSpace: "nowrap",
         }}
       >
-        Retry this PR
+        {isStuck ? "Force reset & retry" : "Retry this PR"}
       </button>
     </div>
+  );
+}
+
+function isStuckStatus(status: PrMachineStatus): boolean {
+  return (
+    status === "noticed" ||
+    status === "preparing" ||
+    status === "resolving" ||
+    status === "verifying" ||
+    status === "committing"
   );
 }
 
@@ -1248,6 +1289,135 @@ function GrpcResultRow({
   );
 }
 
+function ReviewerSummaryElapsed({ startedAt }: { startedAt: number }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const secs = Math.max(0, Math.floor((now - startedAt) / 1000));
+  return <span>{secs}s</span>;
+}
+
+function ReviewerSummaryPanel({ machine }: { machine: PrMachine }) {
+  // Use the machine's `updatedAt` as the start anchor for the elapsed counter.
+  // It's set when reviewSummaryStatus flipped to "generating", which is what
+  // we want to measure from. Cheap and avoids carrying a separate field.
+  const startedAt = Date.parse(machine.updatedAt) || Date.now();
+  const status = machine.reviewSummaryStatus;
+  if (!status && !machine.reviewSummary) {
+    return null;
+  }
+  return (
+    <PanelCard>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          marginBottom: 12,
+        }}
+      >
+        <h3 style={{ ...subTitle, margin: 0 }}>What changed & why</h3>
+        {status === "generating" && (
+          <span
+            data-testid="reviewer-summary-generating"
+            style={{
+              fontSize: 11,
+              color: T.textMuted,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: T.accent,
+                animation: "prResolverPulse 1.2s infinite",
+                display: "inline-block",
+              }}
+            />
+            Generating… <ReviewerSummaryElapsed startedAt={startedAt} />
+          </span>
+        )}
+      </div>
+      {status === "generating" && (
+        <div
+          style={{
+            fontSize: 12,
+            color: T.textMuted,
+            lineHeight: 1.5,
+            padding: "10px 12px",
+            background: T.bg,
+            border: `1px dashed ${T.border}`,
+            borderRadius: 6,
+          }}
+        >
+          A plain-language summary is being generated so you can decide
+          quickly. Approve / reject any time — the diff below is the source
+          of truth.
+        </div>
+      )}
+      {status === "ready" && machine.reviewSummary && (
+        <div
+          data-testid="reviewer-summary-ready"
+          style={{
+            fontSize: 13,
+            lineHeight: 1.55,
+            color: T.text,
+            maxHeight: 480,
+            overflow: "auto",
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+            padding: "12px 14px",
+            background: T.bg,
+            border: `1px solid ${T.border}`,
+            borderRadius: 6,
+            fontFamily:
+              "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+          }}
+        >
+          {machine.reviewSummary}
+        </div>
+      )}
+      {status === "failed" && (
+        <div
+          data-testid="reviewer-summary-failed"
+          style={{
+            fontSize: 12,
+            color: T.text,
+            lineHeight: 1.5,
+            padding: "10px 12px",
+            background: T.warnSoft,
+            border: `1px solid ${T.warn}55`,
+            borderRadius: 6,
+          }}
+        >
+          <strong>Couldn't generate summary.</strong> Review the diff
+          directly.
+          {machine.reviewSummaryError && (
+            <div
+              style={{
+                marginTop: 6,
+                color: T.textMuted,
+                fontFamily: "monospace",
+                fontSize: 11,
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+              }}
+            >
+              {machine.reviewSummaryError}
+            </div>
+          )}
+        </div>
+      )}
+    </PanelCard>
+  );
+}
+
 function ApprovalPanel({
   machine,
   autoApprove,
@@ -1509,6 +1679,34 @@ function ApprovalPanel({
           </div>
         )}
       </PanelCard>
+      <ReviewerSummaryPanel machine={machine} />
+      {machine.summary && machine.summary.trim() && (
+        <PanelCard>
+          <h3 style={{ ...subTitle, margin: "0 0 12px" }}>
+            Per-thread resolve notes
+          </h3>
+          <div
+            data-testid="approval-summary"
+            style={{
+              fontSize: 13,
+              lineHeight: 1.55,
+              color: T.text,
+              maxHeight: 320,
+              overflow: "auto",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              padding: "10px 12px",
+              background: T.bg,
+              border: `1px solid ${T.border}`,
+              borderRadius: 6,
+              fontFamily:
+                "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+            }}
+          >
+            {machine.summary}
+          </div>
+        </PanelCard>
+      )}
       <PanelCard>
         <h3 style={{ ...subTitle, margin: "0 0 12px" }}>Diff</h3>
         <DiffViewer diff={diff} collapsedByDefault={diff.split("\n").length > 200} />

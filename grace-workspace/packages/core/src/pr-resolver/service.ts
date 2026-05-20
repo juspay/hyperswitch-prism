@@ -4,7 +4,11 @@ import {
   parseGithubRepo,
 } from "./github.js";
 import { PrResolverStateManager } from "./state.js";
-import { runResolverSession } from "./resolver.js";
+import {
+  buildThreadView,
+  runResolverSession,
+  runReviewSummarySession,
+} from "./resolver.js";
 import { runCargoFixLoop } from "./cargo-loop.js";
 import { emitPrResolverEvent } from "./events.js";
 import path from "node:path";
@@ -113,6 +117,26 @@ export class PrResolverService {
   }
 
   /**
+   * Roll up the per-thread resolver summaries captured during this PR's
+   * resolve pass into a single Markdown blob the dashboard's approval panel
+   * can render. Returns `undefined` when nothing was captured (e.g. the
+   * supervisor was restarted between resolve and approval, blowing away the
+   * in-memory `resolveSummaries` map).
+   */
+  private summaryForPr(prNumber: number, threadIds: string[]): string | undefined {
+    const blocks: string[] = [];
+    const seen = new Set<string>();
+    for (const tid of threadIds) {
+      const s = this.resolveSummaries.get(tid)?.trim();
+      if (!s || seen.has(s)) continue;
+      seen.add(s);
+      blocks.push(s);
+    }
+    if (blocks.length === 0) return undefined;
+    return blocks.join("\n\n---\n\n").slice(0, 8_000);
+  }
+
+  /**
    * Promote an awaiting-approval PR to pushed. Validates that the worktree
    * still matches the captured snapshot and that the remote hasn't moved,
    * then pushes via the no-force `pushBranch` helper and posts replies.
@@ -217,11 +241,19 @@ export class PrResolverService {
   }
 
   /**
-   * Reset a failed/rejected PR back to a pickable state: clear the threads
-   * from `processed_threads` so the next poll cycle re-fetches them, remove
-   * the machine, reset the worktree to origin (in case we have stale commits
+   * Reset a PR back to a pickable state: clear the threads from
+   * `processed_threads` so the next poll cycle re-fetches them, remove the
+   * machine, reset the worktree to origin (in case we have stale commits
    * sitting around from a half-finished sub-task). Doesn't trigger an
    * immediate poll — the user can hit "Poll Now" if they want one.
+   *
+   * Allowed states:
+   *   - Terminal (`failed | rejected | pushed`) — the normal Retry button.
+   *   - Stuck non-terminal (`noticed | preparing | resolving | verifying |
+   *     committing`) — only when the resolver isn't actively running. Covers
+   *     cases like ENOSPC mid-cycle where the state file couldn't be updated
+   *     to "failed", leaving the machine frozen mid-flight. `awaiting_approval`
+   *     is intentionally excluded — that's a deliberate hold, not a stuck one.
    */
   async retryPr(
     prNumber: number
@@ -230,14 +262,26 @@ export class PrResolverService {
     if (!machine) {
       return { ok: false, error: `No machine for PR #${prNumber}` };
     }
-    if (
-      machine.status !== "failed" &&
-      machine.status !== "rejected" &&
-      machine.status !== "pushed"
-    ) {
+    const terminalStates = new Set(["failed", "rejected", "pushed"]);
+    const stuckStates = new Set([
+      "noticed",
+      "preparing",
+      "resolving",
+      "verifying",
+      "committing",
+    ]);
+    const isTerminal = terminalStates.has(machine.status);
+    const isStuck = stuckStates.has(machine.status) && !this.cycleInProgress;
+    if (!isTerminal && !isStuck) {
+      if (machine.status === "awaiting_approval") {
+        return {
+          ok: false,
+          error: `PR #${prNumber} is awaiting your approval — use Approve, Reject, or Request changes instead of Retry.`,
+        };
+      }
       return {
         ok: false,
-        error: `Retry only allowed for failed/rejected/pushed PRs (current: ${machine.status})`,
+        error: `Retry blocked: PR #${prNumber} is currently '${machine.status}' and a cycle is in flight. Wait for the cycle to finish, then retry.`,
       };
     }
 
@@ -798,11 +842,18 @@ export class PrResolverService {
         // machine in awaiting_approval, and return. The cycle won't pick up
         // new PRs until the user approves or rejects via the dashboard.
         const diff = await capturePrDiff(this.cfg.worktreePath, branch);
+        const summary = this.summaryForPr(prNumber, stillOpen.map((t) => t.threadId));
         this.state.upsertPrMachine({
           prNumber,
           status: "awaiting_approval",
           localSha,
           diffPreview: diff,
+          summary,
+          // Reset any prior summary state so the panel shows the spinner
+          // immediately instead of stale ready/failed copy from a past cycle.
+          reviewSummary: undefined,
+          reviewSummaryStatus: "generating",
+          reviewSummaryError: undefined,
         });
         emitPrResolverEvent("awaiting_approval", {
           pr: prNumber,
@@ -816,6 +867,19 @@ export class PrResolverService {
           prNumber,
           threadIds: stillOpen.map((t) => t.threadId),
           triggerCommentIds: stillOpen.map((t) => t.commentNodeId),
+        });
+        // Kick off the reviewer-facing summary in the background. The
+        // approval gate is already open — the reviewer can start reading
+        // the diff while we generate. Don't await — fire and forget.
+        emitPrResolverEvent("review_summary_started", {
+          pr: prNumber,
+          connectors: machineConnectors,
+        });
+        void this.generateReviewSummary({
+          prNumber,
+          connectors: machineConnectors,
+          threads: stillOpen,
+          diff,
         });
       }
     } else {
@@ -831,6 +895,88 @@ export class PrResolverService {
     }
 
     return counts;
+  }
+
+  /**
+   * Generate a reviewer-facing summary in the background after the approval
+   * gate opens. Fire-and-forget — the gate is already actionable, so this
+   * latency doesn't block the reviewer.
+   *
+   * Drops the result silently if the machine's status moved away from
+   * `awaiting_approval` while we were running (reviewer approved/rejected
+   * mid-summary, or a retry kicked off a new cycle).
+   */
+  private async generateReviewSummary(input: {
+    prNumber: number;
+    connectors: string[];
+    threads: TriggeredThread[];
+    diff: string;
+  }): Promise<void> {
+    const { prNumber, connectors, threads, diff } = input;
+    const connectorLabel = connectors.join(", ") || "(unknown)";
+    try {
+      // Reuse the same thread view shape the resolve prompt uses, so Claude
+      // sees comments the same way it did when generating the changes.
+      const threadView = buildThreadView({
+        connector: connectorLabel,
+        prNumber,
+        prBranch: "",
+        threads,
+      });
+      // Diff can be huge — cap to ~24KB so the prompt stays under Claude's
+      // tool-friendly window without losing the bulk of the changes.
+      const DIFF_CAP = 24_000;
+      const cappedDiff =
+        diff.length > DIFF_CAP
+          ? `... (truncated ${diff.length - DIFF_CAP} chars from head) ...\n` +
+            diff.slice(-DIFF_CAP)
+          : diff;
+
+      const summary = await runReviewSummarySession({
+        prNumber,
+        connector: connectorLabel,
+        threads: threadView,
+        diff: cappedDiff,
+        worktreePath: this.cfg.worktreePath,
+        promptsDir: this.cfg.promptsDir,
+        claudeModel: this.rootConfig.claudeCode.model,
+      });
+
+      // The reviewer may have approved/rejected/retried while we were
+      // generating. Drop the result silently in that case so we don't
+      // overwrite a freshly-reset machine.
+      const current = this.state.getPrMachine(prNumber);
+      if (!current || current.status !== "awaiting_approval") {
+        return;
+      }
+      this.state.upsertPrMachine({
+        prNumber,
+        reviewSummary: summary,
+        reviewSummaryStatus: "ready",
+        reviewSummaryError: undefined,
+      });
+      emitPrResolverEvent("review_summary_generated", {
+        pr: prNumber,
+        connectors,
+        summaryChars: summary.length,
+      });
+    } catch (err) {
+      const error = err instanceof Error ? err.message : String(err);
+      const current = this.state.getPrMachine(prNumber);
+      if (!current || current.status !== "awaiting_approval") {
+        return;
+      }
+      this.state.upsertPrMachine({
+        prNumber,
+        reviewSummaryStatus: "failed",
+        reviewSummaryError: error,
+      });
+      emitPrResolverEvent("review_summary_failed", {
+        pr: prNumber,
+        connectors,
+        error,
+      });
+    }
   }
 
   /** One connector sub-task: resolver + cargo loop + grpc test + fmt + commit. */

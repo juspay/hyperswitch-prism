@@ -12,6 +12,7 @@ import { getConfig, type PrResolverConfig } from "./config.js";
 import {
   PrResolverService,
   getRecentPrResolverEvents,
+  isReplayablePrResolverEvent,
   loadRuntimeOverlay,
   mergeWithOverlay,
   onPrResolverEvent,
@@ -35,6 +36,16 @@ const TERM_GRACE_MS = 5_000;
 
 /** Per-session replay buffer cap. Big enough for a full pipeline replay. */
 const REPLAY_BUFFER_LIMIT = 500;
+
+/**
+ * High-frequency PR Resolver events (one per line of Claude / cargo stdout)
+ * are kept out of the main 500-entry replay buffer to avoid evicting
+ * state-shaping events. Instead we maintain per-PR rolling tails of the last
+ * N lines for `resolver_stream` and `grpc_server_log` and ship them inside
+ * every `pr-resolver:snapshot` so a dashboard refresh / reconnect / late join
+ * still shows the most recent live output.
+ */
+const PR_STREAM_TAIL_LIMIT = 200;
 
 /**
  * Inbound messages prefixed with these strings are handled by the supervisor
@@ -131,6 +142,10 @@ export class SessionSupervisor {
   private prResolverOverlay: PrResolverRuntimeOverlay = {};
   /** Merged config currently driving the running service. */
   private prResolverEffective: PrResolverConfig | null = null;
+  /** Per-PR rolling tail of `pr-resolver:resolver_stream` lines. */
+  private prResolverStreamTails = new Map<number, string[]>();
+  /** Per-PR rolling tail of `pr-resolver:grpc_server_log` lines. */
+  private prGrpcServerLogTails = new Map<number, string[]>();
 
   constructor(
     private state: StateManager,
@@ -218,12 +233,29 @@ export class SessionSupervisor {
 
     // Broadcast every event from the resolver to all dashboards. The bus
     // also keeps a 500-entry replay buffer so late-joining dashboards catch
-    // up via the `pr-resolver:snapshot` we send on hello.
+    // up via the `pr-resolver:snapshot` we send on hello. High-frequency
+    // events (`resolver_stream`, `grpc_server_log`) bypass that buffer but
+    // are tee'd into per-PR rolling tails so the snapshot can still ship
+    // recent lines to reconnecting dashboards.
     this.prResolverUnsub = onPrResolverEvent((event) => {
+      // Reset per-PR rolling tails at the start of a fresh attempt so a
+      // retry / re-poll doesn't keep streaming the prior cycle's final
+      // lines (and seeding them into every snapshot).
+      this.resetPrStreamTailIfBoundary(event);
+      this.appendPrStreamTail(event);
       this.broadcastControl(`pr-resolver:${event.type}`, {
         ...event.payload,
         timestamp: event.timestamp,
       });
+      // Any state-mutating event (everything except the high-volume stream
+      // tails) is a hint that PrMachine state may have changed server-side.
+      // The dashboard's `prMachines` is only refreshed via snapshot, so we
+      // debounce-broadcast one here. Without this, the approval gate, retry
+      // banner, and verification stage all stay stale until the user clicks
+      // something or refreshes the page.
+      if (isReplayablePrResolverEvent(event.type)) {
+        this.scheduleSnapshotBroadcast();
+      }
     });
 
     // eslint-disable-next-line no-console
@@ -250,6 +282,10 @@ export class SessionSupervisor {
     this.prResolver.cancel();
     this.prResolverUnsub?.();
     this.prResolverUnsub = null;
+    if (this.prResolverSnapshotTimer) {
+      clearTimeout(this.prResolverSnapshotTimer);
+      this.prResolverSnapshotTimer = null;
+    }
     try {
       await Promise.race([this.prResolverTask, sleep(TERM_GRACE_MS)]);
     } catch {
@@ -307,7 +343,88 @@ export class SessionSupervisor {
       state: stateSnap,
       prMachines: stateSnap?.pr_machines ?? {},
       recentEvents: getRecentPrResolverEvents(200),
+      streamTails: this.snapshotStreamTails(),
     };
+  }
+
+  /**
+   * Snapshot the per-PR rolling tails of high-frequency stream events. The
+   * dashboard hook seeds `resolverStreams` / `grpcServerLogs` from this
+   * payload on every hello/refresh — without it, those panels would always
+   * show empty for any PR you didn't watch live.
+   */
+  private snapshotStreamTails(): Record<
+    string,
+    { resolverStream: string[]; grpcServerLog: string[] }
+  > {
+    const out: Record<
+      string,
+      { resolverStream: string[]; grpcServerLog: string[] }
+    > = {};
+    const prs = new Set<number>([
+      ...this.prResolverStreamTails.keys(),
+      ...this.prGrpcServerLogTails.keys(),
+    ]);
+    for (const pr of prs) {
+      out[String(pr)] = {
+        resolverStream: this.prResolverStreamTails.get(pr) ?? [],
+        grpcServerLog: this.prGrpcServerLogTails.get(pr) ?? [],
+      };
+    }
+    return out;
+  }
+
+  /**
+   * Tee a single event into the appropriate per-PR rolling tail. Only fires
+   * for the two high-volume event types — everything else is small enough to
+   * live in the main replay buffer.
+   */
+  private appendPrStreamTail(event: {
+    type: string;
+    payload: Record<string, unknown>;
+  }): void {
+    const pr = typeof event.payload.pr === "number" ? event.payload.pr : null;
+    if (pr === null) return;
+    const line =
+      typeof event.payload.line === "string" ? event.payload.line : null;
+    if (!line) return;
+    const target =
+      event.type === "resolver_stream"
+        ? this.prResolverStreamTails
+        : event.type === "grpc_server_log"
+          ? this.prGrpcServerLogTails
+          : null;
+    if (!target) return;
+    const tail = target.get(pr) ?? [];
+    tail.push(line);
+    if (tail.length > PR_STREAM_TAIL_LIMIT) {
+      tail.splice(0, tail.length - PR_STREAM_TAIL_LIMIT);
+    }
+    target.set(pr, tail);
+  }
+
+  /**
+   * Wipe the appropriate per-PR rolling tail when a new "phase" starts so
+   * the live-output panel doesn't keep showing lines from the prior cycle:
+   *
+   *   - `subtask_start`   → reset the resolver_stream tail (new Claude call)
+   *   - `grpc_server_starting` → reset the grpc_server_log tail
+   *
+   * Without this, a rejected-then-requeued PR shows the previous Claude
+   * session's final lines for the entire ~50s the new session is in flight,
+   * which makes it look like nothing is happening.
+   */
+  private resetPrStreamTailIfBoundary(event: {
+    type: string;
+    payload: Record<string, unknown>;
+  }): void {
+    const pr = typeof event.payload.pr === "number" ? event.payload.pr : null;
+    if (pr === null) return;
+    if (event.type === "subtask_start") {
+      this.prResolverStreamTails.delete(pr);
+    } else if (event.type === "grpc_server_starting") {
+      this.prGrpcServerLogTails.delete(pr);
+    }
   }
 
   /** Broadcast a fresh pr-resolver:snapshot to every connected dashboard. */
@@ -316,6 +433,22 @@ export class SessionSupervisor {
       "pr-resolver:snapshot",
       this.buildPrResolverSnapshotPayload()
     );
+  }
+
+  /**
+   * Debounced snapshot broadcast — fired from the event subscriber so a burst
+   * of events (e.g. cycle_start + pr_start + subtask_start in the same tick)
+   * coalesces into a single snapshot. 100ms is short enough that the UI feels
+   * live, long enough to dedupe a typical event burst.
+   */
+  private prResolverSnapshotTimer: NodeJS.Timeout | null = null;
+  private scheduleSnapshotBroadcast(): void {
+    if (this.prResolverSnapshotTimer) return;
+    this.prResolverSnapshotTimer = setTimeout(() => {
+      this.prResolverSnapshotTimer = null;
+      this.broadcastPrResolverSnapshot();
+    }, 100);
+    this.prResolverSnapshotTimer.unref();
   }
 
   /**

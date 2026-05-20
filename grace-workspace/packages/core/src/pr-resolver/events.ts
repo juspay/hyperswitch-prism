@@ -62,6 +62,9 @@ export type PrResolverEventType =
   | "grpc_test_skipped"
   | "push_done"
   | "reply_posted"
+  | "review_summary_started"
+  | "review_summary_generated"
+  | "review_summary_failed"
   | "error"
   | "state_changed";
 
@@ -86,6 +89,10 @@ const NON_REPLAY_TYPES: ReadonlySet<PrResolverEventType> = new Set([
   "grpc_server_log",
   "grpc_server_probe",
 ]);
+
+export function isReplayablePrResolverEvent(type: string): boolean {
+  return !NON_REPLAY_TYPES.has(type as PrResolverEventType);
+}
 
 const emitter = new EventEmitter();
 emitter.setMaxListeners(50);

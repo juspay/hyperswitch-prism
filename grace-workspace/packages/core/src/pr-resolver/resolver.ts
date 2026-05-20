@@ -89,12 +89,10 @@ export async function runResolverSession(
   );
 
   const sessionLabel = `pr-resolver-pr${input.subTask.prNumber}-${input.subTask.connector}`;
-  emitPrResolverEvent("subtask_start", {
-    pr: input.subTask.prNumber,
-    connector: input.subTask.connector,
-    threadCount: threadView.length,
-    promptChars: rendered.length,
-  });
+  // Note: `subtask_start` is emitted by the service before this is called
+  // (service.ts → processConnector), with the correct `commentCount` field.
+  // Emitting again here would create a duplicate timeline row with a `?`
+  // because the dashboard renders `commentCount` and we don't set it.
 
   const { result, sessionId } = await runClaudeCode<string>({
     skillBody: rendered,
@@ -178,3 +176,56 @@ export async function runFixLoopSession(
 
   return { summary: result, sessionId };
 }
+
+export interface RunReviewSummaryInput {
+  prNumber: number;
+  connector: string;
+  /** Combined review-comment context — same `threads` view used by resolve-comment. */
+  threads: ReturnType<typeof buildThreadView>;
+  /** `git diff origin/<branch>..HEAD`, capped by the caller. */
+  diff: string;
+  /** Absolute cwd for the Claude call. Doesn't matter much — call is read-only. */
+  worktreePath: string;
+  promptsDir?: string;
+  claudeModel?: string;
+  /** Hard timeout (ms) for the summary call. Short — 120s default is plenty. */
+  timeoutMs?: number;
+}
+
+/**
+ * Fresh, single-shot Claude call that produces a plain-language reviewer
+ * summary from the diff + review comments. Independent of the resolver
+ * session lifecycle — we pass the diff explicitly instead of `--resume` so
+ * the summary stays correct even if the resolve/cargo loop took multiple
+ * passes through different sessions.
+ */
+export async function runReviewSummarySession(
+  input: RunReviewSummaryInput
+): Promise<string> {
+  const rendered = renderPrompt(
+    "review-summary",
+    {
+      connector: input.connector,
+      pr_number: input.prNumber,
+      threads: input.threads,
+      diff: input.diff,
+    },
+    input.promptsDir
+  );
+
+  const { result } = await runClaudeCode<string>({
+    skillBody: rendered,
+    userPayload: "",
+    cwd: input.worktreePath,
+    label: `pr-resolver-review-summary-${input.connector}-pr${input.prNumber}`,
+    sessionLabel: `pr-resolver-review-summary-pr${input.prNumber}-${input.connector}`,
+    model: input.claudeModel,
+    timeoutMs: input.timeoutMs ?? 120_000,
+    rawText: true,
+    allowWrite: false,
+  });
+
+  return result.trim();
+}
+
+export { buildThreadView };
