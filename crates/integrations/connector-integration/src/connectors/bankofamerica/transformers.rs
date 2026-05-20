@@ -2524,7 +2524,32 @@ impl<F> TryFrom<ResponseRouterData<BankofamericaPaymentsResponse, Self>>
                 })
             }
             BankofamericaPaymentsResponse::ErrorInformation(ref error_response) => {
-                Ok(map_error_response(&error_response.clone(), item, None))
+                let detailed_error_info =
+                    error_response
+                        .error_information
+                        .details
+                        .as_ref()
+                        .map(|details| {
+                            details
+                                .iter()
+                                .map(|detail| format!("{} : {}", detail.field, detail.reason))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        });
+                let description = get_error_reason(
+                    error_response.error_information.message.clone(),
+                    detailed_error_info,
+                    None,
+                );
+                Ok(Self {
+                    response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                        post_capture_void_status: common_enums::PostCaptureVoidStatus::Failed,
+                        connector_reference_id: None,
+                        description,
+                        status_code: item.http_code,
+                    }),
+                    ..item.router_data
+                })
             }
         }
     }
