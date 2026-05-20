@@ -666,9 +666,7 @@ pub fn build_refund_request(
         PacoTransactionAmount::new(item.request.minor_refund_amount, item.request.currency)?;
     let original_order_no = item
         .request
-        .connector_order_id
-        .clone()
-        .filter(|s| !s.is_empty())
+        .get_connector_order_id()
         .ok_or_else(|| errors::IntegrationError::MissingRequiredField {
             field_name: "connector_order_id",
             context: errors::IntegrationErrorContext {

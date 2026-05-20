@@ -2488,6 +2488,13 @@ impl RefundsData {
                 context: Default::default(),
             })
     }
+
+    /// Returns `connector_order_id` only if it is non-empty.
+    pub fn get_connector_order_id(&self) -> Option<String> {
+        self.connector_order_id
+            .clone()
+            .filter(|s| !s.is_empty())
+    }
     pub fn get_webhook_url(&self) -> Result<String, Error> {
         self.webhook_url
             .clone()
