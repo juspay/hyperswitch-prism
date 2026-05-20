@@ -39,6 +39,10 @@ export interface FakeSnapshotPayload {
     timestamp: number;
     payload: Record<string, unknown>;
   }>;
+  streamTails?: Record<
+    string,
+    { resolverStream?: string[]; grpcServerLog?: string[] }
+  >;
 }
 
 export interface InboundRecord {

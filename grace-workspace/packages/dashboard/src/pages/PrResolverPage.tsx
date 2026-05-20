@@ -90,7 +90,7 @@ export function PrResolverPage() {
         >
           <div>
             <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
-              Byne · PR Resolver
+              10XGRACE · PR Resolver
             </h1>
             <span style={{ fontSize: 12, color: T.textMuted }}>
               {enabled ? (

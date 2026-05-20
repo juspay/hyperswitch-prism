@@ -163,14 +163,9 @@ test("awaiting_approval shows the Approve & push button; click reaches the super
   await page.goto("/pr-resolver/2200");
   await supervisor.waitForDashboard();
 
-  // The detail page auto-selects whatever stage was running at mount time,
-  // which is "Noticed" if the snapshot hasn't landed yet. Click the
-  // Approval stage row in the left rail to surface the approve panel.
-  await page
-    .getByRole("button", { name: /^Approval$/ })
-    .first()
-    .click();
-
+  // No rail click needed — the auto-select effect now waits for the machine
+  // to land before locking in a stage, so the Approval panel surfaces on its
+  // own once the snapshot arrives.
   const approve = page.getByRole("button", { name: /Approve & push/i });
   await expect(approve).toBeVisible();
   await approve.click();
@@ -207,11 +202,6 @@ test("request changes opens the textarea dialog and sends feedback to the superv
 
   await page.goto("/pr-resolver/2300");
   await supervisor.waitForDashboard();
-
-  await page
-    .getByRole("button", { name: /^Approval$/ })
-    .first()
-    .click();
 
   // The dialog isn't there until the user clicks "Request changes…".
   await expect(page.getByTestId("revision-form")).toHaveCount(0);
@@ -262,10 +252,6 @@ test("request changes cancel button dismisses the dialog without sending", async
 
   await page.goto("/pr-resolver/2301");
   await supervisor.waitForDashboard();
-  await page
-    .getByRole("button", { name: /^Approval$/ })
-    .first()
-    .click();
   await page.getByRole("button", { name: /Request changes…/ }).click();
 
   await page
@@ -279,6 +265,167 @@ test("request changes cancel button dismisses the dialog without sending", async
   expect(
     supervisor.inbound.filter((m) => m.type === "pr-resolver:request_changes")
   ).toHaveLength(0);
+});
+
+test("approval page shows the resolver summary above the diff", async ({ page }) => {
+  const summary =
+    "## Summary\n- Comment 1: changed Foo to Bar because the reviewer wanted Option<String>\n- Comment 2: removed dead match arm";
+  supervisor.snapshot.prMachines = {
+    "2400": makeFakeMachine({
+      prNumber: 2400,
+      status: "awaiting_approval",
+      connectors: ["adyen"],
+      branch: "feat/adyen-fix",
+      summary,
+      diffPreview:
+        "diff --git a/foo.rs b/foo.rs\n@@ -1,1 +1,1 @@\n-let x = Foo;\n+let x = Bar;",
+      localSha: "facefeed12345678",
+    }),
+  };
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/pr-resolver/2400");
+  await supervisor.waitForDashboard();
+
+  const summaryBlock = page.getByTestId("approval-summary");
+  await expect(summaryBlock).toBeVisible();
+  await expect(summaryBlock).toContainText("changed Foo to Bar");
+  await expect(summaryBlock).toContainText("removed dead match arm");
+});
+
+test("diff viewer split/inline toggle switches modes and auto-collapses on narrow viewports", async ({
+  page,
+}) => {
+  supervisor.snapshot.prMachines = {
+    "2500": makeFakeMachine({
+      prNumber: 2500,
+      status: "awaiting_approval",
+      connectors: ["adyen"],
+      branch: "feat/adyen-fix",
+      diffPreview:
+        "diff --git a/foo.rs b/foo.rs\n@@ -1,2 +1,2 @@\n-let x = Foo;\n-let y = Foo;\n+let x = Bar;\n+let y = Bar;",
+      localSha: "1234abcd5678ef90",
+    }),
+  };
+
+  // Wide viewport — split is the default and should render as a <table>.
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await page.goto("/pr-resolver/2500");
+  await supervisor.waitForDashboard();
+
+  await expect(page.locator('[data-diff-mode="split"]').first()).toBeVisible();
+
+  // Flip to inline.
+  await page.getByRole("button", { name: /^Inline$/ }).first().click();
+  await expect(page.locator('[data-diff-mode="inline"]').first()).toBeVisible();
+  await expect(page.locator('[data-diff-mode="split"]')).toHaveCount(0);
+
+  // Flip back to split.
+  await page.getByRole("button", { name: /^Split$/ }).first().click();
+  await expect(page.locator('[data-diff-mode="split"]').first()).toBeVisible();
+
+  // Shrink the viewport below the split breakpoint — should auto-collapse to
+  // inline and disable the Split toggle without losing the user's preference.
+  await page.setViewportSize({ width: 720, height: 900 });
+  await expect(page.locator('[data-diff-mode="inline"]').first()).toBeVisible();
+  await expect(page.locator('[data-diff-mode="split"]')).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Split$/ }).first()).toBeDisabled();
+});
+
+test("a stuck non-terminal machine surfaces a 'Force reset & retry' banner", async ({
+  page,
+}) => {
+  // Simulate the ENOSPC-mid-cycle scenario: machine got frozen in
+  // 'resolving' because the state file couldn't be updated to 'failed'.
+  supervisor.snapshot.running = false;
+  supervisor.snapshot.prMachines = {
+    "2600": makeFakeMachine({
+      prNumber: 2600,
+      status: "resolving",
+      connectors: ["bankofamerica"],
+      branch: "feat/bofa-fix",
+      reason: "Disk full during gRPC server compile (ENOSPC)",
+    }),
+  };
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/pr-resolver/2600");
+  await supervisor.waitForDashboard();
+
+  const banner = page.getByTestId("retry-banner-stuck");
+  await expect(banner).toBeVisible();
+  await expect(banner).toContainText("Stuck mid-cycle");
+  await expect(banner).toContainText("Disk full");
+
+  await page.getByRole("button", { name: /Force reset & retry/ }).click();
+  await expect
+    .poll(
+      () =>
+        supervisor.inbound.find(
+          (m) =>
+            m.type === "pr-resolver:retry" &&
+            Number((m.payload as { prNumber?: number })?.prNumber) === 2600
+        )?.type ?? null,
+      { timeout: 3_000 }
+    )
+    .toBe("pr-resolver:retry");
+});
+
+test("a stuck banner is suppressed while a cycle is actively running", async ({
+  page,
+}) => {
+  supervisor.snapshot.running = true; // cycle in flight — not really stuck
+  supervisor.snapshot.prMachines = {
+    "2601": makeFakeMachine({
+      prNumber: 2601,
+      status: "resolving",
+      connectors: ["bankofamerica"],
+      branch: "feat/bofa-fix",
+    }),
+  };
+
+  await page.goto("/pr-resolver/2601");
+  await supervisor.waitForDashboard();
+
+  await expect(page.getByTestId("retry-banner-stuck")).toHaveCount(0);
+});
+
+test("resolver_stream tail is replayed from the snapshot on (re)connect", async ({
+  page,
+}) => {
+  // Mimic a PR that's mid-resolve and has streamed a handful of Claude
+  // lines before the dashboard connected. The supervisor's per-PR rolling
+  // buffer should ship them in the snapshot — they're NON_REPLAY events so
+  // recentEvents alone won't carry them.
+  supervisor.snapshot.prMachines = {
+    "2700": makeFakeMachine({
+      prNumber: 2700,
+      status: "resolving",
+      connectors: ["bankofamerica"],
+      branch: "feat/bofa-fix",
+    }),
+  };
+  supervisor.snapshot.streamTails = {
+    "2700": {
+      resolverStream: [
+        "[claude] reading transformers.rs",
+        "[claude] applying fix per reviewer comment",
+        "[claude] summary written",
+      ],
+    },
+  };
+  supervisor.snapshot.running = true;
+
+  await page.goto("/pr-resolver/2700");
+  await supervisor.waitForDashboard();
+
+  await expect(
+    page.getByText("[claude] reading transformers.rs")
+  ).toBeVisible();
+  await expect(
+    page.getByText("[claude] applying fix per reviewer comment")
+  ).toBeVisible();
+  await expect(page.getByText("[claude] summary written")).toBeVisible();
 });
 
 test("settings toggle round-trips via pr-resolver:configure", async ({ page }) => {
