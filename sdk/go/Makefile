@@ -72,7 +72,13 @@ generate-bindings: build-ffi-lib
 		--library $(LIBRARY) \
 		--out-dir $(UNIFFI_GO) \
 		--no-format
-	@cp $(LIBRARY) $(UNIFFI_GO)/connector_service_ffi/
+	@mkdir -p $(UNIFFI_GO)/connector_service_ffi/darwin
+	@mkdir -p $(UNIFFI_GO)/connector_service_ffi/linux
+ifeq ($(LIB_EXT),dylib)
+	@cp $(LIBRARY) $(UNIFFI_GO)/connector_service_ffi/darwin/
+else
+	@cp $(LIBRARY) $(UNIFFI_GO)/connector_service_ffi/linux/
+endif
 	@rm -rf $(UNIFFI_GO)/superposition_client $(UNIFFI_GO)/superposition_types
 	@echo "Go bindings generated in $(UNIFFI_GO)/"
 
@@ -120,9 +126,13 @@ SMOKE_TEST_DIR  := $(SDK_ROOT)/smoke-test
 
 test-package:
 	@echo "Running Go smoke test..."
-	@# Ensure native library is present for CGO linking
-	@if [ -f "$(LIBRARY)" ] && [ ! -f "$(UNIFFI_GO)/connector_service_ffi/libconnector_service_ffi.$(LIB_EXT)" ]; then \
-		cp -f "$(LIBRARY)" "$(UNIFFI_GO)/connector_service_ffi/"; \
+	@# Ensure native library is present in the platform subdirectory for CGO linking
+	@if [ -f "$(LIBRARY)" ]; then \
+		if [ "$(LIB_EXT)" = "dylib" ] && [ ! -f "$(UNIFFI_GO)/connector_service_ffi/darwin/libconnector_service_ffi.dylib" ]; then \
+			cp -f "$(LIBRARY)" "$(UNIFFI_GO)/connector_service_ffi/darwin/"; \
+		elif [ "$(LIB_EXT)" = "so" ] && [ ! -f "$(UNIFFI_GO)/connector_service_ffi/linux/libconnector_service_ffi.so" ]; then \
+			cp -f "$(LIBRARY)" "$(UNIFFI_GO)/connector_service_ffi/linux/"; \
+		fi; \
 	fi
 	@if [ ! -f $(CREDS_FILE) ]; then \
 		echo "Error: $(CREDS_FILE) not found. Set CREDS_FILE=/path/to/creds.json"; \
@@ -137,9 +147,13 @@ test-package:
 
 test-package-mock:
 	@echo "Running Go smoke test in MOCK mode..."
-	@# Ensure native library is present for CGO linking
-	@if [ -f "$(LIBRARY)" ] && [ ! -f "$(UNIFFI_GO)/connector_service_ffi/libconnector_service_ffi.$(LIB_EXT)" ]; then \
-		cp -f "$(LIBRARY)" "$(UNIFFI_GO)/connector_service_ffi/"; \
+	@# Ensure native library is present in the platform subdirectory for CGO linking
+	@if [ -f "$(LIBRARY)" ]; then \
+		if [ "$(LIB_EXT)" = "dylib" ] && [ ! -f "$(UNIFFI_GO)/connector_service_ffi/darwin/libconnector_service_ffi.dylib" ]; then \
+			cp -f "$(LIBRARY)" "$(UNIFFI_GO)/connector_service_ffi/darwin/"; \
+		elif [ "$(LIB_EXT)" = "so" ] && [ ! -f "$(UNIFFI_GO)/connector_service_ffi/linux/libconnector_service_ffi.so" ]; then \
+			cp -f "$(LIBRARY)" "$(UNIFFI_GO)/connector_service_ffi/linux/"; \
+		fi; \
 	fi
 	@if [ ! -f $(CREDS_FILE) ]; then \
 		echo "Error: $(CREDS_FILE) not found. Set CREDS_FILE=/path/to/creds.json"; \
@@ -171,11 +185,11 @@ test-webhook:
 clean:
 	@# Remove generated protobuf files
 	rm -f $(GENERATED_GO)/payments/*.pb.go
-	@# Remove generated uniffi files but preserve cgo.go and native libraries
+	@# Remove generated uniffi files but preserve manual files and native libraries
 	@find $(UNIFFI_GO)/connector_service_ffi -maxdepth 1 -type f \
 		! -name 'cgo.go' \
-		! -name '*.dylib' \
-		! -name '*.so' \
+		! -name 'cgo_darwin.go' \
+		! -name 'cgo_linux.go' \
 		-delete 2>/dev/null || true
 	@rm -rf $(UNIFFI_GO)/superposition_client $(UNIFFI_GO)/superposition_types
 	rm -f $(PAYMENTS_PKG)/zz_generated_client.go
