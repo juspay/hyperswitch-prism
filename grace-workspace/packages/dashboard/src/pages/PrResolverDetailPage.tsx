@@ -2083,6 +2083,16 @@ function computeStageStatuses(
     }
   }
 
+  // gRPC verification: machine.testStepResults is authoritative. If any
+  // step failed, the stage is failed regardless of what individual step
+  // events flow through.
+  if (machine.testStepResults && machine.testStepResults.length > 0) {
+    const failedCount = machine.testStepResults.filter(
+      (r) => !r.ok && !r.skipped
+    ).length;
+    out["grpc_test"] = failedCount > 0 ? "failed" : "passed";
+  }
+
   // Approval / rejected / failed terminal statuses
   if (machine.status === "awaiting_approval") {
     out["approval"] = "running";
@@ -2097,11 +2107,37 @@ function computeStageStatuses(
     out["reply"] = "passed";
   }
   if (machine.status === "failed") {
-    // Find the first non-passed and mark it failed for visibility.
+    // Terminal failure: the phase-floor logic above marks everything ≤ phase
+    // as "passed", but `failed` shares phase 6 with `pushed`, so every stage
+    // ends up green. Reset to "idle" first, then derive from actual step /
+    // testStepResults evidence.
     for (const stage of STAGES) {
-      if (out[stage.id] === "running" || out[stage.id] === "idle") {
-        out[stage.id] = "failed";
-        break;
+      // Skip stages that already have explicit evidence from steps /
+      // testStepResults — those reads from the refinement above are
+      // authoritative.
+      const hasExplicit = steps.some(
+        (s) => stageIdFromStep(s) === stage.id && s.passed !== undefined
+      );
+      const hasGrpcEvidence =
+        stage.id === "grpc_test" &&
+        machine.testStepResults &&
+        machine.testStepResults.length > 0;
+      if (!hasExplicit && !hasGrpcEvidence) {
+        out[stage.id] = "idle";
+      }
+    }
+    // Mark the EARLIEST stage with a failure as failed. If we have a
+    // failing stage from steps/testStepResults, that's the failure point;
+    // everything before it that lacks explicit passing evidence stays idle.
+    const failedStage = STAGES.find((s) => out[s.id] === "failed");
+    // If somehow no stage was marked failed but the machine says failed,
+    // walk forward through stages and mark the first non-passed one.
+    if (!failedStage) {
+      for (const stage of STAGES) {
+        if (out[stage.id] !== "passed") {
+          out[stage.id] = "failed";
+          break;
+        }
       }
     }
   }
@@ -2110,6 +2146,18 @@ function computeStageStatuses(
 }
 
 function stageIdFromStep(step: BoardStep): string | null {
+  // Prefer the structured `type` over text matching. The grpc_test_step_*
+  // events emit text like "✗ authorize_manual_capture" which has no "grpc"
+  // substring; text matching would miss them and the failed stage wouldn't
+  // be marked red on the left rail.
+  if (step.type === "grpc_test") return "grpc_test";
+  if (step.type === "push") return "push";
+  if (step.type === "reply") return "reply";
+  if (step.type === "subtask" || step.type === "pr_start") return "resolve";
+  // review_summary doesn't belong to any verification stage — it lives in
+  // the Approval panel itself.
+  if (step.type === "review_summary") return null;
+
   const t = step.text.toLowerCase();
   if (t.includes("pr still open")) return "pr_open";
   if (t.includes("checkout branch")) return "checkout";
