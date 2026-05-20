@@ -252,6 +252,7 @@ struct Beneficiary {
     _type: String,
     merchant_account_id: Secret<String>,
     account_holder_name: Secret<String>,
+    reference: String,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -307,6 +308,13 @@ struct HostedPageResponse {
     uri: String,
 }
 
+fn normalize_connector_request_reference_id(reference_id: &str) -> String {
+    reference_id
+        .chars()
+        .map(|c| if c == '_' { '-' } else { c })
+        .collect()
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         TruelayerRouterData<
@@ -357,6 +365,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         _type: "merchant_account".to_string(),
                         merchant_account_id: metadata.merchant_account_id.clone(),
                         account_holder_name: metadata.account_holder_name.clone(),
+                        reference: normalize_connector_request_reference_id(
+                            &item
+                                .router_data
+                                .resource_common_data
+                                .connector_request_reference_id,
+                        ),
                     },
                 };
 
