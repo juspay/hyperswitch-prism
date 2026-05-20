@@ -1,0 +1,5 @@
+# Auto-generated artifacts from the grace v2 workflow.
+# Only .gitkeep and this .gitignore are tracked.
+*
+!.gitkeep
+!.gitignore
