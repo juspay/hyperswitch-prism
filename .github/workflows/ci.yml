@@ -255,6 +255,14 @@ jobs:
           make -C sdk install-deps
           cd sdk/javascript && npm ci && cd ../..
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Install Go protoc plugin
+        run: go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
+
       - name: Format Rust code
         run: cargo +nightly fmt --all
 
