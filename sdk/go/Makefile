@@ -1,5 +1,6 @@
 .PHONY: all build generate generate-proto generate-bindings generate-flows test test-mock clean install \
-        test-package test-package-mock test-composite test-webhook
+        test-package test-package-mock test-composite test-webhook \
+        publish publish-check publish-check-auth publish-check-version publish-check-dry-run dist
 
 # SDK-specific paths
 MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -15,6 +16,10 @@ UNIFFI_GO        := $(SDK_ROOT)/generated/uniffi
 PAYMENTS_PKG     := $(SDK_ROOT)/payments
 BINDGEN_GO       := $(HOME)/.cargo/bin/uniffi-bindgen-go
 PROTOC_GEN_GO    := $(shell which protoc-gen-go 2>/dev/null || echo $(HOME)/go/bin/protoc-gen-go)
+
+# Version for distribution and publishing
+PACKAGE_VERSION := $(if $(VERSION),$(VERSION),$(shell \
+	cd $(REPO_ROOT) && git describe --tags --match 'sdk/go/v*' --abbrev=0 2>/dev/null | sed 's/sdk\/go\///' || echo "0.0.0-dev"))
 
 # Proto excludes (same as Java SDK)
 PROTO_EXCLUDES := health_check.proto composite_payment.proto composite_services.proto
@@ -186,3 +191,49 @@ dist: build
 	@tar czf $(ARTIFACTS_DIR)/sdk-go/prism-go-$(PACKAGE_VERSION).tar.gz \
 		-C $(SDK_ROOT) go.mod payments/ generated/ README.md
 	@echo "Distribution created in $(ARTIFACTS_DIR)/sdk-go/"
+
+# ---------------------------------------------------------------------------
+# Pre-publish checks
+# ---------------------------------------------------------------------------
+
+# publish-check-auth
+# Verifies git is available for tagging.
+publish-check-auth:
+	@which git >/dev/null 2>&1 || (echo "Error: git is not installed" && exit 1)
+	@echo "Git is available."
+
+# publish-check-version
+# Checks if sdk/go/v$(PACKAGE_VERSION) tag already exists.
+publish-check-version:
+	@echo "Checking if tag sdk/go/v$(PACKAGE_VERSION) exists..."
+	@if git -C $(REPO_ROOT) rev-parse "sdk/go/v$(PACKAGE_VERSION)" >/dev/null 2>&1; then \
+		echo "Error: Tag sdk/go/v$(PACKAGE_VERSION) already exists"; \
+		exit 1; \
+	fi
+	@echo "Tag sdk/go/v$(PACKAGE_VERSION) does not exist - OK to publish."
+
+# publish-check-dry-run
+# Validates the module builds cleanly before tagging.
+publish-check-dry-run: build
+	@echo "Module compiles successfully - OK to publish."
+
+# publish-check
+# Runs all pre-publish checks in sequence.
+publish-check: publish-check-auth publish-check-version publish-check-dry-run
+	@echo "All Go pre-publish checks passed."
+
+# ---------------------------------------------------------------------------
+# publish
+# Creates and pushes the git tag. Go proxy mirrors automatically.
+# ---------------------------------------------------------------------------
+publish:
+	@if [ -z "$(PACKAGE_VERSION)" ] || [ "$(PACKAGE_VERSION)" = "0.0.0-dev" ]; then \
+		echo "Error: Cannot publish dev version. Set VERSION=X.Y.Z"; \
+		exit 1; \
+	fi
+	@echo "Creating tag sdk/go/v$(PACKAGE_VERSION)..."
+	@git -C $(REPO_ROOT) tag -a "sdk/go/v$(PACKAGE_VERSION)" -m "Release sdk/go v$(PACKAGE_VERSION)"
+	@echo "Pushing tag sdk/go/v$(PACKAGE_VERSION)..."
+	@git -C $(REPO_ROOT) push origin "sdk/go/v$(PACKAGE_VERSION)"
+	@echo "Published! Go proxy will mirror within minutes."
+	@echo "Verify with: go list -m -versions github.com/juspay/hyperswitch-prism/sdk/go"

@@ -345,7 +345,7 @@ test-mock: build-ffi-lib ## Run all SDK smoke tests in MOCK mode (verifies req_t
 # ---------------------------------------------------------------------------
 # Distribution targets - delegate to SDK-specific dist
 # ---------------------------------------------------------------------------
-dist: dist-python dist-javascript dist-java ## Build all SDK distribution packages
+dist: dist-python dist-javascript dist-java dist-go ## Build all SDK distribution packages
 
 dist-python: build-ffi-lib ## Build FFI → Build Python wheel
 	@$(MAKE) -C $(REPO_ROOT)/sdk/python dist
@@ -355,6 +355,9 @@ dist-javascript: build-ffi-lib ## Build FFI → Build JS npm package
 
 dist-java: build-ffi-lib ## Build FFI → Build Java JAR
 	@$(MAKE) -C $(REPO_ROOT)/sdk/java dist
+
+dist-go: build-ffi-lib ## Build FFI → Build Go SDK archive
+	@$(MAKE) -C $(REPO_ROOT)/sdk/go dist
 
 # ---------------------------------------------------------------------------
 # Pre-publish check targets - delegate to SDK-specific publish-check
@@ -369,7 +372,10 @@ publish-check-javascript: ## Run JavaScript SDK pre-publish checks
 publish-check-java: ## Run Java SDK pre-publish checks
 	@$(MAKE) -C $(REPO_ROOT)/sdk/java publish-check
 
-publish-check: publish-check-python publish-check-javascript publish-check-java ## Run all SDK pre-publish checks
+publish-check-go: ## Run Go SDK pre-publish checks
+	@$(MAKE) -C $(REPO_ROOT)/sdk/go publish-check
+
+publish-check: publish-check-python publish-check-javascript publish-check-java publish-check-go ## Run all SDK pre-publish checks
 	@echo "All SDK pre-publish checks passed."
 
 # ---------------------------------------------------------------------------
