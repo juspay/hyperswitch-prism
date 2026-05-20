@@ -142,6 +142,13 @@ export interface PrMachine {
   reviewSummaryStatus?: "generating" | "ready" | "failed";
   /** Error message when `reviewSummaryStatus === "failed"`. */
   reviewSummaryError?: string;
+  /**
+   * Which worktree pool slot is currently leased for this PR. Persisted so
+   * the supervisor can re-attach a pinned slot to its awaiting_approval PR
+   * on restart, instead of orphaning the local commits the user is about
+   * to approve.
+   */
+  workerSlot?: number;
   startedAt: string;
   updatedAt: string;
 }
@@ -201,11 +208,15 @@ export class PrResolverStateManager {
 
   save(): void {
     fs.mkdirSync(path.dirname(this.stateFile), { recursive: true });
-    fs.writeFileSync(
-      this.stateFile,
-      JSON.stringify(this.state, null, 2),
-      "utf-8"
-    );
+    // Write to a sibling temp file then rename — `rename(2)` on the same FS
+    // is atomic on POSIX, so a SIGKILL mid-flight can never leave a torn
+    // JSON file for the next supervisor boot to choke on. Concurrent
+    // PrMachine upserts from N workers are still safe because JS
+    // single-threading runs each `save()` to completion before the next
+    // one starts.
+    const tmp = `${this.stateFile}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(this.state, null, 2), "utf-8");
+    fs.renameSync(tmp, this.stateFile);
   }
 
   snapshot(): PrResolverState {
@@ -472,6 +483,9 @@ export class PrResolverStateManager {
       reviewSummaryError: Object.hasOwn(input, "reviewSummaryError")
         ? input.reviewSummaryError
         : existing?.reviewSummaryError,
+      workerSlot: Object.hasOwn(input, "workerSlot")
+        ? input.workerSlot
+        : existing?.workerSlot,
       startedAt: existing?.startedAt ?? now,
       updatedAt: now,
     };

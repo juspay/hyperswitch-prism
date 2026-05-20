@@ -3,7 +3,7 @@ import {
   filterTriggeredThreads,
   parseGithubRepo,
 } from "./github.js";
-import { PrResolverStateManager } from "./state.js";
+import { PrResolverStateManager, type PrMachine } from "./state.js";
 import {
   buildThreadView,
   runResolverSession,
@@ -12,7 +12,10 @@ import {
 import { runCargoFixLoop } from "./cargo-loop.js";
 import { emitPrResolverEvent } from "./events.js";
 import path from "node:path";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { runClaudeCode } from "../tools/claude-code-runner.js";
+import { pickFreePort } from "./port-allocator.js";
+import { WorktreePool, type Lease } from "./worktree-pool.js";
 import {
   cargoFmt,
   capturePrDiff,
@@ -53,6 +56,18 @@ import type {
 import type { GrpcTestResultRecord } from "./state.js";
 
 /**
+ * Per-PR worker context propagated through AsyncLocalStorage. The
+ * worktreePath getter on the service reads from here, so every helper
+ * that used to reference `this.worktreePath` automatically sees the
+ * leased slot's path when running inside a worker — no explicit param
+ * threading needed.
+ */
+interface WorkerContext {
+  lease: Lease;
+}
+const workerCtx = new AsyncLocalStorage<WorkerContext>();
+
+/**
  * PR Resolver orchestrator. One poll cycle:
  *
  *   1. Fetch open PRs (+ their review threads) for `cfg.githubRepo`.
@@ -64,15 +79,20 @@ import type { GrpcTestResultRecord } from "./state.js";
  *   6. Per sub-task: resolver session → cargo build/clippy fix loop → fmt →
  *      scope check → commit. After all sub-tasks: push, post per-thread reply.
  *
- * MVP simplifications vs the Python service:
- *   - `maxConcurrent` is enforced as 1 — one PR at a time, one worktree.
+ * Concurrency model: when `cfg.maxConcurrent > 1`, PRs are processed in
+ * parallel through a WorktreePool. Each PR acquires a slot for the
+ * duration of its cycle; a PR parked in `awaiting_approval` keeps its
+ * slot pinned until the reviewer decides. Slot 0 is always the user's
+ * primary `cfg.worktreePath` clone; slots 1..N-1 are git worktrees
+ * materialised lazily under `cfg.worktreePath`'s sibling pool dir.
+ *
+ * Other MVP simplifications:
  *   - Questions (vs actionable comments) are marked failed with a polite
  *     note; we don't auto-answer them (drops one Claude session per question).
  *   - No connector AST index — Claude reads the repo directly.
  */
 export class PrResolverService {
   private cycle = 0;
-  private cycleInProgress = false;
   private cancelled = false;
   private readonly state: PrResolverStateManager;
   private readonly github: GitHubClient;
@@ -81,6 +101,11 @@ export class PrResolverService {
   /** Per-thread resolution summaries captured during the cycle, replayed when posting replies. */
   private readonly resolveSummaries = new Map<string, string>();
   private lastCycleSummary: CycleSummary | null = null;
+
+  /** Pool of git worktrees — one slot per concurrent PR. Always sized at construction. */
+  private readonly pool: WorktreePool;
+  /** Currently-running PR workers, keyed by PR number. Promise resolves when the worker exits. */
+  private readonly inFlight = new Map<number, Promise<void>>();
 
   constructor(
     private readonly cfg: PrResolverConfig,
@@ -96,6 +121,41 @@ export class PrResolverService {
     this.repo = parsed.repo;
     this.state = new PrResolverStateManager(cfg.stateFilePath);
     this.github = new GitHubClient(this.owner, this.repo);
+    // Pool sized off `maxConcurrent`. Slot 0 is the primary clone; the pool
+    // dir is a sibling so a fresh clone doesn't accidentally inherit a
+    // bunch of stray worktrees from a prior config.
+    const poolDir = path.join(
+      path.dirname(path.resolve(cfg.worktreePath)),
+      `${path.basename(path.resolve(cfg.worktreePath))}-pool`
+    );
+    this.pool = new WorktreePool({
+      primaryWorktreePath: cfg.worktreePath,
+      poolDir,
+      maxConcurrent: Math.max(1, cfg.maxConcurrent ?? 1),
+    });
+  }
+
+  /**
+   * Resolve the worktree path that the *current* helper should operate on.
+   * Inside a worker (anywhere downstream of `runPr`'s `workerCtx.run`),
+   * this is the leased slot's path. Outside any worker — initialise,
+   * dashboard control handlers before they look up the machine — it
+   * falls back to the primary clone.
+   */
+  private get worktreePath(): string {
+    return workerCtx.getStore()?.lease.worktreePath ?? this.cfg.worktreePath;
+  }
+
+  /**
+   * Worktree path for a known PR. Used by `approvePr` / `rejectPr` /
+   * `requestChanges` to operate on the pinned slot's tree — those entry
+   * points run outside of any worker context, so they have to look up
+   * the slot explicitly from `machine.workerSlot`.
+   */
+  private worktreePathForMachine(machine: PrMachine): string {
+    if (typeof machine.workerSlot !== "number") return this.cfg.worktreePath;
+    const lease = this.pool.findLeaseByPr(machine.prNumber);
+    return lease?.worktreePath ?? this.cfg.worktreePath;
   }
 
   // ─── Public API ─────────────────────────────────────────────────────
@@ -105,7 +165,9 @@ export class PrResolverService {
   }
 
   isRunning(): boolean {
-    return this.cycleInProgress;
+    // "Running" = any worker is in flight. Replaces the old single
+    // `cycleInProgress` boolean which only made sense in the serial model.
+    return this.inFlight.size > 0;
   }
 
   getLastCycleSummary(): CycleSummary | null {
@@ -156,8 +218,11 @@ export class PrResolverService {
         error: `PR #${prNumber} is in status '${machine.status}', not awaiting approval`,
       };
     }
+    // Operate on the pinned slot's worktree, not the primary clone, so we
+    // don't push the wrong PR's commits when N>1 workers are in flight.
+    const wtPath = this.worktreePathForMachine(machine);
     // Sanity: the worktree should still be at the local SHA we captured.
-    const currentLocalSha = await headSha(this.cfg.worktreePath);
+    const currentLocalSha = await headSha(wtPath);
     if (machine.localSha && currentLocalSha !== machine.localSha) {
       return {
         ok: false,
@@ -167,7 +232,7 @@ export class PrResolverService {
     // Stale remote: if origin advanced under us, refuse rather than rebase
     // implicitly — the user should see a fresh diff first.
     const currentRemoteSha = await fetchPrHeadSha({
-      worktreePath: this.cfg.worktreePath,
+      worktreePath: wtPath,
       owner: this.owner,
       repo: this.repo,
       prNumber,
@@ -186,7 +251,7 @@ export class PrResolverService {
     this.state.upsertPrMachine({ prNumber, status: "committing" });
     emitPrResolverEvent("approved", { pr: prNumber, note: note ?? "" });
 
-    const pushResult = await pushBranch(this.cfg.worktreePath, machine.branch);
+    const pushResult = await pushBranch(wtPath, machine.branch);
     if (!pushResult.ok) {
       this.state.upsertPrMachine({
         prNumber,
@@ -197,9 +262,11 @@ export class PrResolverService {
         pr: prNumber,
         error: pushResult.error,
       });
+      // Release the slot so a retry can pick a fresh one.
+      this.releasePinnedSlot(prNumber);
       return { ok: false, error: pushResult.error };
     }
-    const sha = await headSha(this.cfg.worktreePath);
+    const sha = await headSha(wtPath);
     emitPrResolverEvent("push_done", { pr: prNumber, sha });
 
     // Reply on each tracked thread. We loop with an index so we can pair
@@ -236,8 +303,25 @@ export class PrResolverService {
       prNumber,
       status: "pushed",
       localSha: sha,
+      workerSlot: undefined,
     });
+    // Approval flow done — let the slot serve the next PR.
+    this.releasePinnedSlot(prNumber);
     return { ok: true };
+  }
+
+  /**
+   * Unpin and release the worktree slot a PR was holding while parked in
+   * awaiting_approval. Idempotent — safe to call even if the PR never had a
+   * slot (e.g. it was processed back when maxConcurrent was effectively 1
+   * and we didn't persist `workerSlot`). Always called from the approve /
+   * reject / requestChanges / retry path, never from inside a worker.
+   */
+  private releasePinnedSlot(prNumber: number): void {
+    const lease = this.pool.findLeaseByPr(prNumber);
+    if (!lease) return;
+    this.pool.unpin(lease);
+    this.pool.release(lease);
   }
 
   /**
@@ -271,7 +355,12 @@ export class PrResolverService {
       "committing",
     ]);
     const isTerminal = terminalStates.has(machine.status);
-    const isStuck = stuckStates.has(machine.status) && !this.cycleInProgress;
+    // "Stuck" = transient status visible while no worker is actually in
+    // flight for this PR — typical ENOSPC mid-cycle. We check inFlight by
+    // PR rather than the old global cycleInProgress so other concurrent
+    // workers don't make this PR look "live" when its own machine froze.
+    const isStuck =
+      stuckStates.has(machine.status) && !this.inFlight.has(prNumber);
     if (!isTerminal && !isStuck) {
       if (machine.status === "awaiting_approval") {
         return {
@@ -298,13 +387,18 @@ export class PrResolverService {
     const cleared = this.state.clearBuildFailure(prNumber);
 
     // If we left stale local commits behind (rare — most failures revert),
-    // reset to remote so the next checkout starts clean.
+    // reset the slot the PR was using (if any) so the next checkout starts
+    // clean. Falling back to the primary clone preserves the legacy
+    // single-worktree behaviour for PRs that pre-date `workerSlot`.
     try {
-      await resetToRemote(this.cfg.worktreePath, machine.branch);
+      await resetToRemote(this.worktreePathForMachine(machine), machine.branch);
     } catch {
       /* best-effort — checkout in the next cycle will sort it out */
     }
 
+    // Free the slot regardless of whether the cycle finished cleanly so
+    // pool capacity is recovered on Retry.
+    this.releasePinnedSlot(prNumber);
     this.state.removePrMachine(prNumber);
     emitPrResolverEvent("pr_retry", {
       pr: prNumber,
@@ -336,7 +430,10 @@ export class PrResolverService {
     }
 
     const note = (reason ?? "").trim();
-    const reset = await resetToRemote(this.cfg.worktreePath, machine.branch);
+    const reset = await resetToRemote(
+      this.worktreePathForMachine(machine),
+      machine.branch
+    );
     if (!reset.ok) {
       return {
         ok: false,
@@ -367,8 +464,11 @@ export class PrResolverService {
       prNumber,
       status: "rejected",
       reason: note || "rejected from dashboard",
+      workerSlot: undefined,
     });
     emitPrResolverEvent("rejected", { pr: prNumber, reason: note });
+    // Slot was pinned through approval; rejection ends that hold.
+    this.releasePinnedSlot(prNumber);
     return { ok: true };
   }
 
@@ -404,7 +504,10 @@ export class PrResolverService {
 
     // Discard the proposed commits so the next resolve pass starts from a
     // clean tree pinned to origin/<branch>.
-    const reset = await resetToRemote(this.cfg.worktreePath, machine.branch);
+    const reset = await resetToRemote(
+      this.worktreePathForMachine(machine),
+      machine.branch
+    );
     if (!reset.ok) {
       return {
         ok: false,
@@ -431,7 +534,12 @@ export class PrResolverService {
       diffPreview: undefined,
       localSha: undefined,
       reason: undefined,
+      // Release the slot — next cycle's processPr will acquire one fresh,
+      // possibly a different number. workerSlot is cleared explicitly here
+      // even though the persisted machine has it; the next pass overwrites.
+      workerSlot: undefined,
     });
+    this.releasePinnedSlot(prNumber);
 
     emitPrResolverEvent("revision_requested", {
       pr: prNumber,
@@ -450,6 +558,27 @@ export class PrResolverService {
       owner: this.owner,
       repo: this.repo,
     });
+    // Re-attach pinned worktree slots for any PR that was sitting in
+    // awaiting_approval when the supervisor went down. Without this, the
+    // user's pending commits would be orphaned (still on disk in pool/wt-i
+    // but not findable via `findLeaseByPr`).
+    for (const m of this.state.listPrMachinesByStatus("awaiting_approval")) {
+      if (typeof m.workerSlot === "number" && m.workerSlot < this.pool.size()) {
+        const lease = this.pool.reattachPinned(
+          m.prNumber,
+          m.workerSlot,
+          m.branch
+        );
+        if (!lease) {
+          // Slot was somehow taken or out of range — clear the persisted
+          // assignment so the dashboard can show this PR as recoverable.
+          this.state.upsertPrMachine({
+            prNumber: m.prNumber,
+            workerSlot: undefined,
+          });
+        }
+      }
+    }
   }
 
   /** Long-running poll loop. */
@@ -468,12 +597,17 @@ export class PrResolverService {
     }
   }
 
-  /** Run a single poll cycle. Returns the cycle summary. */
+  /**
+   * Run a single poll cycle. Schedules up to `pool.size()` PR workers in
+   * parallel; waits for all newly-dispatched workers to finish before
+   * returning so the caller's poll-interval sleep doesn't fire mid-cycle.
+   *
+   * "Cycle in progress" is no longer a global boolean — we allow re-entry
+   * because `runForever` only calls us after the prior cycle resolved, and
+   * an outside caller (test, debug) is now expected to coordinate. The
+   * per-PR `inFlight` map prevents the same PR from being scheduled twice.
+   */
   async runOnce(): Promise<CycleSummary> {
-    if (this.cycleInProgress) {
-      throw new Error("PR Resolver cycle already in progress");
-    }
-    this.cycleInProgress = true;
     this.cycle += 1;
     const startedAt = Date.now();
     const summary: CycleSummary = {
@@ -488,20 +622,23 @@ export class PrResolverService {
     };
     emitPrResolverEvent("cycle_start", { cycle: this.cycle });
 
+    const dispatchedTasks: Promise<void>[] = [];
     try {
       this.state.load();
 
-      // Block new work while any PR is sitting in awaiting_approval — the
-      // worktree is pinned to that PR's local commits, so picking up a new
-      // PR would either lose them or require parking on a stash. The user
-      // has to approve or reject before we resume.
-      const pendingApproval = this.state.listPrMachinesByStatus("awaiting_approval");
-      if (pendingApproval.length > 0) {
+      // PRs whose machines are already in awaiting_approval keep their
+      // slot pinned and shouldn't be re-queued. Pre-N this used to abort
+      // the *whole* cycle; with the pool, other slots can keep working.
+      const pendingApproval = new Set(
+        this.state
+          .listPrMachinesByStatus("awaiting_approval")
+          .map((m) => m.prNumber)
+      );
+      if (pendingApproval.size > 0) {
         emitPrResolverEvent("cycle_skipped_pending_approval", {
           cycle: this.cycle,
-          pendingPrs: pendingApproval.map((m) => m.prNumber),
+          pendingPrs: [...pendingApproval],
         });
-        return summary;
       }
 
       const triggered = await this.pollAndFilter();
@@ -529,46 +666,77 @@ export class PrResolverService {
         byPr.get(t.prNumber)!.push(t);
       }
 
-      // MVP: process PRs serially. Queue events emitted for visibility.
-      const prList = Array.from(byPr.entries());
-      const activePrs = prList.slice(0, this.cfg.maxConcurrent);
-      const queuedPrs = prList.slice(this.cfg.maxConcurrent);
-      for (const [prNum] of queuedPrs) {
-        emitPrResolverEvent("pr_queued", { pr: prNum });
-        summary.queued += 1;
+      // Scheduling: PRs that are pinned in awaiting_approval, or already
+      // in flight on another worker, are skipped. The rest try to acquire
+      // a worktree slot; when the pool is full, the unscheduled ones get a
+      // `pr_queued` event and wait for the next cycle.
+      for (const [prNumber, threads] of byPr.entries()) {
+        if (this.cancelled) break;
+        if (pendingApproval.has(prNumber)) continue;
+        if (this.inFlight.has(prNumber)) continue;
+        const branch = threads[0]!.prBranch;
+        const lease = await this.pool.acquire(prNumber, branch);
+        if (!lease) {
+          emitPrResolverEvent("pr_queued", { pr: prNumber });
+          summary.queued += 1;
+          continue;
+        }
+        const task = this.runPr(prNumber, threads, lease, summary);
+        this.inFlight.set(prNumber, task);
+        dispatchedTasks.push(task);
       }
 
-      for (const [prNumber, threads] of activePrs) {
-        if (this.cancelled) break;
-        // If a prior PR in this cycle landed in awaiting_approval, the
-        // worktree is pinned to its local commits — stop the cycle so we
-        // don't overwrite them by checking out the next branch.
-        if (this.state.listPrMachinesByStatus("awaiting_approval").length > 0) {
-          break;
-        }
-        emitPrResolverEvent("pr_start", {
-          pr: prNumber,
-          threadCount: threads.length,
-        });
-        try {
-          const counts = await this.processPr(prNumber, threads);
-          summary.fixed += counts.fixed;
-          summary.failed += counts.failed;
-          summary.skipped += counts.skipped;
-          emitPrResolverEvent("pr_done", { pr: prNumber, ...counts });
-        } catch (err) {
-          const error = err instanceof Error ? err.message : String(err);
-          emitPrResolverEvent("pr_failed", { pr: prNumber, error });
-          summary.failed += threads.length;
-        }
-      }
+      // Wait for everything we *dispatched this cycle* to finish before
+      // returning. PRs already in flight from a prior cycle aren't
+      // awaited here — they'll surface their own `pr_done`/`pr_failed`
+      // events when they complete.
+      await Promise.allSettled(dispatchedTasks);
     } finally {
-      this.cycleInProgress = false;
       summary.completedAt = Date.now();
       this.lastCycleSummary = summary;
       emitPrResolverEvent("cycle_end", { ...summary });
     }
     return summary;
+  }
+
+  /**
+   * One PR worker. Wraps `processPr` in `workerCtx.run` so every helper
+   * downstream sees this lease's worktree via `this.worktreePath`. Owns
+   * the lease lifecycle: pinned through approval (kept by processPr's
+   * awaiting_approval branch), released here on terminal outcomes.
+   */
+  private async runPr(
+    prNumber: number,
+    threads: TriggeredThread[],
+    lease: Lease,
+    summary: CycleSummary
+  ): Promise<void> {
+    emitPrResolverEvent("pr_start", {
+      pr: prNumber,
+      threadCount: threads.length,
+      slot: lease.slotId,
+    });
+    try {
+      const counts = await workerCtx.run({ lease }, () =>
+        this.processPr(prNumber, threads)
+      );
+      summary.fixed += counts.fixed;
+      summary.failed += counts.failed;
+      summary.skipped += counts.skipped;
+      emitPrResolverEvent("pr_done", { pr: prNumber, ...counts });
+    } catch (err) {
+      const error = err instanceof Error ? err.message : String(err);
+      emitPrResolverEvent("pr_failed", { pr: prNumber, error });
+      summary.failed += threads.length;
+    } finally {
+      // Only release the slot if it wasn't pinned during processPr (the
+      // awaiting_approval branch pins; everything else does not). Pinned
+      // leases are released by approve/reject/requestChanges/retry.
+      if (!lease.pinned) {
+        this.pool.release(lease);
+      }
+      this.inFlight.delete(prNumber);
+    }
   }
 
   // ─── Cycle internals ────────────────────────────────────────────────
@@ -692,7 +860,7 @@ export class PrResolverService {
 
     // FAST CHECK: skip if we already know this exact HEAD's build is broken.
     const currentSha = await fetchPrHeadSha({
-      worktreePath: this.cfg.worktreePath,
+      worktreePath: this.worktreePath,
       owner: this.owner,
       repo: this.repo,
       prNumber,
@@ -715,7 +883,7 @@ export class PrResolverService {
 
     // GATE 2: prepare working clone for this PR
     const prep = await prepareForPr({
-      worktreePath: this.cfg.worktreePath,
+      worktreePath: this.worktreePath,
       prNumber,
     });
     if (!this.emitGate(prNumber, "Checkout branch", prep.ok, { error: prep.error })) {
@@ -754,14 +922,14 @@ export class PrResolverService {
 
     // GATE 4: baseline build (does the PR's HEAD build before we touch it?)
     const baseline = await runCargoBaseline({
-      worktreePath: this.cfg.worktreePath,
+      worktreePath: this.worktreePath,
       cargoBuild: this.cfg.cargoBuild,
       timeoutMs: this.cfg.cargoTimeoutMs,
     });
     if (!this.emitGate(prNumber, "Baseline build", baseline.ok, {
       output: baseline.ok ? "" : baseline.output,
     })) {
-      const headShaNow = await headSha(this.cfg.worktreePath);
+      const headShaNow = await headSha(this.worktreePath);
       this.state.markBuildFailed({
         prNumber,
         branch,
@@ -787,7 +955,7 @@ export class PrResolverService {
     this.state.upsertPrMachine({
       prNumber,
       status: "resolving",
-      remoteSha: currentSha || (await headSha(this.cfg.worktreePath)),
+      remoteSha: currentSha || (await headSha(this.worktreePath)),
       threadIds: stillOpen.map((t) => t.threadId),
       triggerCommentIds: stillOpen.map((t) => t.commentNodeId),
     });
@@ -822,7 +990,7 @@ export class PrResolverService {
 
     // After all per-connector sub-tasks: branch on autoApprove.
     if (counts.fixed > 0) {
-      const localSha = await headSha(this.cfg.worktreePath);
+      const localSha = await headSha(this.worktreePath);
       if (this.cfg.autoApprove) {
         // Auto-mode: push the local commits immediately. State machine still
         // walks through committing → pushed so the timeline reads sensibly.
@@ -835,20 +1003,26 @@ export class PrResolverService {
         this.state.upsertPrMachine({
           prNumber,
           status: "pushed",
-          localSha: await headSha(this.cfg.worktreePath),
+          localSha: await headSha(this.worktreePath),
         });
       } else {
-        // Manual approval: capture the diff for the dashboard, park the
-        // machine in awaiting_approval, and return. The cycle won't pick up
-        // new PRs until the user approves or rejects via the dashboard.
-        const diff = await capturePrDiff(this.cfg.worktreePath, branch);
+        // Manual approval: capture the diff for the dashboard, pin this
+        // worker's slot so it survives until the reviewer decides, and
+        // persist the slot id on the machine so a supervisor restart can
+        // reattach. Other pool slots can keep processing other PRs.
+        const diff = await capturePrDiff(this.worktreePath, branch);
         const summary = this.summaryForPr(prNumber, stillOpen.map((t) => t.threadId));
+        const activeLease = workerCtx.getStore()?.lease;
+        if (activeLease) {
+          this.pool.pin(activeLease);
+        }
         this.state.upsertPrMachine({
           prNumber,
           status: "awaiting_approval",
           localSha,
           diffPreview: diff,
           summary,
+          workerSlot: activeLease?.slotId,
           // Reset any prior summary state so the panel shows the spinner
           // immediately instead of stale ready/failed copy from a past cycle.
           reviewSummary: undefined,
@@ -937,7 +1111,7 @@ export class PrResolverService {
         connector: connectorLabel,
         threads: threadView,
         diff: cappedDiff,
-        worktreePath: this.cfg.worktreePath,
+        worktreePath: this.worktreePath,
         promptsDir: this.cfg.promptsDir,
         claudeModel: this.rootConfig.claudeCode.model,
       });
@@ -1011,7 +1185,7 @@ export class PrResolverService {
     try {
       const session = await runResolverSession({
         subTask,
-        worktreePath: this.cfg.worktreePath,
+        worktreePath: this.worktreePath,
         promptsDir: this.cfg.promptsDir,
         claudeModel: this.rootConfig.claudeCode.model,
         timeoutMs: this.rootConfig.claudeCode.timeoutMs,
@@ -1033,7 +1207,7 @@ export class PrResolverService {
     }
 
     // Did Claude actually change anything?
-    const changed = await changedFiles(this.cfg.worktreePath);
+    const changed = await changedFiles(this.worktreePath);
     if (changed.length === 0) {
       const reason = `No code changes produced for ${connector} — may already be fixed`;
       emitPrResolverEvent("subtask_gate", {
@@ -1053,7 +1227,7 @@ export class PrResolverService {
     // Cargo build + clippy fix loop
     const cargo = await runCargoFixLoop({
       subTask,
-      worktreePath: this.cfg.worktreePath,
+      worktreePath: this.worktreePath,
       claudeSessionId,
       buildCommand: this.cfg.cargoBuild,
       clippyCommand: this.cfg.cargoClippy,
@@ -1065,7 +1239,7 @@ export class PrResolverService {
     });
     if (!cargo.buildPassed || !cargo.clippyPassed) {
       const reason = `${!cargo.buildPassed ? "Build" : "Clippy"} failed after ${cargo.loopCount} loops`;
-      await revertAll(this.cfg.worktreePath);
+      await revertAll(this.worktreePath);
       emitPrResolverEvent("subtask_failed", {
         pr: prNumber,
         connector,
@@ -1095,7 +1269,7 @@ export class PrResolverService {
         const reason = grpcResult.reason
           ? `gRPC test failed: ${grpcResult.reason}`
           : `gRPC test failed (${failedCount}/${grpcResult.stepResults.length} steps failed)`;
-        await revertAll(this.cfg.worktreePath);
+        await revertAll(this.worktreePath);
         emitPrResolverEvent("subtask_failed", {
           pr: prNumber,
           connector,
@@ -1110,7 +1284,7 @@ export class PrResolverService {
     }
 
     // Cargo fmt (single shot — no fix loop, just normalize)
-    const fmt = await cargoFmt(this.cfg.worktreePath);
+    const fmt = await cargoFmt(this.worktreePath);
     emitPrResolverEvent("subtask_gate", {
       pr: prNumber,
       connector,
@@ -1121,7 +1295,7 @@ export class PrResolverService {
 
     // Scope check: only files mentioning the connector slug should have
     // changed. Revert anything else to keep blast radius tight.
-    const after = await changedFiles(this.cfg.worktreePath);
+    const after = await changedFiles(this.worktreePath);
     const unexpected = after.filter((f) => !f.includes(connector));
     if (unexpected.length > 0) {
       emitPrResolverEvent("subtask_gate", {
@@ -1133,12 +1307,12 @@ export class PrResolverService {
         files: unexpected,
       });
       for (const f of unexpected) {
-        await revertPath(this.cfg.worktreePath, f);
+        await revertPath(this.worktreePath, f);
       }
     }
 
     // Stage + commit
-    const staged = await stageConnector(this.cfg.worktreePath, connector);
+    const staged = await stageConnector(this.worktreePath, connector);
     if (!staged.ok) {
       const reason = `git add failed: ${staged.error ?? "unknown"}`;
       emitPrResolverEvent("subtask_failed", {
@@ -1155,7 +1329,7 @@ export class PrResolverService {
       .map((t) => t.instruction.slice(0, 60))
       .join("; ");
     const message = `fix(${connector}): resolve ${threads.length} review comment(s)\n\n${headline}`;
-    const committed = await commit(this.cfg.worktreePath, message);
+    const committed = await commit(this.worktreePath, message);
     if (!committed.ok || !committed.sha) {
       const reason = `commit failed: ${committed.error ?? "unknown"}`;
       emitPrResolverEvent("subtask_failed", {
@@ -1206,7 +1380,7 @@ export class PrResolverService {
     }
 
     // GATE 6: push
-    const push = await pushBranch(this.cfg.worktreePath, branch);
+    const push = await pushBranch(this.worktreePath, branch);
     if (!push.ok) {
       emitPrResolverEvent("pr_failed", {
         pr: prNumber,
@@ -1214,7 +1388,7 @@ export class PrResolverService {
       });
       return;
     }
-    const sha = await headSha(this.cfg.worktreePath);
+    const sha = await headSha(this.worktreePath);
     emitPrResolverEvent("push_done", { pr: prNumber, sha });
 
     // Post a reply on every thread we processed in this cycle.
@@ -1263,7 +1437,7 @@ export class PrResolverService {
     error?: string;
   }> {
     const diff = await capturePrDiff(
-      this.cfg.worktreePath,
+      this.worktreePath,
       subTask.prBranch,
       20_000
     );
@@ -1315,7 +1489,7 @@ export class PrResolverService {
       const { result } = await runClaudeCode<string>({
         skillBody: rendered,
         userPayload: "",
-        cwd: this.cfg.worktreePath,
+        cwd: this.worktreePath,
         label: `pr-resolver-testplan-${subTask.connector}-pr${subTask.prNumber}`,
         sessionLabel: `pr-resolver-testplan-pr${subTask.prNumber}-${subTask.connector}`,
         timeoutMs: this.rootConfig.claudeCode.timeoutMs,
@@ -1406,16 +1580,31 @@ export class PrResolverService {
       testPlan: gen.plan as unknown as { tests: unknown[] },
     });
 
+    // Allocate two free ports for this worker — one for the gRPC server,
+    // one for the metrics/admin server. With N concurrent workers running
+    // grpc-server processes against the same host, we cannot rely on the
+    // single `cfg.grpcPort` knob; both binds would fail with EADDRINUSE.
+    // OS picks both via bind-to-0; we hand them to the spawned process via
+    // `CS__SERVER__PORT` / `CS__METRICS_SERVER__PORT` (the ucs_env crate's
+    // standard prefix + separator), and use the gRPC port for probe +
+    // grpcurl substitution.
+    const grpcPort = await pickFreePort();
+    const metricsPort = await pickFreePort();
+
     // Start server.
     emitPrResolverEvent("grpc_server_starting", {
       pr: subTask.prNumber,
       connector: subTask.connector,
-      port: this.cfg.grpcPort,
+      port: grpcPort,
     });
     const server = new GrpcServerProcess({
-      worktreePath: this.cfg.worktreePath,
-      port: this.cfg.grpcPort,
+      worktreePath: this.worktreePath,
+      port: grpcPort,
       healthTimeoutMs: this.cfg.grpcServerStartTimeoutMs,
+      env: {
+        CS__SERVER__PORT: String(grpcPort),
+        CS__METRICS_SERVER__PORT: String(metricsPort),
+      },
       onStderr: (line) => {
         emitPrResolverEvent("grpc_server_log", {
           pr: subTask.prNumber,
@@ -1451,7 +1640,7 @@ export class PrResolverService {
     }
     emitPrResolverEvent("grpc_server_ready", {
       pr: subTask.prNumber,
-      port: this.cfg.grpcPort,
+      port: grpcPort,
     });
 
     // Execute the plan with dependency ordering + capture/substitution.
@@ -1460,8 +1649,8 @@ export class PrResolverService {
     try {
       const run = await runTestPlan({
         plan: gen.plan,
-        worktreePath: this.cfg.worktreePath,
-        port: this.cfg.grpcPort,
+        worktreePath: this.worktreePath,
+        port: grpcPort,
         timeoutMs: this.cfg.grpcTestTimeoutMs,
         onStep: (event) => {
           if (event.phase === "start") {

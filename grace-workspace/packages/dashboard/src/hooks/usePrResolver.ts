@@ -151,6 +151,8 @@ export interface PrMachine {
   reviewSummaryStatus?: "generating" | "ready" | "failed";
   /** Error string when reviewSummaryStatus === "failed". */
   reviewSummaryError?: string;
+  /** Worktree pool slot currently leased for this PR (when maxConcurrent > 1). */
+  workerSlot?: number;
   startedAt: string;
   updatedAt: string;
 }
