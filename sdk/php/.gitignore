@@ -1,8 +1,11 @@
 # Composer dependencies
 /vendor/
 
-# Generated protobuf stubs and native library
-/src/Payments/Generated/
+# Generated native FFI library (binary, not committed)
+/src/Payments/Generated/*.so
+/src/Payments/Generated/*.dylib
+/src/Payments/Generated/*.dll
+# Types/ and GPBMetadata/ proto stubs ARE committed
 
 # Build artifacts
 /build/

@@ -140,8 +140,8 @@ generate-kotlin: ## Regenerate Kotlin SDK client (proto stubs + flows + bindings
 	@$(MAKE) -C $(MAKEFILE_DIR)java generate-proto generate-bindings generate-flows
 
 
-generate-php: ## Regenerate PHP SDK client (flows)
-	@$(MAKE) -C $(MAKEFILE_DIR)php generate-flows
+generate-php: ## Regenerate PHP SDK client (proto stubs + flows)
+	@$(MAKE) -C $(MAKEFILE_DIR)php generate-proto generate-flows
 
 # ---------------------------------------------------------------------------
 # generate-client-python
@@ -185,6 +185,8 @@ generate: install-deps ## Auto-discover flows and regenerate all SDK clients (pa
 		$$(for f in $$PROTO_FILES_PY; do echo $(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/$$f; done)
 	@echo "Generating JavaScript protobuf stubs (proto.js / proto.d.ts)..."
 	@$(MAKE) -C $(MAKEFILE_DIR)javascript generate-proto
+	@echo "Generating PHP protobuf stubs (Types/ + GPBMetadata/)..."
+	@$(MAKE) -C $(MAKEFILE_DIR)php generate-proto
 	@echo "All SDK clients regenerated successfully!"
 
 # ---------------------------------------------------------------------------
