@@ -678,6 +678,14 @@ def run_go_test_batch(
     """Run Go smoke test for all connectors, parse text output."""
     smoke_test_dir = repo_root / "sdk" / "go" / "smoke-test"
 
+    # Ensure native library is present for CGO linking
+    ffi_lib_path = get_ffi_lib_path(repo_root)
+    uniffi_dir = repo_root / "sdk" / "go" / "generated" / "uniffi" / "connector_service_ffi"
+    lib_ext = "dylib" if platform.uname().system == "Darwin" else "so"
+    target_lib = uniffi_dir / f"libconnector_service_ffi.{lib_ext}"
+    if ffi_lib_path.exists() and not target_lib.exists():
+        shutil.copy(ffi_lib_path, target_lib)
+
     creds_src = repo_root / "creds.json"
     if creds_src.exists():
         shutil.copy(creds_src, smoke_test_dir / "creds.json")

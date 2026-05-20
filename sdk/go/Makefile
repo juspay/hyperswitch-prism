@@ -1,9 +1,9 @@
 .PHONY: all build generate generate-proto generate-bindings generate-flows test test-mock clean install \
         test-package test-package-mock test-composite test-webhook
 
-# SDK-specific paths 
+# SDK-specific paths
 MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
-SDK_ROOT     := $(MAKEFILE_DIR)
+SDK_ROOT     := $(patsubst %/,%,$(MAKEFILE_DIR))
 REPO_ROOT    := $(shell cd $(SDK_ROOT)/../.. && pwd)
 
 # Include common SDK build configuration
@@ -115,6 +115,10 @@ SMOKE_TEST_DIR  := $(SDK_ROOT)/smoke-test
 
 test-package:
 	@echo "Running Go smoke test..."
+	@# Ensure native library is present for CGO linking
+	@if [ -f "$(LIBRARY)" ] && [ ! -f "$(UNIFFI_GO)/connector_service_ffi/libconnector_service_ffi.$(LIB_EXT)" ]; then \
+		cp -f "$(LIBRARY)" "$(UNIFFI_GO)/connector_service_ffi/"; \
+	fi
 	@if [ ! -f $(CREDS_FILE) ]; then \
 		echo "Error: $(CREDS_FILE) not found. Set CREDS_FILE=/path/to/creds.json"; \
 		exit 1; \
@@ -128,6 +132,10 @@ test-package:
 
 test-package-mock:
 	@echo "Running Go smoke test in MOCK mode..."
+	@# Ensure native library is present for CGO linking
+	@if [ -f "$(LIBRARY)" ] && [ ! -f "$(UNIFFI_GO)/connector_service_ffi/libconnector_service_ffi.$(LIB_EXT)" ]; then \
+		cp -f "$(LIBRARY)" "$(UNIFFI_GO)/connector_service_ffi/"; \
+	fi
 	@if [ ! -f $(CREDS_FILE) ]; then \
 		echo "Error: $(CREDS_FILE) not found. Set CREDS_FILE=/path/to/creds.json"; \
 		exit 1; \
