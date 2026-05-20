@@ -10,12 +10,18 @@ pub fn build_router(state: AppState) -> Router {
     // Routes that require Bearer auth (everything API-facing).
     let authed = Router::new()
         .route("/v1/payment_intents", post(handlers::authorize::create))
-        .route("/v1/payment_intents/:id", get(handlers::sync::payment_intent))
+        .route(
+            "/v1/payment_intents/:id",
+            get(handlers::sync::payment_intent),
+        )
         .route(
             "/v1/payment_intents/:id/capture",
             post(handlers::capture::capture),
         )
-        .route("/v1/payment_intents/:id/cancel", post(handlers::void::cancel))
+        .route(
+            "/v1/payment_intents/:id/cancel",
+            post(handlers::void::cancel),
+        )
         .route(
             "/v1/payment_intents/:id/increment_authorization",
             post(handlers::capture::increment_authorization),
@@ -33,7 +39,10 @@ pub fn build_router(state: AppState) -> Router {
             "/admin/trigger-webhook",
             post(handlers::webhook_trigger::trigger),
         )
-        .route_layer(middleware::from_fn_with_state(state.clone(), auth::bearer_auth));
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            auth::bearer_auth,
+        ));
 
     // Public — browser-facing redirect-completion page.
     let public = Router::new().route("/redirect/:attempt_id", get(handlers::redirect::page));

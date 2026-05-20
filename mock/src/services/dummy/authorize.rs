@@ -10,7 +10,9 @@ use uuid::Uuid;
 use crate::handlers::authorize::AuthorizeReq;
 use crate::scenarios::{classify_card, classify_upi, is_redirect_pm, Outcome};
 use crate::state::{AppState, AttemptOutcome};
-use crate::types::{Charge, IntentStatus, NextAction, PaymentIntent, RedirectToUrl, StripeErrorObject};
+use crate::types::{
+    Charge, IntentStatus, NextAction, PaymentIntent, RedirectToUrl, StripeErrorObject,
+};
 
 pub fn create(state: &AppState, req: &AuthorizeReq) -> PaymentIntent {
     let pi_id = format!("pi_{}", Uuid::new_v4().simple());
@@ -40,7 +42,10 @@ pub fn create(state: &AppState, req: &AuthorizeReq) -> PaymentIntent {
         } else if is_redirect_pm(pm_kind) {
             requires_action(&pi_id, "succeeded", None, return_url)
         } else {
-            failed("Unsupported payment method.", "payment_method_not_supported")
+            failed(
+                "Unsupported payment method.",
+                "payment_method_not_supported",
+            )
         };
 
     if let Some(att) = attempt_record {
@@ -118,8 +123,8 @@ fn requires_action(
     return_url: Option<&str>,
 ) -> AuthResult {
     let attempt_id = format!("att_{}", Uuid::new_v4().simple());
-    let host = std::env::var("MOCK_DUMMY_PUBLIC_URL")
-        .unwrap_or_else(|_| "http://localhost:8777".into());
+    let host =
+        std::env::var("MOCK_DUMMY_PUBLIC_URL").unwrap_or_else(|_| "http://localhost:8777".into());
     let url = format!("{host}/dummy/redirect/{attempt_id}");
     let record = AttemptOutcome {
         payment_intent_id: pi_id.to_string(),

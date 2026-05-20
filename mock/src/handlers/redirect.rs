@@ -40,7 +40,11 @@ pub async fn page(
 ) -> impl IntoResponse {
     // Snapshot the attempt outcome and drop the shard lock before touching payment_intents.
     let Some(att) = state.attempts.get(&attempt_id).map(|e| e.value().clone()) else {
-        return (axum::http::StatusCode::NOT_FOUND, Html("<h1>Unknown attempt</h1>".to_string())).into_response();
+        return (
+            axum::http::StatusCode::NOT_FOUND,
+            Html("<h1>Unknown attempt</h1>".to_string()),
+        )
+            .into_response();
     };
 
     let rejecting = q.reject == Some(1);

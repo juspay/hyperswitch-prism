@@ -12,11 +12,7 @@ use crate::handlers::common;
 use crate::state::AppState;
 use crate::types::{IntentStatus, PaymentIntent};
 
-pub fn capture(
-    state: &AppState,
-    pi_id: &str,
-    req: &CaptureReq,
-) -> Result<PaymentIntent, Response> {
+pub fn capture(state: &AppState, pi_id: &str, req: &CaptureReq) -> Result<PaymentIntent, Response> {
     let Some(mut entry) = state.payment_intents.get_mut(pi_id) else {
         return Err(common::intent_not_found());
     };

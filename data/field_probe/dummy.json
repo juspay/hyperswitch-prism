@@ -31,7 +31,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -61,7 +61,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -91,7 +91,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -126,7 +126,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -160,7 +160,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -190,7 +190,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -210,7 +210,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "apple_pay": {
+            "apple_pay_sdk": {
               "payment_data": {
                 "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
               },
@@ -230,7 +230,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -250,7 +250,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "apple_pay": {
+            "apple_pay_sdk": {
               "payment_data": {
                 "decrypted_data": {
                   "application_primary_account_number": "4111111111111111",
@@ -278,7 +278,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -316,7 +316,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -346,7 +346,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -381,7 +381,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -419,7 +419,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -459,7 +459,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -511,7 +511,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -541,7 +541,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -615,7 +615,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -653,7 +653,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -681,7 +681,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "google_pay": {
+            "google_pay_sdk": {
               "type": "CARD",
               "description": "Visa 1111",
               "info": {
@@ -704,7 +704,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -716,8 +716,8 @@
         }
       },
       "GooglePayDecrypted": {
-        "status": "error",
-        "error": "Stuck on field: gpay wallet_token — Missing required field: gpay wallet_token"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through dummy"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
@@ -742,7 +742,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -800,7 +800,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -850,7 +850,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -898,7 +898,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -1016,7 +1016,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -1058,7 +1058,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -1092,7 +1092,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -1129,7 +1129,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -1161,7 +1161,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -1215,7 +1215,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -1251,7 +1251,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -1281,7 +1281,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -1311,7 +1311,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -1345,7 +1345,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -1375,7 +1375,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -1399,7 +1399,7 @@
           }
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents/probe_connector_txn_001/capture",
+          "url": "http://localhost:8777/dummy/v1/payment_intents/probe_connector_txn_001/capture",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -1426,7 +1426,7 @@
           }
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -1448,7 +1448,7 @@
           "phone_number": "4155552671"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/customers",
+          "url": "http://localhost:8777/dummy/v1/customers",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -1518,7 +1518,7 @@
           }
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents/probe_connector_txn_001?expand[0]=latest_charge",
+          "url": "http://localhost:8777/dummy/v1/payment_intents/probe_connector_txn_001?expand[0]=latest_charge",
           "method": "Get",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -1563,7 +1563,7 @@
           "reason": "incremental_auth_probe"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents/probe_connector_txn_001/increment_authorization",
+          "url": "http://localhost:8777/dummy/v1/payment_intents/probe_connector_txn_001/increment_authorization",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -1631,7 +1631,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -1671,7 +1671,7 @@
           "setup_future_usage": "OFF_SESSION"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/setup_intents",
+          "url": "http://localhost:8777/dummy/v1/setup_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -1709,7 +1709,7 @@
           "off_session": true
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -1741,7 +1741,7 @@
           "reason": "customer_request"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/refunds",
+          "url": "http://localhost:8777/dummy/v1/refunds",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -1762,7 +1762,7 @@
           "refund_id": "probe_refund_id_001"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/refunds/probe_refund_id_001",
+          "url": "http://localhost:8777/dummy/v1/refunds/probe_refund_id_001",
           "method": "Get",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -1812,7 +1812,7 @@
           }
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/setup_intents",
+          "url": "http://localhost:8777/dummy/v1/setup_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -1841,7 +1841,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents",
+          "url": "http://localhost:8777/dummy/v1/payment_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -1881,7 +1881,7 @@
           }
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_methods",
+          "url": "http://localhost:8777/dummy/v1/payment_methods",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -1907,7 +1907,7 @@
           "connector_transaction_id": "probe_connector_txn_001"
         },
         "sample": {
-          "url": "http://localhost:8000/dummyv1/payment_intents/probe_connector_txn_001/cancel",
+          "url": "http://localhost:8777/dummy/v1/payment_intents/probe_connector_txn_001/cancel",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
