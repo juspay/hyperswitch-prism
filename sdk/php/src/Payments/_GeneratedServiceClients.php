@@ -43,26 +43,38 @@ class DisputeClient extends ConnectorClientBase
 
 class EventClient extends ConnectorClientBase
 {
-    /** EventService.HandleEvent — Process webhook notifications from connectors. Translates connector events into standardized responses for asynchronous payment state updates. */
+    /** EventService.HandleEvent — Verify webhook source and return a unified typed response. Response mirrors PaymentService.Get / RefundService.Get / DisputeService.Get. */
     public function handleEvent($request, ?RequestConfig $options = null): \Types\EventServiceHandleResponse
     {
         return $this->executeDirect('handle_event', $request, \Types\EventServiceHandleResponse::class, $options);
+    }
+
+    /** EventService.ParseEvent — Parse a raw webhook payload without credentials. Returns resource reference and event type — sufficient to resolve secrets or early-exit. */
+    public function parseEvent($request, ?RequestConfig $options = null): \Types\EventServiceParseResponse
+    {
+        return $this->executeDirect('parse_event', $request, \Types\EventServiceParseResponse::class, $options);
     }
 
 }
 
 class MerchantAuthenticationClient extends ConnectorClientBase
 {
-    /** MerchantAuthenticationService.CreateAccessToken — Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side. */
-    public function createAccessToken($request, ?RequestConfig $options = null): \Types\MerchantAuthenticationServiceCreateAccessTokenResponse
+    /** MerchantAuthenticationService.CreateClientAuthenticationToken — Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI. */
+    public function createClientAuthenticationToken($request, ?RequestConfig $options = null): \Types\MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse
     {
-        return $this->executeFlow('create_access_token', $request, \Types\MerchantAuthenticationServiceCreateAccessTokenResponse::class, $options);
+        return $this->executeFlow('create_client_authentication_token', $request, \Types\MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse::class, $options);
     }
 
-    /** MerchantAuthenticationService.CreateSessionToken — Create session token for payment processing. Maintains session state across multiple payment operations for improved security and tracking. */
-    public function createSessionToken($request, ?RequestConfig $options = null): \Types\MerchantAuthenticationServiceCreateSessionTokenResponse
+    /** MerchantAuthenticationService.CreateServerAuthenticationToken — Generate short-lived connector authentication token. Provides secure credentials for connector API access without storing secrets client-side. */
+    public function createServerAuthenticationToken($request, ?RequestConfig $options = null): \Types\MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse
     {
-        return $this->executeFlow('create_session_token', $request, \Types\MerchantAuthenticationServiceCreateSessionTokenResponse::class, $options);
+        return $this->executeFlow('create_server_authentication_token', $request, \Types\MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse::class, $options);
+    }
+
+    /** MerchantAuthenticationService.CreateServerSessionAuthenticationToken — Create a server-side session with the connector. Establishes session state for multi-step operations like 3DS verification or wallet authorization. */
+    public function createServerSessionAuthenticationToken($request, ?RequestConfig $options = null): \Types\MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse
+    {
+        return $this->executeFlow('create_server_session_authentication_token', $request, \Types\MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse::class, $options);
     }
 
 }
@@ -107,13 +119,13 @@ class PaymentClient extends ConnectorClientBase
         return $this->executeFlow('authorize', $request, \Types\PaymentServiceAuthorizeResponse::class, $options);
     }
 
-    /** PaymentService.Capture — Finalize an authorized payment transaction. Transfers reserved funds from customer to merchant account, completing the payment lifecycle. */
+    /** PaymentService.Capture — Finalize an authorized payment by transferring funds. Captures the authorized amount to complete the transaction and move funds to your merchant account. */
     public function capture($request, ?RequestConfig $options = null): \Types\PaymentServiceCaptureResponse
     {
         return $this->executeFlow('capture', $request, \Types\PaymentServiceCaptureResponse::class, $options);
     }
 
-    /** PaymentService.CreateOrder — Initialize an order in the payment processor system. Sets up payment context before customer enters card details for improved authorization rates. */
+    /** PaymentService.CreateOrder — Create a payment order for later processing. Establishes a transaction context that can be authorized or captured in subsequent API calls. */
     public function createOrder($request, ?RequestConfig $options = null): \Types\PaymentServiceCreateOrderResponse
     {
         return $this->executeFlow('create_order', $request, \Types\PaymentServiceCreateOrderResponse::class, $options);
@@ -125,28 +137,64 @@ class PaymentClient extends ConnectorClientBase
         return $this->executeFlow('get', $request, \Types\PaymentServiceGetResponse::class, $options);
     }
 
-    /** PaymentService.Refund — Initiate a refund to customer's payment method. Returns funds for returns, cancellations, or service adjustments after original payment. */
+    /** PaymentService.IncrementalAuthorization — Increase the authorized amount for an existing payment. Enables you to capture additional funds when the transaction amount changes after initial authorization. */
+    public function incrementalAuthorization($request, ?RequestConfig $options = null): \Types\PaymentServiceIncrementalAuthorizationResponse
+    {
+        return $this->executeFlow('incremental_authorization', $request, \Types\PaymentServiceIncrementalAuthorizationResponse::class, $options);
+    }
+
+    /** PaymentService.ProxyAuthorize — Authorize using vault-aliased card data. Proxy substitutes before connector. */
+    public function proxyAuthorize($request, ?RequestConfig $options = null): \Types\PaymentServiceAuthorizeResponse
+    {
+        return $this->executeFlow('proxy_authorize', $request, \Types\PaymentServiceAuthorizeResponse::class, $options);
+    }
+
+    /** PaymentService.ProxySetupRecurring — Setup recurring mandate using vault-aliased card data. */
+    public function proxySetupRecurring($request, ?RequestConfig $options = null): \Types\PaymentServiceSetupRecurringResponse
+    {
+        return $this->executeFlow('proxy_setup_recurring', $request, \Types\PaymentServiceSetupRecurringResponse::class, $options);
+    }
+
+    /** PaymentService.Refund — Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled. */
     public function refund($request, ?RequestConfig $options = null): \Types\RefundResponse
     {
         return $this->executeFlow('refund', $request, \Types\RefundResponse::class, $options);
     }
 
-    /** PaymentService.Reverse — Reverse a captured payment before settlement. Recovers funds after capture but before bank settlement, used for corrections or cancellations. */
+    /** PaymentService.Reverse — Reverse a captured payment in full. Initiates a complete refund when you need to cancel a settled transaction rather than just an authorization. */
     public function reverse($request, ?RequestConfig $options = null): \Types\PaymentServiceReverseResponse
     {
         return $this->executeFlow('reverse', $request, \Types\PaymentServiceReverseResponse::class, $options);
     }
 
-    /** PaymentService.SetupRecurring — Setup a recurring payment instruction for future payments/ debits. This could be for SaaS subscriptions, monthly bill payments, insurance payments and similar use cases. */
+    /** PaymentService.SetupRecurring — Configure a payment method for recurring billing. Sets up the mandate and payment details needed for future automated charges. */
     public function setupRecurring($request, ?RequestConfig $options = null): \Types\PaymentServiceSetupRecurringResponse
     {
         return $this->executeFlow('setup_recurring', $request, \Types\PaymentServiceSetupRecurringResponse::class, $options);
     }
 
-    /** PaymentService.Void — Cancel an authorized payment before capture. Releases held funds back to customer, typically used when orders are cancelled or abandoned. */
+    /** PaymentService.TokenAuthorize — Authorize using a connector-issued payment method token. */
+    public function tokenAuthorize($request, ?RequestConfig $options = null): \Types\PaymentServiceAuthorizeResponse
+    {
+        return $this->executeFlow('token_authorize', $request, \Types\PaymentServiceAuthorizeResponse::class, $options);
+    }
+
+    /** PaymentService.TokenSetupRecurring — Setup a recurring mandate using a connector token. */
+    public function tokenSetupRecurring($request, ?RequestConfig $options = null): \Types\PaymentServiceSetupRecurringResponse
+    {
+        return $this->executeFlow('token_setup_recurring', $request, \Types\PaymentServiceSetupRecurringResponse::class, $options);
+    }
+
+    /** PaymentService.Void — Cancel an authorized payment that has not been captured. Releases held funds back to the customer's payment method when a transaction cannot be completed. */
     public function void($request, ?RequestConfig $options = null): \Types\PaymentServiceVoidResponse
     {
         return $this->executeFlow('void', $request, \Types\PaymentServiceVoidResponse::class, $options);
+    }
+
+    /** PaymentService.VerifyRedirectResponse — Verify and process redirect responses from 3D Secure or other external flows. Validates authentication results and updates payment state accordingly. */
+    public function verifyRedirectResponse($request, ?RequestConfig $options = null): \Types\PaymentServiceVerifyRedirectResponseResponse
+    {
+        return $this->executeDirect('verify_redirect_response', $request, \Types\PaymentServiceVerifyRedirectResponseResponse::class, $options);
     }
 
 }
@@ -209,6 +257,22 @@ class RecurringPaymentClient extends ConnectorClientBase
     public function charge($request, ?RequestConfig $options = null): \Types\RecurringPaymentServiceChargeResponse
     {
         return $this->executeFlow('charge', $request, \Types\RecurringPaymentServiceChargeResponse::class, $options);
+    }
+
+    /** RecurringPaymentService.Revoke — Cancel an existing recurring payment mandate. Stops future automatic charges on customer's stored consent for subscription cancellations. */
+    public function recurringRevoke($request, ?RequestConfig $options = null): \Types\RecurringPaymentServiceRevokeResponse
+    {
+        return $this->executeFlow('recurring_revoke', $request, \Types\RecurringPaymentServiceRevokeResponse::class, $options);
+    }
+
+}
+
+class RefundClient extends ConnectorClientBase
+{
+    /** RefundService.Get — Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication. */
+    public function refundGet($request, ?RequestConfig $options = null): \Types\RefundResponse
+    {
+        return $this->executeFlow('refund_get', $request, \Types\RefundResponse::class, $options);
     }
 
 }
