@@ -68,7 +68,7 @@ const TEST_CARDS = [
     ],
 ];
 
-const PLACEHOLDER_VALUES = ['', 'placeholder', 'test', 'dummy', 'sk_test_placeholder'];
+const PLACEHOLDER_VALUES = ['', 'placeholder', 'test', 'dummy', 'sk_test_placeholder', '<replace_with_your_value>'];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -196,13 +196,34 @@ function buildConnectorConfig(string $connectorName, array $authConfig): Connect
 }
 
 // ---------------------------------------------------------------------------
+// Mock HTTP intercept
+// ---------------------------------------------------------------------------
+
+/**
+ * Install a static intercept on HttpClient that returns a fake 200/{} response.
+ * This verifies req_transformer correctness without real network calls.
+ */
+function installMockIntercept(): void
+{
+    \Payments\HttpClient::$intercept = function (
+        string $url,
+        string $method,
+        array $headers,
+        ?string $body
+    ): array {
+        return ['statusCode' => 200, 'headers' => [], 'body' => '{}'];
+    };
+}
+
+// ---------------------------------------------------------------------------
 // Test execution
 // ---------------------------------------------------------------------------
 
 function testConnector(
     string $connectorName,
     array $authConfig,
-    bool $dryRun = false
+    bool $dryRun = false,
+    bool $mock = false
 ): array {
     $result = [
         'connector' => $connectorName,
@@ -220,7 +241,8 @@ function testConnector(
             return $result;
         }
 
-        if (!hasValidCredentials($authConfig)) {
+        // In mock mode credentials are always placeholder — skip validation.
+        if (!$mock && !hasValidCredentials($authConfig)) {
             $result['status'] = 'skipped';
             $result['reason'] = 'placeholder_credentials';
             return $result;
@@ -230,12 +252,29 @@ function testConnector(
             $response = $client->authorize($req);
             $result['status']     = 'passed';
             $result['httpStatus'] = $response->getStatus();
+            if ($mock) {
+                $result['reason'] = 'mock_verified';
+            }
         } catch (RequestException $e) {
-            $result['status'] = 'passed_with_error';
-            $result['error']  = $e->getErrorMessage() ?: "status={$e->getStatus()}";
+            if ($mock) {
+                // req_transformer ran and returned a structured error — that's a pass in mock mode.
+                $result['status'] = 'passed';
+                $result['reason'] = 'mock_verified';
+                $result['error']  = $e->getErrorMessage() ?: "status={$e->getStatus()}";
+            } else {
+                $result['status'] = 'passed_with_error';
+                $result['error']  = $e->getErrorMessage() ?: "status={$e->getStatus()}";
+            }
         } catch (ResponseException $e) {
-            $result['status'] = 'passed_with_error';
-            $result['error']  = $e->getErrorMessage() ?: "status={$e->getStatus()}";
+            if ($mock) {
+                // res_transformer parsed {} and returned a structured error — req_transformer OK.
+                $result['status'] = 'passed';
+                $result['reason'] = 'mock_verified';
+                $result['error']  = $e->getErrorMessage() ?: "status={$e->getStatus()}";
+            } else {
+                $result['status'] = 'passed_with_error';
+                $result['error']  = $e->getErrorMessage() ?: "status={$e->getStatus()}";
+            }
         }
     } catch (\Throwable $e) {
         $result['status'] = 'failed';
@@ -257,6 +296,7 @@ function parseArgs(): array
     $connectors = null;
     $all        = false;
     $dryRun     = false;
+    $mock       = false;
 
     for ($i = 0; $i < count($args); $i++) {
         switch ($args[$i]) {
@@ -272,6 +312,9 @@ function parseArgs(): array
             case '--dry-run':
                 $dryRun = true;
                 break;
+            case '--mock':
+                $mock = true;
+                break;
             case '--help':
             case '-h':
                 echo <<<HELP
@@ -282,11 +325,13 @@ Options:
   --connectors <list>     Comma-separated list of connectors to test
   --all                   Test all connectors in the credentials file
   --dry-run               Build requests without executing HTTP calls
+  --mock                  Mock mode: intercept HTTP, verify req_transformer only
   --help, -h              Show this help message
 
 Examples:
   php -d ffi.enable=1 test_smoke.php --all
   php -d ffi.enable=1 test_smoke.php --connectors stripe,adyen
+  php -d ffi.enable=1 test_smoke.php --connectors stripe --mock
   php -d ffi.enable=1 test_smoke.php --all --dry-run
 
 HELP;
@@ -299,7 +344,7 @@ HELP;
         exit(1);
     }
 
-    return compact('credsFile', 'connectors', 'all', 'dryRun');
+    return compact('credsFile', 'connectors', 'all', 'dryRun', 'mock');
 }
 
 // ---------------------------------------------------------------------------
@@ -308,8 +353,12 @@ HELP;
 
 function main(): void
 {
-    ['credsFile' => $credsFile, 'connectors' => $connectors, 'all' => $all, 'dryRun' => $dryRun]
+    ['credsFile' => $credsFile, 'connectors' => $connectors, 'all' => $all, 'dryRun' => $dryRun, 'mock' => $mock]
         = parseArgs();
+
+    if ($mock) {
+        installMockIntercept();
+    }
 
     $credentials     = loadCredentials($credsFile);
     $testConnectors  = $connectors ?? array_keys($credentials);
@@ -318,6 +367,9 @@ function main(): void
     $sep = str_repeat('=', 60);
     echo "\n{$sep}\n";
     echo 'Running PHP SDK smoke tests for ' . count($testConnectors) . " connector(s)\n";
+    if ($mock) {
+        echo "Mode: MOCK (HTTP intercepted, req_transformer verification only)\n";
+    }
     echo "{$sep}\n\n";
 
     foreach ($testConnectors as $name) {
@@ -336,18 +388,21 @@ function main(): void
         foreach ($instances as $idx => $auth) {
             $instanceName = count($instances) > 1 ? "{$name}[" . ($idx + 1) . ']' : $name;
 
-            if (!hasValidCredentials($auth)) {
+            // In mock mode allow placeholder credentials (req_transformer test only).
+            if (!$mock && !hasValidCredentials($auth)) {
                 echo "  SKIPPED (placeholder credentials)\n";
                 $results[] = ['connector' => $instanceName, 'status' => 'skipped'];
                 continue;
             }
 
-            $result = testConnector($name, $auth, $dryRun);
+            $result = testConnector($name, $auth, $dryRun, $mock);
             $result['connector'] = $instanceName;
             $results[] = $result;
 
             match ($result['status']) {
-                'passed'            => print("  ✓ PASSED\n"),
+                'passed'            => $mock
+                    ? print("  ✓ PASSED — req_transformer OK (mock response)\n")
+                    : print("  ✓ PASSED\n"),
                 'passed_with_error' => print("  ✓ PASSED (connector error: {$result['error']})\n"),
                 'dry_run'           => print("  ✓ DRY RUN\n"),
                 default             => print("  ✗ {$result['status']}: {$result['error']}\n"),

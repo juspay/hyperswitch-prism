@@ -339,6 +339,8 @@ test-mock: build-ffi-lib ## Run all SDK smoke tests in MOCK mode (verifies req_t
 	@$(MAKE) -C $(REPO_ROOT)/sdk/javascript test-package-mock CONNECTORS=$(CONNECTORS) 2>&1
 	@echo; echo "═══ Kotlin FFI (MOCK) ═══"; echo
 	@$(MAKE) -C $(REPO_ROOT)/sdk/java test-package-mock CONNECTORS=$(CONNECTORS) 2>&1
+	@echo; echo "═══ PHP FFI (MOCK) ═══"; echo
+	@$(MAKE) -C $(REPO_ROOT)/sdk/php test-package-mock CONNECTORS=$(CONNECTORS) 2>&1
 	@echo; echo "All SDK mock smoke tests completed."
 
 # ---------------------------------------------------------------------------

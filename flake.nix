@@ -70,6 +70,13 @@
             jdk17             # Java Development Kit (matches protobuf-java 4.x needs)
             gradle            # Gradle build tool
 
+            # PHP runtime and tools (for PHP SDK development)
+            (pkgs.php83.buildEnv {
+              extensions = ({ enabled, all }: enabled ++ [ all.ffi ]);
+              extraConfig = "ffi.enable = 1";
+            })
+            pkgs.php83Packages.composer  # Composer package manager
+
             # Optional: database tools if you're building web apps
             # postgresql
             # sqlite
@@ -88,6 +95,8 @@
             echo \"Python version: \$(python3 --version)\"
             echo \"Java version: \$(java --version | head -1)\"
             echo \"Gradle version: \$(gradle --version | grep Gradle)\"
+            echo \"PHP version: \$(php --version | head -1)\"
+            echo \"Composer version: \$(composer --version)\"
 
             # Optional: set environment variables
             export RUST_BACKTRACE=1

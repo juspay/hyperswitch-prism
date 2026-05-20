@@ -1,5 +1,5 @@
 .PHONY: install-deps generate-bindings generate-proto generate-all \
-        generate-flows pack-archive install test-package dist clean
+        generate-flows pack-archive install test-package test-package-mock dist clean
 
 # SDK-specific paths (define BEFORE including common.mk)
 MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -131,6 +131,32 @@ test-package: build-ffi-lib generate-all install-deps
 	@cd /tmp/test-hyperswitch-php && php -d ffi.enable=1 test_smoke.php --connectors $(CONNECTORS)
 	@rm -rf /tmp/test-hyperswitch-php
 	@echo "PHP smoke test passed."
+
+# ---------------------------------------------------------------------------
+# test-package-mock
+# Same as test-package but runs in MOCK mode (no real HTTP calls).
+# Installs a static HTTP intercept returning {} so the smoke test verifies
+# req_transformer correctness without live connector credentials.
+# Uses creds_dummy.json if present, otherwise synthesises a placeholder file.
+# ---------------------------------------------------------------------------
+test-package-mock: build-ffi-lib generate-all install-deps
+	@echo "Testing PHP SDK in MOCK mode (no real HTTP)..."
+	@rm -rf /tmp/test-hyperswitch-php-mock
+	@mkdir -p /tmp/test-hyperswitch-php-mock
+	@cp $(SDK_ROOT)/smoke-test/test_smoke.php /tmp/test-hyperswitch-php-mock/
+	@cp -r $(SDK_ROOT)/vendor /tmp/test-hyperswitch-php-mock/
+	@cp -r $(SDK_ROOT)/src /tmp/test-hyperswitch-php-mock/
+	@cp $(SDK_ROOT)/composer.json /tmp/test-hyperswitch-php-mock/
+	@cd /tmp/test-hyperswitch-php-mock && composer dump-autoload --no-interaction --quiet --ignore-platform-req=ext-ffi
+	@if [ -f $(REPO_ROOT)/creds_dummy.json ]; then \
+		cp $(REPO_ROOT)/creds_dummy.json /tmp/test-hyperswitch-php-mock/creds.json; \
+	else \
+		echo "  Note: creds_dummy.json not found, using synthetic placeholder"; \
+		echo '{"$(CONNECTORS)":{"api_key":{"value":"<REPLACE_WITH_YOUR_VALUE>"}}}' > /tmp/test-hyperswitch-php-mock/creds.json; \
+	fi
+	@cd /tmp/test-hyperswitch-php-mock && php -d ffi.enable=1 test_smoke.php --connectors $(CONNECTORS) --mock
+	@rm -rf /tmp/test-hyperswitch-php-mock
+	@echo "PHP mock smoke test passed."
 
 # ---------------------------------------------------------------------------
 # dist

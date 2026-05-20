@@ -714,6 +714,8 @@ jobs:
         run: |
           echo "Running SDK mock tests (no real HTTP calls)"
           python3 scripts/run_smoke_tests_parallel.py --mock --connectors stripe --sdks python,javascript,kotlin,rust
+          echo "Running PHP SDK mock test..."
+          FFI_SKIP_BUILD=1 make -C sdk/php test-package-mock CONNECTORS=stripe PROFILE=release-fast
 
   # ── CI Gate ───────────────────────────────────────────────────────────────
   # Single required status check. Passes if all jobs succeeded, were skipped,

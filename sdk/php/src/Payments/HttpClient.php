@@ -28,6 +28,16 @@ class HttpClient
     /** Default total request timeout in milliseconds (matches proto HttpDefault). */
     private const DEFAULT_TOTAL_TIMEOUT_MS = 30_000;
 
+    /**
+     * When set, bypasses real HTTP and returns the callable's result instead.
+     * Used by mock-mode smoke tests to verify req_transformer without live calls.
+     *
+     * Signature: callable(string $url, string $method, array $headers, ?string $body): array
+     *
+     * @var callable|null
+     */
+    public static $intercept = null;
+
     private ?HttpConfig $config;
 
     public function __construct(?HttpConfig $config = null)
@@ -47,6 +57,13 @@ class HttpClient
      */
     public function execute(string $url, string $method, array $headers, ?string $body): array
     {
+        if (self::$intercept !== null) {
+            echo "      [mock] {$method} {$url}\n";
+            /** @var callable $fn */
+            $fn = self::$intercept;
+            return $fn($url, $method, $headers, $body);
+        }
+
         $totalTimeout   = $this->config?->getTotalTimeoutMs()
             ? $this->config->getTotalTimeoutMs() / 1000.0
             : self::DEFAULT_TOTAL_TIMEOUT_MS / 1000.0;
