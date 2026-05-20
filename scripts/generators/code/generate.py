@@ -998,6 +998,10 @@ def main() -> None:
         print("Generating Kotlin SDK...")
         gen_kotlin(flows, single_flows)
 
+    if args.lang in ("php", "all"):
+        print("Generating PHP SDK...")
+        gen_php(flows, single_flows)
+
     print("\nDone.")
 
 
