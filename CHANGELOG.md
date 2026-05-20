@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.05.20.0
+
+### Features
+
+- **connector:** Support for paypal payouts ([#1203](https://github.com/juspay/connector-service/pull/1203)) ([`0261398`](https://github.com/juspay/connector-service/commit/0261398884cd8cf8fdc5a2544e89c86268f7a580))
+
+**Full Changelog:** [`2026.05.19.1...2026.05.20.0`](https://github.com/juspay/connector-service/compare/2026.05.19.1...2026.05.20.0)
+
+- - -
+
 ## 2026.05.19.1
 
 ### Features
