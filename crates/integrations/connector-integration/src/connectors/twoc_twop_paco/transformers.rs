@@ -20,6 +20,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
+use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -667,7 +668,7 @@ pub fn build_refund_request(
     let original_order_no = item
         .request
         .get_connector_order_id()
-        .ok_or_else(|| errors::IntegrationError::MissingRequiredField {
+        .change_context(errors::IntegrationError::MissingRequiredField {
             field_name: "connector_order_id",
             context: errors::IntegrationErrorContext {
                 suggested_action: Some(
