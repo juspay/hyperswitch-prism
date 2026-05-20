@@ -183,6 +183,8 @@ generate: install-deps ## Auto-discover flows and regenerate all SDK clients (pa
 		$$(for f in $$PROTO_FILES_PY; do echo $(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/$$f; done)
 	@echo "Generating JavaScript protobuf stubs (proto.js / proto.d.ts)..."
 	@$(MAKE) -C $(MAKEFILE_DIR)javascript generate-proto
+	@echo "Generating Go protobuf stubs (.pb.go)..."
+	@$(MAKE) -C $(MAKEFILE_DIR)go generate-proto
 	@echo "All SDK clients regenerated successfully!"
 
 # ---------------------------------------------------------------------------

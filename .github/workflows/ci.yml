@@ -636,6 +636,11 @@ jobs:
       - name: Install Go dependencies
         run: cd sdk/go && go mod download && cd ../..
 
+      - name: Generate Go protobuf stubs
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
+          make -C sdk/go generate-proto
+
       - uses: Swatinem/rust-cache@v2.7.8
         with:
           shared-key: "ci-release-fast"
