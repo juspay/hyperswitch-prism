@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.04.15.0-hotfix6
+
+### Bug Fixes
+
+- **connector:** [Truelayer] Pass reference field in payments request ([#1376](https://github.com/juspay/connector-service/pull/1376)) ([`bd84359`](https://github.com/juspay/connector-service/commit/bd8435917626b4652354b4726f97d3091cd5cb74))
+
+**Full Changelog:** [`2026.04.15.0-hotfix5...2026.04.15.0-hotfix6`](https://github.com/juspay/connector-service/compare/2026.04.15.0-hotfix5...2026.04.15.0-hotfix6)
+
+- - -
+
 ## 2026.04.15.0-hotfix5
 
 ### Features
