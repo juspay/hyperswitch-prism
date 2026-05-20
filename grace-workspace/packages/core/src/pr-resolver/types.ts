@@ -24,6 +24,19 @@ export interface ReviewThread {
   comments: ReviewComment[];
 }
 
+/**
+ * Top-level (non-review) comments on the PR conversation. Reviewers often
+ * drop ad-hoc `grpcurl` snippets or test plans here rather than in the
+ * structured body; the test-plan Claude call needs to see them.
+ */
+export interface IssueComment {
+  id: string;
+  body: string;
+  author: string;
+  authorAssociation: string;
+  createdAt: string;
+}
+
 export interface PRInfo {
   number: number;
   title: string;
@@ -32,6 +45,8 @@ export interface PRInfo {
   state: string;
   author: string;
   threads: ReviewThread[];
+  /** PR conversation comments (top-level, not review threads). */
+  issueComments: IssueComment[];
 }
 
 /**

@@ -827,6 +827,33 @@ export class SessionSupervisor {
         }
         return;
       }
+      case "pr-resolver:request_changes": {
+        if (!this.prResolver) {
+          this.send(ws, "pr-resolver:request_changes:error", {
+            error: "PR Resolver is not enabled",
+          });
+          return;
+        }
+        const prNumber = Number(payload.prNumber);
+        const feedback = typeof payload.feedback === "string" ? payload.feedback : "";
+        if (!Number.isFinite(prNumber)) {
+          this.send(ws, "pr-resolver:request_changes:error", {
+            error: "Invalid prNumber",
+          });
+          return;
+        }
+        const result = await this.prResolver.requestChanges(prNumber, feedback);
+        if (result.ok) {
+          this.send(ws, "pr-resolver:request_changes:ack", { prNumber });
+          this.broadcastPrResolverSnapshot();
+        } else {
+          this.send(ws, "pr-resolver:request_changes:error", {
+            prNumber,
+            error: result.error ?? "unknown",
+          });
+        }
+        return;
+      }
       case "pr-resolver:diff:request": {
         if (!this.prResolver) {
           this.send(ws, "pr-resolver:diff:response", {

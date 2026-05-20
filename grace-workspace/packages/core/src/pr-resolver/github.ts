@@ -25,6 +25,15 @@ query($owner: String!, $repo: String!, $cursor: String) {
         headRefName
         state
         author { login }
+        comments(first: 100) {
+          nodes {
+            id
+            body
+            author { login }
+            authorAssociation
+            createdAt
+          }
+        }
         reviewThreads(first: 100) {
           nodes {
             id
@@ -62,6 +71,15 @@ query($owner: String!, $repo: String!, $number: Int!) {
       headRefName
       state
       author { login }
+      comments(first: 100) {
+        nodes {
+          id
+          body
+          author { login }
+          authorAssociation
+          createdAt
+        }
+      }
       reviewThreads(first: 100) {
         nodes {
           id
@@ -128,6 +146,14 @@ interface GraphQLThreadNode {
   comments?: { nodes?: GraphQLCommentNode[] };
 }
 
+interface GraphQLIssueCommentNode {
+  id: string;
+  body?: string;
+  author?: GraphQLAuthor | null;
+  authorAssociation?: string;
+  createdAt?: string;
+}
+
 interface GraphQLPrNode {
   number: number;
   title?: string;
@@ -135,6 +161,7 @@ interface GraphQLPrNode {
   headRefName?: string;
   state?: string;
   author?: GraphQLAuthor | null;
+  comments?: { nodes?: GraphQLIssueCommentNode[] };
   reviewThreads?: { nodes?: GraphQLThreadNode[] };
 }
 
@@ -197,6 +224,13 @@ function parsePrNode(node: GraphQLPrNode): PRInfo {
       comments,
     });
   }
+  const issueComments = (node.comments?.nodes ?? []).map((c) => ({
+    id: c.id,
+    body: c.body ?? "",
+    author: c.author?.login ?? "unknown",
+    authorAssociation: c.authorAssociation ?? "NONE",
+    createdAt: c.createdAt ?? "",
+  }));
   return {
     number: node.number,
     title: node.title ?? "",
@@ -205,6 +239,7 @@ function parsePrNode(node: GraphQLPrNode): PRInfo {
     state: node.state ?? "",
     author: node.author?.login ?? "unknown",
     threads,
+    issueComments,
   };
 }
 

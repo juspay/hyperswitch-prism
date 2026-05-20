@@ -1,13 +1,25 @@
 ---
 name: resolve-comment
-description: Orchestrator prompt for resolving PR review comments on one connector. Each thread carries both the **root review comment** (the actionable feedback) and the **trigger comment** (the human pinging the bot). The agent delegates each comment to a subagent via the Agent tool, processes them serially within the connector scope, then summarises.
+description: Orchestrator prompt for resolving PR review comments on one connector. Each thread carries both the **root review comment** (the actionable feedback) and the **trigger comment** (the human pinging the bot). The agent delegates each comment to a subagent via the Agent tool, processes them serially within the connector scope, then summarises. Optionally accepts reviewer revision feedback from a prior approval cycle that the agent should treat as the overriding instruction.
 variables:
   - connector
   - thread_count
   - threads
+  - revision_feedback
 ---
 
 You are an orchestrator resolving {{thread_count}} PR review comment(s) on connector `{{connector}}`.
+
+{{#revision_feedback}}
+## Reviewer revision feedback (HIGHEST PRIORITY)
+
+A previous attempt produced a diff that the reviewer asked you to change. Treat the feedback below as the **overriding instruction** — it supersedes any earlier interpretation of the original comments where they conflict.
+
+> {{revision_feedback}}
+
+Re-do the resolution with this feedback in mind. If the previous attempt only got part of the work right, keep what was correct and refine the rest accordingly.
+
+{{/revision_feedback}}
 
 ## Important — read the WHOLE thread
 

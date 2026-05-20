@@ -21,6 +21,13 @@ export interface GrpcServerOptions {
   worktreePath: string;
   port: number;
   cargoBin?: string;
+  /**
+   * Args passed to `cargoBin`. Defaults to `["run", "--bin", "grpc-server"]`.
+   * Tests override this to point at a fake binary that just opens a TCP
+   * listener — exercises the spawn + probe + stop pipeline without
+   * involving cargo or the real grpc-server.
+   */
+  cargoArgs?: string[];
   /** Extra env passed through, e.g. RUST_LOG, BYNE creds. */
   env?: NodeJS.ProcessEnv;
   /** Wall-clock budget for spawn + compile + first healthy probe. */
@@ -47,8 +54,8 @@ export class GrpcServerProcess {
     // `--bin grpc-server` matches Byne's grpc-server-lifecycle checkpoint
     // (the historically-working pattern). `-p grpc-server` works too for a
     // single-bin package, but `--bin` is unambiguous if a future Cargo.toml
-    // adds an extra binary target.
-    const args = ["run", "--bin", "grpc-server"];
+    // adds an extra binary target. Tests override via `cargoArgs`.
+    const args = this.opts.cargoArgs ?? ["run", "--bin", "grpc-server"];
     const child = spawn(this.opts.cargoBin ?? DEFAULT_CARGO_BIN, args, {
       cwd: this.opts.worktreePath,
       stdio: ["ignore", "pipe", "pipe"],

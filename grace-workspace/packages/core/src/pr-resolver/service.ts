@@ -7,6 +7,7 @@ import { PrResolverStateManager } from "./state.js";
 import { runResolverSession } from "./resolver.js";
 import { runCargoFixLoop } from "./cargo-loop.js";
 import { emitPrResolverEvent } from "./events.js";
+import path from "node:path";
 import { runClaudeCode } from "../tools/claude-code-runner.js";
 import {
   cargoFmt,
@@ -31,9 +32,13 @@ import {
 } from "./grpc-runner.js";
 import { renderPrompt } from "./prompts.js";
 import {
-  extractCommandsFromClaudeReply,
-  extractTestCommandsFromBody,
-} from "./test-extractor.js";
+  loadConnectorCreds,
+  orderSteps,
+  parseTestPlan,
+  runTestPlan,
+  type TestPlan,
+  type TestStepResult,
+} from "./test-plan.js";
 import type { CsddConfig, PrResolverConfig } from "../config.js";
 import type {
   CycleSummary,
@@ -320,6 +325,75 @@ export class PrResolverService {
       reason: note || "rejected from dashboard",
     });
     emitPrResolverEvent("rejected", { pr: prNumber, reason: note });
+    return { ok: true };
+  }
+
+  /**
+   * Reviewer asked for tweaks while the PR was sitting in awaiting_approval.
+   * Discards the proposed commits, stashes the feedback on the machine, and
+   * re-queues the threads so the next cycle re-runs the resolve loop with
+   * the feedback rendered into the resolve-comment prompt as the overriding
+   * instruction. The user can hit "Poll Now" if they don't want to wait for
+   * the next scheduled poll.
+   */
+  async requestChanges(
+    prNumber: number,
+    feedback: string
+  ): Promise<{ ok: boolean; error?: string }> {
+    const machine = this.state.getPrMachine(prNumber);
+    if (!machine) {
+      return { ok: false, error: `No machine for PR #${prNumber}` };
+    }
+    if (machine.status !== "awaiting_approval") {
+      return {
+        ok: false,
+        error: `PR #${prNumber} is in status '${machine.status}', not awaiting approval`,
+      };
+    }
+    const trimmed = (feedback ?? "").trim();
+    if (!trimmed) {
+      return {
+        ok: false,
+        error: "Revision feedback is required — describe what should change.",
+      };
+    }
+
+    // Discard the proposed commits so the next resolve pass starts from a
+    // clean tree pinned to origin/<branch>.
+    const reset = await resetToRemote(this.cfg.worktreePath, machine.branch);
+    if (!reset.ok) {
+      return {
+        ok: false,
+        error: `Reset failed: ${reset.error ?? "unknown"} (worktree may need manual cleanup)`,
+      };
+    }
+
+    // Pull the threads back into the pickable bucket — same trick retryPr
+    // uses. The next cycle will re-fetch them from GitHub and run the
+    // resolve loop again, this time with the feedback in the prompt.
+    for (const threadId of machine.threadIds) {
+      this.state.retry(threadId);
+    }
+    // Clear any cached baseline-build failure so we don't short-circuit
+    // before the new resolve pass even starts.
+    this.state.clearBuildFailure(prNumber);
+
+    this.state.upsertPrMachine({
+      prNumber,
+      status: "noticed",
+      revisionFeedback: trimmed,
+      revisionCount: (machine.revisionCount ?? 0) + 1,
+      // Wipe the prior diff so the dashboard doesn't keep showing it.
+      diffPreview: undefined,
+      localSha: undefined,
+      reason: undefined,
+    });
+
+    emitPrResolverEvent("revision_requested", {
+      pr: prNumber,
+      feedback: trimmed,
+      revisionCount: (machine.revisionCount ?? 0) + 1,
+    });
     return { ok: true };
   }
 
@@ -772,6 +846,21 @@ export class PrResolverService {
       commentCount: threads.length,
     });
 
+    // Pull any reviewer revision feedback off the PR machine — set by
+    // requestChanges() on a prior approval cycle. We consume it here and
+    // clear it on the machine so a subsequent unrelated re-run doesn't
+    // accidentally apply stale feedback.
+    const machineBeforeResolve = this.state.getPrMachine(prNumber);
+    const revisionFeedback = machineBeforeResolve?.revisionFeedback;
+    if (revisionFeedback) {
+      this.state.upsertPrMachine({ prNumber, revisionFeedback: undefined });
+      emitPrResolverEvent("revision_applying", {
+        pr: prNumber,
+        connector,
+        revisionCount: machineBeforeResolve?.revisionCount ?? 1,
+      });
+    }
+
     let claudeSessionId: string;
     try {
       const session = await runResolverSession({
@@ -780,6 +869,7 @@ export class PrResolverService {
         promptsDir: this.cfg.promptsDir,
         claudeModel: this.rootConfig.claudeCode.model,
         timeoutMs: this.rootConfig.claudeCode.timeoutMs,
+        revisionFeedback,
       });
       claudeSessionId = session.sessionId;
       // Stash per-thread summary so replies can reference what changed.
@@ -853,10 +943,12 @@ export class PrResolverService {
         sessionId: claudeSessionId,
       });
       if (!grpcResult.passed) {
-        const failedCount = grpcResult.results.filter((r) => !r.ok).length;
+        const failedCount = grpcResult.stepResults.filter(
+          (r) => !r.ok && !r.skipped
+        ).length;
         const reason = grpcResult.reason
           ? `gRPC test failed: ${grpcResult.reason}`
-          : `gRPC test failed (${failedCount}/${grpcResult.results.length} commands failed)`;
+          : `gRPC test failed (${failedCount}/${grpcResult.stepResults.length} steps failed)`;
         await revertAll(this.cfg.worktreePath);
         emitPrResolverEvent("subtask_failed", {
           pr: prNumber,
@@ -1008,34 +1100,66 @@ export class PrResolverService {
   // ─── Phase B: gRPC verification ─────────────────────────────────────
 
   /**
-   * Generate grpcurl commands when the PR body lacks a Testing section.
-   * Uses a FRESH Claude session (not the resolver's) — the resolver session
-   * was primed with full tool access for code edits, and mixing in a small
-   * "output a bash block" task is a context-mixing risk. The extra tokens
-   * are cheap relative to a clean separation.
+   * Phase B v2: Generate a structured gRPC test plan via a fresh Claude
+   * session. Always Claude — no regex extraction from the PR body. Claude
+   * itself reads the PR title/body/issue-comments/diff plus the connector's
+   * creds block and emits a JSON plan with dependency-ordered steps.
    *
-   * Returns both the parsed commands and the raw reply so the dashboard
-   * can surface what Claude said when the parser misses everything.
+   * Returns `{ plan, reply }` on success, `{ reply, error }` on parse
+   * failure (so the dashboard can show the raw reply for diagnostics).
    */
-  private async generateTestCommands(
+  private async generateTestPlan(
     subTask: SubTask,
     prInfo: PRInfo | null
-  ): Promise<{ commands: string[]; reply: string; error?: string }> {
+  ): Promise<{
+    plan?: TestPlan;
+    reply: string;
+    error?: string;
+  }> {
     const diff = await capturePrDiff(
       this.cfg.worktreePath,
       subTask.prBranch,
       20_000
     );
+
+    // Resolve creds.json. Path precedence: cfg.credsPath (.env) →
+    // <projectRoot>/creds.json (the conventional location). We pre-extract
+    // just the connector's block so Claude sees structured credentials,
+    // not the whole multi-connector file.
+    const credsPath =
+      this.rootConfig.credsPath ||
+      path.join(this.rootConfig.projectRoot, "creds.json");
+    const credsResult = loadConnectorCreds(credsPath, subTask.connector);
+    if (!credsResult.creds) {
+      return {
+        reply: "",
+        error: credsResult.error,
+      };
+    }
+    const credsBlock = JSON.stringify(credsResult.creds, null, 2);
+
+    // Issue comments — top-level PR conversation. Reviewers sometimes drop
+    // grpcurl snippets or test plans here rather than in the structured
+    // body, so we surface them to Claude.
+    const issueCommentsText = (prInfo?.issueComments ?? [])
+      .map(
+        (c) =>
+          `--- @${c.author} (${c.authorAssociation}) at ${c.createdAt} ---\n${c.body}`
+      )
+      .join("\n\n");
+
     const rendered = renderPrompt(
-      "grpc-test-gen",
+      "grpc-test-plan",
       {
         connector: subTask.connector,
         pr_title: prInfo?.title ?? "",
         pr_body: prInfo?.body ?? "(empty)",
+        pr_comments: issueCommentsText || "(no top-level comments)",
         diff: diff || "(no diff yet)",
         grpc_port: String(this.cfg.grpcPort),
-        creds_hint:
-          "creds.json is symlinked into the worktree. Use realistic test values; the local server stubs upstream calls.",
+        creds_block: credsBlock,
+        service_hint:
+          "The server exposes `types.PaymentService` over gRPC. Common methods: Authorize, Capture, Reverse, PSync, Refund, RSync, Void. Use the diff to pick which method(s) to exercise.",
       },
       this.cfg.promptsDir
     );
@@ -1043,12 +1167,11 @@ export class PrResolverService {
     let reply = "";
     try {
       const { result } = await runClaudeCode<string>({
-        // Fresh session — the rendered prompt is the full skill body.
         skillBody: rendered,
         userPayload: "",
         cwd: this.cfg.worktreePath,
-        label: `pr-resolver-testgen-${subTask.connector}-pr${subTask.prNumber}`,
-        sessionLabel: `pr-resolver-testgen-pr${subTask.prNumber}-${subTask.connector}`,
+        label: `pr-resolver-testplan-${subTask.connector}-pr${subTask.prNumber}`,
+        sessionLabel: `pr-resolver-testplan-pr${subTask.prNumber}-${subTask.connector}`,
         timeoutMs: this.rootConfig.claudeCode.timeoutMs,
         rawText: true,
         allowWrite: false,
@@ -1056,18 +1179,33 @@ export class PrResolverService {
       reply = result;
     } catch (err) {
       const error = err instanceof Error ? err.message : String(err);
-      return { commands: [], reply: "", error };
+      return { reply: "", error };
     }
-    const cmds = extractCommandsFromClaudeReply(reply).slice(
-      0,
-      this.cfg.maxGrpcCommands
-    );
-    emitPrResolverEvent("grpc_test_generated", {
+
+    const parsed = parseTestPlan(reply);
+    if (!parsed.ok || !parsed.plan) {
+      emitPrResolverEvent("grpc_test_plan_parse_error", {
+        pr: subTask.prNumber,
+        connector: subTask.connector,
+        error: parsed.error,
+      });
+      return { reply, error: parsed.error };
+    }
+    const ordered = orderSteps(parsed.plan);
+    if (!ordered.ok) {
+      emitPrResolverEvent("grpc_test_plan_parse_error", {
+        pr: subTask.prNumber,
+        connector: subTask.connector,
+        error: ordered.error,
+      });
+      return { reply, error: ordered.error };
+    }
+    emitPrResolverEvent("grpc_test_plan_generated", {
       pr: subTask.prNumber,
       connector: subTask.connector,
-      count: cmds.length,
+      stepCount: parsed.plan.tests.length,
     });
-    return { commands: cmds, reply };
+    return { plan: parsed.plan, reply };
   }
 
   /**
@@ -1082,68 +1220,45 @@ export class PrResolverService {
     sessionId: string;
   }): Promise<{
     passed: boolean;
-    commands: string[];
-    results: GrpcTestResultRecord[];
+    stepResults: TestStepResult[];
     reason?: string;
   }> {
     const { subTask, prInfo } = input;
 
     if (!(await isGrpcurlInstalled())) {
       const reason =
-        "grpcurl is not installed on the host. Install it (brew install grpcurl) or set prResolver.grpcTestEnabled=false to skip this stage.";
+        "grpcurl is not installed on the host. Install it (brew install grpcurl) or disable Run gRPC verification step in the Settings card.";
       emitPrResolverEvent("grpc_test_fail", {
         pr: subTask.prNumber,
         connector: subTask.connector,
         reason,
       });
-      return { passed: false, commands: [], results: [], reason };
+      return { passed: false, stepResults: [], reason };
     }
 
-    // Source the commands.
-    let commands: string[] = [];
-    let source: "extracted" | "generated" | "none" = "none";
-    let generationReply = "";
-    let generationError: string | undefined;
-    if (prInfo?.body) {
-      commands = extractTestCommandsFromBody(prInfo.body).slice(
-        0,
-        this.cfg.maxGrpcCommands
-      );
-      if (commands.length > 0) {
-        source = "extracted";
-        emitPrResolverEvent("grpc_test_extracted", {
-          pr: subTask.prNumber,
-          connector: subTask.connector,
-          count: commands.length,
-        });
-      }
-    }
-    if (commands.length === 0) {
-      const gen = await this.generateTestCommands(subTask, prInfo);
-      commands = gen.commands;
-      generationReply = gen.reply;
-      generationError = gen.error;
-      source = commands.length > 0 ? "generated" : "none";
-    }
-
+    // Single Claude call → structured plan with creds filled in.
+    const gen = await this.generateTestPlan(subTask, prInfo);
     this.state.upsertPrMachine({
       prNumber: subTask.prNumber,
-      testCommands: commands,
-      testCommandsSource: source,
-      testGenerationReply: generationReply || undefined,
+      testGenerationReply: gen.reply || undefined,
     });
-
-    if (commands.length === 0) {
-      const reason = generationError
-        ? `Test-gen Claude call failed: ${generationError}`
-        : "Could not extract or generate any grpcurl commands. Add a `## Testing` section to the PR body, or check the test-gen Claude reply for diagnostics.";
+    if (!gen.plan) {
+      const reason = gen.error
+        ? `Test plan generation failed: ${gen.error}`
+        : "Test plan generation produced no usable JSON. Check the Claude reply on the gRPC test stage panel.";
       emitPrResolverEvent("grpc_test_fail", {
         pr: subTask.prNumber,
         connector: subTask.connector,
         reason,
       });
-      return { passed: false, commands: [], results: [], reason };
+      return { passed: false, stepResults: [], reason };
     }
+    // Persist the plan so the dashboard can render the steps before they
+    // start executing.
+    this.state.upsertPrMachine({
+      prNumber: subTask.prNumber,
+      testPlan: gen.plan as unknown as { tests: unknown[] },
+    });
 
     // Start server.
     emitPrResolverEvent("grpc_server_starting", {
@@ -1163,8 +1278,6 @@ export class PrResolverService {
         });
       },
       onProbe: (attempt, ok) => {
-        // Probe events are quiet — emit every 5th attempt so the dashboard
-        // sees "still waiting" rhythm without flooding the WS.
         if (attempt === 1 || ok || attempt % 5 === 0) {
           emitPrResolverEvent("grpc_server_probe", {
             pr: subTask.prNumber,
@@ -1186,8 +1299,7 @@ export class PrResolverService {
       });
       return {
         passed: false,
-        commands,
-        results: [],
+        stepResults: [],
         reason,
       };
     }
@@ -1196,30 +1308,58 @@ export class PrResolverService {
       port: this.cfg.grpcPort,
     });
 
-    // Run commands.
-    const results: GrpcTestResultRecord[] = [];
+    // Execute the plan with dependency ordering + capture/substitution.
+    let stepResults: TestStepResult[] = [];
+    let allPassed = false;
     try {
-      for (const cmd of commands) {
-        emitPrResolverEvent("grpc_test_command", {
-          pr: subTask.prNumber,
-          connector: subTask.connector,
-          command: cmd.slice(0, 200),
-        });
-        const r: GrpcCommandResult = await runGrpcCommand(
-          cmd,
-          this.cfg.worktreePath,
-          this.cfg.grpcTestTimeoutMs
-        );
-        results.push({
-          command: r.command,
-          ok: r.ok,
-          exitCode: r.exitCode,
-          stdout: r.stdout.slice(-4_000),
-          stderr: r.stderr.slice(-4_000),
-          durationMs: r.durationMs,
-          timedOut: r.timedOut,
-        });
-      }
+      const run = await runTestPlan({
+        plan: gen.plan,
+        worktreePath: this.cfg.worktreePath,
+        port: this.cfg.grpcPort,
+        timeoutMs: this.cfg.grpcTestTimeoutMs,
+        onStep: (event) => {
+          if (event.phase === "start") {
+            emitPrResolverEvent("grpc_test_step_start", {
+              pr: subTask.prNumber,
+              connector: subTask.connector,
+              name: event.name,
+              depends_on: event.depends_on,
+            });
+          } else {
+            const r = event.result;
+            if (r.skipped) {
+              emitPrResolverEvent("grpc_test_step_skipped", {
+                pr: subTask.prNumber,
+                connector: subTask.connector,
+                name: r.name,
+                reason: r.skipReason,
+              });
+            } else if (r.ok) {
+              emitPrResolverEvent("grpc_test_step_pass", {
+                pr: subTask.prNumber,
+                connector: subTask.connector,
+                name: r.name,
+                durationMs: r.durationMs,
+              });
+            } else {
+              emitPrResolverEvent("grpc_test_step_fail", {
+                pr: subTask.prNumber,
+                connector: subTask.connector,
+                name: r.name,
+                exitCode: r.exitCode,
+                misses: r.expectMisses,
+                stderrTail: r.stderr.slice(-400),
+              });
+            }
+          }
+          this.state.upsertPrMachine({
+            prNumber: subTask.prNumber,
+            testStepResults: stepResults,
+          });
+        },
+      });
+      stepResults = run.results;
+      allPassed = run.ok;
     } finally {
       await server.stop();
       emitPrResolverEvent("grpc_server_stopped", {
@@ -1228,30 +1368,30 @@ export class PrResolverService {
       });
     }
 
-    const allPassed = results.every((r) => r.ok);
     this.state.upsertPrMachine({
       prNumber: subTask.prNumber,
-      testResults: results,
+      testStepResults: stepResults,
     });
     if (allPassed) {
       emitPrResolverEvent("grpc_test_pass", {
         pr: subTask.prNumber,
         connector: subTask.connector,
-        count: results.length,
+        count: stepResults.length,
       });
     } else {
-      const failed = results.filter((r) => !r.ok).length;
+      const failed = stepResults.filter((r) => !r.ok && !r.skipped).length;
+      const skipped = stepResults.filter((r) => r.skipped).length;
       emitPrResolverEvent("grpc_test_fail", {
         pr: subTask.prNumber,
         connector: subTask.connector,
         failed,
-        total: results.length,
+        skipped,
+        total: stepResults.length,
       });
     }
     return {
       passed: allPassed,
-      commands,
-      results,
+      stepResults,
     };
   }
 

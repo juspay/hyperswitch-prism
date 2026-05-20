@@ -24,6 +24,12 @@ export interface RunResolverInput {
   claudeModel?: string;
   /** Optional hard timeout in ms; falls back to claudeCode.timeoutMs. */
   timeoutMs?: number;
+  /**
+   * Reviewer feedback from a prior approval cycle. When set, the prompt
+   * renders an extra "highest priority" block telling Claude to treat the
+   * feedback as the overriding instruction for this re-run.
+   */
+  revisionFeedback?: string;
 }
 
 export interface ResolverSessionOutput {
@@ -77,6 +83,7 @@ export async function runResolverSession(
       connector: input.subTask.connector,
       thread_count: threadView.length,
       threads: threadView,
+      revision_feedback: (input.revisionFeedback ?? "").trim() || undefined,
     },
     input.promptsDir
   );

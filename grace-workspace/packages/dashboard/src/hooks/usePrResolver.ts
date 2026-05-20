@@ -104,6 +104,28 @@ export interface GrpcTestResultRecord {
   timedOut: boolean;
 }
 
+export interface GrpcTestStepResult {
+  name: string;
+  method: string;
+  command: string;
+  ok: boolean;
+  skipped: boolean;
+  skipReason?: string;
+  exitCode: number | null;
+  stdout: string;
+  stderr: string;
+  durationMs: number;
+  timedOut: boolean;
+  captures: Record<string, unknown>;
+  expectMisses: string[];
+  renderedHeaders: Record<string, string>;
+  renderedBody: unknown;
+}
+
+export interface GrpcTestPlan {
+  tests: unknown[];
+}
+
 export interface PrMachine {
   prNumber: number;
   branch: string;
@@ -117,6 +139,8 @@ export interface PrMachine {
   diffPreview?: string;
   summary?: string;
   reason?: string;
+  testPlan?: GrpcTestPlan;
+  testStepResults?: GrpcTestStepResult[];
   testCommands?: string[];
   testResults?: GrpcTestResultRecord[];
   testCommandsSource?: "extracted" | "generated" | "none";
@@ -167,6 +191,13 @@ export interface UsePrResolverResult {
   rejectPr: (prNumber: number, reason?: string) => void;
   /** Retry a failed/rejected PR — clears state so the next cycle picks it up. */
   retryPr: (prNumber: number) => void;
+  /**
+   * Send reviewer revision feedback for an awaiting-approval PR. The backend
+   * resets the worktree, stashes the feedback on the machine, and re-queues
+   * the threads so the next cycle re-runs the resolve loop with the feedback
+   * rendered into the prompt.
+   */
+  requestChanges: (prNumber: number, feedback: string) => void;
   /** Pull the full stored diff for a PR (sent as `pr-resolver:diff:response`). */
   requestDiff: (prNumber: number) => void;
   /** Most recent diff:response payload (if any). */
@@ -849,7 +880,8 @@ export function usePrResolver(controlUrl: string): UsePrResolverResult {
         if (
           msg.type === "pr-resolver:approve:ack" ||
           msg.type === "pr-resolver:reject:ack" ||
-          msg.type === "pr-resolver:retry:ack"
+          msg.type === "pr-resolver:retry:ack" ||
+          msg.type === "pr-resolver:request_changes:ack"
         ) {
           setLastError(null);
           return;
@@ -857,14 +889,17 @@ export function usePrResolver(controlUrl: string): UsePrResolverResult {
         if (
           msg.type === "pr-resolver:approve:error" ||
           msg.type === "pr-resolver:reject:error" ||
-          msg.type === "pr-resolver:retry:error"
+          msg.type === "pr-resolver:retry:error" ||
+          msg.type === "pr-resolver:request_changes:error"
         ) {
           const kind =
             msg.type === "pr-resolver:approve:error"
               ? "approve"
               : msg.type === "pr-resolver:reject:error"
                 ? "reject"
-                : "retry";
+                : msg.type === "pr-resolver:retry:error"
+                  ? "retry"
+                  : "request_changes";
           setLastError({
             kind,
             message: String(msg.payload?.error ?? "unknown"),
@@ -1027,6 +1062,23 @@ export function usePrResolver(controlUrl: string): UsePrResolverResult {
     );
   }, []);
 
+  const requestChanges = useCallback(
+    (prNumber: number, feedback: string) => {
+      const ws = wsRef.current;
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        setLastError({ kind: "request_changes", message: "WS not connected" });
+        return;
+      }
+      ws.send(
+        JSON.stringify({
+          type: "pr-resolver:request_changes",
+          payload: { prNumber, feedback },
+        })
+      );
+    },
+    []
+  );
+
   return {
     enabled,
     running,
@@ -1048,6 +1100,7 @@ export function usePrResolver(controlUrl: string): UsePrResolverResult {
     approvePr,
     rejectPr,
     retryPr,
+    requestChanges,
     requestDiff,
     diffForPr,
     resolverStreams,

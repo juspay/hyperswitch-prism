@@ -10,3 +10,4 @@ export * from "./service.js";
 export * from "./runtime-config.js";
 export * from "./test-extractor.js";
 export * from "./grpc-runner.js";
+export * from "./test-plan.js";
