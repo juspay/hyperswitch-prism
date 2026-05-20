@@ -1,3 +1,5 @@
+#![allow(clippy::result_large_err)]
+
 use std::net::SocketAddr;
 use tracing_subscriber::EnvFilter;
 
