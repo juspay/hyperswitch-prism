@@ -488,6 +488,7 @@ fn create_refund_request(transaction_id: &str) -> PaymentServiceRefundRequest {
         customer_id: Some("TEST_CONNECTOR".to_string()),
 
         merchant_request_id: None,
+        connector_order_id: None,
     }
 }
 
