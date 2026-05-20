@@ -21,6 +21,7 @@
             "GPBMetadata\\": "src/Payments/Generated/GPBMetadata/"
         },
         "files": [
+            "src/Payments/Exceptions.php",
             "src/Payments/_GeneratedServiceClients.php",
             "src/Payments/_GeneratedFlows.php"
         ]
