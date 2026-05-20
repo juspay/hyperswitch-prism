@@ -695,6 +695,15 @@ jobs:
             target/*/*/grpc-smoke-test
           key: sdk-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs', 'crates/grpc-server/**/*.rs', 'crates/types-traits/grpc-api-types/proto/**') }}
 
+      - name: Install uniffi-bindgen-go
+        run: |
+          cargo install uniffi-bindgen-go \
+            --git https://github.com/NordSecurity/uniffi-bindgen-go \
+            --tag v0.5.0
+
+      - name: Generate Go UniFFI bindings
+        run: make -C sdk/go generate-bindings PROFILE=release-fast
+
       - name: Create connector credentials
         shell: bash
         env:
