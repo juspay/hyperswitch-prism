@@ -522,6 +522,89 @@ describe("runTestPlan", () => {
     expect(results[1]?.skipped).toBe(false);
   });
 
+  it("status_in falls back to $.status when no `status` capture is declared", async () => {
+    // Mimics the bankofamerica response shape: status is at the root, the
+    // plan didn't declare a `captures.status`, and we still want the check
+    // to succeed instead of failing with "got undefined".
+    const plan: TestPlan = {
+      tests: [
+        {
+          name: "a",
+          method: "x.S/A",
+          expect: { status_in: ["AUTHORIZED"] },
+        },
+      ],
+    };
+    const { runner } = makeStubRunner({
+      "x.S/A": okResult(
+        JSON.stringify({
+          status: "AUTHORIZED",
+          connectorTransactionId: "txn_root",
+        })
+      ),
+    });
+    const { ok, results } = await runTestPlan({
+      plan,
+      worktreePath: "/tmp",
+      port: 8000,
+      timeoutMs: 30_000,
+      runner,
+    });
+    expect(ok).toBe(true);
+    expect(results[0]?.ok).toBe(true);
+    expect(results[0]?.expectMisses).toEqual([]);
+  });
+
+  it("status_in falls back to $.response.status for wrapped responses", async () => {
+    const plan: TestPlan = {
+      tests: [
+        {
+          name: "a",
+          method: "x.S/A",
+          expect: { status_in: ["AUTHORIZED"] },
+        },
+      ],
+    };
+    const { runner } = makeStubRunner({
+      "x.S/A": okResult(
+        JSON.stringify({ response: { status: "AUTHORIZED" } })
+      ),
+    });
+    const { ok } = await runTestPlan({
+      plan,
+      worktreePath: "/tmp",
+      port: 8000,
+      timeoutMs: 30_000,
+      runner,
+    });
+    expect(ok).toBe(true);
+  });
+
+  it("status_in still fails cleanly when no path resolves", async () => {
+    const plan: TestPlan = {
+      tests: [
+        {
+          name: "a",
+          method: "x.S/A",
+          expect: { status_in: ["AUTHORIZED"] },
+        },
+      ],
+    };
+    const { runner } = makeStubRunner({
+      "x.S/A": okResult(JSON.stringify({ someUnrelated: "field" })),
+    });
+    const { ok, results } = await runTestPlan({
+      plan,
+      worktreePath: "/tmp",
+      port: 8000,
+      timeoutMs: 30_000,
+      runner,
+    });
+    expect(ok).toBe(false);
+    expect(results[0]?.expectMisses[0]).toMatch(/status_in.*expected/);
+    expect(results[0]?.expectMisses[0]).toContain("null");
+  });
+
   it("enforces status_in expectation", async () => {
     const plan: TestPlan = {
       tests: [

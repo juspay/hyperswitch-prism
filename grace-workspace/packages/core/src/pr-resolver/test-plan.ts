@@ -306,6 +306,16 @@ export function buildGrpcurlCommand(input: {
   return parts.join(" ");
 }
 
+/**
+ * Narrow an `unknown` to a usable string, returning `null` if the value is
+ * missing, not a string, or empty. Used by the status_in fallback walker so
+ * we can chain candidate JSONPath reads with `??`.
+ */
+function coerceString(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  return v.length > 0 ? v : null;
+}
+
 function bashSingleQuote(s: string): string {
   // Wrap in single quotes; escape any embedded single quotes via the
   // standard `'\''` trick.
@@ -431,8 +441,18 @@ export async function runTestPlan(input: RunTestPlanInput): Promise<{
       );
     }
     if (step.expect?.status_in && step.expect.status_in.length > 0) {
-      const got = stepCaptures.status;
-      if (typeof got !== "string" || !step.expect.status_in.includes(got)) {
+      // Prefer an explicit `captures.status` (whatever path the plan chose),
+      // but fall back to common well-known locations on the response when
+      // the plan didn't capture status at all or captured it from the wrong
+      // path. Hyperswitch's gRPC services vary: some return status at the
+      // root (`$.status`), some wrap under `response.*`. Trying both rescues
+      // an otherwise valid run from a small plan-shape mismatch.
+      const got =
+        coerceString(stepCaptures.status) ??
+        coerceString(extractJsonPath(captureRoot, "$.status")) ??
+        coerceString(extractJsonPath(captureRoot, "$.response.status")) ??
+        coerceString(extractJsonPath(captureRoot, "$.payments_response.status"));
+      if (got === null || !step.expect.status_in.includes(got)) {
         expectMisses.push(
           `status_in: expected one of [${step.expect.status_in.join(", ")}], got ${JSON.stringify(got)}`
         );

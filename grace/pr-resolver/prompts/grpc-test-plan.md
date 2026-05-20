@@ -69,12 +69,12 @@ Reply with exactly one JSON object, no surrounding text. The runner will `JSON.p
         "connector_transaction_id": "{{ prior_step_name.connector_transaction_id }}"
       },
       "captures": {
-        "connector_transaction_id": "$.response.connector_transaction_id",
-        "status": "$.response.status"
+        "connector_transaction_id": "$.connectorTransactionId",
+        "status": "$.status"
       },
       "expect": {
         "exit_code": 0,
-        "status_in": ["Authorized", "Pending"]
+        "status_in": ["AUTHORIZED", "PENDING"]
       }
     }
   ]
@@ -91,7 +91,7 @@ Reply with exactly one JSON object, no surrounding text. The runner will `JSON.p
 - **`captures`** — JSONPath subset (`$.field.nested`) extracted from the grpcurl stdout (the gRPC response, JSON-decoded). Captures are scoped under the step's `name`.
 - **`expect`** — optional rules the runner enforces:
   - `exit_code: 0` — grpcurl must exit 0 (default if omitted).
-  - `status_in: ["X", "Y"]` — captured `status` must be one of these (only checked if `captures.status` is defined).
+  - `status_in: ["X", "Y"]` — match against the response's status. The runner reads `captures.status` first, then falls back to `$.status`, `$.response.status`, `$.payments_response.status` on the parsed response — so even if your capture path is wrong, the check still has a chance to pass. Hyperswitch-prism's responses use camelCase fields at the root (e.g. `status`, `connectorTransactionId`, `merchantTransactionId`); only use a `response.*` prefix if the connector you're targeting actually wraps its payload.
   - `response_contains: "text"` — substring match in stdout.
 
 ### Sequences
