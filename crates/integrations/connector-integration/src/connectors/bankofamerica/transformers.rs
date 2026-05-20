@@ -23,7 +23,8 @@ use domain_types::{
     errors::{ConnectorError, IntegrationError},
     payment_address::Address,
     payment_method_data::{
-        self, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
+        self, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        WalletData,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -115,6 +116,13 @@ pub enum PaymentInformation<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
     Cards(Box<CardPaymentInformation<T>>),
+    FluidData(Box<FluidDataPaymentInformation>),
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FluidDataPaymentInformation {
+    fluid_data: FluidData,
 }
 
 #[derive(Debug, Serialize)]
@@ -557,8 +565,63 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(ccard) => Self::try_from((item, ccard)),
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                WalletData::GooglePay(ref gpay_data) => match &gpay_data.tokenization_data {
+                    GpayTokenizationData::Encrypted(encrypted_data) => {
+                        let email = item
+                            .router_data
+                            .request
+                            .get_email()
+                            .or(item.router_data.resource_common_data.get_billing_email())?;
+                        let bill_to = build_bill_to(
+                            item.router_data.resource_common_data.get_optional_billing(),
+                            email,
+                        )?;
+                        let order_information =
+                            OrderInformationWithBill::try_from((&item, Some(bill_to)))?;
+                        let processing_information = ProcessingInformation::try_from((
+                            &item,
+                            Some(PaymentSolution::GooglePay),
+                            None,
+                        ))?;
+                        let payment_information =
+                            PaymentInformation::FluidData(Box::new(FluidDataPaymentInformation {
+                                fluid_data: FluidData {
+                                    value: Secret::new(encrypted_data.token.clone()),
+                                    descriptor: None,
+                                },
+                            }));
+                        let merchant_defined_information = item
+                            .router_data
+                            .request
+                            .metadata
+                            .clone()
+                            .expose_option()
+                            .map(convert_metadata_to_merchant_defined_info);
+                        Ok(Self {
+                            processing_information,
+                            payment_information,
+                            order_information,
+                            client_reference_information: ClientReferenceInformation {
+                                code: Some(
+                                    item.router_data
+                                        .resource_common_data
+                                        .connector_request_reference_id
+                                        .clone(),
+                                ),
+                            },
+                            merchant_defined_information,
+                            consumer_authentication_information: None,
+                        })
+                    }
+                    GpayTokenizationData::Decrypted(_) => Err(IntegrationError::NotImplemented(
+                        domain_types::utils::get_unimplemented_payment_method_error_message(
+                            "Bank of America",
+                        ),
+                        Default::default(),
+                    )
+                    .into()),
+                },
                 WalletData::ApplePay(_)
-                | WalletData::GooglePay(_)
                 | WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
