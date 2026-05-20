@@ -210,7 +210,7 @@ examples_python: none
 connector_id: elavon
 doc: docs/connectors/elavon.md
 scenarios: checkout_autocapture, checkout_card, refund, get_payment
-payment_methods: Card
+payment_methods: Card, GooglePay
 flows: authorize, capture, get, proxy_authorize, refund, refund_get
 examples_python: examples/elavon/elavon.py
 
