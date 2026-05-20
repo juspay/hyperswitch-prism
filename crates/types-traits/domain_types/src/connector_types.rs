@@ -461,6 +461,7 @@ pub struct PaymentFlowData {
     // stores the authorized amount in case of partial authorization
     pub minor_amount_authorized: Option<MinorUnit>,
     pub l2_l3_data: Option<Box<L2L3Data>>,
+    pub sender_payment_instrument_id: Option<String>,
 }
 
 impl PaymentFlowData {
