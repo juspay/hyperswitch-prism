@@ -88,6 +88,136 @@ function dbg(...args: unknown[]) {
   console.error("\x1b[90m[claude-code]", ...args, "\x1b[0m");
 }
 
+/**
+ * Parse one line of `claude --output-format stream-json` into 0+ short,
+ * human-readable progress lines. Each tool use, tool result, and text
+ * chunk becomes one rendered line — designed for the PR Resolver's "Claude
+ * live output" panel so a reviewer can watch what Claude is doing in real
+ * time without parsing the raw JSONL themselves.
+ *
+ * On `type: "result"`, captures the final assistant text via `onFinalText`
+ * so the runner returns the same string it would have under plain-text
+ * mode. Defensive: a non-JSON line passes through unchanged.
+ */
+function renderStreamJsonLine(
+  line: string,
+  onFinalText: (text: string) => void
+): string[] {
+  let evt: Record<string, unknown>;
+  try {
+    evt = JSON.parse(line) as Record<string, unknown>;
+  } catch {
+    return [line];
+  }
+  const type = String(evt.type ?? "");
+  const out: string[] = [];
+
+  if (type === "system") {
+    if (evt.subtype === "init") {
+      const sid = String(evt.session_id ?? "");
+      const model = String(evt.model ?? "?");
+      out.push(`▶ session ${sid.slice(0, 8)} · model ${model}`);
+    }
+    return out;
+  }
+
+  if (type === "assistant") {
+    const message = evt.message as Record<string, unknown> | undefined;
+    const content = (message?.content as Array<Record<string, unknown>>) ?? [];
+    for (const block of content) {
+      const blockType = String(block.type ?? "");
+      if (blockType === "text") {
+        const text = String(block.text ?? "").trim();
+        if (!text) continue;
+        const snippet = text.length > 240 ? text.slice(0, 240) + "…" : text;
+        out.push(`💬 ${snippet}`);
+      } else if (blockType === "thinking") {
+        const text = String(block.thinking ?? "").trim();
+        if (!text) continue;
+        const snippet = text.length > 200 ? text.slice(0, 200) + "…" : text;
+        out.push(`🤔 ${snippet}`);
+      } else if (blockType === "tool_use") {
+        const name = String(block.name ?? "?");
+        const input = (block.input as Record<string, unknown>) ?? {};
+        out.push(`🔧 ${name}(${summarizeToolInput(name, input)})`);
+      }
+    }
+    return out;
+  }
+
+  if (type === "user") {
+    const message = evt.message as Record<string, unknown> | undefined;
+    const content = (message?.content as Array<Record<string, unknown>>) ?? [];
+    for (const block of content) {
+      if (block.type !== "tool_result") continue;
+      const isError = block.is_error === true;
+      let text = "";
+      if (typeof block.content === "string") {
+        text = block.content;
+      } else if (Array.isArray(block.content)) {
+        text = (block.content as Array<Record<string, unknown>>)
+          .map((c) => String(c.text ?? ""))
+          .join("");
+      }
+      const firstLine = text.split("\n", 1)[0]?.trim() ?? "";
+      const snippet =
+        firstLine.length > 120 ? firstLine.slice(0, 120) + "…" : firstLine;
+      out.push(isError ? `   ✗ ${snippet || "(error)"}` : `   ✓ ${snippet || "(ok)"}`);
+    }
+    return out;
+  }
+
+  if (type === "result") {
+    // Final assistant text + cost. Capture for the runner's return value.
+    const text = typeof evt.result === "string" ? (evt.result as string) : "";
+    if (text) onFinalText(text);
+    const usage = (evt.usage as Record<string, unknown>) ?? {};
+    const inTok = Number(usage.input_tokens ?? 0);
+    const outTok = Number(usage.output_tokens ?? 0);
+    const dur = Number(evt.duration_ms ?? 0);
+    out.push(
+      `✓ done · ${Math.round(dur / 1000)}s · in=${inTok} out=${outTok} tokens`
+    );
+    return out;
+  }
+
+  // Unknown event type — pass the raw line through so we don't drop signal.
+  return [line];
+}
+
+/**
+ * Compact summary of a tool call's input for the live-output panel.
+ * Keeps it under ~120 chars and prefers the most-useful field for each
+ * known tool: file_path for Read/Edit/Write, pattern for Grep, command for
+ * Bash, url for WebFetch, etc.
+ */
+function summarizeToolInput(
+  name: string,
+  input: Record<string, unknown>
+): string {
+  const candidates: string[] = [];
+  if (typeof input.file_path === "string") candidates.push(input.file_path);
+  if (typeof input.path === "string") candidates.push(input.path);
+  if (typeof input.pattern === "string") candidates.push(input.pattern);
+  if (typeof input.command === "string") candidates.push(input.command);
+  if (typeof input.url === "string") candidates.push(input.url);
+  if (typeof input.description === "string") candidates.push(input.description);
+  if (typeof input.query === "string") candidates.push(input.query);
+  if (name === "Edit" && typeof input.old_string === "string") {
+    const first = input.old_string.split("\n", 1)[0] ?? "";
+    candidates.push(`replace: ${first.trim().slice(0, 60)}`);
+  }
+  if (candidates.length === 0) {
+    try {
+      candidates.push(JSON.stringify(input));
+    } catch {
+      candidates.push("?");
+    }
+  }
+  const joined = candidates[0]!;
+  return joined.length > 120 ? joined.slice(0, 120) + "…" : joined;
+}
+
 export interface ClaudeCodeHealthResult {
   connected: boolean;
   version?: string;
@@ -246,6 +376,21 @@ export async function runClaudeCode<T = unknown>(
     args.push("--model", model);
   }
 
+  // When a caller passes `onStdoutLine`, switch to claude's streaming JSON
+  // output so we see progressive events (tool uses, file reads, edits)
+  // instead of just the final response dumped at the end of the run.
+  // Without this, the PR Resolver's "Claude live output" panel sits empty
+  // for ~50s and then shows the closing 3 lines as a single dump. With
+  // stream-json, every Read/Edit/Bash/TodoWrite is broadcast in real time.
+  // Requires `--print` (non-interactive) + `--verbose` (claude rejects
+  // stream-json without verbose). The runner parses each line into a
+  // human-readable progress message before forwarding to `onStdoutLine`.
+  const streamJson = !!opts.onStdoutLine;
+  if (streamJson) {
+    args.push("--print");
+    args.push("--output-format", "stream-json");
+  }
+
   // Add verbose output flags
   args.push("--verbose");
 
@@ -284,6 +429,10 @@ export async function runClaudeCode<T = unknown>(
   // Capture stdout and stderr to extract the model's answer and error details.
   const stdoutChunks: Buffer[] = [];
   const stderrChunks: Buffer[] = [];
+  // In stream-json mode, the final assistant text comes from the `result`
+  // event rather than concatenated stdout. Captured here so the post-run
+  // parser uses it instead of the raw JSON stream.
+  let streamFinalText: string | undefined;
 
   await new Promise<void>((resolve, reject) => {
     const child = spawn("claude", args, {
@@ -300,9 +449,21 @@ export async function runClaudeCode<T = unknown>(
     let stdoutLineBuffer = "";
     // eslint-disable-next-line no-control-regex
     const ansiRe = /\x1b\[[0-9;]*m/g;
+    const emitLine = (line: string) => {
+      try {
+        opts.onStdoutLine?.(line);
+      } catch {
+        /* swallow — user callback shouldn't kill the run */
+      }
+    };
     child.stdout!.on("data", (chunk: Buffer) => {
       stdoutChunks.push(chunk);
-      process.stdout.write(chunk);
+      // In stream-json mode, the raw JSON dump is noisy in engine logs.
+      // Mirror nothing here — the rendered progress lines below are echoed
+      // to stdout from within `emitLine` (via the runner's own writer).
+      if (!streamJson) {
+        process.stdout.write(chunk);
+      }
       if (opts.onStdoutLine) {
         stdoutLineBuffer += chunk.toString("utf8");
         let idx: number;
@@ -310,12 +471,19 @@ export async function runClaudeCode<T = unknown>(
           const raw = stdoutLineBuffer.slice(0, idx);
           stdoutLineBuffer = stdoutLineBuffer.slice(idx + 1);
           const cleaned = raw.replace(ansiRe, "").replace(/\r$/, "");
-          if (cleaned.trim().length > 0) {
-            try {
-              opts.onStdoutLine(cleaned);
-            } catch {
-              /* swallow — user callback shouldn't kill the run */
+          if (cleaned.trim().length === 0) continue;
+          if (streamJson) {
+            const rendered = renderStreamJsonLine(cleaned, (txt) => {
+              streamFinalText = txt;
+            });
+            for (const r of rendered) {
+              emitLine(r);
+              // Tee the rendered progress to the engine console too — keeps
+              // engine.log useful for grep'ing tool calls across runs.
+              process.stdout.write(r + "\n");
             }
+          } else {
+            emitLine(cleaned);
           }
         }
       }
@@ -377,9 +545,15 @@ export async function runClaudeCode<T = unknown>(
     );
   }
 
+  // In stream-json mode the raw stdout is a JSONL dump; the final assistant
+  // text lives in the `result` event. Fall back to raw if for some reason
+  // the result event was missing (e.g. claude crashed before sending it).
+  const sourceText =
+    streamJson && streamFinalText !== undefined ? streamFinalText : raw;
+
   // Strip BOM and ANSI escape codes.
   // eslint-disable-next-line no-control-regex
-  let cleaned = raw.trim().replace(/^﻿/, "").replace(/\x1b\[[0-9;]*m/g, "");
+  let cleaned = sourceText.trim().replace(/^﻿/, "").replace(/\x1b\[[0-9;]*m/g, "");
 
   if (opts.rawText) {
     // Drop claude chrome lines ("> build", "[0m", etc.)
