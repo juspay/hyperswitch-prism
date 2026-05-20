@@ -168,6 +168,7 @@ jobs:
       publish_java: true
       publish_python: true
       publish_javascript: true
+      publish_go: true
       preview_only: false
       ref: ${{ needs.tag-release.outputs.next_tag }}
       version: ${{ needs.tag-release.outputs.version }}
