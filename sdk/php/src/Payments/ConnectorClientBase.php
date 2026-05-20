@@ -94,8 +94,8 @@ abstract class ConnectorClientBase
      * The Rust FFI layer always returns a FfiResult wrapper with an explicit
      * type discriminator (HTTP_REQUEST = 0, INTEGRATION_ERROR = 2, etc.).
      *
-     * @throws RequestException  on IntegrationError or ConnectorResponseTransformationError.
-     * @throws ConnectorException on unexpected result types or parse failures.
+     * @throws RequestException  on IntegrationError.
+     * @throws ConnectorException on ConnectorError or unexpected result types or parse failures.
      */
     private function parseReqResult(string $bytes): FfiConnectorHttpRequest
     {
@@ -121,13 +121,13 @@ abstract class ConnectorClientBase
             throw new RequestException($reqError);
         }
 
-        if ($result->hasConnectorResponseTransformationError()) {
-            $cte = $result->getConnectorResponseTransformationError();
-            $reqError = new RequestErrorProto();
-            $reqError->setStatus(7);
-            $reqError->setErrorMessage((string) $cte->getErrorMessage());
-            $reqError->setErrorCode((string) $cte->getErrorCode());
-            throw new RequestException($reqError);
+        if ($result->hasConnectorError()) {
+            $ce = $result->getConnectorError();
+            throw new ConnectorException(
+                (string) $ce->getErrorMessage(),
+                $ce->hasHttpStatusCode() ? (int) $ce->getHttpStatusCode() : 0,
+                (string) ($ce->getErrorCode() ?: 'CONNECTOR_ERROR')
+            );
         }
 
         throw new ConnectorException(
@@ -145,8 +145,8 @@ abstract class ConnectorClientBase
      * @template T of object
      * @param class-string<T> $responseClass Fully-qualified PHP class name of the proto response.
      * @return T
-     * @throws ResponseException on ConnectorResponseTransformationError or IntegrationError.
-     * @throws ConnectorException on parse failures.
+     * @throws ResponseException on IntegrationError.
+     * @throws ConnectorException on ConnectorError or parse failures.
      */
     private function parseResResult(string $bytes, string $responseClass): object
     {
@@ -174,16 +174,28 @@ abstract class ConnectorClientBase
             return $response;
         }
 
-        if ($result->hasConnectorResponseTransformationError()) {
-            $cte = $result->getConnectorResponseTransformationError();
-            $resError = new ResponseErrorProto();
-            $resError->setStatus(7); // AUTHORIZATION_FAILED as error marker
-            $resError->setErrorMessage((string) $cte->getErrorMessage());
-            $resError->setErrorCode((string) $cte->getErrorCode());
-            if ($cte->hasHttpStatusCode()) {
-                $resError->setStatusCode($cte->getHttpStatusCode());
+        if ($result->hasProtoResponse()) {
+            // Single-step flows (handle_event, parse_event, verify_redirect_response) return
+            // the serialised proto directly without an HTTP envelope.
+            /** @var T $response */
+            $response = new $responseClass();
+            try {
+                $response->mergeFromString((string) $result->getProtoResponse());
+            } catch (\Throwable $e) {
+                throw new ConnectorException(
+                    'Failed to parse proto response from FfiResult: ' . $e->getMessage()
+                );
             }
-            throw new ResponseException($resError);
+            return $response;
+        }
+
+        if ($result->hasConnectorError()) {
+            $ce = $result->getConnectorError();
+            throw new ConnectorException(
+                (string) $ce->getErrorMessage(),
+                $ce->hasHttpStatusCode() ? (int) $ce->getHttpStatusCode() : 0,
+                (string) ($ce->getErrorCode() ?: 'CONNECTOR_ERROR')
+            );
         }
 
         if ($result->hasIntegrationError()) {

@@ -38,6 +38,7 @@ if (!$loaded) {
     exit(1);
 }
 
+use Payments\ConnectorException;
 use Payments\PaymentClient;
 use Payments\RequestException;
 use Payments\ResponseException;
@@ -274,6 +275,17 @@ function testConnector(
             } else {
                 $result['status'] = 'passed_with_error';
                 $result['error']  = $e->getErrorMessage() ?: "status={$e->getStatus()}";
+            }
+        } catch (ConnectorException $e) {
+            if ($mock) {
+                // connector_error means req_transformer built a valid HTTP request and
+                // res_transformer received the mock response — plumbing is correct.
+                $result['status'] = 'passed';
+                $result['reason'] = 'mock_verified';
+                $result['error']  = "ConnectorError: {$e->getMessage()} (code={$e->errorCode})";
+            } else {
+                $result['status'] = 'passed_with_error';
+                $result['error']  = "ConnectorError: {$e->getMessage()} (code={$e->errorCode})";
             }
         }
     } catch (\Throwable $e) {
