@@ -2474,6 +2474,8 @@ pub struct RefundsData {
     pub browser_info: Option<BrowserInformation>,
     /// Charges associated with the payment
     pub split_refunds: Option<SplitRefundsRequest>,
+    /// Connector-side identifier for the original payment that this refund targets.
+    pub connector_order_id: Option<String>,
 }
 
 impl RefundsData {

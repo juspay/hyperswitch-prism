@@ -666,28 +666,22 @@ pub fn build_refund_request(
         PacoTransactionAmount::new(item.request.minor_refund_amount, item.request.currency)?;
     let original_order_no = item
         .request
-        .refund_connector_metadata
-        .as_ref()
-        .and_then(extract_paco_original_order_no)
-        .or_else(|| {
-            item.request
-                .connector_feature_data
-                .as_ref()
-                .and_then(extract_paco_original_order_no)
-        })
+        .connector_order_id
+        .clone()
+        .filter(|s| !s.is_empty())
         .ok_or_else(|| errors::IntegrationError::MissingRequiredField {
-            field_name: "refund_metadata.original_order_no",
+            field_name: "connector_order_id",
             context: errors::IntegrationErrorContext {
                 suggested_action: Some(
-                    "Pass the original Authorize orderNo via either `refund_metadata` \
-                         (preferred) or `connector_feature_data` on the Refund request, \
-                         e.g. {\"original_order_no\":\"<auth orderNo>\",\"maker_id\":\"<operator id>\"}."
+                    "Pass the original Authorize's `orderNo` (== the `merchant_transaction_id` \
+                         you sent on Authorize) as `connector_order_id` on the Refund request."
                         .to_string(),
                 ),
                 doc_url: Some("https://devzone.2c2p.com/reference/refund".to_string()),
                 additional_context: Some(
-                    "PACO matches refunds against the original transaction's \
-                         orderNo, which is not derivable from connector_transaction_id."
+                    "PACO matches refunds against the original transaction's `orderNo`, \
+                         which is not derivable from `connector_transaction_id` \
+                         (PACO's `invoiceNo2C2P`)."
                         .to_string(),
                 ),
             },
@@ -716,23 +710,6 @@ pub fn build_refund_request(
             maker: PacoHumanActor { username: maker_id },
         },
     })
-}
-
-fn extract_paco_original_order_no(meta: &common_utils::SecretSerdeValue) -> Option<String> {
-    let value = meta.peek();
-    if let Some(s) = value.as_str() {
-        if !s.is_empty() {
-            return Some(s.to_string());
-        }
-    }
-    if let Some(obj) = value.as_object() {
-        if let Some(s) = obj.get("original_order_no").and_then(|v| v.as_str()) {
-            if !s.is_empty() {
-                return Some(s.to_string());
-            }
-        }
-    }
-    None
 }
 
 fn extract_paco_maker_id(meta: &common_utils::SecretSerdeValue) -> Option<String> {
