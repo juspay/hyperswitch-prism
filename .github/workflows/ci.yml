@@ -699,7 +699,7 @@ jobs:
         run: |
           cargo install uniffi-bindgen-go \
             --git https://github.com/NordSecurity/uniffi-bindgen-go \
-            --tag v0.5.0
+            --tag v0.5.0+v0.29.5
 
       - name: Generate Go UniFFI bindings
         run: make -C sdk/go generate-bindings PROFILE=release-fast
