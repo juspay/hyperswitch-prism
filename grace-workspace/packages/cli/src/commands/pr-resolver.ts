@@ -3,7 +3,8 @@ import {
   loadConfig,
   onPrResolverEvent,
   setConfig,
-} from "@byne/core";
+  type PrResolverEvent,
+} from "@10xgrace/core";
 
 interface PrResolverOpts {
   once?: boolean;
@@ -47,7 +48,7 @@ export async function prResolverCommand(opts: PrResolverOpts): Promise<void> {
   }
 
   // Bridge events to stdout so the CLI is informative without a dashboard.
-  const unsubscribe = onPrResolverEvent((event) => {
+  const unsubscribe = onPrResolverEvent((event: PrResolverEvent) => {
     const t = new Date(event.timestamp).toISOString();
     // eslint-disable-next-line no-console
     console.log(

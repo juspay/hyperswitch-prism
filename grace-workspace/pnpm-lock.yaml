@@ -125,6 +125,9 @@ importers:
       commander:
         specifier: ^12.1.0
         version: 12.1.0
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.6.1
       execa:
         specifier: ^9.4.0
         version: 9.6.1
