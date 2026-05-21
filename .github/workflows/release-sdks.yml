@@ -233,6 +233,33 @@ jobs:
           name: generated-javascript
           path: sdk/javascript/src/payments/generated/
 
+      - name: Setup Go
+        if: matrix.target == 'aarch64-apple-darwin'
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Install protoc-gen-go
+        if: matrix.target == 'aarch64-apple-darwin'
+        run: go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
+
+      - name: Generate Go SDK
+        if: matrix.target == 'aarch64-apple-darwin'
+        run: |
+          make -C sdk/go generate-all \
+            FFI_SKIP_BUILD=1 \
+            PLATFORM=aarch64-apple-darwin \
+            LIBRARY=$(pwd)/target/aarch64-apple-darwin/release/libconnector_service_ffi.dylib
+
+      - name: Upload Go SDK generated files
+        if: matrix.target == 'aarch64-apple-darwin'
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-go
+          path: |
+            sdk/go/generated/
+            sdk/go/payments/zz_generated_client.go
+
   package-sdk-java:
     name: Package Java SDK
     runs-on: ubuntu-latest
@@ -413,20 +440,20 @@ jobs:
       - name: Show Preview
         run: |
           echo "╔════════════════════════════════════════════════════════════════╗"
-          echo "║        📦 SDK PUBLICATION PREVIEW                              ║"
+          echo "║         SDK PUBLICATION PREVIEW                              ║"
           echo "╚════════════════════════════════════════════════════════════════╝"
           echo ""
           echo "Java SDK (Maven Central):"
           echo "  Location: artifacts/sdk-java/"
-          ls -la artifacts/sdk-java/*.jar 2>/dev/null || echo "  ❌ No JAR found"
+          ls -la artifacts/sdk-java/*.jar 2>/dev/null || echo "   No JAR found"
           echo ""
           echo "Python SDK (PyPI):"
           echo "  Location: artifacts/sdk-python/"
-          ls -la artifacts/sdk-python/*.whl 2>/dev/null || echo "  ❌ No wheel found"
+          ls -la artifacts/sdk-python/*.whl 2>/dev/null || echo "   No wheel found"
           echo ""
           echo "JavaScript SDK (npm):"
           echo "  Location: artifacts/sdk-javascript/"
-          ls -la artifacts/sdk-javascript/*.tgz 2>/dev/null || echo "  ❌ No tarball found"
+          ls -la artifacts/sdk-javascript/*.tgz 2>/dev/null || echo "   No tarball found"
           echo ""
           echo "Go SDK (Go Modules):"
           echo "  Tag: sdk/go/v${{ inputs.version }}"
@@ -435,15 +462,15 @@ jobs:
           echo "═══════════════════════════════════════════════════════════════════"
           echo ""
           if [ "${{ inputs.preview_only }}" == "true" ]; then
-            echo "⚠️  PREVIEW ONLY MODE - No SDKs will be published"
+            echo "  PREVIEW ONLY MODE - No SDKs will be published"
           elif [ "${{ inputs.publish_java }}" == "true" ] || [ "${{ inputs.publish_python }}" == "true" ] || [ "${{ inputs.publish_javascript }}" == "true" ] || [ "${{ inputs.publish_go }}" == "true" ]; then
-            echo "✅ The following SDKs will be published:"
+            echo " The following SDKs will be published:"
             [ "${{ inputs.publish_java }}" == "true" ] && echo "   - Java SDK → Maven Central"
             [ "${{ inputs.publish_python }}" == "true" ] && echo "   - Python SDK → PyPI"
             [ "${{ inputs.publish_javascript }}" == "true" ] && echo "   - JavaScript SDK → npm"
             [ "${{ inputs.publish_go }}" == "true" ] && echo "   - Go SDK → Git tag (proxy.golang.org)"
           else
-            echo "ℹ️  No SDKs selected for publishing (all checkboxes unchecked)"
+            echo "  No SDKs selected for publishing (all checkboxes unchecked)"
           fi
           echo ""
           echo "═══════════════════════════════════════════════════════════════════"
@@ -734,9 +761,9 @@ jobs:
           find artifacts/sdk-java -name "*.jar" -exec jar -tf {} \; | head -20
           echo ""
           if [ "${{ inputs.preview_only }}" == "true" ]; then
-            echo "⚠️ PREVIEW ONLY MODE - Skipping actual publish"
+            echo " PREVIEW ONLY MODE - Skipping actual publish"
           else
-            echo "✅ Will publish to Maven Central"
+            echo " Will publish to Maven Central"
           fi
       - name: Publish to Maven Central
         if: ${{ inputs.preview_only == false }}
@@ -800,9 +827,9 @@ jobs:
           pip show artifacts/sdk-python/*.whl 2>/dev/null || echo "pip show failed"
           echo ""
           if [ "${{ inputs.preview_only }}" == "true" ]; then
-            echo "⚠️ PREVIEW ONLY MODE - Skipping actual publish"
+            echo " PREVIEW ONLY MODE - Skipping actual publish"
           else
-            echo "✅ Will publish to PyPI"
+            echo " Will publish to PyPI"
           fi
       - name: Publish to PyPI
         if: ${{ inputs.preview_only == false }}
@@ -864,9 +891,9 @@ jobs:
           tar -xzf artifacts/sdk-javascript/*.tgz -O package/package.json | head -30
           echo ""
           if [ "${{ inputs.preview_only }}" == "true" ]; then
-            echo "⚠️ PREVIEW ONLY MODE - Skipping actual publish"
+            echo " PREVIEW ONLY MODE - Skipping actual publish"
           else
-            echo "✅ Will publish to npm"
+            echo " Will publish to npm"
           fi
       - name: Publish to npm
         if: ${{ inputs.preview_only == false }}
@@ -898,43 +925,11 @@ jobs:
         with:
           go-version: '1.23'
 
-      - name: Install protoc-gen-go
-        run: go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
-
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v3
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: "release-go"
-          cache-directories: |
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-
-      - name: Install uniffi-bindgen-go
-        run: |
-          cargo install uniffi-bindgen-go \
-            --git https://github.com/NordSecurity/uniffi-bindgen-go \
-            --tag v0.5.0+v0.29.5
-
-      - name: Download macOS binary
+      - name: Download Go SDK generated files
         uses: actions/download-artifact@v4
         with:
-          name: binary-aarch64-apple-darwin
-          path: target/aarch64-apple-darwin/release
+          name: generated-go
+          path: .
 
       - name: Download Linux binary
         uses: actions/download-artifact@v4
@@ -942,14 +937,7 @@ jobs:
           name: binary-x86_64-unknown-linux-gnu
           path: target/x86_64-unknown-linux-gnu/release
 
-      - name: Generate Go SDK artifacts
-        run: |
-          make -C sdk/go generate-all \
-            FFI_SKIP_BUILD=1 \
-            PLATFORM=aarch64-apple-darwin \
-            LIBRARY=$(pwd)/target/aarch64-apple-darwin/release/libconnector_service_ffi.dylib
-
-      - name: Copy Linux binary to platform directory
+      - name: Organize platform binaries
         run: |
           mkdir -p sdk/go/generated/uniffi/connector_service_ffi/linux
           cp target/x86_64-unknown-linux-gnu/release/libconnector_service_ffi.so \
