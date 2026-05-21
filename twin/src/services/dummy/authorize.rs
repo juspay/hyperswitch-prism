@@ -123,8 +123,7 @@ fn requires_action(
     return_url: Option<&str>,
 ) -> AuthResult {
     let attempt_id = format!("att_{}", Uuid::new_v4().simple());
-    let host =
-        std::env::var("TWIN_PUBLIC_URL").unwrap_or_else(|_| "http://localhost:8777".into());
+    let host = std::env::var("TWIN_PUBLIC_URL").unwrap_or_else(|_| "http://localhost:8777".into());
     let url = format!("{host}/dummy/redirect/{attempt_id}");
     let record = AttemptOutcome {
         payment_intent_id: pi_id.to_string(),
