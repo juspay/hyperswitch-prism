@@ -115,8 +115,9 @@ impl DisputeService for Disputes {
                         ..
                     } = request_data.extracted_metadata;
                     let connector_data: ConnectorData<DefaultPCIHolder> =
-                        ConnectorData::from_connector_variant(&connector)
-                        .ok_or_else(|| tonic::Status::invalid_argument("Invalid Connector Received"))?;
+                        ConnectorData::from_connector_variant(&connector).ok_or_else(|| {
+                            tonic::Status::invalid_argument("Invalid Connector Received")
+                        })?;
 
                     let connector_integration: BoxedConnectorIntegrationV2<
                         '_,
@@ -337,8 +338,9 @@ impl DisputeService for Disputes {
                         ..
                     } = request_data.extracted_metadata;
                     let connector_data: ConnectorData<DefaultPCIHolder> =
-                        ConnectorData::from_connector_variant(&connector)
-                        .ok_or_else(|| tonic::Status::invalid_argument("Invalid Connector Received"))?;
+                        ConnectorData::from_connector_variant(&connector).ok_or_else(|| {
+                            tonic::Status::invalid_argument("Invalid Connector Received")
+                        })?;
 
                     let connector_integration: BoxedConnectorIntegrationV2<
                         '_,

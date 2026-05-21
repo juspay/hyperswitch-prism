@@ -91,7 +91,9 @@ impl EventService for EventServiceImpl {
 
                     let connector_data: ConnectorData<DefaultPCIHolder> =
                         ConnectorData::from_connector_variant(&metadata_payload.connector)
-                        .ok_or_else(|| tonic::Status::invalid_argument("Invalid Connector Received"))?;
+                            .ok_or_else(|| {
+                                tonic::Status::invalid_argument("Invalid Connector Received")
+                            })?;
 
                     let response = connector_integration::webhook_utils::parse_webhook_event(
                         connector_data,
