@@ -658,6 +658,13 @@ pub enum ConnectorSpecificConfig {
         merchant_id: Secret<String>,
         base_url: Option<String>,
     },
+    Asiapay {
+        merchant_id: Secret<String>,
+        secure_hash_secret: Secret<String>,
+        login_id: Secret<String>,
+        password: Secret<String>,
+        base_url: Option<String>,
+    },
     Paytm {
         merchant_id: Secret<String>,
         merchant_key: Secret<String>,
@@ -1014,6 +1021,12 @@ impl ConnectorSpecificConfig {
                 key,
                 merchant_id
             },
+            Asiapay {
+                merchant_id,
+                secure_hash_secret,
+                login_id,
+                password
+            },
             Paytm {
                 merchant_id,
                 merchant_key,
@@ -1074,6 +1087,12 @@ impl ConnectorSpecificConfig {
                 access_token,
                 office_id,
                 paco_kid
+            },
+            Asiapay {
+                merchant_id,
+                secure_hash_secret,
+                login_id,
+                password
             },
         )
     }
@@ -1423,6 +1442,12 @@ impl ConnectorSpecificConfig {
                     rank,
                     key,
                     merchant_id
+                },
+                Asiapay {
+                    merchant_id,
+                    secure_hash_secret,
+                    login_id,
+                    password
                 },
                 Paytm {
                     merchant_id,
@@ -2053,6 +2078,13 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 merchant_identity_id: finix.merchant_identity_id.ok_or_else(err)?,
                 merchant_id: finix.merchant_id.ok_or_else(err)?,
                 base_url: finix.base_url,
+            }),
+            AuthType::Asiapay(asiapay) => Ok(Self::Asiapay {
+                merchant_id: asiapay.merchant_id.ok_or_else(err)?,
+                secure_hash_secret: asiapay.secure_hash_secret.ok_or_else(err)?,
+                login_id: asiapay.login_id.ok_or_else(err)?,
+                password: asiapay.password.ok_or_else(err)?,
+                base_url: asiapay.base_url,
             }),
         }
     }
@@ -3119,6 +3151,21 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                 _ => Err(err().into()),
             },
             ConnectorEnum::TwocTwopPaco => Err(err().into()),
+            ConnectorEnum::Asiapay => match auth {
+                ConnectorAuthType::MultiAuthKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                    key2,
+                } => Ok(Self::Asiapay {
+                    merchant_id: api_key.clone(),
+                    secure_hash_secret: key1.clone(),
+                    login_id: api_secret.clone(),
+                    password: key2.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err().into()),
+            },
         }
     }
 }

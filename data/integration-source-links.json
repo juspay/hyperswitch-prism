@@ -65,5 +65,10 @@
     "https://developer.peachpayments.com/docs/dashboard-response-codes",
     "https://developer.peachpayments.com/docs/reference-webhooks",
     "https://peachpayments.docs.oppwa.com/reference/parameters"
+  ],
+  "asiapay": [
+    "https://www.paydollar.com/pdf/op/enpdintguide.pdf",
+    "https://developer.asiapay.com/",
+    "https://www.asiapay.iq/integration"
   ]
 }

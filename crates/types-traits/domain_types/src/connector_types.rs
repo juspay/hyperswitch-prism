@@ -144,6 +144,7 @@ pub enum ConnectorEnum {
     Easebuzz,
     Axisbank,
     TwocTwopPaco,
+    Asiapay,
 }
 
 impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
@@ -236,6 +237,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Imerchantsolutions => Ok(Self::Imerchantsolutions),
             grpc_api_types::payments::Connector::Axisbank => Ok(Self::Axisbank),
             grpc_api_types::payments::Connector::TwocTwopPaco => Ok(Self::TwocTwopPaco),
+            grpc_api_types::payments::Connector::Asiapay => Ok(Self::Asiapay),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -4263,6 +4265,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Easebuzz(_) => Ok(Self::Easebuzz),
             AuthType::Imerchantsolutions(_) => Ok(Self::Imerchantsolutions),
             AuthType::TwocTwopPaco(_) => Ok(Self::TwocTwopPaco),
+            AuthType::Asiapay(_) => Ok(Self::Asiapay),
             AuthType::Bamboraapac(_) => Ok(Self::Bamboraapac),
             AuthType::Placetopay(_) => Ok(Self::Placetopay),
             AuthType::Finix(_) => Ok(Self::Finix),

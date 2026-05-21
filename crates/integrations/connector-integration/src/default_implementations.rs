@@ -202,6 +202,7 @@ default_impl_verify_webhook_source_v2!(
         Trustpayments,
         Tsys,
         TwocTwopPaco,
+        Asiapay,
         Volt,
         Wellsfargo,
         Worldpay,

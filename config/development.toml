@@ -18,12 +18,12 @@ buffer_limit = 100000
 
 [server]
 host = "0.0.0.0"
-port = 8000
+port = 8003
 type = "grpc"
 
 [metrics]
 host = "0.0.0.0"
-port = 8080
+port = 8083
 
 [proxy]
 idle_pool_connection_timeout = 90
@@ -73,6 +73,7 @@ multisafepay.base_url = "https://testapi.multisafepay.com/v1/json"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 imerchantsolutions.base_url = "https://imerchantsolutions.com/api"
 twoc_twop_paco.base_url = "https://core.demo-paco.2c2p.com"
+asiapay.base_url = "https://www.paydollar.com"
 jpmorgan.base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
 jpmorgan.secondary_base_url = "https://id.payments.jpmorgan.com"
 nmi.base_url = "https://secure.nmi.com"
