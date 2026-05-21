@@ -271,7 +271,7 @@ async fn test_health() {
 }
 
 #[tokio::test]
-#[ignore = "requires mock backend on http://localhost:8777; run with --ignored after `cargo run -p mock`"]
+#[ignore = "requires twin backend on http://localhost:8777; run with --ignored after `cargo run -p twin`"]
 async fn test_payment_authorization_auto_capture() {
     grpc_test!(client, PaymentServiceClient<Channel>, {
         let request = create_authorize_request(CaptureMethod::Automatic);
@@ -293,7 +293,7 @@ async fn test_payment_authorization_auto_capture() {
 }
 
 #[tokio::test]
-#[ignore = "requires mock backend on http://localhost:8777; run with --ignored after `cargo run -p mock`"]
+#[ignore = "requires twin backend on http://localhost:8777; run with --ignored after `cargo run -p twin`"]
 async fn test_payment_authorization_manual_capture() {
     grpc_test!(client, PaymentServiceClient<Channel>, {
         let auth_request = create_authorize_request(CaptureMethod::Manual);
@@ -332,7 +332,7 @@ async fn test_payment_authorization_manual_capture() {
 }
 
 #[tokio::test]
-#[ignore = "requires mock backend on http://localhost:8777; run with --ignored after `cargo run -p mock`"]
+#[ignore = "requires twin backend on http://localhost:8777; run with --ignored after `cargo run -p twin`"]
 async fn test_payment_sync_auto_capture() {
     grpc_test!(client, PaymentServiceClient<Channel>, {
         let request = create_authorize_request(CaptureMethod::Automatic);
@@ -365,7 +365,7 @@ async fn test_payment_sync_auto_capture() {
 }
 
 #[tokio::test]
-#[ignore = "requires mock backend on http://localhost:8777; run with --ignored after `cargo run -p mock`"]
+#[ignore = "requires twin backend on http://localhost:8777; run with --ignored after `cargo run -p twin`"]
 async fn test_payment_void() {
     grpc_test!(client, PaymentServiceClient<Channel>, {
         let auth_request = create_authorize_request(CaptureMethod::Manual);
@@ -424,7 +424,7 @@ async fn test_payment_void() {
 }
 
 #[tokio::test]
-#[ignore = "requires mock backend on http://localhost:8777; run with --ignored after `cargo run -p mock`"]
+#[ignore = "requires twin backend on http://localhost:8777; run with --ignored after `cargo run -p twin`"]
 async fn test_refund() {
     grpc_test!(client, PaymentServiceClient<Channel>, {
         let request = create_authorize_request(CaptureMethod::Automatic);
@@ -463,7 +463,7 @@ async fn test_refund() {
 }
 
 #[tokio::test]
-#[ignore = "requires mock backend on http://localhost:8777; run with --ignored after `cargo run -p mock`"]
+#[ignore = "requires twin backend on http://localhost:8777; run with --ignored after `cargo run -p twin`"]
 async fn test_refund_sync() {
     grpc_test!(client, PaymentServiceClient<Channel>, {
         grpc_test!(refund_client, RefundServiceClient<Channel>, {
@@ -510,7 +510,7 @@ async fn test_refund_sync() {
 }
 
 #[tokio::test]
-#[ignore = "requires mock backend on http://localhost:8777; run with --ignored after `cargo run -p mock`"]
+#[ignore = "requires twin backend on http://localhost:8777; run with --ignored after `cargo run -p twin`"]
 async fn test_verify_redirect_response_success() {
     grpc_test!(client, PaymentServiceClient<Channel>, {
         let request = create_verify_redirect_request(

@@ -1,14 +1,14 @@
 # Direct grpcurl matrix — results
 
-End-to-end verification of `mock-dummy` (v1) against the UCS gRPC server using direct `grpcurl` (no harness), with `data/field_probe/dummy.json` as the request-body source.
+End-to-end verification of `twin` (v1) against the UCS gRPC server using direct `grpcurl` (no harness), with `data/field_probe/dummy.json` as the request-body source.
 
 - **Date**: 2026-05-19
 - **Branch**: `feat/dummy-connector`
 - **HEAD**: `403dbfb3b` (after the two bug-fixes found during this run)
-- **mock-dummy**: `127.0.0.1:8777` (with `MOCK_DUMMY_PUBLIC_URL=http://127.0.0.1:8777`)
+- **twin**: `127.0.0.1:8777` (with `TWIN_PUBLIC_URL=http://127.0.0.1:8777`)
 - **grpc-server**: `0.0.0.0:8000` (with `CS__CONNECTORS__DUMMY__BASE_URL=http://127.0.0.1:8777/dummy/`)
-- **Result**: **26/26 cells PASS** (after fixes). Two real connector-compat bugs in mock-dummy were caught and fixed mid-run.
-- **Reproduce**: `bash mock/grpc-test-commands.sh`
+- **Result**: **26/26 cells PASS** (after fixes). Two real connector-compat bugs in twin were caught and fixed mid-run.
+- **Reproduce**: `bash twin/grpc-test-commands.sh`
 
 ## Required headers on every gRPC call
 
@@ -21,7 +21,7 @@ x-tenant-id:   default
 x-request-id:  <unique per call>
 ```
 
-The Dummy connector accepts any non-empty Bearer token in test mode; the mock rejects `sk_live_*` prefixes.
+The Dummy connector accepts any non-empty Bearer token in test mode; the twin rejects `sk_live_*` prefixes.
 
 ---
 
@@ -179,12 +179,12 @@ E3: FAILURE  code=redirect_rejected  msg="User rejected at redirect page."
 
 ## F. Admin webhook trigger
 
-`POST /dummy/admin/trigger-webhook` is a mock-backend admin endpoint (HTTP, not gRPC). Verified separately.
+`POST /dummy/admin/trigger-webhook` is a twin-backend admin endpoint (HTTP, not gRPC). Verified separately.
 
 | Cell | Scenario | Outcome | Verdict |
 |---|---|---|---|
-| F1 | Trigger payment_intent.succeeded → live Python sink on `127.0.0.1:9004` | mock returns `{delivered_to, status: 200, event_id: evt_*}`; sink received Stripe-shaped event body | ✅ |
-| F2 | Trigger to unreachable target `http://127.0.0.1:1/never` | mock returns HTTP `502` with `{error: {type: "api_error", code: "webhook_delivery_failed", message: ...}}` | ✅ |
+| F1 | Trigger payment_intent.succeeded → live Python sink on `127.0.0.1:9004` | twin returns `{delivered_to, status: 200, event_id: evt_*}`; sink received Stripe-shaped event body | ✅ |
+| F2 | Trigger to unreachable target `http://127.0.0.1:1/never` | twin returns HTTP `502` with `{error: {type: "api_error", code: "webhook_delivery_failed", message: ...}}` | ✅ |
 
 **F1 sink-received event body** (Stripe-shaped):
 ```json
@@ -226,13 +226,13 @@ E3: FAILURE  code=redirect_rejected  msg="User rejected at redirect page."
 
 ## Bugs found and fixed during this run
 
-Both bugs were silently swallowed by the Dummy connector's strict deserialization. The mock-dummy's own `curl` smoke tests passed because they bypass the connector entirely. **Only direct gRPC traffic surfaces these mismatches.**
+Both bugs were silently swallowed by the Dummy connector's strict deserialization. The twin's own `curl` smoke tests passed because they bypass the connector entirely. **Only direct gRPC traffic surfaces these mismatches.**
 
 ### Fix 1 — `redirect_to_url.return_url` must be non-null String (commit `b03e16c12`)
 
 Symptom: A3 / A6-A15 returned `AUTHENTICATION_PENDING` but `redirectionData` was empty.
 
-Root cause: mock-dummy emitted `"return_url": null`. Dummy connector's `DummyRedirectToUrlResponse.return_url: String` (required, not `Option`). Serde failed and the connector's `Wrapper::deserialize(...).map_or(NoNextActionBody, ...)` swallowed the error.
+Root cause: twin emitted `"return_url": null`. Dummy connector's `DummyRedirectToUrlResponse.return_url: String` (required, not `Option`). Serde failed and the connector's `Wrapper::deserialize(...).map_or(NoNextActionBody, ...)` swallowed the error.
 
 Fix: change `RedirectToUrl.return_url` to `String`; thread `req.return_url` through `requires_action()` with `"about:blank"` fallback.
 
@@ -240,15 +240,15 @@ Fix: change `RedirectToUrl.return_url` to `String`; thread `req.return_url` thro
 
 Symptom: B5 Refund returned `Internal / RESPONSE_DESERIALIZATION_FAILED` via gRPC.
 
-Root cause: mock-dummy's refund response omitted `metadata`. Dummy connector's `RefundResponse.metadata: DummyMetadata` (required, not `Option`).
+Root cause: twin's refund response omitted `metadata`. Dummy connector's `RefundResponse.metadata: DummyMetadata` (required, not `Option`).
 
-Fix: add `metadata: serde_json::Value` to mock-dummy's `Refund` struct, emit `{}`.
+Fix: add `metadata: serde_json::Value` to twin's `Refund` struct, emit `{}`.
 
 ---
 
 ## Reproduction
 
-1. Build: `cargo build -p mock-dummy --release && cargo build -p grpc-server`
-2. Boot mock: `DUMMY_BACKEND_BIND=127.0.0.1:8777 MOCK_DUMMY_PUBLIC_URL=http://127.0.0.1:8777 ./target/release/mock-dummy &`
+1. Build: `cargo build -p twin --release && cargo build -p grpc-server`
+2. Boot twin: `TWIN_BIND=127.0.0.1:8777 TWIN_PUBLIC_URL=http://127.0.0.1:8777 ./target/release/twin &`
 3. Boot grpc-server: `CS__CONNECTORS__DUMMY__BASE_URL=http://127.0.0.1:8777/dummy/ ./target/debug/grpc-server &`
-4. Run: `bash mock/grpc-test-commands.sh`
+4. Run: `bash twin/grpc-test-commands.sh`

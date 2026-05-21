@@ -1,11 +1,11 @@
 [package]
-name = "mock"
+name = "twin"
 version = "0.1.0"
 edition = "2021"
 publish = false
 
 [[bin]]
-name = "mock"
+name = "twin"
 path = "src/main.rs"
 
 [dependencies]

@@ -24,7 +24,7 @@ members = [
   "crates/internal/uniffi-bindgen",
   "crates/internal/field-probe",
   "crates/internal/integration-tests",
-  "mock"
+  "twin"
 ]
 exclude = [
   "examples/example-rs",

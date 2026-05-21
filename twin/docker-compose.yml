@@ -1,4 +1,4 @@
-# Run the mock in Docker.
+# Run the twin in Docker.
 #
 # Single port exposed:
 #   * 8777  — HTTP (Stripe-shape API + browser redirect page + admin webhook trigger)
@@ -9,13 +9,13 @@
 # in-repo config which defaults to localhost:8777/dummy/).
 
 services:
-  mock:
+  twin:
     build:
       context: ..
-      dockerfile: mock/Dockerfile
+      dockerfile: twin/Dockerfile
     ports:
       - "8777:8777"
     environment:
-      DUMMY_BACKEND_BIND: "0.0.0.0:8777"
-      MOCK_DUMMY_PUBLIC_URL: "http://localhost:8777"
-      RUST_LOG: "info,mock=debug"
+      TWIN_BIND: "0.0.0.0:8777"
+      TWIN_PUBLIC_URL: "http://localhost:8777"
+      RUST_LOG: "info,twin=debug"

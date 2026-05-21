@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# Direct grpcurl commands for end-to-end verification of mock + grpc-server.
+# Direct grpcurl commands for end-to-end verification of twin + grpc-server.
 #
 # Two-process flow: grpcurl hits grpc-server on :8000, which routes
 # x-connector: dummy through the Dummy Rust connector, which POSTs HTTP
-# (Stripe-shape, form-urlencoded) to mock on :8777.
+# (Stripe-shape, form-urlencoded) to twin on :8777.
 #
 # Prereqs (run from repo root, each in its own terminal):
-#   1. cargo run -p mock --release            # mock HTTP backend on :8777
+#   1. cargo run -p twin --release            # twin HTTP backend on :8777
 #   2. cargo run -p grpc-server               # UCS grpc-server on :8000
 #   3. data/field_probe/dummy.json must exist (regen with
 #      `cargo run -p field-probe --release` if missing).
 #   4. grpcurl, jq, curl installed.
 #
-# Run end-to-end: `bash mock/grpc-test-commands.sh`
+# Run end-to-end: `bash twin/grpc-test-commands.sh`
 # Or copy-paste individual sections.
 
 set -euo pipefail
@@ -234,7 +234,7 @@ grpcurl -plaintext "${HDRS[@]}" -H "x-request-id: $(rid e3)" -d "$E3_REQ" \
 
 # =====================================================================
 # F. Admin webhook trigger — POST /dummy/admin/trigger-webhook
-#    Uses curl (HTTP, not gRPC) because the trigger is admin-only on the mock backend itself.
+#    Uses curl (HTTP, not gRPC) because the trigger is admin-only on the twin backend itself.
 # =====================================================================
 
 echo ""

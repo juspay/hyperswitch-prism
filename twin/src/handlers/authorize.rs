@@ -51,7 +51,7 @@ pub async fn create(
     (StatusCode::OK, Json(pi)).into_response()
 }
 
-// v1-compatibility stubs — UCS connector calls these but mock-dummy doesn't
+// v1-compatibility stubs — UCS connector calls these but the twin doesn't
 // model them in any depth. Returning generic-success JSON keeps the harness
 // happy without growing the scenarios surface.
 
