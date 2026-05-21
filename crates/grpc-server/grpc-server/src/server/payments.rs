@@ -1167,7 +1167,7 @@ impl PaymentService for Payments {
                     let metadata_payload = &request_data.extracted_metadata;
                     let connector = &metadata_payload.connector;
                     let connector_data: ConnectorData<DefaultPCIHolder> =
-                        ConnectorData::from_connector_variant(&connector)
+                        ConnectorData::from_connector_variant(connector)
                         .ok_or_else(|| tonic::Status::invalid_argument("Invalid Connector Received"))?;
 
                     // Check if connector supports access tokens
@@ -1451,7 +1451,7 @@ impl PaymentService for Payments {
                     let metadata_payload = &request_data.extracted_metadata;
                     let connector = &metadata_payload.connector;
                        let connector_data: ConnectorData<DefaultPCIHolder> =
-                        ConnectorData::from_connector_variant(&connector)
+                        ConnectorData::from_connector_variant(connector)
                         .ok_or_else(|| tonic::Status::invalid_argument("Invalid Connector Received"))?;
 
                     // Check if connector supports access tokens
