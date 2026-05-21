@@ -8,11 +8,11 @@ use common_utils::{
     types::StringMajorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundsData,
-        RefundsResponseData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
+        RefundsData, RefundsResponseData,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::ErrorResponse,
@@ -42,6 +42,8 @@ pub(crate) type AsiaPayRefundRequest = transformers::AsiaPayMerchantApiRequest;
 pub(crate) type AsiaPayRefundResponse = transformers::AsiaPayMerchantApiResponse;
 pub(crate) type AsiaPaySyncRequest = transformers::AsiaPaySyncRequest;
 pub(crate) type AsiaPayPSyncResponse = transformers::AsiaPayMerchantApiResponse;
+pub(crate) type AsiaPayRSyncRequest = transformers::AsiaPayRSyncRequest;
+pub(crate) type AsiaPayRSyncResponse = transformers::AsiaPayMerchantApiResponse;
 
 use super::macros;
 use crate::{
@@ -145,6 +147,12 @@ macros::create_all_prerequisites!(
             request_body: AsiaPaySyncRequest,
             response_body: AsiaPayPSyncResponse,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+        ),
+        (
+            flow: RSync,
+            request_body: AsiaPayRSyncRequest,
+            response_body: AsiaPayRSyncResponse,
+            router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         )
     ],
     amount_converters: [
@@ -234,6 +242,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Asiapay<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RefundSyncV2 for Asiapay<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -533,6 +545,43 @@ macros::macro_connector_implementation!(
 );
 
 // ============================================================================
+// RSYNC FLOW
+// ============================================================================
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Asiapay,
+    curl_request: FormUrlEncoded(AsiaPayRSyncRequest),
+    curl_response: AsiaPayRSyncResponse,
+    flow_name: RSync,
+    resource_common_data: RefundFlowData,
+    flow_request: RefundSyncData,
+    flow_response: RefundsResponseData,
+    http_method: Post,
+    preprocess_response: true,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}/merchant/api/orderApi.jsp",
+                self.connector_base_url_refunds(req)
+            ))
+        }
+    }
+);
+
+// ============================================================================
 // UNSUPPORTED FLOWS
 // ============================================================================
 
@@ -544,7 +593,6 @@ macros::macro_connector_flow_status_impls!(
         PaymentMethodToken,
         VoidPC,
         MandateRevoke,
-        RSync,
     ],
     not_supported: [
         PreAuthenticate,

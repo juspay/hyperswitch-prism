@@ -5,12 +5,12 @@ use std::marker::{Send, Sync};
 use common_enums::{AttemptStatus, CaptureMethod, Currency};
 use common_utils::types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
         EventType, PaymentFlowData, PaymentVoidData, PaymentWebhookReference,
         PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundWebhookReference, RefundsData, RefundsResponseData, ResponseId,
-        WebhookDetailsResponse, WebhookResourceReference,
+        RefundFlowData, RefundSyncData, RefundWebhookReference, RefundsData, RefundsResponseData,
+        ResponseId, WebhookDetailsResponse, WebhookResourceReference,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -88,8 +88,8 @@ fn get_currency_code(
     }
 }
 
-fn compute_sha1_hex(input: &str) -> Result<String, error_stack::Report<IntegrationError>> {
-    let digest = ring::digest::digest(&ring::digest::SHA1_FOR_LEGACY_USE_ONLY, input.as_bytes());
+fn compute_sha256_hex(input: &str) -> Result<String, error_stack::Report<IntegrationError>> {
+    let digest = ring::digest::digest(&ring::digest::SHA256, input.as_bytes());
     Ok(hex::encode(digest.as_ref()))
 }
 
@@ -202,7 +202,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             pay_type,
             auth.secure_hash_secret.peek()
         );
-        let secure_hash = compute_sha1_hex(&hash_input)?;
+        let secure_hash = compute_sha256_hex(&hash_input)?;
 
         Ok(Self {
             merchant_id: auth.merchant_id,
@@ -325,7 +325,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             pay_type,
             auth.secure_hash_secret.peek()
         );
-        let secure_hash = compute_sha1_hex(&hash_input).change_context(
+        let secure_hash = compute_sha256_hex(&hash_input).change_context(
             ConnectorError::ResponseHandlingFailed {
                 context: domain_types::errors::ResponseTransformationErrorContext {
                     http_status_code: Some(item.http_code),
@@ -563,6 +563,117 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             action_type: "Query".to_string(),
             pay_ref,
         })
+    }
+}
+
+// ============================================================================
+// RSYNC
+// ============================================================================
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AsiaPayRSyncRequest {
+    pub merchant_id: Secret<String>,
+    pub login_id: Secret<String>,
+    pub password: Secret<String>,
+    pub action_type: String,
+    pub pay_ref: String,
+    pub refund_id: String,
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        AsiapayRouterData<
+            RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+            T,
+        >,
+    > for AsiaPayRSyncRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: AsiapayRouterData<
+            RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let auth = AsiaPayAuthType::try_from(&router_data.connector_config)?;
+
+        Ok(Self {
+            merchant_id: auth.merchant_id,
+            login_id: auth.login_id,
+            password: auth.password,
+            action_type: "Query".to_string(),
+            pay_ref: router_data.request.connector_transaction_id.clone(),
+            refund_id: router_data.request.connector_refund_id.clone(),
+        })
+    }
+}
+
+// RSync response
+impl TryFrom<
+    ResponseRouterData<
+        AsiaPayMerchantApiResponse,
+        Self,
+    >,
+> for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<
+            AsiaPayMerchantApiResponse,
+            Self,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+        let response = &item.response;
+
+        let result_code = response.result_code.as_deref().unwrap_or("-1");
+
+        if result_code == "0" {
+            let order_status = response.order_status.as_deref().unwrap_or("Pending");
+            let refund_status = match order_status {
+                "Refunded" | "Partial Refunded" => common_enums::RefundStatus::Success,
+                "Pending" | "RequestRefund" | "RequestPartialRefund" => {
+                    common_enums::RefundStatus::Pending
+                }
+                _ => common_enums::RefundStatus::Failure,
+            };
+
+            let refund_id = response
+                .pay_ref
+                .clone()
+                .unwrap_or_else(|| router_data.request.connector_refund_id.clone());
+
+            Ok(Self {
+                response: Ok(RefundsResponseData {
+                    connector_refund_id: refund_id,
+                    refund_status,
+                    status_code: item.http_code,
+                }),
+                ..router_data
+            })
+        } else {
+            Ok(Self {
+                response: Err(ErrorResponse {
+                    status_code: item.http_code,
+                    code: result_code.to_string(),
+                    message: response
+                        .err_msg
+                        .clone()
+                        .unwrap_or_else(|| "Refund sync failed".to_string()),
+                    reason: response.err_msg.clone(),
+                    attempt_status: None,
+                    connector_transaction_id: response.pay_ref.clone(),
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                }),
+                ..router_data
+            })
+        }
     }
 }
 
@@ -899,7 +1010,7 @@ impl AsiaPayWebhookBody {
             "{}|{}|{}|{}|{}|{}|{}|{}|{}",
             src, prc, success_code, order_ref, pay_ref, cur, amt, payer_auth_status, secret
         );
-        compute_sha1_hex(&hash_input)
+        compute_sha256_hex(&hash_input)
     }
 }
 
