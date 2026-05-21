@@ -1,7 +1,6 @@
 use common_utils::{crypto, ext_traits::ValueExt, CustomResult};
 use domain_types::connector_types::ConnectorWebhookSecrets;
 use error_stack::ResultExt;
-
 use crate::connector_types::WebhookIntegrityCheck;
 use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};

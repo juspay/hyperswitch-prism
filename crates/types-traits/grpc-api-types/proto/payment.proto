@@ -1371,7 +1371,7 @@ message EventServiceHandleResponse {
   // Suggested HTTP response to send back to the connector for webhook acknowledgement
   optional EventAckResponse event_ack_response = 5;
 
-  // Integrity checks the connector confirmed are present in this webhook payload.
+  // Integrity fields connector can confirm are present and valid in the webhook payload.
   repeated IntegrityCheck integrity_checks = 6;
 }
 

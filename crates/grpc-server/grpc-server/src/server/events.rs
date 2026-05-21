@@ -1,5 +1,7 @@
 use std::fmt::Debug;
 
+use grpc_api_types::payments::IntegrityCheck as ProtoIntegrityCheck;
+
 use crate::request::RequestData;
 use crate::utils::{self, get_config_from_request, grpc_logging_wrapper_with_parser};
 use common_enums;
@@ -224,7 +226,7 @@ impl EventService for EventServiceImpl {
                         .connector
                         .get_webhook_integrity_checks()
                         .iter()
-                        .map(|c| c.as_proto_i32())
+                        .map(|c| i32::from(integrity_check_to_proto(c)))
                         .collect();
 
                     let mut response = connector_integration::webhook_utils::process_webhook_event(
@@ -357,5 +359,20 @@ async fn verify_webhook_source_external(
             );
             Ok(false)
         }
+    }
+}
+
+fn integrity_check_to_proto(
+    check: &interfaces::connector_types::WebhookIntegrityCheck,
+) -> ProtoIntegrityCheck {
+    match check {
+        interfaces::connector_types::WebhookIntegrityCheck::ConnectorTransactionId => {
+            ProtoIntegrityCheck::ConnectorTransactionId
+        }
+        interfaces::connector_types::WebhookIntegrityCheck::Amount => ProtoIntegrityCheck::Amount,
+        interfaces::connector_types::WebhookIntegrityCheck::Currency => {
+            ProtoIntegrityCheck::Currency
+        }
+        _ => ProtoIntegrityCheck::Unspecified,
     }
 }

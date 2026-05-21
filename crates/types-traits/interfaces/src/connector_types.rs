@@ -86,15 +86,6 @@ pub enum WebhookIntegrityCheck {
     Currency,
 }
 
-impl WebhookIntegrityCheck {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::ConnectorTransactionId => "connector_transaction_id",
-            Self::Amount => "amount",
-            Self::Currency => "currency",
-        }
-    }
-}
 
 pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     ConnectorCommon
