@@ -2893,6 +2893,9 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
                         grpc_payment_types::payment_method::PaymentMethod::CardProxy(card_proxy),
                     ),
                 });
+        let threeds_completion_indicator = req
+            .threeds_completion_indicator
+            .map(|_| req.threeds_completion_indicator());
         Self {
             merchant_transaction_id: req.merchant_transaction_id.clone(),
             amount: req.amount,
@@ -2926,7 +2929,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             payment_channel: grpc_payment_types::PaymentChannel::Unspecified,
             locale: None,
             state: req.state,
-            threeds_completion_indicator: None,
+            threeds_completion_indicator,
             redirection_response: req.redirection_response,
             continue_redirection_url: None,
             l2_l3_data: req.l2_l3_data,
