@@ -32,15 +32,30 @@ func isPlaceholder(value string) bool {
 }
 
 // loadCredentials loads connector credentials from a JSON file.
+// Supports both object values and array values (uses first element).
 func loadCredentials(credsFile string) (map[string]map[string]interface{}, error) {
 	data, err := os.ReadFile(credsFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read credentials file: %w", err)
 	}
 
-	var creds map[string]map[string]interface{}
-	if err := json.Unmarshal(data, &creds); err != nil {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(data, &raw); err != nil {
 		return nil, fmt.Errorf("failed to parse credentials JSON: %w", err)
+	}
+
+	creds := make(map[string]map[string]interface{})
+	for connectorName, value := range raw {
+		switch v := value.(type) {
+		case map[string]interface{}:
+			creds[connectorName] = v
+		case []interface{}:
+			if len(v) > 0 {
+				if m, ok := v[0].(map[string]interface{}); ok {
+					creds[connectorName] = m
+				}
+			}
+		}
 	}
 
 	return creds, nil
