@@ -97,8 +97,9 @@ impl ForeignTryFrom<grpc_api_types::surcharge::SurchargeServiceCalculateRequest>
             let grpc_strategy =
                 grpc_api_types::surcharge::SurchargeStrategy::try_from(surcharge_strategy)
                     .unwrap_or(grpc_api_types::surcharge::SurchargeStrategy::Unspecified);
-            SurchargeStrategy::from(grpc_strategy)
-        });
+            SurchargeStrategy::try_from(grpc_strategy)
+        })
+        .transpose()?;
 
         let postal_code = value.postal_code.ok_or_else(|| {
             error_stack::report!(IntegrationError::MissingRequiredField {

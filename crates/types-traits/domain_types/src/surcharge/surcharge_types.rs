@@ -1,6 +1,6 @@
 use crate::{
     connector_types::{ConnectorResponseHeaders, RawConnectorRequestResponse},
-    types::Connectors,
+    types::Connectors, IntegrationError, IntegrationErrorContext
 };
 use common_enums::Currency;
 use common_utils::types::MinorUnit;
@@ -48,19 +48,27 @@ impl ConnectorResponseHeaders for SurchargeFlowData {
 /// Strategy for handling calculated surcharge
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SurchargeStrategy {
-    Unspecified,
     /// Apply the calculated surcharge to the payment
     Apply,
     /// Do not apply, just return the calculated amount
     Waive,
 }
 
-impl From<grpc_api_types::surcharge::SurchargeStrategy> for SurchargeStrategy {
-    fn from(value: grpc_api_types::surcharge::SurchargeStrategy) -> Self {
+impl TryFrom<grpc_api_types::surcharge::SurchargeStrategy> for SurchargeStrategy {
+    type Error = IntegrationError;
+
+    fn try_from(value: grpc_api_types::surcharge::SurchargeStrategy) -> Result<Self, Self::Error> {
         match value {
-            grpc_api_types::surcharge::SurchargeStrategy::Unspecified => Self::Unspecified,
-            grpc_api_types::surcharge::SurchargeStrategy::Apply => Self::Apply,
-            grpc_api_types::surcharge::SurchargeStrategy::Waive => Self::Waive,
+            grpc_api_types::surcharge::SurchargeStrategy::Unspecified => Err(IntegrationError::InvalidDataFormat {
+                    field_name: "surcharge_strategy",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Surcharge strategy must be specified".to_string()),
+                        ..Default::default()
+                    },
+                }
+                .into()),
+            grpc_api_types::surcharge::SurchargeStrategy::Apply => Ok(Self::Apply),
+            grpc_api_types::surcharge::SurchargeStrategy::Waive => Ok(Self::Waive),
         }
     }
 }
