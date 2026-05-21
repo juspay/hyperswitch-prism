@@ -7,6 +7,7 @@ use domain_types::{
 use interfaces::connector_types::{BoxedConnector, BoxedSurchargeConnector};
 
 use crate::connectors;
+use crate::surcharge_connectors;
 
 #[derive(Clone)]
 pub struct ConnectorData<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static> {
@@ -136,7 +137,7 @@ impl SurchargeConnectorData {
     fn convert_connector(connector_name: SurchargeConnectorEnum) -> BoxedSurchargeConnector {
         match connector_name {
             SurchargeConnectorEnum::Interpayments => {
-                Box::new(crate::surcharge_connectors::InterPayments::new())
+                Box::new(surcharge_connectors::InterPayments::new())
             }
         }
     }

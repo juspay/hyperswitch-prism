@@ -7,6 +7,7 @@ use domain_types::{
         SurchargeCalculateRequest, SurchargeCalculateResponse, SurchargeFlowData,
     },
     utils::ForeignTryFrom,
+    surcharge::types::generate_surcharge_calculate_response,
 };
 use grpc_api_types::surcharge::{
     surcharge_service_server::SurchargeService, SurchargeServiceCalculateRequest,
@@ -40,7 +41,7 @@ impl SurchargeOperationsInternal for Surcharges {
         response_data_type: SurchargeCalculateResponse,
         request_data_constructor: SurchargeCalculateRequest::foreign_try_from,
         common_flow_data_constructor: SurchargeFlowData::foreign_try_from,
-        generate_response_fn: domain_types::types::generate_surcharge_calculate_response,
+        generate_response_fn: generate_surcharge_calculate_response,
         connector_data_type: SurchargeConnectorData,
         all_keys_required: None
     );

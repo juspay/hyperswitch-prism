@@ -1,4 +1,4 @@
-use crate::types::ResponseRouterData;
+use crate::{types::ResponseRouterData, utils};
 use common_enums::{CountryAlpha2, CountryAlpha3};
 use common_utils::types::FloatMajorUnit;
 use domain_types::{
@@ -133,12 +133,10 @@ impl TryFrom<ResponseRouterData<InterPaymentsSurchargeResponse, Self>>
                     item.response.transaction_fee,
                     item.router_data.request.currency,
                 )
-                .change_context(
-                    crate::utils::response_handling_fail_for_connector(
-                        item.http_code,
-                        "interpayments",
-                    ),
-                )?,
+                .change_context(utils::response_handling_fail_for_connector(
+                    item.http_code,
+                    "interpayments",
+                ))?,
                 surcharge_rate_percent: item.response.transaction_fee_percent,
                 currency: item.router_data.request.currency,
             })
