@@ -580,7 +580,7 @@
     "refund_get": {
       "default": {
         "status": "error",
-        "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
+        "error": "Stuck on field: connector_order_id. PACO's Inquiry endpoint matches refund-sync by `orderNo`, which is not derivable from `connector_transaction_id` — Missing required field: connector_order_id. PACO's Inquiry endpoint matches refund-sync by `orderNo`, which is not derivable from `connector_transaction_id` (PACO's `invoiceNo2C2P`) or `connector_refund_id`."
       }
     },
     "reverse": {
