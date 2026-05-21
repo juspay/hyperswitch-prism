@@ -394,6 +394,189 @@ pub struct PayoutCreateRecipientRequest {
     pub account_type: Option<String>,
 }
 
+impl PayoutCreateRecipientRequest {
+    pub fn get_billing(&self) -> Result<&Address, Error> {
+        self.address
+            .as_ref()
+            .ok_or_else(missing_field_err("address"))
+    }
+
+    pub fn get_billing_address(&self) -> Result<&crate::payment_address::AddressDetails, Error> {
+        self.get_billing()?
+            .address
+            .as_ref()
+            .ok_or_else(missing_field_err("address.address"))
+    }
+
+    pub fn get_optional_billing_line1(&self) -> Option<Secret<String>> {
+        self.address
+            .as_ref()
+            .and_then(|a| a.address.as_ref())
+            .and_then(|addr| addr.line1.clone())
+    }
+
+    pub fn get_optional_billing_line2(&self) -> Option<Secret<String>> {
+        self.address
+            .as_ref()
+            .and_then(|a| a.address.as_ref())
+            .and_then(|addr| addr.line2.clone())
+    }
+
+    pub fn get_optional_billing_city(&self) -> Option<Secret<String>> {
+        self.address
+            .as_ref()
+            .and_then(|a| a.address.as_ref())
+            .and_then(|addr| addr.city.clone())
+    }
+
+    pub fn get_optional_billing_state(&self) -> Option<Secret<String>> {
+        self.address
+            .as_ref()
+            .and_then(|a| a.address.as_ref())
+            .and_then(|addr| addr.state.clone())
+    }
+
+    pub fn get_optional_billing_zip(&self) -> Option<Secret<String>> {
+        self.address
+            .as_ref()
+            .and_then(|a| a.address.as_ref())
+            .and_then(|addr| addr.zip.clone())
+    }
+
+    pub fn get_optional_billing_country(&self) -> Option<common_enums::CountryAlpha2> {
+        self.address
+            .as_ref()
+            .and_then(|a| a.address.as_ref())
+            .and_then(|addr| addr.country)
+    }
+
+    pub fn get_optional_billing_email(&self) -> Option<Secret<String>> {
+        self.address
+            .as_ref()
+            .and_then(|a| a.email.as_ref())
+            .map(|e| Secret::new(e.peek().to_string()))
+    }
+
+    pub fn get_phone(&self) -> Result<Secret<String>, Error> {
+        self.phone.clone().ok_or_else(missing_field_err("phone"))
+    }
+
+    pub fn get_first_name(&self) -> Result<Secret<String>, Error> {
+        self.first_name
+            .clone()
+            .ok_or_else(missing_field_err("first_name"))
+    }
+
+    pub fn get_last_name(&self) -> Result<Secret<String>, Error> {
+        self.last_name
+            .clone()
+            .ok_or_else(missing_field_err("last_name"))
+    }
+
+    pub fn get_dob_day(&self) -> Result<Secret<String>, Error> {
+        self.dob_day
+            .clone()
+            .ok_or_else(missing_field_err("dob_day"))
+    }
+
+    pub fn get_dob_month(&self) -> Result<Secret<String>, Error> {
+        self.dob_month
+            .clone()
+            .ok_or_else(missing_field_err("dob_month"))
+    }
+
+    pub fn get_dob_year(&self) -> Result<Secret<String>, Error> {
+        self.dob_year
+            .clone()
+            .ok_or_else(missing_field_err("dob_year"))
+    }
+
+    pub fn get_account_type(&self) -> Result<String, Error> {
+        self.account_type
+            .clone()
+            .ok_or_else(missing_field_err("account_type"))
+    }
+
+    pub fn get_business_profile_url(&self) -> Result<Secret<String>, Error> {
+        self.business_profile_url
+            .clone()
+            .ok_or_else(missing_field_err("business_profile_url"))
+    }
+
+    pub fn get_business_profile_name(&self) -> Result<Secret<String>, Error> {
+        self.business_profile_name
+            .clone()
+            .ok_or_else(missing_field_err("business_profile_name"))
+    }
+
+    pub fn get_statement_descriptor(&self) -> Result<Secret<String>, Error> {
+        self.statement_descriptor
+            .clone()
+            .ok_or_else(missing_field_err("statement_descriptor"))
+    }
+
+    pub fn get_tos_acceptance_ip(&self) -> Result<Secret<String>, Error> {
+        self.tos_acceptance_ip
+            .clone()
+            .ok_or_else(missing_field_err("tos_acceptance_ip"))
+    }
+
+    pub fn get_business_profile_mcc_i32(&self) -> Result<i32, Error> {
+        let raw = self
+            .business_profile_mcc
+            .as_deref()
+            .ok_or_else(missing_field_err("business_profile_mcc"))?;
+        raw.parse::<i32>().map_err(|_| {
+            error_stack::report!(IntegrationError::InvalidDataFormat {
+                field_name: "business_profile_mcc",
+                context: crate::errors::IntegrationErrorContext::default(),
+            })
+        })
+    }
+
+    pub fn get_id_number_or_ssn_last_4(
+        &self,
+    ) -> Result<(Option<Secret<String>>, Option<Secret<String>>), Error> {
+        match &self.id_number {
+            Some(id) => Ok((Some(id.clone()), None)),
+            None => {
+                let ssn = self
+                    .ssn_last_4
+                    .clone()
+                    .ok_or_else(missing_field_err("ssn_last_4 or id_number"))?;
+                Ok((None, Some(ssn)))
+            }
+        }
+    }
+
+    pub fn get_email_with_fallback(&self) -> Option<Secret<String>> {
+        self.customer
+            .as_ref()
+            .and_then(|c| c.customer_email.as_ref())
+            .map(|e| Secret::new(e.peek().to_string()))
+            .or_else(|| self.get_optional_billing_email())
+    }
+
+    pub fn is_company(&self) -> bool {
+        matches!(
+            self.recipient_type,
+            common_enums::PayoutRecipientType::Company
+        )
+    }
+}
+
+impl PayoutEnrollDisburseAccountRequest {
+    pub fn get_payout_method_data(&self) -> Result<&PayoutMethodData, Error> {
+        self.payout_method_data
+            .as_ref()
+            .ok_or_else(missing_field_err("payout_method_data"))
+    }
+
+    pub fn get_customer_name(&self) -> Option<Secret<String>> {
+        self.customer.as_ref().and_then(|c| c.customer_name.clone())
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct PayoutCreateRecipientResponse {
     pub merchant_payout_id: Option<String>,
