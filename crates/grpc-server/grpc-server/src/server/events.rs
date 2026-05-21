@@ -4,7 +4,7 @@ use crate::request::RequestData;
 use crate::utils::{self, get_config_from_request, grpc_logging_wrapper_with_parser};
 use common_enums;
 use common_utils::events::FlowName;
-use connector_integration::types::ConnectorData;
+use connector_integration::types::{ConnectorData, ConnectorDataProvider};
 use domain_types::{
     connector_flow::VerifyWebhookSource,
     connector_types::VerifyWebhookSourceFlowData,
@@ -74,7 +74,6 @@ impl EventService for EventServiceImpl {
                 Box::pin(async move {
                     let payload = request_data.payload;
                     let metadata_payload = request_data.extracted_metadata;
-                    let connector = metadata_payload.connector;
                     let request_details =
                         domain_types::connector_types::RequestDetails::foreign_try_from(
                             payload
@@ -91,7 +90,10 @@ impl EventService for EventServiceImpl {
                         .into_grpc_status()?;
 
                     let connector_data: ConnectorData<DefaultPCIHolder> =
-                        ConnectorData::get_connector_by_name(&connector);
+                        ConnectorData::from_connector_variant(&metadata_payload.connector)
+                            .ok_or_else(|| {
+                                tonic::Status::invalid_argument("Invalid Connector Received")
+                            })?;
 
                     let response = connector_integration::webhook_utils::parse_webhook_event(
                         connector_data,
@@ -148,7 +150,9 @@ impl EventService for EventServiceImpl {
                 Box::pin(async move {
                     let payload = request_data.payload;
                     let metadata_payload = request_data.extracted_metadata;
-                    let connector = metadata_payload.connector;
+                    let connector = metadata_payload.connector.clone().as_payment().ok_or_else(|| {
+                        tonic::Status::unimplemented("Surcharge connectors not supported for webhook events")
+                    })?;
                     let _request_id = &metadata_payload.request_id;
                     let connector_config = &metadata_payload.connector_config;
                     let request_details = payload

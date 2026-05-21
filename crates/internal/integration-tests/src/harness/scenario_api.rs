@@ -2747,6 +2747,28 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
+            "SurchargeService/Calculate" => {
+                let payload: grpc_api_types::surcharge::SurchargeServiceCalculateRequest =
+                    parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
+                let mut request = tonic::Request::new(payload);
+                add_connector_metadata(
+                    &mut request,
+                    &config,
+                    &merchant_id,
+                    &tenant_id,
+                    &request_id,
+                    &connector_request_reference_id,
+                );
+                let mut client = grpc_api_types::surcharge::surcharge_service_client::SurchargeServiceClient::new(channel.clone());
+                let response = client.calculate(request).await.map_err(|error| {
+                    ScenarioError::GrpcurlExecution {
+                        message: format!(
+                            "tonic execution failed for '{suite}/{scenario}': {error}"
+                        ),
+                    }
+                })?;
+                serialize_tonic_response(&response.into_inner())
+            }
             _ => Err(ScenarioError::UnsupportedSuite {
                 suite: effective_suite.to_string(),
             }),
@@ -4679,6 +4701,7 @@ fn grpc_method_for_suite(suite: &str, spec: Option<&SuiteSpec>) -> Result<String
         "PaymentService/ProxySetupRecurring" => "types.PaymentService/ProxySetupRecurring",
         "PaymentMethodService/Eligibility" => "types.PaymentMethodService/Eligibility",
         "EventService/HandleEvent" => "types.EventService/HandleEvent",
+        "SurchargeService/Calculate" => "types.SurchargeService/Calculate",
         _ => {
             return Err(ScenarioError::UnsupportedSuite {
                 suite: suite.to_string(),

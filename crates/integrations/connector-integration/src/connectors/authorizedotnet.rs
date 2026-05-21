@@ -7,15 +7,15 @@ use common_utils::{
 use domain_types::{
     connector_flow::{
         Authorize, Capture, CreateConnectorCustomer, PSync, RSync, Refund, RepeatPayment,
-        SetupMandate, Void,
+        SetupMandate, Void, VoidPC,
     },
     connector_types::{
         ConnectorCustomerData, ConnectorCustomerResponse, ConnectorSpecifications,
         ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundsData,
-        RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
-        SetupMandateRequestData, WebhookDetailsResponse,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
+        RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RepeatPaymentData,
+        RequestDetails, ResponseId, SetupMandateRequestData, WebhookDetailsResponse,
     },
     errors::{ConnectorError, IntegrationError, WebhookError},
     payment_method_data::PaymentMethodDataTypes,
@@ -31,8 +31,8 @@ use interfaces::{
     connector_integration_v2::ConnectorIntegrationV2,
     connector_types::{
         self, ConnectorServiceTrait, IncomingWebhook, PaymentAuthorizeV2, PaymentCapture,
-        PaymentSyncV2, PaymentVoidV2, RefundSyncV2, RefundV2, RepeatPaymentV2, SetupMandateV2,
-        ValidationTrait,
+        PaymentSyncV2, PaymentVoidPostCaptureV2, PaymentVoidV2, RefundSyncV2, RefundV2,
+        RepeatPaymentV2, SetupMandateV2, ValidationTrait,
     },
     decode::BodyDecoding,
     verification::SourceVerification,
@@ -47,8 +47,8 @@ use self::transformers::{
     AuthorizedotnetRSyncResponse, AuthorizedotnetRefundRequest, AuthorizedotnetRefundResponse,
     AuthorizedotnetRepeatPaymentRequest, AuthorizedotnetRepeatPaymentResponse,
     AuthorizedotnetSetupMandateRequest, AuthorizedotnetSetupMandateResponse,
-    AuthorizedotnetVoidRequest, AuthorizedotnetVoidResponse, AuthorizedotnetWebhookEventType,
-    AuthorizedotnetWebhookObjectId,
+    AuthorizedotnetVoidPCRequest, AuthorizedotnetVoidPCResponse, AuthorizedotnetVoidRequest,
+    AuthorizedotnetVoidResponse, AuthorizedotnetWebhookEventType, AuthorizedotnetWebhookObjectId,
 };
 use super::macros;
 use crate::{types::ResponseRouterData, with_response_body};
@@ -311,6 +311,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     for Authorizedotnet<T>
 {
 }
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    PaymentVoidPostCaptureV2 for Authorizedotnet<T>
+{
+}
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize> RefundV2
     for Authorizedotnet<T>
 {
@@ -449,6 +453,12 @@ macros::create_all_prerequisites!(
             request_body: AuthorizedotnetSetupMandateRequest<T>,
             response_body: AuthorizedotnetSetupMandateResponse,
             router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: VoidPC,
+            request_body: AuthorizedotnetVoidPCRequest,
+            response_body: AuthorizedotnetVoidPCResponse,
+            router_data: RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -775,6 +785,38 @@ macros::macro_connector_implementation!(
     }
 );
 
+// Implement VoidPostCapture (Reverse) flow
+// Authorize.net's voidTransaction works on captured-but-not-yet-settled transactions
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Authorizedotnet,
+    curl_request: Json(AuthorizedotnetVoidPCRequest),
+    curl_response: AuthorizedotnetVoidPCResponse,
+    flow_name: VoidPC,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsCancelPostCaptureData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    preprocess_response: true,
+    generic_type: T,
+    [PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(self.connector_base_url_payments(req).to_string())
+        }
+    }
+);
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     ConnectorSpecifications for Authorizedotnet<T>
 {
@@ -792,7 +834,6 @@ macros::macro_connector_flow_status_impls!(
         PaymentMethodToken,
         ClientAuthenticationToken,
         MandateRevoke,
-        VoidPC,
     ],
     not_supported: [
         Accept,

@@ -15,6 +15,7 @@ use grpc_api_types::{
     payouts::{
         payout_service_client::PayoutServiceClient, payout_service_server::PayoutServiceServer,
     },
+    surcharge::surcharge_service_client::SurchargeServiceClient,
 };
 use http::Uri;
 use hyper_util::rt::TokioIo; // Add this import
@@ -106,6 +107,12 @@ impl AutoClient for PayoutServiceClient<Channel> {
     }
 }
 
+impl AutoClient for SurchargeServiceClient<Channel> {
+    fn new(channel: Channel) -> Self {
+        Self::new(channel)
+    }
+}
+
 /// Builds a gRPC server with all services registered.
 fn build_server(
     service: grpc_server::app::Service,
@@ -166,6 +173,12 @@ fn build_server(
         .add_service(
             PayoutServiceServer::with_interceptor(
                 service.payouts_service,
+                interceptor.clone(),
+            ),
+        )
+        .add_service(
+            grpc_api_types::surcharge::surcharge_service_server::SurchargeServiceServer::with_interceptor(
+                service.surcharges_service,
                 interceptor,
             ),
         )

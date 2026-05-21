@@ -37,6 +37,8 @@ pub const X_TENANT_ID: &str = "x-tenant-id";
 pub const X_REQUEST_ID: &str = "x-request-id";
 /// Header key for connector identification
 pub const X_CONNECTOR_NAME: &str = "x-connector";
+/// Header key for surcharge connector identification
+pub const X_SURCHARGE_CONNECTOR_NAME: &str = "x-surcharge-connector";
 /// Header key for merchant identification
 pub const X_MERCHANT_ID: &str = "x-merchant-id";
 /// Header key for reference identification

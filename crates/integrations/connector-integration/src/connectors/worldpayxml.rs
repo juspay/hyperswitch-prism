@@ -9,12 +9,12 @@ use common_enums::CurrencyUnit;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, StringMinorUnit};
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, PSync, PayoutGet, PayoutTransfer, PayoutVoid, RSync, Refund, Void,
+        Authorize, Capture, PSync, PayoutGet, PayoutTransfer, PayoutVoid, RSync, Refund, Void, VoidPC,
     },
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData,
     },
     payment_method_data::PaymentMethodDataTypes,
     payouts::payouts_types::{
@@ -38,12 +38,14 @@ use transformers::{self as worldpayxml};
 use requests::{
     WorldpayxmlCaptureRequest, WorldpayxmlPSyncRequest, WorldpayxmlPaymentsRequest,
     WorldpayxmlPayoutGetRequest, WorldpayxmlPayoutTransferRequest, WorldpayxmlPayoutVoidRequest,
-    WorldpayxmlRSyncRequest, WorldpayxmlRefundRequest, WorldpayxmlVoidRequest,
+    WorldpayxmlRSyncRequest, WorldpayxmlRefundRequest, WorldpayxmlVoidPCRequest,
+    WorldpayxmlVoidRequest,
 };
 use responses::{
     WorldpayxmlAuthorizeResponse, WorldpayxmlCaptureResponse, WorldpayxmlPayoutGetResponse,
     WorldpayxmlPayoutTransferResponse, WorldpayxmlPayoutVoidResponse, WorldpayxmlRefundResponse,
-    WorldpayxmlRsyncResponse, WorldpayxmlTransactionResponse, WorldpayxmlVoidResponse,
+    WorldpayxmlRsyncResponse, WorldpayxmlTransactionResponse, WorldpayxmlVoidPCResponse,
+    WorldpayxmlVoidResponse,
 };
 
 use super::macros::{self, GetSoapXml};
@@ -79,6 +81,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Worldpayxml<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentVoidPostCaptureV2 for Worldpayxml<T>
 {
 }
 
@@ -216,6 +223,13 @@ macros::create_all_prerequisites!(
             response_body: WorldpayxmlPayoutVoidResponse,
             response_format: xml,
             router_data: RouterDataV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, PayoutVoidResponse>,
+        ),
+        (
+            flow: VoidPC,
+            request_body: WorldpayxmlVoidPCRequest,
+            response_body: WorldpayxmlVoidPCResponse,
+            response_format: xml,
+            router_data: RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -574,6 +588,41 @@ macros::macro_connector_implementation!(
     }
 );
 
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Worldpayxml,
+    curl_request: SoapXml(WorldpayxmlVoidPCRequest),
+    curl_response: WorldpayxmlVoidPCResponse,
+    flow_name: VoidPC,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsCancelPostCaptureData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    preprocess_response: true,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let auth = worldpayxml::WorldpayxmlAuthType::try_from(&req.connector_config)?;
+            let mut headers = vec![
+                (headers::CONTENT_TYPE.to_string(), CONTENT_TYPE_XML.to_string().into()),
+            ];
+            headers.extend(self.build_auth_header(auth)?);
+            Ok(headers)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(self.connector_base_url_payments(req).to_string())
+        }
+    }
+);
+
 // Source verification implementations
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Worldpayxml<T> {
@@ -668,7 +717,6 @@ macros::macro_connector_flow_status_impls!(
         DefendDispute,
         RepeatPayment,
         SetupMandate,
-        VoidPC,
         PaymentMethodToken,
         CreateConnectorCustomer,
         ServerAuthenticationToken,

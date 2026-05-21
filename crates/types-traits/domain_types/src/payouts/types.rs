@@ -43,7 +43,7 @@ impl
                 }
             }),
             test_mode: None,
-            description: None,
+            description: value.description.clone(),
         })
     }
 }
@@ -1520,7 +1520,7 @@ impl
                 }
             }),
             test_mode: None,
-            description: value.description,
+            description: value.description.clone(),
         })
     }
 }
