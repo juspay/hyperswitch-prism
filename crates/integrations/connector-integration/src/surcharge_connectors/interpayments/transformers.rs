@@ -78,16 +78,13 @@ impl
 
         let region = req.request.postal_code.clone();
 
-        let country = req
-            .request
-            .country
-            .map(|country| CountryAlpha2::from_alpha2_to_alpha3(country))
-            .ok_or_else(|| {
-                error_stack::report!(IntegrationError::MissingRequiredField {
-                    field_name: "country",
-                    context: Default::default(),
-                })
-            })?;
+        let country = req.request.country.map(
+            CountryAlpha2::from_alpha2_to_alpha3).ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "country",
+                context: Default::default(),
+            })
+        })?;
 
         Ok(Self {
             amount,
