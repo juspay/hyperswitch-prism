@@ -4207,6 +4207,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
         auth_type: grpc_api_types::payments::connector_specific_config::Config,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         match auth_type {
+            AuthType::Aci(_) => Ok(Self::Payment(ConnectorEnum::Aci)),
             AuthType::Adyen(_) => Ok(Self::Payment(ConnectorEnum::Adyen)),
             AuthType::Airwallex(_) => Ok(Self::Payment(ConnectorEnum::Airwallex)),
             AuthType::Bambora(_) => Ok(Self::Payment(ConnectorEnum::Bambora)),

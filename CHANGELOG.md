@@ -19,6 +19,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.05.21.0
+
+### Bug Fixes
+
+- **connector:**
+  - [Trustly] Make customer related fields optional in webhooks ([#1371](https://github.com/juspay/connector-service/pull/1371)) ([`32b8d82`](https://github.com/juspay/connector-service/commit/32b8d82253644fed16739113b6e70d508a05a111))
+  - [Truelayer] Pass reference field in payments request ([#1375](https://github.com/juspay/connector-service/pull/1375)) ([`88e6b6a`](https://github.com/juspay/connector-service/commit/88e6b6a1d57c710d18e61cb7a39a7b05181e323f))
+
+### Refactors
+
+- **connector:** Connector config auth added for ACI ([#1139](https://github.com/juspay/connector-service/pull/1139)) ([`e49dc14`](https://github.com/juspay/connector-service/commit/e49dc1449ffcee89da26aec820a6b426631c8209))
+
+**Full Changelog:** [`2026.05.20.0...2026.05.21.0`](https://github.com/juspay/connector-service/compare/2026.05.20.0...2026.05.21.0)
+
+- - -
+
+## 2026.05.20.0
+
+### Features
+
+- **connector:** Support for paypal payouts ([#1203](https://github.com/juspay/connector-service/pull/1203)) ([`0261398`](https://github.com/juspay/connector-service/commit/0261398884cd8cf8fdc5a2544e89c86268f7a580))
+
+**Full Changelog:** [`2026.05.19.1...2026.05.20.0`](https://github.com/juspay/connector-service/compare/2026.05.19.1...2026.05.20.0)
+
+- - -
+
+## 2026.05.19.1
+
+### Features
+
+- **connector:**
+  - Implement Reverse (VoidPostCapture) for fiservemea ([#1301](https://github.com/juspay/connector-service/pull/1301)) ([`bdb37e0`](https://github.com/juspay/connector-service/commit/bdb37e04f56154acedae77cd4c0ce051e6fa5a2a))
+  - Implement Reverse (VoidPostCapture) for adyen ([#1277](https://github.com/juspay/connector-service/pull/1277)) ([`4656d5c`](https://github.com/juspay/connector-service/commit/4656d5c22c0ceada5004a8cb366e0577330961f8))
+  - Implement Reverse (VoidPostCapture) for cybersource ([#1278](https://github.com/juspay/connector-service/pull/1278)) ([`0d48651`](https://github.com/juspay/connector-service/commit/0d48651caca2d64514fc31add3dcc208493e9e7f))
+
+### Refactors
+
+- **proto:** Group wallet payment methods by flow type ([#1356](https://github.com/juspay/connector-service/pull/1356)) ([`df6b261`](https://github.com/juspay/connector-service/commit/df6b2611c8227a2e43f2d8c0c2b9f99c0c567151))
+
+### Testing
+
+- **nuvei:** Harden integration test overrides ([#1299](https://github.com/juspay/connector-service/pull/1299)) ([`3286746`](https://github.com/juspay/connector-service/commit/32867461eaabdbfa58810404d00c7c064eb9ec7c))
+
+**Full Changelog:** [`2026.05.19.0...2026.05.19.1`](https://github.com/juspay/connector-service/compare/2026.05.19.0...2026.05.19.1)
+
+- - -
+
 ## 2026.05.19.0
 
 ### Features

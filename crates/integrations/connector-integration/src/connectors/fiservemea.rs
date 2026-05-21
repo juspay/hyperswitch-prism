@@ -8,11 +8,11 @@ use common_utils::{
     types::StringMajorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void, VoidPC},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -32,7 +32,8 @@ use transformers as fiservemea;
 use transformers::{
     FiservemeaAuthorizeResponse, FiservemeaCaptureResponse, FiservemeaPaymentsRequest,
     FiservemeaRefundResponse, FiservemeaRefundSyncResponse, FiservemeaSyncResponse,
-    FiservemeaVoidResponse, PostAuthTransaction, ReturnTransaction, VoidTransaction,
+    FiservemeaVoidPCRequest, FiservemeaVoidPCResponse, FiservemeaVoidResponse, PostAuthTransaction,
+    ReturnTransaction, VoidTransaction,
 };
 
 use super::macros;
@@ -75,6 +76,12 @@ macros::create_all_prerequisites!(
             request_body: VoidTransaction,
             response_body: FiservemeaVoidResponse,
             router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ),
+        (
+            flow: VoidPC,
+            request_body: FiservemeaVoidPCRequest,
+            response_body: FiservemeaVoidPCResponse,
+            router_data: RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
         ),
         (
             flow: Refund,
@@ -170,6 +177,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Fiservemea<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentVoidPostCaptureV2 for Fiservemea<T>
 {
 }
 
@@ -413,9 +425,40 @@ macros::macro_connector_implementation!(
     }
 );
 
-// ===== EMPTY IMPLEMENTATIONS FOR UNIMPLEMENTED FLOWS =====
+// ===== VOIDPC (REVERSE) FLOW IMPLEMENTATION =====
+// Cancels a captured (PostAuth) payment before settlement using requestType: VoidTransaction
+// The captured transaction ID is passed in the URL path; no amount field is needed.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Fiservemea,
+    curl_request: Json(FiservemeaVoidPCRequest),
+    curl_response: FiservemeaVoidPCResponse,
+    flow_name: VoidPC,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsCancelPostCaptureData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let base_url = self.connector_base_url_payments(req);
+            let transaction_id = &req.request.connector_transaction_id;
+            Ok(format!("{}/{}", base_url.trim_end_matches('/'), transaction_id))
+        }
+    }
+);
 
-// Payment Void Post Capture
+// ===== EMPTY IMPLEMENTATIONS FOR UNIMPLEMENTED FLOWS =====
 
 // Setup Mandate
 
@@ -538,7 +581,6 @@ macros::macro_connector_flow_status_impls!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
         IncrementalAuthorization,
-        VoidPC,
         SetupMandate,
         RepeatPayment,
         ServerSessionAuthenticationToken,

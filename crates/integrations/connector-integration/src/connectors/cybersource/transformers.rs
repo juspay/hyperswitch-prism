@@ -14,15 +14,15 @@ use cards;
 use domain_types::{
     connector_flow::{
         Authenticate, Authorize, Capture, ClientAuthenticationToken, IncrementalAuthorization,
-        PostAuthenticate, PreAuthenticate, RepeatPayment, SetupMandate, Void,
+        PostAuthenticate, PreAuthenticate, RepeatPayment, SetupMandate, Void, VoidPC,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse,
         CybersourceClientAuthenticationResponse as CybersourceClientAuthenticationResponseDomain,
         MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RecurringMandateData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
         ResponseId, SetupMandateRequestData,
@@ -2770,6 +2770,126 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     })?,
             },
             merchant_defined_information,
+        })
+    }
+}
+
+// VoidPC (post-capture void) request — used with PaymentsCancelPostCaptureData.
+//
+// This targets the CyberSource capture-void endpoint:
+//   POST /pts/v2/captures/{capture_id}/voids
+//
+// This is distinct from the authorization-reversal endpoint
+// (/pts/v2/payments/{id}/reversals) which requires reversalInformation.amountDetails.
+// The capture-void endpoint requires only clientReferenceInformation.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CybersourceVoidPCRequest {
+    client_reference_information: ClientReferenceInformation,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        CybersourceRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for CybersourceVoidPCRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        value: CybersourceRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            client_reference_information: ClientReferenceInformation {
+                code: Some(
+                    value
+                        .router_data
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone(),
+                ),
+            },
+        })
+    }
+}
+
+fn map_cybersource_void_pc_status(
+    status: CybersourcePaymentStatus,
+) -> common_enums::PostCaptureVoidStatus {
+    match status {
+        CybersourcePaymentStatus::Voided
+        | CybersourcePaymentStatus::Reversed
+        | CybersourcePaymentStatus::Cancelled => common_enums::PostCaptureVoidStatus::Succeeded,
+        CybersourcePaymentStatus::Failed
+        | CybersourcePaymentStatus::Declined
+        | CybersourcePaymentStatus::AuthorizedRiskDeclined
+        | CybersourcePaymentStatus::Rejected
+        | CybersourcePaymentStatus::InvalidRequest
+        | CybersourcePaymentStatus::ServerError => common_enums::PostCaptureVoidStatus::Failed,
+        CybersourcePaymentStatus::Authorized
+        | CybersourcePaymentStatus::Succeeded
+        | CybersourcePaymentStatus::Transmitted
+        | CybersourcePaymentStatus::Pending
+        | CybersourcePaymentStatus::Challenge
+        | CybersourcePaymentStatus::AuthorizedPendingReview
+        | CybersourcePaymentStatus::PendingAuthentication
+        | CybersourcePaymentStatus::PendingReview
+        | CybersourcePaymentStatus::Accepted
+        | CybersourcePaymentStatus::StatusNotReceived => {
+            common_enums::PostCaptureVoidStatus::Pending
+        }
+    }
+}
+
+impl<F> TryFrom<ResponseRouterData<CybersourcePaymentsResponse, Self>>
+    for RouterDataV2<F, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<CybersourcePaymentsResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let post_capture_void_status = map_cybersource_void_pc_status(
+            item.response
+                .status
+                .clone()
+                .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
+        );
+        let description = post_capture_void_status
+            .is_post_capture_void_failure()
+            .then(|| {
+                get_error_response(
+                    &item.response.error_information,
+                    &item.response.processor_information,
+                    &item.response.risk_information,
+                    None,
+                    item.http_code,
+                    item.response.id.clone(),
+                )
+                .reason
+            })
+            .flatten();
+        Ok(Self {
+            response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status,
+                connector_reference_id: Some(item.response.id.clone()),
+                description,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
         })
     }
 }
