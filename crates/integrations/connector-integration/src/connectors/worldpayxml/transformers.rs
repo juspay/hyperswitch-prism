@@ -1310,7 +1310,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         .resource_common_data
                         .connector_request_reference_id
                         .clone(),
-                    description: DEFAULT_PAYMENT_DESCRIPTION.to_string(),
+                    description: router_data
+                        .resource_common_data
+                        .description
+                        .clone()
+                        .unwrap_or_else(|| DEFAULT_PAYMENT_DESCRIPTION.to_string()),
                     amount: requests::WorldpayxmlAmount {
                         value: converted_amount,
                         currency_code: request.destination_currency,

@@ -310,6 +310,8 @@ message PayoutServiceTransferRequest {
   optional SecretString access_token = 13;
   // Source Bank Data
   optional SourceBankData source_bank_data = 14;
+  // Description for the payout
+  optional string description = 15;
 }
 
 // Response message for transferring a payout

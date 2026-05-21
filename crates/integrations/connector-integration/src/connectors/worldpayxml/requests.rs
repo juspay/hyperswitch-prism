@@ -377,7 +377,6 @@ pub struct WorldpayxmlFastAccess {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorldpayxmlPayoutRecipient {
-    #[serde(rename = "paymentInstrument")]
     pub payment_instrument: WorldpayxmlPayoutPaymentInstrument,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<WorldpayxmlAddress>,
@@ -394,7 +393,7 @@ pub struct WorldpayxmlPayoutPaymentInstrument {
 pub struct WorldpayxmlPayoutCardDetails {
     pub card_number: Secret<String>,
     pub expiry_date: WorldpayxmlExpiryDate,
-    #[serde(rename = "cardHolderName", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub card_holder_name: Option<Secret<String>>,
 }
 
