@@ -1328,8 +1328,6 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
             .and_then(|b| b.invoice_no2c2p.clone())
             .unwrap_or_else(|| router_data.request.refund_id.clone());
 
-        let raw_connector_response = serde_json::to_string(&response).ok().map(Secret::new);
-
         if refund_status == RefundStatus::Failure {
             let (code, message) = error_code_message(
                 &response.api_response,
@@ -1348,7 +1346,8 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
             };
             return Ok(Self {
                 resource_common_data: RefundFlowData {
-                    raw_connector_response,
+                    status: refund_status,
+                    raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
                     ..router_data.resource_common_data
                 },
                 response: Err(error),
@@ -1358,7 +1357,8 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
 
         Ok(Self {
             resource_common_data: RefundFlowData {
-                raw_connector_response,
+                status: refund_status,
+                raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
                 ..router_data.resource_common_data
             },
             response: Ok(RefundsResponseData {
@@ -1553,7 +1553,6 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
             None => RefundStatus::Pending,
         };
         let connector_refund_id = router_data.request.connector_refund_id.clone();
-        let raw_connector_response = serde_json::to_string(&response).ok().map(Secret::new);
 
         if refund_status == RefundStatus::Failure {
             let (code, message) = error_code_message(&response.api_response, &None);
@@ -1570,7 +1569,8 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
             };
             return Ok(Self {
                 resource_common_data: RefundFlowData {
-                    raw_connector_response,
+                    status: refund_status,
+                    raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
                     ..router_data.resource_common_data
                 },
                 response: Err(error),
@@ -1580,7 +1580,8 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
 
         Ok(Self {
             resource_common_data: RefundFlowData {
-                raw_connector_response,
+                status: refund_status,
+                raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
                 ..router_data.resource_common_data
             },
             response: Ok(RefundsResponseData {
