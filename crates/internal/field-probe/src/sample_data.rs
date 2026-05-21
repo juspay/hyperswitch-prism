@@ -96,7 +96,7 @@ pub(crate) fn google_pay_decrypted_method() -> PaymentMethod {
     use proto::google_wallet::{tokenization_data::TokenizationData as TD, TokenizationData};
     // Decrypted format - provides card data directly for connectors that support it
     PaymentMethod {
-        payment_method: Some(PmVariant::GooglePay(proto::GoogleWallet {
+        payment_method: Some(PmVariant::GooglePaySdk(proto::GoogleWallet {
             r#type: "CARD".to_string(),
             description: "Visa 1111".to_string(),
             info: Some(proto::google_wallet::PaymentMethodInfo {
@@ -126,7 +126,7 @@ pub(crate) fn google_pay_encrypted_method() -> PaymentMethod {
     // Stripe parses this as StripeGpayToken { id: String } — provide a minimal JSON.
     let encrypted_token = r#"{"id":"tok_probe_gpay","object":"token","type":"card"}"#;
     PaymentMethod {
-        payment_method: Some(PmVariant::GooglePay(proto::GoogleWallet {
+        payment_method: Some(PmVariant::GooglePaySdk(proto::GoogleWallet {
             r#type: "CARD".to_string(),
             description: "Visa 1111".to_string(),
             info: Some(proto::google_wallet::PaymentMethodInfo {
@@ -156,7 +156,7 @@ pub(crate) fn google_pay_method() -> PaymentMethod {
 pub(crate) fn apple_pay_encrypted_method() -> PaymentMethod {
     use proto::apple_wallet::{payment_data::PaymentData as PD, PaymentData};
     PaymentMethod {
-        payment_method: Some(PmVariant::ApplePay(proto::AppleWallet {
+        payment_method: Some(PmVariant::ApplePaySdk(proto::AppleWallet {
             payment_data: Some(PaymentData {
                 payment_data: Some(PD::EncryptedData(
                     // Valid base64 encoding of a minimal Apple Pay token JSON stub.
@@ -239,7 +239,7 @@ pub(crate) fn samsung_pay_payment_method() -> PaymentMethod {
     let jwt_token = format!("{}.{}.{}", jwt_header, jwt_payload, jwt_signature);
 
     PaymentMethod {
-        payment_method: Some(PmVariant::SamsungPay(proto::SamsungWallet {
+        payment_method: Some(PmVariant::SamsungPaySdk(proto::SamsungWallet {
             payment_credential: Some(PaymentCredential {
                 method: Some("3DS".to_string()),
                 recurring_payment: Some(false),
@@ -335,7 +335,7 @@ pub(crate) fn revolut_pay_method() -> PaymentMethod {
 
 pub(crate) fn mifinity_method() -> PaymentMethod {
     PaymentMethod {
-        payment_method: Some(PmVariant::Mifinity(proto::MifinityWallet {
+        payment_method: Some(PmVariant::MifinityRedirect(proto::MifinityRedirectWallet {
             date_of_birth: Some(Secret::new("1990-01-01".to_string())),
             language_preference: Some("en".to_string()),
         })),
@@ -344,14 +344,16 @@ pub(crate) fn mifinity_method() -> PaymentMethod {
 
 pub(crate) fn bluecode_method() -> PaymentMethod {
     PaymentMethod {
-        payment_method: Some(PmVariant::Bluecode(proto::Bluecode::default())),
+        payment_method: Some(PmVariant::BluecodeRedirect(
+            proto::BluecodeRedirectWallet::default(),
+        )),
     }
 }
 
 pub(crate) fn paze_method() -> PaymentMethod {
     use proto::paze_wallet::PazeData;
     PaymentMethod {
-        payment_method: Some(PmVariant::Paze(proto::PazeWallet {
+        payment_method: Some(PmVariant::PazeSdk(proto::PazeWallet {
             paze_data: Some(PazeData::CompleteResponse(Secret::new(
                 "probe_paze_complete_response".to_string(),
             ))),
@@ -453,13 +455,17 @@ pub(crate) fn mobile_pay_redirect_method() -> PaymentMethod {
 
 pub(crate) fn skrill_method() -> PaymentMethod {
     PaymentMethod {
-        payment_method: Some(PmVariant::Skrill(proto::SkrillWallet::default())),
+        payment_method: Some(PmVariant::SkrillRedirect(
+            proto::SkrillRedirectWallet::default(),
+        )),
     }
 }
 
 pub(crate) fn paysera_method() -> PaymentMethod {
     PaymentMethod {
-        payment_method: Some(PmVariant::Paysera(proto::PayseraWallet::default())),
+        payment_method: Some(PmVariant::PayseraRedirect(
+            proto::PayseraRedirectWallet::default(),
+        )),
     }
 }
 
@@ -935,7 +941,7 @@ pub(crate) fn apple_pay_method() -> PaymentMethod {
     // the request using card-like data without needing real decryption.
     // Connectors that require the encrypted path will fall through to their own error.
     PaymentMethod {
-        payment_method: Some(PmVariant::ApplePay(proto::AppleWallet {
+        payment_method: Some(PmVariant::ApplePaySdk(proto::AppleWallet {
             payment_data: Some(PaymentData {
                 payment_data: Some(PD::DecryptedData(proto::ApplePayDecryptedData {
                     application_primary_account_number: Some(

@@ -9,11 +9,11 @@ use common_utils::{
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void, VoidPC},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::ConnectorSpecificConfig,
@@ -123,6 +123,7 @@ pub enum FiservemeaRequestType {
     PaymentCardPreAuthTransaction,
     PostAuthTransaction,
     VoidPreAuthTransactions,
+    VoidTransaction,
     ReturnTransaction,
 }
 
@@ -212,11 +213,21 @@ pub struct VoidTransaction {
     pub request_type: FiservemeaRequestType,
 }
 
+// VoidPC (VoidPostCapture / Reverse) Request Structure
+// Uses requestType: VoidTransaction to cancel a captured (PostAuth) payment before settlement
+// Distinct from Void which uses VoidPreAuthTransactions (for pre-capture cancellations)
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservemeaVoidPCRequest {
+    pub request_type: FiservemeaRequestType,
+}
+
 // Type aliases for flow-specific responses (to avoid macro templating conflicts)
 pub type FiservemeaAuthorizeResponse = FiservemeaPaymentsResponse;
 pub type FiservemeaSyncResponse = FiservemeaPaymentsResponse;
 pub type FiservemeaCaptureResponse = FiservemeaPaymentsResponse;
 pub type FiservemeaVoidResponse = FiservemeaPaymentsResponse;
+pub type FiservemeaVoidPCResponse = FiservemeaPaymentsResponse;
 pub type FiservemeaRefundResponse = FiservemeaPaymentsResponse;
 pub type FiservemeaRefundSyncResponse = FiservemeaPaymentsResponse;
 
@@ -319,6 +330,39 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         Self::try_from(&item.router_data)
+    }
+}
+
+// TryFrom for VoidPC (Reverse)
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        FiservemeaRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for FiservemeaVoidPCRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        _item: FiservemeaRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            request_type: FiservemeaRequestType::VoidTransaction,
+        })
     }
 }
 
@@ -972,6 +1016,65 @@ impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
                 status,
                 ..item.router_data.resource_common_data
             },
+            ..item.router_data
+        })
+    }
+}
+
+struct FiservemeaVoidPCStatus {
+    transaction_status: Option<FiservemeaPaymentStatus>,
+    transaction_result: Option<FiservemeaPaymentResult>,
+}
+
+impl From<FiservemeaVoidPCStatus> for common_enums::PostCaptureVoidStatus {
+    fn from(value: FiservemeaVoidPCStatus) -> Self {
+        match value.transaction_status {
+            Some(FiservemeaPaymentStatus::Approved) => Self::Succeeded,
+            Some(FiservemeaPaymentStatus::Waiting) => Self::Pending,
+            Some(FiservemeaPaymentStatus::Partial)
+            | Some(FiservemeaPaymentStatus::ValidationFailed)
+            | Some(FiservemeaPaymentStatus::ProcessingFailed)
+            | Some(FiservemeaPaymentStatus::Declined)
+            | None => match value.transaction_result {
+                Some(FiservemeaPaymentResult::Approved) => Self::Succeeded,
+                Some(FiservemeaPaymentResult::Waiting) => Self::Pending,
+                Some(FiservemeaPaymentResult::Declined)
+                | Some(FiservemeaPaymentResult::Failed)
+                | Some(FiservemeaPaymentResult::Partial)
+                | Some(FiservemeaPaymentResult::Fraud)
+                | None => Self::Failed,
+            },
+        }
+    }
+}
+
+impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
+    for RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<FiservemeaPaymentsResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let post_capture_void_status: common_enums::PostCaptureVoidStatus =
+            FiservemeaVoidPCStatus {
+                transaction_status: item.response.transaction_status.clone(),
+                transaction_result: item.response.transaction_result.clone(),
+            }
+            .into();
+
+        let description = post_capture_void_status
+            .is_post_capture_void_failure()
+            .then(|| item.response.error_message.clone())
+            .flatten();
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status,
+                connector_reference_id: Some(item.response.ipg_transaction_id.clone()),
+                description,
+                status_code: item.http_code,
+            }),
             ..item.router_data
         })
     }

@@ -13,8 +13,8 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, CreateOrder, PSync, PostAuthenticate,
-        RepeatPayment, VerifyWebhookSource,
+        Authorize, Capture, ClientAuthenticationToken, CreateOrder, PSync, PayoutGet,
+        PayoutTransfer, PostAuthenticate, RepeatPayment, VerifyWebhookSource,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, MandateReference,
@@ -26,11 +26,18 @@ use domain_types::{
         ResponseId, SdkNextAction, ServerAuthenticationTokenResponseData, SetupMandateRequestData,
         VerifyWebhookSourceFlowData,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{
         BankDebitData, BankRedirectData, BankTransferData, CardRedirectData, GiftCardData,
         GpayTokenizationData, PayLaterData, PaymentMethodData, PaymentMethodDataTypes,
         RawCardNumber, VoucherData, WalletData,
+    },
+    payouts::{
+        payout_method_data::{PayoutMethodData, Wallet as PayoutWallet},
+        payouts_types::{
+            PayoutFlowData, PayoutGetRequest, PayoutGetResponse, PayoutTransferRequest,
+            PayoutTransferResponse,
+        },
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -76,6 +83,13 @@ pub mod auth_headers {
     pub const PREFER: &str = "Prefer";
     pub const PAYPAL_REQUEST_ID: &str = "PayPal-Request-Id";
     pub const PAYPAL_AUTH_ASSERTION: &str = "PayPal-Auth-Assertion";
+}
+
+/// Constants for PayPal connector.
+pub mod constants {
+    pub const DEFAULT_NOTIFICATION_LANGUAGE: &str = "en-US";
+    pub const DEFAULT_PARTNER_ATTRIBUTION_ID: &str = "HyperSwitchPPCP_SP";
+    pub const DEFAULT_LEGACY_PARTNER_ATTRIBUTION_ID: &str = "HyperSwitchlegacy_Ecom";
 }
 
 const ORDER_QUANTITY: u16 = 1;
@@ -3844,6 +3858,361 @@ pub struct PaypalOrderErrorResponse {
     pub message: String,
     pub debug_id: Option<String>,
     pub details: Option<Vec<OrderErrorDetails>>,
+}
+
+// ----------------------------------------------------------------------------
+// Payout Transfer (PayoutTransfer / Fulfill) Types
+// ----------------------------------------------------------------------------
+
+#[derive(Debug, Serialize)]
+pub struct PaypalFulfillRequest {
+    sender_batch_header: PaypalPayoutBatchHeader,
+    items: Vec<PaypalPayoutItem>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaypalPayoutBatchHeader {
+    sender_batch_id: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaypalPayoutItem {
+    amount: PayoutAmount,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    note: Option<String>,
+    notification_language: String,
+    #[serde(flatten)]
+    payout_method_data: PaypalPayoutMethodData,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaypalPayoutMethodData {
+    recipient_type: PayoutRecipientType,
+    recipient_wallet: PayoutWalletType,
+    receiver: PaypalPayoutDataType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PayoutRecipientType {
+    Email,
+    PaypalId,
+    Phone,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PayoutWalletType {
+    Paypal,
+    Venmo,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum PaypalPayoutDataType {
+    EmailType(common_utils::Email),
+    OtherType(Secret<String>),
+}
+
+#[derive(Debug, Serialize)]
+pub struct PayoutAmount {
+    value: StringMajorUnit,
+    currency: common_enums::Currency,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalFulfillResponse {
+    batch_header: PaypalBatchResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalBatchResponse {
+    pub payout_batch_id: String,
+    pub batch_status: PaypalPayoutStatus,
+}
+
+// ----------------------------------------------------------------------------
+// Payout Transfer TryFrom Implementations
+// ----------------------------------------------------------------------------
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        &PaypalRouterData<
+            RouterDataV2<
+                PayoutTransfer,
+                PayoutFlowData,
+                PayoutTransferRequest,
+                PayoutTransferResponse,
+            >,
+            T,
+        >,
+    > for PaypalFulfillRequest
+{
+    type Error = Report<IntegrationError>;
+
+    fn try_from(
+        item: &PaypalRouterData<
+            RouterDataV2<
+                PayoutTransfer,
+                PayoutFlowData,
+                PayoutTransferRequest,
+                PayoutTransferResponse,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let item_data = PaypalPayoutItem::try_from(item)?;
+        Ok(Self {
+            sender_batch_header: PaypalPayoutBatchHeader {
+                sender_batch_id: item
+                    .router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            },
+            items: vec![item_data],
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        &PaypalRouterData<
+            RouterDataV2<
+                PayoutTransfer,
+                PayoutFlowData,
+                PayoutTransferRequest,
+                PayoutTransferResponse,
+            >,
+            T,
+        >,
+    > for PaypalPayoutItem
+{
+    type Error = Report<IntegrationError>;
+
+    fn try_from(
+        item: &PaypalRouterData<
+            RouterDataV2<
+                PayoutTransfer,
+                PayoutFlowData,
+                PayoutTransferRequest,
+                PayoutTransferResponse,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let minor_amount = item.router_data.request.amount;
+        if minor_amount <= common_utils::types::MinorUnit::zero() {
+            return Err(IntegrationError::InvalidDataFormat {
+                field_name: "amount",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "PayPal Payout Transfer - Payout amount must be greater than zero"
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Provide a valid payout amount greater than zero".to_string(),
+                    ),
+                    doc_url: None,
+                },
+            }
+            .into());
+        }
+
+        let amount = PayoutAmount {
+            value: utils::convert_amount(
+                item.connector.amount_converter,
+                minor_amount,
+                item.router_data.request.destination_currency,
+            )?,
+            currency: item.router_data.request.destination_currency,
+        };
+
+        let payout_method_data = match item.router_data.request.payout_method_data.as_ref() {
+            Some(PayoutMethodData::Wallet(wallet_data)) => match wallet_data {
+                PayoutWallet::Paypal(data) => {
+                    let (recipient_type, receiver) =
+                        match (&data.email, &data.telephone_number, &data.paypal_id) {
+                            (Some(email), _, _) => (
+                                PayoutRecipientType::Email,
+                                PaypalPayoutDataType::EmailType(email.clone()),
+                            ),
+                            (_, Some(phone), _) => (
+                                PayoutRecipientType::Phone,
+                                PaypalPayoutDataType::OtherType(phone.clone()),
+                            ),
+                            (_, _, Some(paypal_id)) => (
+                                PayoutRecipientType::PaypalId,
+                                PaypalPayoutDataType::OtherType(paypal_id.clone()),
+                            ),
+                            _ => Err(IntegrationError::MissingRequiredField {
+                                field_name: "receiver_data",
+                                context: IntegrationErrorContext {
+                                    additional_context: Some("PayPal Payout Transfer - Missing recipient data (email, phone, or PayPal ID)".to_string()),
+                                    suggested_action: Some(
+                                        "Provide one of: email, telephone_number, or paypal_id in the payout method data".to_string(),
+                                    ),
+                                    doc_url: None,
+                                },
+                            })?,
+                        };
+
+                    PaypalPayoutMethodData {
+                        recipient_type,
+                        recipient_wallet: PayoutWalletType::Paypal,
+                        receiver,
+                    }
+                }
+                PayoutWallet::Venmo(data) => {
+                    let receiver =
+                        PaypalPayoutDataType::OtherType(data.telephone_number.clone().ok_or(
+                            IntegrationError::MissingRequiredField {
+                                field_name: "telephone_number",
+                                context: IntegrationErrorContext {
+                                    additional_context: Some(
+                                        "PayPal Payout Transfer - Venmo requires telephone number".to_string(),
+                                    ),
+                                    suggested_action: Some(
+                                        "Provide a valid telephone_number for Venmo payout".to_string(),
+                                    ),
+                                    doc_url: None,
+                                },
+                            },
+                        )?);
+                    PaypalPayoutMethodData {
+                        recipient_type: PayoutRecipientType::Phone,
+                        recipient_wallet: PayoutWalletType::Venmo,
+                        receiver,
+                    }
+                }
+                PayoutWallet::ApplePayDecrypt(_) => Err(IntegrationError::NotSupported {
+                    message: "ApplePayDecrypt PayoutMethodType is not supported".to_string(),
+                    connector: "Paypal",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "PayPal Payout Transfer - Apple Pay Decrypt is not supported for payouts".to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Use PayPal or Venmo wallet for payouts".to_string(),
+                        ),
+                        doc_url: None,
+                    },
+                })?,
+            },
+            _ => Err(IntegrationError::NotSupported {
+                message: "PayoutMethodType is not supported".to_string(),
+                connector: "Paypal",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "PayPal Payout Transfer - Only PayPal and Venmo wallets are supported".to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Use PayPal or Venmo wallet for payouts".to_string(),
+                    ),
+                    doc_url: None,
+                },
+            })?,
+        };
+
+        Ok(Self {
+            amount,
+            payout_method_data,
+            note: item.router_data.resource_common_data.description.clone(),
+            notification_language: constants::DEFAULT_NOTIFICATION_LANGUAGE.to_string(),
+        })
+    }
+}
+
+impl TryFrom<ResponseRouterData<PaypalFulfillResponse, Self>>
+    for RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>
+{
+    type Error = Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<PaypalFulfillResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let batch_header = item.response.batch_header;
+        let payout_status = get_payout_status(batch_header.batch_status);
+
+        Ok(Self {
+            response: Ok(PayoutTransferResponse {
+                merchant_payout_id: item.router_data.request.merchant_payout_id.clone(),
+                payout_status,
+                connector_payout_id: Some(batch_header.payout_batch_id),
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Payout Sync (PayoutGet) Types
+// ----------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PaypalPayoutStatus {
+    Success,
+    Pending,
+    Processing,
+    Denied,
+    Failed,
+    Cancelled,
+    Refunded,
+    Returned,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalSyncBatchResponse {
+    pub payout_batch_id: Option<String>,
+    pub sender_batch_id: Option<String>,
+    pub batch_status: PaypalPayoutStatus,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalPayoutSyncResponse {
+    pub batch_header: PaypalSyncBatchResponse,
+}
+
+pub fn get_payout_status(status: PaypalPayoutStatus) -> common_enums::PayoutStatus {
+    match status {
+        PaypalPayoutStatus::Success => common_enums::PayoutStatus::Success,
+        PaypalPayoutStatus::Denied | PaypalPayoutStatus::Failed => {
+            common_enums::PayoutStatus::Failure
+        }
+        PaypalPayoutStatus::Cancelled => common_enums::PayoutStatus::Cancelled,
+        PaypalPayoutStatus::Pending | PaypalPayoutStatus::Processing => {
+            common_enums::PayoutStatus::Pending
+        }
+        PaypalPayoutStatus::Refunded | PaypalPayoutStatus::Returned => {
+            common_enums::PayoutStatus::Reversed
+        }
+    }
+}
+
+impl TryFrom<ResponseRouterData<PaypalPayoutSyncResponse, Self>>
+    for RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>
+{
+    type Error = Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<PaypalPayoutSyncResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+        let batch_header = response.batch_header;
+        let payout_status = get_payout_status(batch_header.batch_status);
+
+        Ok(Self {
+            response: Ok(PayoutGetResponse {
+                merchant_payout_id: batch_header.sender_batch_id,
+                payout_status,
+                connector_payout_id: batch_header.payout_batch_id,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
 }
 
 impl From<OrderErrorDetails> for ErrorCodeAndMessage {
