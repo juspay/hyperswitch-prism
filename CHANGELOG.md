@@ -19,6 +19,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.05.21.0
+
+### Bug Fixes
+
+- **connector:**
+  - [Trustly] Make customer related fields optional in webhooks ([#1371](https://github.com/juspay/connector-service/pull/1371)) ([`32b8d82`](https://github.com/juspay/connector-service/commit/32b8d82253644fed16739113b6e70d508a05a111))
+  - [Truelayer] Pass reference field in payments request ([#1375](https://github.com/juspay/connector-service/pull/1375)) ([`88e6b6a`](https://github.com/juspay/connector-service/commit/88e6b6a1d57c710d18e61cb7a39a7b05181e323f))
+
+### Refactors
+
+- **connector:** Connector config auth added for ACI ([#1139](https://github.com/juspay/connector-service/pull/1139)) ([`e49dc14`](https://github.com/juspay/connector-service/commit/e49dc1449ffcee89da26aec820a6b426631c8209))
+
+**Full Changelog:** [`2026.05.20.0...2026.05.21.0`](https://github.com/juspay/connector-service/compare/2026.05.20.0...2026.05.21.0)
+
+- - -
+
 ## 2026.05.20.0
 
 ### Features
