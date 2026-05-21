@@ -394,6 +394,8 @@ pub struct PayoutCreateRecipientRequest {
     pub account_type: Option<String>,
 }
 
+pub type IdNumberOrSsnLast4 = (Option<Secret<String>>, Option<Secret<String>>);
+
 impl PayoutCreateRecipientRequest {
     pub fn get_billing(&self) -> Result<&Address, Error> {
         self.address
@@ -534,9 +536,7 @@ impl PayoutCreateRecipientRequest {
         })
     }
 
-    pub fn get_id_number_or_ssn_last_4(
-        &self,
-    ) -> Result<(Option<Secret<String>>, Option<Secret<String>>), Error> {
+    pub fn get_id_number_or_ssn_last_4(&self) -> Result<IdNumberOrSsnLast4, Error> {
         match &self.id_number {
             Some(id) => Ok((Some(id.clone()), None)),
             None => {

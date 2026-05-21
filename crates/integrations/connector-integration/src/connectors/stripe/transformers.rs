@@ -5992,7 +5992,7 @@ impl<T: Clone + Serialize + Debug + Sync + Send + 'static + PaymentMethodDataTyp
             business_profile_url: Some(business_profile_url),
             business_profile_name: Some(business_profile_name.clone()),
 
-            company_name: is_company.then(|| business_profile_name),
+            company_name: is_company.then_some(business_profile_name),
             company_address_line1: if is_company { addr_line1.clone() } else { None },
             company_address_line2: if is_company { addr_line2.clone() } else { None },
             company_address_postal_code: if is_company { addr_zip.clone() } else { None },
