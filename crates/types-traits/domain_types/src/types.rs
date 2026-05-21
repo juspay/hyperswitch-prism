@@ -394,6 +394,7 @@ pub struct Connectors {
     pub imerchantsolutions: ConnectorParams,
     pub axisbank: ConnectorParams,
     pub twoc_twop_paco: ConnectorParams,
+    pub interpayments: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]

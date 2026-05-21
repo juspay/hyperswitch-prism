@@ -40,6 +40,9 @@ use grpc_api_types::payouts::{
     PayoutServiceTransferRequest,
     PayoutServiceVoidRequest,
 };
+use grpc_api_types::surcharge::{
+    SurchargeServiceCalculateRequest,
+};
 
 use crate::handlers::payments::{
     accept_req_handler, accept_res_handler,
@@ -73,6 +76,7 @@ use crate::handlers::payments::{
     reverse_req_handler, reverse_res_handler,
     setup_recurring_req_handler, setup_recurring_res_handler,
     submit_evidence_req_handler, submit_evidence_res_handler,
+    surcharge_calculate_req_handler, surcharge_calculate_res_handler,
     token_authorize_req_handler, token_authorize_res_handler,
     token_setup_recurring_req_handler, token_setup_recurring_res_handler,
     tokenize_req_handler, tokenize_res_handler,
@@ -141,6 +145,8 @@ define_ffi_flow!(reverse, PaymentServiceReverseRequest, reverse_req_handler, rev
 define_ffi_flow!(setup_recurring, PaymentServiceSetupRecurringRequest, setup_recurring_req_handler, setup_recurring_res_handler);
 // submit_evidence: DisputeService.SubmitEvidence — Upload evidence to dispute customer chargeback. Provides documentation like receipts and delivery proof to contest fraudulent transaction claims.
 define_ffi_flow!(submit_evidence, DisputeServiceSubmitEvidenceRequest, submit_evidence_req_handler, submit_evidence_res_handler);
+// surcharge_calculate: SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing.
+define_ffi_flow!(surcharge_calculate, SurchargeServiceCalculateRequest, surcharge_calculate_req_handler, surcharge_calculate_res_handler);
 // token_authorize: PaymentService.TokenAuthorize — Authorize using a connector-issued payment method token.
 define_ffi_flow!(token_authorize, PaymentServiceTokenAuthorizeRequest, token_authorize_req_handler, token_authorize_res_handler);
 // token_setup_recurring: PaymentService.TokenSetupRecurring — Setup a recurring mandate using a connector token.
