@@ -57,8 +57,8 @@ pub enum SurchargeStrategy {
 impl From<grpc_api_types::surcharge::SurchargeStrategy> for SurchargeStrategy {
     fn from(value: grpc_api_types::surcharge::SurchargeStrategy) -> Self {
         match value {
-            grpc_api_types::surcharge::SurchargeStrategy::Unspecified |
-            grpc_api_types::surcharge::SurchargeStrategy::Apply => Self::Apply,
+            grpc_api_types::surcharge::SurchargeStrategy::Unspecified
+            | grpc_api_types::surcharge::SurchargeStrategy::Apply => Self::Apply,
             grpc_api_types::surcharge::SurchargeStrategy::Waive => Self::Waive,
         }
     }
