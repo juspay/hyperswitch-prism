@@ -110,6 +110,7 @@ impl DisputeService for Disputes {
                         resource_id,
                         shadow_mode,
                         tenant_id,
+                        merchant_id,
                         ..
                     } = request_data.extracted_metadata;
                     let connector_data: ConnectorData<DefaultPCIHolder> =
@@ -160,6 +161,8 @@ impl DisputeService for Disputes {
                         resource_id: &resource_id,
                         shadow_mode,
                         tenant_id: &tenant_id,
+                        merchant_id: merchant_id.as_str(),
+                        return_raw_connector_data: config.common.return_raw_connector_data,
                     };
 
                     let response = Box::pin(
@@ -328,6 +331,7 @@ impl DisputeService for Disputes {
                         resource_id,
                         shadow_mode,
                         tenant_id,
+                        merchant_id,
                         ..
                     } = request_data.extracted_metadata;
 
@@ -380,6 +384,8 @@ impl DisputeService for Disputes {
                         resource_id: &resource_id,
                         shadow_mode,
                         tenant_id: &tenant_id,
+                        merchant_id: merchant_id.as_str(),
+                        return_raw_connector_data: config.common.return_raw_connector_data,
                     };
 
                     let response = Box::pin(

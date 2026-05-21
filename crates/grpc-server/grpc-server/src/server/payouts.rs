@@ -39,18 +39,32 @@ use crate::{
 
 pub struct Payouts;
 
+impl Payouts {
+    /// Extract common request metadata (config and service_name) from gRPC request
+    fn extract_request_metadata<T>(
+        &self,
+        request: &tonic::Request<T>,
+    ) -> Result<(std::sync::Arc<ucs_env::configs::Config>, String), tonic::Status>
+    where
+        T: serde::Serialize,
+    {
+        let config = get_config_from_request(request)?;
+        let service_name = request
+            .extensions()
+            .get::<String>()
+            .cloned()
+            .unwrap_or_else(|| "PayoutService".to_string());
+        Ok((config, service_name))
+    }
+}
+
 #[tonic::async_trait]
 impl PayoutService for Payouts {
     async fn create(
         &self,
         request: tonic::Request<PayoutServiceCreateRequest>,
     ) -> Result<tonic::Response<PayoutServiceCreateResponse>, tonic::Status> {
-        let config = get_config_from_request(&request)?;
-        let service_name = request
-            .extensions()
-            .get::<String>()
-            .cloned()
-            .unwrap_or_else(|| "PayoutService".to_string());
+        let (config, service_name) = self.extract_request_metadata(&request)?;
         grpc_logging_wrapper(
             request,
             &service_name,
@@ -65,12 +79,7 @@ impl PayoutService for Payouts {
         &self,
         request: tonic::Request<PayoutServiceTransferRequest>,
     ) -> Result<tonic::Response<PayoutServiceTransferResponse>, tonic::Status> {
-        let config = get_config_from_request(&request)?;
-        let service_name = request
-            .extensions()
-            .get::<String>()
-            .cloned()
-            .unwrap_or_else(|| "PayoutService".to_string());
+        let (config, service_name) = self.extract_request_metadata(&request)?;
         grpc_logging_wrapper(
             request,
             &service_name,
@@ -85,12 +94,7 @@ impl PayoutService for Payouts {
         &self,
         request: tonic::Request<PayoutServiceGetRequest>,
     ) -> Result<tonic::Response<PayoutServiceGetResponse>, tonic::Status> {
-        let config = get_config_from_request(&request)?;
-        let service_name = request
-            .extensions()
-            .get::<String>()
-            .cloned()
-            .unwrap_or_else(|| "PayoutService".to_string());
+        let (config, service_name) = self.extract_request_metadata(&request)?;
         grpc_logging_wrapper(
             request,
             &service_name,
@@ -105,12 +109,7 @@ impl PayoutService for Payouts {
         &self,
         request: tonic::Request<PayoutServiceVoidRequest>,
     ) -> Result<tonic::Response<PayoutServiceVoidResponse>, tonic::Status> {
-        let config = get_config_from_request(&request)?;
-        let service_name = request
-            .extensions()
-            .get::<String>()
-            .cloned()
-            .unwrap_or_else(|| "PayoutService".to_string());
+        let (config, service_name) = self.extract_request_metadata(&request)?;
         grpc_logging_wrapper(
             request,
             &service_name,
@@ -125,12 +124,7 @@ impl PayoutService for Payouts {
         &self,
         request: tonic::Request<PayoutServiceStageRequest>,
     ) -> Result<tonic::Response<PayoutServiceStageResponse>, tonic::Status> {
-        let config = get_config_from_request(&request)?;
-        let service_name = request
-            .extensions()
-            .get::<String>()
-            .cloned()
-            .unwrap_or_else(|| "PayoutService".to_string());
+        let (config, service_name) = self.extract_request_metadata(&request)?;
         grpc_logging_wrapper(
             request,
             &service_name,
@@ -145,12 +139,7 @@ impl PayoutService for Payouts {
         &self,
         request: tonic::Request<PayoutServiceCreateLinkRequest>,
     ) -> Result<tonic::Response<PayoutServiceCreateLinkResponse>, tonic::Status> {
-        let config = get_config_from_request(&request)?;
-        let service_name = request
-            .extensions()
-            .get::<String>()
-            .cloned()
-            .unwrap_or_else(|| "PayoutService".to_string());
+        let (config, service_name) = self.extract_request_metadata(&request)?;
         grpc_logging_wrapper(
             request,
             &service_name,
@@ -165,12 +154,7 @@ impl PayoutService for Payouts {
         &self,
         request: tonic::Request<PayoutServiceCreateRecipientRequest>,
     ) -> Result<tonic::Response<PayoutServiceCreateRecipientResponse>, tonic::Status> {
-        let config = get_config_from_request(&request)?;
-        let service_name = request
-            .extensions()
-            .get::<String>()
-            .cloned()
-            .unwrap_or_else(|| "PayoutService".to_string());
+        let (config, service_name) = self.extract_request_metadata(&request)?;
         grpc_logging_wrapper(
             request,
             &service_name,
@@ -185,12 +169,7 @@ impl PayoutService for Payouts {
         &self,
         request: tonic::Request<PayoutServiceEnrollDisburseAccountRequest>,
     ) -> Result<tonic::Response<PayoutServiceEnrollDisburseAccountResponse>, tonic::Status> {
-        let config = get_config_from_request(&request)?;
-        let service_name = request
-            .extensions()
-            .get::<String>()
-            .cloned()
-            .unwrap_or_else(|| "PayoutService".to_string());
+        let (config, service_name) = self.extract_request_metadata(&request)?;
         grpc_logging_wrapper(
             request,
             &service_name,

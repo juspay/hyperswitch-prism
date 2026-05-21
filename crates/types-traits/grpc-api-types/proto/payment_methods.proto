@@ -47,47 +47,66 @@ message PaymentMethod {
     ProxyCardDetails card_proxy = 7;                         // Generic card proxy payment
     TokenPaymentMethodType token = 8;                   // Payment tokens
     
-    // DIGITAL WALLETS (10-29) - Direct variants
-    AppleWallet apple_pay = 10;                         // Apple Pay
-    GoogleWallet google_pay = 11;                       // Google Pay
-    ApplePayThirdPartySdkWallet apple_pay_third_party_sdk = 12;  // Apple Pay Third Party SDK
-    GooglePayThirdPartySdkWallet google_pay_third_party_sdk = 13; // Google Pay Third Party SDK
-    PaypalSdkWallet paypal_sdk = 14;                    // PayPal SDK
-    AmazonPayRedirectWallet amazon_pay_redirect = 15;   // Amazon Pay
-    CashappQrWallet cashapp_qr = 16;                    // Cash App
-    PaypalRedirectWallet paypal_redirect = 17;          // PayPal
-    WeChatPayQrWallet we_chat_pay_qr = 18;              // WeChat Pay QR
-    AliPayRedirectWallet ali_pay_redirect = 19;         // AliPay
-    RevolutPayWallet revolut_pay = 20;                  // Revolut Pay
-    MifinityWallet mifinity = 21;                       // Mifinity
-    Bluecode bluecode = 22;                             // Bluecode
-    PazeWallet paze = 23;                               // Paze
-    SamsungWallet samsung_pay = 24;                     // Samsung
-    MBWay mb_way = 25;                                  // MB WAY
-    Satispay satispay = 26;                             // Satispay
-    Wero wero = 27;                                     // Wero
-    LazyPayRedirectWallet lazypay_redirect = 28;
-    PhonePeRedirectWallet phonepe_redirect = 29;
-    BillDeskRedirectWallet billdesk_redirect = 159;
-    CashfreeRedirectWallet cashfree_redirect = 160;
-    PayURedirectWallet payu_redirect = 161;
-    EaseBuzzRedirectWallet easebuzz_redirect = 162;
-    KakaoPayRedirectWallet kakao_pay_redirect = 163;     // KakaoPay Redirect
-    MbWayRedirectWallet mb_way_redirect = 164;           // MB WAY Redirect
-    MomoRedirectWallet momo_redirect = 165;             // MoMo Redirect
-    TouchNGoRedirectWallet touch_n_go_redirect = 166;   // Touch 'n Go Redirect
-    TwintRedirectWallet twint_redirect = 167;           // TWINT Redirect
-    VippsRedirectWallet vipps_redirect = 168;           // Vipps Redirect
-    WeChatPayRedirectWallet we_chat_pay_redirect = 169; // WeChat Pay Redirect
-    AliPayHKWallet ali_pay_hk = 170;                    // AliPay HK Redirect
-    DanaRedirectWallet dana_redirect = 171;             // Dana Redirect
-    GcashRedirectWallet gcash_redirect = 172;           // GCash Redirect
-    GoPayRedirectWallet go_pay_redirect = 173;          // GoPay Redirect
-    SwishQrWallet swish_qr = 174;                       // Swish QR
-    MobilePayRedirectWallet mobile_pay_redirect = 175;  // MobilePay Redirect
-    VenmoWallet venmo = 176;                            // Venmo
-    SkrillWallet skrill = 177;                          // Skrill
-    PayseraWallet paysera = 178;                        // Paysera
+    // ============================================================================
+    // DIGITAL WALLETS (10-178)
+    // ============================================================================
+    
+    // --- SDK-BASED WALLETS ---
+    // Native wallet SDK integrations with encrypted token exchange
+    AppleWallet apple_pay_sdk = 10;                          // Apple Pay
+    GoogleWallet google_pay_sdk = 11;                        // Google Pay
+    PaypalSdkWallet paypal_sdk = 12;                     // PayPal SDK
+    PazeWallet paze_sdk = 13;                                // Paze
+    SamsungWallet samsung_pay_sdk = 14;                      // Samsung Pay
+    
+    // --- THIRD PARTY SDK WALLETS ---
+    // Third-party SDK integrations providing tokenized payment data
+    ApplePayThirdPartySdkWallet apple_pay_third_party_sdk = 15;   // Apple Pay Third Party SDK
+    GooglePayThirdPartySdkWallet google_pay_third_party_sdk = 16;  // Google Pay Third Party SDK
+    
+    // --- REDIRECT WALLETS ---
+    // User redirects to wallet provider to authorize payment
+    AmazonPayRedirectWallet amazon_pay_redirect = 17;    // Amazon Pay
+    PaypalRedirectWallet paypal_redirect = 18;           // PayPal
+    AliPayRedirectWallet ali_pay_redirect = 19;          // AliPay
+    RevolutPayRedirectWallet revolut_pay_redirect = 20;  // Revolut Pay
+    MifinityRedirectWallet mifinity_redirect = 21;       // Mifinity
+    BluecodeRedirectWallet bluecode_redirect = 22;       // Bluecode
+    SatispayRedirectWallet satispay_redirect = 23;       // Satispay
+    WeroRedirectWallet wero_redirect = 24;               // Wero
+    LazyPayRedirectWallet lazypay_redirect = 25;         // LazyPay
+    PhonePeRedirectWallet phonepe_redirect = 26;         // PhonePe
+    BillDeskRedirectWallet billdesk_redirect = 27;       // BillDesk
+    CashfreeRedirectWallet cashfree_redirect = 28;       // Cashfree
+    PayURedirectWallet payu_redirect = 29;               // PayU
+    EaseBuzzRedirectWallet easebuzz_redirect = 159;      // EaseBuzz
+    KakaoPayRedirectWallet kakao_pay_redirect = 160;     // KakaoPay
+    MbWayRedirectWallet mb_way_redirect = 161;           // MB WAY Redirect
+    MomoRedirectWallet momo_redirect = 162;              // MoMo
+    TouchNGoRedirectWallet touch_n_go_redirect = 163;    // Touch 'n Go
+    TwintRedirectWallet twint_redirect = 164;            // TWINT
+    VippsRedirectWallet vipps_redirect = 165;            // Vipps
+    WeChatPayRedirectWallet we_chat_pay_redirect = 167;  // WeChat Pay
+    AliPayHKRedirectWallet ali_pay_hk_redirect = 168;    // AliPay HK
+    DanaRedirectWallet dana_redirect = 169;              // Dana
+    GcashRedirectWallet gcash_redirect = 170;            // GCash
+    GoPayRedirectWallet go_pay_redirect = 171;           // GoPay
+    MobilePayRedirectWallet mobile_pay_redirect = 172;   // MobilePay
+    VenmoRedirectWallet venmo_redirect = 173;            // Venmo
+    SkrillRedirectWallet skrill_redirect = 174;          // Skrill
+    PayseraRedirectWallet paysera_redirect = 175;        // Paysera
+
+    // --- DEPRECATED REDIRECT WALLETS ---
+    RevolutPayWallet revolut_pay = 181;                   // Revolut Pay
+    MBWay mb_way = 182;                                   // MB WAY
+    Satispay satispay = 183;                              // Satispay
+    Wero wero = 184;                                      // Wero
+    
+    // --- QR CODE WALLETS ---
+    // User scans QR code with wallet app to complete payment
+    CashappQrWallet cashapp_qr = 178;                     // Cash App
+    WeChatPayQrWallet we_chat_pay_qr = 179;               // WeChat Pay QR
+    SwishQrWallet swish_qr = 180;                         // Swish QR
 
     // UPI METHODS (30-39) - Direct variants
     UpiCollect upi_collect = 30;                        // UPI Collect
@@ -436,7 +455,7 @@ message AliPayWallet {
 }
 
 // Alipay Hong Kong - Hong Kong version of Alipay
-message AliPayHKWallet {
+message AliPayHKRedirectWallet {
   // Fields will be added as needed for Alipay HK integration
 }
 
@@ -446,7 +465,7 @@ message WeChatPayWallet {
 }
 
 // Venmo - US mobile payment service owned by PayPal
-message VenmoWallet {
+message VenmoRedirectWallet {
   // Fields will be added as needed for Venmo integration
 }
 
@@ -516,7 +535,7 @@ message PazeDecryptedData {
   optional string eci = 8;
 }
 // Mifinity - Online payment service by Mifinity
-message MifinityWallet {
+message MifinityRedirectWallet {
   // Date of birth from Mifinity
   SecretString date_of_birth = 1;
   // Language preference
@@ -553,7 +572,7 @@ message CashappQrWallet {
 message RevolutPayWallet {
 }
 
-message Bluecode {
+message BluecodeRedirectWallet {
 }
 
 // MB WAY - Portuguese mobile payment solution
@@ -569,6 +588,20 @@ message Satispay {
 // Wero - European digital wallet payment solution
 message Wero {
   // Fields will be added as needed for Wero integration
+}
+
+// Revolut Pay Redirect - Revolut digital wallet payment service
+message RevolutPayRedirectWallet {
+}
+
+// Satispay Redirect - Italian mobile payment solution
+message SatispayRedirectWallet {
+  // Fields will be added as needed for Satispay Redirect integration
+}
+
+// Wero Redirect - European digital wallet payment solution
+message WeroRedirectWallet {
+  // Fields will be added as needed for Wero Redirect integration
 }
 
 // LazyPay - Indian BNPL/wallet service
@@ -644,14 +677,14 @@ message MobilePayRedirectWallet {
   // Fields will be added as needed for MobilePay redirect integration
 }
 
-// Skrill - Digital wallet for online payments
-message SkrillWallet {
-  // Fields will be added as needed for Skrill integration
+// Skrill Redirect - Digital wallet for online payments
+message SkrillRedirectWallet {
+  // Fields will be added as needed for Skrill Redirect integration
 }
 
-// Paysera - European digital wallet and payment service
-message PayseraWallet {
-  // Fields will be added as needed for Paysera integration
+// Paysera Redirect - European digital wallet and payment service
+message PayseraRedirectWallet {
+  // Fields will be added as needed for Paysera Redirect integration
 }
 
 // Apple Pay Third Party SDK - Apple Pay with token from third-party SDK

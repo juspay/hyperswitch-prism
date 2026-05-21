@@ -25,7 +25,14 @@ fn build_client() -> ConnectorClient {
                     client_id: Some(hyperswitch_masking::Secret::new(
                         "YOUR_CLIENT_ID".to_string(),
                     )), // Authentication credential
+                    certificates: Some(hyperswitch_masking::Secret::new(
+                        "YOUR_CERTIFICATES".to_string(),
+                    )), // Authentication credential
+                    private_key: Some(hyperswitch_masking::Secret::new(
+                        "YOUR_PRIVATE_KEY".to_string(),
+                    )), // Authentication credential
                     base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
+                    secondary_base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
                     ..Default::default()
                 },
             )),

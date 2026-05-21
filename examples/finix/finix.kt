@@ -20,13 +20,25 @@ import payments.PaymentMethodType
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
-
+import payments.ConnectorSpecificConfig
+import types.Payment.FinixConfig
+import payments.SecretString
 
 val SUPPORTED_FLOWS = listOf<String>("capture", "create_customer", "get", "recurring_charge", "refund", "refund_get", "token_authorize", "tokenize", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your Finix credentials here
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setFinix(FinixConfig.newBuilder()
+                .setFinixUserName(SecretString.newBuilder().setValue("YOUR_FINIX_USER_NAME").build())
+                .setFinixPassword(SecretString.newBuilder().setValue("YOUR_FINIX_PASSWORD").build())
+                .setMerchantIdentityId(SecretString.newBuilder().setValue("YOUR_MERCHANT_IDENTITY_ID").build())
+                .setMerchantId(SecretString.newBuilder().setValue("YOUR_MERCHANT_ID").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
+    )
     .build()
 
 

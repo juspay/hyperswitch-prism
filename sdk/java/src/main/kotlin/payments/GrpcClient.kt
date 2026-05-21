@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets
 import types.Payment.*
 import types.PaymentMethods.*
 import types.Payouts.*
+import types.Surcharge.*
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -401,6 +402,19 @@ class GrpcRefundClient internal constructor(
         callGrpc(config, "refund/refund_get", req, RefundResponse.parser())
 }
 
+/**
+ * SurchargeService — gRPC sub-client.
+ */
+class GrpcSurchargeClient internal constructor(
+    private val config: GrpcConfig,
+) {
+    /**
+     * SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing.
+     */
+    suspend fun calculate(req: SurchargeServiceCalculateRequest): SurchargeServiceCalculateResponse =
+        callGrpc(config, "surcharge/calculate", req, SurchargeServiceCalculateResponse.parser())
+}
+
 // ── Top-level GrpcClient ──────────────────────────────────────────────────────
 
 class GrpcClient(config: GrpcConfig) {
@@ -424,4 +438,6 @@ class GrpcClient(config: GrpcConfig) {
         GrpcRecurringPaymentClient(config)
     val refund: GrpcRefundClient =
         GrpcRefundClient(config)
+    val surcharge: GrpcSurchargeClient =
+        GrpcSurchargeClient(config)
 }

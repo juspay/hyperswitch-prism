@@ -339,7 +339,7 @@ req_transformer!(
     response_data_type: PaymentsResponseData,
     connector_data_type: domain_types::payment_method_data::DefaultPCIHolder,
     request_data_fn: |p: &RecurringPaymentServiceChargeRequest| {
-        domain_types::types::build_request_data_with_required_pmd(p.payment_method.clone(), p.clone())
+        domain_types::types::build_request_data_with_some_pmd(p.payment_method.clone(), p.clone())
     },
 );
 
@@ -355,7 +355,7 @@ res_transformer!(
     generate_response_fn: generate_repeat_payment_response,
     connector_data_type: domain_types::payment_method_data::DefaultPCIHolder,
     request_data_fn: |p: &RecurringPaymentServiceChargeRequest| {
-        domain_types::types::build_request_data_with_required_pmd(p.payment_method.clone(), p.clone())
+        domain_types::types::build_request_data_with_some_pmd(p.payment_method.clone(), p.clone())
     },
 );
 

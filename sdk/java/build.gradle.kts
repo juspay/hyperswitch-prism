@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "io.hyperswitch"
-version = "0.0.5"
+version = System.getenv("VERSION") ?: "0.0.0-dev"
 
 repositories {
     mavenCentral()

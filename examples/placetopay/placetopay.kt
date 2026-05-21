@@ -12,17 +12,28 @@ import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.AuthenticationType
 import payments.CaptureMethod
+import payments.CardNetwork
 import payments.Currency
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
-
+import payments.ConnectorSpecificConfig
+import types.Payment.PlacetopayConfig
+import payments.SecretString
 
 val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "proxy_authorize", "refund", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your Placetopay credentials here
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setPlacetopay(PlacetopayConfig.newBuilder()
+                .setLogin(SecretString.newBuilder().setValue("YOUR_LOGIN").build())
+                .setTranKey(SecretString.newBuilder().setValue("YOUR_TRAN_KEY").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
+    )
     .build()
 
 
@@ -252,6 +263,7 @@ fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
             cardExpYearBuilder.value = "2030"
             cardCvcBuilder.value = "123"
             cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            cardNetwork = CardNetwork.VISA
         }
         addressBuilder.apply {
             billingAddressBuilder.apply {

@@ -1,8 +1,8 @@
 # hyperswitch-prism
 
-**Universal Connector Service — Python SDK**
+**Hyperswitch Prism — Python SDK**
 
-A high-performance, type-safe Python SDK for payment processing through the Universal Connector Service. Connect to 100+ payment processors through a single, unified API.
+A high-performance, type-safe Python SDK for payment processing through Hyperswitch Prism. Connect to 100+ payment processors through a single, unified API.
 
 [![PyPI version](https://badge.fury.io/py/hyperswitch-prism.svg)](https://pypi.org/project/hyperswitch-prism/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)

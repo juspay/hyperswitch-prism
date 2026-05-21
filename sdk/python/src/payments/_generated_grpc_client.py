@@ -461,6 +461,21 @@ class GrpcRefundClient:
             req, payment_pb2.RefundResponse,
         )
 
+class GrpcSurchargeClient:
+    """SurchargeService — gRPC sub-client."""
+
+    def __init__(self, ffi: _GrpcFfi, config: GrpcConfig) -> None:
+        self._ffi    = ffi
+        self._config = config
+
+    def calculate(self, req: payment_pb2.SurchargeServiceCalculateRequest) -> payment_pb2.SurchargeServiceCalculateResponse:
+        """SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "surcharge/calculate",
+            req, payment_pb2.SurchargeServiceCalculateResponse,
+        )
+
 # ── Top-level GrpcClient ──────────────────────────────────────────────────────
 
 
@@ -493,6 +508,7 @@ class GrpcClient:
     payout: GrpcPayoutClient
     recurring_payment: GrpcRecurringPaymentClient
     refund: GrpcRefundClient
+    surcharge: GrpcSurchargeClient
 
     def __init__(self, config: GrpcConfig, lib_path: Optional[str] = None) -> None:
         ffi = _GrpcFfi(lib_path)
@@ -506,3 +522,4 @@ class GrpcClient:
         self.payout = GrpcPayoutClient(ffi, config)
         self.recurring_payment = GrpcRecurringPaymentClient(ffi, config)
         self.refund = GrpcRefundClient(ffi, config)
+        self.surcharge = GrpcSurchargeClient(ffi, config)

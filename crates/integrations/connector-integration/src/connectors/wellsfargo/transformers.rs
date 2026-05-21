@@ -1,7 +1,8 @@
 use crate::types::ResponseRouterData;
-use common_enums::{AttemptStatus, RefundStatus};
+use common_enums::{AttemptStatus, CardNetwork, RefundStatus};
 use common_utils::consts;
 use domain_types::errors::{ConnectorError, IntegrationError};
+use domain_types::payment_method_data::Card as DomainCard;
 use domain_types::payment_method_data::RawCardNumber;
 use domain_types::{
     connector_flow::{Authorize, Capture, RSync, Refund, SetupMandate, Void},
@@ -13,7 +14,7 @@ use domain_types::{
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     router_data::{AdditionalPaymentMethodConnectorResponse, ConnectorResponseData, ErrorResponse},
     router_data_v2::RouterDataV2,
-    utils::CardIssuer,
+    utils::{get_card_issuer, CardIssuer},
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
@@ -475,6 +476,47 @@ fn card_issuer_to_string(card_issuer: CardIssuer) -> String {
     card_type.to_string()
 }
 
+/// Convert CardNetwork to CyberSource card type code (for vault token flows where BIN is unavailable)
+fn card_network_to_type_code(network: &CardNetwork) -> Option<&'static str> {
+    match network {
+        CardNetwork::Visa => Some("001"),
+        CardNetwork::Mastercard => Some("002"),
+        CardNetwork::AmericanExpress => Some("003"),
+        CardNetwork::Discover => Some("004"),
+        CardNetwork::DinersClub => Some("005"),
+        CardNetwork::JCB => Some("007"),
+        CardNetwork::UnionPay => Some("062"),
+        CardNetwork::Maestro => Some("042"),
+        CardNetwork::CartesBancaires => Some("036"),
+        _ => None,
+    }
+}
+
+/// Get card type code.
+/// - If BIN detection succeeds (real card number), use the card issuer code.
+/// - If BIN detection fails (e.g. vault token placeholder), fall back to card_network.
+fn get_card_type_code(
+    card_data: &DomainCard<impl PaymentMethodDataTypes>,
+) -> Result<String, Report<IntegrationError>> {
+    match get_card_issuer(card_data.card_number.peek()) {
+        Ok(card_issuer) => Ok(card_issuer_to_string(card_issuer)),
+        Err(_) => match card_data
+            .card_network
+            .as_ref()
+            .and_then(|network| card_network_to_type_code(network))
+        {
+            Some(code) => Ok(code.to_string()),
+            None => Err(IntegrationError::MissingRequiredField {
+                field_name: "card_type",
+                context: Default::default(),
+            })
+            .attach_printable(
+                "Unable to determine card type: BIN detection failed and no card_network provided",
+            ),
+        },
+    }
+}
+
 /// Helper function to build error response from Wellsfargo response
 /// Used across all response transformations to avoid code duplication
 fn build_error_response(
@@ -553,15 +595,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // Get payment method data
         let payment_information = match &request.payment_method_data {
             PaymentMethodData::Card(card_data) => {
-                // Use get_card_issuer for robust card type detection
-                let card_issuer =
-                    domain_types::utils::get_card_issuer(card_data.card_number.peek())
-                        .change_context(IntegrationError::MissingRequiredField {
-                            field_name: "card_type",
-                            context: Default::default(),
-                        })
-                        .attach_printable("Unable to determine card issuer from card number")?;
-                let card_type = card_issuer_to_string(card_issuer);
+                let card_type = get_card_type_code(card_data)?;
 
                 let card = Card {
                     number: card_data.card_number.clone(),
@@ -1091,14 +1125,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // Payment information from card
         let payment_information = match &request.payment_method_data {
             PaymentMethodData::Card(card_data) => {
-                let card_issuer =
-                    domain_types::utils::get_card_issuer(card_data.card_number.peek())
-                        .change_context(IntegrationError::MissingRequiredField {
-                            field_name: "card_type",
-                            context: Default::default(),
-                        })
-                        .attach_printable("Unable to determine card issuer from card number")?;
-                let card_type = card_issuer_to_string(card_issuer);
+                let card_type = get_card_type_code(card_data)?;
                 PaymentInformation::Cards(Box::new(CardPaymentInformation {
                     card: Card {
                         number: card_data.card_number.clone(),

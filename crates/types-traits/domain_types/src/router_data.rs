@@ -205,6 +205,10 @@ impl PaysafePaymentMethodDetails {
 
 #[derive(Debug, Clone, serde::Deserialize)]
 pub enum ConnectorSpecificConfig {
+    /// No credentials required.
+    /// Used for webhook flows where authentication is deferred to later stages.
+    NoKey,
+
     // --- Single-field (HeaderKey) connectors ---
     Stripe {
         api_key: Secret<String>,
@@ -255,6 +259,7 @@ pub enum ConnectorSpecificConfig {
     },
     Imerchantsolutions {
         api_key: Secret<String>,
+        merchant_id: Option<Secret<String>>,
         base_url: Option<String>,
     },
     Bambora {
@@ -719,6 +724,8 @@ pub enum ConnectorSpecificConfig {
     Itaubank {
         client_id: Secret<String>,
         client_secret: Secret<String>,
+        certificates: Option<Secret<String>>,
+        private_key: Option<Secret<String>>,
         base_url: Option<String>,
     },
     Sanlam {
@@ -738,6 +745,17 @@ pub enum ConnectorSpecificConfig {
         juspay_public_key: Secret<String>,
         base_url: Option<String>,
     },
+    TwocTwopPaco {
+        access_token: Secret<String>,
+        office_id: Secret<String>,
+        paco_kid: Secret<String>,
+        merchant_signing_private_key: Secret<String>,
+        merchant_encryption_private_key: Secret<String>,
+        paco_signing_public_key: Secret<String>,
+        paco_encryption_public_key: Secret<String>,
+        response_audience: Option<Secret<String>>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -746,6 +764,7 @@ impl ConnectorSpecificConfig {
         macro_rules! extract_base_url {
             ($($variant:ident { $($field:ident),* $(,)? }),* $(,)?) => {
                 match self {
+                    Self::NoKey => None,
                     $(Self::$variant { base_url, .. } => base_url.as_deref(),)*
                 }
             };
@@ -1051,6 +1070,11 @@ impl ConnectorSpecificConfig {
                 client_secret
             },
             Imerchantsolutions { api_key },
+            TwocTwopPaco {
+                access_token,
+                office_id,
+                paco_kid
+            },
         )
     }
 
@@ -1145,12 +1169,13 @@ impl ConnectorSpecificConfig {
         }
 
         macro_rules! connector_key {
-            ($($variant:ident { $($field:ident),* $(,)? }),* $(,)?) => {
-                match self {
-                    $(Self::$variant { .. } => stringify!($variant).to_ascii_lowercase(),)*
-                }
-            };
-        }
+                ($($variant:ident { $($field:ident),* $(,)? }),* $(,)?) => {
+                    match self {
+                        Self::NoKey => "nokey".to_string(),
+                        $(Self::$variant { .. } => stringify!($variant).to_ascii_lowercase(),)*
+                    }
+                };
+            }
 
         let mut connectors = serde_json::Map::new();
         connectors.insert(
@@ -1456,6 +1481,11 @@ impl ConnectorSpecificConfig {
                     client_secret
                 },
                 Imerchantsolutions { api_key },
+                TwocTwopPaco {
+                    access_token,
+                    office_id,
+                    paco_kid
+                },
             ),
             serde_json::Value::Object(connector_patch),
         );
@@ -1484,6 +1514,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
         let auth_type = auth.config.ok_or_else(err)?;
 
         match auth_type {
+            AuthType::Aci(aci) => Ok(Self::Aci {
+                api_key: aci.api_key.ok_or_else(err)?,
+                entity_id: aci.entity_id.ok_or_else(err)?,
+                base_url: aci.base_url,
+            }),
             AuthType::Adyen(adyen) => Ok(Self::Adyen {
                 api_key: adyen.api_key.ok_or_else(err)?,
                 merchant_account: adyen.merchant_account.ok_or_else(err)?,
@@ -1964,6 +1999,8 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Itaubank(itaubank) => Ok(Self::Itaubank {
                 client_secret: itaubank.client_secret.ok_or_else(err)?,
                 client_id: itaubank.client_id.ok_or_else(err)?,
+                certificates: itaubank.certificates,
+                private_key: itaubank.private_key,
                 base_url: itaubank.base_url,
             }),
             AuthType::Ppro(ppro) => Ok(Self::Ppro {
@@ -1984,7 +2021,43 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
+                merchant_id: imerchantsolutions.merchant_id,
                 base_url: imerchantsolutions.base_url,
+            }),
+            AuthType::TwocTwopPaco(twoc_twop_paco) => Ok(Self::TwocTwopPaco {
+                access_token: twoc_twop_paco.access_token.ok_or_else(err)?,
+                office_id: twoc_twop_paco.office_id.ok_or_else(err)?,
+                paco_kid: twoc_twop_paco.paco_kid.ok_or_else(err)?,
+                merchant_signing_private_key: twoc_twop_paco
+                    .merchant_signing_private_key
+                    .ok_or_else(err)?,
+                merchant_encryption_private_key: twoc_twop_paco
+                    .merchant_encryption_private_key
+                    .ok_or_else(err)?,
+                paco_signing_public_key: twoc_twop_paco.paco_signing_public_key.ok_or_else(err)?,
+                paco_encryption_public_key: twoc_twop_paco
+                    .paco_encryption_public_key
+                    .ok_or_else(err)?,
+                response_audience: twoc_twop_paco.response_audience,
+                base_url: twoc_twop_paco.base_url,
+            }),
+            AuthType::Bamboraapac(bamboraapac) => Ok(Self::Bamboraapac {
+                username: bamboraapac.username.ok_or_else(err)?,
+                password: bamboraapac.password.ok_or_else(err)?,
+                account_number: bamboraapac.account_number.ok_or_else(err)?,
+                base_url: bamboraapac.base_url,
+            }),
+            AuthType::Placetopay(placetopay) => Ok(Self::Placetopay {
+                login: placetopay.login.ok_or_else(err)?,
+                tran_key: placetopay.tran_key.ok_or_else(err)?,
+                base_url: placetopay.base_url,
+            }),
+            AuthType::Finix(finix) => Ok(Self::Finix {
+                finix_user_name: finix.finix_user_name.ok_or_else(err)?,
+                finix_password: finix.finix_password.ok_or_else(err)?,
+                merchant_identity_id: finix.merchant_identity_id.ok_or_else(err)?,
+                merchant_id: finix.merchant_id.ok_or_else(err)?,
+                base_url: finix.base_url,
             }),
         }
     }
@@ -2116,6 +2189,12 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
             ConnectorEnum::Imerchantsolutions => match auth {
                 ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Imerchantsolutions {
                     api_key: api_key.clone(),
+                    merchant_id: None,
+                    base_url: None,
+                }),
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Imerchantsolutions {
+                    api_key: api_key.clone(),
+                    merchant_id: Some(key1.clone()),
                     base_url: None,
                 }),
                 _ => Err(err().into()),
@@ -3003,6 +3082,20 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Itaubank {
                     client_id: api_key.clone(),
                     client_secret: key1.clone(),
+                    certificates: None,
+                    private_key: None,
+                    base_url: None,
+                }),
+                ConnectorAuthType::MultiAuthKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                    key2,
+                } => Ok(Self::Itaubank {
+                    client_id: api_key.clone(),
+                    client_secret: key1.clone(),
+                    certificates: Some(api_secret.clone()),
+                    private_key: Some(key2.clone()),
                     base_url: None,
                 }),
                 _ => Err(err().into()),
@@ -3030,6 +3123,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
                 }),
                 _ => Err(err().into()),
             },
+            ConnectorEnum::TwocTwopPaco => Err(err().into()),
         }
     }
 }

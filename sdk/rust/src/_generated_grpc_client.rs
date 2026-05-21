@@ -15,6 +15,7 @@ use grpc_api_types::payments::{
     payout_service_client::PayoutServiceClient,
     recurring_payment_service_client::RecurringPaymentServiceClient,
     refund_service_client::RefundServiceClient,
+    surcharge_service_client::SurchargeServiceClient,
     // request / response types (all unique types across all services)
     CustomerServiceCreateRequest,
     CustomerServiceCreateResponse,
@@ -91,6 +92,8 @@ use grpc_api_types::payments::{
     RecurringPaymentServiceRevokeResponse,
     RefundResponse,
     RefundServiceGetRequest,
+    SurchargeServiceCalculateRequest,
+    SurchargeServiceCalculateResponse,
 };
 use tonic::{
     metadata::{MetadataKey, MetadataValue},
@@ -431,6 +434,18 @@ impl_grpc_client!(
     (refund_get, get, RefundServiceGetRequest, RefundResponse),
 );
 
+// SurchargeService
+impl_grpc_client!(
+    GrpcSurchargeClient,
+    SurchargeServiceClient,
+    (
+        calculate,
+        calculate,
+        SurchargeServiceCalculateRequest,
+        SurchargeServiceCalculateResponse
+    ),
+);
+
 // ── GrpcClient ────────────────────────────────────────────────────────────────
 
 /// Top-level gRPC client for the connector-service.
@@ -465,6 +480,7 @@ pub struct GrpcClient {
     pub payout: GrpcPayoutClient,
     pub recurring_payment: GrpcRecurringPaymentClient,
     pub refund: GrpcRefundClient,
+    pub surcharge: GrpcSurchargeClient,
 }
 
 impl GrpcClient {
@@ -502,6 +518,7 @@ impl GrpcClient {
                 Arc::clone(&headers),
             ),
             refund: GrpcRefundClient::new(channel.clone(), Arc::clone(&headers)),
+            surcharge: GrpcSurchargeClient::new(channel.clone(), Arc::clone(&headers)),
         })
     }
 }

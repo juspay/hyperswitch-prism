@@ -289,6 +289,69 @@ where
     tracing::info!("Golden Log Line (incoming)");
 }
 
+/// Generic gRPC logging wrapper that accepts a custom parser function.
+/// This allows different parsing strategies for different flow types
+/// (e.g., authenticated flows vs unauthenticated webhook flows).
+pub async fn grpc_logging_wrapper_with_parser<T, P, F, R>(
+    request: tonic::Request<T>,
+    service_name: &str,
+    config: Arc<configs::Config>,
+    flow_name: FlowName,
+    parser: P,
+    handler: F,
+) -> Result<tonic::Response<R>, tonic::Status>
+where
+    T: serde::Serialize
+        + std::fmt::Debug
+        + Send
+        + 'static
+        + hyperswitch_masking::ErasedMaskSerialize,
+    P: FnOnce(tonic::Request<T>, Arc<configs::Config>) -> Result<RequestData<T>, tonic::Status>,
+    F: FnOnce(
+        RequestData<T>,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<tonic::Response<R>, tonic::Status>> + Send>,
+    >,
+    R: serde::Serialize + std::fmt::Debug + hyperswitch_masking::ErasedMaskSerialize,
+{
+    let current_span = tracing::Span::current();
+    let start_time = tokio::time::Instant::now();
+    let masked_request_data =
+        MaskedSerdeValue::from_masked_optional(request.get_ref(), "grpc_request");
+    let mut event_metadata_payload = None;
+    let mut event_headers = HashMap::new();
+
+    let grpc_response = async {
+        let request_data = parser(request, config.clone())?;
+        log_before_initialization(&request_data, service_name).into_grpc_status()?;
+        event_headers = request_data.masked_metadata.get_all_masked();
+        event_metadata_payload = Some(request_data.extracted_metadata.clone());
+
+        let result = handler(request_data).await;
+
+        let duration = start_time.elapsed().as_millis();
+        current_span.record("response_time", duration);
+        log_after_initialization(&result);
+        result
+    }
+    .await;
+
+    create_and_emit_grpc_event(
+        masked_request_data,
+        &grpc_response,
+        start_time,
+        flow_name,
+        service_name,
+        &config,
+        event_metadata_payload.as_ref(),
+        event_headers,
+    );
+
+    grpc_response
+}
+
+/// Original gRPC logging wrapper for authenticated flows.
+/// Maintains backward compatibility with existing code.
 pub async fn grpc_logging_wrapper<T, F, Fut, R>(
     request: tonic::Request<T>,
     service_name: &str,
@@ -556,6 +619,8 @@ macro_rules! implement_connector_operation {
                 resource_id: &metadata_payload.resource_id,
                 shadow_mode: metadata_payload.shadow_mode,
                 tenant_id: &metadata_payload.tenant_id,
+                merchant_id: metadata_payload.merchant_id.as_str(),
+                return_raw_connector_data: config.common.return_raw_connector_data,
             };
             let response_result = external_services::service::execute_connector_processing_step(
                 &config.proxy,
@@ -636,8 +701,23 @@ macro_rules! implement_connector_operation {
                 $response_data_type,
             > = connector_data.connector.get_connector_integration_v2();
 
-            // Create connector request data with None for payment_method_data
-            let specific_request_data = $request_data_constructor((payload.clone(), None::<domain_types::payment_method_data::PaymentMethodData<domain_types::payment_method_data::DefaultPCIHolder>>))
+            let payment_method_data: Option<domain_types::payment_method_data::PaymentMethodData<domain_types::payment_method_data::DefaultPCIHolder>> =
+                match payload.payment_method.clone() {
+                    Some(pm) => match domain_types::types::PaymentMethodDataAction::get_payment_method_data_action(pm.clone()).into_grpc_status()? {
+                        domain_types::types::PaymentMethodDataAction::Card(card_details) => {
+                            Some(domain_types::payment_method_data::PaymentMethodData::Card(
+                                domain_types::payment_method_data::Card::<domain_types::payment_method_data::DefaultPCIHolder>::foreign_try_from(card_details)
+                                    .into_grpc_status()?
+                            ))
+                        }
+                        domain_types::types::PaymentMethodDataAction::Default => {
+                            Some(domain_types::payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(pm).into_grpc_status()?)
+                        }
+                        _ => None,
+                    },
+                    None => None,
+                };
+            let specific_request_data = $request_data_constructor((payload.clone(), payment_method_data))
                 .into_grpc_status()?;
 
             // Create common request data
@@ -684,6 +764,8 @@ macro_rules! implement_connector_operation {
                 resource_id: &metadata_payload.resource_id,
                 shadow_mode: metadata_payload.shadow_mode,
                 tenant_id: &metadata_payload.tenant_id,
+                merchant_id: metadata_payload.merchant_id.as_str(),
+                return_raw_connector_data: config.common.return_raw_connector_data,
             };
             let response_result = external_services::service::execute_connector_processing_step(
                 &config.proxy,
@@ -808,6 +890,8 @@ macro_rules! implement_connector_operation {
                 resource_id: &metadata_payload.resource_id,
                 shadow_mode: metadata_payload.shadow_mode,
                 tenant_id: &metadata_payload.tenant_id,
+                merchant_id: metadata_payload.merchant_id.as_str(),
+                return_raw_connector_data: config.common.return_raw_connector_data,
             };
             let response_result = external_services::service::execute_connector_processing_step(
                 &config.proxy,

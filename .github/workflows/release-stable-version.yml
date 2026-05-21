@@ -1,0 +1,181 @@
+name: Release a stable version
+
+on:
+  workflow_dispatch:
+    inputs:
+      calver_tag:
+        description: "CalVer nightly tag to release from (e.g. 2026.05.07.0)"
+        required: true
+        type: string
+      dry_run:
+        description: "Dry run — preview version and changelog without publishing"
+        required: false
+        default: true
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  actions: read
+  id-token: write
+
+jobs:
+  tag-release:
+    name: Bump version, tag, and generate changelog
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      previous_tag: ${{ steps.version.outputs.previous_tag }}
+      next_tag: ${{ steps.version.outputs.next_tag }}
+
+    steps:
+      - name: Validate CalVer tag
+        shell: bash
+        run: |
+          if [[ "${{ inputs.calver_tag }}" =~ ^[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]+(-[a-zA-Z0-9._-]+)?$ ]]; then
+            echo "Valid CalVer tag: ${{ inputs.calver_tag }}"
+          else
+            echo "::error::${{ inputs.calver_tag }} is not a valid CalVer tag (expected YYYY.MM.DD.N or YYYY.MM.DD.N-suffix)"
+            exit 1
+          fi
+
+      # TODO: re-enable once CONNECTOR_SERVICE_CI_PAT has read:org scope
+      # - name: Check if user is authorized to trigger workflow
+
+      - name: Checkout repository at CalVer tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.calver_tag }}
+          fetch-depth: 0
+          token: ${{ secrets.CONNECTOR_SERVICE_CI_PAT }}
+
+      - name: Install cocogitto
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cocogitto@6.3.0
+
+      - name: Install git-cliff
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
+
+      - name: Compute next version
+        id: version
+        shell: bash
+        run: |
+          PREVIOUS_TAG="$(cog get-version 2>/dev/null || echo '0.0.0')"
+          PREVIOUS_TAG="v${PREVIOUS_TAG#v}"
+
+          COG_OUTPUT="$(cog bump --dry-run --auto --skip-untracked 2>&1)"
+          NEXT_VERSION="$(echo "${COG_OUTPUT}" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | tail -1)"
+          NEXT_TAG="v${NEXT_VERSION}"
+
+          if [ -z "${NEXT_VERSION}" ]; then
+            echo "::error::cog bump --auto produced no version. cog output: ${COG_OUTPUT}"
+            exit 1
+          fi
+
+          if [[ ! "${NEXT_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Computed version '${NEXT_VERSION}' is not valid SemVer (expected X.Y.Z)"
+            exit 1
+          fi
+
+          echo "previous_tag=${PREVIOUS_TAG}" >> "$GITHUB_OUTPUT"
+          echo "next_tag=${NEXT_TAG}"         >> "$GITHUB_OUTPUT"
+          echo "version=${NEXT_VERSION}"      >> "$GITHUB_OUTPUT"
+
+          echo "### Version Bump Preview" >> "$GITHUB_STEP_SUMMARY"
+          echo "| | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| calver_tag | \`${{ inputs.calver_tag }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| previous   | \`${PREVIOUS_TAG}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| next       | \`${NEXT_TAG}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| dry_run    | \`${{ inputs.dry_run }}\` |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Generate release notes
+        shell: bash
+        run: |
+          PREVIOUS_TAG="${{ steps.version.outputs.previous_tag }}"
+          NEXT_TAG="${{ steps.version.outputs.next_tag }}"
+
+          export GIT_CLIFF__GIT__TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+$'
+
+          if git rev-parse "${PREVIOUS_TAG}" >/dev/null 2>&1; then
+            git-cliff \
+              --config '.github/git-cliff-changelog.toml' \
+              --strip all \
+              --tag "${NEXT_TAG}" \
+              "${PREVIOUS_TAG}..HEAD" > release-notes.md
+          else
+            git-cliff \
+              --config '.github/git-cliff-changelog.toml' \
+              --strip all \
+              --tag "${NEXT_TAG}" > release-notes.md
+          fi
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Release Notes Preview" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          head -60 release-notes.md >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload release notes artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: release-notes.md
+
+      - name: Create SemVer tag on CalVer SHA
+        if: ${{ inputs.dry_run == false }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.CONNECTOR_SERVICE_CI_PAT }}
+        run: |
+          CALVER_SHA="$(git rev-parse HEAD)"
+          gh api \
+            --method POST \
+            --header 'Accept: application/vnd.github+json' \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            '/repos/{owner}/{repo}/git/refs' \
+            --raw-field "ref=refs/tags/${{ steps.version.outputs.next_tag }}" \
+            --raw-field "sha=${CALVER_SHA}"
+
+      - name: Create GitHub release (draft)
+        if: ${{ inputs.dry_run == false }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.CONNECTOR_SERVICE_CI_PAT }}
+        run: |
+          if [ "$(wc -c < release-notes.md)" -gt 124000 ]; then
+            truncate -s 124000 release-notes.md
+            printf '\n\n_Full changelog available in the release artifact._\n' >> release-notes.md
+          fi
+          gh release create "${{ steps.version.outputs.next_tag }}" \
+            --title "${{ steps.version.outputs.next_tag }}" \
+            --notes-file release-notes.md \
+            --draft
+
+
+  publish-sdks:
+    name: Publish SDKs
+    needs: [tag-release]
+    if: ${{ inputs.dry_run == false && needs.tag-release.result == 'success' }}
+    uses: ./.github/workflows/release-sdks.yml
+    with:
+      publish_java: true
+      publish_python: true
+      publish_javascript: true
+      preview_only: false
+      ref: ${{ needs.tag-release.outputs.next_tag }}
+      version: ${{ needs.tag-release.outputs.version }}
+    secrets:
+      CONNECTOR_SERVICE_CI_PAT: ${{ secrets.CONNECTOR_SERVICE_CI_PAT }}
+      CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
+      CENTRAL_TOKEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
+      GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+      GPG_SIGNING_KEY_PASSWORD: ${{ secrets.GPG_SIGNING_KEY_PASSWORD }}
+      PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
