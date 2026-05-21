@@ -843,8 +843,20 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: void_post_capture flow for authorizedotnet"
+        "status": "supported",
+        "proto_request": {
+          "merchant_reverse_id": "probe_reverse_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://apitest.authorize.net/xml/v1/request.api",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"createTransactionRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"refId\":\"probe_reverse_001\",\"transactionRequest\":{\"transactionType\":\"voidTransaction\",\"refTransId\":\"probe_connector_txn_001\"}}}"
+        }
       }
     },
     "setup_recurring": {
