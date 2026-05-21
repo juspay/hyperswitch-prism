@@ -2833,10 +2833,6 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
         let tokenization_strategy = req
             .tokenization_strategy
             .map(|_| req.tokenization_strategy());
-        let payment_experience = req.payment_experience.map(|_| req.payment_experience());
-        let threeds_completion_indicator = req
-            .threeds_completion_indicator
-            .map(|_| req.threeds_completion_indicator());
         Self {
             merchant_transaction_id: req.merchant_transaction_id.clone(),
             amount: req.amount,
@@ -2865,13 +2861,13 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             customer_acceptance: req.customer_acceptance.clone(),
             browser_info: req.browser_info.clone(),
             billing_descriptor: req.billing_descriptor.clone(),
-            payment_experience,
+            payment_experience: Some(req.payment_experience()),
             description: req.description.clone(),
             payment_channel: req.payment_channel(),
             locale: req.locale.clone(),
             state: req.state.clone(),
             tokenization_strategy,
-            threeds_completion_indicator,
+            threeds_completion_indicator: Some(req.threeds_completion_indicator()),
             redirection_response: req.redirection_response,
             continue_redirection_url: req.continue_redirection_url,
             l2_l3_data: req.l2_l3_data,
@@ -2897,10 +2893,6 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
                         grpc_payment_types::payment_method::PaymentMethod::CardProxy(card_proxy),
                     ),
                 });
-        let threeds_completion_indicator = req
-            .threeds_completion_indicator
-            .map(|_| req.threeds_completion_indicator());
-
         Self {
             merchant_transaction_id: req.merchant_transaction_id.clone(),
             amount: req.amount,
@@ -2934,7 +2926,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             payment_channel: grpc_payment_types::PaymentChannel::Unspecified,
             locale: None,
             state: req.state,
-            threeds_completion_indicator,
+            threeds_completion_indicator: None,
             redirection_response: req.redirection_response,
             continue_redirection_url: None,
             l2_l3_data: req.l2_l3_data,
@@ -3659,7 +3651,9 @@ impl<
             capture_method: None,
             merchant_order_id: value.merchant_order_id,
             minor_amount: Some(common_utils::types::MinorUnit::new(amount.minor_amount)),
-            shipping_cost: value.shipping_cost.map(common_utils::types::MinorUnit::new),
+            shipping_cost: value
+                .order_tax_amount
+                .map(common_utils::types::MinorUnit::new),
             customer_id: value
                 .customer
                 .and_then(|customer| customer.connector_customer_id)
