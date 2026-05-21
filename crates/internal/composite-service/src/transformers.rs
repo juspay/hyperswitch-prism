@@ -294,7 +294,7 @@ impl
             payment_method_type: item.payment_method_type,
             customer_id: item.customer_id.clone(),
             merchant_request_id: item.merchant_request_id.clone(),
-            connector_order_id: None,
+            connector_order_id: item.connector_order_id.clone(),
         }
     }
 }
