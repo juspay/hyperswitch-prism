@@ -30,7 +30,7 @@ time = { version = "0.3.36", features = ["parsing", "macros"] }
 url = "2.5.0"
 uuid = { version = "1", features = ["v4", "v7"] }
 http = "1.2.0"
-reqwest = { version = "0.11.27", features = ["json", "rustls-tls", "gzip", "multipart"] }
+reqwest = { version = "0.12", features = ["json", "rustls-tls", "gzip", "multipart"] }
 multipart = { version = "0.18", features = ["client"] }
 bytes = { workspace = true }
 tonic = { workspace = true }
