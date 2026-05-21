@@ -356,6 +356,7 @@ impl
             connector_feature_data: item.connector_feature_data.clone(),
             refund_amount: item.refund_amount,
             merchant_request_id: item.merchant_request_id.clone(),
+            connector_order_id: item.connector_order_id.clone(),
         }
     }
 }

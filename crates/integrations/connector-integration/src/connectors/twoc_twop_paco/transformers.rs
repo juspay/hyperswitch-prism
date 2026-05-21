@@ -665,26 +665,26 @@ pub fn build_refund_request(
     let office_id = auth.office_id.clone();
     let amount =
         PacoTransactionAmount::new(item.request.minor_refund_amount, item.request.currency)?;
-    let original_order_no =
-        item.request
-            .get_connector_order_id()
-            .change_context(errors::IntegrationError::MissingRequiredField {
+    let original_order_no = item.request.get_connector_order_id().change_context(
+        errors::IntegrationError::MissingRequiredField {
             field_name: "connector_order_id",
             context: errors::IntegrationErrorContext {
                 suggested_action: Some(
-                    "Pass the original Authorize's `orderNo` (== the `merchant_transaction_id` \
-                         you sent on Authorize) as `connector_order_id` on the Refund request."
+                    "Pass the original Authorize's `orderNo` (== the \
+                             `merchant_transaction_id` you sent on Authorize) as \
+                             `connector_order_id` on the Refund request."
                         .to_string(),
                 ),
                 doc_url: Some("https://devzone.2c2p.com/reference/refund".to_string()),
                 additional_context: Some(
                     "PACO matches refunds against the original transaction's `orderNo`, \
-                         which is not derivable from `connector_transaction_id` \
-                         (PACO's `invoiceNo2C2P`)."
+                             which is not derivable from `connector_transaction_id` (PACO's \
+                             `invoiceNo2C2P`)."
                         .to_string(),
                 ),
             },
-        })?;
+        },
+    )?;
     let maker_id = item
         .request
         .refund_connector_metadata
@@ -1328,6 +1328,8 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
             .and_then(|b| b.invoice_no2c2p.clone())
             .unwrap_or_else(|| router_data.request.refund_id.clone());
 
+        let raw_connector_response = serde_json::to_string(&response).ok().map(Secret::new);
+
         if refund_status == RefundStatus::Failure {
             let (code, message) = error_code_message(
                 &response.api_response,
@@ -1345,12 +1347,20 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
                 network_error_message: None,
             };
             return Ok(Self {
+                resource_common_data: RefundFlowData {
+                    raw_connector_response,
+                    ..router_data.resource_common_data
+                },
                 response: Err(error),
                 ..router_data
             });
         }
 
         Ok(Self {
+            resource_common_data: RefundFlowData {
+                raw_connector_response,
+                ..router_data.resource_common_data
+            },
             response: Ok(RefundsResponseData {
                 connector_refund_id,
                 refund_status,
@@ -1543,6 +1553,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
             None => RefundStatus::Pending,
         };
         let connector_refund_id = router_data.request.connector_refund_id.clone();
+        let raw_connector_response = serde_json::to_string(&response).ok().map(Secret::new);
 
         if refund_status == RefundStatus::Failure {
             let (code, message) = error_code_message(&response.api_response, &None);
@@ -1558,12 +1569,20 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
                 network_error_message: None,
             };
             return Ok(Self {
+                resource_common_data: RefundFlowData {
+                    raw_connector_response,
+                    ..router_data.resource_common_data
+                },
                 response: Err(error),
                 ..router_data
             });
         }
 
         Ok(Self {
+            resource_common_data: RefundFlowData {
+                raw_connector_response,
+                ..router_data.resource_common_data
+            },
             response: Ok(RefundsResponseData {
                 connector_refund_id,
                 refund_status,

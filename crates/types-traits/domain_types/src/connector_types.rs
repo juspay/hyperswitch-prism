@@ -1777,9 +1777,17 @@ pub struct RefundSyncData {
     pub split_refunds: Option<SplitRefundsRequest>,
     pub connector_feature_data: Option<SecretSerdeValue>,
     pub refund_money: Option<common_utils::types::Money>,
+    /// Connector-side identifier for the original payment that this refund sync targets.
+    pub connector_order_id: Option<String>,
 }
 
 impl RefundSyncData {
+    pub fn get_connector_order_id(&self) -> Result<String, Error> {
+        self.connector_order_id
+            .clone()
+            .ok_or_else(missing_field_err("connector_order_id"))
+    }
+
     pub fn get_optional_language_from_browser_info(&self) -> Option<String> {
         self.browser_info
             .clone()

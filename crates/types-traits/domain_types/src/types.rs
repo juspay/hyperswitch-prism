@@ -6638,6 +6638,7 @@ impl ForeignTryFrom<grpc_api_types::payments::RefundServiceGetRequest> for Refun
                 .refund_amount
                 .map(common_utils::types::Money::foreign_try_from)
                 .transpose()?,
+            connector_order_id: value.connector_order_id,
         })
     }
 }
