@@ -220,7 +220,14 @@ impl EventService for EventServiceImpl {
                         }
                     };
 
-                    let response = connector_integration::webhook_utils::process_webhook_event(
+                    let integrity_checks: Vec<i32> = connector_data
+                        .connector
+                        .get_webhook_integrity_checks()
+                        .iter()
+                        .map(|c| c.as_proto_i32())
+                        .collect();
+
+                    let mut response = connector_integration::webhook_utils::process_webhook_event(
                         connector_data,
                         request_details,
                         webhook_secrets,
@@ -230,6 +237,8 @@ impl EventService for EventServiceImpl {
                         event_context,
                     )
                     .into_grpc_status()?;
+
+                    response.integrity_checks = integrity_checks;
 
                     Ok(tonic::Response::new(response))
                 })

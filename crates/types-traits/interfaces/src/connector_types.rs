@@ -72,6 +72,28 @@ pub enum RedirectState {
     InitialRequest,
     RedirectWithParams,
     RedirectWithoutParams,
+
+}
+
+/// Dimensions of a webhook payment response that Euler can verify for integrity.
+///
+/// Integrity dimensions a connector can verify in a webhook payload.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum WebhookIntegrityCheck {
+    ConnectorTransactionId,
+    Amount,
+    Currency,
+}
+
+impl WebhookIntegrityCheck {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::ConnectorTransactionId => "connector_transaction_id",
+            Self::Amount => "amount",
+            Self::Currency => "currency",
+        }
+    }
 }
 
 pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
@@ -413,6 +435,10 @@ pub trait IncomingWebhook {
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<bool, error_stack::Report<WebhookError>> {
         Ok(false)
+    }
+
+    fn get_webhook_integrity_checks(&self) -> Vec<WebhookIntegrityCheck> {
+        vec![]
     }
 
     /// fn get_webhook_source_verification_signature

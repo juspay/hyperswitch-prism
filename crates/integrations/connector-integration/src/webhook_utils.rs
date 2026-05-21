@@ -86,6 +86,7 @@ pub fn process_webhook_event<
         source_verified,
         merchant_event_id,
         event_ack_response: None,
+        integrity_checks: vec![],
     })
 }
 

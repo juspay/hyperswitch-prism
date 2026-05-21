@@ -1,6 +1,8 @@
 use common_utils::{crypto, ext_traits::ValueExt, CustomResult};
 use domain_types::connector_types::ConnectorWebhookSecrets;
 use error_stack::ResultExt;
+
+use crate::connector_types::WebhookIntegrityCheck;
 use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -258,6 +260,12 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         domain_types::errors::WebhookError,
     > {
         Ok(None)
+    }
+
+    fn get_webhook_integrity_checks(&self) -> Vec<WebhookIntegrityCheck> {
+        // Connectors override this method to declare which integrity dimensions
+        // they reliably provide in their webhook payloads.
+        vec![]
     }
 }
 
