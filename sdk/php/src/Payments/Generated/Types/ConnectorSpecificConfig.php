@@ -201,6 +201,8 @@ class ConnectorSpecificConfig extends \Google\Protobuf\Internal\Message
      *           PLACETOPAY = 65
      *     @type \Types\FinixConfig $finix
      *           FINIX = 111
+     *     @type \Types\AciConfig $aci
+     *           ACI = 125
      * }
      */
     public function __construct($data = NULL) {
@@ -2932,6 +2934,37 @@ class ConnectorSpecificConfig extends \Google\Protobuf\Internal\Message
     {
         GPBUtil::checkMessage($var, \Types\FinixConfig::class);
         $this->writeOneof(124, $var);
+
+        return $this;
+    }
+
+    /**
+     * ACI = 125
+     *
+     * Generated from protobuf field <code>.types.AciConfig aci = 125;</code>
+     * @return \Types\AciConfig|null
+     */
+    public function getAci()
+    {
+        return $this->readOneof(125);
+    }
+
+    public function hasAci()
+    {
+        return $this->hasOneof(125);
+    }
+
+    /**
+     * ACI = 125
+     *
+     * Generated from protobuf field <code>.types.AciConfig aci = 125;</code>
+     * @param \Types\AciConfig $var
+     * @return $this
+     */
+    public function setAci($var)
+    {
+        GPBUtil::checkMessage($var, \Types\AciConfig::class);
+        $this->writeOneof(125, $var);
 
         return $this;
     }
