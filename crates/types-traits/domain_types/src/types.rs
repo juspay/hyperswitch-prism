@@ -535,6 +535,12 @@ impl Connectors {
             ConnectorEnum::Revolut => {
                 patched.revolut.apply(params_patch);
             }
+            ConnectorEnum::Aci => {
+                patched.aci.apply(params_patch);
+            }
+            ConnectorEnum::Bankofamerica => {
+                patched.bankofamerica.apply(params_patch);
+            }
             ConnectorEnum::Worldpay => {
                 patched.worldpay.apply(params_patch);
             }
@@ -694,7 +700,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, multisafepay, nexixpay, payload, payme, placetopay, powertranz, revolv3, sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat",
+                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, multisafepay, nexixpay, payload, payme, placetopay, powertranz, revolv3, sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat",
                             connector
                         )),
                         ..Default::default()
