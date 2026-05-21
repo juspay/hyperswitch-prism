@@ -753,6 +753,7 @@ enum Connector {
   IMERCHANTSOLUTIONS = 118;
   AXISBANK = 119;
   EASEBUZZ = 120;
+  ASIAPAY = 121;
 }
 
 // Payment method types

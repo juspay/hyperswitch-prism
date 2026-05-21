@@ -86,7 +86,7 @@ api_tags_tags_psync = { value = "", schema = { type = "string" } }
 environment = { position = 1, schema = { type = "string", enum = ["sandbox", "development", "production"] } }
 
 # Connector dimension - determines which payment processor URLs to use
-connector = { position = 2, schema = { type = "string", enum = ["stripe", "adyen", "paypal", "razorpay", "checkout", "braintree", "worldpay", "cybersource", "payme", "bluesnap", "fiserv", "trustpay", "volt", "hipay", "xendit", "phonepe", "cashfree", "payu", "paytm", "dlocal", "rapyd", "aci", "nuvei", "forte", "authorizedotnet", "elavon", "bamboraapac", "billwerk", "paysafe", "worldpayvantiv", "worldpayxml", "tsys", "bankofamerica", "powertranz", "revolut", "airwallex", "bambora", "shift4", "multisafepay", "iatapay", "jpmorgan", "nmi", "nexixpay", "authipay", "stax", "trustpayments", "fiservemea", "datatrans", "silverflow", "celero", "globalpay", "razorpayv2", "fiuu", "payload", "cashtocode", "novalnet", "nexinets", "noon", "mifinity", "calida", "cryptopay", "helcim", "placetopay", "barclaycard"] } }
+connector = { position = 2, schema = { type = "string", enum = ["stripe", "adyen", "paypal", "razorpay", "checkout", "braintree", "worldpay", "cybersource", "payme", "bluesnap", "fiserv", "trustpay", "volt", "hipay", "xendit", "phonepe", "cashfree", "payu", "paytm", "dlocal", "rapyd", "aci", "nuvei", "forte", "authorizedotnet", "elavon", "bamboraapac", "billwerk", "paysafe", "worldpayvantiv", "worldpayxml", "tsys", "bankofamerica", "powertranz", "revolut", "airwallex", "bambora", "shift4", "multisafepay", "iatapay", "jpmorgan", "nmi", "nexixpay", "authipay", "stax", "trustpayments", "fiservemea", "datatrans", "silverflow", "celero", "globalpay", "razorpayv2", "fiuu", "payload", "cashtocode", "novalnet", "nexinets", "noon", "mifinity", "calida", "cryptopay", "helcim", "placetopay", "barclaycard", "asiapay"] } }
 
 # ============================================================================
 # Development Environment Overrides
@@ -730,3 +730,13 @@ connector_base_url = "https://live.payme.io/api/"
 [[overrides]]
 _context_ = { connector = "barclaycard", environment = "production" }
 connector_base_url = "https://api.smartpayfuse.barclaycard"
+
+# AsiaPay (PayDollar)
+[[overrides]]
+_context_ = { connector = "asiapay" }
+connector_base_url = "https://test.paydollar.com/b2cDemo/eng"
+
+# AsiaPay Production
+[[overrides]]
+_context_ = { connector = "asiapay", environment = "production" }
+connector_base_url = "https://www.paydollar.com/b2c2/eng"

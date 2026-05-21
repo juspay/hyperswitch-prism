@@ -122,6 +122,7 @@ macro_rules! default_impl_verify_webhook_source_v2 {
 default_impl_verify_webhook_source_v2!(
     not_supported: [
         Adyen,
+        Asiapay,
         Authorizedotnet,
         Bluesnap,
         Calida,
