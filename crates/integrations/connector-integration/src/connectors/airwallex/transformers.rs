@@ -636,37 +636,29 @@ impl TryFrom<ResponseRouterData<AirwallexSyncResponse, Self>>
         // Use the same simple status mapping as hyperswitch
         let status = get_payment_status(&item.response.status, &item.response.next_action);
 
-        // Extract network transaction ID (check latest_payment_attempt first, then main response)
         let network_txn_id = item
             .response
             .latest_payment_attempt
             .as_ref()
             .and_then(|attempt| attempt.network_transaction_id.clone())
-            .or_else(|| item.response.network_transaction_id.clone())
-            .or_else(|| {
-                item.response
-                    .latest_payment_attempt
-                    .as_ref()
-                    .and_then(|attempt| attempt.authorization_code.clone())
-            })
-            .or(item.response.authorization_code.clone());
+            .or_else(|| item.response.network_transaction_id.clone());
 
-        // Following hyperswitch pattern - no connector_metadata
-        let connector_metadata = None;
+        let intent_id = item.response.id;
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: None, // PSync doesn't handle redirections
+                resource_id: ResponseId::ConnectorTransactionId(intent_id.clone()),
+                redirection_data: None,
                 mandate_reference: None,
-                connector_metadata,
+                connector_metadata: None,
                 network_txn_id,
-                connector_response_reference_id: item.response.payment_intent_id,
-                incremental_authorization_allowed: Some(false), // Airwallex doesn't support incremental auth
+                connector_response_reference_id: Some(intent_id.clone()),
+                incremental_authorization_allowed: None,
                 status_code: item.http_code,
             }),
             resource_common_data: PaymentFlowData {
                 status,
+                reference_id: Some(intent_id),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -1358,8 +1350,9 @@ impl TryFrom<ResponseRouterData<AirwallexIntentResponse, Self>>
         // Update the flow data with the new status and store payment intent ID as reference_id (like Razorpay V2)
         router_data.resource_common_data = PaymentFlowData {
             status,
-            reference_id: Some(item.response.id.clone()), // Store payment intent ID for subsequent Authorize call
-            connector_order_id: Some(item.response.id), // Store payment intent ID for subsequent Authorize call
+            reference_id: Some(item.response.id.clone()),
+            connector_order_id: Some(item.response.id),
+            connector_http_status_code: Some(item.http_code),
             ..router_data.resource_common_data
         };
 

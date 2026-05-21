@@ -30,7 +30,24 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
 fn build_client() -> ConnectorClient {
     // Configure the connector with authentication
     let config = ConnectorConfig {
-        connector_config: None, // TODO: Add your connector config here,
+        connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Finix(FinixConfig {
+                finix_user_name: Some(hyperswitch_masking::Secret::new(
+                    "YOUR_FINIX_USER_NAME".to_string(),
+                )), // Authentication credential
+                finix_password: Some(hyperswitch_masking::Secret::new(
+                    "YOUR_FINIX_PASSWORD".to_string(),
+                )), // Authentication credential
+                merchant_identity_id: Some(hyperswitch_masking::Secret::new(
+                    "YOUR_MERCHANT_IDENTITY_ID".to_string(),
+                )), // Authentication credential
+                merchant_id: Some(hyperswitch_masking::Secret::new(
+                    "YOUR_MERCHANT_ID".to_string(),
+                )), // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
         options: Some(SdkOptions {
             environment: Environment::Sandbox.into(),
         }),

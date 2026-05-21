@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
-use crate::utils::{self, get_config_from_request, grpc_logging_wrapper};
+use crate::request::RequestData;
+use crate::utils::{self, get_config_from_request, grpc_logging_wrapper_with_parser};
 use common_enums;
 use common_utils::events::FlowName;
 use connector_integration::types::ConnectorData;
@@ -63,38 +64,43 @@ impl EventService for EventServiceImpl {
             .cloned()
             .unwrap_or_else(|| "EventService".to_string());
         let config = get_config_from_request(&request)?;
-        grpc_logging_wrapper(
+        grpc_logging_wrapper_with_parser(
             request,
             &service_name,
             config,
             FlowName::IncomingWebhook,
-            |request_data| async move {
-                let payload = request_data.payload;
-                let metadata_payload = request_data.extracted_metadata;
-                let connector = metadata_payload.connector;
-                let request_details =
-                    domain_types::connector_types::RequestDetails::foreign_try_from(
-                        payload
-                            .request_details
-                            .ok_or_else(|| {
-                                error_stack::report!(WebhookError::WebhookMissingRequiredField {
-                                    field: "request_details"
+            RequestData::from_grpc_request_unauthenticated,
+            |request_data| {
+                Box::pin(async move {
+                    let payload = request_data.payload;
+                    let metadata_payload = request_data.extracted_metadata;
+                    let connector = metadata_payload.connector;
+                    let request_details =
+                        domain_types::connector_types::RequestDetails::foreign_try_from(
+                            payload
+                                .request_details
+                                .ok_or_else(|| {
+                                    error_stack::report!(
+                                        WebhookError::WebhookMissingRequiredField {
+                                            field: "request_details"
+                                        }
+                                    )
                                 })
-                            })
-                            .into_grpc_status()?,
+                                .into_grpc_status()?,
+                        )
+                        .into_grpc_status()?;
+
+                    let connector_data: ConnectorData<DefaultPCIHolder> =
+                        ConnectorData::get_connector_by_name(&connector);
+
+                    let response = connector_integration::webhook_utils::parse_webhook_event(
+                        connector_data,
+                        request_details,
                     )
                     .into_grpc_status()?;
 
-                let connector_data: ConnectorData<DefaultPCIHolder> =
-                    ConnectorData::get_connector_by_name(&connector);
-
-                let response = connector_integration::webhook_utils::parse_webhook_event(
-                    connector_data,
-                    request_details,
-                )
-                .into_grpc_status()?;
-
-                Ok(tonic::Response::new(response))
+                    Ok(tonic::Response::new(response))
+                })
             },
         )
         .await
@@ -131,14 +137,15 @@ impl EventService for EventServiceImpl {
             .cloned()
             .unwrap_or_else(|| "EventService".to_string());
         let config = get_config_from_request(&request)?;
-        grpc_logging_wrapper(
+        grpc_logging_wrapper_with_parser(
             request,
             &service_name,
             config.clone(),
             FlowName::IncomingWebhook,
+            RequestData::from_grpc_request_unauthenticated,
             |request_data| {
                 let service_name_clone = service_name.clone();
-                async move {
+                Box::pin(async move {
                     let payload = request_data.payload;
                     let metadata_payload = request_data.extracted_metadata;
                     let connector = metadata_payload.connector;
@@ -206,8 +213,7 @@ impl EventService for EventServiceImpl {
                             Err(err) => {
                                 tracing::warn!(
                                     target: "webhook",
-                                    "{:?}",
-                                    err
+                                    error = ?err
                                 );
                                 false
                             }
@@ -226,7 +232,7 @@ impl EventService for EventServiceImpl {
                     .into_grpc_status()?;
 
                     Ok(tonic::Response::new(response))
-                }
+                })
             },
         )
         .await
@@ -298,6 +304,7 @@ async fn verify_webhook_source_external(
         resource_id: &metadata_payload.resource_id,
         shadow_mode: metadata_payload.shadow_mode,
         tenant_id: &metadata_payload.tenant_id,
+        merchant_id: metadata_payload.merchant_id.as_str(),
         return_raw_connector_data: config.common.return_raw_connector_data,
     };
 

@@ -131,19 +131,19 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/hyperpg/hyperpg.py#L106) · [JavaScript](../../examples/hyperpg/hyperpg.js) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L95) · [Rust](../../examples/hyperpg/hyperpg.rs#L138)
+**Examples:** [Python](../../examples/hyperpg/hyperpg.py#L107) · [JavaScript](../../examples/hyperpg/hyperpg.js) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L96) · [Rust](../../examples/hyperpg/hyperpg.rs#L139)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/hyperpg/hyperpg.py#L125) · [JavaScript](../../examples/hyperpg/hyperpg.js) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L111) · [Rust](../../examples/hyperpg/hyperpg.rs#L154)
+**Examples:** [Python](../../examples/hyperpg/hyperpg.py#L126) · [JavaScript](../../examples/hyperpg/hyperpg.js) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L112) · [Rust](../../examples/hyperpg/hyperpg.rs#L155)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/hyperpg/hyperpg.py#L150) · [JavaScript](../../examples/hyperpg/hyperpg.js) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L133) · [Rust](../../examples/hyperpg/hyperpg.rs#L177)
+**Examples:** [Python](../../examples/hyperpg/hyperpg.py#L151) · [JavaScript](../../examples/hyperpg/hyperpg.js) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L134) · [Rust](../../examples/hyperpg/hyperpg.rs#L178)
 
 ## API Reference
 
@@ -287,7 +287,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/hyperpg/hyperpg.py) · [TypeScript](../../examples/hyperpg/hyperpg.ts#L180) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L151) · [Rust](../../examples/hyperpg/hyperpg.rs)
+**Examples:** [Python](../../examples/hyperpg/hyperpg.py) · [TypeScript](../../examples/hyperpg/hyperpg.ts#L181) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L152) · [Rust](../../examples/hyperpg/hyperpg.rs)
 
 #### PaymentService.Get
 
@@ -298,7 +298,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/hyperpg/hyperpg.py) · [TypeScript](../../examples/hyperpg/hyperpg.ts#L189) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L163) · [Rust](../../examples/hyperpg/hyperpg.rs)
+**Examples:** [Python](../../examples/hyperpg/hyperpg.py) · [TypeScript](../../examples/hyperpg/hyperpg.ts#L190) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L164) · [Rust](../../examples/hyperpg/hyperpg.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -309,7 +309,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/hyperpg/hyperpg.py) · [TypeScript](../../examples/hyperpg/hyperpg.ts#L198) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L171) · [Rust](../../examples/hyperpg/hyperpg.rs)
+**Examples:** [Python](../../examples/hyperpg/hyperpg.py) · [TypeScript](../../examples/hyperpg/hyperpg.ts#L199) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L172) · [Rust](../../examples/hyperpg/hyperpg.rs)
 
 #### PaymentService.Refund
 
@@ -320,7 +320,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/hyperpg/hyperpg.py) · [TypeScript](../../examples/hyperpg/hyperpg.ts#L207) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L199) · [Rust](../../examples/hyperpg/hyperpg.rs)
+**Examples:** [Python](../../examples/hyperpg/hyperpg.py) · [TypeScript](../../examples/hyperpg/hyperpg.ts#L208) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L201) · [Rust](../../examples/hyperpg/hyperpg.rs)
 
 ### Refunds
 
@@ -333,4 +333,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/hyperpg/hyperpg.py) · [TypeScript](../../examples/hyperpg/hyperpg.ts#L216) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L209) · [Rust](../../examples/hyperpg/hyperpg.rs)
+**Examples:** [Python](../../examples/hyperpg/hyperpg.py) · [TypeScript](../../examples/hyperpg/hyperpg.ts#L217) · [Kotlin](../../examples/hyperpg/hyperpg.kt#L211) · [Rust](../../examples/hyperpg/hyperpg.rs)

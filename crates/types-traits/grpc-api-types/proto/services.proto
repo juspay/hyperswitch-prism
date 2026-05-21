@@ -32,6 +32,9 @@
 //   │ RecurringPaymentService              │ Charge and revoke recurring payments. Process subscription billing and      │
 //   │                                      │ cancel mandates when customers end their recurring agreements.              │
 //   ├──────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────┤
+//   │ SurchargeService                     │ Calculate additional fees for payment processing based on payment method,   │
+//   │                                      │ network, or regional regulations to ensure accurate cost recovery.          │
+//   ├──────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────┤
 //   │ RefundService                        │ Retrieve and synchronize refund statuses. Track refund progress across      │
 //   │                                      │ payment processors to ensure accurate settlement of customer refunds.       │
 //   ├──────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────┤
@@ -65,6 +68,7 @@ package types;
 
 import "payment.proto";
 import "payouts.proto";
+import "surcharge.proto";
 
 option go_package = "github.com/juspay/connector-service/crates/types-traits/grpc-api-types/proto;proto";
 
@@ -325,5 +329,14 @@ service PayoutService {
 
   // Enroll disburse account.
   rpc EnrollDisburseAccount(PayoutServiceEnrollDisburseAccountRequest) returns (PayoutServiceEnrollDisburseAccountResponse);
+}
+
+// ============================================================================
+// SURCHARGE SERVICE — Calculates payment processing fees 
+// ============================================================================
+
+service SurchargeService {
+  // Calculate surcharge fees for a payment amount before processing.
+  rpc Calculate(SurchargeServiceCalculateRequest) returns (SurchargeServiceCalculateResponse);
 }
 

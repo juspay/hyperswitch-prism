@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for nuvei"
       }
     },
     "authorize": {
@@ -755,7 +756,8 @@
     },
     "create_customer": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for nuvei"
       }
     },
     "create_order": {
@@ -781,7 +783,8 @@
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by nuvei connector"
       }
     },
     "create_server_session_authentication_token": {
@@ -810,12 +813,14 @@
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by nuvei connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by nuvei connector"
       }
     },
     "dispute_get": {
@@ -825,7 +830,8 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by nuvei connector"
       }
     },
     "eligibility": {
@@ -862,7 +868,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by nuvei connector"
       }
     },
     "parse_event": {
@@ -872,12 +879,14 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for nuvei"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for nuvei"
       }
     },
     "proxy_authorize": {
@@ -900,7 +909,8 @@
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "mandate_revoke flow not supported by nuvei connector"
       }
     },
     "refund": {
@@ -948,7 +958,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by nuvei connector"
       }
     },
     "setup_recurring": {
@@ -971,7 +982,8 @@
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for nuvei"
       }
     },
     "verify_redirect": {

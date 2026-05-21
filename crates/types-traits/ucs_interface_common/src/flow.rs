@@ -2,8 +2,9 @@ use common_utils::events::FlowName;
 use domain_types::connector_flow::{
     Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken, CreateOrder,
     DefendDispute, IncrementalAuthorization, MandateRevoke, PSync, PaymentMethodToken,
-    PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
-    ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence, Void, VoidPC,
+    PayoutCreate, PayoutCreateLink, PayoutCreateRecipient, PayoutEnrollDisburseAccount, PayoutGet,
+    PayoutStage, PayoutTransfer, PayoutVoid, PostAuthenticate, PreAuthenticate, RSync, Refund,
+    RepeatPayment, ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence, Void, VoidPC,
 };
 use ucs_env::configs;
 
@@ -63,6 +64,22 @@ where
         FlowName::IncrementalAuthorization
     } else if type_id == std::any::TypeId::of::<MandateRevoke>() {
         FlowName::MandateRevoke
+    } else if type_id == std::any::TypeId::of::<PayoutCreate>() {
+        FlowName::PayoutCreate
+    } else if type_id == std::any::TypeId::of::<PayoutTransfer>() {
+        FlowName::PayoutTransfer
+    } else if type_id == std::any::TypeId::of::<PayoutGet>() {
+        FlowName::PayoutGet
+    } else if type_id == std::any::TypeId::of::<PayoutVoid>() {
+        FlowName::PayoutVoid
+    } else if type_id == std::any::TypeId::of::<PayoutStage>() {
+        FlowName::PayoutStage
+    } else if type_id == std::any::TypeId::of::<PayoutCreateLink>() {
+        FlowName::PayoutCreateLink
+    } else if type_id == std::any::TypeId::of::<PayoutCreateRecipient>() {
+        FlowName::PayoutCreateRecipient
+    } else if type_id == std::any::TypeId::of::<PayoutEnrollDisburseAccount>() {
+        FlowName::PayoutEnrollDisburseAccount
     } else {
         tracing::warn!("Unknown flow marker type: {}", std::any::type_name::<F>());
         FlowName::Unknown

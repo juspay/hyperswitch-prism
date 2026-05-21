@@ -17,7 +17,7 @@ GENERATED_KOTLIN := $(SDK_ROOT)/src/main/kotlin/generated
 GENERATED_JAVA   := $(SDK_ROOT)/src/main/java/generated
 NATIVE_DIR       := $(SDK_ROOT)/src/main/resources/native
 PACKAGE_DIR      := $(ARTIFACTS_DIR)/sdk-java
-PACKAGE_VERSION  := $(shell cd $(SDK_ROOT) && ./gradlew properties -q 2>/dev/null | grep "^version:" | awk '{print $$2}')
+PACKAGE_VERSION  := $(if $(VERSION),$(VERSION),$(shell cd $(SDK_ROOT) && ./gradlew properties -q 2>/dev/null | grep "^version:" | awk '{print $$2}'))
 
 # Note: BINDGEN is defined in common.mk
 
@@ -81,13 +81,19 @@ generate-bindings: build-ffi-lib
 # Generates Java protobuf stubs from .proto files into the Java sources
 # directory, where they are compiled alongside the UniFFI Kotlin bindings.
 # ---------------------------------------------------------------------------
+PROTO_EXCLUDES := health_check.proto composite_payment.proto composite_services.proto
+
+# Auto-discover proto files (excluding known internal ones)
+PROTO_FILES_JAVA := $(shell ls $(PROTO_DIR)/*.proto | xargs -n1 basename | grep -v -E "$(subst . ,|,$(PROTO_EXCLUDES))")
+
 generate-proto:
 	@echo "Generating Java protobuf stubs..."
+	@echo "  Proto files: $(PROTO_FILES_JAVA)"
 	@mkdir -p $(GENERATED_JAVA)
 	@protoc \
 		-I $(PROTO_DIR) \
 		--java_out=$(GENERATED_JAVA) \
-		$(PROTO_DIR)/payment.proto $(PROTO_DIR)/payouts.proto $(PROTO_DIR)/payment_methods.proto $(PROTO_DIR)/sdk_config.proto
+		$(addprefix $(PROTO_DIR)/,$(PROTO_FILES_JAVA))
 	@echo "Proto stubs generated in $(GENERATED_JAVA)/"
 
 # ---------------------------------------------------------------------------

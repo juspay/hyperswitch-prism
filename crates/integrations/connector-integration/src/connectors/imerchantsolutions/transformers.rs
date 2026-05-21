@@ -1,11 +1,11 @@
 use common_enums::{self, AttemptStatus, CaptureMethod, CountryAlpha2, Currency, RefundStatus};
 use common_utils::{consts, errors::ParsingError, pii, types::MinorUnit};
 use domain_types::{
-    connector_flow::{Authorize, Capture, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, RSync, Refund, RepeatPayment, Void},
     connector_types::{
-        EventType, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        EventType, MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
     },
     errors,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -19,7 +19,9 @@ use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connectors::imerchantsolutions::ImerchantsolutionsRouterData,
+    connectors::{
+        imerchantsolutions::ImerchantsolutionsRouterData, jpmorgan::JpmorganResourceData,
+    },
     types::ResponseRouterData,
     utils::{self, is_manual_capture},
 };
@@ -91,15 +93,32 @@ pub struct ImerchantsolutionsPaymentsRequestData<T: PaymentMethodDataTypes> {
     amount: MinorUnit,
     currency: Currency,
     reference: String,
-    card: CardDetails<T>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    card: Option<CardDetails<T>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     shopper_email: Option<pii::Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     shopper_name: Option<ShopperName>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     telephone_number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     billing: Option<AddressDetails>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     delivery_address: Option<AddressDetails>,
     manual_capture: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     capture_delay_hours: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    shopper_reference: Option<String>,
+    store_payment_method: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    shopper_interaction: Option<ShopperInteraction>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stored_payment_method_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    recurring_processing_model: Option<RecurringProcessingModel>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    scheme_transaction_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -155,6 +174,68 @@ struct AddressDetails {
     country: Option<CountryAlpha2>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+enum ShopperInteraction {
+    Moto,
+    Ecommerce,
+    #[serde(rename = "ContAuth")]
+    ContinuedAuthentication,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+enum RecurringProcessingModel {
+    UnscheduledCardOnFile,
+    CardOnFile,
+}
+
+fn get_imerchantsolutions_capture_delay_hours(
+    imerchantsolutions_metadata: ImerchantsolutionsMetadata,
+    is_auto_capture: bool,
+) -> Result<Option<u32>, errors::IntegrationError> {
+    let metadata_capture_delay = imerchantsolutions_metadata.capture_delay_hours;
+
+    if is_auto_capture {
+        match metadata_capture_delay {
+            Some(0) | None => Ok(metadata_capture_delay),
+            Some(_) => Err(errors::IntegrationError::InvalidDataFormat {
+                field_name: "metadata.capture_delay_hours",
+                context: errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Remove `capture_delay_hours` or set it to 0 when using auto-capture."
+                            .to_string(),
+                    ),
+                    doc_url: Some(
+                        "https://imerchantsolutions.com/docs/api#post--payments".to_string(),
+                    ),
+                    additional_context: Some(
+                        "Positive `capture_delay_hours` does not enable delayed auto-capture. \
+                            For immediate capture, omit this field or set it to 0."
+                            .to_string(),
+                    ),
+                },
+            }),
+        }
+    } else {
+        match metadata_capture_delay {
+            Some(0) => {
+                Err(errors::IntegrationError::InvalidDataFormat {
+                    field_name: "metadata.capture_delay_hours",
+                    context: errors::IntegrationErrorContext {
+                        suggested_action: Some("Use a positive integer for `capture_delay_hours` or omit it for manual capture.".to_string()),
+                        doc_url: Some("https://imerchantsolutions.com/docs/api#post--payments".to_string()),
+                        additional_context: Some(
+                            "`capture_delay_hours = 0` does not enable manual capture. \
+                            To enable manual capture, provide a positive value or use `manualCapture: true`.".to_string()
+                        ),
+                    },
+                })
+            }
+            Some(_) | None => Ok(metadata_capture_delay),
+        }
+    }
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         ImerchantsolutionsRouterData<
@@ -182,18 +263,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         match &item.router_data.request.payment_method_data {
             PaymentMethodData::Card(ref card_data) => {
-                let card = CardDetails {
+                let card = Some(CardDetails {
                     number: card_data.card_number.clone(),
                     cvv: card_data.card_cvc.clone(),
                     expiry_month: card_data.get_card_expiry_month_2_digit()?,
                     expiry_year: card_data.get_expiry_year_4_digit(),
                     holder: card_data.get_optional_cardholder_name(),
-                };
-                let shopper_email = item.router_data.request.get_optional_email().or_else(|| {
-                    item.router_data
-                        .resource_common_data
-                        .get_optional_billing_email()
                 });
+                let shopper_email = item
+                    .router_data
+                    .resource_common_data
+                    .get_optional_billing_email()
+                    .or_else(|| item.router_data.request.get_optional_email());
                 let shopper_name = Some(ShopperName {
                     first_name: item
                         .router_data
@@ -251,46 +332,34 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let imerchantsolutions_metadata = get_imerchantsolutions_metadata(
                     item.router_data.request.metadata.clone().expose_option(),
                 )?;
-                let capture_delay_hours = {
-                    let metadata_capture_delay = imerchantsolutions_metadata.capture_delay_hours;
-
-                    if item.router_data.request.is_auto_capture() {
-                        match metadata_capture_delay {
-                            Some(0) | None => metadata_capture_delay,
-                            Some(_) => {
-                                return Err(errors::IntegrationError::InvalidDataFormat {
-                                    field_name: "metadata.capture_delay_hours",
-                                    context: errors::IntegrationErrorContext {
-                                        suggested_action: Some("Remove `capture_delay_hours` or set it to 0 when using auto-capture.".to_string()),
-                                        doc_url: Some("https://imerchantsolutions.com/docs/api#post--payments".to_string()),
-                                        additional_context: Some(
-                                            "Positive `capture_delay_hours` does not enable delayed auto-capture. \
-                                            For immediate capture, omit this field or set it to 0.".to_string()
-                                        ),
-                                    },
-                                }
-                                .into())
-                            }
-                        }
-                    } else {
-                        match metadata_capture_delay {
-                            Some(0) => {
-                                return Err(errors::IntegrationError::InvalidDataFormat {
-                                    field_name: "metadata.capture_delay_hours",
-                                    context: errors::IntegrationErrorContext {
-                                        suggested_action: Some("Use a positive integer for `capture_delay_hours` or omit it for manual capture.".to_string()),
-                                        doc_url: Some("https://imerchantsolutions.com/docs/api#post--payments".to_string()),
-                                        additional_context: Some(
-                                            "`capture_delay_hours = 0` does not enable manual capture. \
-                                            To enable manual capture, provide a positive value or use `manualCapture: true`.".to_string()
-                                        ),
-                                    },
-                                }
-                                .into())
-                            }
-                            Some(_) | None => metadata_capture_delay,
+                let capture_delay_hours = get_imerchantsolutions_capture_delay_hours(
+                    imerchantsolutions_metadata,
+                    item.router_data.request.is_auto_capture(),
+                )?;
+                let shopper_reference = match item.router_data.request.get_customer_id() {
+                    Ok(customer_id) => Some(customer_id.get_string_repr().to_string()),
+                    Err(err) => {
+                        if item
+                            .router_data
+                            .request
+                            .is_customer_initiated_mandate_payment()
+                        {
+                            return Err(err);
+                        } else {
+                            None
                         }
                     }
+                };
+                let store_payment_method = item
+                    .router_data
+                    .request
+                    .is_customer_initiated_mandate_payment();
+                let recurring_processing_model = if item.router_data.request.setup_future_usage
+                    == Some(common_enums::FutureUsage::OffSession)
+                {
+                    Some(RecurringProcessingModel::CardOnFile)
+                } else {
+                    None
                 };
                 Ok(Self {
                     amount: item.router_data.request.amount,
@@ -311,6 +380,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     delivery_address,
                     manual_capture: is_manual_capture(item.router_data.request.capture_method),
                     capture_delay_hours,
+                    shopper_reference,
+                    store_payment_method,
+                    shopper_interaction: None,
+                    stored_payment_method_id: None,
+                    recurring_processing_model,
+                    scheme_transaction_id: None,
                 })
             }
             PaymentMethodData::CardRedirect(_)
@@ -350,9 +425,13 @@ pub struct ImerchantsolutionsPaymentsResponseData {
     amount: AmountDetails,
     result_code: ResultCode,
     status: ImerchantsolutionsPaymentStatus,
+    additional_data: Option<AdditionalData>,
     capture_mode: Option<CaptureMode>,
     capture_delay_hours: Option<i32>,
     message: Option<String>,
+    shopper_interaction: Option<ShopperInteraction>,
+    stored_payment_method_id: Option<Secret<String>>,
+    scheme_transaction_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -394,6 +473,17 @@ enum ImerchantsolutionsPaymentStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct AdditionalData {
+    card_summary: Option<String>,
+    card_bin: Option<String>,
+    #[serde(rename = "recurring.recurringDetailReference")]
+    recurring_detail_reference: Option<Secret<String>>,
+    #[serde(rename = "recurring.storedPaymentMethodId")]
+    stored_payment_method_id: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum CaptureMode {
     Auto,
@@ -403,6 +493,234 @@ pub enum CaptureMode {
 impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<ImerchantsolutionsPaymentsResponseData, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<ImerchantsolutionsPaymentsResponseData, Self>,
+    ) -> Result<Self, Self::Error> {
+        let status = item.response.status.clone().into();
+
+        if is_payment_failure(status) {
+            let error_response = ErrorResponse {
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                status_code: item.http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: Some(item.response.psp_reference),
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+            };
+
+            Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status,
+                    ..item.router_data.resource_common_data
+                },
+                response: Err(error_response),
+                ..item.router_data
+            })
+        } else {
+            let additional_data = item.response.additional_data.as_ref();
+
+            let connector_mandate_id = additional_data
+                .and_then(|data| data.stored_payment_method_id.clone())
+                .or(item.response.stored_payment_method_id);
+
+            let connector_mandate_request_reference_id = additional_data.and_then(|data| {
+                data.recurring_detail_reference
+                    .as_ref()
+                    .map(|id| id.clone().expose())
+            });
+
+            let mandate_reference = connector_mandate_id
+                .map(|mandate_id| MandateReference {
+                    connector_mandate_id: Some(mandate_id.expose()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id,
+                })
+                .unwrap_or(MandateReference {
+                    connector_mandate_id: None,
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                });
+            Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status,
+                    minor_amount_capturable: Some(item.response.amount.value),
+                    ..item.router_data.resource_common_data
+                },
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        item.response.psp_reference.clone(),
+                    ),
+                    redirection_data: None,
+                    mandate_reference: Some(Box::new(mandate_reference)),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(item.response.payment_id.clone()),
+                    incremental_authorization_allowed: None,
+                    status_code: item.http_code,
+                }),
+                ..item.router_data
+            })
+        }
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        ImerchantsolutionsRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for ImerchantsolutionsPaymentsRequestData<T>
+{
+    type Error = error_stack::Report<errors::IntegrationError>;
+    fn try_from(
+        item: ImerchantsolutionsRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let amount = item.router_data.request.minor_amount;
+        let currency = item.router_data.request.currency;
+        let reference = item
+            .router_data
+            .resource_common_data
+            .connector_request_reference_id();
+        let shopper_email = item
+            .router_data
+            .resource_common_data
+            .get_optional_billing_email()
+            .or_else(|| item.router_data.request.get_optional_email());
+        let shopper_name = Some(ShopperName {
+            first_name: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_first_name(),
+            last_name: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_last_name(),
+        });
+        let telephone_number = item
+            .router_data
+            .resource_common_data
+            .get_optional_billing_phone_number();
+        let billing = Some(AddressDetails {
+            address: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_line1(),
+            city: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_city(),
+            state: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_state(),
+            postal_code: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_zip(),
+            country: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_country(),
+        });
+        let delivery_address = Some(AddressDetails {
+            address: item
+                .router_data
+                .resource_common_data
+                .get_optional_shipping_line1(),
+            city: item
+                .router_data
+                .resource_common_data
+                .get_optional_shipping_city(),
+            state: item
+                .router_data
+                .resource_common_data
+                .get_optional_shipping_state(),
+            postal_code: item
+                .router_data
+                .resource_common_data
+                .get_optional_shipping_zip(),
+            country: item
+                .router_data
+                .resource_common_data
+                .get_optional_shipping_country(),
+        });
+        let imerchantsolutions_metadata = get_imerchantsolutions_metadata(
+            item.router_data.request.metadata.clone().expose_option(),
+        )?;
+        let capture_delay_hours = get_imerchantsolutions_capture_delay_hours(
+            imerchantsolutions_metadata,
+            item.router_data.request.is_auto_capture(),
+        )?;
+        let shopper_reference = match item.router_data.resource_common_data.get_customer_id() {
+            Ok(customer_id) => Some(customer_id.get_string_repr().to_string()),
+            Err(err) => return Err(err),
+        };
+        let stored_payment_method_id =
+            item.router_data
+                .request
+                .connector_mandate_id()
+                .ok_or_else(|| {
+                    errors::IntegrationError::MissingRequiredField {
+                    field_name: "connector_mandate_id",
+                    context: errors::IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Pass a valid `connector_mandate_id` for recurring or mandate payments."
+                                .to_string(),
+                        ),
+                        doc_url: Some(
+                            "https://imerchantsolutions.com/docs/api#post--payments"
+                                .to_string(),
+                        ),
+                        additional_context: Some(
+                            "Expected connector mandate ID not found".to_string(),
+                        ),
+                    },
+                }
+                })?;
+        Ok(Self {
+            amount,
+            currency,
+            reference,
+            card: None,
+            shopper_email,
+            shopper_name,
+            telephone_number,
+            billing,
+            delivery_address,
+            manual_capture: is_manual_capture(item.router_data.request.capture_method),
+            capture_delay_hours,
+            shopper_reference,
+            store_payment_method: false,
+            shopper_interaction: Some(ShopperInteraction::ContinuedAuthentication),
+            stored_payment_method_id: Some(Secret::new(stored_payment_method_id)),
+            recurring_processing_model: Some(RecurringProcessingModel::UnscheduledCardOnFile),
+            scheme_transaction_id: None,
+        })
+    }
+}
+
+impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<ImerchantsolutionsPaymentsResponseData, Self>>
+    for RouterDataV2<F, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(

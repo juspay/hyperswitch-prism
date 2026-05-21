@@ -36,13 +36,19 @@ SERVICES_PROTO = REPO_ROOT / "crates/types-traits/grpc-api-types/proto/services.
 FFI_SERVICES_DIR = REPO_ROOT / "crates/ffi/ffi/src/services"
 
 PROTO_DIR = REPO_ROOT / "crates/types-traits/grpc-api-types/proto"
-PROTO_FILES = [
-    "services.proto",
-    "payment.proto",
-    "payouts.proto",
-    "payment_methods.proto",
-    "sdk_config.proto",
-]
+
+# Auto-discover proto files, excluding internal/non-public protos
+# services.proto is loaded last since it imports the others
+PROTO_EXCLUDES = {
+    "health_check.proto",  # Internal health check service
+    "composite_payment.proto",  # Composite payment implementation
+    "composite_services.proto",  # Composite services implementation
+}
+
+# Auto-discover all proto files and sort with services.proto last
+_all_proto_files = sorted(p.name for p in PROTO_DIR.glob("*.proto") if p.name not in PROTO_EXCLUDES)
+# Move services.proto to the end since it imports others
+PROTO_FILES = [f for f in _all_proto_files if f != "services.proto"] + ["services.proto"]
 
 RUST_HANDLERS_OUT = REPO_ROOT / "crates/ffi/ffi/src/handlers/_generated_flow_registrations.rs"
 RUST_FFI_FLOWS_OUT = REPO_ROOT / "crates/ffi/ffi/src/bindings/_generated_ffi_flows.rs"

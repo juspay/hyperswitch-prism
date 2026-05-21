@@ -3,117 +3,118 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for sanlam"
       }
     },
     "authorize": {
       "Ach": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "AchBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Affirm": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Afterpay": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Alfamart": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "AliPayRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "AmazonPayRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "ApplePay": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "ApplePayDecrypted": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "ApplePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Bacs": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "BacsBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "BancontactCard": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "BcaBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Becs": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "BillDeskRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Bizum": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Blik": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Bluecode": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "BniVaBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Boleto": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "BriVaBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Card": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "CashappQr": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "CashfreeRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "CimbVaBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "ClassicReward": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Crypto": {
         "status": "not_supported",
@@ -121,11 +122,11 @@
       },
       "Dana": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "DuitNow": {
         "status": "not_supported",
@@ -133,35 +134,35 @@
       },
       "EVoucher": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "EaseBuzzRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Efecty": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Eft": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Eps": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "FamilyMart": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "GCash": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Giropay": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Givex": {
         "status": "not_supported",
@@ -169,87 +170,87 @@
       },
       "GoPay": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "GooglePay": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "GooglePayDecrypted": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Ideal": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Indomaret": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "IndonesianBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "InstantBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "InstantBankTransferFinland": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "InstantBankTransferPoland": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Interac": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "KakaoPay": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Klarna": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Lawson": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "LazyPayRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "LocalBankRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "LocalBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "MandiriVaBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "MbWay": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Mifinity": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "MiniStop": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "MobilePayRedirect": {
         "status": "not_supported",
@@ -257,43 +258,43 @@
       },
       "Momo": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "MultibancoBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Netbanking": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "OnlineBankingFinland": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "OnlineBankingFpx": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "OnlineBankingPoland": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "OnlineBankingSlovakia": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "OnlineBankingThailand": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "OpenBanking": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "OpenBankingPis": {
         "status": "not_supported",
@@ -301,19 +302,19 @@
       },
       "OpenBankingUk": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Oxxo": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "PagoEfectivo": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "PayEasy": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "PaySafeCard": {
         "status": "not_supported",
@@ -321,15 +322,15 @@
       },
       "PayURedirect": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "PaypalRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "PaypalSdk": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Paysera": {
         "status": "not_supported",
@@ -341,63 +342,63 @@
       },
       "PermataBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "PhonePeRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Pix": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Przelewy24": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Pse": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "RedCompra": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "RedPagos": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "RevolutPay": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "SamsungPay": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Satispay": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Seicomart": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Sepa": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "SepaBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "SepaGuaranteedDebit": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "SevenEleven": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Skrill": {
         "status": "not_supported",
@@ -405,87 +406,95 @@
       },
       "Sofort": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Swish": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "TouchNGo": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Trustly": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Twint": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "UpiCollect": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "UpiIntent": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "UpiQr": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Vipps": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "WeChatPayQr": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       },
       "Wero": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       }
     },
     "capture": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: capture flow for sanlam"
       }
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by sanlam connector"
       }
     },
     "create_customer": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by sanlam connector"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_order flow not supported by sanlam connector"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by sanlam connector"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by sanlam connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by sanlam connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by sanlam connector"
       }
     },
     "dispute_get": {
@@ -495,7 +504,8 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by sanlam connector"
       }
     },
     "eligibility": {
@@ -505,89 +515,131 @@
     },
     "get": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_sync flow for sanlam"
       }
     },
     "handle_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{}"
+        }
       }
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by sanlam connector"
       }
     },
     "parse_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{}"
+        }
       }
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for sanlam"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for sanlam"
       }
     },
     "proxy_authorize": {
       "default": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for sanlam"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for sanlam"
       }
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for sanlam"
       }
     },
     "refund": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund flow for sanlam"
       }
     },
     "refund_get": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund_sync flow for sanlam"
       }
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by sanlam connector"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for sanlam"
       }
     },
     "token_authorize": {
       "default": {
         "status": "not_supported",
-        "error": "Selected payment method through Sanlam is not supported by Sanlam"
+        "error": "authorize flow not supported by sanlam connector"
       }
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for sanlam"
       }
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for sanlam"
       }
     },
     "verify_redirect": {
@@ -597,7 +649,8 @@
     },
     "void": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void flow not supported by sanlam connector"
       }
     }
   }

@@ -2343,7 +2343,7 @@ fn get_hs_status(
                 match trans_res.response_code {
                     AuthorizedotnetPaymentStatus::Declined
                     | AuthorizedotnetPaymentStatus::Error => AttemptStatus::Failure,
-                    AuthorizedotnetPaymentStatus::HeldForReview => AttemptStatus::Pending,
+                    AuthorizedotnetPaymentStatus::HeldForReview => AttemptStatus::Unresolved,
                     AuthorizedotnetPaymentStatus::RequiresAction => {
                         AttemptStatus::AuthenticationPending
                     }

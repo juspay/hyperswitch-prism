@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for getnet"
       }
     },
     "authorize": {
@@ -520,17 +521,20 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by getnet connector"
       }
     },
     "create_customer": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for getnet"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_order flow not supported by getnet connector"
       }
     },
     "create_server_authentication_token": {
@@ -551,17 +555,20 @@
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by getnet connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by getnet connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by getnet connector"
       }
     },
     "dispute_get": {
@@ -571,7 +578,8 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by getnet connector"
       }
     },
     "eligibility": {
@@ -617,7 +625,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by getnet connector"
       }
     },
     "parse_event": {
@@ -627,12 +636,14 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for getnet"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for getnet"
       }
     },
     "proxy_authorize": {
@@ -649,7 +660,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "address": {
             "billing_address": {}
@@ -674,23 +686,26 @@
             "via": "HyperSwitch",
             "x-transaction-channel-entry": "XX"
           },
-          "body": "{\"request_id\":\"probe_proxy_txn_001\",\"idempotency_key\":\"probe_proxy_txn_001\",\"order_id\":\"probe_proxy_txn_001\",\"data\":{\"customer_id\":\"cus_default\",\"amount\":1000,\"currency\":\"USD\",\"payment\":{\"payment_id\":\"probe_proxy_txn_001\",\"payment_method\":\"CREDIT\",\"transaction_type\":\"FULL\",\"number_installments\":1,\"card\":{\"number\":\"4111111111111111\",\"expiration_month\":\"03\",\"expiration_year\":\"30\",\"cardholder_name\":\"John Doe\",\"security_code\":\"123\"}}}}"
+          "body": "{\"request_id\":\"probe_proxy_txn_001\",\"idempotency_key\":\"probe_proxy_txn_001\",\"order_id\":\"probe_proxy_txn_001\",\"data\":{\"customer_id\":\"cus_default\",\"amount\":1000,\"currency\":\"USD\",\"payment\":{\"payment_id\":\"probe_proxy_txn_001\",\"payment_method\":\"CREDIT\",\"transaction_type\":\"FULL\",\"number_installments\":1,\"card\":{\"number\":\"{{$card_number}}\",\"expiration_month\":\"{{$card_exp_month}}\",\"expiration_year\":\"{{$card_exp_year}}\",\"cardholder_name\":\"John Doe\",\"security_code\":\"{{$card_cvc}}\"}}}}"
         }
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for getnet"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for getnet"
       }
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for getnet"
       }
     },
     "refund": {
@@ -756,12 +771,14 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for getnet"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for getnet"
       }
     },
     "token_authorize": {
@@ -772,12 +789,14 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for getnet"
       }
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for getnet"
       }
     },
     "verify_redirect": {

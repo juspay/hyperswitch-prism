@@ -1340,6 +1340,39 @@ impl AttemptStatus {
     }
 }
 
+/// Status of a post-capture void (Reverse) operation
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PostCaptureVoidStatus {
+    Succeeded,
+    #[default]
+    Pending,
+    Failed,
+}
+
+impl PostCaptureVoidStatus {
+    pub fn is_post_capture_void_failure(self) -> bool {
+        match self {
+            Self::Failed => true,
+            Self::Pending | Self::Succeeded => false,
+        }
+    }
+}
+
 /// Status of the dispute
 #[derive(
     Clone,

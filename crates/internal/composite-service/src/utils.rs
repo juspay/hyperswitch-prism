@@ -4,7 +4,7 @@ use common_utils::consts::X_CONNECTOR_NAME;
 use domain_types::connector_types::ConnectorEnum;
 use grpc_api_types::payments::{
     AccessToken, CustomerServiceCreateResponse,
-    MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse, PaymentStatus,
 };
 
 pub fn connector_from_composite_authorize_metadata(
@@ -72,4 +72,27 @@ pub fn get_access_token(
     access_token_from_request.or_else(|| {
         access_token_from_create_server_authentication_token_response(access_token_response)
     })
+}
+
+/// Check if payment status indicates a terminal state (success or failure)
+pub fn is_terminal_payment_status(status: i32) -> bool {
+    matches!(
+        PaymentStatus::try_from(status).unwrap_or_default(),
+        PaymentStatus::Charged
+            | PaymentStatus::Authorized
+            | PaymentStatus::PartialCharged
+            | PaymentStatus::AuthenticationFailed
+            | PaymentStatus::AuthorizationFailed
+            | PaymentStatus::Failure
+    )
+}
+
+/// Check if payment status indicates a failure state
+pub fn is_failure_payment_status(status: i32) -> bool {
+    matches!(
+        PaymentStatus::try_from(status).unwrap_or_default(),
+        PaymentStatus::AuthenticationFailed
+            | PaymentStatus::AuthorizationFailed
+            | PaymentStatus::Failure
+    )
 }

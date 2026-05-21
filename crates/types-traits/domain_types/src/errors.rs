@@ -243,6 +243,50 @@ impl IntegrationError {
         }
     }
 
+    /// Connector feature not implemented. Pass `IntegrationErrorContext::default()`
+    /// when no connector-specific guidance is needed.
+    pub fn not_implemented(message: impl Into<String>, context: IntegrationErrorContext) -> Self {
+        Self::NotImplemented(message.into(), context)
+    }
+
+    /// Connector flow not implemented; formats a canonical `{flow} flow for {connector}` message.
+    pub fn connector_flow_not_implemented(
+        connector: impl Into<String>,
+        flow: impl Into<String>,
+        context: IntegrationErrorContext,
+    ) -> Self {
+        Self::not_implemented(
+            format!("{} flow for {}", flow.into(), connector.into()),
+            context,
+        )
+    }
+
+    /// Connector flow not supported.
+    pub fn connector_flow_not_supported(
+        connector: impl Into<String>,
+        flow: impl Into<String>,
+        context: IntegrationErrorContext,
+    ) -> Self {
+        Self::FlowNotSupported {
+            flow: flow.into(),
+            connector: connector.into(),
+            context,
+        }
+    }
+
+    /// Connector feature not supported.
+    pub fn connector_feature_not_supported(
+        connector: &'static str,
+        message: impl Into<String>,
+        context: IntegrationErrorContext,
+    ) -> Self {
+        Self::NotSupported {
+            message: message.into(),
+            connector,
+            context,
+        }
+    }
+
     /// Optional connector-specific guidance for gRPC [`IntegrationError`] (overrides merged in `ucs_env`).
     pub fn integration_context(&self) -> &IntegrationErrorContext {
         match self {

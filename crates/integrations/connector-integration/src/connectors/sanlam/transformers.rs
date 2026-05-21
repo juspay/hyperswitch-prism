@@ -8,8 +8,11 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::Authorize,
-    connector_types::{PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, ResponseId},
-    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    connector_types::{
+        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, ResponseId,
+        WebhookDetailsResponse,
+    },
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError},
     payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -97,7 +100,7 @@ pub enum SanlamPaymentMethod {
 #[derive(Debug, Serialize)]
 pub struct EftDebitOrder {
     pub homing_account: Secret<String>,
-    pub homing_branch: Secret<String>,
+    pub homing_branch: Option<Secret<String>>,
     pub homing_account_name: Secret<String>,
     pub bank_name: SanlamBankNames,
     pub bank_type: SanlamBankType,
@@ -301,7 +304,7 @@ impl From<BankType> for SanlamBankType {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SanlamPaymentsResponse {
-    pub status: SanlamPaymentStatus,
+    pub status: SanlamPaymentEnqueueStatus,
     pub topic: String,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
@@ -309,7 +312,7 @@ pub struct SanlamPaymentsResponse {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum SanlamPaymentStatus {
+pub enum SanlamPaymentEnqueueStatus {
     Queued,
     Rejected,
     Unknown,
@@ -368,11 +371,120 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     }
 }
 
-impl From<SanlamPaymentStatus> for AttemptStatus {
-    fn from(status: SanlamPaymentStatus) -> Self {
+impl From<SanlamPaymentEnqueueStatus> for AttemptStatus {
+    fn from(status: SanlamPaymentEnqueueStatus) -> Self {
         match status {
-            SanlamPaymentStatus::Queued | SanlamPaymentStatus::Unknown => Self::Pending,
-            SanlamPaymentStatus::Rejected => Self::Failure,
+            SanlamPaymentEnqueueStatus::Queued | SanlamPaymentEnqueueStatus::Unknown => {
+                Self::Pending
+            }
+            SanlamPaymentEnqueueStatus::Rejected => Self::Failure,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum SanlamWebhookEvent {
+    Payment(SanlamPaymentWebhookEvent),
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SanlamPaymentWebhookEvent {
+    pub event_type: SanlamWebhookEventType,
+    pub payment: SanlamWebhookPayment,
+    pub error: Option<SanlamWebhookError>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SanlamWebhookError {
+    pub code: Option<String>,
+    pub message: Option<String>,
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub enum SanlamWebhookEventType {
+    #[serde(rename = "payment.succeeded")]
+    PaymentSucceeded,
+    #[serde(rename = "payment.failed")]
+    PaymentFailed,
+    #[serde(rename = "dispute.opened")]
+    DisputeOpened,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SanlamWebhookPayment {
+    pub user_reference: String,
+    pub status: SanlamPaymentStatus,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SanlamPaymentStatus {
+    Success,
+    Failure,
+    Dispute,
+}
+
+impl TryFrom<SanlamWebhookEvent> for WebhookDetailsResponse {
+    type Error = error_stack::Report<WebhookError>;
+    fn try_from(item: SanlamWebhookEvent) -> Result<Self, Self::Error> {
+        match item {
+            SanlamWebhookEvent::Payment(payment_event) => {
+                let status = AttemptStatus::try_from(&payment_event.payment.status)?;
+                if is_payment_failure(status) {
+                    Ok(Self {
+                        status,
+                        resource_id: Some(ResponseId::ConnectorTransactionId(
+                            payment_event.payment.user_reference.clone(),
+                        )),
+                        error_code: payment_event.error.as_ref().and_then(|e| e.code.clone()),
+                        error_message: payment_event.error.as_ref().and_then(|e| e.message.clone()),
+                        error_reason: payment_event.error.as_ref().and_then(|e| e.reason.clone()),
+                        connector_response_reference_id: Some(payment_event.payment.user_reference),
+                        mandate_reference: None,
+                        network_txn_id: None,
+                        raw_connector_response: None,
+                        response_headers: None,
+                        amount_captured: None,
+                        minor_amount_captured: None,
+                        payment_method_update: None,
+                        status_code: 200,
+                        sender_payment_instrument_id: None,
+                    })
+                } else {
+                    Ok(Self {
+                        status,
+                        resource_id: Some(ResponseId::ConnectorTransactionId(
+                            payment_event.payment.user_reference.clone(),
+                        )),
+                        mandate_reference: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: Some(payment_event.payment.user_reference),
+                        raw_connector_response: None,
+                        response_headers: None,
+                        amount_captured: None,
+                        minor_amount_captured: None,
+                        payment_method_update: None,
+                        error_code: None,
+                        error_message: None,
+                        error_reason: None,
+                        status_code: 200,
+                        sender_payment_instrument_id: None,
+                    })
+                }
+            }
+        }
+    }
+}
+
+impl TryFrom<&SanlamPaymentStatus> for AttemptStatus {
+    type Error = error_stack::Report<WebhookError>;
+    fn try_from(item: &SanlamPaymentStatus) -> Result<Self, Self::Error> {
+        match item {
+            SanlamPaymentStatus::Success => Ok(Self::Charged),
+            SanlamPaymentStatus::Failure => Ok(Self::Failure),
+            SanlamPaymentStatus::Dispute => Err(WebhookError::WebhookResponseEncodingFailed)?,
         }
     }
 }

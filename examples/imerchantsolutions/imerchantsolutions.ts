@@ -6,7 +6,7 @@
 // Run a scenario:  npx tsx imerchantsolutions.ts checkout_autocapture
 
 import { PaymentClient, EventClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AuthenticationType, CaptureMethod, Currency, HttpMethod } = types;
+const { Environment, AuthenticationType, CaptureMethod, CardNetwork, Currency, HttpMethod } = types;
 export const SUPPORTED_FLOWS = ["authorize", "capture", "get", "parse_event", "proxy_authorize", "refund", "refund_get", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
@@ -108,7 +108,8 @@ function _buildProxyAuthorizeRequest(): types.IPaymentServiceProxyAuthorizeReque
             "cardExpMonth": {"value": "03"},
             "cardExpYear": {"value": "2030"},
             "cardCvc": {"value": "123"},
-            "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
+            "cardHolderName": {"value": "John Doe"},  // Cardholder Information.
+            "cardNetwork": CardNetwork.VISA
         },
         "address": {
             "billingAddress": {

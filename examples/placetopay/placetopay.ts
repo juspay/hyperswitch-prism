@@ -6,14 +6,20 @@
 // Run a scenario:  npx tsx placetopay.ts checkout_autocapture
 
 import { PaymentClient, types } from 'hyperswitch-prism';
-const { Environment, AuthenticationType, CaptureMethod, Currency } = types;
+const { Environment, AuthenticationType, CaptureMethod, CardNetwork, Currency } = types;
 export const SUPPORTED_FLOWS = ["authorize", "capture", "get", "proxy_authorize", "refund", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
-    // connectorConfig: { placetopay: { apiKey: { value: 'YOUR_API_KEY' } } },
+    connectorConfig: {
+        placetopay: {
+            login: { value: 'YOUR_LOGIN' },
+            tranKey: { value: 'YOUR_TRAN_KEY' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
+    },
 };
 
 
@@ -91,7 +97,8 @@ function _buildProxyAuthorizeRequest(): types.IPaymentServiceProxyAuthorizeReque
             "cardExpMonth": {"value": "03"},
             "cardExpYear": {"value": "2030"},
             "cardCvc": {"value": "123"},
-            "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
+            "cardHolderName": {"value": "John Doe"},  // Cardholder Information.
+            "cardNetwork": CardNetwork.VISA
         },
         "address": {
             "billingAddress": {

@@ -9,11 +9,11 @@ use common_utils::{
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void, VoidPC},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::ConnectorSpecificConfig,
@@ -1058,12 +1058,141 @@ impl TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
     }
 }
 
+// ===== VOIDPC REQUEST STRUCTURE =====
+// VoidPostCapture (Reverse) — cancels a captured (PostAuth) transaction before settlement
+// Uses requestType: VoidTransaction (distinct from Void which uses VoidPreAuthTransactions)
+// AUTHIPAY always voids the full original amount; partial void is not supported
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthipayVoidPCRequest {
+    pub request_type: AuthipayRequestType,
+}
+
+// ===== VOIDPC REQUEST TRANSFORMATION =====
+
+impl
+    TryFrom<
+        &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+    > for AuthipayVoidPCRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        _item: &RouterDataV2<
+            VoidPC,
+            PaymentFlowData,
+            PaymentsCancelPostCaptureData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        // VoidTransaction requires no amount — AUTHIPAY always voids the full original amount
+        Ok(Self {
+            request_type: AuthipayRequestType::VoidTransaction,
+        })
+    }
+}
+
+// ===== VOIDPC RESPONSE TRANSFORMATION =====
+
+fn map_void_pc_status(
+    transaction_type: AuthipayTransactionType,
+    transaction_status: Option<AuthipayPaymentStatus>,
+    transaction_result: Option<AuthipayPaymentResult>,
+    transaction_state: Option<AuthipayTransactionState>,
+) -> common_enums::PostCaptureVoidStatus {
+    if transaction_type != AuthipayTransactionType::Void {
+        return common_enums::PostCaptureVoidStatus::Failed;
+    }
+
+    if let Some(state) = transaction_state {
+        match state {
+            AuthipayTransactionState::Voided => {
+                return common_enums::PostCaptureVoidStatus::Succeeded;
+            }
+            AuthipayTransactionState::Declined => {
+                return common_enums::PostCaptureVoidStatus::Failed;
+            }
+            AuthipayTransactionState::Pending | AuthipayTransactionState::Waiting => {
+                return common_enums::PostCaptureVoidStatus::Pending;
+            }
+            _ => {}
+        }
+    }
+
+    if let Some(result) = transaction_result {
+        return match result {
+            AuthipayPaymentResult::Approved => common_enums::PostCaptureVoidStatus::Succeeded,
+            AuthipayPaymentResult::Waiting | AuthipayPaymentResult::Partial => {
+                common_enums::PostCaptureVoidStatus::Pending
+            }
+            AuthipayPaymentResult::Declined
+            | AuthipayPaymentResult::Failed
+            | AuthipayPaymentResult::Fraud => common_enums::PostCaptureVoidStatus::Failed,
+        };
+    }
+
+    if let Some(status) = transaction_status {
+        return match status {
+            AuthipayPaymentStatus::Approved => common_enums::PostCaptureVoidStatus::Succeeded,
+            AuthipayPaymentStatus::Waiting | AuthipayPaymentStatus::Partial => {
+                common_enums::PostCaptureVoidStatus::Pending
+            }
+            AuthipayPaymentStatus::ValidationFailed
+            | AuthipayPaymentStatus::ProcessingFailed
+            | AuthipayPaymentStatus::Declined => common_enums::PostCaptureVoidStatus::Failed,
+        };
+    }
+
+    common_enums::PostCaptureVoidStatus::Pending
+}
+
+impl TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
+    for RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<AuthipayPaymentsResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let post_capture_void_status = map_void_pc_status(
+            item.response.transaction_type.clone(),
+            item.response.transaction_status.clone(),
+            item.response.transaction_result.clone(),
+            item.response.transaction_state.clone(),
+        );
+
+        let description = post_capture_void_status
+            .is_post_capture_void_failure()
+            .then(|| {
+                item.response.error_message.clone().or_else(|| {
+                    item.response
+                        .processor
+                        .as_ref()
+                        .and_then(|p| p.response_message.clone())
+                })
+            })
+            .flatten();
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status,
+                connector_reference_id: Some(item.response.ipg_transaction_id.clone()),
+                description,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
+}
+
 // ===== TYPE ALIASES FOR MACRO COMPATIBILITY =====
 // Each flow needs its own response type for the macro system
 // Even though they all use the same underlying AuthipayPaymentsResponse struct
 pub type AuthipayAuthorizeResponse = AuthipayPaymentsResponse;
 pub type AuthipaySyncResponse = AuthipayPaymentsResponse;
 pub type AuthipayVoidResponse = AuthipayPaymentsResponse;
+pub type AuthipayVoidPCResponse = AuthipayPaymentsResponse;
 pub type AuthipayCaptureResponse = AuthipayPaymentsResponse;
 pub type AuthipayRefundResponse = AuthipayPaymentsResponse;
 pub type AuthipayRefundSyncResponse = AuthipayPaymentsResponse;
@@ -1157,6 +1286,36 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn try_from(
         item: AuthipayRouterData<
             RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Self::try_from(&item.router_data)
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        AuthipayRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for AuthipayVoidPCRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: AuthipayRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
             T,
         >,
     ) -> Result<Self, Self::Error> {

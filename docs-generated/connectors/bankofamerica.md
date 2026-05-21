@@ -102,7 +102,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/bankofamerica/bankofamerica.py#L180) · [JavaScript](../../examples/bankofamerica/bankofamerica.js) · [Kotlin](../../examples/bankofamerica/bankofamerica.kt#L109) · [Rust](../../examples/bankofamerica/bankofamerica.rs#L226)
+**Examples:** [Python](../../examples/bankofamerica/bankofamerica.py#L182) · [JavaScript](../../examples/bankofamerica/bankofamerica.js) · [Kotlin](../../examples/bankofamerica/bankofamerica.kt#L110) · [Rust](../../examples/bankofamerica/bankofamerica.rs#L228)
 
 ### Card Payment (Authorize + Capture)
 
@@ -116,25 +116,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/bankofamerica/bankofamerica.py#L199) · [JavaScript](../../examples/bankofamerica/bankofamerica.js) · [Kotlin](../../examples/bankofamerica/bankofamerica.kt#L125) · [Rust](../../examples/bankofamerica/bankofamerica.rs#L242)
+**Examples:** [Python](../../examples/bankofamerica/bankofamerica.py#L201) · [JavaScript](../../examples/bankofamerica/bankofamerica.js) · [Kotlin](../../examples/bankofamerica/bankofamerica.kt#L126) · [Rust](../../examples/bankofamerica/bankofamerica.rs#L244)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/bankofamerica/bankofamerica.py#L224) · [JavaScript](../../examples/bankofamerica/bankofamerica.js) · [Kotlin](../../examples/bankofamerica/bankofamerica.kt#L147) · [Rust](../../examples/bankofamerica/bankofamerica.rs#L265)
+**Examples:** [Python](../../examples/bankofamerica/bankofamerica.py#L226) · [JavaScript](../../examples/bankofamerica/bankofamerica.js) · [Kotlin](../../examples/bankofamerica/bankofamerica.kt#L148) · [Rust](../../examples/bankofamerica/bankofamerica.rs#L267)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/bankofamerica/bankofamerica.py#L249) · [JavaScript](../../examples/bankofamerica/bankofamerica.js) · [Kotlin](../../examples/bankofamerica/bankofamerica.kt#L169) · [Rust](../../examples/bankofamerica/bankofamerica.rs#L288)
+**Examples:** [Python](../../examples/bankofamerica/bankofamerica.py#L251) · [JavaScript](../../examples/bankofamerica/bankofamerica.js) · [Kotlin](../../examples/bankofamerica/bankofamerica.kt#L170) · [Rust](../../examples/bankofamerica/bankofamerica.rs#L290)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/bankofamerica/bankofamerica.py#L271) · [JavaScript](../../examples/bankofamerica/bankofamerica.js) · [Kotlin](../../examples/bankofamerica/bankofamerica.kt#L188) · [Rust](../../examples/bankofamerica/bankofamerica.rs#L307)
+**Examples:** [Python](../../examples/bankofamerica/bankofamerica.py#L273) · [JavaScript](../../examples/bankofamerica/bankofamerica.js) · [Kotlin](../../examples/bankofamerica/bankofamerica.kt#L189) · [Rust](../../examples/bankofamerica/bankofamerica.rs#L309)
 
 ## API Reference
 
@@ -282,7 +282,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/bankofamerica/bankofamerica.py) · [TypeScript](../../examples/bankofamerica/bankofamerica.ts#L304) · [Kotlin](../../examples/bankofamerica/bankofamerica.kt#L206) · [Rust](../../examples/bankofamerica/bankofamerica.rs)
+**Examples:** [Python](../../examples/bankofamerica/bankofamerica.py) · [TypeScript](../../examples/bankofamerica/bankofamerica.ts#L306) · [Kotlin](../../examples/bankofamerica/bankofamerica.kt#L207) · [Rust](../../examples/bankofamerica/bankofamerica.rs)
 
 #### PaymentService.Capture
 
@@ -293,7 +293,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/bankofamerica/bankofamerica.py) · [TypeScript](../../examples/bankofamerica/bankofamerica.ts#L313) · [Kotlin](../../examples/bankofamerica/bankofamerica.kt#L218) · [Rust](../../examples/bankofamerica/bankofamerica.rs)
+**Examples:** [Python](../../examples/bankofamerica/bankofamerica.py) · [TypeScript](../../examples/bankofamerica/bankofamerica.ts#L315) · [Kotlin](../../examples/bankofamerica/bankofamerica.kt#L219) · [Rust](../../examples/bankofamerica/bankofamerica.rs)
 
 #### PaymentService.Get
 
@@ -304,7 +304,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/bankofamerica/bankofamerica.py) · [TypeScript](../../examples/bankofamerica/bankofamerica.ts#L322) · [Kotlin](../../examples/bankofamerica/bankofamerica.kt#L228) · [Rust](../../examples/bankofamerica/bankofamerica.rs)
+**Examples:** [Python](../../examples/bankofamerica/bankofamerica.py) · [TypeScript](../../examples/bankofamerica/bankofamerica.ts#L324) · [Kotlin](../../examples/bankofamerica/bankofamerica.kt#L229) · [Rust](../../examples/bankofamerica/bankofamerica.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -315,7 +315,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/bankofamerica/bankofamerica.py) · [TypeScript](../../examples/bankofamerica/bankofamerica.ts#L331) · [Kotlin](../../examples/bankofamerica/bankofamerica.kt#L236) · [Rust](../../examples/bankofamerica/bankofamerica.rs)
+**Examples:** [Python](../../examples/bankofamerica/bankofamerica.py) · [TypeScript](../../examples/bankofamerica/bankofamerica.ts#L333) · [Kotlin](../../examples/bankofamerica/bankofamerica.kt#L237) · [Rust](../../examples/bankofamerica/bankofamerica.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -326,7 +326,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/bankofamerica/bankofamerica.py) · [TypeScript](../../examples/bankofamerica/bankofamerica.ts#L340) · [Kotlin](../../examples/bankofamerica/bankofamerica.kt#L265) · [Rust](../../examples/bankofamerica/bankofamerica.rs)
+**Examples:** [Python](../../examples/bankofamerica/bankofamerica.py) · [TypeScript](../../examples/bankofamerica/bankofamerica.ts#L342) · [Kotlin](../../examples/bankofamerica/bankofamerica.kt#L267) · [Rust](../../examples/bankofamerica/bankofamerica.rs)
 
 #### PaymentService.Refund
 
@@ -337,7 +337,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/bankofamerica/bankofamerica.py) · [TypeScript](../../examples/bankofamerica/bankofamerica.ts#L349) · [Kotlin](../../examples/bankofamerica/bankofamerica.kt#L296) · [Rust](../../examples/bankofamerica/bankofamerica.rs)
+**Examples:** [Python](../../examples/bankofamerica/bankofamerica.py) · [TypeScript](../../examples/bankofamerica/bankofamerica.ts#L351) · [Kotlin](../../examples/bankofamerica/bankofamerica.kt#L299) · [Rust](../../examples/bankofamerica/bankofamerica.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -348,7 +348,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/bankofamerica/bankofamerica.py) · [TypeScript](../../examples/bankofamerica/bankofamerica.ts#L367) · [Kotlin](../../examples/bankofamerica/bankofamerica.kt#L318) · [Rust](../../examples/bankofamerica/bankofamerica.rs)
+**Examples:** [Python](../../examples/bankofamerica/bankofamerica.py) · [TypeScript](../../examples/bankofamerica/bankofamerica.ts#L369) · [Kotlin](../../examples/bankofamerica/bankofamerica.kt#L321) · [Rust](../../examples/bankofamerica/bankofamerica.rs)
 
 #### PaymentService.Void
 
@@ -359,7 +359,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/bankofamerica/bankofamerica.py) · [TypeScript](../../examples/bankofamerica/bankofamerica.ts) · [Kotlin](../../examples/bankofamerica/bankofamerica.kt#L357) · [Rust](../../examples/bankofamerica/bankofamerica.rs)
+**Examples:** [Python](../../examples/bankofamerica/bankofamerica.py) · [TypeScript](../../examples/bankofamerica/bankofamerica.ts) · [Kotlin](../../examples/bankofamerica/bankofamerica.kt#L360) · [Rust](../../examples/bankofamerica/bankofamerica.rs)
 
 ### Refunds
 
@@ -372,4 +372,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/bankofamerica/bankofamerica.py) · [TypeScript](../../examples/bankofamerica/bankofamerica.ts#L358) · [Kotlin](../../examples/bankofamerica/bankofamerica.kt#L306) · [Rust](../../examples/bankofamerica/bankofamerica.rs)
+**Examples:** [Python](../../examples/bankofamerica/bankofamerica.py) · [TypeScript](../../examples/bankofamerica/bankofamerica.ts#L360) · [Kotlin](../../examples/bankofamerica/bankofamerica.kt#L309) · [Rust](../../examples/bankofamerica/bankofamerica.rs)

@@ -16,6 +16,7 @@ import payments.RefundClient
 import payments.AcceptanceType
 import payments.AuthenticationType
 import payments.CaptureMethod
+import payments.CardNetwork
 import payments.Currency
 import payments.FutureUsage
 import payments.HttpMethod
@@ -308,6 +309,7 @@ fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
             cardExpYearBuilder.value = "2030"
             cardCvcBuilder.value = "123"
             cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            cardNetwork = CardNetwork.VISA
         }
         customerBuilder.apply {
             emailBuilder.value = "test@example.com"  // Customer's email address.
@@ -341,6 +343,7 @@ fun proxySetupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig)
             cardExpYearBuilder.value = "2030"
             cardCvcBuilder.value = "123"
             cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            cardNetwork = CardNetwork.VISA
         }
         customerBuilder.apply {
             emailBuilder.value = "test@example.com"  // Customer's email address.

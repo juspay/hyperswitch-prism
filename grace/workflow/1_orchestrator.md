@@ -170,6 +170,7 @@ Per-connector results:
 4. **Fix ONLY tests**: If test fails due to test bug → create fix branch, fix test. If fails due to real connector bug → report FAILED (don't fix connector code).
 5. **Fully autonomous**: Never ask questions. Make decisions and proceed.
 6. **Your subagent**: The **Test Suite Agent** (`3_test.md`). You can deploy multiple subagents within the "Test Suite Agent" subagent based on the requirement.
+7. **Do not assume suite chaining**: In hardening mode, suites such as `CreateOrder`, `Authorize`, and session-token flows may be standalone test entrypoints. Determine expected behavior from the actual suite request and latest report output, not from an assumed runtime chain.
 
 ---
 
@@ -206,7 +207,12 @@ pwd && ls crates/internal/integration-tests/README.md
 cargo build -p integration-tests
 # Check credentials exist
 cat creds.json | head -20
+# Clear stale listeners that can break grpc-server startup
+lsof -ti:8000 | xargs kill -9 2>/dev/null || true
+lsof -ti:8080 | xargs kill -9 2>/dev/null || true
 ```
+
+**Important startup note:** a stale listener on `8080` (metrics) can make `test-prism` look like it is failing readiness on `8000`. If startup fails, inspect and clear both ports before concluding the connector run is blocked.
 
 **Credentials Check (REQUIRED per connector):**
 
@@ -223,6 +229,8 @@ cat creds.json | head -20
 - Web: https://hyperswitch-prism-testing.netlify.app/
 - Latest JSON: https://integ.hyperswitch.io/connector-service/reports/grpc/report_latest.json
 
+**Debugging Test Failures:** See `grace/workflow/3_test.md` for detailed investigation procedures, common failure patterns, and debugging commands.
+
 ---
 
 ### STEP 2: PROCESS EACH CONNECTOR
@@ -232,6 +240,8 @@ For each connector in `CONNECTOR_LIST`, spawn ONE Test Suite Agent:
 ```
 delegate_task(
   subagent_type="general",
+  load_skills=[],
+  run_in_background=false,
   description="Run test suite for {CONNECTOR}",
   prompt="Read and follow the workflow defined in grace/workflow/3_test.md
 

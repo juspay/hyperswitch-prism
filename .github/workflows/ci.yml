@@ -720,12 +720,13 @@ jobs:
       - name: Evaluate CI results
         run: |
           echo "Job results:"
-          echo "  typos:       ${{ needs.typos.result }}"
-          echo "  formatting:  ${{ needs.formatting.result }}"
-          echo "  auto-fix:    ${{ needs.auto-fix.result }}"
-          echo "  check:       ${{ needs.check.result }}"
-          echo "  test:        ${{ needs.test.result }}"
-          echo "  sdk-test:    ${{ needs.sdk-test.result }}"
+          echo "  typos:         ${{ needs.typos.result }}"
+          echo "  clippy:        ${{ needs.clippy.result }}"
+          echo "  formatting:    ${{ needs.formatting.result }}"
+          echo "  auto-fix:      ${{ needs.auto-fix.result }}"
+          echo "  check:         ${{ needs.check.result }}"
+          echo "  test:          ${{ needs.test.result }}"
+          echo "  sdk-test:      ${{ needs.sdk-test.result }}"
           echo "  auto-fix pushed: ${{ needs.auto-fix.outputs.pushed }}"
           echo ""
 
@@ -738,6 +739,7 @@ jobs:
 
           results=(
             "${{ needs.typos.result }}"
+            "${{ needs.clippy.result }}"
             "${{ needs.formatting.result }}"
             "${{ needs.auto-fix.result }}"
             "${{ needs.check.result }}"

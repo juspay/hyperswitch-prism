@@ -15,6 +15,7 @@ import payments.EventClient
 import payments.RefundClient
 import payments.AuthenticationType
 import payments.CaptureMethod
+import payments.CardNetwork
 import payments.Currency
 import payments.HttpMethod
 import payments.ConnectorConfig
@@ -273,6 +274,7 @@ fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
             cardExpYearBuilder.value = "2030"
             cardCvcBuilder.value = "123"
             cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            cardNetwork = CardNetwork.VISA
         }
         addressBuilder.apply {
             billingAddressBuilder.apply {

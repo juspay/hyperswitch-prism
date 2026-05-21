@@ -16,7 +16,7 @@ include $(SDK_ROOT)/../common.mk
 GENERATED_OUT    := $(SDK_ROOT)/src/payments/generated
 PACKAGE_DIR      := $(ARTIFACTS_DIR)/sdk-python
 PACKAGE_NAME     := $(shell python3 -c "t = open('$(SDK_ROOT)/pyproject.toml').read(); print([l.split('=')[1].strip().strip('\"') for l in t.split('\n') if l.startswith('name =')][0])")
-PACKAGE_VERSION  := $(shell python3 -c "t = open('$(SDK_ROOT)/pyproject.toml').read(); print([l.split('=')[1].strip().strip('\"') for l in t.split('\n') if l.startswith('version =')][0])")
+PACKAGE_VERSION  := $(if $(VERSION),$(VERSION),$(shell python3 -c "t = open('$(SDK_ROOT)/pyproject.toml').read(); print([l.split('=')[1].strip().strip('\"') for l in t.split('\n') if l.startswith('version =')][0])"))
 WHEEL_FILE       := $(PACKAGE_DIR)/$(subst -,_,$(PACKAGE_NAME))-$(PACKAGE_VERSION)-py3-none-any.whl
 
 # Note: BINDGEN is defined in common.mk
@@ -123,7 +123,13 @@ pack-archive:
 	@mkdir -p $(PACKAGE_DIR)
 	@rm -f $(PACKAGE_DIR)/$(subst -,_,$(PACKAGE_NAME))-*.whl
 	@rm -rf $(SDK_ROOT)/build
+ifdef VERSION
+	@sed -i.bak 's/^version = .*/version = "$(VERSION)"/' $(SDK_ROOT)/pyproject.toml
+endif
 	@cd $(SDK_ROOT) && python3 -m pip wheel . --no-deps --wheel-dir $(PACKAGE_DIR)/
+ifdef VERSION
+	@mv $(SDK_ROOT)/pyproject.toml.bak $(SDK_ROOT)/pyproject.toml
+endif
 	@echo "Wheel built: $(WHEEL_FILE)"
 
 # ---------------------------------------------------------------------------

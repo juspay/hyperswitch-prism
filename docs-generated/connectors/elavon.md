@@ -131,7 +131,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/elavon/elavon.py#L115) · [JavaScript](../../examples/elavon/elavon.js) · [Kotlin](../../examples/elavon/elavon.kt#L105) · [Rust](../../examples/elavon/elavon.rs#L149)
+**Examples:** [Python](../../examples/elavon/elavon.py#L116) · [JavaScript](../../examples/elavon/elavon.js) · [Kotlin](../../examples/elavon/elavon.kt#L106) · [Rust](../../examples/elavon/elavon.rs#L150)
 
 ### Card Payment (Authorize + Capture)
 
@@ -145,19 +145,19 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/elavon/elavon.py#L134) · [JavaScript](../../examples/elavon/elavon.js) · [Kotlin](../../examples/elavon/elavon.kt#L121) · [Rust](../../examples/elavon/elavon.rs#L165)
+**Examples:** [Python](../../examples/elavon/elavon.py#L135) · [JavaScript](../../examples/elavon/elavon.js) · [Kotlin](../../examples/elavon/elavon.kt#L122) · [Rust](../../examples/elavon/elavon.rs#L166)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/elavon/elavon.py#L159) · [JavaScript](../../examples/elavon/elavon.js) · [Kotlin](../../examples/elavon/elavon.kt#L143) · [Rust](../../examples/elavon/elavon.rs#L188)
+**Examples:** [Python](../../examples/elavon/elavon.py#L160) · [JavaScript](../../examples/elavon/elavon.js) · [Kotlin](../../examples/elavon/elavon.kt#L144) · [Rust](../../examples/elavon/elavon.rs#L189)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/elavon/elavon.py#L184) · [JavaScript](../../examples/elavon/elavon.js) · [Kotlin](../../examples/elavon/elavon.kt#L165) · [Rust](../../examples/elavon/elavon.rs#L211)
+**Examples:** [Python](../../examples/elavon/elavon.py#L185) · [JavaScript](../../examples/elavon/elavon.js) · [Kotlin](../../examples/elavon/elavon.kt#L166) · [Rust](../../examples/elavon/elavon.rs#L212)
 
 ## API Reference
 
@@ -302,7 +302,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/elavon/elavon.py) · [TypeScript](../../examples/elavon/elavon.ts#L216) · [Kotlin](../../examples/elavon/elavon.kt#L183) · [Rust](../../examples/elavon/elavon.rs)
+**Examples:** [Python](../../examples/elavon/elavon.py) · [TypeScript](../../examples/elavon/elavon.ts#L217) · [Kotlin](../../examples/elavon/elavon.kt#L184) · [Rust](../../examples/elavon/elavon.rs)
 
 #### PaymentService.Capture
 
@@ -313,7 +313,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/elavon/elavon.py) · [TypeScript](../../examples/elavon/elavon.ts#L225) · [Kotlin](../../examples/elavon/elavon.kt#L195) · [Rust](../../examples/elavon/elavon.rs)
+**Examples:** [Python](../../examples/elavon/elavon.py) · [TypeScript](../../examples/elavon/elavon.ts#L226) · [Kotlin](../../examples/elavon/elavon.kt#L196) · [Rust](../../examples/elavon/elavon.rs)
 
 #### PaymentService.Get
 
@@ -324,7 +324,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/elavon/elavon.py) · [TypeScript](../../examples/elavon/elavon.ts#L234) · [Kotlin](../../examples/elavon/elavon.kt#L205) · [Rust](../../examples/elavon/elavon.rs)
+**Examples:** [Python](../../examples/elavon/elavon.py) · [TypeScript](../../examples/elavon/elavon.ts#L235) · [Kotlin](../../examples/elavon/elavon.kt#L206) · [Rust](../../examples/elavon/elavon.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -335,7 +335,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/elavon/elavon.py) · [TypeScript](../../examples/elavon/elavon.ts#L243) · [Kotlin](../../examples/elavon/elavon.kt#L213) · [Rust](../../examples/elavon/elavon.rs)
+**Examples:** [Python](../../examples/elavon/elavon.py) · [TypeScript](../../examples/elavon/elavon.ts#L244) · [Kotlin](../../examples/elavon/elavon.kt#L214) · [Rust](../../examples/elavon/elavon.rs)
 
 #### PaymentService.Refund
 
@@ -346,7 +346,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/elavon/elavon.py) · [TypeScript](../../examples/elavon/elavon.ts#L252) · [Kotlin](../../examples/elavon/elavon.kt#L241) · [Rust](../../examples/elavon/elavon.rs)
+**Examples:** [Python](../../examples/elavon/elavon.py) · [TypeScript](../../examples/elavon/elavon.ts#L253) · [Kotlin](../../examples/elavon/elavon.kt#L243) · [Rust](../../examples/elavon/elavon.rs)
 
 ### Refunds
 
@@ -359,4 +359,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/elavon/elavon.py) · [TypeScript](../../examples/elavon/elavon.ts#L261) · [Kotlin](../../examples/elavon/elavon.kt#L251) · [Rust](../../examples/elavon/elavon.rs)
+**Examples:** [Python](../../examples/elavon/elavon.py) · [TypeScript](../../examples/elavon/elavon.ts#L262) · [Kotlin](../../examples/elavon/elavon.kt#L253) · [Rust](../../examples/elavon/elavon.rs)

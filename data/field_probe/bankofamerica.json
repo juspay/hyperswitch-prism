@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for bankofamerica"
       }
     },
     "authorize": {
@@ -516,37 +517,44 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for bankofamerica"
       }
     },
     "create_customer": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for bankofamerica"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for bankofamerica"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for bankofamerica"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for bankofamerica"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for bankofamerica"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for bankofamerica"
       }
     },
     "dispute_get": {
@@ -556,7 +564,8 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for bankofamerica"
       }
     },
     "eligibility": {
@@ -598,7 +607,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for bankofamerica"
       }
     },
     "parse_event": {
@@ -608,12 +618,14 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for bankofamerica"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for bankofamerica"
       }
     },
     "proxy_authorize": {
@@ -630,7 +642,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "address": {
             "billing_address": {
@@ -654,7 +667,7 @@
             "v-c-merchant-id": "probe_merchant",
             "via": "HyperSwitch"
           },
-          "body": "{\"processingInformation\":{\"actionList\":null,\"actionTokenTypes\":null,\"authorizationOptions\":null,\"commerceIndicator\":\"internet\",\"capture\":true,\"captureOptions\":null,\"paymentSolution\":null},\"paymentInformation\":{\"card\":{\"number\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"123\",\"type\":\"001\"}},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":null,\"lastName\":null,\"address1\":null,\"locality\":null,\"country\":null,\"email\":\"test@example.com\"}},\"clientReferenceInformation\":{\"code\":\"probe_proxy_txn_001\"}}"
+          "body": "{\"processingInformation\":{\"actionList\":null,\"actionTokenTypes\":null,\"authorizationOptions\":null,\"commerceIndicator\":\"internet\",\"capture\":true,\"captureOptions\":null,\"paymentSolution\":null},\"paymentInformation\":{\"card\":{\"number\":\"{{$card_number}}\",\"expirationMonth\":\"{{$card_exp_month}}\",\"expirationYear\":\"{{$card_exp_year}}\",\"securityCode\":\"{{$card_cvc}}\",\"type\":\"001\"}},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":null,\"lastName\":null,\"address1\":null,\"locality\":null,\"country\":null,\"email\":\"test@example.com\"}},\"clientReferenceInformation\":{\"code\":\"probe_proxy_txn_001\"}}"
         }
       }
     },
@@ -672,7 +685,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "address": {
             "billing_address": {}
@@ -697,18 +711,20 @@
             "v-c-merchant-id": "probe_merchant",
             "via": "HyperSwitch"
           },
-          "body": "{\"processingInformation\":{\"actionList\":[\"TOKEN_CREATE\"],\"actionTokenTypes\":[\"paymentInstrument\",\"customer\"],\"authorizationOptions\":{\"initiator\":{\"type\":\"customer\",\"credentialStoredOnFile\":true,\"storedCredentialUsed\":null},\"merchantInitiatedTransaction\":null},\"commerceIndicator\":\"internet\",\"capture\":false,\"captureOptions\":null,\"paymentSolution\":null},\"paymentInformation\":{\"card\":{\"number\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"123\",\"type\":\"001\"}},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"0\",\"currency\":\"USD\"},\"billTo\":null},\"clientReferenceInformation\":{\"code\":\"probe_proxy_mandate_001\"}}"
+          "body": "{\"processingInformation\":{\"actionList\":[\"TOKEN_CREATE\"],\"actionTokenTypes\":[\"paymentInstrument\",\"customer\"],\"authorizationOptions\":{\"initiator\":{\"type\":\"customer\",\"credentialStoredOnFile\":true,\"storedCredentialUsed\":null},\"merchantInitiatedTransaction\":null},\"commerceIndicator\":\"internet\",\"capture\":false,\"captureOptions\":null,\"paymentSolution\":null},\"paymentInformation\":{\"card\":{\"number\":\"{{$card_number}}\",\"expirationMonth\":\"{{$card_exp_month}}\",\"expirationYear\":\"{{$card_exp_year}}\",\"securityCode\":\"{{$card_cvc}}\",\"type\":\"001\"}},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"0\",\"currency\":\"USD\"},\"billTo\":null},\"clientReferenceInformation\":{\"code\":\"probe_proxy_mandate_001\"}}"
         }
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for bankofamerica"
       }
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for bankofamerica"
       }
     },
     "refund": {
@@ -767,7 +783,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for bankofamerica"
       }
     },
     "setup_recurring": {
@@ -832,7 +849,8 @@
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bankofamerica"
       }
     },
     "verify_redirect": {

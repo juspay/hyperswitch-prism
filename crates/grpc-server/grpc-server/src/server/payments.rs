@@ -81,7 +81,7 @@ use grpc_api_types::payments::{
     RecurringPaymentServiceRevokeResponse, RefundResponse,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface};
-use injector::{TokenData, VaultConnectors};
+use injector::TokenData;
 use interfaces::{
     connector_integration_v2::BoxedConnectorIntegrationV2,
     verification::ConnectorSourceVerificationSecrets,
@@ -103,45 +103,41 @@ struct EventParams<'a> {
     resource_id: &'a Option<String>,
     shadow_mode: bool,
     tenant_id: &'a str,
+    merchant_id: &'a str,
 }
 
 /// Helper function for converting CardDetails to TokenData with structured types
 #[derive(Debug, serde::Serialize)]
 struct CardTokenData {
     card_number: String,
-    cvv: String,
-    exp_month: String,
-    exp_year: String,
+    card_cvc: String,
+    card_exp_month: String,
+    card_exp_year: String,
 }
 
 trait ToTokenData {
     fn to_token_data(&self) -> TokenData;
-    fn to_token_data_with_vault(&self, vault_connector: VaultConnectors) -> TokenData;
 }
 
 impl ToTokenData for grpc_api_types::payments::CardDetails {
     fn to_token_data(&self) -> TokenData {
-        self.to_token_data_with_vault(VaultConnectors::VGS)
-    }
-
-    fn to_token_data_with_vault(&self, vault_connector: VaultConnectors) -> TokenData {
         let card_data = CardTokenData {
             card_number: self
                 .card_number
                 .as_ref()
                 .map(|cn| cn.get_card_no())
                 .unwrap_or_default(),
-            cvv: self
+            card_cvc: self
                 .card_cvc
                 .as_ref()
                 .map(|cvc| cvc.clone().expose().to_string())
                 .unwrap_or_default(),
-            exp_month: self
+            card_exp_month: self
                 .card_exp_month
                 .as_ref()
                 .map(|em| em.clone().expose().to_string())
                 .unwrap_or_default(),
-            exp_year: self
+            card_exp_year: self
                 .card_exp_year
                 .as_ref()
                 .map(|ey| ey.clone().expose().to_string())
@@ -152,34 +148,29 @@ impl ToTokenData for grpc_api_types::payments::CardDetails {
 
         TokenData {
             specific_token_data: SecretSerdeValue::new(card_json),
-            vault_connector,
         }
     }
 }
 
 impl ToTokenData for grpc_api_types::payments::ProxyCardDetails {
     fn to_token_data(&self) -> TokenData {
-        self.to_token_data_with_vault(VaultConnectors::VGS) //?
-    }
-
-    fn to_token_data_with_vault(&self, vault_connector: VaultConnectors) -> TokenData {
         let card_data = CardTokenData {
             card_number: self
                 .card_number
                 .as_ref()
                 .map(|cn| cn.peek().to_owned())
                 .unwrap_or_default(),
-            cvv: self
+            card_cvc: self
                 .card_cvc
                 .as_ref()
                 .map(|cvc| cvc.clone().expose().to_string())
                 .unwrap_or_default(),
-            exp_month: self
+            card_exp_month: self
                 .card_exp_month
                 .as_ref()
                 .map(|em| em.clone().expose().to_string())
                 .unwrap_or_default(),
-            exp_year: self
+            card_exp_year: self
                 .card_exp_year
                 .as_ref()
                 .map(|ey| ey.clone().expose().to_string())
@@ -190,7 +181,6 @@ impl ToTokenData for grpc_api_types::payments::ProxyCardDetails {
 
         TokenData {
             specific_token_data: SecretSerdeValue::new(card_json),
-            vault_connector,
         }
     }
 }
@@ -419,6 +409,7 @@ impl CustomerService for Customer {
                         resource_id: &metadata_payload.resource_id,
                         shadow_mode: metadata_payload.shadow_mode,
                         tenant_id: &metadata_payload.tenant_id,
+                        merchant_id: metadata_payload.merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
                     };
 
@@ -547,6 +538,7 @@ impl Payments {
             resource_id: &metadata_payload.resource_id,
             shadow_mode: metadata_payload.shadow_mode,
             tenant_id: &metadata_payload.tenant_id,
+            merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
         };
 
@@ -667,6 +659,7 @@ impl Payments {
             resource_id: &metadata_payload.resource_id,
             shadow_mode: metadata_payload.shadow_mode,
             tenant_id: &metadata_payload.tenant_id,
+            merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
         };
 
@@ -1052,6 +1045,7 @@ impl PaymentService for Payments {
                         resource_id: &metadata_payload.resource_id,
                         shadow_mode: metadata_payload.shadow_mode,
                         tenant_id: &metadata_payload.tenant_id,
+                        merchant_id: metadata_payload.merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
                     };
 
@@ -2180,6 +2174,7 @@ impl PaymentMethod {
             resource_id: &metadata_payload.resource_id,
             shadow_mode: metadata_payload.shadow_mode,
             tenant_id: &metadata_payload.tenant_id,
+            merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
         };
 
@@ -2288,6 +2283,7 @@ impl MerchantAuthentication {
             resource_id: event_params.resource_id,
             shadow_mode: event_params.shadow_mode,
             tenant_id: event_params.tenant_id,
+            merchant_id: event_params.merchant_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
         };
 
@@ -2402,6 +2398,7 @@ impl MerchantAuthentication {
             resource_id: event_params.resource_id,
             shadow_mode: event_params.shadow_mode,
             tenant_id: event_params.tenant_id,
+            merchant_id: event_params.merchant_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
         };
 
@@ -2576,6 +2573,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         resource_id: &metadata_payload.resource_id,
                         shadow_mode: metadata_payload.shadow_mode,
                         tenant_id: &metadata_payload.tenant_id,
+                        merchant_id: metadata_payload.merchant_id.as_str(),
                     };
 
                     let session_response = Box::pin(self.handle_session_token(
@@ -2692,6 +2690,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         resource_id: &metadata_payload.resource_id,
                         shadow_mode: metadata_payload.shadow_mode,
                         tenant_id: &metadata_payload.tenant_id,
+                        merchant_id: metadata_payload.merchant_id.as_str(),
                     };
 
                     // Reuse the existing handle_access_token function which now uses
@@ -2808,34 +2807,60 @@ impl RecurringPaymentService for RecurringPayments {
                     ))
                     .map_err(|e| e.into_grpc_status())?;
 
-                    let payment_method_data_action = PaymentMethodDataAction::get_payment_method_data_action(payload.payment_method.clone().ok_or(tonic::Status::invalid_argument("missing request_details in the payload"))?)
-                        .map_err(|err| {
-                            tracing::error!("PAYMENT_CHARGE_FLOW: failed to get payment method data action - error: {:?}", err);
-                            tonic::Status::invalid_argument("Invalid payment method data")
-                        })?;
-                    let payment_method_data = match payment_method_data_action{
-                            PaymentMethodDataAction::Card(card_details) => {
-                            tracing::info!("REGULAR: Processing regular payment authorization (no injector)");
-                            let payment_method_data = payment_method_data::PaymentMethodData::Card(payment_method_data::Card::<DefaultPCIHolder>::foreign_try_from(card_details).map_err(|err| {
-                                tracing::error!("PAYMENT_CHARGE_FLOW: failed to get payment method data action - error: {:?}", err);
-                                tonic::Status::invalid_argument("Invalid payment method data")
-                            })?);
-                            Ok(payment_method_data)
-                        }
-                        PaymentMethodDataAction::Default => {
-                            tracing::info!("REGULAR: Processing regular payment authorization (no injector)");
-                            let payment_method_data = payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(payload.payment_method.clone().ok_or(tonic::Status::invalid_argument("missing request_details in the payload"))?)
+                    let payment_method_data = if let Some(payment_method) = payload.payment_method.clone() {
+                        let payment_method_data_action =
+                            PaymentMethodDataAction::get_payment_method_data_action(payment_method.clone())
                                 .map_err(|err| {
-                                    tracing::error!("Failed to convert payment method data: {:?}", err);
+                                    tracing::error!(
+                                        "PAYMENT_CHARGE_FLOW: failed to get payment method data action - error: {:?}",
+                                        err
+                                    );
+
                                     tonic::Status::invalid_argument("Invalid payment method data")
                                 })?;
-                            Ok(payment_method_data)
+
+                        tracing::info!("REGULAR: Processing regular payment authorization (no injector)");
+
+                        match payment_method_data_action {
+                            PaymentMethodDataAction::Card(card_details) => {
+                                Some(payment_method_data::PaymentMethodData::Card(
+                                    payment_method_data::Card::<DefaultPCIHolder>::foreign_try_from(
+                                        card_details,
+                                    )
+                                    .map_err(|err| {
+                                        tracing::error!(
+                                            "PAYMENT_CHARGE_FLOW: failed to convert card details - error: {:?}",
+                                            err
+                                        );
+
+                                        tonic::Status::invalid_argument("Invalid payment method data")
+                                    })?),
+                                )
+                            }
+
+                            PaymentMethodDataAction::Default => {
+                                Some(payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(
+                                    payment_method,
+                                )
+                                .map_err(|err| {
+                                    tracing::error!(
+                                        "Failed to convert payment method data: {:?}",
+                                        err
+                                    );
+
+                                    tonic::Status::invalid_argument("Invalid payment method data")
+                                })?)
+                            }
+
+                            PaymentMethodDataAction::CardProxy(_) => {
+                                return Err(tonic::Status::invalid_argument(
+                                    "Invalid payment method data",
+                                ));
+                            }
                         }
-                        PaymentMethodDataAction::CardProxy(_) =>{
-                            //when moved to internal fn, this would be available
-                            Err(tonic::Status::invalid_argument("Invalid payment method data"))
-                        }
-                    }?;
+                    } else {
+                        None
+                    };
 
                     // Create repeat payment data
                     let repeat_payment_data = RepeatPaymentData::foreign_try_from((payload.clone(), payment_method_data))
@@ -2878,6 +2903,7 @@ impl RecurringPaymentService for RecurringPayments {
                         resource_id: &metadata_payload.resource_id,
                         shadow_mode: metadata_payload.shadow_mode,
                         tenant_id: &metadata_payload.tenant_id,
+                        merchant_id: metadata_payload.merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
                     };
 

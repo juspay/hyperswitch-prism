@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "authenticate flow not supported by aci connector"
       }
     },
     "authorize": {
@@ -830,37 +831,44 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by aci connector"
       }
     },
     "create_customer": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by aci connector"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_order flow not supported by aci connector"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by aci connector"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by aci connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by aci connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by aci connector"
       }
     },
     "dispute_get": {
@@ -870,7 +878,8 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by aci connector"
       }
     },
     "eligibility": {
@@ -908,7 +917,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for aci"
       }
     },
     "parse_event": {
@@ -918,12 +928,14 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by aci connector"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by aci connector"
       }
     },
     "proxy_authorize": {
@@ -940,7 +952,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "address": {
             "billing_address": {
@@ -959,7 +972,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "entityId=probe_id&amount=10.00&currency=USD&paymentType=DB&card.number=4111111111111111&card.holder=John&card.expiryMonth=03&card.expiryYear=2030&card.cvv=123&shopperResultUrl=https%3A%2F%2Fexample.com%2Freturn"
+          "body": "entityId=probe_id&amount=10.00&currency=USD&paymentType=DB&card.number=%7B%7B%24card_number%7D%7D&card.holder=John&card.expiryMonth=%7B%7B%24card_exp_month%7D%7D&card.expiryYear=%7B%7B%24card_exp_year%7D%7D&card.cvv=%7B%7B%24card_cvc%7D%7D&paymentBrand=VISA&shopperResultUrl=https%3A%2F%2Fexample.com%2Freturn"
         }
       }
     },
@@ -977,7 +990,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "address": {
             "billing_address": {}
@@ -997,7 +1011,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "entityId=probe_id&card.number=4111111111111111&card.holder=John+Doe&card.expiryMonth=03&card.expiryYear=2030&card.cvv=123"
+          "body": "entityId=probe_id&paymentBrand=VISA&card.number=%7B%7B%24card_number%7D%7D&card.holder=John+Doe&card.expiryMonth=%7B%7B%24card_exp_month%7D%7D&card.expiryYear=%7B%7B%24card_exp_year%7D%7D&card.cvv=%7B%7B%24card_cvc%7D%7D&paymentBrand=VISA"
         }
       }
     },
@@ -1040,7 +1054,8 @@
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for aci"
       }
     },
     "refund": {
@@ -1070,12 +1085,14 @@
     },
     "refund_get": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "refund_sync flow not supported by aci connector"
       }
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for aci"
       }
     },
     "setup_recurring": {
@@ -1135,7 +1152,8 @@
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for aci"
       }
     },
     "verify_redirect": {

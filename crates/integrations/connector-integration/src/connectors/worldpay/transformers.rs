@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use common_enums as enums;
-use common_utils::{ext_traits::OptionExt, pii, types::MinorUnit, CustomResult};
+use common_utils::{ext_traits::OptionExt, fp_utils::when, pii, types::MinorUnit, CustomResult};
 use domain_types::{
     connector_flow::{Authorize, Capture, IncrementalAuthorization, Void},
     connector_types::{
@@ -84,25 +84,37 @@ fn fetch_payment_instrument<
 ) -> CustomResult<PaymentInstrument<T>, IntegrationError> {
     match payment_method {
         PaymentMethodData::Card(card) => {
-            // Extract expiry month and year using helper functions
-            let expiry_month_i8 = card.get_expiry_month_as_i8()?;
-            let expiry_year_4_digit = card.get_expiry_year_4_digit();
-            let expiry_year: i32 = expiry_year_4_digit
-                .peek()
+            let exp_month_str = card.card_exp_month.peek().to_string();
+            let exp_year_str = card.get_expiry_year_4_digit().peek().to_string();
+            when(
+                exp_month_str.contains("{{") || exp_year_str.contains("{{"),
+                || {
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: "Worldpay requires numeric expiry values; vault token placeholders are not supported for proxy flows".to_string(),
+                        connector: "Worldpay",
+                        context: Default::default(),
+                    }))
+                },
+            )?;
+            let expiry_month: i8 = exp_month_str
+                .parse::<i8>()
+                .change_context(IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
+                })?;
+            let expiry_year: i32 = exp_year_str
                 .parse::<i32>()
                 .change_context(IntegrationError::RequestEncodingFailed {
                     context: Default::default(),
                 })?;
-
             Ok(PaymentInstrument::Card(CardPayment {
                 raw_card_details: RawCardDetails {
                     payment_type: PaymentType::Plain,
                     expiry_date: ExpiryDate {
-                        month: expiry_month_i8,
-                        year: Secret::new(expiry_year)
-},
+                        month: Secret::new(expiry_month),
+                        year: Secret::new(expiry_year),
+                    },
                     card_number: card.card_number
-},
+                },
                 cvc: card.card_cvc,
                 card_holder_name: billing_address
                     .and_then(|address| address.get_optional_full_name()),
@@ -127,24 +139,36 @@ fn fetch_payment_instrument<
 }))
         }
         PaymentMethodData::CardDetailsForNetworkTransactionId(raw_card_details) => {
-            // Extract expiry month and year using helper functions
-            let expiry_month_i8 = raw_card_details.get_expiry_month_as_i8()?;
-            let expiry_year_4_digit = raw_card_details.get_expiry_year_4_digit();
-            let expiry_year: i32 = expiry_year_4_digit
-                .peek()
+            let exp_month_str = raw_card_details.card_exp_month.peek().to_string();
+            let exp_year_str = raw_card_details.get_expiry_year_4_digit().peek().to_string();
+            when(
+                exp_month_str.contains("{{") || exp_year_str.contains("{{"),
+                || {
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: "Worldpay requires numeric expiry values; vault token placeholders are not supported for proxy flows".to_string(),
+                        connector: "Worldpay",
+                        context: Default::default(),
+                    }))
+                },
+            )?;
+            let expiry_month: i8 = exp_month_str
+                .parse::<i8>()
+                .change_context(IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
+                })?;
+            let expiry_year: i32 = exp_year_str
                 .parse::<i32>()
                 .change_context(IntegrationError::RequestEncodingFailed {
                     context: Default::default(),
                 })?;
-
             Ok(PaymentInstrument::RawCardForNTI(RawCardDetails {
                 payment_type: PaymentType::Plain,
                 expiry_date: ExpiryDate {
-                    month: expiry_month_i8,
-                    year: Secret::new(expiry_year)
-},
+                    month: Secret::new(expiry_month),
+                    year: Secret::new(expiry_year),
+                },
                 card_number: RawCardNumber(raw_card_details.card_number)
-}))
+            }))
         }
         PaymentMethodData::MandatePayment => {
             Err(IntegrationError::NotImplemented("MandatePayment should not be used in Authorize flow - use RepeatPayment flow for MIT transactions".to_string() , Default::default()).into())

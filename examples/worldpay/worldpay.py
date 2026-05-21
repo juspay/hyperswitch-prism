@@ -12,7 +12,7 @@ from payments import RecurringPaymentClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "get", "incremental_authorization", "proxy_authorize", "recurring_charge", "refund", "refund_get", "void"]
+SUPPORTED_FLOWS = ["authorize", "capture", "get", "incremental_authorization", "recurring_charge", "refund", "refund_get", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -83,28 +83,6 @@ def _build_incremental_authorization_request():
             currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
         ),
         reason="incremental_auth_probe",  # Optional Fields.
-    )
-
-def _build_proxy_authorize_request():
-    return payment_pb2.PaymentServiceProxyAuthorizeRequest(
-        merchant_transaction_id="probe_proxy_txn_001",
-        amount=payment_pb2.Money(
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
-        ),
-        card_proxy=payment_methods_pb2.ProxyCardDetails(  # Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
-            card_number=payment_methods_pb2.SecretString(value="4111111111111111"),  # Card Identification.
-            card_exp_month=payment_methods_pb2.SecretString(value="03"),
-            card_exp_year=payment_methods_pb2.SecretString(value="2030"),
-            card_cvc=payment_methods_pb2.SecretString(value="123"),
-            card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
-        ),
-        address=payment_pb2.PaymentAddress(
-            billing_address=payment_pb2.Address(),
-        ),
-        capture_method=payment_pb2.CaptureMethod.Value("AUTOMATIC"),
-        auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),
-        return_url="https://example.com/return",
     )
 
 def _build_recurring_charge_request():
@@ -300,15 +278,6 @@ async def process_incremental_authorization(merchant_transaction_id: str, config
     incremental_response = await payment_client.incremental_authorization(_build_incremental_authorization_request())
 
     return {"status": incremental_response.status}
-
-
-async def process_proxy_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.ProxyAuthorize"""
-    payment_client = PaymentClient(config)
-
-    proxy_response = await payment_client.proxy_authorize(_build_proxy_authorize_request())
-
-    return {"status": proxy_response.status}
 
 
 async def process_recurring_charge(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
