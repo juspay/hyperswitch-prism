@@ -130,7 +130,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // ===== CONNECTOR CUSTOMER TRAIT IMPLEMENTATIONS =====
 // ===== MACRO PREREQUISITES =====
 // Define connector struct and bridge types for all flows
-
 macros::create_all_prerequisites!(
     connector_name: Authipay,
     generic_type: T,
