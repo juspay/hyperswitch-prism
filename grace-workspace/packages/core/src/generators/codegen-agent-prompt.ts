@@ -22,8 +22,8 @@ Implement the {FLOW} flow for {CONNECTOR} by following the detailed specificatio
 
 ## Phase 1: Read Implementation Instructions
 
-Read the implementation methodology from:
-/Users/tushar.shukla/Downloads/Work/euler-ucs/hyperswitch-prism/grace/workflow/2.3_codegen.md
+Read the implementation methodology from (relative to projectRoot):
+{WORKFLOW_PATH}
 
 Read ONLY "Phase 5: Implement" and "Phase 6-7: Build & Test Loop". Do NOT re-read Phase 4.
 
@@ -244,6 +244,15 @@ CRITICAL:
 - 3-strike rule enforced
 - 7 iteration maximum enforced
 - NEVER retry without code change`;
+
+/**
+ * Returns CODEGEN_AGENT_SYSTEM with {WORKFLOW_PATH} resolved to the per-session
+ * worktree's grace/workflow/2.3_codegen.md.
+ */
+export function resolveCodegenAgentSystem(projectRoot: string): string {
+  const workflowPath = `${projectRoot.replace(/\/+$/, "")}/grace/workflow/2.3_codegen.md`;
+  return CODEGEN_AGENT_SYSTEM.replace("{WORKFLOW_PATH}", workflowPath);
+}
 
 /**
  * Build the user payload for Codegen Agent

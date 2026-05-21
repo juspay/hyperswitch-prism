@@ -14,6 +14,50 @@ export interface TaskDefinition {
   acceptanceCriteria: string[];
   runner: "opencode" | "claude-code";
   runnerModel?: string;
+
+  // Optional fields populated by the New Integration wizard.
+  // Existing modals leave these undefined.
+  authScheme?: "APIKey" | "OAuth2" | "BasicAuth" | "Signature" | "JWT" | "Custom";
+  authDetails?: string;
+  authLocation?: "Header" | "Query" | "Body" | "Custom";
+  credentialFields?: string[];
+  currencyUnit?: "Minor" | "StringMinor" | "StringMajor" | "Base";
+  sandboxUrl?: string;
+  baseUrl?: string;
+  supportedFlows?: string[];
+  supportedPaymentMethodsByConnector?: Record<string, string[]>;
+  supports3DS?: boolean;
+  supportsWebhooks?: boolean;
+  supportsRecurring?: boolean;
+  openApiUrl?: string;
+  postmanCollectionUrl?: string;
+  integrationGuideUrl?: string;
+  sandboxCredentialsHint?: string;
+  webhookUrlPattern?: string;
+  regions?: string[];
+  supportedCurrencies?: string[];
+  connectorNotes?: string;
+  prerequisites?: string[];
+  estimatedComplexity?: "low" | "medium" | "high";
+  connectorDocs?: Array<{
+    connector: string;
+    urls: Array<{
+      title: string;
+      url: string;
+      type:
+        | "api_reference"
+        | "payment_method_guide"
+        | "authentication_guide"
+        | "webhooks_guide"
+        | "testing_guide"
+        | "error_reference";
+      verified?: boolean;
+    }>;
+  }>;
+  /** Pre-generated tech spec markdown from the wizard's auto-discovery. */
+  techSpecMarkdown?: string;
+  /** Verified backend doc URLs (grace 2.1 contract). */
+  discoveredConnectorUrls?: string[];
 }
 
 export interface SessionWithTaskInput {

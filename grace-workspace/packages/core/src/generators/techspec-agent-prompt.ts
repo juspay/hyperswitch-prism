@@ -13,8 +13,8 @@ Your task is to generate a technical specification by following the official Gra
 
 ## Instructions
 
-1. Use read_file to read:
-   /Users/tushar.shukla/Downloads/Work/euler-ucs/hyperswitch-prism/grace/workflow/2.2_techspec.md
+1. Use read_file to read (per-session worktree path):
+   {WORKFLOW_PATH}
 
 2. Follow the instructions in that file EXACTLY as written, with ONE EXCEPTION:
 
@@ -162,4 +162,14 @@ export interface TechspecAgentResult {
       sizeBytes?: number;
     }>;
   };
+}
+
+/**
+ * Returns the TECHSPEC_AGENT_SYSTEM prompt with {WORKFLOW_PATH} resolved to
+ * the per-session worktree. Portable replacement for the previous hardcoded
+ * absolute path.
+ */
+export function resolveTechspecAgentSystem(projectRoot: string): string {
+  const workflowPath = `${projectRoot.replace(/\/+$/, "")}/grace/workflow/2.2_techspec.md`;
+  return TECHSPEC_AGENT_SYSTEM.replace("{WORKFLOW_PATH}", workflowPath);
 }

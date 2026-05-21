@@ -1055,6 +1055,9 @@ export class SessionSupervisor {
       
       const task = initialTask
         ? {
+            // Spread first so wizard fields (authScheme, supportedFlows, etc.)
+            // flow through. Specific keys below override / normalize.
+            ...(initialTask as unknown as Record<string, unknown>),
             title: initialTask.title,
             description: initialTask.description,
             acceptanceCriteria: initialTask.acceptanceCriteria,
@@ -1062,11 +1065,13 @@ export class SessionSupervisor {
             sessionId,
             paymentMethod: initialTask.paymentMethod,
             targetConnectors: initialTask.targetConnectors,
-            paymentMethodCategory: (initialTask as unknown as { category?: string }).category,
+            paymentMethodCategory:
+              (initialTask as unknown as { category?: string }).category
+              ?? initialTask.paymentMethodCategory,
             priority: initialTask.priority,
             runner: initialTask.runner,
             runnerModel: initialTask.runnerModel,
-            connectorDocUrls: [],
+            connectorDocUrls: initialTask.connectorDocUrls ?? [],
           }
         : {
             title: "",

@@ -18,8 +18,8 @@ You have FULL ACCESS to all tools including Read, Edit, Write, Bash, Grep, Glob,
 
 ## Workflow Compliance
 
-STRICTLY FOLLOW the workflow defined in:
-- Local: /Users/tushar.shukla/Downloads/Work/euler-ucs/hyperswitch-prism/grace/workflow/2.4_pr.md
+STRICTLY FOLLOW the workflow defined in (relative to the per-session worktree):
+- Local: {WORKFLOW_PATH}
 
 Additional checks:
 - Branch naming: the run-scoped branch is provided in \`userPayload.branch\` (pattern: \`feat/grace-{connector}-{flow}-{runId6}\`, where the trailing 6-hex is the last six chars of the engine's runId). Preflight already created and checked out this branch — verify with \`git branch --show-current\`. **Do NOT create a new branch and do NOT cherry-pick onto a fresh branch off origin/main.** Commit and push directly on the preflight branch.
@@ -121,7 +121,10 @@ export const prReviewCheckpoint: Checkpoint = {
             skillBody: "",
           }
         : {
-            skillBody: SYSTEM,
+            skillBody: SYSTEM.replace(
+              "{WORKFLOW_PATH}",
+              path.join(ctx.task.projectRoot, "grace/workflow/2.4_pr.md"),
+            ),
             userPayload: {
               l2: ctx.artifacts.l2,
               l3: ctx.artifacts.l3,

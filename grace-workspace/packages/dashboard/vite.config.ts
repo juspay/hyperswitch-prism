@@ -404,7 +404,119 @@ function parityApiPlugin(): Plugin {
   };
 }
 
+// --- Connector discovery API ---------------------------------------------
+//
+// POST /api/discover-connector            { name } -> blocking; returns DiscoveryResult
+// POST /api/discover-connector/cancel/:id -> aborts an in-flight call
+//
+// v1 is synchronous (single long-lived HTTP request, no SSE). The wizard
+// shows a spinner in Step 2 while the request is in flight.
+
+interface DiscoveryJobState {
+  abortController: AbortController;
+  startedAt: number;
+  connectorName: string;
+}
+
+function connectorDiscoveryPlugin(): Plugin {
+  const activeJobs = new Map<string, DiscoveryJobState>();
+
+  return {
+    name: "connector-discovery-api",
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        if (!req.url) return next();
+        const url = new URL(req.url, "http://localhost");
+        const path = url.pathname;
+
+        // Cancel an in-flight discovery.
+        const cancelMatch = path.match(/^\/api\/discover-connector\/cancel\/(.+)$/);
+        if (cancelMatch && req.method === "POST") {
+          const id = cancelMatch[1];
+          const job = activeJobs.get(id);
+          if (job) job.abortController.abort();
+          res.statusCode = 200;
+          res.setHeader("content-type", "application/json");
+          res.end(JSON.stringify({ ok: true, jobId: id, cancelled: !!job }));
+          return;
+        }
+
+        // Run discovery.
+        if (path === "/api/discover-connector" && req.method === "POST") {
+          let body: { name?: string; model?: string } = {};
+          try {
+            body = await readJsonBody(req);
+          } catch {
+            res.statusCode = 400;
+            res.setHeader("content-type", "application/json");
+            res.end(JSON.stringify({ error: "invalid JSON body" }));
+            return;
+          }
+          const name = body.name?.trim();
+          if (!name) {
+            res.statusCode = 400;
+            res.setHeader("content-type", "application/json");
+            res.end(JSON.stringify({ error: "missing 'name'" }));
+            return;
+          }
+
+          const jobId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          const abortController = new AbortController();
+          activeJobs.set(jobId, {
+            abortController,
+            startedAt: Date.now(),
+            connectorName: name,
+          });
+
+          // Lazy-import @10xgrace/core so vite.config.ts doesn't pay the cost
+          // until someone actually triggers discovery, and ESM resolution
+          // happens at request time (after `pnpm build` of core).
+          try {
+            const coreModuleUrl = pathToFileURL(
+              resolve(WORKSPACE_ROOT, "packages/core/dist/index.js"),
+            ).href;
+            const mod = (await import(/* @vite-ignore */ coreModuleUrl)) as {
+              discoverConnector: (opts: {
+                connectorName: string;
+                model?: string;
+                onProgress?: (msg: string) => void;
+              }) => Promise<unknown>;
+            };
+
+            const result = await mod.discoverConnector({
+              connectorName: name,
+              model: body.model,
+              onProgress: (msg) => {
+                // v1: log on the server side; client polling could pick this up later.
+                process.stdout.write(`[discover ${jobId}] ${msg}\n`);
+              },
+            });
+
+            activeJobs.delete(jobId);
+            res.statusCode = 200;
+            res.setHeader("content-type", "application/json");
+            res.setHeader("x-job-id", jobId);
+            res.end(JSON.stringify({ jobId, result }));
+          } catch (err) {
+            activeJobs.delete(jobId);
+            res.statusCode = 500;
+            res.setHeader("content-type", "application/json");
+            res.end(JSON.stringify({
+              jobId,
+              error: (err as Error).message ?? String(err),
+              cancelled: abortController.signal.aborted,
+            }));
+          }
+          return;
+        }
+
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), parityApiPlugin()],
+  plugins: [react(), parityApiPlugin(), connectorDiscoveryPlugin()],
   server: { port: 3141 },
 });

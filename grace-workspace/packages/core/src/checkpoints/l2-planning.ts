@@ -7,15 +7,19 @@ import {
 import { L2_SYSTEM, buildL2User } from "../generators/l2-prompt.js";
 import {
   LINKS_AGENT_SYSTEM,
+  resolveLinksAgentSystem,
   buildLinksAgentUserPayload,
   type LinksAgentResult,
 } from "../generators/links-agent-prompt.js";
 import {
   TECHSPEC_AGENT_SYSTEM,
+  resolveTechspecAgentSystem,
   buildTechspecAgentUserPayload,
   type TechspecAgentResult,
 } from "../generators/techspec-agent-prompt.js";
 import { parseTechspecToL2 } from "../generators/techspec-parser.js";
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
 
 function valid(spec: unknown): spec is L2Plan {
   if (!spec || typeof spec !== "object") return false;
@@ -107,6 +111,79 @@ export const l2PlanningCheckpoint: Checkpoint = {
     };
 
     // ═══════════════════════════════════════════════════════════════════════
+    // PHASE 0 (short-circuit): If a pre-generated tech spec exists on disk
+    // at the canonical grace path (typically written by the wizard via
+    // preflight), parse it directly and skip BOTH Links + Tech Spec agents.
+    // Saves 5-20 minutes of LLM time per session.
+    // ═══════════════════════════════════════════════════════════════════════
+    if (connector !== "Unknown" && projectRoot) {
+      const canonicalSpecPath = path.join(
+        projectRoot,
+        "grace",
+        "rulesbook",
+        "codegen",
+        "references",
+        "specs",
+        `${connector}.md`,
+      );
+      if (existsSync(canonicalSpecPath)) {
+        ctx.log(
+          `[l2_planning] ✓ Pre-existing tech spec at ${canonicalSpecPath} — short-circuiting both phases`,
+          "success",
+        );
+        try {
+          const specContent = readFileSync(canonicalSpecPath, "utf-8");
+          const l2Plan = parseTechspecToL2(specContent, connector, paymentMethod);
+          // Attach the raw markdown so downstream checkpoints can reference it.
+          l2Plan.specContent = specContent;
+          l2Plan.generationLog = {
+            workflowExecutions: [
+              {
+                phase: "techspec_generation",
+                workflowFile: "wizard-pregenerated",
+                readAt: new Date().toISOString(),
+                output: `parsed from ${canonicalSpecPath}`,
+                status: "success",
+              },
+            ],
+            webSearchQueries: [],
+            filesCreated: [
+              {
+                path: canonicalSpecPath,
+                description: "Pre-generated tech spec from wizard",
+                sizeBytes: specContent.length,
+              },
+            ],
+            commandsExecuted: [],
+          };
+          if (valid(l2Plan)) {
+            ctx.log(
+              `[l2_planning] ✓ L2Plan parsed from existing spec (${specContent.length} chars)`,
+              "success",
+            );
+            return {
+              passed: true,
+              artifacts: {
+                l2: l2Plan,
+                l2ShortCircuit: true,
+              },
+            };
+          }
+          ctx.log(
+            `[l2_planning] Existing spec failed validation; falling back to LLM generation`,
+            "warn",
+          );
+        } catch (parseErr) {
+          const msg = parseErr instanceof Error ? parseErr.message : String(parseErr);
+          ctx.log(
+            `[l2_planning] Could not parse existing spec (${msg}); falling back to LLM generation`,
+            "warn",
+          );
+        }
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
     // PHASE 1: Links Agent - Discover documentation URLs
     // ═══════════════════════════════════════════════════════════════════════
     ctx.log("[l2_planning] ╔═══════════════════════════════════════════════════════╗", "info");
@@ -151,7 +228,7 @@ export const l2PlanningCheckpoint: Checkpoint = {
             skillBody: "", // ignored when incremental
           }
         : {
-            skillBody: LINKS_AGENT_SYSTEM,
+            skillBody: resolveLinksAgentSystem(projectRoot),
             userPayload: linksPayload,
             preferredSessionId: linksDerived,
           };
@@ -267,7 +344,7 @@ export const l2PlanningCheckpoint: Checkpoint = {
             skillBody: "",
           }
         : {
-            skillBody: TECHSPEC_AGENT_SYSTEM,
+            skillBody: resolveTechspecAgentSystem(projectRoot),
             userPayload: techspecPayload,
             preferredSessionId: techspecDerived,
           };

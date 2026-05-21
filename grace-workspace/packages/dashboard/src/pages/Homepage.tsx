@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSessions, type SessionRecord } from "../hooks/useSessions";
 import { UnifiedCreateSessionModal } from "../components/UnifiedCreateSessionModal";
+import { NewIntegrationWizard } from "../components/NewIntegrationWizard";
 import { SidebarLayout } from "../components/NavigationSidebar";
 import { T } from "../theme";
 import type { SessionWithTaskInput } from "../components/UnifiedCreateSessionModal";
@@ -26,6 +27,7 @@ export function Homepage() {
   } = useSessions(CONTROL_WS_URL);
   const navigate = useNavigate();
   const [showCreate, setShowCreate] = useState(false);
+  const [showIntegrationWizard, setShowIntegrationWizard] = useState(false);
   const [pendingCreateName, setPendingCreateName] = useState<string | null>(null);
   const [shouldAutoStart, setShouldAutoStart] = useState(false);
 
@@ -126,6 +128,13 @@ export function Homepage() {
         </div>
       )}
 
+      <section style={{ padding: "24px 32px 0" }}>
+        <NewIntegrationCTA
+          onClick={() => setShowIntegrationWizard(true)}
+          disabled={controlStatus !== "open"}
+        />
+      </section>
+
       <section style={{ padding: "24px 32px" }}>
         <h2 style={sectionTitleStyle}>Active</h2>
         <div style={gridStyle}>
@@ -154,6 +163,32 @@ export function Homepage() {
           </div>
         </section>
       )}
+
+        {showIntegrationWizard && (
+          <NewIntegrationWizard
+            defaultSourcePath={defaultProjectRoot}
+            wsConnected={controlStatus === "open"}
+            onClose={() => setShowIntegrationWizard(false)}
+            onSubmit={async (input: SessionWithTaskInput) => {
+              setPendingCreateName(input.name);
+              createSession(input);
+              // Wait for session to appear, then start engine.
+              const checkAndStart = setInterval(async () => {
+                const newSession = sessions.find(
+                  (s) => s.name === input.name && s.status === "idle",
+                );
+                if (newSession) {
+                  clearInterval(checkAndStart);
+                  await startSession(newSession.sessionId);
+                  navigate(`/sessions/${newSession.sessionId}`, {
+                    state: { autostart: true },
+                  });
+                }
+              }, 500);
+              setTimeout(() => clearInterval(checkAndStart), 10000);
+            }}
+          />
+        )}
 
         {showCreate && (
           <UnifiedCreateSessionModal
@@ -248,6 +283,75 @@ function SessionCard({
         {session.wsPort != null && <span>ws {session.wsPort}</span>}
       </div>
     </div>
+  );
+}
+
+function NewIntegrationCTA({
+  onClick,
+  disabled,
+}: {
+  onClick: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        width: "100%",
+        background: `linear-gradient(135deg, ${T.bgRightHeader}, ${T.accentSoft})`,
+        border: `1px solid ${T.borderStrong}`,
+        borderRadius: 12,
+        padding: "20px 24px",
+        cursor: disabled ? "not-allowed" : "pointer",
+        textAlign: "left",
+        boxShadow: T.shadow,
+        opacity: disabled ? 0.55 : 1,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 16,
+      }}
+    >
+      <div>
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: T.accent,
+            textTransform: "uppercase",
+            letterSpacing: 1,
+            marginBottom: 6,
+          }}
+        >
+          New
+        </div>
+        <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: T.text }}>
+          Integrate a new connector
+        </h3>
+        <p
+          style={{
+            margin: "4px 0 0",
+            fontSize: 13,
+            color: T.textMuted,
+            lineHeight: 1.45,
+          }}
+        >
+          Guided wizard: collects auth scheme, supported flows, payment methods,
+          docs, and currency unit — then runs the full pipeline (preflight → L2 →
+          L3 → implementation → compiler → grpc_test → PR review).
+        </p>
+      </div>
+      <div
+        style={{
+          fontSize: 24,
+          color: T.accent,
+          padding: "0 8px",
+        }}
+      >
+        →
+      </div>
+    </button>
   );
 }
 

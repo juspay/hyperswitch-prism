@@ -13,8 +13,8 @@ Your task is to find, verify, and store official API documentation links for int
 
 ## Instructions
 
-Read the workflow guidance from:
-/Users/tushar.shukla/Downloads/Work/euler-ucs/hyperswitch-prism/grace/workflow/2.1_links.md
+Read the workflow guidance from (relative to the per-session worktree):
+{WORKFLOW_PATH}
 
 **IMPORTANT: SKIP the "Context Loading" section** (it references files like data/connectors.json, data/features.json, src/App.tsx which are not available in this environment).
 
@@ -138,6 +138,17 @@ export function buildLinksAgentUserPayload(
         }
       : undefined,
   };
+}
+
+/**
+ * Returns the LINKS_AGENT_SYSTEM prompt with {WORKFLOW_PATH} resolved to the
+ * per-session worktree. Each session's worktree contains
+ * `grace/workflow/2.1_links.md` because preflight branches off the source repo
+ * which has it. Portable replacement for the previous hardcoded absolute path.
+ */
+export function resolveLinksAgentSystem(projectRoot: string): string {
+  const workflowPath = `${projectRoot.replace(/\/+$/, "")}/grace/workflow/2.1_links.md`;
+  return LINKS_AGENT_SYSTEM.replace("{WORKFLOW_PATH}", workflowPath);
 }
 
 /**

@@ -23,3 +23,13 @@ export type { AIRunOptions, AIHealthResult, RunnerInterface } from "./tools/runn
 
 // PR Resolver exports
 export * from "./pr-resolver/index.js";
+
+// Wizard-side connector discovery
+export { discoverConnector } from "./discovery/connector-discovery.js";
+export type {
+  DiscoveryResult,
+  DiscoveryFields,
+  DiscoveryField,
+  DiscoverConnectorOptions,
+  Confidence,
+} from "./discovery/connector-discovery.js";

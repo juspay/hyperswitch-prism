@@ -17,7 +17,27 @@ export type CheckpointId =
   | "cypress"
   | "playwright"
   | "pr_review"
+  | "test_suite"
   | "regression";
+
+/**
+ * Result emitted by the test_suite checkpoint (implements grace/workflow/3_test.md).
+ * - HARDENED: all tests passed after any positive-override fixes
+ * - FAILED: tests failed and could not be fixed by override edits
+ * - SKIPPED: no credentials in creds.json for this connector
+ * - REPORT_TO_MASTER: real bug detected (NOT a test bug); pipeline does not modify code
+ * - CREDENTIALS_FIXED: creds.json shape was corrected; rerun likely succeeds
+ */
+export interface TestSuiteResult {
+  status: "HARDENED" | "FAILED" | "SKIPPED" | "REPORT_TO_MASTER" | "CREDENTIALS_FIXED";
+  reason?: string;
+  /** Commit hash of the override-fix branch, if any. */
+  fixCommit?: string;
+  /** PR opened with override fixes (when status is HARDENED via positive overrides). */
+  prUrl?: string;
+  /** Connector name as passed to test-prism. */
+  connector?: string;
+}
 
 export type CheckpointStatus =
   | "idle"
@@ -212,6 +232,77 @@ export interface TaskDefinition {
    * GRACE: Estimated complexity
    */
   estimatedComplexity?: "low" | "medium" | "high";
+
+  // ========== NEW-CONNECTOR WIZARD FIELDS ==========
+  // Added by the "New Integration" wizard. All optional — existing creation
+  // flows (TaskForm, UnifiedCreateSessionModal) ignore them. Enums lifted
+  // verbatim from grace/rulesbook/codegen/guides/workflow_selection.md so the
+  // Rust scaffolding macros (`create_all_prerequisites!`) match.
+
+  /** Auth scheme used by the connector. */
+  authScheme?: "APIKey" | "OAuth2" | "BasicAuth" | "Signature" | "JWT" | "Custom";
+  /** Free-text auth notes (signing algo, header format, oauth flow choice). */
+  authDetails?: string;
+  /** Where credentials are placed on requests. */
+  authLocation?: "Header" | "Query" | "Body" | "Custom";
+  /** Credential field names the connector needs in creds.json. */
+  credentialFields?: string[];
+
+  /**
+   * Rust amount-handling currency unit. Load-bearing for codegen — wrong
+   * choice breaks every TryFrom in transformers.rs.
+   */
+  currencyUnit?: "Minor" | "StringMinor" | "StringMajor" | "Base";
+
+  /** Sandbox/test base URL (distinct from production baseUrl). */
+  sandboxUrl?: string;
+  /** Production base URL. */
+  baseUrl?: string;
+
+  /** Supported flows (subset of grace's canonical 19). */
+  supportedFlows?: string[];
+  /** Per-connector PM map — categories from grace's PM_CATEGORIES. */
+  supportedPaymentMethodsByConnector?: Record<string, string[]>;
+
+  /** Toggles that gate which flows must be supported. */
+  supports3DS?: boolean;
+  supportsWebhooks?: boolean;
+  supportsRecurring?: boolean;
+
+  /** Highest-quality doc sources. If present, L2 skips web search. */
+  openApiUrl?: string;
+  postmanCollectionUrl?: string;
+  integrationGuideUrl?: string;
+
+  /** Sandbox credential hints for grpc_test. */
+  sandboxCredentialsHint?: string;
+  /** Webhook URL pattern, e.g. "POST {baseUrl}/webhooks/{event}". */
+  webhookUrlPattern?: string;
+  /** Region codes: US, EU, UK, APAC, LATAM, MEA, Global. */
+  regions?: string[];
+  /** ISO currency codes supported. */
+  supportedCurrencies?: string[];
+  /** Free-text quirks: idempotency, rate limits, weird mappings. */
+  connectorNotes?: string;
+
+  /**
+   * Pre-generated tech spec markdown supplied by the wizard's auto-discovery.
+   * When set, preflight writes this content to
+   * `<projectRoot>/grace/rulesbook/codegen/references/specs/{ConnectorName}.md`
+   * and L2_planning short-circuits both Links + Tech Spec agents by parsing
+   * the existing file. Skips 5-20 min of LLM time per session.
+   */
+  techSpecMarkdown?: string;
+
+  /**
+   * Verified backend documentation URLs discovered by the wizard (matches
+   * grace/workflow/2.1_links.md output contract). When set, preflight merges
+   * these into `<projectRoot>/data/integration-source-links.json` keyed by
+   * connector name, preserving other connectors' entries. Downstream tools
+   * (the actual grace techspec CLI, L2's Links Agent) read this canonical
+   * file rather than re-doing web discovery.
+   */
+  discoveredConnectorUrls?: string[];
 
   /**
    * 10XGRACE: Requirements discovery results
@@ -772,6 +863,8 @@ export interface PipelineArtifacts {
   cypressReport?: TestReport;
   playwrightReport?: TestReport;
   prReview?: PRReviewResult;
+  /** test_suite checkpoint result (HARDENED/FAILED/SKIPPED per 3_test.md). */
+  testSuite?: TestSuiteResult;
   l2RegeneratePrompt?: string;
   l3RegeneratePrompt?: string;
   previousL2?: L2Plan;

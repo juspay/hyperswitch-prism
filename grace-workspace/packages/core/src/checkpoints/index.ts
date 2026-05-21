@@ -13,6 +13,7 @@ import { compilerCheckpoint } from "./compiler.js";
 // REMOVED: import { compilerCheckCheckpoint } from "./compiler-check.js";
 import { grpcTestCheckpoint } from "./grpc-test.js";
 import { prReviewCheckpoint } from "./pr-review.js";
+import { testSuiteCheckpoint } from "./test-suite.js";
 import { regressionCheckpoint } from "./regression.js";
 
 // Grace 2.3_codegen.md workflow: task → preflight → L2_planning → L3_analysis → implementation → compiler_check → grpc_test
@@ -31,5 +32,8 @@ export const ALL_CHECKPOINTS: Checkpoint[] = [
   // REMOVED: compilerCheckCheckpoint,
   grpcTestCheckpoint,
   prReviewCheckpoint,
+  // 3_test.md — hardening via test-prism + positive-override fix loop.
+  // Soft-fails (continueOnFailure) so it never blocks a PR that's already up.
+  testSuiteCheckpoint,
   regressionCheckpoint,
 ];

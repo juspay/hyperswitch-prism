@@ -277,7 +277,7 @@ export const l3AnalysisCheckpoint: Checkpoint = {
       flow,
       techSpecPath,
       projectRoot,
-      "/Users/tushar.shukla/Downloads/Work/euler-ucs/hyperswitch-prism/grace/workflow/2.3_codegen.md",
+      path.join(projectRoot, "grace/workflow/2.3_codegen.md"),
       l2,
       options,
       task.description,

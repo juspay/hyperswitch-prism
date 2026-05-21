@@ -1,6 +1,6 @@
 import type { Checkpoint } from "../types.js";
 import { execSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 export const preflightCheckpoint: Checkpoint = {
@@ -116,6 +116,94 @@ export const preflightCheckpoint: Checkpoint = {
             ctx.log(
               `[preflight] Could not template development.toml: ${tomlErr instanceof Error ? tomlErr.message : String(tomlErr)}`,
               "warn"
+            );
+          }
+        }
+      }
+
+      // If the wizard supplied a pre-generated tech spec, write it to the
+      // canonical grace location so L2_planning can short-circuit both its
+      // LLM phases. We use the connector name as the filename (matching the
+      // `generate-tech-spec` skill's output path).
+      if (task.techSpecMarkdown && typeof task.techSpecMarkdown === "string") {
+        const rawName = task.targetConnectors?.[0]?.trim();
+        if (rawName) {
+          const specDir = path.join(
+            projectRoot,
+            "grace",
+            "rulesbook",
+            "codegen",
+            "references",
+            "specs",
+          );
+          try {
+            mkdirSync(specDir, { recursive: true });
+            const specPath = path.join(specDir, `${rawName}.md`);
+            writeFileSync(specPath, task.techSpecMarkdown, "utf-8");
+            ctx.log(
+              `[preflight] wrote pre-generated tech spec to ${specPath} (${task.techSpecMarkdown.length} chars)`,
+              "info",
+            );
+          } catch (specErr) {
+            // Non-fatal: L2 will fall back to its normal LLM-driven generation.
+            const msg = specErr instanceof Error ? specErr.message : String(specErr);
+            ctx.log(
+              `[preflight] could not write tech spec: ${msg} (L2 will generate it instead)`,
+              "warn",
+            );
+          }
+        }
+      }
+
+      // Merge wizard-discovered verified URLs into the canonical grace 2.1
+      // output file at `<projectRoot>/data/integration-source-links.json`.
+      // Shape: `{ [ConnectorName]: ["url1", "url2", ...] }` — matches what
+      // grace/workflow/2.1_links.md Phase 3 mandates. Preserves any pre-existing
+      // entries for other connectors.
+      if (
+        task.discoveredConnectorUrls &&
+        Array.isArray(task.discoveredConnectorUrls) &&
+        task.discoveredConnectorUrls.length > 0
+      ) {
+        const rawName = task.targetConnectors?.[0]?.trim();
+        if (rawName) {
+          const dataDir = path.join(projectRoot, "data");
+          const linksPath = path.join(dataDir, "integration-source-links.json");
+          try {
+            mkdirSync(dataDir, { recursive: true });
+            let existing: Record<string, string[]> = {};
+            if (existsSync(linksPath)) {
+              try {
+                const raw = readFileSync(linksPath, "utf-8");
+                const parsed = JSON.parse(raw);
+                if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                  existing = parsed as Record<string, string[]>;
+                }
+              } catch {
+                // If existing file is malformed, overwrite it rather than block.
+              }
+            }
+            // Dedupe + preserve order.
+            const seen = new Set<string>();
+            const merged: string[] = [];
+            for (const url of task.discoveredConnectorUrls) {
+              if (typeof url !== "string") continue;
+              const trimmed = url.trim();
+              if (!trimmed || seen.has(trimmed)) continue;
+              seen.add(trimmed);
+              merged.push(trimmed);
+            }
+            existing[rawName] = merged;
+            writeFileSync(linksPath, JSON.stringify(existing, null, 2), "utf-8");
+            ctx.log(
+              `[preflight] merged ${merged.length} verified URL(s) into ${linksPath} under "${rawName}"`,
+              "info",
+            );
+          } catch (linksErr) {
+            const msg = linksErr instanceof Error ? linksErr.message : String(linksErr);
+            ctx.log(
+              `[preflight] could not write integration-source-links.json: ${msg}`,
+              "warn",
             );
           }
         }
