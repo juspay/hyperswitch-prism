@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import dotenv from "dotenv";
 import YAML from "yaml";
@@ -59,6 +60,91 @@ export interface ClaudeCodeConfig {
   extraArgs: string[];
 }
 
+/**
+ * PR Resolver — polls GitHub for review comments tagged with `trigger`,
+ * groups them by connector, then drives Claude through Byne's
+ * `runClaudeCode` runner to make the edits and run a cargo build/clippy
+ * fix-loop. See `packages/core/src/pr-resolver/` for the implementation
+ * and `grace/pr-resolver/prompts/` for the prompt markdown.
+ */
+export interface PrResolverConfig {
+  /** Master switch. When false, the supervisor doesn't boot the polling loop. */
+  enabled: boolean;
+  /**
+   * Phase A: when true, the resolver pushes commits automatically after the
+   * cargo build/clippy fix loop succeeds. When false (default), the PR
+   * enters `awaiting_approval` and the user must click Approve in the
+   * dashboard before commits leave the worktree.
+   */
+  autoApprove: boolean;
+  /** GitHub repository in `owner/name` format. Empty disables boot even when `enabled` is true. */
+  githubRepo: string;
+  /** Trigger tag the resolver matches in comments (case-insensitive). */
+  trigger: string;
+  /** Poll interval in seconds. */
+  pollInterval: number;
+  /** Max PRs processed per cycle. MVP defaults to 1 (serial processing). */
+  maxConcurrent: number;
+  /** Max iterations of the cargo build/clippy fix loop per sub-task. */
+  maxBuildLoops: number;
+  /** Cap on triggered comments processed per cycle. */
+  maxCommentsPerCycle: number;
+  /**
+   * Absolute path to the JSON state file. Empty string is resolved at load
+   * time to `~/.byne/pr-resolver-state.json`.
+   */
+  stateFilePath: string;
+  /**
+   * Absolute path to the working git clone used for fixes. Empty string is
+   * resolved at load time to `~/.byne/pr-resolver/worktree`.
+   */
+  worktreePath: string;
+  /**
+   * Absolute path to the prompts directory. Empty string is resolved at
+   * load time to `<projectRoot>/grace/pr-resolver/prompts`.
+   */
+  promptsDir: string;
+  /** Cargo build command + args used between fix-loop iterations. */
+  cargoBuild: { command: string; args: string[] };
+  /** Cargo clippy command + args. Runs after a successful build. */
+  cargoClippy: { command: string; args: string[] };
+  /**
+   * GitHub `authorAssociation` values allowed to trigger the bot.
+   * Defaults to MEMBER, OWNER, COLLABORATOR — matches the Python service.
+   */
+  allowedAssociations: string[];
+  /** Hard allow-list of GitHub logins (bypasses association check). */
+  allowedUsers: string[];
+  /** Block-list of GitHub logins (always rejected). */
+  blockedUsers: string[];
+  /**
+   * Phase B: run a grpcurl-based verification step after cargo build/clippy.
+   * Off by default — once you're confident on the test extractor + generator,
+   * flip it on via the dashboard.
+   */
+  grpcTestEnabled: boolean;
+  /** Port the per-worktree `cargo run -p grpc-server` listens on. */
+  grpcPort: number;
+  /** Per-grpcurl-invocation timeout in ms. */
+  grpcTestTimeoutMs: number;
+  /**
+   * Wall clock budget for `cargo run -p grpc-server` to spawn + compile +
+   * answer its first `grpcurl list` probe. Default 10 min — enough for a
+   * cold-cache grpc-server build on hyperswitch-prism. Subsequent runs in
+   * the same worktree are typically a few seconds.
+   */
+  grpcServerStartTimeoutMs: number;
+  /** Max command count we'll execute per sub-task (caps both extractor and generator). */
+  maxGrpcCommands: number;
+  /**
+   * Hard timeout for each `cargo build` / `cargo clippy` invocation. Defaults
+   * to 30 min — cold-cache builds on hyperswitch-prism can exceed 15 min,
+   * so this is intentionally generous. Lower it for fast machines if you
+   * want quicker failure on stuck builds.
+   */
+  cargoTimeoutMs: number;
+}
+
 export interface CsddConfig {
   projectRoot: string;
   /**
@@ -82,6 +168,8 @@ export interface CsddConfig {
   opencode: OpencodeConfig;
   /** Claude Code configuration (used when runner is "claude-code"). */
   claudeCode: ClaudeCodeConfig;
+  /** PR Resolver configuration. */
+  prResolver: PrResolverConfig;
   checkpoints: {
     compiler: { command: string; args: string[]; enabled?: boolean };
     cypress: { command: string; args: string[]; enabled?: boolean };
@@ -138,6 +226,43 @@ const DEFAULTS: CsddConfig = {
     implementationConcurrency: 4,
     useGlobalConfig: true,
     extraArgs: [],
+  },
+  prResolver: {
+    enabled: false,
+    autoApprove: false,
+    githubRepo: "",
+    trigger: "@HS-prism-bot",
+    pollInterval: 300,
+    maxConcurrent: 1,
+    maxBuildLoops: 3,
+    maxCommentsPerCycle: 20,
+    stateFilePath: "",
+    worktreePath: "",
+    promptsDir: "",
+    cargoBuild: {
+      command: "cargo",
+      args: ["build", "--package", "connector-integration"],
+    },
+    cargoClippy: {
+      command: "cargo",
+      args: [
+        "clippy",
+        "--package",
+        "connector-integration",
+        "--",
+        "-D",
+        "warnings",
+      ],
+    },
+    allowedAssociations: ["MEMBER", "OWNER", "COLLABORATOR"],
+    allowedUsers: [],
+    blockedUsers: [],
+    grpcTestEnabled: false,
+    grpcPort: 8000,
+    grpcTestTimeoutMs: 30_000,
+    maxGrpcCommands: 5,
+    cargoTimeoutMs: 30 * 60 * 1000, // 30 min — cold-cache build budget
+    grpcServerStartTimeoutMs: 10 * 60 * 1000, // 10 min — cold cargo run + first probe
   },
   checkpoints: {
     compiler: { command: "npm", args: ["run", "re:build"] },
@@ -229,6 +354,21 @@ export function loadConfig(explicitPath?: string): CsddConfig {
       process.env.TENXGRACE_GRACE_ISSUE_REPO;
   }
 
+  // PR Resolver env overrides. Keeping the github repo and enable flag out
+  // of committed config.yml is the path of least friction for shared dev
+  // boxes — drop a value in .env and toggle the feature.
+  if (process.env.BYNE_PR_RESOLVER_GITHUB_REPO) {
+    merged.prResolver.githubRepo = process.env.BYNE_PR_RESOLVER_GITHUB_REPO;
+  }
+  if (process.env.BYNE_PR_RESOLVER_TRIGGER) {
+    merged.prResolver.trigger = process.env.BYNE_PR_RESOLVER_TRIGGER;
+  }
+  if (process.env.BYNE_PR_RESOLVER_ENABLED !== undefined) {
+    merged.prResolver.enabled =
+      process.env.BYNE_PR_RESOLVER_ENABLED === "true" ||
+      process.env.BYNE_PR_RESOLVER_ENABLED === "1";
+  }
+
   if (usedPath) {
     // eslint-disable-next-line no-console
     console.log(`\x1b[90m[config] loaded ${usedPath}\x1b[0m`);
@@ -242,6 +382,24 @@ export function loadConfig(explicitPath?: string): CsddConfig {
   // Resolve projectRoot relative to cwd
   if (!path.isAbsolute(merged.projectRoot)) {
     merged.projectRoot = path.resolve(process.cwd(), merged.projectRoot);
+  }
+
+  // PR Resolver path defaults — resolve once at load time so consumers
+  // (CLI, supervisor, dashboard) never need to know the fallback rules.
+  const byneHome = path.join(os.homedir(), ".byne");
+  if (!merged.prResolver.stateFilePath) {
+    merged.prResolver.stateFilePath = path.join(byneHome, "pr-resolver-state.json");
+  }
+  if (!merged.prResolver.worktreePath) {
+    merged.prResolver.worktreePath = path.join(byneHome, "pr-resolver", "worktree");
+  }
+  if (!merged.prResolver.promptsDir) {
+    merged.prResolver.promptsDir = path.join(
+      merged.projectRoot,
+      "grace",
+      "pr-resolver",
+      "prompts"
+    );
   }
 
   return merged;

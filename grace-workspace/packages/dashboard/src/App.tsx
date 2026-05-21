@@ -5,6 +5,8 @@ import { ConnectorsPage } from "./pages/ConnectorsPage";
 import { ConnectorDetailPage } from "./pages/ConnectorDetailPage";
 import { ParityPage } from "./pages/ParityPage";
 import { ParityConnectorPage } from "./pages/ParityConnectorPage";
+import { PrResolverPage } from "./pages/PrResolverPage";
+import { PrResolverDetailPage } from "./pages/PrResolverDetailPage";
 
 /**
  * App shell. Routes:
@@ -27,6 +29,8 @@ export function App() {
       <Route path="/parity" element={<ParityPage />} />
       <Route path="/parity/:connectorName" element={<ParityConnectorPage />} />
       <Route path="/sessions/:sessionId" element={<WorkflowPage />} />
+      <Route path="/pr-resolver" element={<PrResolverPage />} />
+      <Route path="/pr-resolver/:prNumber" element={<PrResolverDetailPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

@@ -451,3 +451,10 @@ crates/internal/integration-tests/test_report/
 
 # Field probe manifest (generated at runtime)
 data/field_probe/manifest.json
+
+# Stray nested clone of upstream hyperswitch — not part of this repo
+/hyperswitch/
+
+# Playwright e2e artifacts
+grace-workspace/packages/dashboard/test-results/
+grace-workspace/packages/dashboard/playwright-report/

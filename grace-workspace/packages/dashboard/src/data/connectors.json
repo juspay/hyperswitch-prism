@@ -1176,7 +1176,7 @@
       },
       {
         "name": "Pay.Reverse",
-        "status": "not_implemented"
+        "status": "supported"
       },
       {
         "name": "Pay.Capture",
@@ -1293,8 +1293,8 @@
     ],
     "flowStats": {
       "total": 32,
-      "supported": 17,
-      "notImplemented": 12,
+      "supported": 18,
+      "notImplemented": 11,
       "notSupported": 3,
       "error": 0
     }
@@ -2476,7 +2476,7 @@
       },
       {
         "name": "Pay.Reverse",
-        "status": "not_implemented"
+        "status": "supported"
       },
       {
         "name": "Pay.Capture",
@@ -2593,8 +2593,8 @@
     ],
     "flowStats": {
       "total": 32,
-      "supported": 7,
-      "notImplemented": 19,
+      "supported": 8,
+      "notImplemented": 18,
       "notSupported": 6,
       "error": 0
     }
@@ -8326,7 +8326,7 @@
       },
       {
         "name": "Pay.Reverse",
-        "status": "not_implemented"
+        "status": "supported"
       },
       {
         "name": "Pay.Capture",
@@ -8443,8 +8443,8 @@
     ],
     "flowStats": {
       "total": 32,
-      "supported": 7,
-      "notImplemented": 21,
+      "supported": 8,
+      "notImplemented": 20,
       "notSupported": 2,
       "error": 2
     }
@@ -12876,7 +12876,7 @@
       },
       {
         "name": "Pay.Reverse",
-        "status": "not_implemented"
+        "status": "supported"
       },
       {
         "name": "Pay.Capture",
@@ -12993,8 +12993,8 @@
     ],
     "flowStats": {
       "total": 32,
-      "supported": 14,
-      "notImplemented": 11,
+      "supported": 15,
+      "notImplemented": 10,
       "notSupported": 3,
       "error": 4
     }
@@ -13526,7 +13526,7 @@
       },
       {
         "name": "Pay.Reverse",
-        "status": "not_implemented"
+        "status": "supported"
       },
       {
         "name": "Pay.Capture",
@@ -13643,8 +13643,8 @@
     ],
     "flowStats": {
       "total": 32,
-      "supported": 9,
-      "notImplemented": 23,
+      "supported": 10,
+      "notImplemented": 22,
       "notSupported": 0,
       "error": 0
     }
@@ -18076,7 +18076,7 @@
       },
       {
         "name": "Pay.Reverse",
-        "status": "not_implemented"
+        "status": "supported"
       },
       {
         "name": "Pay.Capture",
@@ -18193,8 +18193,8 @@
     ],
     "flowStats": {
       "total": 32,
-      "supported": 7,
-      "notImplemented": 19,
+      "supported": 8,
+      "notImplemented": 18,
       "notSupported": 6,
       "error": 0
     }
@@ -25876,7 +25876,7 @@
       },
       {
         "name": "Pay.Reverse",
-        "status": "not_supported"
+        "status": "error"
       },
       {
         "name": "Pay.Capture",
@@ -25995,8 +25995,8 @@
       "total": 32,
       "supported": 11,
       "notImplemented": 18,
-      "notSupported": 2,
-      "error": 1
+      "notSupported": 1,
+      "error": 2
     }
   },
   {
@@ -51347,6 +51347,1306 @@
       "notImplemented": 8,
       "notSupported": 15,
       "error": 0
+    }
+  },
+  {
+    "name": "Twoc Twop Paco",
+    "filePath": "connectors/twoc_twop_paco.md",
+    "paymentMethods": [
+      {
+        "category": "CARD",
+        "method": "Card",
+        "status": "supported"
+      },
+      {
+        "category": "CARD",
+        "method": "Bancontact",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Apple Pay",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Apple Pay Dec",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Apple Pay SDK",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Google Pay",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Google Pay Dec",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Google Pay SDK",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "PayPal SDK",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Amazon Pay",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Cash App",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "PayPal",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "WeChat Pay",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Alipay",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Revolut Pay",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "MiFinity",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Bluecode",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Paze",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Samsung Pay",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "MB Way",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Satispay",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Wero",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "GoPay",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "GCash",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Momo",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Dana",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Kakao Pay",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Touch 'n Go",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Twint",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Vipps",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Swish",
+        "status": "error"
+      },
+      {
+        "category": "BNPL",
+        "method": "Affirm",
+        "status": "error"
+      },
+      {
+        "category": "BNPL",
+        "method": "Afterpay",
+        "status": "error"
+      },
+      {
+        "category": "BNPL",
+        "method": "Klarna",
+        "status": "error"
+      },
+      {
+        "category": "UPI",
+        "method": "UPI Collect",
+        "status": "error"
+      },
+      {
+        "category": "UPI",
+        "method": "UPI Intent",
+        "status": "error"
+      },
+      {
+        "category": "UPI",
+        "method": "UPI QR",
+        "status": "error"
+      },
+      {
+        "category": "Online Banking",
+        "method": "Thailand",
+        "status": "error"
+      },
+      {
+        "category": "Online Banking",
+        "method": "Czech",
+        "status": "error"
+      },
+      {
+        "category": "Online Banking",
+        "method": "Finland",
+        "status": "error"
+      },
+      {
+        "category": "Online Banking",
+        "method": "FPX",
+        "status": "error"
+      },
+      {
+        "category": "Online Banking",
+        "method": "Poland",
+        "status": "error"
+      },
+      {
+        "category": "Online Banking",
+        "method": "Slovakia",
+        "status": "error"
+      },
+      {
+        "category": "Open Banking",
+        "method": "UK",
+        "status": "error"
+      },
+      {
+        "category": "Open Banking",
+        "method": "PIS",
+        "status": "error"
+      },
+      {
+        "category": "Open Banking",
+        "method": "Generic",
+        "status": "error"
+      },
+      {
+        "category": "Bank Redirect",
+        "method": "Local",
+        "status": "error"
+      },
+      {
+        "category": "Bank Redirect",
+        "method": "iDEAL",
+        "status": "error"
+      },
+      {
+        "category": "Bank Redirect",
+        "method": "Sofort",
+        "status": "error"
+      },
+      {
+        "category": "Bank Redirect",
+        "method": "Trustly",
+        "status": "error"
+      },
+      {
+        "category": "Bank Redirect",
+        "method": "Giropay",
+        "status": "error"
+      },
+      {
+        "category": "Bank Redirect",
+        "method": "EPS",
+        "status": "error"
+      },
+      {
+        "category": "Bank Redirect",
+        "method": "Przelewy24",
+        "status": "error"
+      },
+      {
+        "category": "Bank Redirect",
+        "method": "PSE",
+        "status": "error"
+      },
+      {
+        "category": "Bank Redirect",
+        "method": "BLIK",
+        "status": "error"
+      },
+      {
+        "category": "Bank Redirect",
+        "method": "Interac",
+        "status": "error"
+      },
+      {
+        "category": "Bank Redirect",
+        "method": "Bizum",
+        "status": "error"
+      },
+      {
+        "category": "Bank Redirect",
+        "method": "EFT",
+        "status": "error"
+      },
+      {
+        "category": "Bank Redirect",
+        "method": "DuitNow",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "ACH",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "SEPA",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "BACS",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "Multibanco",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "Instant",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "Instant FI",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "Instant PL",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "Pix",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "Permata",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "BCA",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "BNI VA",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "BRI VA",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "CIMB VA",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "Danamon VA",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "Mandiri VA",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "Local",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "Indonesian",
+        "status": "error"
+      },
+      {
+        "category": "Bank Debit",
+        "method": "ACH",
+        "status": "error"
+      },
+      {
+        "category": "Bank Debit",
+        "method": "SEPA",
+        "status": "error"
+      },
+      {
+        "category": "Bank Debit",
+        "method": "BACS",
+        "status": "error"
+      },
+      {
+        "category": "Bank Debit",
+        "method": "BECS",
+        "status": "error"
+      },
+      {
+        "category": "Bank Debit",
+        "method": "SEPA Guaranteed",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Crypto",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Reward",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Givex",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "PaySafeCard",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "E-Voucher",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Boleto",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Efecty",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Pago Efectivo",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Red Compra",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Red Pagos",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Alfamart",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Indomaret",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Oxxo",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "7-Eleven",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Lawson",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Mini Stop",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Family Mart",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Seicomart",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Pay Easy",
+        "status": "error"
+      }
+    ],
+    "stats": {
+      "total": 100,
+      "supported": 1,
+      "notImplemented": 0,
+      "notSupported": 0,
+      "error": 99
+    },
+    "flows": [
+      {
+        "name": "PaymentService.Authorize",
+        "status": "supported"
+      },
+      {
+        "name": "Pay.Get",
+        "status": "supported"
+      },
+      {
+        "name": "Pay.Void",
+        "status": "supported"
+      },
+      {
+        "name": "Pay.Reverse",
+        "status": "supported"
+      },
+      {
+        "name": "Pay.Capture",
+        "status": "supported"
+      },
+      {
+        "name": "Pay.CreateOrder",
+        "status": "not_supported"
+      },
+      {
+        "name": "Pay.Refund",
+        "status": "supported"
+      },
+      {
+        "name": "Pay.IncrementalAuthorization",
+        "status": "not_supported"
+      },
+      {
+        "name": "Pay.VerifyRedirectResponse",
+        "status": "not_supported"
+      },
+      {
+        "name": "Pay.SetupRecurring",
+        "status": "not_supported"
+      },
+      {
+        "name": "Pay.TokenAuthorize",
+        "status": "not_supported"
+      },
+      {
+        "name": "Pay.TokenSetupRecurring",
+        "status": "not_supported"
+      },
+      {
+        "name": "Pay.ProxyAuthorize",
+        "status": "not_supported"
+      },
+      {
+        "name": "Pay.ProxySetupRecurring",
+        "status": "not_supported"
+      },
+      {
+        "name": "RecPay.Charge",
+        "status": "not_supported"
+      },
+      {
+        "name": "RecPay.Revoke",
+        "status": "not_supported"
+      },
+      {
+        "name": "Refund.Get",
+        "status": "supported"
+      },
+      {
+        "name": "Customer.Create",
+        "status": "not_supported"
+      },
+      {
+        "name": "PayMethod.Tokenize",
+        "status": "not_supported"
+      },
+      {
+        "name": "PayMethod.Eligibility",
+        "status": "not_supported"
+      },
+      {
+        "name": "MerchantAuthentication.CreateServerAuthenticationToken",
+        "status": "not_supported"
+      },
+      {
+        "name": "MerchantAuthentication.CreateServerSessionAuthenticationToken",
+        "status": "not_supported"
+      },
+      {
+        "name": "MerchantAuthentication.CreateClientAuthenticationToken",
+        "status": "not_supported"
+      },
+      {
+        "name": "PayMethodAuthentication.PreAuthenticate",
+        "status": "not_implemented"
+      },
+      {
+        "name": "PayMethodAuthentication.Authenticate",
+        "status": "supported"
+      },
+      {
+        "name": "PayMethodAuthentication.PostAuthenticate",
+        "status": "supported"
+      },
+      {
+        "name": "Dispute.SubmitEvidence",
+        "status": "not_supported"
+      },
+      {
+        "name": "Dispute.Get",
+        "status": "not_supported"
+      },
+      {
+        "name": "Dispute.Defend",
+        "status": "not_supported"
+      },
+      {
+        "name": "Dispute.Accept",
+        "status": "not_supported"
+      },
+      {
+        "name": "Event.ParseEvent",
+        "status": "not_supported"
+      },
+      {
+        "name": "Event.HandleEvent",
+        "status": "not_supported"
+      }
+    ],
+    "flowStats": {
+      "total": 32,
+      "supported": 9,
+      "notImplemented": 1,
+      "notSupported": 22,
+      "error": 0
+    }
+  },
+  {
+    "name": "Twoctwoppaco",
+    "filePath": "connectors/twoctwoppaco.md",
+    "paymentMethods": [
+      {
+        "category": "CARD",
+        "method": "Card",
+        "status": "error"
+      },
+      {
+        "category": "CARD",
+        "method": "Bancontact",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Apple Pay",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Apple Pay Dec",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Apple Pay SDK",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Google Pay",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Google Pay Dec",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Google Pay SDK",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "PayPal SDK",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Amazon Pay",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Cash App",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "PayPal",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "WeChat Pay",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Alipay",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Revolut Pay",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "MiFinity",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Bluecode",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Paze",
+        "status": "not_supported"
+      },
+      {
+        "category": "WALLET",
+        "method": "Samsung Pay",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "MB Way",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Satispay",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Wero",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "GoPay",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "GCash",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Momo",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Dana",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Kakao Pay",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Touch 'n Go",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Twint",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Vipps",
+        "status": "error"
+      },
+      {
+        "category": "WALLET",
+        "method": "Swish",
+        "status": "error"
+      },
+      {
+        "category": "BNPL",
+        "method": "Affirm",
+        "status": "error"
+      },
+      {
+        "category": "BNPL",
+        "method": "Afterpay",
+        "status": "error"
+      },
+      {
+        "category": "BNPL",
+        "method": "Klarna",
+        "status": "error"
+      },
+      {
+        "category": "UPI",
+        "method": "UPI Collect",
+        "status": "error"
+      },
+      {
+        "category": "UPI",
+        "method": "UPI Intent",
+        "status": "error"
+      },
+      {
+        "category": "UPI",
+        "method": "UPI QR",
+        "status": "error"
+      },
+      {
+        "category": "Online Banking",
+        "method": "Thailand",
+        "status": "error"
+      },
+      {
+        "category": "Online Banking",
+        "method": "Czech",
+        "status": "error"
+      },
+      {
+        "category": "Online Banking",
+        "method": "Finland",
+        "status": "error"
+      },
+      {
+        "category": "Online Banking",
+        "method": "FPX",
+        "status": "error"
+      },
+      {
+        "category": "Online Banking",
+        "method": "Poland",
+        "status": "error"
+      },
+      {
+        "category": "Online Banking",
+        "method": "Slovakia",
+        "status": "error"
+      },
+      {
+        "category": "Open Banking",
+        "method": "UK",
+        "status": "error"
+      },
+      {
+        "category": "Open Banking",
+        "method": "PIS",
+        "status": "not_supported"
+      },
+      {
+        "category": "Open Banking",
+        "method": "Generic",
+        "status": "error"
+      },
+      {
+        "category": "Bank Redirect",
+        "method": "Local",
+        "status": "error"
+      },
+      {
+        "category": "Bank Redirect",
+        "method": "iDEAL",
+        "status": "error"
+      },
+      {
+        "category": "Bank Redirect",
+        "method": "Sofort",
+        "status": "error"
+      },
+      {
+        "category": "Bank Redirect",
+        "method": "Trustly",
+        "status": "error"
+      },
+      {
+        "category": "Bank Redirect",
+        "method": "Giropay",
+        "status": "error"
+      },
+      {
+        "category": "Bank Redirect",
+        "method": "EPS",
+        "status": "error"
+      },
+      {
+        "category": "Bank Redirect",
+        "method": "Przelewy24",
+        "status": "error"
+      },
+      {
+        "category": "Bank Redirect",
+        "method": "PSE",
+        "status": "error"
+      },
+      {
+        "category": "Bank Redirect",
+        "method": "BLIK",
+        "status": "error"
+      },
+      {
+        "category": "Bank Redirect",
+        "method": "Interac",
+        "status": "error"
+      },
+      {
+        "category": "Bank Redirect",
+        "method": "Bizum",
+        "status": "error"
+      },
+      {
+        "category": "Bank Redirect",
+        "method": "EFT",
+        "status": "error"
+      },
+      {
+        "category": "Bank Redirect",
+        "method": "DuitNow",
+        "status": "not_supported"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "ACH",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "SEPA",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "BACS",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "Multibanco",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "Instant",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "Instant FI",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "Instant PL",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "Pix",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "Permata",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "BCA",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "BNI VA",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "BRI VA",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "CIMB VA",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "Danamon VA",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "Mandiri VA",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "Local",
+        "status": "error"
+      },
+      {
+        "category": "Bank Transfer",
+        "method": "Indonesian",
+        "status": "error"
+      },
+      {
+        "category": "Bank Debit",
+        "method": "ACH",
+        "status": "error"
+      },
+      {
+        "category": "Bank Debit",
+        "method": "SEPA",
+        "status": "error"
+      },
+      {
+        "category": "Bank Debit",
+        "method": "BACS",
+        "status": "error"
+      },
+      {
+        "category": "Bank Debit",
+        "method": "BECS",
+        "status": "error"
+      },
+      {
+        "category": "Bank Debit",
+        "method": "SEPA Guaranteed",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Crypto",
+        "status": "not_supported"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Reward",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Givex",
+        "status": "not_supported"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "PaySafeCard",
+        "status": "not_supported"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "E-Voucher",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Boleto",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Efecty",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Pago Efectivo",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Red Compra",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Red Pagos",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Alfamart",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Indomaret",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Oxxo",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "7-Eleven",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Lawson",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Mini Stop",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Family Mart",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Seicomart",
+        "status": "error"
+      },
+      {
+        "category": "Alternate PMs",
+        "method": "Pay Easy",
+        "status": "error"
+      }
+    ],
+    "stats": {
+      "total": 100,
+      "supported": 0,
+      "notImplemented": 0,
+      "notSupported": 6,
+      "error": 94
+    },
+    "flows": [
+      {
+        "name": "PaymentService.Authorize",
+        "status": "not_supported"
+      },
+      {
+        "name": "Pay.Get",
+        "status": "error"
+      },
+      {
+        "name": "Pay.Void",
+        "status": "error"
+      },
+      {
+        "name": "Pay.Reverse",
+        "status": "error"
+      },
+      {
+        "name": "Pay.Capture",
+        "status": "error"
+      },
+      {
+        "name": "Pay.CreateOrder",
+        "status": "not_supported"
+      },
+      {
+        "name": "Pay.Refund",
+        "status": "error"
+      },
+      {
+        "name": "Pay.IncrementalAuthorization",
+        "status": "not_implemented"
+      },
+      {
+        "name": "Pay.VerifyRedirectResponse",
+        "status": "not_implemented"
+      },
+      {
+        "name": "Pay.SetupRecurring",
+        "status": "not_implemented"
+      },
+      {
+        "name": "Pay.TokenAuthorize",
+        "status": "error"
+      },
+      {
+        "name": "Pay.TokenSetupRecurring",
+        "status": "not_implemented"
+      },
+      {
+        "name": "Pay.ProxyAuthorize",
+        "status": "error"
+      },
+      {
+        "name": "Pay.ProxySetupRecurring",
+        "status": "not_implemented"
+      },
+      {
+        "name": "RecPay.Charge",
+        "status": "not_implemented"
+      },
+      {
+        "name": "RecPay.Revoke",
+        "status": "not_implemented"
+      },
+      {
+        "name": "Refund.Get",
+        "status": "error"
+      },
+      {
+        "name": "Customer.Create",
+        "status": "not_supported"
+      },
+      {
+        "name": "PayMethod.Tokenize",
+        "status": "not_supported"
+      },
+      {
+        "name": "PayMethod.Eligibility",
+        "status": "not_implemented"
+      },
+      {
+        "name": "MerchantAuthentication.CreateServerAuthenticationToken",
+        "status": "not_supported"
+      },
+      {
+        "name": "MerchantAuthentication.CreateServerSessionAuthenticationToken",
+        "status": "not_supported"
+      },
+      {
+        "name": "MerchantAuthentication.CreateClientAuthenticationToken",
+        "status": "not_supported"
+      },
+      {
+        "name": "PayMethodAuthentication.PreAuthenticate",
+        "status": "not_supported"
+      },
+      {
+        "name": "PayMethodAuthentication.Authenticate",
+        "status": "not_supported"
+      },
+      {
+        "name": "PayMethodAuthentication.PostAuthenticate",
+        "status": "not_supported"
+      },
+      {
+        "name": "Dispute.SubmitEvidence",
+        "status": "not_supported"
+      },
+      {
+        "name": "Dispute.Get",
+        "status": "not_implemented"
+      },
+      {
+        "name": "Dispute.Defend",
+        "status": "not_supported"
+      },
+      {
+        "name": "Dispute.Accept",
+        "status": "not_supported"
+      },
+      {
+        "name": "Event.ParseEvent",
+        "status": "not_implemented"
+      },
+      {
+        "name": "Event.HandleEvent",
+        "status": "not_implemented"
+      }
+    ],
+    "flowStats": {
+      "total": 32,
+      "supported": 0,
+      "notImplemented": 11,
+      "notSupported": 13,
+      "error": 8
     }
   },
   {

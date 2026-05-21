@@ -20,6 +20,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "home", label: "Home", icon: "🏠", path: "/" },
   { id: "connectors", label: "Payment Processors", icon: "💳", path: "/connectors" },
   { id: "parity", label: "Parity Checker", icon: "⚖️", path: "/parity" },
+  { id: "pr-resolver", label: "PR Resolver", icon: "🔧", path: "/pr-resolver" },
 ];
 
 export function NavigationSidebar() {
