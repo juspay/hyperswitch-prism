@@ -482,34 +482,34 @@ message PayoutServiceCreateRecipientRequest {
   optional Customer customer = 6;
   // access token
   optional SecretString access_token = 7;
-  // Phone number for the recipient (required for Stripe Connect)
-  SecretString phone = 8;
-  // Last 4 digits of SSN (required for Stripe Connect in US)
-  SecretString ssn_last_4 = 9;
-  // Full SSN for Stripe (alternative to ssn_last_4 for identity verification)
-  SecretString id_number = 20;
-  // Account type for Stripe Connect (e.g., "custom", "express", "standard")
+  // Phone number for the recipient (Stripe Connect)
+  optional SecretString phone = 8;
+  // Last 4 digits of SSN
+  optional SecretString ssn_last_4 = 9;
+  // Full SSN for Stripe
+  optional SecretString id_number = 20;
+  // Account type for Stripe Connect
   optional string account_type = 21;
-  // Required for Stripe Connect - Individual first name
-  SecretString first_name = 10;
-  // Required for Stripe Connect - Individual last name
-  SecretString last_name = 11;
-  // Required for Stripe Connect - DOB day (1-31)
-  SecretString dob_day = 12;
-  // Required for Stripe Connect - DOB month (1-12)
-  SecretString dob_month = 13;
-  // Required for Stripe Connect - DOB year (YYYY)
-  SecretString dob_year = 14;
-  // Required for Stripe Connect - Business profile MCC (4-digit code)
-  string business_profile_mcc = 15;
-  // Required for Stripe Connect - Business profile URL
-  SecretString business_profile_url = 16;
-  // Required for Stripe Connect - Business profile name
-  SecretString business_profile_name = 17;
-  // Required for Stripe Connect - Statement descriptor for payments
-  SecretString statement_descriptor = 18;
-  // Required for Stripe Connect - TOS acceptance IP address
-  SecretString tos_acceptance_ip = 19;
+  // Individual first name
+  optional SecretString first_name = 10;
+  // Individual last name
+  optional SecretString last_name = 11;
+  // DOB day (1-31)
+  optional SecretString dob_day = 12;
+  // DOB month (1-12)
+  optional SecretString dob_month = 13;
+  // DOB year (YYYY)
+  optional SecretString dob_year = 14;
+  // Business profile MCC (4-digit code)
+  optional string business_profile_mcc = 15;
+  // Business profile URL
+  optional SecretString business_profile_url = 16;
+  // Business profile name
+  optional SecretString business_profile_name = 17;
+  // Statement descriptor for payments
+  optional SecretString statement_descriptor = 18;
+  // TOS acceptance IP address
+  optional SecretString tos_acceptance_ip = 19;
 }
 
 // Response message for creating recipient account

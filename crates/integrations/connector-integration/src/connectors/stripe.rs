@@ -12,12 +12,10 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,
-        CreateConnectorCustomer, CreateOrder, DefendDispute, IncrementalAuthorization,
-        MandateRevoke, PSync, PaymentMethodToken, PayoutCreate, PayoutCreateRecipient,
-        PayoutEnrollDisburseAccount, PayoutGet, PayoutTransfer, PayoutVoid, PostAuthenticate,
-        PreAuthenticate, RSync, Refund, RepeatPayment, ServerAuthenticationToken,
-        ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence, Void, VoidPC,
+        Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
+        IncrementalAuthorization, PSync, PaymentMethodToken, PayoutCreate, PayoutCreateRecipient,
+        PayoutEnrollDisburseAccount, PayoutGet, PayoutTransfer, PayoutVoid, RSync, Refund,
+        RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
         ClientAuthenticationTokenRequestData, ConnectorCustomerData, ConnectorCustomerResponse,
@@ -1018,9 +1016,6 @@ macros::macro_connector_flow_status_impls!(
         PreAuthenticate,
         Authenticate,
         PostAuthenticate,
-        PaymentFlowData,
-        PaymentsPostAuthenticateData<T>,
-        PaymentsResponseData,
     ],
     not_supported: [
         VoidPC,

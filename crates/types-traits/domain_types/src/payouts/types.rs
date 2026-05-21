@@ -1498,7 +1498,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRecipientRequest
             dob_day: value.dob_day,
             dob_month: value.dob_month,
             dob_year: value.dob_year,
-            business_profile_mcc: Some(value.business_profile_mcc),
+            business_profile_mcc: value.business_profile_mcc,
             business_profile_url: value.business_profile_url,
             business_profile_name: value.business_profile_name,
             statement_descriptor: value.statement_descriptor,
