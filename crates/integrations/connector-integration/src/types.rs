@@ -147,9 +147,6 @@ impl SurchargeConnectorData {
 pub trait ConnectorDataProvider: Sized {
     type ConnectorEnumType: Copy;
 
-    /// Get connector data by name
-    fn get_connector_by_name(connector_name: &Self::ConnectorEnumType) -> Self;
-
     /// Convert variant to this type
     fn from_connector_variant(
         variant: &domain_types::connector_types::ConnectorVariant,
@@ -160,14 +157,6 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
     ConnectorDataProvider for ConnectorData<T>
 {
     type ConnectorEnumType = ConnectorEnum;
-
-    fn get_connector_by_name(connector_name: &ConnectorEnum) -> Self {
-        let connector = Self::convert_connector(*connector_name);
-        Self {
-            connector,
-            connector_name: *connector_name,
-        }
-    }
 
     fn from_connector_variant(
         variant: &domain_types::connector_types::ConnectorVariant,
@@ -180,14 +169,6 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
 
 impl ConnectorDataProvider for SurchargeConnectorData {
     type ConnectorEnumType = SurchargeConnectorEnum;
-
-    fn get_connector_by_name(connector_name: &SurchargeConnectorEnum) -> Self {
-        let connector = Self::convert_connector(*connector_name);
-        Self {
-            connector,
-            connector_name: *connector_name,
-        }
-    }
 
     fn from_connector_variant(
         variant: &domain_types::connector_types::ConnectorVariant,
