@@ -3473,12 +3473,11 @@ impl<
                 .transpose()?,
             enrolled_for_3ds: value.enrolled_for_3ds,
             related_transaction_id: None,
-            payment_experience: match value.payment_experience {
-                Some(grpc_payment_types::PaymentExperience::Unspecified) | None => None,
-                Some(payment_experience) => Some(
-                    common_enums::PaymentExperience::foreign_try_from(payment_experience)?,
-                ),
-            },
+            payment_experience: value
+                .payment_experience
+                .filter(|pe| *pe != grpc_payment_types::PaymentExperience::Unspecified)
+                .map(common_enums::PaymentExperience::foreign_try_from)
+                .transpose()?,
             customer_id: value
                 .customer
                 .and_then(|customer| customer.id)
@@ -4267,7 +4266,10 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
                 value.payment_method.unwrap_or_default(),
             )?, // Use direct enum
             address,
-            auth_type: common_enums::AuthenticationType::default(),
+            auth_type: common_enums::AuthenticationType::foreign_try_from(
+                grpc_api_types::payments::AuthenticationType::try_from(value.auth_type)
+                    .unwrap_or_default(),
+            )?,
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_transaction_id,
             ),
@@ -4365,10 +4367,13 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
             payment_method: PaymentMethod::foreign_try_from(
-                value.payment_method.clone().unwrap_or_default(),
+                value.payment_method.clone().ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "payment_method",
+                    context: IntegrationErrorContext::default(),
+                })?,
             )?,
             address,
-            auth_type: common_enums::AuthenticationType::default(),
+            auth_type: common_enums::AuthenticationType::foreign_try_from(value.auth_type)?,
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_transaction_id,
             ),
@@ -9001,11 +9006,17 @@ impl<
             )?),
         };
 
+        // Use proto setup_mandate_details if present; otherwise start with an empty MandateData.
+        // customer_acceptance is always overwritten from the top-level field below.
         let mut setup_mandate_details = value
             .setup_mandate_details
             .map(MandateData::foreign_try_from)
             .transpose()?
-            .unwrap_or_default();
+            .unwrap_or_else(|| MandateData {
+                update_mandate_id: None,
+                customer_acceptance: None,
+                mandate_type: None,
+            });
         setup_mandate_details.customer_acceptance = Some(
             mandates::CustomerAcceptance::foreign_try_from(customer_acceptance.clone())?,
         );
