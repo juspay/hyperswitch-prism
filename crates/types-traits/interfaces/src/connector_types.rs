@@ -34,6 +34,9 @@ use domain_types::{
     router_data::ConnectorSpecificConfig,
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::VerifyWebhookSourceResponseData,
+    surcharge::surcharge_types::{
+        SurchargeCalculateRequest, SurchargeCalculateResponse, SurchargeFlowData,
+    },
     types::{PaymentMethodDataType, PaymentMethodDetails, SupportedPaymentMethods},
 };
 use error_stack::ResultExt;
@@ -114,6 +117,8 @@ pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
 {
 }
 
+pub trait SurchargeServiceTrait: ConnectorCommon + SurchargeCalculateV2 {}
+
 pub trait PaymentVoidV2:
     ConnectorIntegrationV2<connector_flow::Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
@@ -130,6 +135,8 @@ pub trait PaymentVoidPostCaptureV2:
 }
 
 pub type BoxedConnector<T> = Box<&'static (dyn ConnectorServiceTrait<T> + Sync)>;
+
+pub type BoxedSurchargeConnector = Box<&'static (dyn SurchargeServiceTrait + Sync)>;
 
 pub trait ValidationTrait: ConnectorCommon {
     fn should_do_order_create(&self) -> bool {
@@ -768,6 +775,16 @@ pub trait PayoutEnrollDisburseAccountV2:
     PayoutFlowData,
     PayoutEnrollDisburseAccountRequest,
     PayoutEnrollDisburseAccountResponse,
+>
+{
+}
+
+pub trait SurchargeCalculateV2:
+    ConnectorIntegrationV2<
+    connector_flow::SurchargeCalculate,
+    SurchargeFlowData,
+    SurchargeCalculateRequest,
+    SurchargeCalculateResponse,
 >
 {
 }

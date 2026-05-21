@@ -11,6 +11,7 @@ use grpc_api_types::{
         payment_service_server, recurring_payment_service_server, refund_service_server,
     },
     payouts::payout_service_server,
+    surcharge::surcharge_service_server,
 };
 use std::{future::Future, net, sync::Arc};
 use tokio::{
@@ -120,6 +121,7 @@ pub struct Service {
     pub customer_service: crate::server::payments::Customer,
     pub payment_method_authentication_service: crate::server::payments::PaymentMethodAuthentication,
     pub payouts_service: crate::server::payouts::Payouts,
+    pub surcharges_service: crate::server::surcharges::Surcharges,
 }
 
 impl Service {
@@ -183,6 +185,7 @@ impl Service {
             payment_method_authentication_service:
                 crate::server::payments::PaymentMethodAuthentication,
             payouts_service: crate::server::payouts::Payouts,
+            surcharges_service: crate::server::surcharges::Surcharges,
         }
     }
 
@@ -339,6 +342,9 @@ impl Service {
             )
             .add_service(payout_service_server::PayoutServiceServer::new(
                 self.payouts_service,
+            ))
+            .add_service(surcharge_service_server::SurchargeServiceServer::new(
+                self.surcharges_service,
             ))
             .serve_with_shutdown(socket, shutdown_signal)
             .await?;

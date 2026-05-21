@@ -301,7 +301,13 @@ def discover_flows(desc_set=None) -> tuple[list[dict], list[dict]]:
                 f"  ERROR: '{flow}_req_transformer' exists in services/*.rs but has no matching RPC in services.proto"
             )
             continue
-        flows.append({"name": flow, "module": service_flows[flow], **proto_rpcs[flow]})
+        service_name = proto_rpcs[flow]["service"]
+        connector_data_type = (
+            "domain_types::connector_types::SurchargeConnectorEnum"
+            if service_name == "SurchargeService"
+            else "domain_types::connector_types::ConnectorEnum"
+        )
+        flows.append({"name": flow, "module": service_flows[flow], "connector_data_type": connector_data_type, **proto_rpcs[flow]})
 
     single_flows = []
     for flow in sorted(single_flow_names):
@@ -310,7 +316,13 @@ def discover_flows(desc_set=None) -> tuple[list[dict], list[dict]]:
                 f"  ERROR: '{flow}_transformer' exists in services/*.rs but has no matching RPC in services.proto"
             )
             continue
-        single_flows.append({"name": flow, "module": single_flow_names[flow], **proto_rpcs[flow]})
+        service_name = proto_rpcs[flow]["service"]
+        connector_data_type = (
+            "domain_types::connector_types::SurchargeConnectorEnum"
+            if service_name == "SurchargeService"
+            else "domain_types::connector_types::ConnectorEnum"
+        )
+        single_flows.append({"name": flow, "module": single_flow_names[flow], "connector_data_type": connector_data_type, **proto_rpcs[flow]})
 
     if errors:
         for e in errors:

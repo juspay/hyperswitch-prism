@@ -252,6 +252,7 @@ impl PayoutOperationsInternal for Payouts {
         request_data_constructor: PayoutCreateRequest::foreign_try_from,
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_create_response,
+        connector_data_type: ConnectorData<domain_types::payment_method_data::DefaultPCIHolder>,
         all_keys_required: None
     );
 
@@ -267,6 +268,7 @@ impl PayoutOperationsInternal for Payouts {
         request_data_constructor: PayoutTransferRequest::foreign_try_from,
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_transfer_response,
+        connector_data_type: ConnectorData<domain_types::payment_method_data::DefaultPCIHolder>,
         all_keys_required: None
     );
 
@@ -282,6 +284,7 @@ impl PayoutOperationsInternal for Payouts {
         request_data_constructor: PayoutGetRequest::foreign_try_from,
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_get_response,
+        connector_data_type: ConnectorData<domain_types::payment_method_data::DefaultPCIHolder>,
         all_keys_required: None
     );
 
@@ -297,6 +300,7 @@ impl PayoutOperationsInternal for Payouts {
         request_data_constructor: PayoutVoidRequest::foreign_try_from,
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_void_response,
+        connector_data_type: ConnectorData<domain_types::payment_method_data::DefaultPCIHolder>,
         all_keys_required: None
     );
 
@@ -312,6 +316,7 @@ impl PayoutOperationsInternal for Payouts {
         request_data_constructor: PayoutStageRequest::foreign_try_from,
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_stage_response,
+        connector_data_type: ConnectorData<domain_types::payment_method_data::DefaultPCIHolder>,
         all_keys_required: None
     );
 
@@ -327,6 +332,7 @@ impl PayoutOperationsInternal for Payouts {
         request_data_constructor: PayoutCreateLinkRequest::foreign_try_from,
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_create_link_response,
+        connector_data_type: ConnectorData<domain_types::payment_method_data::DefaultPCIHolder>,
         all_keys_required: None
     );
 
@@ -342,6 +348,7 @@ impl PayoutOperationsInternal for Payouts {
         request_data_constructor: PayoutCreateRecipientRequest::foreign_try_from,
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_create_recipient_response,
+        connector_data_type: ConnectorData<domain_types::payment_method_data::DefaultPCIHolder>,
         all_keys_required: None
     );
 
@@ -357,6 +364,7 @@ impl PayoutOperationsInternal for Payouts {
         request_data_constructor: PayoutEnrollDisburseAccountRequest::foreign_try_from,
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_enroll_disburse_account_response,
+        connector_data_type: ConnectorData<domain_types::payment_method_data::DefaultPCIHolder>,
         all_keys_required: None
     );
 }

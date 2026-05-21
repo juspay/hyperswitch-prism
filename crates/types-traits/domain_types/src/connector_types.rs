@@ -146,6 +146,57 @@ pub enum ConnectorEnum {
     TwocTwopPaco,
 }
 
+// snake case for enum variants
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Display,
+    EnumIter,
+    EnumString,
+    serde::Deserialize,
+    Eq,
+    Hash,
+    PartialEq,
+    Serialize,
+)]
+#[strum(serialize_all = "snake_case")]
+pub enum SurchargeConnectorEnum {
+    Interpayments,
+}
+
+/// Unified connector enum that can represent either payment or surcharge connectors
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ConnectorVariant {
+    Payment(ConnectorEnum),
+    Surcharge(SurchargeConnectorEnum),
+}
+
+impl ConnectorVariant {
+    /// Get the payment connector if this is a payment variant
+    pub fn as_payment(&self) -> Option<ConnectorEnum> {
+        match self {
+            ConnectorVariant::Payment(conn) => Some(*conn),
+            _ => None,
+        }
+    }
+
+    /// Get the surcharge connector if this is a surcharge variant
+    pub fn as_surcharge(&self) -> Option<SurchargeConnectorEnum> {
+        match self {
+            ConnectorVariant::Surcharge(conn) => Some(*conn),
+            _ => None,
+        }
+    }
+
+    pub fn get_connector_name(&self) -> String {
+        match self {
+            ConnectorVariant::Payment(conn) => conn.to_string(),
+            ConnectorVariant::Surcharge(conn) => conn.to_string(),
+        }
+    }
+}
+
 impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
     type Error = IntegrationError;
 
@@ -1777,9 +1828,17 @@ pub struct RefundSyncData {
     pub split_refunds: Option<SplitRefundsRequest>,
     pub connector_feature_data: Option<SecretSerdeValue>,
     pub refund_money: Option<common_utils::types::Money>,
+    /// Connector-side identifier for the original payment that this refund sync targets.
+    pub connector_order_id: Option<String>,
 }
 
 impl RefundSyncData {
+    pub fn get_connector_order_id(&self) -> Result<String, Error> {
+        self.connector_order_id
+            .clone()
+            .ok_or_else(missing_field_err("connector_order_id"))
+    }
+
     pub fn get_optional_language_from_browser_info(&self) -> Option<String> {
         self.browser_info
             .clone()
@@ -2474,6 +2533,8 @@ pub struct RefundsData {
     pub browser_info: Option<BrowserInformation>,
     /// Charges associated with the payment
     pub split_refunds: Option<SplitRefundsRequest>,
+    /// Connector-side identifier for the original payment that this refund targets.
+    pub connector_order_id: Option<String>,
 }
 
 impl RefundsData {
@@ -2485,6 +2546,12 @@ impl RefundsData {
             .change_context(IntegrationError::MissingConnectorTransactionID {
                 context: Default::default(),
             })
+    }
+
+    pub fn get_connector_order_id(&self) -> Result<String, Error> {
+        self.connector_order_id
+            .clone()
+            .ok_or_else(missing_field_err("connector_order_id"))
     }
     pub fn get_webhook_url(&self) -> Result<String, Error> {
         self.webhook_url
@@ -4147,85 +4214,88 @@ pub struct BillingDescriptor {
     /// A reference to be shown on billing description
     pub reference: Option<String>,
 }
-impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config> for ConnectorEnum {
+
+impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
+    for ConnectorVariant
+{
     type Error = IntegrationError;
     fn foreign_try_from(
         auth_type: grpc_api_types::payments::connector_specific_config::Config,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         match auth_type {
-            AuthType::Aci(_) => Ok(Self::Aci),
-            AuthType::Adyen(_) => Ok(Self::Adyen),
-            AuthType::Airwallex(_) => Ok(Self::Airwallex),
-            AuthType::Bambora(_) => Ok(Self::Bambora),
-            AuthType::Bankofamerica(_) => Ok(Self::Bankofamerica),
-            AuthType::Billwerk(_) => Ok(Self::Billwerk),
-            AuthType::Bluesnap(_) => Ok(Self::Bluesnap),
-            AuthType::Braintree(_) => Ok(Self::Braintree),
-            AuthType::Cashtocode(_) => Ok(Self::Cashtocode),
-            AuthType::Cryptopay(_) => Ok(Self::Cryptopay),
-            AuthType::Cybersource(_) => Ok(Self::Cybersource),
-            AuthType::Datatrans(_) => Ok(Self::Datatrans),
-            AuthType::Dlocal(_) => Ok(Self::Dlocal),
-            AuthType::Elavon(_) => Ok(Self::Elavon),
-            AuthType::Fiserv(_) => Ok(Self::Fiserv),
-            AuthType::Fiservemea(_) => Ok(Self::Fiservemea),
-            AuthType::Sanlam(_) => Ok(Self::Sanlam),
-            AuthType::Forte(_) => Ok(Self::Forte),
-            AuthType::Getnet(_) => Ok(Self::Getnet),
-            AuthType::Globalpay(_) => Ok(Self::Globalpay),
-            AuthType::Hipay(_) => Ok(Self::Hipay),
-            AuthType::Helcim(_) => Ok(Self::Helcim),
-            AuthType::Iatapay(_) => Ok(Self::Iatapay),
-            AuthType::Jpmorgan(_) => Ok(Self::Jpmorgan),
-            AuthType::Mifinity(_) => Ok(Self::Mifinity),
-            AuthType::Mollie(_) => Ok(Self::Mollie),
-            AuthType::Multisafepay(_) => Ok(Self::Multisafepay),
-            AuthType::Nexinets(_) => Ok(Self::Nexinets),
-            AuthType::Nexixpay(_) => Ok(Self::Nexixpay),
-            AuthType::Nmi(_) => Ok(Self::Nmi),
-            AuthType::Noon(_) => Ok(Self::Noon),
-            AuthType::Novalnet(_) => Ok(Self::Novalnet),
-            AuthType::Nuvei(_) => Ok(Self::Nuvei),
-            AuthType::Paybox(_) => Ok(Self::Paybox),
-            AuthType::Payme(_) => Ok(Self::Payme),
-            AuthType::Payu(_) => Ok(Self::Payu),
-            AuthType::Powertranz(_) => Ok(Self::Powertranz),
-            AuthType::Rapyd(_) => Ok(Self::Rapyd),
-            AuthType::Redsys(_) => Ok(Self::Redsys),
-            AuthType::Shift4(_) => Ok(Self::Shift4),
-            AuthType::Stax(_) => Ok(Self::Stax),
-            AuthType::Stripe(_) => Ok(Self::Stripe),
-            AuthType::Trustpay(_) => Ok(Self::Trustpay),
-            AuthType::Tsys(_) => Ok(Self::Tsys),
-            AuthType::Volt(_) => Ok(Self::Volt),
-            AuthType::Wellsfargo(_) => Ok(Self::Wellsfargo),
-            AuthType::Worldpay(_) => Ok(Self::Worldpay),
-            AuthType::Worldpayvantiv(_) => Ok(Self::Worldpayvantiv),
-            AuthType::Xendit(_) => Ok(Self::Xendit),
-            AuthType::Phonepe(_) => Ok(Self::Phonepe),
-            AuthType::Cashfree(_) => Ok(Self::Cashfree),
-            AuthType::Paytm(_) => Ok(Self::Paytm),
-            AuthType::Calida(_) => Ok(Self::Calida),
-            AuthType::Payload(_) => Ok(Self::Payload),
-            AuthType::Paypal(_) => Ok(Self::Paypal),
-            AuthType::Authipay(_) => Ok(Self::Authipay),
-            AuthType::Silverflow(_) => Ok(Self::Silverflow),
-            AuthType::Celero(_) => Ok(Self::Celero),
-            AuthType::Trustpayments(_) => Ok(Self::Trustpayments),
-            AuthType::Paysafe(_) => Ok(Self::Paysafe),
-            AuthType::Barclaycard(_) => Ok(Self::Barclaycard),
-            AuthType::Worldpayxml(_) => Ok(Self::Worldpayxml),
-            AuthType::Revolut(_) => Ok(Self::Revolut),
-            AuthType::Loonio(_) => Ok(Self::Loonio),
-            AuthType::Gigadat(_) => Ok(Self::Gigadat),
-            AuthType::Hyperpg(_) => Ok(Self::Hyperpg),
-            AuthType::Peachpayments(_) => Ok(Self::Peachpayments),
-            AuthType::Zift(_) => Ok(Self::Zift),
-            AuthType::Trustly(_) => Ok(Self::Trustly),
-            AuthType::Truelayer(_) => Ok(Self::Truelayer),
-            AuthType::Fiservcommercehub(_) => Ok(Self::Fiservcommercehub),
-            AuthType::Itaubank(_) => Ok(Self::Itaubank),
-            AuthType::Axisbank(_) => Ok(Self::Axisbank),
+            AuthType::Aci(_) => Ok(Self::Payment(ConnectorEnum::Aci)),
+            AuthType::Adyen(_) => Ok(Self::Payment(ConnectorEnum::Adyen)),
+            AuthType::Airwallex(_) => Ok(Self::Payment(ConnectorEnum::Airwallex)),
+            AuthType::Bambora(_) => Ok(Self::Payment(ConnectorEnum::Bambora)),
+            AuthType::Bankofamerica(_) => Ok(Self::Payment(ConnectorEnum::Bankofamerica)),
+            AuthType::Billwerk(_) => Ok(Self::Payment(ConnectorEnum::Billwerk)),
+            AuthType::Bluesnap(_) => Ok(Self::Payment(ConnectorEnum::Bluesnap)),
+            AuthType::Braintree(_) => Ok(Self::Payment(ConnectorEnum::Braintree)),
+            AuthType::Cashtocode(_) => Ok(Self::Payment(ConnectorEnum::Cashtocode)),
+            AuthType::Cryptopay(_) => Ok(Self::Payment(ConnectorEnum::Cryptopay)),
+            AuthType::Cybersource(_) => Ok(Self::Payment(ConnectorEnum::Cybersource)),
+            AuthType::Datatrans(_) => Ok(Self::Payment(ConnectorEnum::Datatrans)),
+            AuthType::Dlocal(_) => Ok(Self::Payment(ConnectorEnum::Dlocal)),
+            AuthType::Elavon(_) => Ok(Self::Payment(ConnectorEnum::Elavon)),
+            AuthType::Fiserv(_) => Ok(Self::Payment(ConnectorEnum::Fiserv)),
+            AuthType::Fiservemea(_) => Ok(Self::Payment(ConnectorEnum::Fiservemea)),
+            AuthType::Sanlam(_) => Ok(Self::Payment(ConnectorEnum::Sanlam)),
+            AuthType::Forte(_) => Ok(Self::Payment(ConnectorEnum::Forte)),
+            AuthType::Getnet(_) => Ok(Self::Payment(ConnectorEnum::Getnet)),
+            AuthType::Globalpay(_) => Ok(Self::Payment(ConnectorEnum::Globalpay)),
+            AuthType::Hipay(_) => Ok(Self::Payment(ConnectorEnum::Hipay)),
+            AuthType::Helcim(_) => Ok(Self::Payment(ConnectorEnum::Helcim)),
+            AuthType::Iatapay(_) => Ok(Self::Payment(ConnectorEnum::Iatapay)),
+            AuthType::Jpmorgan(_) => Ok(Self::Payment(ConnectorEnum::Jpmorgan)),
+            AuthType::Mifinity(_) => Ok(Self::Payment(ConnectorEnum::Mifinity)),
+            AuthType::Mollie(_) => Ok(Self::Payment(ConnectorEnum::Mollie)),
+            AuthType::Multisafepay(_) => Ok(Self::Payment(ConnectorEnum::Multisafepay)),
+            AuthType::Nexinets(_) => Ok(Self::Payment(ConnectorEnum::Nexinets)),
+            AuthType::Nexixpay(_) => Ok(Self::Payment(ConnectorEnum::Nexixpay)),
+            AuthType::Nmi(_) => Ok(Self::Payment(ConnectorEnum::Nmi)),
+            AuthType::Noon(_) => Ok(Self::Payment(ConnectorEnum::Noon)),
+            AuthType::Novalnet(_) => Ok(Self::Payment(ConnectorEnum::Novalnet)),
+            AuthType::Nuvei(_) => Ok(Self::Payment(ConnectorEnum::Nuvei)),
+            AuthType::Paybox(_) => Ok(Self::Payment(ConnectorEnum::Paybox)),
+            AuthType::Payme(_) => Ok(Self::Payment(ConnectorEnum::Payme)),
+            AuthType::Payu(_) => Ok(Self::Payment(ConnectorEnum::Payu)),
+            AuthType::Powertranz(_) => Ok(Self::Payment(ConnectorEnum::Powertranz)),
+            AuthType::Rapyd(_) => Ok(Self::Payment(ConnectorEnum::Rapyd)),
+            AuthType::Redsys(_) => Ok(Self::Payment(ConnectorEnum::Redsys)),
+            AuthType::Shift4(_) => Ok(Self::Payment(ConnectorEnum::Shift4)),
+            AuthType::Stax(_) => Ok(Self::Payment(ConnectorEnum::Stax)),
+            AuthType::Stripe(_) => Ok(Self::Payment(ConnectorEnum::Stripe)),
+            AuthType::Trustpay(_) => Ok(Self::Payment(ConnectorEnum::Trustpay)),
+            AuthType::Tsys(_) => Ok(Self::Payment(ConnectorEnum::Tsys)),
+            AuthType::Volt(_) => Ok(Self::Payment(ConnectorEnum::Volt)),
+            AuthType::Wellsfargo(_) => Ok(Self::Payment(ConnectorEnum::Wellsfargo)),
+            AuthType::Worldpay(_) => Ok(Self::Payment(ConnectorEnum::Worldpay)),
+            AuthType::Worldpayvantiv(_) => Ok(Self::Payment(ConnectorEnum::Worldpayvantiv)),
+            AuthType::Xendit(_) => Ok(Self::Payment(ConnectorEnum::Xendit)),
+            AuthType::Phonepe(_) => Ok(Self::Payment(ConnectorEnum::Phonepe)),
+            AuthType::Cashfree(_) => Ok(Self::Payment(ConnectorEnum::Cashfree)),
+            AuthType::Paytm(_) => Ok(Self::Payment(ConnectorEnum::Paytm)),
+            AuthType::Calida(_) => Ok(Self::Payment(ConnectorEnum::Calida)),
+            AuthType::Payload(_) => Ok(Self::Payment(ConnectorEnum::Payload)),
+            AuthType::Paypal(_) => Ok(Self::Payment(ConnectorEnum::Paypal)),
+            AuthType::Authipay(_) => Ok(Self::Payment(ConnectorEnum::Authipay)),
+            AuthType::Silverflow(_) => Ok(Self::Payment(ConnectorEnum::Silverflow)),
+            AuthType::Celero(_) => Ok(Self::Payment(ConnectorEnum::Celero)),
+            AuthType::Trustpayments(_) => Ok(Self::Payment(ConnectorEnum::Trustpayments)),
+            AuthType::Paysafe(_) => Ok(Self::Payment(ConnectorEnum::Paysafe)),
+            AuthType::Barclaycard(_) => Ok(Self::Payment(ConnectorEnum::Barclaycard)),
+            AuthType::Worldpayxml(_) => Ok(Self::Payment(ConnectorEnum::Worldpayxml)),
+            AuthType::Revolut(_) => Ok(Self::Payment(ConnectorEnum::Revolut)),
+            AuthType::Loonio(_) => Ok(Self::Payment(ConnectorEnum::Loonio)),
+            AuthType::Gigadat(_) => Ok(Self::Payment(ConnectorEnum::Gigadat)),
+            AuthType::Hyperpg(_) => Ok(Self::Payment(ConnectorEnum::Hyperpg)),
+            AuthType::Peachpayments(_) => Ok(Self::Payment(ConnectorEnum::Peachpayments)),
+            AuthType::Zift(_) => Ok(Self::Payment(ConnectorEnum::Zift)),
+            AuthType::Trustly(_) => Ok(Self::Payment(ConnectorEnum::Trustly)),
+            AuthType::Truelayer(_) => Ok(Self::Payment(ConnectorEnum::Truelayer)),
+            AuthType::Fiservcommercehub(_) => Ok(Self::Payment(ConnectorEnum::Fiservcommercehub)),
+            AuthType::Itaubank(_) => Ok(Self::Payment(ConnectorEnum::Itaubank)),
+            AuthType::Axisbank(_) => Ok(Self::Payment(ConnectorEnum::Axisbank)),
             AuthType::Screenstream(_) => Err(error_stack::Report::new(
                 IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -4238,7 +4308,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
                     context: IntegrationErrorContext::default(),
                 },
             )),
-            AuthType::Fiuu(_) => Ok(Self::Fiuu),
+            AuthType::Fiuu(_) => Ok(Self::Payment(ConnectorEnum::Fiuu)),
             AuthType::Globepay(_) => Err(error_stack::Report::new(
                 IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -4257,16 +4327,19 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
                     context: IntegrationErrorContext::default(),
                 },
             )),
-            AuthType::Revolv3(_) => Ok(Self::Revolv3),
-            AuthType::Authorizedotnet(_) => Ok(Self::Authorizedotnet),
-            AuthType::Ppro(_) => Ok(Self::Ppro),
-            AuthType::PinelabsOnline(_) => Ok(Self::PinelabsOnline),
-            AuthType::Easebuzz(_) => Ok(Self::Easebuzz),
-            AuthType::Imerchantsolutions(_) => Ok(Self::Imerchantsolutions),
-            AuthType::TwocTwopPaco(_) => Ok(Self::TwocTwopPaco),
-            AuthType::Bamboraapac(_) => Ok(Self::Bamboraapac),
-            AuthType::Placetopay(_) => Ok(Self::Placetopay),
-            AuthType::Finix(_) => Ok(Self::Finix),
+            AuthType::Revolv3(_) => Ok(Self::Payment(ConnectorEnum::Revolv3)),
+            AuthType::Authorizedotnet(_) => Ok(Self::Payment(ConnectorEnum::Authorizedotnet)),
+            AuthType::Ppro(_) => Ok(Self::Payment(ConnectorEnum::Ppro)),
+            AuthType::PinelabsOnline(_) => Ok(Self::Payment(ConnectorEnum::PinelabsOnline)),
+            AuthType::Easebuzz(_) => Ok(Self::Payment(ConnectorEnum::Easebuzz)),
+            AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
+            AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),
+            AuthType::Interpayments(_) => {
+                Ok(Self::Surcharge(SurchargeConnectorEnum::Interpayments))
+            }
+            AuthType::Bamboraapac(_) => Ok(Self::Payment(ConnectorEnum::Bamboraapac)),
+            AuthType::Placetopay(_) => Ok(Self::Payment(ConnectorEnum::Placetopay)),
+            AuthType::Finix(_) => Ok(Self::Payment(ConnectorEnum::Finix)),
         }
     }
 }

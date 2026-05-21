@@ -85,6 +85,10 @@ SERVICE_FLOWS = {
         # refund_get: RefundService.Get — Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
         "refund_get": "RefundResponse",
     },
+    "SurchargeClient": {
+        # surcharge_calculate: SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing.
+        "surcharge_calculate": "SurchargeServiceCalculateResponse",
+    },
     "PaymentMethodClient": {
         # tokenize: PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing.
         "tokenize": "PaymentMethodServiceTokenizeResponse",
