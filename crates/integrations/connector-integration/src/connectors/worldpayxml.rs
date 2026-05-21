@@ -9,7 +9,8 @@ use common_enums::CurrencyUnit;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, StringMinorUnit};
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, PSync, PayoutGet, PayoutTransfer, PayoutVoid, RSync, Refund, Void, VoidPC,
+        Authorize, Capture, PSync, PayoutGet, PayoutTransfer, PayoutVoid, RSync, Refund, Void,
+        VoidPC,
     },
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,

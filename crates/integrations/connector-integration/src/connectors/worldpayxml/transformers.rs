@@ -3,7 +3,8 @@ use std::fmt::Debug;
 use common_enums::{AttemptStatus, CaptureMethod, RefundStatus};
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, PSync, PayoutGet, PayoutTransfer, PayoutVoid, RSync, Refund, Void, VoidPC
+        Authorize, Capture, PSync, PayoutGet, PayoutTransfer, PayoutVoid, RSync, Refund, Void,
+        VoidPC,
     },
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,

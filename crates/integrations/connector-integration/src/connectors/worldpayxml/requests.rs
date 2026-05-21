@@ -450,7 +450,6 @@ pub struct WorldpayxmlPayoutCancelOrderModification {
 #[derive(Debug, Serialize)]
 pub struct WorldpayxmlCancelRefund {}
 
-
 // ===== VOID PC REQUESTS =====
 
 #[derive(Debug, Serialize)]
