@@ -97,14 +97,7 @@ impl ForeignTryFrom<grpc_api_types::surcharge::SurchargeServiceCalculateRequest>
             let grpc_strategy =
                 grpc_api_types::surcharge::SurchargeStrategy::try_from(surcharge_strategy)
                     .unwrap_or(grpc_api_types::surcharge::SurchargeStrategy::Unspecified);
-
-            match grpc_strategy {
-                grpc_api_types::surcharge::SurchargeStrategy::Apply => SurchargeStrategy::Apply,
-                grpc_api_types::surcharge::SurchargeStrategy::Waive => SurchargeStrategy::Waive,
-                grpc_api_types::surcharge::SurchargeStrategy::Unspecified => {
-                    SurchargeStrategy::Unspecified
-                }
-            }
+            SurchargeStrategy::from(grpc_strategy)
         });
 
         let postal_code = value.postal_code.ok_or_else(|| {
@@ -153,7 +146,12 @@ pub fn generate_surcharge_calculate_response(
 
             Ok(
                 grpc_api_types::surcharge::SurchargeServiceCalculateResponse {
-                    merchant_surcharge_id: response.connector_response_reference_id,
+                    merchant_surcharge_id: Some(
+                        router_data_v2
+                            .resource_common_data
+                            .connector_request_reference_id
+                            .clone(),
+                    ),
                     surcharge_amount: Some(surcharge_amount),
                     surcharge_percentage: Some(response.surcharge_rate_percent),
                     connector_surcharge_id: Some(response.connector_surcharge_id),
