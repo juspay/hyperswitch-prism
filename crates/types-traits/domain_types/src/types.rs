@@ -8998,20 +8998,13 @@ impl<
             )?),
         };
 
-        // Use proto setup_mandate_details if present; otherwise start with an empty MandateData.
-        // customer_acceptance is always overwritten from the top-level field below.
-        let mut setup_mandate_details = value
-            .setup_mandate_details
-            .map(MandateData::foreign_try_from)
-            .transpose()?
-            .unwrap_or_else(|| MandateData {
-                update_mandate_id: None,
-                customer_acceptance: None,
-                mandate_type: None,
-            });
-        setup_mandate_details.customer_acceptance = Some(
-            mandates::CustomerAcceptance::foreign_try_from(customer_acceptance.clone())?,
-        );
+        let setup_mandate_details = MandateData {
+            update_mandate_id: None,
+            customer_acceptance: Some(mandates::CustomerAcceptance::foreign_try_from(
+                customer_acceptance.clone(),
+            )?),
+            mandate_type: None,
+        };
 
         let billing_descriptor =
             value
