@@ -509,6 +509,7 @@ fn create_refund_get_request(transaction_id: &str, refund_id: &str) -> RefundSer
         refund_amount: None,
 
         merchant_request_id: None,
+        connector_order_id: None,
     }
 }
 
