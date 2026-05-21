@@ -6,8 +6,8 @@ use domain_types::{
     surcharge::surcharge_types::{
         SurchargeCalculateRequest, SurchargeCalculateResponse, SurchargeFlowData,
     },
-    utils::ForeignTryFrom,
     surcharge::types::generate_surcharge_calculate_response,
+    utils::ForeignTryFrom,
 };
 use grpc_api_types::surcharge::{
     surcharge_service_server::SurchargeService, SurchargeServiceCalculateRequest,

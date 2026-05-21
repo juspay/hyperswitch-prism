@@ -28,7 +28,13 @@ impl TryFrom<&ConnectorSpecificConfig> for InterpaymentsAuthType {
             })
         } else {
             Err(IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: domain_types::errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to obtain InterPayments authentication credentials".to_string(),
+                    ),
+                    suggested_action: None,
+                    doc_url: None,
+                },
             })?
         }
     }
@@ -85,7 +91,14 @@ impl
             .ok_or_else(|| {
                 error_stack::report!(IntegrationError::MissingRequiredField {
                     field_name: "country",
-                    context: Default::default(),
+                    context: domain_types::errors::IntegrationErrorContext {
+                        additional_context: Some(
+                            "Country is required for surcharge calculation with InterPayments"
+                                .to_string()
+                        ),
+                        suggested_action: Some("Provide a valid country code".to_string()),
+                        doc_url: None,
+                    },
                 })
             })?;
 
