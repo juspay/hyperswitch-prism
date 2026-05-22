@@ -5,14 +5,15 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
+    request::RequestContent,
 };
 use domain_types::router_data::ConnectorSpecificConfig;
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void, VoidPC},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::ErrorResponse,
@@ -30,9 +31,11 @@ use serde::Serialize;
 use std::fmt::Debug;
 use transformers::{
     self as placetopay, PlacetopayNextActionRequest,
+    PlacetopayNextActionRequest as PlacetopayVoidPCRequest,
     PlacetopayNextActionRequest as PlacetopayVoidRequest, PlacetopayPaymentsRequest,
     PlacetopayPaymentsResponse as PlacetopayPSyncResponse, PlacetopayPaymentsResponse,
     PlacetopayPaymentsResponse as PlacetopayCaptureResponse,
+    PlacetopayPaymentsResponse as PlacetopayVoidPCResponse,
     PlacetopayPaymentsResponse as PlacetopayVoidResponse, PlacetopayPsyncRequest,
     PlacetopayRefundRequest, PlacetopayRefundResponse as PlacetopayRSyncResponse,
     PlacetopayRefundResponse, PlacetopayRsyncRequest,
@@ -75,6 +78,12 @@ macros::create_all_prerequisites!(
             request_body: PlacetopayVoidRequest,
             response_body: PlacetopayVoidResponse,
             router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ),
+        (
+            flow: VoidPC,
+            request_body: PlacetopayVoidPCRequest,
+            response_body: PlacetopayVoidPCResponse,
+            router_data: RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
         ),
         (
             flow: Refund,
@@ -141,6 +150,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Placetopay<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentVoidPostCaptureV2 for Placetopay<T>
 {
 }
 
@@ -360,6 +374,114 @@ macros::macro_connector_implementation!(
     }
 );
 
+// Direct implementation for VoidPC flow (uses PostCaptureVoidResponse status mapping)
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    ConnectorIntegrationV2<
+        VoidPC,
+        PaymentFlowData,
+        PaymentsCancelPostCaptureData,
+        PaymentsResponseData,
+    > for Placetopay<T>
+{
+    fn get_headers(
+        &self,
+        req: &RouterDataV2<
+            VoidPC,
+            PaymentFlowData,
+            PaymentsCancelPostCaptureData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+        self.build_headers(req)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &RouterDataV2<
+            VoidPC,
+            PaymentFlowData,
+            PaymentsCancelPostCaptureData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Ok(format!(
+            "{}/transaction",
+            self.connector_base_url_payments(req)
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &RouterDataV2<
+            VoidPC,
+            PaymentFlowData,
+            PaymentsCancelPostCaptureData,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+        let request = PlacetopayNextActionRequest::try_from(PlacetopayRouterData {
+            connector: self.clone(),
+            router_data: req.clone(),
+        })?;
+        Ok(Some(RequestContent::Json(Box::new(request))))
+    }
+
+    fn handle_response_v2(
+        &self,
+        data: &RouterDataV2<
+            VoidPC,
+            PaymentFlowData,
+            PaymentsCancelPostCaptureData,
+            PaymentsResponseData,
+        >,
+        event_builder: Option<&mut events::Event>,
+        res: Response,
+    ) -> CustomResult<
+        RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ConnectorError,
+    > {
+        let response: PlacetopayPaymentsResponse = res
+            .response
+            .parse_struct("PlacetopayPaymentsResponse")
+            .change_context(crate::utils::response_handling_fail_for_connector(
+                res.status_code,
+                "placetopay",
+            ))?;
+
+        if let Some(i) = event_builder {
+            i.set_connector_response(&response)
+        }
+
+        let (status, payments_response) =
+            placetopay::map_void_pc_response(&response, res.status_code);
+
+        Ok(RouterDataV2 {
+            resource_common_data: PaymentFlowData {
+                status,
+                ..data.resource_common_data.clone()
+            },
+            response: payments_response,
+            ..data.clone()
+        })
+    }
+
+    fn get_error_response_v2(
+        &self,
+        res: Response,
+        event_builder: Option<&mut events::Event>,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_http_method(&self) -> common_utils::request::Method {
+        common_utils::request::Method::Post
+    }
+}
+
 // Macro implementation for Refund flow
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
@@ -425,7 +547,6 @@ macros::macro_connector_flow_status_impls!(
     not_implemented: [
         IncrementalAuthorization,
         PaymentMethodToken,
-        VoidPC,
         SubmitEvidence,
         DefendDispute,
         Accept,

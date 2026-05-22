@@ -1,10 +1,10 @@
 use common_utils::types::MinorUnit;
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Void},
+    connector_flow::{Authorize, Capture, PSync, RSync, Void, VoidPC},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -251,6 +251,91 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             internal_reference,
             action,
         })
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PlacetopayRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for PlacetopayNextActionRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: PlacetopayRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let auth = PlacetopayAuth::try_from(&item.router_data.connector_config)?;
+        let internal_reference = item
+            .router_data
+            .request
+            .connector_transaction_id
+            .parse::<u64>()
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
+        let action = PlacetopayNextAction::Reverse;
+        Ok(Self {
+            auth,
+            internal_reference,
+            action,
+        })
+    }
+}
+
+pub fn map_void_pc_response(
+    response: &PlacetopayPaymentsResponse,
+    http_code: u16,
+) -> (
+    common_enums::AttemptStatus,
+    Result<PaymentsResponseData, domain_types::router_data::ErrorResponse>,
+) {
+    match &response.status.status {
+        PlacetopayTransactionStatus::Approved | PlacetopayTransactionStatus::Ok => (
+            common_enums::AttemptStatus::VoidPostCaptureInitiated,
+            Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status: common_enums::PostCaptureVoidStatus::Succeeded,
+                connector_reference_id: Some(response.internal_reference.to_string()),
+                description: None,
+                status_code: http_code,
+            }),
+        ),
+        PlacetopayTransactionStatus::Failed
+        | PlacetopayTransactionStatus::Rejected
+        | PlacetopayTransactionStatus::Error => (
+            common_enums::AttemptStatus::VoidFailed,
+            Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status: common_enums::PostCaptureVoidStatus::Failed,
+                connector_reference_id: Some(response.internal_reference.to_string()),
+                description: Some("Reverse transaction failed".to_string()),
+                status_code: http_code,
+            }),
+        ),
+        PlacetopayTransactionStatus::Pending
+        | PlacetopayTransactionStatus::PendingValidation
+        | PlacetopayTransactionStatus::PendingProcess => (
+            common_enums::AttemptStatus::Pending,
+            Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status: common_enums::PostCaptureVoidStatus::Pending,
+                connector_reference_id: Some(response.internal_reference.to_string()),
+                description: None,
+                status_code: http_code,
+            }),
+        ),
     }
 }
 
