@@ -789,7 +789,7 @@ impl TryFrom<
                         .clone()
                         .unwrap_or_else(|| "Sync failed".to_string()),
                     reason: response.err_msg.clone(),
-                    attempt_status: None,
+                    attempt_status: Some(AttemptStatus::Failure),
                     connector_transaction_id: response.pay_ref.clone(),
                     network_advice_code: None,
                     network_decline_code: None,
@@ -876,7 +876,7 @@ impl TryFrom<
                         .clone()
                         .unwrap_or_else(|| "Refund failed".to_string()),
                     reason: response.err_msg.clone(),
-                    attempt_status: None,
+                    attempt_status: Some(AttemptStatus::Failure),
                     connector_transaction_id: response.pay_ref.clone(),
                     network_advice_code: None,
                     network_decline_code: None,

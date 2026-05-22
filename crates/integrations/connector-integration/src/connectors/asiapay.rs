@@ -379,30 +379,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ))
     }
 
-    fn get_request_body(
-        &self,
-        _req: &RouterDataV2<
-            Authorize,
-            PaymentFlowData,
-            PaymentsAuthorizeData<T>,
-            PaymentsResponseData,
-        >,
-    ) -> CustomResult<Option<common_utils::request::RequestContent>, IntegrationError> {
-        Ok(None)
-    }
-
-    fn build_request_v2(
-        &self,
-        _req: &RouterDataV2<
-            Authorize,
-            PaymentFlowData,
-            PaymentsAuthorizeData<T>,
-            PaymentsResponseData,
-        >,
-    ) -> CustomResult<Option<common_utils::request::Request>, IntegrationError> {
-        Ok(None)
-    }
-
     fn handle_response_v2(
         &self,
         data: &RouterDataV2<
