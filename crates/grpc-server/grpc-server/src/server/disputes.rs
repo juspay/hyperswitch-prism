@@ -114,12 +114,6 @@ impl DisputeService for Disputes {
                         merchant_id,
                         ..
                     } = request_data.extracted_metadata;
-                    let payments_connector =
-                        connector
-                            .as_payment()
-                            .ok_or(tonic::Status::invalid_argument(
-                                "Invalid Connector Received".to_string(),
-                            ))?;
                     let connector_data: ConnectorData<DefaultPCIHolder> =
                         ConnectorData::from_connector_variant(&connector).ok_or_else(|| {
                             tonic::Status::invalid_argument("Invalid Connector Received")

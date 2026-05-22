@@ -471,7 +471,6 @@ enum NotifyEventType {
   // Surcharge events
   SURCHARGE_PAYMENT_SUCCEEDED = 1; // Surcharge payment succeeded
   SURCHARGE_REFUND_SUCCEEDED = 2;  // Surcharge refund succeeded
-  SURCHARGE_REFUND_FAILED = 3;     // Surcharge refund failed
 }
 
 // Currency codes (ISO 4217)

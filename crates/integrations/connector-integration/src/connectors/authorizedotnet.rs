@@ -396,7 +396,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 // Define connector prerequisites
-
 macros::create_all_prerequisites!(
     connector_name: Authorizedotnet,
     generic_type: T,

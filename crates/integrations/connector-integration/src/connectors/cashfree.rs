@@ -112,7 +112,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // Define connector prerequisites
-
 macros::create_all_prerequisites!(
     connector_name: Cashfree,
     generic_type: T,
