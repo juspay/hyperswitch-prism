@@ -2,8 +2,8 @@ use common_utils::types::MinorUnit;
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Void, VoidPC},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsCancelPostCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
         RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError},
@@ -665,11 +665,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
-        let authorization =
-            match item.router_data.resource_common_data.connector_feature_data.clone() {
-                Some(metadata) => metadata.expose().as_str().map(|s| Secret::new(s.to_string())),
-                None => None,
-            };
+        let authorization = match item
+            .router_data
+            .resource_common_data
+            .connector_feature_data
+            .clone()
+        {
+            Some(metadata) => metadata
+                .expose()
+                .as_str()
+                .map(|s| Secret::new(s.to_string())),
+            None => None,
+        };
         Ok(Self {
             auth,
             internal_reference,
