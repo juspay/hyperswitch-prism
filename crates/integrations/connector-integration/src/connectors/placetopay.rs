@@ -8,11 +8,11 @@ use common_utils::{
 };
 use domain_types::router_data::ConnectorSpecificConfig;
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void, VoidPC},
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData,
+        PaymentsCancelPostCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::ErrorResponse,
@@ -35,7 +35,8 @@ use transformers::{
     PlacetopayPaymentsResponse as PlacetopayCaptureResponse,
     PlacetopayPaymentsResponse as PlacetopayVoidResponse, PlacetopayPsyncRequest,
     PlacetopayRefundRequest, PlacetopayRefundResponse as PlacetopayRSyncResponse,
-    PlacetopayRefundResponse, PlacetopayRsyncRequest,
+    PlacetopayRefundResponse, PlacetopayRsyncRequest, PlacetopayVoidPCRequest,
+    PlacetopayVoidPCResponse,
 };
 
 use super::macros;
@@ -87,6 +88,12 @@ macros::create_all_prerequisites!(
             request_body: PlacetopayRsyncRequest,
             response_body: PlacetopayRSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: VoidPC,
+            request_body: PlacetopayVoidPCRequest,
+            response_body: PlacetopayVoidPCResponse,
+            router_data: RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -176,6 +183,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Placetopay<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentVoidPostCaptureV2 for Placetopay<T>
 {
 }
 
@@ -418,6 +430,35 @@ macros::macro_connector_implementation!(
     }
 );
 
+// Macro implementation for VoidPostCapture flow
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Placetopay,
+    curl_request: Json(PlacetopayVoidPCRequest),
+    curl_response: PlacetopayVoidPCResponse,
+    flow_name: VoidPC,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsCancelPostCaptureData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/transaction", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
 macros::macro_connector_flow_status_impls!(
     connector: Placetopay,
     generic_type: T,
@@ -425,7 +466,6 @@ macros::macro_connector_flow_status_impls!(
     not_implemented: [
         IncrementalAuthorization,
         PaymentMethodToken,
-        VoidPC,
         SubmitEvidence,
         DefendDispute,
         Accept,
