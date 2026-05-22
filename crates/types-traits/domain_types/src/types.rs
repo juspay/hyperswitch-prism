@@ -2813,7 +2813,7 @@ pub struct SetupRecurringRequest {
     pub browser_info: Option<grpc_payment_types::BrowserInformation>,
     pub billing_descriptor: Option<grpc_payment_types::BillingDescriptor>,
     pub locale: Option<String>,
-    pub payment_channel: Option<i32>,
+    pub payment_channel: Option<grpc_payment_types::PaymentChannel>,
     pub complete_authorize_url: Option<String>,
     pub off_session: Option<bool>,
     pub order_category: Option<String>,
@@ -2967,7 +2967,9 @@ impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecu
             browser_info: req.browser_info,
             billing_descriptor: req.billing_descriptor,
             locale: req.locale,
-            payment_channel: req.payment_channel,
+            payment_channel: req
+                .payment_channel
+                .and_then(|v| grpc_payment_types::PaymentChannel::try_from(v).ok()),
             complete_authorize_url: req.complete_authorize_url,
             off_session: req.off_session,
             request_incremental_authorization: req.request_incremental_authorization,
@@ -3473,19 +3475,7 @@ impl<
                 .filter(|pe| *pe != grpc_payment_types::PaymentExperience::Unspecified)
                 .map(common_enums::PaymentExperience::foreign_try_from)
                 .transpose()?,
-            customer_id: value
-                .customer
-                .and_then(|customer| customer.id)
-                .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
-                .transpose()
-                .change_context(IntegrationError::InvalidDataFormat {
-                    field_name: "customer.id",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Failed to parse Customer Id".to_string()),
-                        suggested_action: Some("Provide a valid customer ID".to_string()),
-                        doc_url: None,
-                    },
-                })?,
+            customer_id: Option::<CustomerId>::foreign_try_from(value.customer.clone())?,
             request_incremental_authorization: value.request_incremental_authorization,
             metadata: value
                 .metadata
@@ -3592,10 +3582,6 @@ impl<
 
         let payment_channel = value
             .payment_channel
-            .map(grpc_payment_types::PaymentChannel::try_from)
-            .transpose()
-            .ok()
-            .flatten()
             .filter(|channel| !matches!(channel, grpc_payment_types::PaymentChannel::Unspecified))
             .map(common_enums::PaymentChannel::foreign_try_from)
             .transpose()?;
@@ -4369,19 +4355,7 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_transaction_id,
             ),
-            customer_id: value
-                .customer
-                .clone()
-                .and_then(|customer| customer.id)
-                .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
-                .transpose()
-                .change_context(IntegrationError::InvalidDataFormat {
-                    field_name: "unknown",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Failed to parse Customer Id".to_string()),
-                        ..Default::default()
-                    },
-                })?,
+            customer_id: Option::<CustomerId>::foreign_try_from(value.customer.clone())?,
             connector_customer: value
                 .customer
                 .and_then(|customer| customer.connector_customer_id),
@@ -4467,19 +4441,7 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
             connector_request_reference_id: extract_connector_request_reference_id(&Some(
                 value.merchant_recurring_payment_id.clone(),
             )),
-            customer_id: value
-                .customer
-                .clone()
-                .and_then(|customer| customer.id)
-                .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
-                .transpose()
-                .change_context(IntegrationError::InvalidDataFormat {
-                    field_name: "unknown",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Failed to parse Customer Id".to_string()),
-                        ..Default::default()
-                    },
-                })?,
+            customer_id: Option::<CustomerId>::foreign_try_from(value.customer.clone())?,
             connector_customer: value
                 .customer
                 .and_then(|customer| customer.connector_customer_id),
@@ -8770,21 +8732,7 @@ impl
                     .unwrap_or_default(),
             )?,
             connector_request_reference_id: value.merchant_recurring_payment_id,
-            customer_id: value
-                .customer
-                .clone()
-                .and_then(|customer| customer.id)
-                .clone()
-                .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
-                .transpose()
-                .change_context(IntegrationError::InvalidDataFormat {
-                    field_name: "customer.id",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Failed to parse Customer Id".to_string()),
-                        suggested_action: Some("Provide a valid customer ID".to_string()),
-                        doc_url: None,
-                    },
-                })?,
+            customer_id: Option::<CustomerId>::foreign_try_from(value.customer.clone())?,
             connector_customer: value
                 .customer
                 .and_then(|customer| customer.connector_customer_id),
@@ -8880,20 +8828,7 @@ impl
             address,
             auth_type: common_enums::AuthenticationType::default(),
             connector_request_reference_id: value.merchant_recurring_payment_id,
-            customer_id: value
-                .customer
-                .clone()
-                .and_then(|customer| customer.id)
-                .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
-                .transpose()
-                .change_context(IntegrationError::InvalidDataFormat {
-                    field_name: "customer.id",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Failed to parse Customer Id".to_string()),
-                        suggested_action: Some("Provide a valid customer ID".to_string()),
-                        doc_url: None,
-                    },
-                })?,
+            customer_id: Option::<CustomerId>::foreign_try_from(value.customer.clone())?,
             connector_customer: value
                 .customer
                 .and_then(|customer| customer.connector_customer_id),
@@ -9386,6 +9321,26 @@ impl ForeignTryFrom<&grpc_api_types::payouts::Customer> for CustomerInfo {
             customer_phone_number: value.phone_number.clone().map(Into::into),
             customer_phone_country_code: value.phone_country_code.clone(),
         })
+    }
+}
+
+impl ForeignTryFrom<Option<grpc_payment_types::Customer>> for Option<CustomerId> {
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        value: Option<grpc_payment_types::Customer>,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        value
+            .and_then(|customer| customer.id)
+            .map(|id| CustomerId::try_from(Cow::from(id)))
+            .transpose()
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "customer.id",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Failed to parse Customer Id".to_string()),
+                    suggested_action: Some("Provide a valid customer ID".to_string()),
+                    doc_url: None,
+                },
+            })
     }
 }
 
