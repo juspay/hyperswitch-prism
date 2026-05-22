@@ -137,88 +137,6 @@ pub struct AsiaPayPaymentRequest {
     pub secure_hash: Secret<String>,
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    TryFrom<
-        AsiapayRouterData<
-            RouterDataV2<
-                Authorize,
-                PaymentFlowData,
-                PaymentsAuthorizeData<T>,
-                PaymentsResponseData,
-            >,
-            T,
-        >,
-    > for AsiaPayPaymentRequest
-{
-    type Error = error_stack::Report<IntegrationError>;
-
-    fn try_from(
-        item: AsiapayRouterData<
-            RouterDataV2<
-                Authorize,
-                PaymentFlowData,
-                PaymentsAuthorizeData<T>,
-                PaymentsResponseData,
-            >,
-            T,
-        >,
-    ) -> Result<Self, Self::Error> {
-        let connector = &item.connector;
-        let router_data = &item.router_data;
-        let auth = AsiaPayAuthType::try_from(&router_data.connector_config)?;
-        let currency_code = get_currency_code(router_data.request.currency)?;
-
-        let amount = connector
-            .amount_converter
-            .convert(router_data.request.amount, router_data.request.currency)
-            .change_context(IntegrationError::AmountConversionFailed {
-                context: Default::default(),
-            })?;
-        let amount_str = stringify_amount(&amount);
-
-        let pay_type = match router_data.request.capture_method {
-            Some(CaptureMethod::Manual) => "H",
-            _ => "N",
-        };
-
-        let return_url = router_data
-            .resource_common_data
-            .return_url
-            .clone()
-            .unwrap_or_default();
-
-        let merchant_id = auth.merchant_id.peek().to_string();
-        let order_ref = router_data
-            .resource_common_data
-            .connector_request_reference_id
-            .clone();
-
-        let hash_input = format!(
-            "{}|{}|{}|{}|{}|{}",
-            merchant_id,
-            order_ref,
-            currency_code,
-            amount_str,
-            pay_type,
-            auth.secure_hash_secret.peek()
-        );
-        let secure_hash = compute_sha256_hex(&hash_input)?;
-
-        Ok(Self {
-            merchant_id: auth.merchant_id,
-            order_ref,
-            amount,
-            curr_code: currency_code.to_string(),
-            pay_type: pay_type.to_string(),
-            pay_method: "CC".to_string(),
-            lang: "E".to_string(),
-            success_url: return_url.clone(),
-            fail_url: return_url.clone(),
-            cancel_url: return_url,
-            secure_hash: Secret::new(secure_hash),
-        })
-    }
-}
 
 #[derive(Debug, Deserialize)]
 pub struct AsiaPayRedirectResponse {
@@ -859,6 +777,28 @@ impl TryFrom<
         let router_data = item.router_data;
         let response = &item.response;
 
+        let result_code = response.result_code.as_deref().unwrap_or("-1");
+
+        if result_code != "0" {
+            return Ok(Self {
+                response: Err(ErrorResponse {
+                    status_code: item.http_code,
+                    code: result_code.to_string(),
+                    message: response
+                        .err_msg
+                        .clone()
+                        .unwrap_or_else(|| "Sync failed".to_string()),
+                    reason: response.err_msg.clone(),
+                    attempt_status: None,
+                    connector_transaction_id: response.pay_ref.clone(),
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                }),
+                ..router_data
+            });
+        }
+
         let order_status = response.order_status.as_deref().unwrap_or("Pending");
         let status = map_order_status(order_status);
 
@@ -985,7 +925,7 @@ impl AsiaPayWebhookBody {
 
         match (order_status, success_code) {
             ("Accepted" | "Captured", "0") => EventType::PaymentIntentSuccess,
-            ("Authorized", "0") => EventType::PaymentIntentSuccess,
+            ("Authorized", "0") => EventType::PaymentIntentAuthorizationSuccess,
             ("Rejected", _) | (_, "1") => EventType::PaymentIntentFailure,
             ("Voided" | "Cancelled", _) => EventType::PaymentIntentFailure,
             ("Refunded" | "Partial Refunded", _) => EventType::RefundSuccess,

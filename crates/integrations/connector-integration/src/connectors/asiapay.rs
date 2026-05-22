@@ -10,12 +10,14 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        ConnectorWebhookSecrets, EventType, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
         PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
-        RefundsData, RefundsResponseData,
+        RefundsData, RefundsResponseData, RequestDetails, WebhookDetailsResponse,
+        WebhookResourceReference,
     },
+    errors::WebhookError,
     payment_method_data::PaymentMethodDataTypes,
-    router_data::ErrorResponse,
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
@@ -267,6 +269,65 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Asiapay<T>
 {
+    fn verify_webhook_source(
+        &self,
+        request: RequestDetails,
+        connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<bool, error_stack::Report<WebhookError>> {
+        let body_str = String::from_utf8(request.body.to_vec())
+            .map_err(|_| WebhookError::WebhookBodyDecodingFailed)?;
+        let webhook: transformers::AsiaPayWebhookBody = serde_qs::from_str(&body_str)
+            .map_err(|_| WebhookError::WebhookBodyDecodingFailed)?;
+
+        let secret = connector_webhook_secret
+            .ok_or(WebhookError::WebhookVerificationSecretNotFound)?;
+        let secret_str = String::from_utf8(secret.secret.to_vec())
+            .map_err(|_| WebhookError::WebhookVerificationSecretNotFound)?;
+
+        let expected = webhook
+            .compute_expected_hash(&secret_str)
+            .map_err(|_| WebhookError::WebhookSourceVerificationFailed)?;
+
+        let received = webhook.secure_hash.as_deref().unwrap_or("");
+        Ok(expected.eq_ignore_ascii_case(received))
+    }
+
+    fn get_event_type(
+        &self,
+        request: RequestDetails,
+    ) -> Result<EventType, error_stack::Report<WebhookError>> {
+        let body_str = String::from_utf8(request.body.to_vec())
+            .map_err(|_| WebhookError::WebhookBodyDecodingFailed)?;
+        let webhook: transformers::AsiaPayWebhookBody = serde_qs::from_str(&body_str)
+            .map_err(|_| WebhookError::WebhookBodyDecodingFailed)?;
+        Ok(webhook.get_webhook_event_type())
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
+        let body_str = String::from_utf8(request.body.to_vec())
+            .map_err(|_| WebhookError::WebhookBodyDecodingFailed)?;
+        let webhook: transformers::AsiaPayWebhookBody = serde_qs::from_str(&body_str)
+            .map_err(|_| WebhookError::WebhookBodyDecodingFailed)?;
+        Ok(Some(transformers::get_webhook_resource_reference(&webhook)))
+    }
+
+    fn process_payment_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<domain_types::connector_types::EventContext>,
+    ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
+        let body_str = String::from_utf8(request.body.to_vec())
+            .map_err(|_| WebhookError::WebhookBodyDecodingFailed)?;
+        let webhook: transformers::AsiaPayWebhookBody = serde_qs::from_str(&body_str)
+            .map_err(|_| WebhookError::WebhookBodyDecodingFailed)?;
+        Ok(transformers::get_webhook_details_response(&webhook))
+    }
 }
 
 macros::macro_connector_payout_implementation!(
