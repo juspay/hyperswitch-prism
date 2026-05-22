@@ -4,7 +4,7 @@ use crate::{
     request::RequestData,
     utils::{grpc_logging_wrapper, MetadataPayload},
 };
-use connector_integration::types::ConnectorData;
+use connector_integration::types::{ConnectorData, ConnectorDataProvider};
 use domain_types::{
     connector_flow::{Accept, DefendDispute, FlowName, SubmitEvidence},
     connector_types::{
@@ -121,7 +121,9 @@ impl DisputeService for Disputes {
                                 "Invalid Connector Received".to_string(),
                             ))?;
                     let connector_data: ConnectorData<DefaultPCIHolder> =
-                        ConnectorData::get_connector_by_name(&payments_connector);
+                        ConnectorData::from_connector_variant(&connector).ok_or_else(|| {
+                            tonic::Status::invalid_argument("Invalid Connector Received")
+                        })?;
 
                     let connector_integration: BoxedConnectorIntegrationV2<
                         '_,
@@ -157,7 +159,7 @@ impl DisputeService for Disputes {
                         response: Err(ErrorResponse::default()),
                     };
                     let event_params = external_services::service::EventProcessingParams {
-                        connector_name: &payments_connector.to_string(),
+                        connector_name: &connector.get_connector_name(),
                         service_name: &service_name,
                         service_type: utils::service_type_str(&config.server.type_),
                         flow_name: common_utils::events::FlowName::SubmitEvidence,
@@ -341,14 +343,10 @@ impl DisputeService for Disputes {
                         merchant_id,
                         ..
                     } = request_data.extracted_metadata;
-                    let payments_connector =
-                        connector
-                            .as_payment()
-                            .ok_or(tonic::Status::invalid_argument(
-                                "Invalid Connector Received".to_string(),
-                            ))?;
                     let connector_data: ConnectorData<DefaultPCIHolder> =
-                        ConnectorData::get_connector_by_name(&payments_connector);
+                        ConnectorData::from_connector_variant(&connector).ok_or_else(|| {
+                            tonic::Status::invalid_argument("Invalid Connector Received")
+                        })?;
 
                     let connector_integration: BoxedConnectorIntegrationV2<
                         '_,
@@ -385,7 +383,7 @@ impl DisputeService for Disputes {
                     };
 
                     let event_params = external_services::service::EventProcessingParams {
-                        connector_name: &payments_connector.to_string(),
+                        connector_name: &connector.get_connector_name(),
                         service_name: &service_name,
                         service_type: utils::service_type_str(&config.server.type_),
                         flow_name: common_utils::events::FlowName::AcceptDispute,

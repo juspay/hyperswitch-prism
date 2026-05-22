@@ -667,7 +667,7 @@ macro_rules! surcharge_res_transformer {
                 Box::new(common_utils::errors::ErrorSwitch::<grpc_api_types::payments::ConnectorError>::switch(e.current_context()))
             })?;
 
-            domain_types::types::$generate_response_fn(response)
+            domain_types::surcharge::types::$generate_response_fn(response)
                 .map_err(|e: error_stack::Report<domain_types::errors::ConnectorError>| {
                     Box::new(common_utils::errors::ErrorSwitch::<grpc_api_types::payments::ConnectorError>::switch(e.current_context()))
                 })

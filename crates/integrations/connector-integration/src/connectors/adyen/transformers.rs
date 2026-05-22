@@ -13,6 +13,7 @@ use domain_types::{
     connector_flow::{
         Accept, Authorize, Capture, ClientAuthenticationToken, CreateOrder, DefendDispute,
         IncrementalAuthorization, PSync, Refund, RepeatPayment, SetupMandate, SubmitEvidence, Void,
+        VoidPC,
     },
     connector_types::{
         AcceptDisputeData,
@@ -21,7 +22,7 @@ use domain_types::{
         ConnectorSpecificClientAuthenticationResponse, DisputeDefendData, DisputeFlowData,
         DisputeResponseData, EventType, MandateReference, MandateReferenceId,
         PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodUpdate,
-        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
         SetupMandateRequestData, SubmitEvidenceData,
@@ -4479,6 +4480,123 @@ impl TryFrom<ResponseRouterData<AdyenVoidResponse, Self>>
         })
     }
 }
+
+// ===== VoidPC (Post-Capture Reversal) Types =====
+
+/// Request for Adyen post-capture reversal via /reversals endpoint.
+/// Adyen's /reversals API cancels a captured payment before settlement.
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenReversalRequest {
+    merchant_account: Secret<String>,
+    reference: Option<String>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        AdyenRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for AdyenReversalRequest
+{
+    type Error = Error;
+    fn try_from(
+        item: AdyenRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
+        Ok(Self {
+            merchant_account: auth_type.merchant_account,
+            reference: Some(
+                item.router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            ),
+        })
+    }
+}
+
+/// Response from Adyen /reversals endpoint.
+/// Status is always "received"; outcome delivered via CANCEL_OR_REFUND webhook.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenReversalResponse {
+    pub psp_reference: String,
+    pub payment_psp_reference: String,
+    pub merchant_account: String,
+    pub reference: Option<String>,
+    pub status: AdyenReversalStatus,
+    pub refusal_reason: Option<String>,
+    pub refusal_reason_code: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AdyenReversalStatus {
+    Received,
+}
+
+impl TryFrom<ResponseRouterData<AdyenReversalResponse, Self>>
+    for RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        value: ResponseRouterData<AdyenReversalResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response,
+            router_data,
+            http_code,
+        } = value;
+        // Adyen always returns "received" — actual void outcome arrives via webhook.
+        // Preserve the existing attempt status; do not override it here.
+        let status = router_data.resource_common_data.status;
+
+        let post_capture_void_status =
+            if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
+                common_enums::PostCaptureVoidStatus::Failed
+            } else {
+                common_enums::PostCaptureVoidStatus::Pending
+            };
+        let description = post_capture_void_status
+            .is_post_capture_void_failure()
+            .then(|| response.refusal_reason.clone())
+            .flatten();
+
+        let payments_response_data = PaymentsResponseData::PostCaptureVoidResponse {
+            post_capture_void_status,
+            connector_reference_id: Some(response.payment_psp_reference),
+            description,
+            status_code: http_code,
+        };
+
+        Ok(Self {
+            response: Ok(payments_response_data),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..router_data.resource_common_data
+            },
+            ..router_data
+        })
+    }
+}
+
+// ===== End VoidPC Types =====
 
 pub fn get_adyen_response(
     response: AdyenResponse,

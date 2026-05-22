@@ -1,5 +1,5 @@
-use crate::types::ResponseRouterData;
-use common_enums::CountryAlpha2;
+use crate::{types::ResponseRouterData, utils};
+use common_enums::{CountryAlpha2, CountryAlpha3};
 use common_utils::types::FloatMajorUnit;
 use domain_types::{
     connector_flow::SurchargeCalculate,
@@ -28,7 +28,13 @@ impl TryFrom<&ConnectorSpecificConfig> for InterpaymentsAuthType {
             })
         } else {
             Err(IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: domain_types::errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to obtain InterPayments authentication credentials".to_string(),
+                    ),
+                    suggested_action: None,
+                    doc_url: None,
+                },
             })?
         }
     }
@@ -46,7 +52,8 @@ pub struct InterpaymentsErrorResponse {
 #[serde(rename_all = "camelCase")]
 pub struct InterPaymentsSurchargeRequest {
     pub amount: FloatMajorUnit,
-    pub region: CountryAlpha2,
+    pub region: Secret<String>,
+    pub country: CountryAlpha3,
     // Card Bin
     pub nicn: String,
     pub m_tx_id: Option<String>,
@@ -75,16 +82,30 @@ impl
         let amount =
             super::InterPaymentsAmountConvertor::convert(req.request.amount, req.request.currency)?;
 
-        let region = req.request.country.ok_or_else(|| {
-            error_stack::report!(IntegrationError::MissingRequiredField {
-                field_name: "country",
-                context: Default::default(),
-            })
-        })?;
+        let region = req.request.postal_code.clone();
+
+        let country = req
+            .request
+            .country
+            .map(CountryAlpha2::from_alpha2_to_alpha3)
+            .ok_or_else(|| {
+                error_stack::report!(IntegrationError::MissingRequiredField {
+                    field_name: "country",
+                    context: domain_types::errors::IntegrationErrorContext {
+                        additional_context: Some(
+                            "Country is required for surcharge calculation with InterPayments"
+                                .to_string()
+                        ),
+                        suggested_action: Some("Provide a valid country code".to_string()),
+                        doc_url: None,
+                    },
+                })
+            })?;
 
         Ok(Self {
             amount,
             region,
+            country,
             nicn: req.request.card_bin.clone(),
             m_tx_id: Some(
                 req.resource_common_data
@@ -125,12 +146,10 @@ impl TryFrom<ResponseRouterData<InterPaymentsSurchargeResponse, Self>>
                     item.response.transaction_fee,
                     item.router_data.request.currency,
                 )
-                .change_context(
-                    crate::utils::response_handling_fail_for_connector(
-                        item.http_code,
-                        "interpayments",
-                    ),
-                )?,
+                .change_context(utils::response_handling_fail_for_connector(
+                    item.http_code,
+                    "interpayments",
+                ))?,
                 surcharge_rate_percent: item.response.transaction_fee_percent,
                 currency: item.router_data.request.currency,
             })

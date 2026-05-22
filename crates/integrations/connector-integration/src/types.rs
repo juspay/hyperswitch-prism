@@ -7,6 +7,7 @@ use domain_types::{
 use interfaces::connector_types::{BoxedConnector, BoxedSurchargeConnector};
 
 use crate::connectors;
+use crate::surcharge_connectors;
 
 #[derive(Clone)]
 pub struct ConnectorData<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static> {
@@ -136,7 +137,7 @@ impl SurchargeConnectorData {
     fn convert_connector(connector_name: SurchargeConnectorEnum) -> BoxedSurchargeConnector {
         match connector_name {
             SurchargeConnectorEnum::Interpayments => {
-                Box::new(crate::surcharge_connectors::InterPayments::new())
+                Box::new(surcharge_connectors::InterPayments::new())
             }
         }
     }
@@ -145,9 +146,6 @@ impl SurchargeConnectorData {
 /// Trait abstracting over connector data types
 pub trait ConnectorDataProvider: Sized {
     type ConnectorEnumType: Copy;
-
-    /// Get connector data by name
-    fn get_connector_by_name(connector_name: &Self::ConnectorEnumType) -> Self;
 
     /// Convert variant to this type
     fn from_connector_variant(
@@ -160,14 +158,6 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
 {
     type ConnectorEnumType = ConnectorEnum;
 
-    fn get_connector_by_name(connector_name: &ConnectorEnum) -> Self {
-        let connector = Self::convert_connector(*connector_name);
-        Self {
-            connector,
-            connector_name: *connector_name,
-        }
-    }
-
     fn from_connector_variant(
         variant: &domain_types::connector_types::ConnectorVariant,
     ) -> Option<Self> {
@@ -179,14 +169,6 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
 
 impl ConnectorDataProvider for SurchargeConnectorData {
     type ConnectorEnumType = SurchargeConnectorEnum;
-
-    fn get_connector_by_name(connector_name: &SurchargeConnectorEnum) -> Self {
-        let connector = Self::convert_connector(*connector_name);
-        Self {
-            connector,
-            connector_name: *connector_name,
-        }
-    }
 
     fn from_connector_variant(
         variant: &domain_types::connector_types::ConnectorVariant,

@@ -62,7 +62,13 @@ impl ConnectorCommon for InterPayments {
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         let auth = InterpaymentsAuthType::try_from(auth_type).change_context(
             IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: domain_types::errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to obtain InterPayments authentication credentials".to_string(),
+                    ),
+                    suggested_action: None,
+                    doc_url: None,
+                },
             },
         )?;
         Ok(vec![(

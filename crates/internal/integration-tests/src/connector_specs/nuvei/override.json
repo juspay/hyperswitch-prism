@@ -1,5 +1,12 @@
 {
   "PaymentService/Authorize": {
+    "no3ds_auto_capture_ach_bank_transfer": {
+      "grpc_req": {
+        "metadata": {
+          "value": "{\"ach\":{\"account_number\":\"123456789\",\"routing_number\":\"021000021\",\"sec_code\":\"WEB\"}}"
+        }
+      }
+    },
     "no3ds_auto_capture_eps": {
       "assert": {
         "connector_transaction_id": null

@@ -1,13 +1,17 @@
-use crate::errors::{IntegrationError, IntegrationErrorContext};
-use crate::surcharge::surcharge_types::{
-    SurchargeCalculateRequest, SurchargeFlowData, SurchargeStrategy,
+use crate::{
+    connector_flow::SurchargeCalculate,
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    router_data_v2::RouterDataV2,
+    surcharge::surcharge_types::{
+        SurchargeCalculateRequest, SurchargeCalculateResponse, SurchargeFlowData, SurchargeStrategy,
+    },
+    types::Connectors,
+    utils::{
+        extract_connector_request_reference_id, extract_merchant_id_from_metadata, ForeignTryFrom,
+    },
 };
-use crate::types::Connectors;
-use crate::utils::{
-    extract_connector_request_reference_id, extract_merchant_id_from_metadata, ForeignTryFrom,
-};
-use common_utils::metadata::MaskedMetadata;
-use common_utils::types::MinorUnit;
+
+use common_utils::{metadata::MaskedMetadata, types::MinorUnit};
 use error_stack::ResultExt;
 impl
     ForeignTryFrom<(
@@ -93,14 +97,7 @@ impl ForeignTryFrom<grpc_api_types::surcharge::SurchargeServiceCalculateRequest>
             let grpc_strategy =
                 grpc_api_types::surcharge::SurchargeStrategy::try_from(surcharge_strategy)
                     .unwrap_or(grpc_api_types::surcharge::SurchargeStrategy::Unspecified);
-
-            match grpc_strategy {
-                grpc_api_types::surcharge::SurchargeStrategy::Apply => SurchargeStrategy::Apply,
-                grpc_api_types::surcharge::SurchargeStrategy::Waive => SurchargeStrategy::Waive,
-                grpc_api_types::surcharge::SurchargeStrategy::Unspecified => {
-                    SurchargeStrategy::Unspecified
-                }
-            }
+            SurchargeStrategy::from(grpc_strategy)
         });
 
         let postal_code = value.postal_code.ok_or_else(|| {
@@ -124,5 +121,63 @@ impl ForeignTryFrom<grpc_api_types::surcharge::SurchargeServiceCalculateRequest>
             postal_code,
             country,
         })
+    }
+}
+
+pub fn generate_surcharge_calculate_response(
+    router_data_v2: RouterDataV2<
+        SurchargeCalculate,
+        SurchargeFlowData,
+        SurchargeCalculateRequest,
+        SurchargeCalculateResponse,
+    >,
+) -> Result<
+    grpc_api_types::surcharge::SurchargeServiceCalculateResponse,
+    error_stack::Report<ConnectorError>,
+> {
+    let surcharge_response = router_data_v2.response;
+    match surcharge_response {
+        Ok(response) => {
+            let surcharge_amount = grpc_api_types::surcharge::Money {
+                minor_amount: response.surcharge_amount.get_amount_as_i64(),
+                currency: grpc_api_types::payments::Currency::foreign_try_from(response.currency)?
+                    .into(),
+            };
+
+            Ok(
+                grpc_api_types::surcharge::SurchargeServiceCalculateResponse {
+                    merchant_surcharge_id: Some(
+                        router_data_v2
+                            .resource_common_data
+                            .connector_request_reference_id
+                            .clone(),
+                    ),
+                    surcharge_amount: Some(surcharge_amount),
+                    surcharge_percentage: Some(response.surcharge_rate_percent),
+                    connector_surcharge_id: Some(response.connector_surcharge_id),
+                    status_code: 200,
+                    error: None,
+                },
+            )
+        }
+        Err(e) => Ok(
+            grpc_api_types::surcharge::SurchargeServiceCalculateResponse {
+                merchant_surcharge_id: None,
+                surcharge_amount: None,
+                surcharge_percentage: None,
+                connector_surcharge_id: None,
+                status_code: e.status_code.into(),
+                error: Some(grpc_api_types::surcharge::ErrorInfo {
+                    unified_details: None,
+                    connector_details: Some(grpc_api_types::surcharge::ConnectorErrorDetails {
+                        code: Some(e.code),
+                        message: Some(e.message.clone()),
+                        reason: e.reason.clone(),
+                        connector_transaction_id: e.connector_transaction_id.clone(),
+                    }),
+                    issuer_details: None,
+                }),
+            },
+        ),
     }
 }

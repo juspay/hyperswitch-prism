@@ -827,8 +827,8 @@ if grpc_anchor not in content:
     raise SystemExit("Connector enum gRPC mapping anchor not found")
 content = content.replace(grpc_anchor, grpc_entry + grpc_anchor, 1)
 
-auth_anchor = "            AuthType::Imerchantsolutions(_) => Ok(Self::Imerchantsolutions),"
-auth_entry = f"            AuthType::{name}(_) => Ok(Self::{name}),\n"
+auth_anchor = "            AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),"
+auth_entry = f"            AuthType::{name}(_) => Ok(Self::Payment(ConnectorEnum::{name})),\n"
 if auth_anchor not in content:
     raise SystemExit("AuthType to ConnectorEnum mapping anchor not found")
 content = content.replace(auth_anchor, auth_entry + auth_anchor, 1)
@@ -1046,11 +1046,36 @@ import sys
 name = sys.argv[1]
 path = sys.argv[2]
 content = open(path).read()
+
+# Locate the FIRST `fn convert_connector` (the payment-side one on
+# ConnectorData) and find the closing brace of its `match connector_name`
+# block by brace matching, so the anchor is resilient to new code added
+# below the match (e.g. SurchargeConnectorData impl, ConnectorDataProvider).
+fn_start = content.find("fn convert_connector")
+if fn_start == -1:
+    raise SystemExit("fn convert_connector not found")
+match_kw = content.find("match connector_name {", fn_start)
+if match_kw == -1:
+    raise SystemExit("match connector_name not found in convert_connector")
+brace_open = content.index("{", match_kw + len("match connector_name"))
+
+depth = 0
+match_close = -1
+for idx in range(brace_open, len(content)):
+    ch = content[idx]
+    if ch == "{":
+        depth += 1
+    elif ch == "}":
+        depth -= 1
+        if depth == 0:
+            match_close = idx
+            break
+if match_close == -1:
+    raise SystemExit("convert_connector match closing brace not found")
+
 entry = f"            ConnectorEnum::{name} => Box::new(connectors::{name}::<T>::new()),\n"
-anchor = "        }\n    }\n}\n\npub struct ResponseRouterData"
-if anchor not in content:
-    raise SystemExit("convert_connector match closing anchor not found")
-content = content.replace(anchor, entry + anchor, 1)
+line_start = content.rfind("\n", 0, match_close) + 1
+content = content[:line_start] + entry + content[line_start:]
 open(path, "w").write(content)
 PYEOF
 
