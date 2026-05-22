@@ -95,8 +95,8 @@ mod tests {
     fn test_sample_webhook_body_is_valid_json() {
         let connector = connectors::tamara::Tamara::<DefaultPCIHolder>::new();
         let body = connector.sample_webhook_body();
-        let parsed: serde_json::Value = serde_json::from_slice(body)
-            .expect("sample_webhook_body should be valid JSON");
+        let parsed: serde_json::Value =
+            serde_json::from_slice(body).expect("sample_webhook_body should be valid JSON");
         assert!(parsed.is_object(), "sample body should be a JSON object");
         assert!(
             parsed.get("order_id").is_some(),

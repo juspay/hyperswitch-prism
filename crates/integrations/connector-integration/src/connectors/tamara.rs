@@ -1,24 +1,18 @@
-pub mod transformers;
 #[cfg(test)]
 mod test;
+pub mod transformers;
 
 use std::fmt::Debug;
 
 use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
-use common_utils::{
-    errors::CustomResult,
-    events,
-    ext_traits::ByteSliceExt,
-    types::MinorUnit,
-};
+use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, types::MinorUnit};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, Refund, RSync, VerifyWebhookSource, Void},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, VerifyWebhookSource, Void},
     connector_types::{
-        EventType, PaymentFlowData, PaymentWebhookReference,
+        EventType, PaymentFlowData, PaymentVoidData, PaymentWebhookReference,
         PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        PaymentVoidData, RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RequestDetails, ResponseId, VerifyWebhookSourceFlowData,
-        WebhookResourceReference,
+        RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        RequestDetails, ResponseId, VerifyWebhookSourceFlowData, WebhookResourceReference,
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
@@ -36,10 +30,10 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    TamaraPaymentsRequest, TamaraPaymentsResponse, TamaraAuthType, TamaraCaptureRequest,
-    TamaraCaptureResponse, TamaraErrorResponse, TamaraPSyncResponse,
-    TamaraRSyncResponse, TamaraRefundRequest, TamaraRefundResponse, TamaraVoidRequest,
-    TamaraVoidResponse, TamaraWebhookEventType, TamaraSourceVerificationResponse,
+    TamaraAuthType, TamaraCaptureRequest, TamaraCaptureResponse, TamaraErrorResponse,
+    TamaraPSyncResponse, TamaraPaymentsRequest, TamaraPaymentsResponse, TamaraRSyncResponse,
+    TamaraRefundRequest, TamaraRefundResponse, TamaraSourceVerificationResponse, TamaraVoidRequest,
+    TamaraVoidResponse, TamaraWebhookEventType,
 };
 
 use super::macros;
@@ -168,8 +162,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<bool, error_stack::Report<errors::WebhookError>> {
-        Err(error_stack::report!(errors::WebhookError::WebhookSourceVerificationFailed)
-            .attach_printable("Tamara requires external PSync verification, not inline HMAC verification"))
+        Err(
+            error_stack::report!(errors::WebhookError::WebhookSourceVerificationFailed)
+                .attach_printable(
+                    "Tamara requires external PSync verification, not inline HMAC verification",
+                ),
+        )
     }
 
     fn sample_webhook_body(&self) -> &'static [u8] {
@@ -186,7 +184,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
         match event.event_type.as_str() {
-            "order_approved" | "order_authorised" => Ok(EventType::PaymentIntentAuthorizationSuccess),
+            "order_approved" | "order_authorised" => {
+                Ok(EventType::PaymentIntentAuthorizationSuccess)
+            }
             "order_canceled" => Ok(EventType::PaymentIntentCancelled),
             "order_captured" => Ok(EventType::PaymentIntentCaptureSuccess),
             "order_refunded" => Ok(EventType::RefundSuccess),
@@ -218,8 +218,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<domain_types::connector_types::EventContext>,
-    ) -> Result<domain_types::connector_types::WebhookDetailsResponse, error_stack::Report<errors::WebhookError>>
-    {
+    ) -> Result<
+        domain_types::connector_types::WebhookDetailsResponse,
+        error_stack::Report<errors::WebhookError>,
+    > {
         let event: TamaraWebhookEventType = request
             .body
             .parse_struct("TamaraWebhookEventType")
@@ -257,8 +259,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
         _connector_webhook_secret: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
-    ) -> Result<domain_types::connector_types::RefundWebhookDetailsResponse, error_stack::Report<errors::WebhookError>>
-    {
+    ) -> Result<
+        domain_types::connector_types::RefundWebhookDetailsResponse,
+        error_stack::Report<errors::WebhookError>,
+    > {
         let event: TamaraWebhookEventType = request
             .body
             .parse_struct("TamaraWebhookEventType")
@@ -270,16 +274,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             RefundStatus::Pending
         };
 
-        Ok(domain_types::connector_types::RefundWebhookDetailsResponse {
-            connector_refund_id: None,
-            status: refund_status,
-            connector_response_reference_id: None,
-            error_code: None,
-            error_message: None,
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
-            status_code: 200,
-            response_headers: None,
-        })
+        Ok(
+            domain_types::connector_types::RefundWebhookDetailsResponse {
+                connector_refund_id: None,
+                status: refund_status,
+                connector_response_reference_id: None,
+                error_code: None,
+                error_message: None,
+                raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+                status_code: 200,
+                response_headers: None,
+            },
+        )
     }
 }
 
@@ -718,7 +724,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.errors
+            code: response
+                .errors
                 .and_then(|e: Vec<_>| e.into_iter().next().map(|e| e.error_code))
                 .unwrap_or_else(|| "UNKNOWN_ERROR".into()),
             message: response.message,

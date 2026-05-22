@@ -1,16 +1,14 @@
 use std::fmt::Debug;
 
+use crate::connectors::tamara::TamaraRouterData;
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, RefundStatus};
-use error_stack::ResultExt;
-use crate::connectors::tamara::TamaraRouterData;
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, Refund, RSync, VerifyWebhookSource, Void},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, VerifyWebhookSource, Void},
     connector_types::{
-        PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
-        VerifyWebhookSourceFlowData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, ResponseId, VerifyWebhookSourceFlowData,
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
@@ -19,6 +17,7 @@ use domain_types::{
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{RedirectForm, VerifyWebhookSourceResponseData, VerifyWebhookStatus},
 };
+use error_stack::ResultExt;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -165,7 +164,12 @@ pub struct TamaraAddress {
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         TamaraRouterData<
-            RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     > for TamaraPaymentsRequest
@@ -174,21 +178,46 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn try_from(
         item: TamaraRouterData<
-            RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let amount = router_data.request.amount.get_amount_as_i64();
         let currency = router_data.request.currency.to_string();
-        let order_ref = router_data.resource_common_data.connector_request_reference_id.clone();
-        let webhook = router_data.request.webhook_url.clone().unwrap_or_else(|| "https://example.com/webhook".to_string());
-        let return_url = router_data.request.router_return_url.clone().unwrap_or_else(|| "https://example.com/return".to_string());
+        let order_ref = router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+        let webhook = router_data
+            .request
+            .webhook_url
+            .clone()
+            .unwrap_or_else(|| "https://example.com/webhook".to_string());
+        let return_url = router_data
+            .request
+            .router_return_url
+            .clone()
+            .unwrap_or_else(|| "https://example.com/return".to_string());
 
         Ok(Self {
-            total_amount: TamaraAmount { amount, currency: currency.clone() },
-            shipping_amount: TamaraAmount { amount: 0, currency: currency.clone() },
-            tax_amount: TamaraAmount { amount: 0, currency: currency.clone() },
+            total_amount: TamaraAmount {
+                amount,
+                currency: currency.clone(),
+            },
+            shipping_amount: TamaraAmount {
+                amount: 0,
+                currency: currency.clone(),
+            },
+            tax_amount: TamaraAmount {
+                amount: 0,
+                currency: currency.clone(),
+            },
             order_reference_id: order_ref.clone(),
             country_code: "SA".to_string(),
             description: "Order".to_string(),
@@ -198,8 +227,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 reference_id: order_ref.clone(),
                 r#type: "Physical".to_string(),
                 sku: order_ref.clone(),
-                unit_price: TamaraAmount { amount, currency: currency.clone() },
-                total_amount: TamaraAmount { amount, currency: currency.clone() },
+                unit_price: TamaraAmount {
+                    amount,
+                    currency: currency.clone(),
+                },
+                total_amount: TamaraAmount {
+                    amount,
+                    currency: currency.clone(),
+                },
             }],
             consumer: TamaraConsumer {
                 first_name: "Customer".to_string(),
@@ -413,7 +448,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             order_id,
             total_amount: TamaraAmount {
-                amount: item.router_data.request.minor_amount_to_capture.get_amount_as_i64(),
+                amount: item
+                    .router_data
+                    .request
+                    .minor_amount_to_capture
+                    .get_amount_as_i64(),
                 currency: item.router_data.request.currency.to_string(),
             },
         })
@@ -550,10 +589,7 @@ pub struct TamaraRefundRequest {
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
-        TamaraRouterData<
-            RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-            T,
-        >,
+        TamaraRouterData<RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>, T>,
     > for TamaraRefundRequest
 {
     type Error = error_stack::Report<errors::IntegrationError>;
@@ -566,7 +602,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             total_amount: TamaraAmount {
-                amount: item.router_data.request.minor_refund_amount.get_amount_as_i64(),
+                amount: item
+                    .router_data
+                    .request
+                    .minor_refund_amount
+                    .get_amount_as_i64(),
                 currency: item.router_data.request.currency.to_string(),
             },
             comment: item.router_data.request.reason.clone().unwrap_or_default(),
@@ -630,9 +670,7 @@ impl From<TamaraWebhookEventType> for interfaces::webhooks::IncomingWebhookEvent
                 interfaces::webhooks::IncomingWebhookEvent::PaymentIntentCaptureSuccess
             }
             "order_refunded" => interfaces::webhooks::IncomingWebhookEvent::RefundSuccess,
-            "order_updated" => {
-                interfaces::webhooks::IncomingWebhookEvent::PaymentIntentProcessing
-            }
+            "order_updated" => interfaces::webhooks::IncomingWebhookEvent::PaymentIntentProcessing,
             _ => interfaces::webhooks::IncomingWebhookEvent::EventNotSupported,
         }
     }
@@ -653,22 +691,25 @@ pub struct TamaraSourceVerificationResponse {
     pub order_reference_id: Option<String>,
 }
 
-impl TryFrom<
-    ResponseRouterData<
-        TamaraSourceVerificationResponse,
-        RouterDataV2<
-            VerifyWebhookSource,
-            VerifyWebhookSourceFlowData,
-            VerifyWebhookSourceRequestData,
-            VerifyWebhookSourceResponseData,
+impl
+    TryFrom<
+        ResponseRouterData<
+            TamaraSourceVerificationResponse,
+            RouterDataV2<
+                VerifyWebhookSource,
+                VerifyWebhookSourceFlowData,
+                VerifyWebhookSourceRequestData,
+                VerifyWebhookSourceResponseData,
+            >,
         >,
-    >,
-> for RouterDataV2<
-    VerifyWebhookSource,
-    VerifyWebhookSourceFlowData,
-    VerifyWebhookSourceRequestData,
-    VerifyWebhookSourceResponseData,
-> {
+    >
+    for RouterDataV2<
+        VerifyWebhookSource,
+        VerifyWebhookSourceFlowData,
+        VerifyWebhookSourceRequestData,
+        VerifyWebhookSourceResponseData,
+    >
+{
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
