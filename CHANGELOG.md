@@ -19,6 +19,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.05.22.0
+
+### Features
+
+- **connector:**
+  - Implement Reverse (VoidPostCapture) for bankofamerica ([#1283](https://github.com/juspay/connector-service/pull/1283)) ([`95e1229`](https://github.com/juspay/connector-service/commit/95e1229e1975fb0ac82c4ba9ad499a7dd03d04e0))
+  - Implement Reverse (VoidPostCapture) for authorizedotnet ([#1276](https://github.com/juspay/connector-service/pull/1276)) ([`1fb0984`](https://github.com/juspay/connector-service/commit/1fb09840ca49a28a63ef91174abaa23d3e10dc5e))
+  - Implement Reverse (VoidPostCapture) for WorldpayXML ([#1285](https://github.com/juspay/connector-service/pull/1285)) ([`98c5838`](https://github.com/juspay/connector-service/commit/98c58388c6e1d87ea73dd9d0b2a5cef5ee2da3a1))
+- **twoc_twop_paco:** Add connector_order_id for refund ([#1377](https://github.com/juspay/connector-service/pull/1377)) ([`648f5f7`](https://github.com/juspay/connector-service/commit/648f5f7f4ecd8be6ba96c934dc920808e1ca3afa))
+- Add surcharge flow ([#1279](https://github.com/juspay/connector-service/pull/1279)) ([`75dff40`](https://github.com/juspay/connector-service/commit/75dff403a399421992032e2a27329eb240d422bb))
+
+### Bug Fixes
+
+- **codegen:** Add missing _connector_config param to add_connector.sh template ([#1384](https://github.com/juspay/connector-service/pull/1384)) ([`0a61ff6`](https://github.com/juspay/connector-service/commit/0a61ff6dbbc3b1330cff7c06e684745736db59f7))
+
+### Testing
+
+- **paypal:** Harden integration test overrides ([#1302](https://github.com/juspay/connector-service/pull/1302)) ([`cca6a9d`](https://github.com/juspay/connector-service/commit/cca6a9dc1da8b2470f571dbb95b5a779bc71a0f8))
+
+**Full Changelog:** [`2026.05.21.0...2026.05.22.0`](https://github.com/juspay/connector-service/compare/2026.05.21.0...2026.05.22.0)
+
+- - -
+
 ## 2026.05.21.0
 
 ### Bug Fixes
