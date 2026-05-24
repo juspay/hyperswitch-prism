@@ -449,6 +449,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             }
         };
 
+        // If the PACO response code maps to a known refund status, prefix it
+        // (e.g. "REFUND_FAILURE:PC-B050053"). Caller splits on ':' to recover
+        // both signals. The framework's outer ConnectorError.error_code is a
+        // strum-derived constant ("CONNECTOR_ERROR_RESPONSE") and not
+        // connector-influenceable, so we surface the status through the only
+        // discriminator field we own — ErrorResponse.code, which lands in
+        // ConnectorErrorDetails.code on the wire.
+        let code = match twoc_twop_paco::classify_refund_response_code(Some(&code)) {
+            Some(common_enums::RefundStatus::Success) => format!("REFUND_SUCCESS:{code}"),
+            Some(common_enums::RefundStatus::Failure) => format!("REFUND_FAILURE:{code}"),
+            Some(common_enums::RefundStatus::Pending) => format!("REFUND_PENDING:{code}"),
+            Some(common_enums::RefundStatus::ManualReview) => format!("REFUND_MANUAL_REVIEW:{code}"),
+            Some(common_enums::RefundStatus::TransactionFailure) => {
+                format!("REFUND_TRANSACTION_FAILURE:{code}")
+            }
+            None => code,
+        };
+
         Ok(ErrorResponse {
             status_code: res.status_code,
             code,

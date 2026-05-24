@@ -809,6 +809,151 @@ fn map_refund_status(status: &PacoPaymentStatus, step: &PacoPaymentStep) -> Refu
     }
 }
 
+/// PACO refund response codes, classified by terminal/in-flight state.
+///
+/// Source: https://devzone.2c2p.com/docs/api-response-code (sections relevant
+/// to /Refund/refund). Codes outside this enum fall into the `Unknown` arm and
+/// are classified as `Pending` (see `From<PacoRefundResponseCode> for
+/// RefundStatus` for why — duplicate-refund safety).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PacoRefundResponseCode {
+    // --- Terminal Success ---
+    #[serde(rename = "PC-B052407")]
+    Refunded,
+    #[serde(rename = "PC-B053501")]
+    RefundDisbursementSuccess,
+
+    // --- In-flight / Pending (refund accepted, downstream not yet final) ---
+    #[serde(rename = "PC-B053502")]
+    RefundRequestAccepted,
+    #[serde(rename = "PC-B053557")]
+    RefundPendingReview,
+    #[serde(rename = "PC-B053563")]
+    PendingExternalPartyReview,
+    #[serde(rename = "PC-B054042")]
+    RefundPending,
+    #[serde(rename = "PC-B054046")]
+    InsufficientFundsForRefund,
+    #[serde(rename = "PC-B054048")]
+    SubMerchantInsufficientFunds,
+
+    // --- Terminal Failure (request validation + downstream rejection) ---
+    #[serde(rename = "PC-B050040")]
+    InvalidRefundAmount,
+    #[serde(rename = "PC-B050041")]
+    InvalidRefundItemReference,
+    #[serde(rename = "PC-B050042")]
+    ItemizedRefundUnavailable,
+    #[serde(rename = "PC-B050043")]
+    RefundItemsExceedRefundable,
+    #[serde(rename = "PC-B050053")]
+    TransactionCannotBeRefunded,
+    #[serde(rename = "PC-B050054")]
+    InvalidRefundNumber,
+    #[serde(rename = "PC-B050055")]
+    RefundApiFeatureUnavailable,
+    #[serde(rename = "PC-B050056")]
+    RefundAmountInvalid,
+    #[serde(rename = "PC-B050057")]
+    CannotRefundMoreThanTransaction,
+    #[serde(rename = "PC-B050058")]
+    RefundExceedsTransactionAmount,
+    #[serde(rename = "PC-B050059")]
+    RefundNotAllowed,
+    #[serde(rename = "PC-B050060")]
+    PartialRefundNotAllowed,
+    #[serde(rename = "PC-B050061")]
+    SubMerchantRefundExceedsTransaction,
+    #[serde(rename = "PC-B050062")]
+    RefundExceededAllowableTimeframe,
+    #[serde(rename = "PC-B053503")]
+    RefundRejected,
+    #[serde(rename = "PC-B053504")]
+    RefundFailed,
+    #[serde(rename = "PC-B053505")]
+    RefundRejectedByBank,
+    #[serde(rename = "PC-B053506")]
+    RefundEmailDeliveryFailed,
+    #[serde(rename = "PC-B053507")]
+    RefundCancelled,
+    #[serde(rename = "PC-B053508")]
+    RefundLinkExpired,
+    #[serde(rename = "PC-B054043")]
+    RefundRejectedByReviewer,
+    #[serde(rename = "PC-B054044")]
+    RefundRejectedGeneric,
+    #[serde(rename = "PC-B054045")]
+    RefundFailedGeneric,
+
+    /// Catch-all for unenumerated PC-Bxxxxxx codes. Resolves to Pending so we
+    /// don't tell a merchant a refund failed when PACO may actually have
+    /// processed it — see the `From` impl below for rationale.
+    #[serde(other)]
+    Unknown,
+}
+
+impl From<PacoRefundResponseCode> for RefundStatus {
+    fn from(code: PacoRefundResponseCode) -> Self {
+        use PacoRefundResponseCode::*;
+        match code {
+            Refunded | RefundDisbursementSuccess => Self::Success,
+
+            // Why Unknown → Pending (not Failure): returning Failure on an
+            // unknown code is dangerous for refunds. If PACO actually
+            // processed the refund but returned a code we haven't enumerated
+            // yet, the merchant sees "failed" → retries → gets a duplicate
+            // refund → real money loss. Pending is recoverable: RSync will
+            // poll, return a known code, and reclassify correctly. The raw
+            // PC-Bxxxxxx string is still surfaced for ops grep-ability.
+            RefundRequestAccepted
+            | RefundPendingReview
+            | PendingExternalPartyReview
+            | RefundPending
+            | InsufficientFundsForRefund
+            | SubMerchantInsufficientFunds
+            | Unknown => Self::Pending,
+
+            InvalidRefundAmount
+            | InvalidRefundItemReference
+            | ItemizedRefundUnavailable
+            | RefundItemsExceedRefundable
+            | TransactionCannotBeRefunded
+            | InvalidRefundNumber
+            | RefundApiFeatureUnavailable
+            | RefundAmountInvalid
+            | CannotRefundMoreThanTransaction
+            | RefundExceedsTransactionAmount
+            | RefundNotAllowed
+            | PartialRefundNotAllowed
+            | SubMerchantRefundExceedsTransaction
+            | RefundExceededAllowableTimeframe
+            | RefundRejected
+            | RefundFailed
+            | RefundRejectedByBank
+            | RefundEmailDeliveryFailed
+            | RefundCancelled
+            | RefundLinkExpired
+            | RefundRejectedByReviewer
+            | RefundRejectedGeneric
+            | RefundFailedGeneric => Self::Failure,
+        }
+    }
+}
+
+/// Parse a PACO `apiResponse.responseCode` string into a `RefundStatus`.
+/// Returns `None` for an empty/missing code so callers can fall back to other
+/// signals (e.g. `paymentStatusInfo` tuple mapping). Codes outside the
+/// enumerated table parse as `Unknown` → `Pending`.
+pub fn classify_refund_response_code(code: Option<&str>) -> Option<RefundStatus> {
+    let code = code?.trim();
+    if code.is_empty() {
+        return None;
+    }
+    let parsed: PacoRefundResponseCode =
+        serde_json::from_value(serde_json::Value::String(code.to_string())).ok()?;
+    Some(parsed.into())
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PacoApiResponse {
