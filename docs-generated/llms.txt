@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 89
+# Connectors: 88
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 89
+  total_connectors: 88
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -22,6 +22,13 @@ integration_pattern:
 
 ---
 
+## Absasanlam
+connector_id: absasanlam
+doc: docs/connectors/absasanlam.md
+scenarios: none
+payment_methods: none
+flows: handle_event, parse_event
+examples_python: none
 
 ## ACI
 connector_id: aci
