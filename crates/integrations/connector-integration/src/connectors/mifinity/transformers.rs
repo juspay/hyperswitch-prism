@@ -1,9 +1,10 @@
 use common_enums::{enums, Currency};
 use common_utils::{pii::Email, types::StringMajorUnit};
 use domain_types::{
-    connector_flow::Authorize,
+    connector_flow::{Authorize, SetupMandate},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, ResponseId,
+        MandateReference, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
+        PaymentsSyncData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
@@ -494,4 +495,305 @@ pub struct MifinityErrorList {
     pub error_code: String,
     pub message: String,
     pub field: Option<String>,
+}
+
+// =============================================================================
+// SETUP MANDATE (Pay.SetupRecurring) FLOW - REQUEST / RESPONSE TRANSFORMERS
+// =============================================================================
+// Mifinity does not expose a dedicated card/wallet-vault endpoint. The
+// Mifinity wallet payment is a hosted redirect: the merchant calls
+// `pegasus-ci/api/gateway/init-iframe` (same endpoint Authorize hits) which
+// returns a `traceId` + `initializationToken` used to render the hosted
+// payment page. There is no "register the wallet without moving funds" call
+// available. The closest stable anchor we can hand back as a
+// `connector_mandate_id` is the `traceId` itself — it identifies the wallet
+// session that the orchestrator can later look up via PSync (the
+// `payment-status/payment_validation_key_*` endpoint already takes the same
+// reference id). SetupMandate therefore mirrors the Authorize request shape
+// (money/client/address/validation_key/etc.) and surfaces the returned
+// `traceId` as the `connector_mandate_id` on a `MandateReference`, alongside
+// the redirect form. Status passes through as `AuthenticationPending` (same
+// as Authorize) — the customer completes the wallet handshake on Mifinity's
+// hosted page and the webhook / PSync moves the mandate forward.
+//
+// Payment-method coverage matches the existing Authorize impl: Wallet (Mifinity)
+// is the only supported method; all other payment-method variants reject with
+// `IntegrationError::NotImplemented`, matching the Authorize behaviour.
+//
+// Amount handling: SetupMandate carries an optional `minor_amount`. Mifinity
+// requires a numeric amount on the wire to open the wallet session, so when
+// the caller omits it (a pure "register the mandate" probe) we fall back to
+// a zero-value request in the requested currency. The connector still accepts
+// the call and returns a usable `traceId`.
+
+pub type MifinitySetupMandateRequest = MifinityPaymentsRequest;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        MifinityRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for MifinityPaymentsRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: MifinityRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let auth = MifinityAuthType::try_from(&item.router_data.connector_config)?;
+        let metadata = MifinityConnectorMetadataObject {
+            brand_id: auth
+                .brand_id
+                .ok_or(IntegrationError::InvalidConnectorConfig {
+                    config: "brand_id",
+                    context: Default::default(),
+                })?,
+            destination_account_number: auth.destination_account_number.ok_or(
+                IntegrationError::InvalidConnectorConfig {
+                    config: "destination_account_number",
+                    context: Default::default(),
+                },
+            )?,
+        };
+        match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                WalletData::Mifinity(data) => {
+                    // SetupMandate's `minor_amount` is optional. Mifinity
+                    // requires a numeric amount to open the wallet session,
+                    // so fall back to a zero-value request when the caller
+                    // omits it (a pure "register the mandate" probe).
+                    let minor_amount = item
+                        .router_data
+                        .request
+                        .minor_amount
+                        .unwrap_or(common_utils::types::MinorUnit::new(0));
+                    let money = Money {
+                        amount: item
+                            .connector
+                            .amount_converter
+                            .convert(minor_amount, item.router_data.request.currency)
+                            .change_context(IntegrationError::RequestEncodingFailed {
+                                context: Default::default(),
+                            })?,
+                        currency: item.router_data.request.currency,
+                    };
+                    let phone_details =
+                        item.router_data.resource_common_data.get_billing_phone()?;
+                    let billing_country = item
+                        .router_data
+                        .resource_common_data
+                        .get_billing_country()?;
+                    let client = MifinityClient {
+                        first_name: item
+                            .router_data
+                            .resource_common_data
+                            .get_billing_first_name()?,
+                        last_name: item
+                            .router_data
+                            .resource_common_data
+                            .get_billing_last_name()?,
+                        phone: phone_details.get_number()?,
+                        dialing_code: phone_details.get_country_code()?,
+                        nationality: billing_country,
+                        email_address: item.router_data.resource_common_data.get_billing_email()?,
+                        dob: data.date_of_birth.clone(),
+                    };
+                    let address = MifinityAddress {
+                        address_line1: item.router_data.resource_common_data.get_billing_line1()?,
+                        country_code: billing_country,
+                        city: item.router_data.resource_common_data.get_billing_city()?,
+                    };
+                    let validation_key = format!(
+                        "payment_validation_key_{}_{}",
+                        item.router_data
+                            .resource_common_data
+                            .merchant_id
+                            .get_string_repr(),
+                        item.router_data
+                            .resource_common_data
+                            .connector_request_reference_id
+                            .clone()
+                    );
+                    let client_reference = item.router_data.request.customer_id.clone().ok_or(
+                        IntegrationError::MissingRequiredField {
+                            field_name: "client_reference",
+                            context: Default::default(),
+                        },
+                    )?;
+                    let destination_account_number = metadata.destination_account_number;
+                    let trace_id = item
+                        .router_data
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone();
+                    let brand_id = metadata.brand_id;
+                    let language_preference = data.language_preference;
+                    Ok(Self {
+                        money,
+                        client,
+                        address,
+                        validation_key,
+                        client_reference,
+                        trace_id: trace_id.clone(),
+                        description: trace_id.clone(), //Connector recommend to use the traceId for a better experience in the BackOffice application later.
+                        destination_account_number,
+                        brand_id,
+                        return_url: item.router_data.request.get_router_return_url()?,
+                        language_preference,
+                    })
+                }
+                WalletData::AliPayQr(_)
+                | WalletData::BluecodeRedirect {}
+                | WalletData::AliPayRedirect(_)
+                | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPayRedirect(_)
+                | WalletData::MomoRedirect(_)
+                | WalletData::KakaoPayRedirect(_)
+                | WalletData::GoPayRedirect(_)
+                | WalletData::GcashRedirect(_)
+                | WalletData::ApplePay(_)
+                | WalletData::ApplePayRedirect(_)
+                | WalletData::ApplePayThirdPartySdk(_)
+                | WalletData::DanaRedirect {}
+                | WalletData::GooglePay(_)
+                | WalletData::GooglePayRedirect(_)
+                | WalletData::GooglePayThirdPartySdk(_)
+                | WalletData::MbWayRedirect(_)
+                | WalletData::MobilePayRedirect(_)
+                | WalletData::PaypalRedirect(_)
+                | WalletData::PaypalSdk(_)
+                | WalletData::Paze(_)
+                | WalletData::SamsungPay(_)
+                | WalletData::TwintRedirect {}
+                | WalletData::VippsRedirect {}
+                | WalletData::TouchNGoRedirect(_)
+                | WalletData::WeChatPayRedirect(_)
+                | WalletData::WeChatPayQr(_)
+                | WalletData::CashappQr(_)
+                | WalletData::SwishQr(_)
+                | WalletData::RevolutPay(_)
+                | WalletData::MbWay(_)
+                | WalletData::Satispay(_)
+                | WalletData::Wero(_)
+                | WalletData::LazyPayRedirect(_)
+                | WalletData::PhonePeRedirect(_)
+                | WalletData::BillDeskRedirect(_)
+                | WalletData::CashfreeRedirect(_)
+                | WalletData::PayURedirect(_)
+                | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Mifinity"),
+                    Default::default(),
+                )
+                .into()),
+            },
+            PaymentMethodData::Card(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::PaymentMethodToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                Err(IntegrationError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Mifinity"),
+                    Default::default(),
+                )
+                .into())
+            }
+        }
+    }
+}
+
+// SetupMandate response shape is identical to the Authorize init-iframe
+// response. We re-use the existing `MifinityPaymentsResponse` body for
+// deserialization and only customise the response-side mapping so that
+// `mandate_reference` is populated with the wallet `traceId`.
+pub type MifinitySetupMandateResponse = MifinityPaymentsResponse;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<MifinitySetupMandateResponse, Self>>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<MifinitySetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let payload = item.response.payload.first();
+        match payload {
+            Some(payload) => {
+                let trace_id = payload.trace_id.clone();
+                let initialization_token = payload.initialization_token.clone();
+                let mandate_reference = Some(Box::new(MandateReference {
+                    connector_mandate_id: Some(trace_id.clone()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                }));
+                Ok(Self {
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(trace_id.clone()),
+                        redirection_data: Some(Box::new(RedirectForm::Mifinity {
+                            initialization_token: initialization_token.expose(),
+                        })),
+                        mandate_reference,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: Some(trace_id),
+                        incremental_authorization_allowed: None,
+                        status_code: item.http_code,
+                    }),
+                    resource_common_data: PaymentFlowData {
+                        status: enums::AttemptStatus::AuthenticationPending,
+                        ..item.router_data.resource_common_data
+                    },
+                    ..item.router_data
+                })
+            }
+            None => Ok(Self {
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::NoResponseId,
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    status_code: item.http_code,
+                }),
+                resource_common_data: PaymentFlowData {
+                    status: enums::AttemptStatus::AuthenticationPending,
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            }),
+        }
+    }
 }

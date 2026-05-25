@@ -5,9 +5,10 @@ use std::fmt::Debug;
 use common_enums::CurrencyUnit;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, StringMajorUnit};
 use domain_types::{
-    connector_flow::{Authorize, PSync},
+    connector_flow::{Authorize, PSync, SetupMandate},
     connector_types::{
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
+        SetupMandateRequestData,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -27,7 +28,8 @@ use super::macros;
 use crate::{
     connectors::mifinity::transformers::{
         auth_headers, MifinityAuthType, MifinityErrorResponse, MifinityPaymentsRequest,
-        MifinityPaymentsResponse, MifinityPsyncResponse,
+        MifinityPaymentsResponse, MifinityPsyncResponse, MifinitySetupMandateRequest,
+        MifinitySetupMandateResponse,
     },
     types::ResponseRouterData,
     utils,
@@ -55,6 +57,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Mifinity<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::SetupMandateV2<T> for Mifinity<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -93,6 +99,12 @@ macros::create_all_prerequisites!(
             flow: PSync,
             response_body: MifinityPsyncResponse,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: MifinitySetupMandateRequest,
+            response_body: MifinitySetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -192,6 +204,52 @@ macros::macro_connector_implementation!(
                 merchant_id.get_string_repr(),
                 payment_id
             ))
+        }
+    }
+);
+
+// SetupMandate (Pay.SetupRecurring) — Mifinity has no dedicated card / wallet
+// vault endpoint. The Mifinity wallet payment is a hosted redirect: the
+// merchant calls `pegasus-ci/api/gateway/init-iframe` (same endpoint
+// Authorize uses) which returns a `traceId` + `initializationToken` used to
+// render the hosted payment page. SetupMandate re-uses the same endpoint and
+// surfaces the returned `traceId` as `connector_mandate_id` on a
+// `MandateReference`, so RepeatPayment / future SetupRecurring calls have a
+// stable id to replay. Status passes through as `AuthenticationPending` —
+// the customer completes the wallet handshake on Mifinity's hosted page and
+// the webhook / PSync moves the mandate forward.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Mifinity,
+    curl_request: Json(MifinitySetupMandateRequest),
+    curl_response: MifinitySetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}pegasus-ci/api/gateway/init-iframe", self.connector_base_url_payments(req)))
+        }
+        fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut events::Event>,
+            _connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+            self.build_error_response(res, event_builder, _connector_config)
         }
     }
 );
@@ -303,7 +361,6 @@ macros::macro_connector_flow_status_impls!(
     not_implemented: [
         RSync,
         Refund,
-        SetupMandate,
         ServerSessionAuthenticationToken,
         RepeatPayment,
     ],
