@@ -4,9 +4,9 @@ use crate::request::RequestData;
 use crate::utils::{self, get_config_from_request, grpc_logging_wrapper_with_parser};
 use common_enums;
 use common_utils::events::FlowName;
-use connector_integration::types::{ConnectorData, ConnectorDataProvider};
+use connector_integration::types::{ConnectorData, ConnectorDataProvider, SurchargeConnectorData};
 use domain_types::{
-    connector_flow::VerifyWebhookSource,
+    connector_flow::{SurchargePaymentSucceeded, SurchargeRefundSucceeded, VerifyWebhookSource},
     connector_types::VerifyWebhookSourceFlowData,
     errors::WebhookError,
     payment_method_data::DefaultPCIHolder,
@@ -15,12 +15,17 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
+    surcharge::surcharge_types::{
+        SurchargeFlowData, SurchargePaymentSucceededRequest, SurchargePaymentSucceededResponse,
+        SurchargeRefundSucceededRequest, SurchargeRefundSucceededResponse,
+    },
     utils::ForeignTryFrom,
 };
 use external_services::service::EventProcessingParams;
 use grpc_api_types::payments::{
     event_service_server::EventService, EventServiceHandleRequest, EventServiceHandleResponse,
-    EventServiceParseRequest, EventServiceParseResponse,
+    EventServiceParseRequest, EventServiceParseResponse, NotifyConnectorsRequest,
+    NotifyConnectorsResponse,
 };
 use interfaces::connector_integration_v2::BoxedConnectorIntegrationV2;
 use ucs_env::{
@@ -244,7 +249,7 @@ impl EventService for EventServiceImpl {
 
     #[tracing::instrument(
         name = "EventService::notify_connectors",
-        skip(self, _request),
+        skip(self, request),
         fields(
             name = common_utils::consts::NAME,
             service_name = tracing::field::Empty,
@@ -259,18 +264,227 @@ impl EventService for EventServiceImpl {
             message_ = "Golden Log Line (incoming)",
             response_time = tracing::field::Empty,
             tenant_id = tracing::field::Empty,
-            flow = tracing::field::Empty, // to be updated with flow and domain changes 
+            flow = tracing::field::Empty,
             flow_specific_fields.status = tracing::field::Empty,
         )
     )]
     async fn notify_connectors(
         &self,
-        _request: tonic::Request<grpc_api_types::payments::NotifyConnectorsRequest>,
-    ) -> Result<tonic::Response<grpc_api_types::payments::NotifyConnectorsResponse>, tonic::Status>
+        request: tonic::Request<NotifyConnectorsRequest>,
+    ) -> Result<tonic::Response<NotifyConnectorsResponse>, tonic::Status>
     {
-        Err(tonic::Status::internal(
-            "notify_connectors not yet implemented",
+        let service_name = request
+            .extensions()
+            .get::<String>()
+            .cloned()
+            .unwrap_or_else(|| "EventService".to_string());
+        let config = get_config_from_request(&request)?;
+        
+        // Parse metadata to get connector config
+        let request_data = RequestData::from_grpc_request(request, config.clone())?;
+        let metadata_payload = request_data.extracted_metadata;
+        
+        let req = request_data.payload;
+        let event_type = req.event_type;
+        
+        let event_type_enum = grpc_api_types::payments::NotifyEventType::try_from(event_type)
+            .map_err(|_| tonic::Status::invalid_argument("Invalid event type"))?;
+        
+        match event_type_enum {
+            grpc_api_types::payments::NotifyEventType::SurchargePaymentSucceeded => {
+                self.handle_payment_surcharge_notify(
+                    req,
+                    &service_name,
+                    config,
+                    metadata_payload.connector_config,
+                ).await
+            }
+            grpc_api_types::payments::NotifyEventType::SurchargeRefundSucceeded => {
+                self.handle_refund_surcharge_notify(
+                    req,
+                    &service_name,
+                    config,
+                    metadata_payload.connector_config,
+                ).await
+            }
+            _ => Err(tonic::Status::invalid_argument("Invalid or unsupported event type")),
+        }
+    }
+}
+
+impl EventServiceImpl {
+    async fn handle_payment_surcharge_notify(
+        &self,
+        request: NotifyConnectorsRequest,
+        service_name: &str,
+        config: std::sync::Arc<Config>,
+        connector_config: ConnectorSpecificConfig,
+    ) -> Result<tonic::Response<NotifyConnectorsResponse>, tonic::Status> {
+        tracing::info!("SURCHARGE_PAYMENT_SUCCEEDED_FLOW: initiated");
+
+        let connector_data: SurchargeConnectorData =
+            ConnectorDataProvider::from_connector_variant(
+                &domain_types::connector_types::ConnectorVariant::Surcharge(
+                    domain_types::connector_types::SurchargeConnectorEnum::Interpayments,
+                ),
+            )
+            .ok_or_else(|| tonic::Status::unimplemented("Invalid connector type for this flow"))?;
+
+        let connector_integration: BoxedConnectorIntegrationV2<
+            '_,
+            SurchargePaymentSucceeded,
+            SurchargeFlowData,
+            SurchargePaymentSucceededRequest,
+            SurchargePaymentSucceededResponse,
+        > = connector_data.connector.get_connector_integration_v2();
+
+        let request_data = SurchargePaymentSucceededRequest::foreign_try_from(request.clone())
+            .into_grpc_status()?;
+
+        let common_flow_data = SurchargeFlowData::foreign_try_from((
+            request.clone(),
+            config.connectors.clone(),
+            &common_utils::metadata::MaskedMetadata::default(),
         ))
+        .into_grpc_status()?;
+
+        let router_data = RouterDataV2::<
+            SurchargePaymentSucceeded,
+            SurchargeFlowData,
+            SurchargePaymentSucceededRequest,
+            SurchargePaymentSucceededResponse,
+        > {
+            flow: std::marker::PhantomData,
+            resource_common_data: common_flow_data,
+            connector_config,
+            request: request_data,
+            response: Err(ErrorResponse::default()),
+        };
+
+        let event_params = EventProcessingParams {
+            connector_name: &connector_data.connector.id().to_string(),
+            service_name,
+            service_type: utils::service_type_str(&config.server.type_),
+            flow_name: FlowName::SurchargePaymentSucceeded,
+            event_config: &config.events,
+            request_id: &request.event_id,
+            lineage_ids: &common_utils::lineage::LineageIds::empty(""),
+            reference_id: &None,
+            resource_id: &None,
+            shadow_mode: false,
+            tenant_id: "default",
+            merchant_id: &request.merchant_id,
+            return_raw_connector_data: config.common.return_raw_connector_data,
+        };
+
+        let response_result = external_services::service::execute_connector_processing_step(
+            &config.proxy,
+            connector_integration,
+            router_data,
+            None,
+            event_params,
+            None,
+            common_enums::CallConnectorAction::Trigger,
+            None,
+            None,
+        )
+        .await
+        .into_grpc_status()?;
+
+        let final_response =
+            domain_types::surcharge::types::generate_surcharge_payment_succeeded_response(
+                response_result,
+            )
+            .into_grpc_status()?;
+
+        Ok(tonic::Response::new(final_response))
+    }
+
+    async fn handle_refund_surcharge_notify(
+        &self,
+        request: NotifyConnectorsRequest,
+        service_name: &str,
+        config: std::sync::Arc<Config>,
+        connector_config: ConnectorSpecificConfig,
+    ) -> Result<tonic::Response<NotifyConnectorsResponse>, tonic::Status> {
+        tracing::info!("SURCHARGE_REFUND_SUCCEEDED_FLOW: initiated");
+
+        let connector_data: SurchargeConnectorData =
+            ConnectorDataProvider::from_connector_variant(
+                &domain_types::connector_types::ConnectorVariant::Surcharge(
+                    domain_types::connector_types::SurchargeConnectorEnum::Interpayments,
+                ),
+            )
+            .ok_or_else(|| tonic::Status::unimplemented("Invalid connector type for this flow"))?;
+
+        let connector_integration: BoxedConnectorIntegrationV2<
+            '_,
+            SurchargeRefundSucceeded,
+            SurchargeFlowData,
+            SurchargeRefundSucceededRequest,
+            SurchargeRefundSucceededResponse,
+        > = connector_data.connector.get_connector_integration_v2();
+
+        let request_data = SurchargeRefundSucceededRequest::foreign_try_from(request.clone())
+            .into_grpc_status()?;
+
+        let common_flow_data = SurchargeFlowData::foreign_try_from((
+            request.clone(),
+            config.connectors.clone(),
+            &common_utils::metadata::MaskedMetadata::default(),
+        ))
+        .into_grpc_status()?;
+
+        let router_data = RouterDataV2::<
+            SurchargeRefundSucceeded,
+            SurchargeFlowData,
+            SurchargeRefundSucceededRequest,
+            SurchargeRefundSucceededResponse,
+        > {
+            flow: std::marker::PhantomData,
+            resource_common_data: common_flow_data,
+            connector_config,
+            request: request_data,
+            response: Err(ErrorResponse::default()),
+        };
+
+        let event_params = EventProcessingParams {
+            connector_name: &connector_data.connector.id().to_string(),
+            service_name,
+            service_type: utils::service_type_str(&config.server.type_),
+            flow_name: FlowName::SurchargeRefundSucceeded,
+            event_config: &config.events,
+            request_id: &request.event_id,
+            lineage_ids: &common_utils::lineage::LineageIds::empty(""),
+            reference_id: &None,
+            resource_id: &None,
+            shadow_mode: false,
+            tenant_id: "default",
+            merchant_id: &request.merchant_id,
+            return_raw_connector_data: config.common.return_raw_connector_data,
+        };
+
+        let response_result = external_services::service::execute_connector_processing_step(
+            &config.proxy,
+            connector_integration,
+            router_data,
+            None,
+            event_params,
+            None,
+            common_enums::CallConnectorAction::Trigger,
+            None,
+            None,
+        )
+        .await
+        .into_grpc_status()?;
+
+        let final_response =
+            domain_types::surcharge::types::generate_surcharge_refund_succeeded_response(
+                response_result,
+            )
+            .into_grpc_status()?;
+
+        Ok(tonic::Response::new(final_response))
     }
 }
 

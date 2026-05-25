@@ -1410,7 +1410,7 @@ message SurchargeDetails {
 // Response for notifying connectors
 message NotifyConnectorsResponse {
   // Status of the notification
-  OperationStatus status = 1;
+  uint32 status_code = 1;
 
   // Optional error information if notification failed
   optional ErrorInfo error = 2;

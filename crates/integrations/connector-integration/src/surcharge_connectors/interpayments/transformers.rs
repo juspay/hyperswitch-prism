@@ -2,12 +2,13 @@ use crate::{types::ResponseRouterData, utils};
 use common_enums::{CountryAlpha2, CountryAlpha3};
 use common_utils::types::FloatMajorUnit;
 use domain_types::{
-    connector_flow::SurchargeCalculate,
+    connector_flow::{SurchargeCalculate, SurchargePaymentSucceeded},
     errors::{ConnectorError, IntegrationError},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     surcharge::surcharge_types::{
         SurchargeCalculateRequest, SurchargeCalculateResponse, SurchargeFlowData,
+        SurchargePaymentSucceededRequest, SurchargePaymentSucceededResponse,
     },
 };
 use error_stack::ResultExt;
@@ -176,4 +177,35 @@ impl TryFrom<ResponseRouterData<InterPaymentsSurchargeResponse, Self>>
             ..item.router_data
         })
     }
+}
+
+// Payment Succeeded Flow Types
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InterPaymentsPaymentSucceededRequest {
+    pub s_tx_id: String,
+}
+
+impl From<&RouterDataV2<
+    SurchargePaymentSucceeded,
+    SurchargeFlowData,
+    SurchargePaymentSucceededRequest,
+    SurchargePaymentSucceededResponse,
+>> for InterPaymentsPaymentSucceededRequest {
+    fn from(req: &RouterDataV2<
+        SurchargePaymentSucceeded,
+        SurchargeFlowData,
+        SurchargePaymentSucceededRequest,
+        SurchargePaymentSucceededResponse,
+    >) -> Self {
+        Self {
+            s_tx_id: req.request.connector_surcharge_id.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct InterPaymentsPaymentSucceededResponse {
+    pub s_tx_id: String,
 }

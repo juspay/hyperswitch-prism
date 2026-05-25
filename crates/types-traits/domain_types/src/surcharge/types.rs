@@ -1,15 +1,18 @@
 use crate::{
-    connector_flow::SurchargeCalculate,
+    connector_flow::{SurchargeCalculate, SurchargePaymentSucceeded, SurchargeRefundSucceeded},
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     router_data_v2::RouterDataV2,
     surcharge::surcharge_types::{
-        SurchargeCalculateRequest, SurchargeCalculateResponse, SurchargeFlowData, SurchargeStrategy,
+        SurchargeCalculateRequest, SurchargeCalculateResponse, SurchargeFlowData,
+        SurchargePaymentSucceededRequest, SurchargePaymentSucceededResponse,
+        SurchargeRefundSucceededRequest, SurchargeRefundSucceededResponse, SurchargeStrategy,
     },
     types::Connectors,
     utils::{
         extract_connector_request_reference_id, extract_merchant_id_from_metadata, ForeignTryFrom,
     },
 };
+use std::str::FromStr;
 
 use common_utils::{metadata::MaskedMetadata, types::MinorUnit};
 use error_stack::ResultExt;
@@ -124,6 +127,94 @@ impl ForeignTryFrom<grpc_api_types::surcharge::SurchargeServiceCalculateRequest>
     }
 }
 
+impl ForeignTryFrom<grpc_api_types::payments::NotifyConnectorsRequest> for SurchargePaymentSucceededRequest {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::NotifyConnectorsRequest,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let connector_surcharge_id = value
+            .content
+            .and_then(|c| match c.content {
+                Some(grpc_api_types::payments::notify_connector_content::Content::SurchargeDetails(details)) => {
+                    Some(details.connector_surcharge_id)
+                }
+                _ => None,
+            })
+            .ok_or_else(|| error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "connector_surcharge_id",
+                context: IntegrationErrorContext {
+                    additional_context: Some("connector_surcharge_id is required for surcharge payment succeeded notification".to_owned()),
+                    ..Default::default()
+                },
+            }))?;
+
+        Ok(Self { connector_surcharge_id })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::NotifyConnectorsRequest> for SurchargeRefundSucceededRequest {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::NotifyConnectorsRequest,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let connector_surcharge_id = value
+            .content
+            .and_then(|c| match c.content {
+                Some(grpc_api_types::payments::notify_connector_content::Content::SurchargeDetails(details)) => {
+                    Some(details.connector_surcharge_id)
+                }
+                _ => None,
+            })
+            .ok_or_else(|| error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "connector_surcharge_id",
+                context: IntegrationErrorContext {
+                    additional_context: Some("connector_surcharge_id is required for surcharge refund succeeded notification".to_owned()),
+                    ..Default::default()
+                },
+            }))?;
+
+        Ok(Self { connector_surcharge_id })
+    }
+}
+
+impl
+    ForeignTryFrom<(
+        grpc_api_types::payments::NotifyConnectorsRequest,
+        Connectors,
+        &MaskedMetadata,
+    )> for SurchargeFlowData
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        (value, connectors, _metadata): (
+            grpc_api_types::payments::NotifyConnectorsRequest,
+            Connectors,
+            &MaskedMetadata,
+        ),
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let merchant_id = common_utils::id_type::MerchantId::from_str(&value.merchant_id)
+            .map_err(|_| IntegrationError::InvalidDataFormat {
+                field_name: "merchant_id",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Invalid merchant_id format".to_owned()),
+                    ..Default::default()
+                },
+            })?;
+
+        Ok(Self {
+            merchant_id,
+            connector_request_reference_id: extract_connector_request_reference_id(&Some(value.event_id)),
+            connectors,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            connector_response_headers: None,
+        })
+    }
+}
+
 pub fn generate_surcharge_calculate_response(
     router_data_v2: RouterDataV2<
         SurchargeCalculate,
@@ -179,5 +270,69 @@ pub fn generate_surcharge_calculate_response(
                 }),
             },
         ),
+    }
+}
+
+pub fn generate_surcharge_payment_succeeded_response(
+    router_data_v2: RouterDataV2<
+        SurchargePaymentSucceeded,
+        SurchargeFlowData,
+        SurchargePaymentSucceededRequest,
+        SurchargePaymentSucceededResponse,
+    >,
+) -> Result<
+    grpc_api_types::payments::NotifyConnectorsResponse,
+    error_stack::Report<ConnectorError>,
+> {
+    match router_data_v2.response {
+        Ok(response) => Ok(grpc_api_types::payments::NotifyConnectorsResponse {
+            status_code: response.status_code.into(),
+            error: None,
+        }),
+        Err(e) => Ok(grpc_api_types::payments::NotifyConnectorsResponse {
+            status_code: e.status_code.into(),
+            error: Some(grpc_api_types::payments::ErrorInfo {
+                unified_details: None,
+                connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
+                    code: Some(e.code),
+                    message: Some(e.message.clone()),
+                    reason: e.reason.clone(),
+                    connector_transaction_id: e.connector_transaction_id.clone(),
+                }),
+                issuer_details: None,
+            }),
+        }),
+    }
+}
+
+pub fn generate_surcharge_refund_succeeded_response(
+    router_data_v2: RouterDataV2<
+        SurchargeRefundSucceeded,
+        SurchargeFlowData,
+        SurchargeRefundSucceededRequest,
+        SurchargeRefundSucceededResponse,
+    >,
+) -> Result<
+    grpc_api_types::payments::NotifyConnectorsResponse,
+    error_stack::Report<ConnectorError>,
+> {
+    match router_data_v2.response {
+        Ok(response) => Ok(grpc_api_types::payments::NotifyConnectorsResponse {
+            status_code: response.status_code.into(), 
+            error: None,
+        }),
+        Err(e) => Ok(grpc_api_types::payments::NotifyConnectorsResponse {
+            status_code: e.status_code.into(),
+            error: Some(grpc_api_types::payments::ErrorInfo {
+                unified_details: None,
+                connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
+                    code: Some(e.code),
+                    message: Some(e.message.clone()),
+                    reason: e.reason.clone(),
+                    connector_transaction_id: e.connector_transaction_id.clone(),
+                }),
+                issuer_details: None,
+            }),
+        }),
     }
 }
