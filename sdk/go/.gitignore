@@ -2,3 +2,7 @@
 *.dylib
 *.so
 *.dll
+
+# Go build artifacts
+smoke-test/smoke-test
+composite

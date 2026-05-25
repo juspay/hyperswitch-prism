@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	pb "github.com/juspay/hyperswitch-prism/sdk/go/generated/payments"
@@ -104,7 +105,7 @@ func (c *HTTPClient) Execute(ctx context.Context, reqProto *pb.FfiConnectorHttpR
 	headers := make(map[string]string)
 	for k, v := range resp.Header {
 		if len(v) > 0 {
-			headers[k] = v[0]
+			headers[k] = strings.Join(v, ", ")
 		}
 	}
 
