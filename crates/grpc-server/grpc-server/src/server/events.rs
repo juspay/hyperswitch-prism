@@ -285,9 +285,8 @@ impl EventService for EventServiceImpl {
 
         let req = request_data.payload;
 
-        let event_type_enum =
-            grpc_api_types::payments::NotifyEventType::try_from(req.event_type)
-                .map_err(|_| tonic::Status::invalid_argument("Invalid event type"))?;
+        let event_type_enum = grpc_api_types::payments::NotifyEventType::try_from(req.event_type)
+            .map_err(|_| tonic::Status::invalid_argument("Invalid event type"))?;
 
         match event_type_enum {
             grpc_api_types::payments::NotifyEventType::SurchargePaymentSucceeded => {
