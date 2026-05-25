@@ -15,6 +15,8 @@ pub struct WorldpayPaymentsResponse {
     pub links: Option<SelfLink>,
     #[serde(rename = "_actions", skip_serializing_if = "Option::is_none")]
     pub actions: Option<ActionLinks>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub redirect: Option<String>,
     #[serde(flatten)]
     pub other_fields: Option<WorldpayPaymentResponseFields>,
 }
@@ -165,6 +167,8 @@ pub enum PaymentOutcome {
     ThreeDsChallenged,
     #[serde(alias = "3dsUnavailable")]
     ThreeDsUnavailable,
+    #[serde(alias = "pending")]
+    Pending,
 }
 
 impl std::fmt::Display for PaymentOutcome {
@@ -181,6 +185,7 @@ impl std::fmt::Display for PaymentOutcome {
             Self::SentForPartialRefund => write!(f, "sentForPartialRefund"),
             Self::ThreeDsChallenged => write!(f, "3dsChallenged"),
             Self::ThreeDsUnavailable => write!(f, "3dsUnavailable"),
+            Self::Pending => write!(f, "pending"),
         }
     }
 }

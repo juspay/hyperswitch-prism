@@ -205,29 +205,29 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Google Pay | ✓ |
 | Google Pay Dec | ? |
 | Google Pay SDK | x |
-| PayPal SDK | ⚠ |
-| Amazon Pay | ⚠ |
-| Cash App | ⚠ |
-| PayPal | ⚠ |
-| WeChat Pay | ⚠ |
-| Alipay | ⚠ |
-| Revolut Pay | ⚠ |
-| MiFinity | ⚠ |
-| Bluecode | ⚠ |
+| PayPal SDK | ✓ |
+| Amazon Pay | x |
+| Cash App | x |
+| PayPal | ✓ |
+| WeChat Pay | ✓ |
+| Alipay | ✓ |
+| Revolut Pay | x |
+| MiFinity | x |
+| Bluecode | x |
 | Paze | x |
-| Samsung Pay | ⚠ |
-| MB Way | ⚠ |
-| Satispay | ⚠ |
-| Wero | ⚠ |
-| GoPay | ⚠ |
-| GCash | ⚠ |
-| Momo | ⚠ |
-| Dana | ⚠ |
-| Kakao Pay | ⚠ |
-| Touch 'n Go | ⚠ |
-| Twint | ⚠ |
-| Vipps | ⚠ |
-| Swish | ⚠ |
+| Samsung Pay | x |
+| MB Way | x |
+| Satispay | x |
+| Wero | x |
+| GoPay | x |
+| GCash | x |
+| Momo | x |
+| Dana | x |
+| Kakao Pay | x |
+| Touch 'n Go | x |
+| Twint | x |
+| Vipps | x |
+| Swish | x |
 | Affirm | ⚠ |
 | Afterpay | ⚠ |
 | Klarna | ⚠ |
@@ -349,6 +349,16 @@ Authorize a payment amount on a payment method. This reserves funds without capt
       "type": "debit"
     },
     "transaction_identifier": "probe_txn_id"
+  }
+}
+```
+
+##### PayPal Redirect
+
+```python
+"payment_method": {
+  "paypal_redirect": {
+    "email": "test@example.com"
   }
 }
 ```

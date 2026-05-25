@@ -17,6 +17,14 @@ pub struct WorldpayAuthorizeRequest<
     pub instruction: Instruction<T>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub customer: Option<Customer>,
+    #[serde(rename = "successURL", skip_serializing_if = "Option::is_none")]
+    pub success_url: Option<String>,
+    #[serde(rename = "failureURL", skip_serializing_if = "Option::is_none")]
+    pub failure_url: Option<String>,
+    #[serde(rename = "pendingURL", skip_serializing_if = "Option::is_none")]
+    pub pending_url: Option<String>,
+    #[serde(rename = "cancelURL", skip_serializing_if = "Option::is_none")]
+    pub cancel_url: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
@@ -41,7 +49,8 @@ pub struct Instruction<
 > {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub settlement: Option<AutoSettlement>,
-    pub method: PaymentMethod,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub method: Option<PaymentMethod>,
     pub payment_instrument: PaymentInstrument<T>,
     pub narrative: InstructionNarrative,
     pub value: PaymentValue,
@@ -49,6 +58,8 @@ pub struct Instruction<
     pub debt_repayment: Option<bool>,
     #[serde(rename = "threeDS", skip_serializing_if = "Option::is_none")]
     pub three_ds: Option<ThreeDSRequest>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub request_auto_settlement: Option<RequestAutoSettlement>,
     /// For setting up mandates
     pub token_creation: Option<TokenCreation>,
     /// For specifying CIT vs MIT
@@ -107,6 +118,7 @@ pub enum PaymentInstrument<
     RawCardForNTI(RawCardDetails<domain_types::payment_method_data::DefaultPCIHolder>),
     Googlepay(WalletPayment),
     Applepay(WalletPayment),
+    ApmWallet(ApmPaymentInstrument),
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
@@ -162,6 +174,24 @@ pub struct WalletPayment {
     pub wallet_token: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub billing_address: Option<BillingAddress>,
+}
+
+#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
+pub struct ApmPaymentInstrument {
+    #[serde(rename = "type")]
+    pub instrument_type: ApmInstrumentType,
+    pub method: String,
+}
+
+#[derive(
+    Clone, Copy, Debug, Eq, Default, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize,
+)]
+pub enum ApmInstrumentType {
+    #[default]
+    #[serde(rename = "direct")]
+    Direct,
+    #[serde(rename = "sdk")]
+    Sdk,
 }
 
 #[derive(
@@ -275,6 +305,12 @@ pub struct AutoSettlement {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct RequestAutoSettlement {
+    pub enabled: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ThreeDSRequest {
     #[serde(rename = "type")]
     pub three_ds_type: String,
@@ -320,6 +356,14 @@ pub enum PaymentMethod {
     Card,
     ApplePay,
     GooglePay,
+    #[serde(rename = "paypal")]
+    Paypal,
+    #[serde(rename = "wechatpay")]
+    WeChatPay,
+    #[serde(rename = "alipay_cn")]
+    AliPayCn,
+    #[serde(rename = "alipay_uni")]
+    AliPayUni,
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]

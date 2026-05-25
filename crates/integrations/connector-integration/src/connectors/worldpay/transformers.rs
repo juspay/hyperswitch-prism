@@ -195,11 +195,52 @@ fn fetch_payment_instrument<
                     ..WalletPayment::default()
                 }))
             }
-            WalletDataPaymentMethod::AliPayQr(_)
-            | WalletDataPaymentMethod::AliPayRedirect(_)
-            | WalletDataPaymentMethod::AliPayHkRedirect(_)
-            | WalletDataPaymentMethod::AmazonPayRedirect(_)
-            | WalletDataPaymentMethod::MomoRedirect(_)
+            WalletDataPaymentMethod::PaypalRedirect(_) => {
+                Ok(PaymentInstrument::ApmWallet(ApmPaymentInstrument {
+                    instrument_type: ApmInstrumentType::Direct,
+                    method: "paypal".to_string(),
+                }))
+            }
+            WalletDataPaymentMethod::PaypalSdk(_) => {
+                Ok(PaymentInstrument::ApmWallet(ApmPaymentInstrument {
+                    instrument_type: ApmInstrumentType::Sdk,
+                    method: "paypal".to_string(),
+                }))
+            }
+            WalletDataPaymentMethod::AliPayRedirect(_)
+            | WalletDataPaymentMethod::AliPayQr(_) => {
+                Ok(PaymentInstrument::ApmWallet(ApmPaymentInstrument {
+                    instrument_type: ApmInstrumentType::Direct,
+                    method: "alipay_cn".to_string(),
+                }))
+            }
+            WalletDataPaymentMethod::AliPayHkRedirect(_) => {
+                Ok(PaymentInstrument::ApmWallet(ApmPaymentInstrument {
+                    instrument_type: ApmInstrumentType::Direct,
+                    method: "alipay_uni".to_string(),
+                }))
+            }
+            WalletDataPaymentMethod::WeChatPayRedirect(_)
+            | WalletDataPaymentMethod::WeChatPayQr(_) => {
+                Ok(PaymentInstrument::ApmWallet(ApmPaymentInstrument {
+                    instrument_type: ApmInstrumentType::Direct,
+                    method: "wechatpay".to_string(),
+                }))
+            }
+            WalletDataPaymentMethod::SamsungPay(_)
+            | WalletDataPaymentMethod::CashappQr(_)
+            | WalletDataPaymentMethod::MbWayRedirect(_)
+            | WalletDataPaymentMethod::MbWay(_)
+            | WalletDataPaymentMethod::Mifinity(_)
+            | WalletDataPaymentMethod::RevolutPay(_)
+            | WalletDataPaymentMethod::AmazonPayRedirect(_) => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("worldpay"),
+                    connector: "Worldpay",
+                    context: Default::default(),
+                }))
+            }
+            WalletDataPaymentMethod::MomoRedirect(_)
             | WalletDataPaymentMethod::KakaoPayRedirect(_)
             | WalletDataPaymentMethod::GoPayRedirect(_)
             | WalletDataPaymentMethod::GcashRedirect(_)
@@ -208,23 +249,13 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::DanaRedirect {}
             | WalletDataPaymentMethod::GooglePayRedirect(_)
             | WalletDataPaymentMethod::GooglePayThirdPartySdk(_)
-            | WalletDataPaymentMethod::MbWayRedirect(_)
             | WalletDataPaymentMethod::MobilePayRedirect(_)
-            | WalletDataPaymentMethod::PaypalRedirect(_)
-            | WalletDataPaymentMethod::PaypalSdk(_)
             | WalletDataPaymentMethod::Paze(_)
-            | WalletDataPaymentMethod::SamsungPay(_)
             | WalletDataPaymentMethod::TwintRedirect {}
             | WalletDataPaymentMethod::VippsRedirect {}
             | WalletDataPaymentMethod::TouchNGoRedirect(_)
-            | WalletDataPaymentMethod::WeChatPayRedirect(_)
-            | WalletDataPaymentMethod::CashappQr(_)
             | WalletDataPaymentMethod::SwishQr(_)
-            | WalletDataPaymentMethod::WeChatPayQr(_)
-            | WalletDataPaymentMethod::Mifinity(_)
-            | WalletDataPaymentMethod::RevolutPay(_)
             | WalletDataPaymentMethod::BluecodeRedirect {}
-            | WalletDataPaymentMethod::MbWay(_)
             | WalletDataPaymentMethod::Satispay(_)
             | WalletDataPaymentMethod::Wero(_)
             | WalletDataPaymentMethod::LazyPayRedirect(_)
@@ -240,8 +271,14 @@ fn fetch_payment_instrument<
                 }))
             }
         },
+        PaymentMethodData::BankRedirect(_) => {
+            Err(error_stack::report!(IntegrationError::NotSupported {
+                message: utils::get_unimplemented_payment_method_error_message("worldpay"),
+                connector: "Worldpay",
+                context: Default::default(),
+            }))
+        }
         PaymentMethodData::PayLater(_)
-        | PaymentMethodData::BankRedirect(_)
         | PaymentMethodData::BankDebit(_)
         | PaymentMethodData::BankTransfer(_)
         | PaymentMethodData::Crypto(_)
@@ -275,10 +312,15 @@ impl TryFrom<(enums::PaymentMethod, Option<enums::PaymentMethodType>)> for Payme
                 match pm {
                     enums::PaymentMethodType::ApplePay => Ok(Self::ApplePay),
                     enums::PaymentMethodType::GooglePay => Ok(Self::GooglePay),
-                    _ => Err(IntegrationError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("worldpay"),
-                        Default::default(),
-                    )
+                    enums::PaymentMethodType::Paypal => Ok(Self::Paypal),
+                    enums::PaymentMethodType::WeChatPay => Ok(Self::WeChatPay),
+                    enums::PaymentMethodType::AliPay => Ok(Self::AliPayCn),
+                    enums::PaymentMethodType::AliPayHk => Ok(Self::AliPayUni),
+                    _ => Err(IntegrationError::NotSupported {
+                        message: utils::get_unimplemented_payment_method_error_message("worldpay"),
+                        connector: "Worldpay",
+                        context: Default::default(),
+                    }
                     .into()),
                 }
             }
@@ -471,25 +513,71 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })?;
 
         let is_mandate_payment = item.router_data.request.is_mandate_payment();
-        let three_ds = create_three_ds_request(&item.router_data, is_mandate_payment)?;
 
-        let (token_creation, customer_agreement) = get_token_and_agreement(
-            &item.router_data.request.payment_method_data,
-            item.router_data.request.setup_future_usage,
-            item.router_data.request.off_session,
-            item.router_data.request.mandate_id.clone(),
+        let method = PaymentMethod::try_from((
+            item.router_data.resource_common_data.payment_method,
+            item.router_data.request.payment_method_type,
+        ))?;
+
+        let is_apm = matches!(
+            method,
+            PaymentMethod::Paypal
+                | PaymentMethod::WeChatPay
+                | PaymentMethod::AliPayCn
+                | PaymentMethod::AliPayUni
         );
+
+        let three_ds = if is_apm {
+            None
+        } else {
+            create_three_ds_request(&item.router_data, is_mandate_payment)?
+        };
+
+        let (token_creation, customer_agreement) = if is_apm {
+            (None, None)
+        } else {
+            get_token_and_agreement(
+                &item.router_data.request.payment_method_data,
+                item.router_data.request.setup_future_usage,
+                item.router_data.request.off_session,
+                item.router_data.request.mandate_id.clone(),
+            )
+        };
+
+        let (settlement, request_auto_settlement) = if is_apm {
+            let auto_settle = matches!(
+                item.router_data.request.capture_method.unwrap_or_default(),
+                enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic
+            );
+            (
+                None,
+                Some(RequestAutoSettlement {
+                    enabled: auto_settle,
+                }),
+            )
+        } else {
+            (
+                get_settlement_info(&item.router_data, item.router_data.request.minor_amount),
+                None,
+            )
+        };
+
+        let (success_url, failure_url, pending_url, cancel_url) = if is_apm {
+            let return_url = item.router_data.request.get_router_return_url().ok();
+            (
+                return_url.clone(),
+                return_url.clone(),
+                return_url.clone(),
+                return_url,
+            )
+        } else {
+            (None, None, None, None)
+        };
 
         Ok(Self {
             instruction: Instruction {
-                settlement: get_settlement_info(
-                    &item.router_data,
-                    item.router_data.request.minor_amount,
-                ),
-                method: PaymentMethod::try_from((
-                    item.router_data.resource_common_data.payment_method,
-                    item.router_data.request.payment_method_type,
-                ))?,
+                settlement,
+                method: if is_apm { None } else { Some(method) },
                 payment_instrument: fetch_payment_instrument(
                     item.router_data.request.payment_method_data.clone(),
                     item.router_data.resource_common_data.get_optional_billing(),
@@ -503,6 +591,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
                 debt_repayment: None,
                 three_ds,
+                request_auto_settlement,
                 token_creation,
                 customer_agreement,
             },
@@ -516,6 +605,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector_request_reference_id
                 .clone(),
             customer: None,
+            success_url,
+            failure_url,
+            pending_url,
+            cancel_url,
         })
     }
 }
@@ -603,7 +696,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             instruction: Instruction {
                 settlement,
-                method: PaymentMethod::Card, // RepeatPayment is always card-based
+                method: Some(PaymentMethod::Card), // RepeatPayment is always card-based
                 payment_instrument,
                 narrative: InstructionNarrative {
                     line1: merchant_name.expose(),
@@ -613,7 +706,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     currency: item.router_data.request.currency,
                 },
                 debt_repayment: None,
-                three_ds: None,       // MIT transactions don't require 3DS
+                three_ds: None, // MIT transactions don't require 3DS
+                request_auto_settlement: None,
                 token_creation: None, // No new token creation for repeat payments
                 customer_agreement: Some(CustomerAgreement {
                     agreement_type: CustomerAgreementType::Subscription,
@@ -631,6 +725,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector_request_reference_id
                 .clone(),
             customer: None,
+            success_url: None,
+            failure_url: None,
+            pending_url: None,
+            cancel_url: None,
         })
     }
 }
@@ -684,6 +782,7 @@ impl From<PaymentOutcome> for enums::AttemptStatus {
             }
             PaymentOutcome::Refused | PaymentOutcome::FraudHighRisk => Self::Failure,
             PaymentOutcome::ThreeDsUnavailable => Self::AuthenticationFailed,
+            PaymentOutcome::Pending => Self::AuthenticationPending,
         }
     }
 }
@@ -703,9 +802,9 @@ impl From<PaymentOutcome> for enums::AuthorizationStatus {
             | PaymentOutcome::SentForCancellation
             | PaymentOutcome::SentForRefund
             | PaymentOutcome::SentForPartialRefund => Self::Failure,
-            PaymentOutcome::ThreeDsDeviceDataRequired | PaymentOutcome::ThreeDsChallenged => {
-                Self::Processing
-            }
+            PaymentOutcome::ThreeDsDeviceDataRequired
+            | PaymentOutcome::ThreeDsChallenged
+            | PaymentOutcome::Pending => Self::Processing,
         }
     }
 }
@@ -722,7 +821,8 @@ impl From<PaymentOutcome> for enums::RefundStatus {
             | PaymentOutcome::ThreeDsAuthenticationFailed
             | PaymentOutcome::ThreeDsChallenged
             | PaymentOutcome::SentForCancellation
-            | PaymentOutcome::ThreeDsUnavailable => Self::Failure,
+            | PaymentOutcome::ThreeDsUnavailable
+            | PaymentOutcome::Pending => Self::Failure,
         }
     }
 }
@@ -819,6 +919,16 @@ impl<F, T>
         ),
     ) -> Result<Self, Self::Error> {
         let (router_data, optional_correlation_id, amount) = item;
+        let apm_redirect = router_data
+            .response
+            .redirect
+            .as_ref()
+            .map(|url| RedirectForm::Form {
+                endpoint: url.clone(),
+                method: common_utils::request::Method::Get,
+                form_fields: HashMap::new(),
+            });
+
         let (description, redirection_data, mandate_reference, network_txn_id, error) = router_data
             .response
             .other_fields
@@ -954,6 +1064,8 @@ impl<F, T>
             _ => None,
         };
 
+        let final_redirection_data = redirection_data.or(apm_redirect);
+
         let response = match (optional_error_message, error) {
             (None, None) => Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::foreign_try_from((
@@ -961,7 +1073,7 @@ impl<F, T>
                     optional_correlation_id.clone(),
                     router_data.http_code,
                 ))?,
-                redirection_data: redirection_data.map(Box::new),
+                redirection_data: final_redirection_data.map(Box::new),
                 mandate_reference: mandate_reference.map(Box::new),
                 connector_metadata,
                 network_txn_id: network_txn_id.map(|id| id.expose()),

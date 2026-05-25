@@ -690,7 +690,7 @@ examples_python: examples/wellsfargo/wellsfargo.py
 connector_id: worldpay
 doc: docs/connectors/worldpay.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: ApplePay, Card, GooglePay
+payment_methods: AliPayRedirect, ApplePay, Card, GooglePay, PaypalRedirect, PaypalSdk, WeChatPayQr
 flows: authorize, capture, get, incremental_authorization, recurring_charge, refund, refund_get, void
 examples_python: examples/worldpay/worldpay.py
 
