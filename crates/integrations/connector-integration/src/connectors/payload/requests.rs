@@ -1,4 +1,4 @@
-use common_utils::types::FloatMajorUnit;
+use common_utils::{pii::Email, types::FloatMajorUnit};
 use domain_types::payment_method_data::{PaymentMethodDataTypes, RawCardNumber};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -164,3 +164,16 @@ pub struct PayloadRefundRequest {
 
 // Type alias for RepeatPayment request (same structure as PayloadPaymentsRequest)
 pub type PayloadRepeatPaymentRequest<T> = PayloadPaymentsRequest<T>;
+
+// CreateConnectorCustomer request — POST /customers
+// Mirrors the hyperswitch reference at
+// hyperswitch/crates/hyperswitch_connectors/src/connectors/payload/requests.rs
+// (struct CustomerRequest).
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct PayloadCustomerRequest {
+    pub keep_active: bool,
+    pub email: Email,
+    pub name: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub primary_processing_id: Option<Secret<String>>,
+}
