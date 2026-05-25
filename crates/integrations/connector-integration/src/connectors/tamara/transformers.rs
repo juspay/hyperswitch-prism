@@ -513,7 +513,9 @@ impl
 // ===== VOID =====
 
 #[derive(Debug, Serialize)]
-pub struct TamaraVoidRequest;
+pub struct TamaraVoidRequest {
+    pub total_amount: TamaraAmount,
+}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
@@ -526,12 +528,30 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     type Error = error_stack::Report<errors::IntegrationError>;
 
     fn try_from(
-        _item: TamaraRouterData<
+        item: TamaraRouterData<
             RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(Self)
+        let router_data = &item.router_data;
+        let amount = router_data.request.amount.ok_or(
+            error_stack::report!(errors::IntegrationError::MissingRequiredField {
+                field_name: "amount",
+                context: Default::default()
+            }),
+        )?;
+        let currency = router_data.request.currency.ok_or(
+            error_stack::report!(errors::IntegrationError::MissingRequiredField {
+                field_name: "currency",
+                context: Default::default()
+            }),
+        )?;
+        Ok(Self {
+            total_amount: TamaraAmount {
+                amount: amount.get_amount_as_i64(),
+                currency: currency.to_string(),
+            },
+        })
     }
 }
 
@@ -600,6 +620,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        
         Ok(Self {
             total_amount: TamaraAmount {
                 amount: item
