@@ -166,7 +166,11 @@ function _buildVerifyRedirectRequest(): types.IPaymentServiceVerifyRedirectRespo
 function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServiceVoidRequest {
     return {
         "merchantVoidId": "probe_void_001",  // Identification.
-        "connectorTransactionId": connectorTransactionId
+        "connectorTransactionId": connectorTransactionId,
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
     };
 }
 

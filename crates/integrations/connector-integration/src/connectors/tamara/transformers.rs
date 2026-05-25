@@ -534,18 +534,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let amount = router_data.request.amount.ok_or(
-            error_stack::report!(errors::IntegrationError::MissingRequiredField {
+        let amount = router_data.request.amount.ok_or(error_stack::report!(
+            errors::IntegrationError::MissingRequiredField {
                 field_name: "amount",
                 context: Default::default()
-            }),
-        )?;
-        let currency = router_data.request.currency.ok_or(
-            error_stack::report!(errors::IntegrationError::MissingRequiredField {
+            }
+        ))?;
+        let currency = router_data.request.currency.ok_or(error_stack::report!(
+            errors::IntegrationError::MissingRequiredField {
                 field_name: "currency",
                 context: Default::default()
-            }),
-        )?;
+            }
+        ))?;
         Ok(Self {
             total_amount: TamaraAmount {
                 amount: amount.get_amount_as_i64(),
@@ -620,7 +620,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        
         Ok(Self {
             total_amount: TamaraAmount {
                 amount: item

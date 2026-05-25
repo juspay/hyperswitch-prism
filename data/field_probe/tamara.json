@@ -3424,7 +3424,11 @@
         "status": "supported",
         "proto_request": {
           "merchant_void_id": "probe_void_001",
-          "connector_transaction_id": "probe_connector_txn_001"
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
         },
         "sample": {
           "url": "https://api-sandbox.tamara.co/orders/probe_connector_txn_001/cancel",
@@ -3434,7 +3438,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "null"
+          "body": "{\"total_amount\":{\"amount\":1000,\"currency\":\"USD\"}}"
         }
       }
     }

@@ -142,6 +142,10 @@ def _build_void_request(connector_transaction_id: str):
     return payment_pb2.PaymentServiceVoidRequest(
         merchant_void_id="probe_void_001",  # Identification.
         connector_transaction_id=connector_transaction_id,
+        amount=payment_pb2.Money(  # Amount Information.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
     )
 async def process_checkout_autocapture(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """One-step Payment (Authorize + Capture)

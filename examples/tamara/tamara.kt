@@ -105,6 +105,10 @@ private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceV
     return PaymentServiceVoidRequest.newBuilder().apply {
         merchantVoidId = "probe_void_001"  // Identification.
         connectorTransactionId = connectorTransactionIdStr
+        amountBuilder.apply {  // Amount Information.
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
     }.build()
 }
 

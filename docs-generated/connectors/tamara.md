@@ -123,7 +123,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/tamara/tamara.py#L146) · [JavaScript](../../examples/tamara/tamara.js) · [Kotlin](../../examples/tamara/tamara.kt#L113) · [Rust](../../examples/tamara/tamara.rs#L209)
+**Examples:** [Python](../../examples/tamara/tamara.py#L150) · [JavaScript](../../examples/tamara/tamara.js) · [Kotlin](../../examples/tamara/tamara.kt#L117) · [Rust](../../examples/tamara/tamara.rs#L213)
 
 ### Card Payment (Authorize + Capture)
 
@@ -137,25 +137,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/tamara/tamara.py#L165) · [JavaScript](../../examples/tamara/tamara.js) · [Kotlin](../../examples/tamara/tamara.kt#L129) · [Rust](../../examples/tamara/tamara.rs#L225)
+**Examples:** [Python](../../examples/tamara/tamara.py#L169) · [JavaScript](../../examples/tamara/tamara.js) · [Kotlin](../../examples/tamara/tamara.kt#L133) · [Rust](../../examples/tamara/tamara.rs#L229)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/tamara/tamara.py#L190) · [JavaScript](../../examples/tamara/tamara.js) · [Kotlin](../../examples/tamara/tamara.kt#L151) · [Rust](../../examples/tamara/tamara.rs#L248)
+**Examples:** [Python](../../examples/tamara/tamara.py#L194) · [JavaScript](../../examples/tamara/tamara.js) · [Kotlin](../../examples/tamara/tamara.kt#L155) · [Rust](../../examples/tamara/tamara.rs#L252)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/tamara/tamara.py#L215) · [JavaScript](../../examples/tamara/tamara.js) · [Kotlin](../../examples/tamara/tamara.kt#L173) · [Rust](../../examples/tamara/tamara.rs#L271)
+**Examples:** [Python](../../examples/tamara/tamara.py#L219) · [JavaScript](../../examples/tamara/tamara.js) · [Kotlin](../../examples/tamara/tamara.kt#L177) · [Rust](../../examples/tamara/tamara.rs#L275)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/tamara/tamara.py#L237) · [JavaScript](../../examples/tamara/tamara.js) · [Kotlin](../../examples/tamara/tamara.kt#L192) · [Rust](../../examples/tamara/tamara.rs#L290)
+**Examples:** [Python](../../examples/tamara/tamara.py#L241) · [JavaScript](../../examples/tamara/tamara.js) · [Kotlin](../../examples/tamara/tamara.kt#L196) · [Rust](../../examples/tamara/tamara.rs#L294)
 
 ## API Reference
 
@@ -473,7 +473,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts#L291) · [Kotlin](../../examples/tamara/tamara.kt#L210) · [Rust](../../examples/tamara/tamara.rs)
+**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts#L295) · [Kotlin](../../examples/tamara/tamara.kt#L214) · [Rust](../../examples/tamara/tamara.rs)
 
 #### PaymentService.Capture
 
@@ -484,7 +484,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts#L300) · [Kotlin](../../examples/tamara/tamara.kt#L222) · [Rust](../../examples/tamara/tamara.rs)
+**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts#L304) · [Kotlin](../../examples/tamara/tamara.kt#L226) · [Rust](../../examples/tamara/tamara.rs)
 
 #### PaymentService.Get
 
@@ -495,7 +495,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts#L309) · [Kotlin](../../examples/tamara/tamara.kt#L232) · [Rust](../../examples/tamara/tamara.rs)
+**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts#L313) · [Kotlin](../../examples/tamara/tamara.kt#L236) · [Rust](../../examples/tamara/tamara.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -506,7 +506,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts#L336) · [Kotlin](../../examples/tamara/tamara.kt#L271) · [Rust](../../examples/tamara/tamara.rs)
+**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts#L340) · [Kotlin](../../examples/tamara/tamara.kt#L275) · [Rust](../../examples/tamara/tamara.rs)
 
 #### PaymentService.Refund
 
@@ -517,7 +517,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts#L345) · [Kotlin](../../examples/tamara/tamara.kt#L300) · [Rust](../../examples/tamara/tamara.rs)
+**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts#L349) · [Kotlin](../../examples/tamara/tamara.kt#L304) · [Rust](../../examples/tamara/tamara.rs)
 
 #### PaymentService.TokenAuthorize
 
@@ -528,7 +528,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts#L363) · [Kotlin](../../examples/tamara/tamara.kt#L322) · [Rust](../../examples/tamara/tamara.rs)
+**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts#L367) · [Kotlin](../../examples/tamara/tamara.kt#L326) · [Rust](../../examples/tamara/tamara.rs)
 
 #### PaymentService.VerifyRedirectResponse
 
@@ -539,7 +539,7 @@ Verify and process redirect responses from 3D Secure or other external flows. Va
 | **Request** | `PaymentServiceVerifyRedirectResponseRequest` |
 | **Response** | `PaymentServiceVerifyRedirectResponseResponse` |
 
-**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts#L372) · [Kotlin](../../examples/tamara/tamara.kt#L343) · [Rust](../../examples/tamara/tamara.rs)
+**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts#L376) · [Kotlin](../../examples/tamara/tamara.kt#L347) · [Rust](../../examples/tamara/tamara.rs)
 
 #### PaymentService.Void
 
@@ -550,7 +550,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts) · [Kotlin](../../examples/tamara/tamara.kt#L353) · [Rust](../../examples/tamara/tamara.rs)
+**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts) · [Kotlin](../../examples/tamara/tamara.kt#L357) · [Rust](../../examples/tamara/tamara.rs)
 
 ### Refunds
 
@@ -563,4 +563,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts#L354) · [Kotlin](../../examples/tamara/tamara.kt#L310) · [Rust](../../examples/tamara/tamara.rs)
+**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts#L358) · [Kotlin](../../examples/tamara/tamara.kt#L314) · [Rust](../../examples/tamara/tamara.rs)
