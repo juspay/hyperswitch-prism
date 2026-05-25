@@ -12,9 +12,8 @@ use domain_types::{
         SetupMandate, Void,
     },
     connector_types::{
-        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
-        ConnectorCustomerData, ConnectorCustomerResponse,
-        ConnectorSpecificClientAuthenticationResponse, MandateReference,
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
+        ConnectorCustomerResponse, ConnectorSpecificClientAuthenticationResponse, MandateReference,
         PayloadClientAuthenticationResponse as PayloadClientAuthenticationResponseDomain,
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
@@ -42,10 +41,10 @@ pub use super::requests::{
     PayloadRepeatPaymentRequest, PayloadVoidRequest,
 };
 pub use super::responses::{
-    PayloadAuthorizeResponse, PayloadCaptureResponse, PayloadCustomerResponse, PayloadErrorResponse,
-    PayloadEventDetails, PayloadPSyncResponse, PayloadPaymentsResponse, PayloadRSyncResponse,
-    PayloadRefundResponse, PayloadRepeatPaymentResponse, PayloadSetupMandateResponse,
-    PayloadVoidResponse, PayloadWebhookEvent, PayloadWebhooksTrigger,
+    PayloadAuthorizeResponse, PayloadCaptureResponse, PayloadCustomerResponse,
+    PayloadErrorResponse, PayloadEventDetails, PayloadPSyncResponse, PayloadPaymentsResponse,
+    PayloadRSyncResponse, PayloadRefundResponse, PayloadRepeatPaymentResponse,
+    PayloadSetupMandateResponse, PayloadVoidResponse, PayloadWebhookEvent, PayloadWebhooksTrigger,
 };
 
 type Error = error_stack::Report<IntegrationError>;
@@ -1092,14 +1091,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             })?;
 
-        let name = router_data
-            .request
-            .name
-            .clone()
-            .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "name",
-                context: Default::default(),
-            })?;
+        let name =
+            router_data
+                .request
+                .name
+                .clone()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "name",
+                    context: Default::default(),
+                })?;
 
         // Pull processing_account_id from the currency-keyed auth map (any
         // currency works because the api_key / processing_account_id pair is
