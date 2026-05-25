@@ -422,9 +422,120 @@ impl
             SurchargeRefundSucceededResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Ok(format!(
-            "{}/surcharge-refund-succeeded",
-            self.connector_base_url_payments(req)
+        Ok(format!("{}/ch/refund", self.connector_base_url_payments(req)))
+    }
+
+    fn get_headers(
+        &self,
+        req: &RouterDataV2<
+            SurchargeRefundSucceeded,
+            SurchargeFlowData,
+            SurchargeRefundSucceededRequest,
+            SurchargeRefundSucceededResponse,
+        >,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+        let mut headers = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            ConnectorIntegrationV2::<
+                SurchargeRefundSucceeded,
+                SurchargeFlowData,
+                SurchargeRefundSucceededRequest,
+                SurchargeRefundSucceededResponse,
+            >::get_content_type(self)
+            .to_string()
+            .into(),
+        )];
+
+        let mut auth_header = self.get_auth_header(&req.connector_config)?;
+        headers.append(&mut auth_header);
+        Ok(headers)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        "application/json"
+    }
+
+    fn build_request_v2(
+        &self,
+        req: &RouterDataV2<
+            SurchargeRefundSucceeded,
+            SurchargeFlowData,
+            SurchargeRefundSucceededRequest,
+            SurchargeRefundSucceededResponse,
+        >,
+    ) -> CustomResult<Option<common_utils::request::Request>, IntegrationError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(self.get_url(req)?.as_str())
+                .attach_default_headers()
+                .headers(self.get_headers(req)?)
+                .set_optional_body(self.get_request_body(req)?)
+                .build(),
         ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &RouterDataV2<
+            SurchargeRefundSucceeded,
+            SurchargeFlowData,
+            SurchargeRefundSucceededRequest,
+            SurchargeRefundSucceededResponse,
+        >,
+    ) -> CustomResult<Option<common_utils::request::RequestContent>, IntegrationError> {
+        let request = transformers::InterPaymentsRefundSucceededRequest::from(req);
+        Ok(Some(common_utils::request::RequestContent::Json(Box::new(
+            request,
+        ))))
+    }
+
+    fn handle_response_v2(
+        &self,
+        data: &RouterDataV2<
+            SurchargeRefundSucceeded,
+            SurchargeFlowData,
+            SurchargeRefundSucceededRequest,
+            SurchargeRefundSucceededResponse,
+        >,
+        event_builder: Option<&mut events::Event>,
+        res: Response,
+    ) -> CustomResult<
+        RouterDataV2<
+            SurchargeRefundSucceeded,
+            SurchargeFlowData,
+            SurchargeRefundSucceededRequest,
+            SurchargeRefundSucceededResponse,
+        >,
+        ConnectorError,
+    > {
+        let response: transformers::InterPaymentsRefundSucceededResponse = res
+            .response
+            .parse_struct("InterPaymentsRefundSucceededResponse")
+            .change_context(ConnectorError::ResponseDeserializationFailed {
+                context: ResponseTransformationErrorContext {
+                    http_status_code: Some(res.status_code),
+                    additional_context: Some("Failed to parse interpayments refund succeeded response".to_string()),
+                },
+            })?;
+
+        with_response_body!(event_builder, response);
+        
+        let response_data = SurchargeRefundSucceededResponse {
+            status_code: res.status_code,
+        };
+
+        let mut data = data.clone();
+        data.response = Ok(response_data);
+        Ok(data)
+    }
+
+    fn get_error_response_v2(
+        &self,
+        res: Response,
+        event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+        self.build_error_response(res, event_builder, _connector_config)
     }
 }
