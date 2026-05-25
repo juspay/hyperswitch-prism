@@ -269,21 +269,13 @@ pub struct TamaraPaymentsResponse {
     pub status: TamaraPaymentStatus,
 }
 
-impl<T: PaymentMethodDataTypes>
-    TryFrom<
-        ResponseRouterData<
-            TamaraPaymentsResponse,
-            Self,
-        >,
-    > for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TamaraPaymentsResponse, Self>>
+    for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            TamaraPaymentsResponse,
-            Self,
-        >,
+        item: ResponseRouterData<TamaraPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let status = AttemptStatus::from(item.response.status.clone());
         let connector_order_id = item.response.order_id.clone();
@@ -324,22 +316,12 @@ pub struct TamaraPSyncResponse {
     pub order_reference_id: Option<String>,
 }
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            TamaraPSyncResponse,
-            Self,
-        >,
-    > for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
+impl TryFrom<ResponseRouterData<TamaraPSyncResponse, Self>>
+    for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(
-        item: ResponseRouterData<
-            TamaraPSyncResponse,
-            Self,
-        >,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<TamaraPSyncResponse, Self>) -> Result<Self, Self::Error> {
         let status = AttemptStatus::from(item.response.status);
 
         Ok(Self {
@@ -371,22 +353,12 @@ pub struct TamaraRSyncResponse {
     pub order_reference_id: Option<String>,
 }
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            TamaraRSyncResponse,
-            Self,
-        >,
-    > for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
+impl TryFrom<ResponseRouterData<TamaraRSyncResponse, Self>>
+    for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(
-        item: ResponseRouterData<
-            TamaraRSyncResponse,
-            Self,
-        >,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<TamaraRSyncResponse, Self>) -> Result<Self, Self::Error> {
         let refund_status = match item.response.status {
             TamaraPaymentStatus::FullyRefunded => RefundStatus::Success,
             TamaraPaymentStatus::PartiallyRefunded => RefundStatus::Success,
@@ -462,21 +434,13 @@ pub struct TamaraCaptureResponse {
     pub status: TamaraPaymentStatus,
 }
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            TamaraCaptureResponse,
-            Self,
-        >,
-    > for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
+impl TryFrom<ResponseRouterData<TamaraCaptureResponse, Self>>
+    for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            TamaraCaptureResponse,
-            Self,
-        >,
+        item: ResponseRouterData<TamaraCaptureResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let status = AttemptStatus::from(item.response.status);
 
@@ -551,22 +515,12 @@ pub struct TamaraVoidResponse {
     pub status: TamaraPaymentStatus,
 }
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            TamaraVoidResponse,
-            Self,
-        >,
-    > for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
+impl TryFrom<ResponseRouterData<TamaraVoidResponse, Self>>
+    for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(
-        item: ResponseRouterData<
-            TamaraVoidResponse,
-            Self,
-        >,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<TamaraVoidResponse, Self>) -> Result<Self, Self::Error> {
         let status = AttemptStatus::from(item.response.status);
 
         Ok(Self {
@@ -631,22 +585,12 @@ pub struct TamaraRefundResponse {
     pub status: TamaraRefundStatus,
 }
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            TamaraRefundResponse,
-            Self,
-        >,
-    > for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
+impl TryFrom<ResponseRouterData<TamaraRefundResponse, Self>>
+    for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(
-        item: ResponseRouterData<
-            TamaraRefundResponse,
-            Self,
-        >,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<TamaraRefundResponse, Self>) -> Result<Self, Self::Error> {
         let refund_status = RefundStatus::from(item.response.status);
 
         Ok(Self {
@@ -672,13 +616,9 @@ pub struct TamaraWebhookEventType {
 impl From<TamaraWebhookEventType> for interfaces::webhooks::IncomingWebhookEvent {
     fn from(event: TamaraWebhookEventType) -> Self {
         match event.event_type.as_str() {
-            "order_approved" | "order_authorised" => {
-                Self::PaymentIntentAuthorizationSuccess
-            }
+            "order_approved" | "order_authorised" => Self::PaymentIntentAuthorizationSuccess,
             "order_canceled" => Self::PaymentIntentCancelled,
-            "order_captured" => {
-                Self::PaymentIntentCaptureSuccess
-            }
+            "order_captured" => Self::PaymentIntentCaptureSuccess,
             "order_refunded" => Self::RefundSuccess,
             "order_updated" => Self::PaymentIntentProcessing,
             _ => Self::EventNotSupported,
@@ -701,13 +641,7 @@ pub struct TamaraSourceVerificationResponse {
     pub order_reference_id: Option<String>,
 }
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            TamaraSourceVerificationResponse,
-            Self,
-        >,
-    >
+impl TryFrom<ResponseRouterData<TamaraSourceVerificationResponse, Self>>
     for RouterDataV2<
         VerifyWebhookSource,
         VerifyWebhookSourceFlowData,
@@ -718,10 +652,7 @@ impl
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            TamaraSourceVerificationResponse,
-            Self,
-        >,
+        item: ResponseRouterData<TamaraSourceVerificationResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let verification_status = match item.response.status {
             TamaraPaymentStatus::Declined | TamaraPaymentStatus::Expired => {
