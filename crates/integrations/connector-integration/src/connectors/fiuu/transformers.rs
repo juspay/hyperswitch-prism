@@ -918,16 +918,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .resource_common_data
                     .get_optional_billing_email()
                     .filter(|email| !email.peek().is_empty());
-                Ok(FiuuPaymentMethodData::FiuuCardData(Box::new(FiuuCardData {
-                    txn_channel: TxnChannel::Creditan,
-                    non_3ds,
-                    cc_pan: card.card_number.clone(),
-                    cc_cvv2: card.card_cvc.clone(),
-                    cc_month: card.card_exp_month.clone(),
-                    cc_year: card.card_exp_year.clone(),
-                    mps_token_status: Some(1),
-                    customer_email,
-                })))
+                Ok(FiuuPaymentMethodData::FiuuCardData(Box::new(
+                    FiuuCardData {
+                        txn_channel: TxnChannel::Creditan,
+                        non_3ds,
+                        cc_pan: card.card_number.clone(),
+                        cc_cvv2: card.card_cvc.clone(),
+                        cc_month: card.card_exp_month.clone(),
+                        cc_year: card.card_exp_year.clone(),
+                        mps_token_status: Some(1),
+                        customer_email,
+                    },
+                )))
             }
             PaymentMethodData::RealTimePayment(ref real_time_payment_data) => {
                 match *real_time_payment_data.clone() {
