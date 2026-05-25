@@ -273,12 +273,7 @@ impl<T: PaymentMethodDataTypes>
     TryFrom<
         ResponseRouterData<
             TamaraPaymentsResponse,
-            RouterDataV2<
-                Authorize,
-                PaymentFlowData,
-                PaymentsAuthorizeData<T>,
-                PaymentsResponseData,
-            >,
+            Self,
         >,
     > for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
@@ -287,12 +282,7 @@ impl<T: PaymentMethodDataTypes>
     fn try_from(
         item: ResponseRouterData<
             TamaraPaymentsResponse,
-            RouterDataV2<
-                Authorize,
-                PaymentFlowData,
-                PaymentsAuthorizeData<T>,
-                PaymentsResponseData,
-            >,
+            Self,
         >,
     ) -> Result<Self, Self::Error> {
         let status = AttemptStatus::from(item.response.status.clone());
@@ -338,7 +328,7 @@ impl
     TryFrom<
         ResponseRouterData<
             TamaraPSyncResponse,
-            RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+            Self,
         >,
     > for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
@@ -347,7 +337,7 @@ impl
     fn try_from(
         item: ResponseRouterData<
             TamaraPSyncResponse,
-            RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+            Self,
         >,
     ) -> Result<Self, Self::Error> {
         let status = AttemptStatus::from(item.response.status);
@@ -385,7 +375,7 @@ impl
     TryFrom<
         ResponseRouterData<
             TamaraRSyncResponse,
-            RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+            Self,
         >,
     > for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
@@ -394,7 +384,7 @@ impl
     fn try_from(
         item: ResponseRouterData<
             TamaraRSyncResponse,
-            RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+            Self,
         >,
     ) -> Result<Self, Self::Error> {
         let refund_status = match item.response.status {
@@ -476,7 +466,7 @@ impl
     TryFrom<
         ResponseRouterData<
             TamaraCaptureResponse,
-            RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+            Self,
         >,
     > for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
@@ -485,7 +475,7 @@ impl
     fn try_from(
         item: ResponseRouterData<
             TamaraCaptureResponse,
-            RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+            Self,
         >,
     ) -> Result<Self, Self::Error> {
         let status = AttemptStatus::from(item.response.status);
@@ -565,7 +555,7 @@ impl
     TryFrom<
         ResponseRouterData<
             TamaraVoidResponse,
-            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+            Self,
         >,
     > for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
@@ -574,7 +564,7 @@ impl
     fn try_from(
         item: ResponseRouterData<
             TamaraVoidResponse,
-            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+            Self,
         >,
     ) -> Result<Self, Self::Error> {
         let status = AttemptStatus::from(item.response.status);
@@ -645,7 +635,7 @@ impl
     TryFrom<
         ResponseRouterData<
             TamaraRefundResponse,
-            RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+            Self,
         >,
     > for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
@@ -654,7 +644,7 @@ impl
     fn try_from(
         item: ResponseRouterData<
             TamaraRefundResponse,
-            RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+            Self,
         >,
     ) -> Result<Self, Self::Error> {
         let refund_status = RefundStatus::from(item.response.status);
@@ -683,15 +673,15 @@ impl From<TamaraWebhookEventType> for interfaces::webhooks::IncomingWebhookEvent
     fn from(event: TamaraWebhookEventType) -> Self {
         match event.event_type.as_str() {
             "order_approved" | "order_authorised" => {
-                interfaces::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess
+                Self::PaymentIntentAuthorizationSuccess
             }
-            "order_canceled" => interfaces::webhooks::IncomingWebhookEvent::PaymentIntentCancelled,
+            "order_canceled" => Self::PaymentIntentCancelled,
             "order_captured" => {
-                interfaces::webhooks::IncomingWebhookEvent::PaymentIntentCaptureSuccess
+                Self::PaymentIntentCaptureSuccess
             }
-            "order_refunded" => interfaces::webhooks::IncomingWebhookEvent::RefundSuccess,
-            "order_updated" => interfaces::webhooks::IncomingWebhookEvent::PaymentIntentProcessing,
-            _ => interfaces::webhooks::IncomingWebhookEvent::EventNotSupported,
+            "order_refunded" => Self::RefundSuccess,
+            "order_updated" => Self::PaymentIntentProcessing,
+            _ => Self::EventNotSupported,
         }
     }
 }
@@ -715,12 +705,7 @@ impl
     TryFrom<
         ResponseRouterData<
             TamaraSourceVerificationResponse,
-            RouterDataV2<
-                VerifyWebhookSource,
-                VerifyWebhookSourceFlowData,
-                VerifyWebhookSourceRequestData,
-                VerifyWebhookSourceResponseData,
-            >,
+            Self,
         >,
     >
     for RouterDataV2<
@@ -735,12 +720,7 @@ impl
     fn try_from(
         item: ResponseRouterData<
             TamaraSourceVerificationResponse,
-            RouterDataV2<
-                VerifyWebhookSource,
-                VerifyWebhookSourceFlowData,
-                VerifyWebhookSourceRequestData,
-                VerifyWebhookSourceResponseData,
-            >,
+            Self,
         >,
     ) -> Result<Self, Self::Error> {
         let verification_status = match item.response.status {
