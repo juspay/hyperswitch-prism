@@ -1,0 +1,33 @@
+{
+  "name": "@10xgrace/core",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "dotenv": "^16.4.5",
+    "execa": "^9.4.0",
+    "mustache": "^4.2.0",
+    "ws": "^8.18.0",
+    "yaml": "^2.5.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/mustache": "^4.2.5",
+    "@types/node": "^20.16.0",
+    "@types/ws": "^8.5.12",
+    "typescript": "^5.6.2",
+    "vitest": "^2.1.4"
+  }
+}
