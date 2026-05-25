@@ -26,7 +26,10 @@ use hyperswitch_masking::{Mask, Maskable, PeekInterface};
 use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
-    connector_types::{SurchargeCalculateV2, SurchargePaymentSucceededV2, SurchargeRefundSucceededV2, SurchargeServiceTrait},
+    connector_types::{
+        SurchargeCalculateV2, SurchargePaymentSucceededV2, SurchargeRefundSucceededV2,
+        SurchargeServiceTrait,
+    },
 };
 use transformers::{
     InterPaymentsSurchargeRequest, InterPaymentsSurchargeResponse, InterpaymentsAuthType,
@@ -255,7 +258,7 @@ impl
             "interpayments",
         ))
     }
-      fn get_error_response_v2(
+    fn get_error_response_v2(
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
@@ -315,7 +318,7 @@ impl
         "application/json"
     }
 
-      fn build_request_v2(
+    fn build_request_v2(
         &self,
         req: &RouterDataV2<
             SurchargePaymentSucceeded,
@@ -369,29 +372,30 @@ impl
         >,
         ConnectorError,
     > {
-        
-            let response: transformers::InterPaymentsPaymentSucceededResponse = res
-                .response
-                .parse_struct("InterPaymentsPaymentSucceededResponse")
-                .change_context(ConnectorError::ResponseDeserializationFailed {
-                    context: ResponseTransformationErrorContext {
-                        http_status_code: Some(res.status_code),
-                        additional_context: Some("Failed to parse interpayments payment succeeded response".to_string()),
-                    },
-                })?;
+        let response: transformers::InterPaymentsPaymentSucceededResponse = res
+            .response
+            .parse_struct("InterPaymentsPaymentSucceededResponse")
+            .change_context(ConnectorError::ResponseDeserializationFailed {
+                context: ResponseTransformationErrorContext {
+                    http_status_code: Some(res.status_code),
+                    additional_context: Some(
+                        "Failed to parse interpayments payment succeeded response".to_string(),
+                    ),
+                },
+            })?;
 
-            with_response_body!(event_builder, response);
-            
-            let response_data = SurchargePaymentSucceededResponse {
-                status_code: res.status_code,
-            };
+        with_response_body!(event_builder, response);
 
-            let mut data = data.clone();
-            data.response = Ok(response_data);
-            Ok(data)
+        let response_data = SurchargePaymentSucceededResponse {
+            status_code: res.status_code,
+        };
+
+        let mut data = data.clone();
+        data.response = Ok(response_data);
+        Ok(data)
     }
 
-     fn get_error_response_v2(
+    fn get_error_response_v2(
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
@@ -418,6 +422,9 @@ impl
             SurchargeRefundSucceededResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Ok(format!("{}/surcharge-refund-succeeded", self.connector_base_url_payments(req)))
+        Ok(format!(
+            "{}/surcharge-refund-succeeded",
+            self.connector_base_url_payments(req)
+        ))
     }
 }

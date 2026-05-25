@@ -271,25 +271,24 @@ impl EventService for EventServiceImpl {
     async fn notify_connectors(
         &self,
         request: tonic::Request<NotifyConnectorsRequest>,
-    ) -> Result<tonic::Response<NotifyConnectorsResponse>, tonic::Status>
-    {
+    ) -> Result<tonic::Response<NotifyConnectorsResponse>, tonic::Status> {
         let service_name = request
             .extensions()
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "EventService".to_string());
         let config = get_config_from_request(&request)?;
-        
+
         // Parse metadata to get connector config
         let request_data = RequestData::from_grpc_request(request, config.clone())?;
         let metadata_payload = request_data.extracted_metadata;
-        
+
         let req = request_data.payload;
         let event_type = req.event_type;
-        
+
         let event_type_enum = grpc_api_types::payments::NotifyEventType::try_from(event_type)
             .map_err(|_| tonic::Status::invalid_argument("Invalid event type"))?;
-        
+
         match event_type_enum {
             grpc_api_types::payments::NotifyEventType::SurchargePaymentSucceeded => {
                 self.handle_payment_surcharge_notify(
@@ -297,7 +296,8 @@ impl EventService for EventServiceImpl {
                     &service_name,
                     config,
                     metadata_payload.connector_config,
-                ).await
+                )
+                .await
             }
             grpc_api_types::payments::NotifyEventType::SurchargeRefundSucceeded => {
                 self.handle_refund_surcharge_notify(
@@ -305,9 +305,12 @@ impl EventService for EventServiceImpl {
                     &service_name,
                     config,
                     metadata_payload.connector_config,
-                ).await
+                )
+                .await
             }
-            _ => Err(tonic::Status::invalid_argument("Invalid or unsupported event type")),
+            _ => Err(tonic::Status::invalid_argument(
+                "Invalid or unsupported event type",
+            )),
         }
     }
 }
@@ -322,13 +325,12 @@ impl EventServiceImpl {
     ) -> Result<tonic::Response<NotifyConnectorsResponse>, tonic::Status> {
         tracing::info!("SURCHARGE_PAYMENT_SUCCEEDED_FLOW: initiated");
 
-        let connector_data: SurchargeConnectorData =
-            ConnectorDataProvider::from_connector_variant(
-                &domain_types::connector_types::ConnectorVariant::Surcharge(
-                    domain_types::connector_types::SurchargeConnectorEnum::Interpayments,
-                ),
-            )
-            .ok_or_else(|| tonic::Status::unimplemented("Invalid connector type for this flow"))?;
+        let connector_data: SurchargeConnectorData = ConnectorDataProvider::from_connector_variant(
+            &domain_types::connector_types::ConnectorVariant::Surcharge(
+                domain_types::connector_types::SurchargeConnectorEnum::Interpayments,
+            ),
+        )
+        .ok_or_else(|| tonic::Status::unimplemented("Invalid connector type for this flow"))?;
 
         let connector_integration: BoxedConnectorIntegrationV2<
             '_,
@@ -409,13 +411,12 @@ impl EventServiceImpl {
     ) -> Result<tonic::Response<NotifyConnectorsResponse>, tonic::Status> {
         tracing::info!("SURCHARGE_REFUND_SUCCEEDED_FLOW: initiated");
 
-        let connector_data: SurchargeConnectorData =
-            ConnectorDataProvider::from_connector_variant(
-                &domain_types::connector_types::ConnectorVariant::Surcharge(
-                    domain_types::connector_types::SurchargeConnectorEnum::Interpayments,
-                ),
-            )
-            .ok_or_else(|| tonic::Status::unimplemented("Invalid connector type for this flow"))?;
+        let connector_data: SurchargeConnectorData = ConnectorDataProvider::from_connector_variant(
+            &domain_types::connector_types::ConnectorVariant::Surcharge(
+                domain_types::connector_types::SurchargeConnectorEnum::Interpayments,
+            ),
+        )
+        .ok_or_else(|| tonic::Status::unimplemented("Invalid connector type for this flow"))?;
 
         let connector_integration: BoxedConnectorIntegrationV2<
             '_,

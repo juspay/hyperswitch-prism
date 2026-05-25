@@ -119,7 +119,6 @@ pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
 {
 }
 
-
 pub trait PaymentVoidV2:
     ConnectorIntegrationV2<connector_flow::Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {

@@ -127,7 +127,9 @@ impl ForeignTryFrom<grpc_api_types::surcharge::SurchargeServiceCalculateRequest>
     }
 }
 
-impl ForeignTryFrom<grpc_api_types::payments::NotifyConnectorsRequest> for SurchargePaymentSucceededRequest {
+impl ForeignTryFrom<grpc_api_types::payments::NotifyConnectorsRequest>
+    for SurchargePaymentSucceededRequest
+{
     type Error = IntegrationError;
 
     fn foreign_try_from(
@@ -149,11 +151,15 @@ impl ForeignTryFrom<grpc_api_types::payments::NotifyConnectorsRequest> for Surch
                 },
             }))?;
 
-        Ok(Self { connector_surcharge_id })
+        Ok(Self {
+            connector_surcharge_id,
+        })
     }
 }
 
-impl ForeignTryFrom<grpc_api_types::payments::NotifyConnectorsRequest> for SurchargeRefundSucceededRequest {
+impl ForeignTryFrom<grpc_api_types::payments::NotifyConnectorsRequest>
+    for SurchargeRefundSucceededRequest
+{
     type Error = IntegrationError;
 
     fn foreign_try_from(
@@ -175,7 +181,9 @@ impl ForeignTryFrom<grpc_api_types::payments::NotifyConnectorsRequest> for Surch
                 },
             }))?;
 
-        Ok(Self { connector_surcharge_id })
+        Ok(Self {
+            connector_surcharge_id,
+        })
     }
 }
 
@@ -195,18 +203,22 @@ impl
             &MaskedMetadata,
         ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
-        let merchant_id = common_utils::id_type::MerchantId::from_str(&value.merchant_id)
-            .map_err(|_| IntegrationError::InvalidDataFormat {
-                field_name: "merchant_id",
-                context: IntegrationErrorContext {
-                    additional_context: Some("Invalid merchant_id format".to_owned()),
-                    ..Default::default()
-                },
+        let merchant_id =
+            common_utils::id_type::MerchantId::from_str(&value.merchant_id).map_err(|_| {
+                IntegrationError::InvalidDataFormat {
+                    field_name: "merchant_id",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Invalid merchant_id format".to_owned()),
+                        ..Default::default()
+                    },
+                }
             })?;
 
         Ok(Self {
             merchant_id,
-            connector_request_reference_id: extract_connector_request_reference_id(&Some(value.event_id)),
+            connector_request_reference_id: extract_connector_request_reference_id(&Some(
+                value.event_id,
+            )),
             connectors,
             raw_connector_response: None,
             raw_connector_request: None,
@@ -280,10 +292,8 @@ pub fn generate_surcharge_payment_succeeded_response(
         SurchargePaymentSucceededRequest,
         SurchargePaymentSucceededResponse,
     >,
-) -> Result<
-    grpc_api_types::payments::NotifyConnectorsResponse,
-    error_stack::Report<ConnectorError>,
-> {
+) -> Result<grpc_api_types::payments::NotifyConnectorsResponse, error_stack::Report<ConnectorError>>
+{
     match router_data_v2.response {
         Ok(response) => Ok(grpc_api_types::payments::NotifyConnectorsResponse {
             status_code: response.status_code.into(),
@@ -312,13 +322,11 @@ pub fn generate_surcharge_refund_succeeded_response(
         SurchargeRefundSucceededRequest,
         SurchargeRefundSucceededResponse,
     >,
-) -> Result<
-    grpc_api_types::payments::NotifyConnectorsResponse,
-    error_stack::Report<ConnectorError>,
-> {
+) -> Result<grpc_api_types::payments::NotifyConnectorsResponse, error_stack::Report<ConnectorError>>
+{
     match router_data_v2.response {
         Ok(response) => Ok(grpc_api_types::payments::NotifyConnectorsResponse {
-            status_code: response.status_code.into(), 
+            status_code: response.status_code.into(),
             error: None,
         }),
         Err(e) => Ok(grpc_api_types::payments::NotifyConnectorsResponse {

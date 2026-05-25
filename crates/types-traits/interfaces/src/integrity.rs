@@ -1392,7 +1392,9 @@ impl GetIntegrityObject<SurchargeCalculateIntegrityObject> for SurchargeCalculat
     }
 }
 
-impl GetIntegrityObject<SurchargePaymentSucceededIntegrityObject> for SurchargePaymentSucceededRequest {
+impl GetIntegrityObject<SurchargePaymentSucceededIntegrityObject>
+    for SurchargePaymentSucceededRequest
+{
     fn get_response_integrity_object(&self) -> Option<SurchargePaymentSucceededIntegrityObject> {
         None // Surcharge payment succeeded responses don't have integrity objects
     }
@@ -1404,7 +1406,9 @@ impl GetIntegrityObject<SurchargePaymentSucceededIntegrityObject> for SurchargeP
     }
 }
 
-impl GetIntegrityObject<SurchargeRefundSucceededIntegrityObject> for SurchargeRefundSucceededRequest {
+impl GetIntegrityObject<SurchargeRefundSucceededIntegrityObject>
+    for SurchargeRefundSucceededRequest
+{
     fn get_response_integrity_object(&self) -> Option<SurchargeRefundSucceededIntegrityObject> {
         None // Surcharge refund succeeded responses don't have integrity objects
     }
@@ -1648,7 +1652,6 @@ impl FlowIntegrity for SurchargeCalculateIntegrityObject {
     }
 }
 
-
 impl FlowIntegrity for SurchargePaymentSucceededIntegrityObject {
     type IntegrityObject = Self;
 
@@ -1659,7 +1662,9 @@ impl FlowIntegrity for SurchargePaymentSucceededIntegrityObject {
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
-        if req_integrity_object.connector_surcharge_id != res_integrity_object.connector_surcharge_id {
+        if req_integrity_object.connector_surcharge_id
+            != res_integrity_object.connector_surcharge_id
+        {
             mismatched_fields.push(format_mismatch(
                 "connector_surcharge_id",
                 &req_integrity_object.connector_surcharge_id,
@@ -1671,7 +1676,6 @@ impl FlowIntegrity for SurchargePaymentSucceededIntegrityObject {
     }
 }
 
-
 impl FlowIntegrity for SurchargeRefundSucceededIntegrityObject {
     type IntegrityObject = Self;
 
@@ -1682,7 +1686,9 @@ impl FlowIntegrity for SurchargeRefundSucceededIntegrityObject {
     ) -> Result<(), IntegrityCheckError> {
         let mut mismatched_fields = Vec::new();
 
-        if req_integrity_object.connector_surcharge_id != res_integrity_object.connector_surcharge_id {
+        if req_integrity_object.connector_surcharge_id
+            != res_integrity_object.connector_surcharge_id
+        {
             mismatched_fields.push(format_mismatch(
                 "connector_surcharge_id",
                 &req_integrity_object.connector_surcharge_id,
