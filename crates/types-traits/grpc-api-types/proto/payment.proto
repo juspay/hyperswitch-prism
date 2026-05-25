@@ -1343,10 +1343,10 @@ message RedirectResponseSecrets {
 
 // Integrity dimensions a connector can confirm are present in a webhook payload.
 enum IntegrityCheck {
-  INTEGRITY_CHECK_UNSPECIFIED = 0;
-  INTEGRITY_CHECK_CONNECTOR_TRANSACTION_ID = 1;
-  INTEGRITY_CHECK_AMOUNT = 2;
-  INTEGRITY_CHECK_CURRENCY = 3;
+  INTEGRITY_CHECK_UNSPECIFIED = 0; // Default value
+  INTEGRITY_CHECK_CONNECTOR_TRANSACTION_ID = 1; // Maps to: EventContent.*.connector_transaction_id
+  INTEGRITY_CHECK_AMOUNT = 2; // Maps to: EventContent.payments_response.amount.minor_amount
+  INTEGRITY_CHECK_CURRENCY = 3; // Maps to: EventContent.payments_response.amount.currency
 }
 
 // Response for EventService.HandleEvent.

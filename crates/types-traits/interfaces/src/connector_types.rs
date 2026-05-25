@@ -79,7 +79,6 @@ pub enum RedirectState {
 ///
 /// Integrity dimensions a connector can verify in a webhook payload.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[non_exhaustive]
 pub enum WebhookIntegrityCheck {
     ConnectorTransactionId,
     Amount,

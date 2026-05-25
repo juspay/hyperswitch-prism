@@ -226,7 +226,7 @@ impl EventService for EventServiceImpl {
                         .connector
                         .get_webhook_integrity_checks()
                         .iter()
-                        .map(|c| i32::from(integrity_check_to_proto(c)))
+                        .map(|c| i32::from(IntegrityCheckWrapper::from(c).0))
                         .collect();
 
                     let mut response = connector_integration::webhook_utils::process_webhook_event(
@@ -362,17 +362,15 @@ async fn verify_webhook_source_external(
     }
 }
 
-fn integrity_check_to_proto(
-    check: &interfaces::connector_types::WebhookIntegrityCheck,
-) -> ProtoIntegrityCheck {
-    match check {
-        interfaces::connector_types::WebhookIntegrityCheck::ConnectorTransactionId => {
-            ProtoIntegrityCheck::ConnectorTransactionId
-        }
-        interfaces::connector_types::WebhookIntegrityCheck::Amount => ProtoIntegrityCheck::Amount,
-        interfaces::connector_types::WebhookIntegrityCheck::Currency => {
-            ProtoIntegrityCheck::Currency
-        }
-        _ => ProtoIntegrityCheck::Unspecified,
+struct IntegrityCheckWrapper(ProtoIntegrityCheck);
+
+impl From<&interfaces::connector_types::WebhookIntegrityCheck> for IntegrityCheckWrapper {
+    fn from(check: &interfaces::connector_types::WebhookIntegrityCheck) -> Self {
+        use interfaces::connector_types::WebhookIntegrityCheck as W;
+        IntegrityCheckWrapper(match check {
+            W::ConnectorTransactionId => ProtoIntegrityCheck::ConnectorTransactionId,
+            W::Amount => ProtoIntegrityCheck::Amount,
+            W::Currency => ProtoIntegrityCheck::Currency,
+        })
     }
 }
