@@ -286,7 +286,9 @@ impl EventService for EventServiceImpl {
         let req = request_data.payload;
 
         let event_type_enum = grpc_api_types::payments::NotifyEventType::try_from(req.event_type)
-            .map_err(|_| tonic::Status::invalid_argument("Invalid event type"))?;
+            .map_err(|error| {
+            tonic::Status::invalid_argument(format!("Invalid event type: {}", error))
+        })?;
 
         match event_type_enum {
             grpc_api_types::payments::NotifyEventType::SurchargePaymentSucceeded => {
@@ -294,7 +296,7 @@ impl EventService for EventServiceImpl {
                     req,
                     &service_name,
                     config,
-                    metadata_payload.connector_config,
+                    metadata_payload,
                 ))
                 .await
             }
@@ -303,13 +305,14 @@ impl EventService for EventServiceImpl {
                     req,
                     &service_name,
                     config,
-                    metadata_payload.connector_config,
+                    metadata_payload,
                 ))
                 .await
             }
-            _ => Err(tonic::Status::invalid_argument(
-                "Invalid or unsupported event type",
-            )),
+            other_event_type => Err(tonic::Status::invalid_argument(format!(
+                "Unsupported event type: {}",
+                other_event_type.as_str_name()
+            ))),
         }
     }
 }
@@ -320,14 +323,12 @@ impl EventServiceImpl {
         request: NotifyConnectorsRequest,
         service_name: &str,
         config: std::sync::Arc<Config>,
-        connector_config: ConnectorSpecificConfig,
+        metadata_payload: ucs_interface_common::metadata::MetadataPayload,
     ) -> Result<tonic::Response<NotifyConnectorsResponse>, tonic::Status> {
         tracing::info!("SURCHARGE_PAYMENT_SUCCEEDED_FLOW: initiated");
 
         let connector_data: SurchargeConnectorData = ConnectorDataProvider::from_connector_variant(
-            &domain_types::connector_types::ConnectorVariant::Surcharge(
-                domain_types::connector_types::SurchargeConnectorEnum::Interpayments,
-            ),
+            &metadata_payload.connector,
         )
         .ok_or_else(|| tonic::Status::unimplemented("Invalid connector type for this flow"))?;
 
@@ -357,7 +358,7 @@ impl EventServiceImpl {
         > {
             flow: std::marker::PhantomData,
             resource_common_data: common_flow_data,
-            connector_config,
+            connector_config: metadata_payload.connector_config,
             request: request_data,
             response: Err(ErrorResponse::default()),
         };
@@ -369,12 +370,12 @@ impl EventServiceImpl {
             flow_name: FlowName::SurchargePaymentSucceeded,
             event_config: &config.events,
             request_id: &request.event_id,
-            lineage_ids: &common_utils::lineage::LineageIds::empty(""),
-            reference_id: &None,
-            resource_id: &None,
-            shadow_mode: false,
-            tenant_id: "default",
-            merchant_id: &request.merchant_id,
+            lineage_ids: &metadata_payload.lineage_ids,
+            reference_id: &metadata_payload.reference_id,
+            resource_id: &metadata_payload.resource_id,
+            shadow_mode: metadata_payload.shadow_mode,
+            tenant_id: &metadata_payload.tenant_id,
+            merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
         };
 
@@ -408,14 +409,12 @@ impl EventServiceImpl {
         request: NotifyConnectorsRequest,
         service_name: &str,
         config: std::sync::Arc<Config>,
-        connector_config: ConnectorSpecificConfig,
+        metadata_payload: ucs_interface_common::metadata::MetadataPayload,
     ) -> Result<tonic::Response<NotifyConnectorsResponse>, tonic::Status> {
         tracing::info!("SURCHARGE_REFUND_SUCCEEDED_FLOW: initiated");
 
         let connector_data: SurchargeConnectorData = ConnectorDataProvider::from_connector_variant(
-            &domain_types::connector_types::ConnectorVariant::Surcharge(
-                domain_types::connector_types::SurchargeConnectorEnum::Interpayments,
-            ),
+            &metadata_payload.connector,
         )
         .ok_or_else(|| tonic::Status::unimplemented("Invalid connector type for this flow"))?;
 
@@ -445,7 +444,7 @@ impl EventServiceImpl {
         > {
             flow: std::marker::PhantomData,
             resource_common_data: common_flow_data,
-            connector_config,
+            connector_config: metadata_payload.connector_config,
             request: request_data,
             response: Err(ErrorResponse::default()),
         };
@@ -457,12 +456,12 @@ impl EventServiceImpl {
             flow_name: FlowName::SurchargeRefundSucceeded,
             event_config: &config.events,
             request_id: &request.event_id,
-            lineage_ids: &common_utils::lineage::LineageIds::empty(""),
-            reference_id: &None,
-            resource_id: &None,
-            shadow_mode: false,
-            tenant_id: "default",
-            merchant_id: &request.merchant_id,
+            lineage_ids: &metadata_payload.lineage_ids,
+            reference_id: &metadata_payload.reference_id,
+            resource_id: &metadata_payload.resource_id,
+            shadow_mode: metadata_payload.shadow_mode,
+            tenant_id: &metadata_payload.tenant_id,
+            merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
         };
 
