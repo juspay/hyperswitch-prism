@@ -1,9 +1,9 @@
-# Sanlam
+# AbsaSanlam
 
 <!--
 This file is auto-generated. Do not edit by hand.
-Source: data/field_probe/sanlam.json
-Regenerate: python3 scripts/generators/docs/generate.py sanlam
+Source: data/field_probe/absa_sanlam.json
+Regenerate: python3 scripts/generators/docs/generate.py absa_sanlam
 -->
 
 ## SDK Configuration
@@ -23,7 +23,7 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
     connector_config=payment_pb2.ConnectorSpecificConfig(
-        sanlam=payment_pb2.SanlamConfig(
+        absa_sanlam=payment_pb2.AbsaSanlamConfig(
             api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
             merchant_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ID"),
             base_url="YOUR_BASE_URL",
@@ -45,10 +45,10 @@ const { PaymentClient } = require('hyperswitch-prism');
 const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
 const config = ConnectorConfig.create({
-    connector: Connector.SANLAM,
+    connector: Connector.ABSA_SANLAM,
     environment: Environment.SANDBOX,
     auth: {
-        sanlam: {
+        absa_sanlam: {
             apiKey: { value: 'YOUR_API_KEY' },
             merchantId: { value: 'YOUR_MERCHANT_ID' },
             baseUrl: 'YOUR_BASE_URL',
@@ -69,7 +69,7 @@ val config = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
     .setConnectorConfig(
         ConnectorSpecificConfig.newBuilder()
-            .setSanlam(SanlamConfig.newBuilder()
+            .setAbsaSanlam(AbsaSanlamConfig.newBuilder()
                 .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
                 .setMerchantId(SecretString.newBuilder().setValue("YOUR_MERCHANT_ID").build())
                 .setBaseUrl("YOUR_BASE_URL")
@@ -92,7 +92,7 @@ use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
     connector_config: Some(ConnectorSpecificConfig {
-            config: Some(connector_specific_config::Config::Sanlam(SanlamConfig {
+            config: Some(connector_specific_config::Config::AbsaSanlam(AbsaSanlamConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
                 merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ID".to_string())),  // Authentication credential
                 base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
