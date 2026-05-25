@@ -763,8 +763,8 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: client_authentication_token flow for ppro"
+        "status": "error",
+        "error": "Stuck on field: payment_method_type — Missing required field: payment_method_type"
       }
     },
     "create_customer": {
