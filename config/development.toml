@@ -28,11 +28,6 @@ port = 8080
 [proxy]
 idle_pool_connection_timeout = 90
 bypass_urls = []
-# Old flat-format keys for backward-compat testing — both primary and shadow will use this proxy.
-# These are promoted to proxies["primary"] and proxies["shadow"] automatically by ProxyConfig deserializer.
-https_url = "http://localhost:8084"
-http_url = "http://localhost:8084"
-ca_cert = "-----BEGIN CERTIFICATE-----\nMIIDNTCCAh2gAwIBAgIUd4XzJhYEgbp2PzNeEj7r/sV//E4wDQYJKoZIhvcNAQEL\nBQAwKDESMBAGA1UEAwwJbWl0bXByb3h5MRIwEAYDVQQKDAltaXRtcHJveHkwHhcN\nMjUxMDEyMDk0NjExWhcNMzUxMDEyMDk0NjExWjAoMRIwEAYDVQQDDAltaXRtcHJv\neHkxEjAQBgNVBAoMCW1pdG1wcm94eTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCC\nAQoCggEBAIomlu1Vl8JhUg7r33fN7V3yU08Mo2IU9hDudtPsHciiFaApgsQKTJIf\n3K2gew5oxyt+Vo/rTjCEhWQTVNDY+ZVlE3lv4cFgY7VBN1aPAxCJnFttppn/7wz5\nVRKMcQVwfsoqxREGZjbQMz+Ocd8LO9fEO/Sjk5pkX1VpyvjV7bpBudAwnaVB4xcH\n4rvqzTARbDjEB3Vfj9sL4FkA3yRKo6jDmUywBqByp+5yvmNQ+gyU2BvlrIhNniwj\nSiCVU11kfQosEChCUxBPpDgW9hARge12rHnG3diQnG7i4gcjLEdO57dInB0JR/YG\n3dFIX4IAtuLRSu8l2JjDpb8pnldtfGsCAwEAAaNXMFUwDwYDVR0TAQH/BAUwAwEB\n/zATBgNVHSUEDDAKBggrBgEFBQcDATAOBgNVHQ8BAf8EBAMCAQYwHQYDVR0OBBYE\nFJRhWhYt4GW6MVNbdOKSnK+kKQ2iMA0GCSqGSIb3DQEBCwUAA4IBAQAFVlPPoZ69\nggKP30Oww6tVvDNCtBteZYGYyfP4qr+BHHUJY092oHRHsJvQi2Kjv0dA4V8AxKXY\nJSegWzo9lcqV+qw1K4SGmqqKYu2g5wLa3b+MevrBCGiRIRzuy4w+ac9GuOezIs4B\nTXvX3dC9eK8Ic0vI+CeKmgKwhypyJIJafb60a7Tr1smLUf4MqB8c9o7jMfLyWffi\nwDcIk3p/APxniv99YkYyRX8DBaRQDBfdCyil/+uWsLG87XyaoHD657vPEyfRkodk\n8S92xNx9+frEkOa5fRW1Kw71MH8Akj7wc4rfLI1HzrwpW0CSOsgEU7gQYQ6ZU6MC\nOl2O5//cESaQ\n-----END CERTIFICATE-----"
 
 [test]
 enabled = false
