@@ -1,9 +1,9 @@
 // This file is auto-generated. Do not edit manually.
 // Replace YOUR_API_KEY and placeholder values with real data.
-// Regenerate: python3 scripts/generate-connector-docs.py sanlam
+// Regenerate: python3 scripts/generate-connector-docs.py absasanlam
 //
-// Sanlam — all scenarios and flows in one file.
-// Run a scenario:  cargo run --example sanlam -- process_checkout_card
+// Absasanlam — all scenarios and flows in one file.
+// Run a scenario:  cargo run --example absasanlam -- process_checkout_card
 use grpc_api_types::payments::connector_specific_config;
 use grpc_api_types::payments::*;
 use hyperswitch_payments_client::ConnectorClient;

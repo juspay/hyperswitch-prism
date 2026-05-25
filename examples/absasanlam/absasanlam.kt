@@ -1,11 +1,11 @@
 // This file is auto-generated. Do not edit manually.
 // Replace YOUR_API_KEY and placeholder values with real data.
-// Regenerate: python3 scripts/generate-connector-docs.py sanlam
+// Regenerate: python3 scripts/generate-connector-docs.py absasanlam
 //
-// Sanlam — all scenarios and flows in one file.
-// Run a scenario:  ./gradlew run --args="sanlam processCheckoutCard"
+// Absasanlam — all scenarios and flows in one file.
+// Run a scenario:  ./gradlew run --args="absasanlam processCheckoutCard"
 
-package examples.sanlam
+package examples.absasanlam
 
 import types.Payment.*
 import types.PaymentMethods.*
@@ -20,7 +20,7 @@ val SUPPORTED_FLOWS = listOf<String>("parse_event")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your Sanlam credentials here
+    // .setConnectorConfig(...) — set your Absasanlam credentials here
     .build()
 
 

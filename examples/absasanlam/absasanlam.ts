@@ -1,9 +1,9 @@
 // This file is auto-generated. Do not edit manually.
 // Replace YOUR_API_KEY and placeholder values with real data.
-// Regenerate: python3 scripts/generate-connector-docs.py sanlam
+// Regenerate: python3 scripts/generate-connector-docs.py absasanlam
 //
-// Sanlam — all integration scenarios and flows in one file.
-// Run a scenario:  npx tsx sanlam.ts checkout_autocapture
+// Absasanlam — all integration scenarios and flows in one file.
+// Run a scenario:  npx tsx absasanlam.ts checkout_autocapture
 
 import { EventClient, types } from 'hyperswitch-prism';
 const { Environment, HttpMethod } = types;
@@ -13,7 +13,7 @@ const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
-    // connectorConfig: { sanlam: { apiKey: { value: 'YOUR_API_KEY' } } },
+    // connectorConfig: { absasanlam: { apiKey: { value: 'YOUR_API_KEY' } } },
 };
 
 
