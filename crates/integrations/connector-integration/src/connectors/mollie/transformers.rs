@@ -113,6 +113,7 @@ pub enum MolliePaymentMethodData {
 }
 
 // Credit Card Method Data
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreditCardMethodData {
@@ -230,7 +231,31 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Wallet(WalletData::GooglePay(ref gpay_data)) => {
                 match &gpay_data.tokenization_data {
                     GpayTokenizationData::Encrypted(ref encrypted_data) => {
-                        google_pay_payment_token = Some(encrypted_data.token.clone());
+                        // Mollie requires the full paymentData wrapper as a JSON string,
+                        // not just the inner ECv2 token blob.
+                        // Ref: https://docs.mollie.com/docs/direct-integration-of-google-pay
+                        let payment_data = serde_json::json!({
+                            "apiVersion": 2,
+                            "apiVersionMinor": 0,
+                            "paymentMethodData": {
+                                "type": gpay_data.pm_type,
+                                "description": gpay_data.description,
+                                "info": {
+                                    "cardNetwork": gpay_data.info.card_network,
+                                    "cardDetails": gpay_data.info.card_details
+                                },
+                                "tokenizationData": {
+                                    "type": encrypted_data.token_type,
+                                    "token": encrypted_data.token
+                                }
+                            }
+                        });
+                        google_pay_payment_token =
+                            Some(serde_json::to_string(&payment_data).map_err(|_| {
+                                IntegrationError::RequestEncodingFailed {
+                                    context: Default::default(),
+                                }
+                            })?);
                         MolliePaymentMethodData::CreditCard(Box::new(CreditCardMethodData {
                             card_token: None,
                             billing_address: None,
