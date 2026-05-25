@@ -187,14 +187,17 @@ pub enum PayoutConnectorEnum {
 }
 
 impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
-    type Error = ();
+    type Error = IntegrationError;
 
     fn try_from(value: ConnectorEnum) -> Result<Self, Self::Error> {
         match value {
             ConnectorEnum::Loonio => Ok(Self::Loonio),
             ConnectorEnum::Paypal => Ok(Self::Paypal),
             ConnectorEnum::Itaubank => Ok(Self::Itaubank),
-            _ => Err(()),
+            _ => Err(IntegrationError::InvalidDataFormat {
+                field_name: "connector",
+                context: IntegrationErrorContext::default(),
+            }),
         }
     }
 }
