@@ -1,0 +1,32 @@
+{
+  "name": "@10xgrace/dashboard",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "predev": "tsx scripts/parse-connectors.ts",
+    "dev": "vite",
+    "prebuild": "tsx scripts/parse-connectors.ts",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --port 3141",
+    "typecheck": "tsc -b --noEmit",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^9.0.1",
+    "react-router-dom": "^6",
+    "remark-gfm": "^4.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@types/react": "^18.3.10",
+    "@types/react-dom": "^18.3.0",
+    "@types/ws": "^8.5.12",
+    "@vitejs/plugin-react": "^4.3.1",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.8",
+    "ws": "^8.18.0"
+  }
+}
