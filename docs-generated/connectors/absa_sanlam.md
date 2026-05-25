@@ -1,4 +1,4 @@
-# AbsaSanlam
+# Absa Sanlam
 
 <!--
 This file is auto-generated. Do not edit by hand.
@@ -48,7 +48,7 @@ const config = ConnectorConfig.create({
     connector: Connector.ABSA_SANLAM,
     environment: Environment.SANDBOX,
     auth: {
-        absa_sanlam: {
+        absaSanlam: {
             apiKey: { value: 'YOUR_API_KEY' },
             merchantId: { value: 'YOUR_MERCHANT_ID' },
             baseUrl: 'YOUR_BASE_URL',
@@ -91,14 +91,7 @@ use grpc_api_types::payments::*;
 use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector_config: Some(ConnectorSpecificConfig {
-            config: Some(connector_specific_config::Config::AbsaSanlam(AbsaSanlamConfig {
-                api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
-                merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ID".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                ..Default::default()
-            })),
-        }),
+    connector_config: None,  // TODO: Add your connector config here,
     options: Some(SdkOptions {
         environment: Environment::Sandbox.into(),
     }),
