@@ -22,7 +22,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.FiservConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "proxy_authorize", "refund", "refund_get", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "proxy_authorize", "refund", "refund_get", "reverse", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -99,6 +99,13 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
         reason = "customer_request"  // Reason for the refund.
+    }.build()
+}
+
+private fun buildReverseRequest(connectorTransactionIdStr: String): PaymentServiceReverseRequest {
+    return PaymentServiceReverseRequest.newBuilder().apply {
+        merchantReverseId = "probe_reverse_001"  // Identification.
+        connectorTransactionId = connectorTransactionIdStr
     }.build()
 }
 
@@ -288,6 +295,14 @@ fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: PaymentService.Reverse
+fun reverse(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = buildReverseRequest("probe_connector_txn_001")
+    val response = client.reverse(request)
+    println("Status: ${response.status.name}")
+}
+
 // Flow: PaymentService.Void
 fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -314,7 +329,8 @@ fun main(args: Array<String>) {
         "proxyAuthorize" -> proxyAuthorize(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
+        "reverse" -> reverse(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, proxyAuthorize, refund, refundGet, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, proxyAuthorize, refund, refundGet, reverse, void")
     }
 }
