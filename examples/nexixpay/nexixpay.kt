@@ -12,7 +12,10 @@ import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.PaymentMethodAuthenticationClient
 import payments.RefundClient
+import payments.AcceptanceType
+import payments.AuthenticationType
 import payments.Currency
+import payments.FutureUsage
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
@@ -20,7 +23,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.NexixpayConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("capture", "get", "pre_authenticate", "refund", "refund_get", "void")
+val SUPPORTED_FLOWS = listOf<String>("capture", "get", "pre_authenticate", "refund", "refund_get", "setup_recurring", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -150,6 +153,45 @@ fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: PaymentService.SetupRecurring
+fun setupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = PaymentServiceSetupRecurringRequest.newBuilder().apply {
+        merchantRecurringPaymentId = "probe_mandate_001"  // Identification.
+        amountBuilder.apply {  // Mandate Details.
+            minorAmount = 0L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        paymentMethodBuilder.apply {
+            cardBuilder.apply {  // Generic card payment.
+                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+                cardExpMonthBuilder.value = "03"
+                cardExpYearBuilder.value = "2030"
+                cardCvcBuilder.value = "737"
+                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            }
+        }
+        addressBuilder.apply {  // Address Information.
+            billingAddressBuilder.apply {
+            }
+        }
+        authType = AuthenticationType.NO_THREE_DS  // Type of authentication to be used.
+        enrolledFor3Ds = false  // Indicates if the customer is enrolled for 3D Secure.
+        returnUrl = "https://example.com/mandate-return"  // URL to redirect after setup.
+        setupFutureUsage = FutureUsage.OFF_SESSION  // Indicates future usage intention.
+        requestIncrementalAuthorization = false  // Indicates if incremental authorization is requested.
+        customerAcceptanceBuilder.apply {  // Details of customer acceptance.
+            acceptanceType = AcceptanceType.OFFLINE  // Type of acceptance (e.g., online, offline).
+            acceptedAt = 0L  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+        }
+    }.build()
+    val response = client.setup_recurring(request)
+    when (response.status.name) {
+        "FAILED" -> throw RuntimeException("Setup failed: ${response.error.unifiedDetails.message}")
+        else     -> println("Mandate stored: ${response.connectorRecurringPaymentId}")
+    }
+}
+
 // Flow: PaymentService.Void
 fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -170,7 +212,8 @@ fun main(args: Array<String>) {
         "preAuthenticate" -> preAuthenticate(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
+        "setupRecurring" -> setupRecurring(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, get, preAuthenticate, refund, refundGet, void")
+        else -> System.err.println("Unknown flow: $flow. Available: capture, get, preAuthenticate, refund, refundGet, setupRecurring, void")
     }
 }
