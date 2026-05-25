@@ -259,7 +259,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Instant | x |
 | Instant FI | x |
 | Instant PL | x |
-| Pix | x |
+| Pix | ✓ |
 | Permata | x |
 | BCA | x |
 | BNI VA | x |
@@ -279,7 +279,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Givex | x |
 | PaySafeCard | x |
 | E-Voucher | x |
-| Boleto | x |
+| Boleto | ✓ |
 | Efecty | x |
 | Pago Efectivo | x |
 | Red Compra | x |

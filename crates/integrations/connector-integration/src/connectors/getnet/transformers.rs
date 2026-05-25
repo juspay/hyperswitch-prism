@@ -538,7 +538,9 @@ fn build_getnet_customer<T: PaymentMethodDataTypes>(
         .email
         .clone()
         .or_else(|| item.resource_common_data.get_optional_billing_email());
-    let phone_number = item.resource_common_data.get_optional_billing_phone_number();
+    let phone_number = item
+        .resource_common_data
+        .get_optional_billing_phone_number();
 
     // Build billing address from billing address details if available.
     let billing_address = item
@@ -575,7 +577,10 @@ fn build_getnet_device<T: PaymentMethodDataTypes>(
         .resource_common_data
         .connector_request_reference_id
         .clone();
-    let device_id = browser_info.user_agent.clone().unwrap_or_else(|| fallback_id.clone());
+    let device_id = browser_info
+        .user_agent
+        .clone()
+        .unwrap_or_else(|| fallback_id.clone());
     let finger_print = browser_info.user_agent.clone().unwrap_or(fallback_id);
     Some(GetnetDevice {
         ip_address,
@@ -663,8 +668,7 @@ fn build_boleto_customer<T: PaymentMethodDataTypes>(
         .resource_common_data
         .get_optional_billing_last_name()
         .unwrap_or_else(|| Secret::new("Customer".to_string()));
-    let full_name =
-        Secret::new(format!("{} {}", first_name.peek(), last_name.peek()));
+    let full_name = Secret::new(format!("{} {}", first_name.peek(), last_name.peek()));
     let email = item
         .request
         .email
@@ -716,8 +720,12 @@ fn build_boleto_customer<T: PaymentMethodDataTypes>(
         .and_then(|d| d.zip.clone())
         .map(|z| {
             // Brazilian CEP — digits only, max 8 chars (Globalgetnet enforces ≤ 8).
-            let cleaned: String =
-                z.peek().chars().filter(|c| c.is_ascii_digit()).take(8).collect();
+            let cleaned: String = z
+                .peek()
+                .chars()
+                .filter(|c| c.is_ascii_digit())
+                .take(8)
+                .collect();
             Secret::new(cleaned)
         })
         .unwrap_or_else(|| Secret::new("01310100".to_string()));
@@ -918,24 +926,23 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         // an authentication result; otherwise the fields stay None and
         // `skip_serializing_if` keeps the wire format identical to the no-3DS
         // case (preserving the gateway-driven frictionless path).
-        let (xid_field, eci_field, ucaf_field, tdsdsxid_field, tdsver_field) =
-            if matches!(
-                item.resource_common_data.auth_type,
-                AuthenticationType::ThreeDs
-            ) {
-                match item.request.authentication_data.as_ref() {
-                    Some(ad) => (
-                        ad.transaction_id.clone(),
-                        ad.eci.clone(),
-                        ad.cavv.clone(),
-                        ad.ds_trans_id.clone(),
-                        ad.message_version.as_ref().map(|v| v.to_string()),
-                    ),
-                    None => (None, None, None, None, None),
-                }
-            } else {
-                (None, None, None, None, None)
-            };
+        let (xid_field, eci_field, ucaf_field, tdsdsxid_field, tdsver_field) = if matches!(
+            item.resource_common_data.auth_type,
+            AuthenticationType::ThreeDs
+        ) {
+            match item.request.authentication_data.as_ref() {
+                Some(ad) => (
+                    ad.transaction_id.clone(),
+                    ad.eci.clone(),
+                    ad.cavv.clone(),
+                    ad.ds_trans_id.clone(),
+                    ad.message_version.as_ref().map(|v| v.to_string()),
+                ),
+                None => (None, None, None, None, None),
+            }
+        } else {
+            (None, None, None, None, None)
+        };
 
         let payment = GetnetPayment {
             payment_method: payment_method.to_string(),
@@ -1122,16 +1129,12 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         item: ResponseRouterData<GetnetAuthorizeResponse, Self>,
     ) -> Result<Self, Self::Error> {
         // Detect any redirect URL: top-level or inside next_step.
-        let redirect_url_str = item
-            .response
-            .redirect_url
-            .clone()
-            .or_else(|| {
-                item.response
-                    .next_step
-                    .as_ref()
-                    .and_then(|ns| ns.redirect_url.clone())
-            });
+        let redirect_url_str = item.response.redirect_url.clone().or_else(|| {
+            item.response
+                .next_step
+                .as_ref()
+                .and_then(|ns| ns.redirect_url.clone())
+        });
 
         let redirection_data = redirect_url_str
             .as_deref()
@@ -1848,7 +1851,11 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
             operation,
             currency: item.request.currency,
             amount: Some(item.request.amount),
-            term_url: item.request.router_return_url.as_ref().map(|u| u.to_string()),
+            term_url: item
+                .request
+                .router_return_url
+                .as_ref()
+                .map(|u| u.to_string()),
             md: Some(
                 item.resource_common_data
                     .connector_request_reference_id
@@ -1912,12 +1919,14 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 context: Default::default(),
             },
         )?;
-        let xid = auth_data.transaction_id.clone().ok_or(
-            IntegrationError::MissingRequiredField {
-                field_name: "authentication_data.transaction_id",
-                context: Default::default(),
-            },
-        )?;
+        let xid =
+            auth_data
+                .transaction_id
+                .clone()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "authentication_data.transaction_id",
+                    context: Default::default(),
+                })?;
 
         Ok(Self {
             transaction_id,

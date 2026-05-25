@@ -2136,8 +2136,7 @@ impl PaymentMethod {
         // when the connector declares it needs one — mirrors the Authorize path so that
         // OAuth-gated tokenize endpoints (e.g. Globalgetnet's Cofre) work consistently.
         let payment_flow_data = {
-            let should_do_access_token =
-                connector_data.connector.should_do_access_token(None);
+            let should_do_access_token = connector_data.connector.should_do_access_token(None);
             if should_do_access_token {
                 let access_token = request
                     .state

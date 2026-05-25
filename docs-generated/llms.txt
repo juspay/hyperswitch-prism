@@ -266,7 +266,7 @@ examples_python: examples/forte/forte.py
 connector_id: getnet
 doc: docs/connectors/getnet.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: Card
+payment_methods: Boleto, Card, Pix
 flows: authorize, capture, create_server_authentication_token, get, proxy_authorize, refund, refund_get, void
 examples_python: examples/getnet/getnet.py
 
