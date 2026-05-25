@@ -264,7 +264,7 @@ impl EventService for EventServiceImpl {
             message_ = "Golden Log Line (incoming)",
             response_time = tracing::field::Empty,
             tenant_id = tracing::field::Empty,
-            flow = tracing::field::Empty,
+            flow = tracing::field::Empty, // Notify connector can map to multiple flows
             flow_specific_fields.status = tracing::field::Empty,
         )
     )]
@@ -291,21 +291,21 @@ impl EventService for EventServiceImpl {
 
         match event_type_enum {
             grpc_api_types::payments::NotifyEventType::SurchargePaymentSucceeded => {
-                self.handle_payment_surcharge_notify(
+                     Box::pin(self.handle_payment_surcharge_notify(
                     req,
-                    &service_name,
-                    config,
+                     &service_name,
+                   config,
                     metadata_payload.connector_config,
-                )
+                ))
                 .await
             }
             grpc_api_types::payments::NotifyEventType::SurchargeRefundSucceeded => {
-                self.handle_refund_surcharge_notify(
+                Box::pin(self.handle_refund_surcharge_notify(
                     req,
                     &service_name,
                     config,
                     metadata_payload.connector_config,
-                )
+                ))
                 .await
             }
             _ => Err(tonic::Status::invalid_argument(
@@ -364,7 +364,7 @@ impl EventServiceImpl {
         };
 
         let event_params = EventProcessingParams {
-            connector_name: &connector_data.connector.id().to_string(),
+            connector_name: connector_data.connector.id(),
             service_name,
             service_type: utils::service_type_str(&config.server.type_),
             flow_name: FlowName::SurchargePaymentSucceeded,
@@ -379,7 +379,7 @@ impl EventServiceImpl {
             return_raw_connector_data: config.common.return_raw_connector_data,
         };
 
-        let response_result = external_services::service::execute_connector_processing_step(
+        let response_result = Box::pin(external_services::service::execute_connector_processing_step(
             &config.proxy,
             connector_integration,
             router_data,
@@ -389,7 +389,7 @@ impl EventServiceImpl {
             common_enums::CallConnectorAction::Trigger,
             None,
             None,
-        )
+        ))
         .await
         .into_grpc_status()?;
 
@@ -450,7 +450,7 @@ impl EventServiceImpl {
         };
 
         let event_params = EventProcessingParams {
-            connector_name: &connector_data.connector.id().to_string(),
+            connector_name: connector_data.connector.id(),
             service_name,
             service_type: utils::service_type_str(&config.server.type_),
             flow_name: FlowName::SurchargeRefundSucceeded,
@@ -465,7 +465,7 @@ impl EventServiceImpl {
             return_raw_connector_data: config.common.return_raw_connector_data,
         };
 
-        let response_result = external_services::service::execute_connector_processing_step(
+        let response_result = Box::pin(external_services::service::execute_connector_processing_step(
             &config.proxy,
             connector_integration,
             router_data,
@@ -475,7 +475,7 @@ impl EventServiceImpl {
             common_enums::CallConnectorAction::Trigger,
             None,
             None,
-        )
+        ))
         .await
         .into_grpc_status()?;
 
