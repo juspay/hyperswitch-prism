@@ -1,13 +1,7 @@
 {
   "Barclaycard": [
-    "https://developer.smartpayfuse.barclaycard/docs/barclays/en-us/payments/developer/all/rest/payments/MITs.html",
-    "https://developer.smartpayfuse.barclaycard/api-reference-assets/index.html",
-    "https://developer.smartpayfuse.barclaycard/docs/barclays/en-us/payments/developer/barclays/rest/payments/payments-about-guide.html",
-    "https://developer.smartpayfuse.barclaycard/barclays/quick-start-guides/direct-integration.html",
-    "https://developer.smartpayfuse.barclaycard/docs/barclays/en-us/platform/developer/all/rest/rest-getting-started/restgs-intro.html",
-    "https://developer.cybersource.com/docs/cybs/en-us/credentials/developer/six/rest/credentials/credentials-intro.html",
-    "https://developer.cybersource.com/docs/cybs/en-us/payments/developer/ctv/rest/credentials/credentials-mit-intro.html",
-    "https://developer.cybersource.com/docs/cybs/en-us/payments/developer/ctv/rest/payments/credentials-processsing-intro/credentials-recur-intro/credentials-recur-mit-tms-intro.html"
+    "https://docs.adyen.com/payment-methods/google-pay/api-only",
+    "https://docs.adyen.com/payment-methods/google-pay/api-only/google-pay-token-decryption"
   ],
   "bambora": [
     "https://docs.na.worldline-solutions.com/build-your-integration/payment-apis/credential-on-file",
@@ -92,5 +86,39 @@
     "https://docs.tamara.co/docs/postman-collection",
     "https://docs.tamara.co/docs/testing-checklist",
     "https://docs.tamara.co/docs/online-go-live-testing-checklist"
+  ],
+  "Mollie": [
+    "https://docs.mollie.com/docs/direct-integration-of-google-pay",
+    "https://docs.mollie.com/reference/create-payment"
+  ],
+  "Datatrans": [
+    "https://docs.datatrans.ch/docs/payment-methods#google-pay",
+    "https://api-reference.datatrans.ch/#tag/v1transactions/operation/authorize",
+    "https://api-reference.datatrans.ch/#tag/v1transactions/operation/validate"
+  ],
+  "fiservemea": [
+    "https://docs.fiserv.dev/public/docs/wallets",
+    "https://docs.fiserv.dev/public/docs/google-pay"
+  ],
+  "Redsys": [
+    "https://pagosonline.redsys.es/desarrolladores-inicio/documentacion-otros-metodos-de-pago/otros-metodos-de-pago-google-pay/",
+    "https://pagosonline.redsys.es/desarrolladores-inicio/documentacion-tipos-de-integracion/desarrolladores-rest/"
+  ],
+  "authipay": [
+    "https://raw.githubusercontent.com/GBSEcom/java/master/docs/DecryptedGooglePay.md",
+    "https://raw.githubusercontent.com/GBSEcom/java/master/docs/EncryptedGooglePay.md",
+    "https://raw.githubusercontent.com/GBSEcom/java/master/docs/EncryptedGooglePayData.md",
+    "https://raw.githubusercontent.com/GBSEcom/java/master/docs/WalletPaymentMethod.md"
+  ],
+  "bankofamerica": [
+    "https://developer.cybersource.com/docs/cybs/en-us/google-pay/developer/ctv/rest/googlepay/googpay-intro.html",
+    "https://developer.cybersource.com/docs/cybs/en-us/google-pay/developer/ctv/rest/googlepay/googpay-pay-auth-intro/googpay-pay-auth-ex-rest.html"
+  ],
+  "elavon": [],
+  "nmi": [
+    "https://docs.nmi.com/docs/apple-pay",
+    "https://docs.nmi.com/reference/create-sale-v5",
+    "https://docs.nmi.com/docs/getting-your-api-keys",
+    "https://secure.nmi.com/merchants/resources/integration/integration_portal.php#applepay_variables"
   ]
 }

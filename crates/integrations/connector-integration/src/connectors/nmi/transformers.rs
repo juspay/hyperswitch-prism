@@ -25,6 +25,7 @@ use domain_types::{
 use grpc_api_types::payments::{Currency, Money};
 
 // Note: Refund and RefundsData are used for the Refund flow implementation
+use base64::Engine;
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -140,6 +141,15 @@ pub enum NmiPaymentMethod<T: PaymentMethodDataTypes> {
     Ach(Box<AchData>),
     GooglePay(Box<GooglePayData>),
     GooglePayDecrypt(Box<GooglePayDecryptedData>),
+    ApplePay(Box<ApplePayData>),
+}
+
+// ===== APPLE PAY DATA =====
+
+#[derive(Debug, Serialize)]
+pub struct ApplePayData {
+    /// Hex-encoded binary Apple Pay payment token from PassKit
+    applepay_payment_data: Secret<String>,
 }
 
 // ===== GOOGLE PAY DATA =====
@@ -453,6 +463,32 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     (
                         NmiPaymentMethod::Ach(Box::new(ach_data)),
                         TransactionType::Sale,
+                    )
+                }
+                PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay_data)) => {
+                    let base64_token = apple_pay_data
+                        .payment_data
+                        .get_encrypted_apple_pay_payment_data_mandatory()
+                        .change_context(IntegrationError::MissingRequiredField {
+                            field_name: "apple_pay.payment_data",
+                            context: Default::default(),
+                        })?;
+                    let binary_token = base64::engine::general_purpose::STANDARD
+                        .decode(base64_token)
+                        .change_context(IntegrationError::InvalidWalletToken {
+                            wallet_name: "Apple Pay".to_string(),
+                            context: Default::default(),
+                        })?;
+                    let hex_token = hex::encode(&binary_token);
+                    (
+                        NmiPaymentMethod::ApplePay(Box::new(ApplePayData {
+                            applepay_payment_data: Secret::new(hex_token),
+                        })),
+                        if router_data.request.is_auto_capture() {
+                            TransactionType::Sale
+                        } else {
+                            TransactionType::Auth
+                        },
                     )
                 }
                 PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data)) => {
