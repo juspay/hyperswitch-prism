@@ -707,8 +707,20 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: void_post_capture flow for elavon"
+        "status": "supported",
+        "proto_request": {
+          "merchant_reverse_id": "probe_reverse_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://api.demo.convergepay.com/VirtualMerchantDemo/processxml.do",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "xmldata=%3Ctxn%3E%3Cssl_transaction_type%3Eccvoid%3C%2Fssl_transaction_type%3E%3Cssl_account_id%3Eprobe_merchant%3C%2Fssl_account_id%3E%3Cssl_user_id%3Eprobe_user%3C%2Fssl_user_id%3E%3Cssl_pin%3Eprobe_pin%3C%2Fssl_pin%3E%3Cssl_txn_id%3Eprobe_connector_txn_001%3C%2Fssl_txn_id%3E%3C%2Ftxn%3E"
+        }
       }
     },
     "setup_recurring": {

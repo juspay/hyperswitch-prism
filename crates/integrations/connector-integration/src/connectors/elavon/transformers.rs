@@ -9,11 +9,11 @@ use common_utils::{
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, VoidPC},
     connector_types::{
-        MandateReference, PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId as DomainResponseId,
+        MandateReference, PaymentFlowData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, ResponseId as DomainResponseId,
     },
     payment_address::PaymentAddress,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -68,6 +68,7 @@ pub enum TransactionType {
     CcComplete,
     CcReturn,
     TxnQuery,
+    CcVoid,
 }
 
 impl Serialize for TransactionType {
@@ -81,6 +82,7 @@ impl Serialize for TransactionType {
             Self::CcComplete => "cccomplete",
             Self::CcReturn => "ccreturn",
             Self::TxnQuery => "txnquery",
+            Self::CcVoid => "ccvoid",
         };
         serializer.serialize_str(value)
     }
@@ -284,7 +286,7 @@ pub struct XMLElavonRequest(pub HashMap<String, Secret<String, WithoutType>>);
 #[derive(Debug, Serialize)]
 pub struct XMLPSyncRequest(pub HashMap<String, Secret<String, WithoutType>>);
 
-// Define dedicated types for Capture, Refund, and RSync XML requests
+// Define dedicated types for Capture, Refund, RSync, and VoidPC XML requests
 #[derive(Debug, Serialize)]
 pub struct XMLCaptureRequest(pub HashMap<String, Secret<String, WithoutType>>);
 
@@ -293,6 +295,9 @@ pub struct XMLRefundRequest(pub HashMap<String, Secret<String, WithoutType>>);
 
 #[derive(Debug, Serialize)]
 pub struct XMLRSyncRequest(pub HashMap<String, Secret<String, WithoutType>>);
+
+#[derive(Debug, Serialize)]
+pub struct XMLVoidPCRequest(pub HashMap<String, Secret<String, WithoutType>>);
 
 // TryFrom implementation to convert from the router data to XMLElavonRequest
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -1467,6 +1472,265 @@ impl<F> TryFrom<ResponseRouterData<ElavonPSyncResponse, Self>>
 
         Ok(Self {
             response: Ok(payments_response_data),
+            resource_common_data: PaymentFlowData {
+                status: final_status,
+                ..router_data.resource_common_data
+            },
+            ..router_data
+        })
+    }
+}
+
+// ============================================================
+// VoidPC (VoidPostCapture / Reverse) flow
+// ============================================================
+
+/// Request struct for VoidPC (ccvoid).
+/// No amount field — ccvoid always voids the full captured amount.
+#[skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct ElavonVoidPCRequest {
+    pub ssl_transaction_type: TransactionType,
+    pub ssl_account_id: Secret<String>,
+    pub ssl_user_id: Secret<String>,
+    pub ssl_pin: Secret<String>,
+    pub ssl_txn_id: String,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        ElavonRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for ElavonVoidPCRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: ElavonRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+        let auth_type = ElavonAuthType::try_from(&router_data.connector_config)?;
+        let connector_transaction_id = router_data.request.connector_transaction_id.clone();
+
+        Ok(Self {
+            ssl_transaction_type: TransactionType::CcVoid,
+            ssl_account_id: auth_type.ssl_merchant_id,
+            ssl_user_id: auth_type.ssl_user_id,
+            ssl_pin: auth_type.ssl_pin,
+            ssl_txn_id: connector_transaction_id,
+        })
+    }
+}
+
+/// XML form wrapper for VoidPC request — same pattern as all other Elavon XML flows.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        ElavonRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for XMLVoidPCRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        data: ElavonRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let request = ElavonVoidPCRequest::try_from(data)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })
+            .attach_printable("Failed to create ElavonVoidPCRequest")?;
+
+        let xml_content = quick_xml::se::to_string_with_root("txn", &request).map_err(|err| {
+            tracing::info!(error=?err, "XML serialization error for VoidPC");
+            error_stack::report!(IntegrationError::RequestEncodingFailed {
+                context: Default::default()
+            })
+        })?;
+
+        let mut result = HashMap::new();
+        result.insert(
+            "xmldata".to_string(),
+            Secret::<_, WithoutType>::new(xml_content),
+        );
+
+        Ok(Self(result))
+    }
+}
+
+/// Response type for VoidPC — same ElavonResult shape as other payment response types.
+#[derive(Debug, Clone, Serialize)]
+pub struct ElavonVoidPCResponse {
+    pub result: ElavonResult,
+}
+
+impl<'de> Deserialize<'de> for ElavonVoidPCResponse {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize, Debug)]
+        #[serde(rename = "txn")]
+        struct XmlIshResponse {
+            #[serde(default, rename = "errorCode")]
+            error_code: Option<String>,
+            #[serde(default, rename = "errorMessage")]
+            error_message: Option<String>,
+            #[serde(default, rename = "errorName")]
+            error_name: Option<String>,
+            #[serde(default)]
+            ssl_result: Option<String>,
+            #[serde(default)]
+            ssl_txn_id: Option<String>,
+            #[serde(default)]
+            ssl_result_message: Option<String>,
+            #[serde(default)]
+            ssl_token: Option<Secret<String>>,
+            #[serde(default)]
+            ssl_token_response: Option<Secret<String>>,
+            #[serde(default)]
+            ssl_approval_code: Option<String>,
+            #[serde(default)]
+            ssl_transaction_type: Option<String>,
+            #[serde(default)]
+            ssl_cvv2_response: Option<Secret<String>>,
+            #[serde(default)]
+            ssl_avs_response: Option<String>,
+        }
+
+        let flat_res = XmlIshResponse::deserialize(deserializer)?;
+
+        let result = if flat_res.ssl_result.as_deref() == Some("0") {
+            ElavonResult::Success(PaymentResponse {
+                ssl_result: SslResult::try_from(
+                    flat_res
+                        .ssl_result
+                        .ok_or_else(|| de::Error::missing_field("ssl_result"))?,
+                )
+                .map_err(de::Error::custom)?,
+                ssl_txn_id: flat_res
+                    .ssl_txn_id
+                    .ok_or_else(|| de::Error::missing_field("ssl_txn_id"))?,
+                ssl_result_message: flat_res
+                    .ssl_result_message
+                    .ok_or_else(|| de::Error::missing_field("ssl_result_message"))?,
+                ssl_token: flat_res.ssl_token,
+                ssl_approval_code: flat_res.ssl_approval_code,
+                ssl_transaction_type: flat_res.ssl_transaction_type.clone(),
+                ssl_cvv2_response: flat_res.ssl_cvv2_response,
+                ssl_avs_response: flat_res.ssl_avs_response,
+                ssl_token_response: flat_res.ssl_token_response.map(|s| s.expose()),
+            })
+        } else if flat_res.error_message.is_some() {
+            ElavonResult::Error(ElavonErrorResponse {
+                error_code: flat_res.error_code.or(flat_res.ssl_result.clone()),
+                error_message: flat_res
+                    .error_message
+                    .ok_or_else(|| de::Error::missing_field("error_message"))?,
+                error_name: flat_res.error_name,
+                ssl_txn_id: flat_res.ssl_txn_id,
+            })
+        } else if flat_res.ssl_result.is_some() {
+            ElavonResult::Error(ElavonErrorResponse {
+                error_code: flat_res.ssl_result.clone(),
+                error_message: flat_res
+                    .ssl_result_message
+                    .unwrap_or_else(|| "VoidPC transaction resulted in an error".to_string()),
+                error_name: None,
+                ssl_txn_id: flat_res.ssl_txn_id,
+            })
+        } else {
+            return Err(de::Error::custom(
+                "Invalid VoidPC Response from Elavon - cannot determine success or error state, missing critical fields.",
+            ));
+        };
+
+        Ok(Self { result })
+    }
+}
+
+/// Response TryFrom for VoidPC flow.
+/// Maps a successful ccvoid response to AttemptStatus::VoidPostCaptureInitiated.
+impl<F> TryFrom<ResponseRouterData<ElavonVoidPCResponse, Self>>
+    for RouterDataV2<F, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        value: ResponseRouterData<ElavonVoidPCResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response,
+            router_data,
+            http_code,
+        } = value;
+
+        tracing::info!(response=?response, "Processing Elavon VoidPC response");
+
+        let (attempt_status, error_response) =
+            get_elavon_attempt_status(&response.result, http_code);
+
+        let (final_status, response_data) = match (&response.result, error_response) {
+            (ElavonResult::Success(payment_resp_struct), None) => (
+                HyperswitchAttemptStatus::VoidedPostCapture,
+                Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                    post_capture_void_status: common_enums::PostCaptureVoidStatus::Succeeded,
+                    connector_reference_id: payment_resp_struct.ssl_approval_code.clone(),
+                    description: None,
+                    status_code: http_code,
+                }),
+            ),
+            (_, Some(err_resp)) => (attempt_status, Err(err_resp)),
+            (ElavonResult::Error(error_payload), None) => (
+                attempt_status,
+                Err(ErrorResponse {
+                    status_code: http_code,
+                    code: error_payload
+                        .error_code
+                        .clone()
+                        .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                    message: error_payload.error_message.clone(),
+                    reason: error_payload.error_name.clone(),
+                    attempt_status: Some(HyperswitchAttemptStatus::Failure),
+                    connector_transaction_id: error_payload.ssl_txn_id.clone(),
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }),
+            ),
+        };
+
+        Ok(Self {
+            response: response_data,
             resource_common_data: PaymentFlowData {
                 status: final_status,
                 ..router_data.resource_common_data

@@ -5,11 +5,11 @@ use std::fmt::Debug;
 use bytes::Bytes;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, VoidPC},
     connector_types::{
-        ConnectorSpecifications, PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData,
+        ConnectorSpecifications, PaymentFlowData, PaymentsAuthorizeData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -20,13 +20,14 @@ use domain_types::{
 use hyperswitch_masking::Maskable;
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
-    decode::BodyDecoding, verification::SourceVerification,
+    connector_types::PaymentVoidPostCaptureV2, decode::BodyDecoding,
+    verification::SourceVerification,
 };
 use serde::Serialize;
 use transformers::{
     self as elavon, ElavonCaptureResponse, ElavonPSyncResponse, ElavonPaymentsResponse,
-    ElavonRSyncResponse, ElavonRefundResponse, XMLCaptureRequest, XMLElavonRequest,
-    XMLPSyncRequest, XMLRSyncRequest, XMLRefundRequest,
+    ElavonRSyncResponse, ElavonRefundResponse, ElavonVoidPCResponse, XMLCaptureRequest,
+    XMLElavonRequest, XMLPSyncRequest, XMLRSyncRequest, XMLRefundRequest, XMLVoidPCRequest,
 };
 
 use super::macros;
@@ -75,6 +76,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Elavon<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PaymentVoidPostCaptureV2
+    for Elavon<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -219,6 +224,12 @@ macros::create_all_prerequisites!(
             request_body: XMLRSyncRequest,
             response_body: ElavonRSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: VoidPC,
+            request_body: XMLVoidPCRequest,
+            response_body: ElavonVoidPCResponse,
+            router_data: RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -409,6 +420,39 @@ macros::macro_connector_implementation!(
     }
 );
 
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type],
+    connector: Elavon,
+    curl_request: FormUrlEncoded(XMLVoidPCRequest),
+    curl_response: ElavonVoidPCResponse,
+    flow_name: VoidPC,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsCancelPostCaptureData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    preprocess_response: true,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}processxml.do",
+                req.resource_common_data.connectors.elavon.base_url
+            ))
+        }
+    }
+);
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
     for Elavon<T>
 {
@@ -423,7 +467,6 @@ macros::macro_connector_flow_status_impls!(
         SetupMandate,
         PaymentMethodToken,
         MandateRevoke,
-        VoidPC,
         RepeatPayment,
     ],
     not_supported: [
