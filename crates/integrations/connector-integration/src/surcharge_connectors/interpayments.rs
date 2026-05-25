@@ -422,7 +422,10 @@ impl
             SurchargeRefundSucceededResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Ok(format!("{}/ch/refund", self.connector_base_url_payments(req)))
+        Ok(format!(
+            "{}/ch/refund",
+            self.connector_base_url_payments(req)
+        ))
     }
 
     fn get_headers(
@@ -515,12 +518,14 @@ impl
             .change_context(ConnectorError::ResponseDeserializationFailed {
                 context: ResponseTransformationErrorContext {
                     http_status_code: Some(res.status_code),
-                    additional_context: Some("Failed to parse interpayments refund succeeded response".to_string()),
+                    additional_context: Some(
+                        "Failed to parse interpayments refund succeeded response".to_string(),
+                    ),
                 },
             })?;
 
         with_response_body!(event_builder, response);
-        
+
         let response_data = SurchargeRefundSucceededResponse {
             status_code: res.status_code,
         };

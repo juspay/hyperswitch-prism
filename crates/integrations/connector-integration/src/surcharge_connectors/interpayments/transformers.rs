@@ -224,18 +224,24 @@ pub struct InterPaymentsRefundSucceededRequest {
     pub s_tx_id: String,
 }
 
-impl From<&RouterDataV2<
-    SurchargeRefundSucceeded,
-    SurchargeFlowData,
-    SurchargeRefundSucceededRequest,
-    SurchargeRefundSucceededResponse,
->> for InterPaymentsRefundSucceededRequest {
-    fn from(req: &RouterDataV2<
-        SurchargeRefundSucceeded,
-        SurchargeFlowData,
-        SurchargeRefundSucceededRequest,
-        SurchargeRefundSucceededResponse,
-    >) -> Self {
+impl
+    From<
+        &RouterDataV2<
+            SurchargeRefundSucceeded,
+            SurchargeFlowData,
+            SurchargeRefundSucceededRequest,
+            SurchargeRefundSucceededResponse,
+        >,
+    > for InterPaymentsRefundSucceededRequest
+{
+    fn from(
+        req: &RouterDataV2<
+            SurchargeRefundSucceeded,
+            SurchargeFlowData,
+            SurchargeRefundSucceededRequest,
+            SurchargeRefundSucceededResponse,
+        >,
+    ) -> Self {
         Self {
             s_tx_id: req.request.connector_surcharge_id.clone(),
         }
