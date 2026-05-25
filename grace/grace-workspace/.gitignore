@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Vite
+.vite/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Local config overrides
+config.local.yml
+config.local.yaml
+10xgrace.config.local.yml
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+Thumbs.db
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# Local opencode scratch dir created by the runner
+.10xgrace-opencode-tmp/
+
+# Parity Autopilot derived artifacts (regenerated every heartbeat)
+parity-dashboard.md
+connectors/
+.cache/
+
+# Playwright MCP browser snapshots / console logs (debug artifacts from agent sessions)
+.playwright-mcp/
