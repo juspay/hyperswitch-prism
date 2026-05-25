@@ -179,8 +179,6 @@ pub struct PaymentCard<T: PaymentMethodDataTypes> {
     pub number: RawCardNumber<T>,
     pub expiry_date: ExpiryDate,
     pub security_code: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub holder: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -414,7 +412,6 @@ impl<T: PaymentMethodDataTypes>
                         year: Secret::new(year_yy.peek().clone()),
                     },
                     security_code: Some(card_data.card_cvc.clone()),
-                    holder: item.request.customer_name.clone().map(Secret::new),
                 };
                 PaymentMethod { payment_card }
             }
@@ -816,14 +813,12 @@ impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
     fn try_from(
         item: ResponseRouterData<FiservemeaPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        // Map transaction status using status/result and transaction type
         let status = map_status(
             item.response.transaction_status.clone(),
             item.response.transaction_result.clone(),
             item.response.transaction_type.clone(),
         );
 
-        // Prepare connector metadata if available
         let connector_metadata = item.response.payment_token.as_ref().map(|token| {
             let mut metadata = HashMap::new();
             if let Some(value) = &token.value {
@@ -848,8 +843,8 @@ impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata,
-                network_txn_id: item.response.api_trace_id.clone(),
-                connector_response_reference_id: item.response.client_request_id.clone(),
+                network_txn_id: None,
+                connector_response_reference_id: item.response.order_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
             }),
@@ -870,29 +865,11 @@ impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
     fn try_from(
         item: ResponseRouterData<FiservemeaPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        // Map transaction status using status/result and transaction type
         let status = map_status(
             item.response.transaction_status.clone(),
             item.response.transaction_result.clone(),
             item.response.transaction_type.clone(),
         );
-
-        // Prepare connector metadata if available
-        let connector_metadata = item.response.payment_token.as_ref().map(|token| {
-            let mut metadata = HashMap::new();
-            if let Some(value) = &token.value {
-                metadata.insert("payment_token".to_string(), value.clone());
-            }
-            if let Some(reusable) = token.reusable {
-                metadata.insert("token_reusable".to_string(), reusable.to_string());
-            }
-            serde_json::Value::Object(
-                metadata
-                    .into_iter()
-                    .map(|(k, v)| (k, serde_json::Value::String(v)))
-                    .collect(),
-            )
-        });
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -901,9 +878,9 @@ impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
                 ),
                 redirection_data: None,
                 mandate_reference: None,
-                connector_metadata,
-                network_txn_id: item.response.api_trace_id.clone(),
-                connector_response_reference_id: item.response.client_request_id.clone(),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: item.response.order_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
             }),
