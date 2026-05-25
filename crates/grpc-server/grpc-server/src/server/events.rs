@@ -282,8 +282,11 @@ impl EventService for EventServiceImpl {
         // Parse metadata to get connector config
         let request_data = RequestData::from_grpc_request(request, config.clone())?;
         let metadata_payload = request_data.extracted_metadata;
+
+        let req = request_data.payload;
+
         let event_type_enum =
-            grpc_api_types::payments::NotifyEventType::try_from(request_data.payload.event_type)
+            grpc_api_types::payments::NotifyEventType::try_from(req.payload.event_type)
                 .map_err(|_| tonic::Status::invalid_argument("Invalid event type"))?;
 
         match event_type_enum {

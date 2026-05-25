@@ -2004,7 +2004,6 @@ impl PaymentMethodService for PaymentMethod {
                         &metadata_payload.lineage_ids,
                     );
 
-
                     let payment_method_data_action = PaymentMethodDataAction::get_payment_method_data_action(payload.payment_method.clone().ok_or(tonic::Status::invalid_argument("missing request_details in the payload"))?)
                     .map_err(|err| {
                         tracing::error!("PAYMENT_AUTHORIZE_FLOW: failed to get payment method data action - error: {:?}", err);
