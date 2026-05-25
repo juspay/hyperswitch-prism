@@ -22,21 +22,6 @@ integration_pattern:
 
 ---
 
-## Absa Sanlam
-connector_id: absa_sanlam
-doc: docs/connectors/absa_sanlam.md
-scenarios: none
-payment_methods: none
-flows: handle_event, parse_event
-examples_python: none
-
-## Absasanlam
-connector_id: absasanlam
-doc: docs/connectors/absasanlam.md
-scenarios: none
-payment_methods: none
-flows: handle_event, parse_event
-examples_python: none
 
 ## ACI
 connector_id: aci
