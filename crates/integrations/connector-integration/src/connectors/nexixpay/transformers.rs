@@ -8,16 +8,16 @@ use common_utils::{
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, PSync, PostAuthenticate, PreAuthenticate,
-        RSync, Refund, Void,
+        RSync, Refund, SetupMandate, Void,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
-        ConnectorSpecificClientAuthenticationResponse, MandateReferenceId,
+        ConnectorSpecificClientAuthenticationResponse, MandateReference, MandateReferenceId,
         NexixpayClientAuthenticationResponse as NexixpayClientAuthenticationResponseDomain,
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
         PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        ResponseId,
+        ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
@@ -1793,6 +1793,295 @@ impl TryFrom<ResponseRouterData<NexixpayClientAuthResponse, Self>>
                 session_data,
                 status_code: item.http_code,
             }),
+            ..item.router_data
+        })
+    }
+}
+
+// ===== SETUP MANDATE (Pay.SetupRecurring) FLOW STRUCTURES =====
+//
+// NexiXPay does not expose a "tokenize the card without moving funds" endpoint.
+// The closest stable anchor it gives back is the `operationId` returned by
+// `/orders/3steps/init` — the same call that PreAuthenticate uses to kick off
+// the 3DS hop on a regular purchase. Nexi tracks that operationId as the
+// originating "contract" operation, and the documented way to wire up future
+// CIT / MIT charges is to replay the contract via `recurrence.contractId`.
+//
+// SetupMandate therefore mirrors the PreAuthenticate request shape (card +
+// billing customer info + zero-amount order) but pins the recurrence to
+// `CONTRACT_CREATION` + `MIT_UNSCHEDULED`, and adds `actionType = VERIFY` so
+// Nexi treats this as a card-verification (no funds move). The response
+// surfaces the returned `operationId` as `mandate_reference.connector_mandate_id`
+// so the orchestrator can hand it back on a future RepeatPayment / MIT call.
+// 3DS will still be required for a real card — status passes through as
+// `AuthenticationPending` and the customer completes the handshake on Nexi's
+// hosted page. The existing PreAuthenticate metadata wiring (operationId stored
+// on `connector_feature_data`) is preserved so the same downstream flows
+// (PostAuthenticate / PSync) keep working.
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NexixpaySetupMandateRequest {
+    pub order: NexixpayPreAuthOrder,
+    pub card: NexixpayCardData,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recurrence: Option<NexixpayRecurrence>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub action_type: Option<NexixpayPaymentRequestActionType>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        NexixpayRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for NexixpaySetupMandateRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        value: NexixpayRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let item = &value.router_data;
+
+        // Card is the only payment method supported by NexiXPay's SetupMandate
+        // (the underlying /orders/3steps/init endpoint is card-only).
+        let card_data = match &item.request.payment_method_data {
+            PaymentMethodData::Card(card) => card,
+            payment_method_data => Err(error_stack::report!(IntegrationError::NotImplemented(
+                format!("Payment method {payment_method_data:?} for SetupMandate"),
+                Default::default()
+            )))?,
+        };
+
+        let card = NexixpayCardData {
+            pan: Secret::new(card_data.card_number.peek().to_string()),
+            expiry_date: card_data
+                .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
+            cvv: Some(card_data.card_cvc.clone()),
+        };
+
+        // Build billing address + cardholder name from PaymentFlowData address
+        // (same wiring as PreAuthenticate — SetupMandate exposes the same
+        // resource_common_data.address).
+        let billing_address = item
+            .resource_common_data
+            .address
+            .get_payment_method_billing()
+            .and_then(|billing| {
+                billing.address.as_ref().map(|addr| {
+                    let country = addr
+                        .country
+                        .map(common_enums::CountryAlpha2::from_alpha2_to_alpha3);
+                    let name = match (&addr.first_name, &addr.last_name) {
+                        (Some(first), Some(last)) => {
+                            Some(Secret::new(format!("{} {}", first.peek(), last.peek())))
+                        }
+                        (Some(first), None) => Some(first.clone()),
+                        (None, Some(last)) => Some(last.clone()),
+                        (None, None) => None,
+                    };
+                    let street = match (&addr.line1, &addr.line2) {
+                        (Some(l1), Some(l2)) => {
+                            Some(Secret::new(format!("{}, {}", l1.peek(), l2.peek())))
+                        }
+                        (Some(l1), None) => Some(l1.clone()),
+                        (None, Some(l2)) => Some(l2.clone()),
+                        (None, None) => None,
+                    };
+                    NexixpayBillingAddress {
+                        name,
+                        street,
+                        city: addr.city.clone().map(|c| c.expose().to_string()),
+                        post_code: addr.zip.clone(),
+                        country,
+                    }
+                })
+            });
+
+        let card_holder_name = item
+            .resource_common_data
+            .address
+            .get_payment_method_billing()
+            .and_then(|billing| {
+                billing.address.as_ref().and_then(|addr| {
+                    match (&addr.first_name, &addr.last_name) {
+                        (Some(first), Some(last)) => {
+                            Some(format!("{} {}", first.peek(), last.peek()))
+                        }
+                        (Some(first), None) => Some(first.peek().to_string()),
+                        (None, Some(last)) => Some(last.peek().to_string()),
+                        (None, None) => None,
+                    }
+                })
+            })
+            .unwrap_or_else(|| "Cardholder".to_string());
+
+        let customer_info = NexixpayCustomerInfo {
+            card_holder_name: Secret::new(card_holder_name),
+            billing_address,
+            shipping_address: None,
+        };
+
+        // SetupMandate is a "register the card" probe — no funds move. The
+        // amount on the wire is forced to zero in the requested currency so
+        // Nexi treats this purely as a contract-creation handshake.
+        let currency = item.request.currency;
+        let order = NexixpayPreAuthOrder {
+            order_id: get_nexi_order_id(&item.resource_common_data.connector_request_reference_id)?,
+            amount: StringMinorUnitForConnector
+                .convert(common_utils::types::MinorUnit::zero(), currency)
+                .change_context(IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
+                })?,
+            currency,
+            customer_info,
+            description: item.resource_common_data.description.clone(),
+        };
+
+        // CONTRACT_CREATION + MIT_UNSCHEDULED — this is how Nexi documents
+        // setting up a stored credential. Nexi requires a `contractId` on the
+        // wire for CONTRACT_CREATION: if the caller passed one through
+        // `mandate_id`, forward it; otherwise mint a deterministic one off
+        // the order id so the call is accepted on a pure "register the
+        // mandate" probe.
+        let provided_contract_id = item
+            .request
+            .mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| mandate_ids.mandate_reference_id.clone())
+            .and_then(|reference_id| match reference_id {
+                MandateReferenceId::ConnectorMandateId(mandate_data) => {
+                    mandate_data.get_connector_mandate_request_reference_id()
+                }
+                _ => None,
+            });
+        let contract_id = provided_contract_id.unwrap_or_else(|| order.order_id.clone());
+
+        let recurrence = Some(NexixpayRecurrence {
+            action: NexixpayRecurringAction::ContractCreation,
+            contract_id: Some(Secret::new(contract_id)),
+            contract_type: Some(ContractType::MitUnscheduled),
+        });
+
+        Ok(Self {
+            order,
+            card,
+            recurrence,
+            // VERIFY tells Nexi to authenticate the card without authorising
+            // funds — required for a true zero-amount setup.
+            action_type: Some(NexixpayPaymentRequestActionType::Verify),
+        })
+    }
+}
+
+// SetupMandate response shape is identical to the PreAuthenticate init
+// response — same operation envelope, same optional 3DS auth payload — so we
+// re-use the existing response body and only customise the response-side
+// mapping to populate `mandate_reference.connector_mandate_id` with the Nexi
+// `operationId` (the stable anchor a future RepeatPayment / MIT call will
+// replay).
+pub type NexixpaySetupMandateResponse = NexixpayPreAuthenticateResponse;
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NexixpaySetupMandateResponse, Self>>
+    for RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<NexixpaySetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+        let operation = &response.operation;
+
+        // Reuse the PreAuthenticate status mapping — for a real card, the
+        // 3DS challenge is still required, so the typical terminal status here
+        // is `AuthenticationPending` (with a redirection form). For declined
+        // / failed verifications we map to `AuthenticationFailed`.
+        let status = match &operation.operation_result {
+            NexixpayPaymentStatus::ThreedsValidated => AttemptStatus::AuthenticationSuccessful,
+            NexixpayPaymentStatus::ThreedsFailed => AttemptStatus::AuthenticationFailed,
+            NexixpayPaymentStatus::Declined | NexixpayPaymentStatus::DeniedByRisk => {
+                AttemptStatus::AuthenticationFailed
+            }
+            _ => AttemptStatus::AuthenticationPending,
+        };
+
+        // Mirror the PreAuthenticate metadata wiring so the existing
+        // PostAuthenticate / PSync flows can fish out the operationId.
+        let connector_metadata = Some(serde_json::json!(NexixpayConnectorMetaData {
+            authorization_operation_id: Some(operation.operation_id.clone()),
+            three_d_s_auth_result: None,
+            three_d_s_auth_response: None,
+            capture_operation_id: None,
+            cancel_operation_id: None,
+            psync_flow: NexixpayPaymentIntent::Authorize,
+        }));
+
+        // Build the redirect form for the 3DS hop, if Nexi handed back a
+        // `threeDSAuthUrl` (same shape as PreAuthenticate).
+        let redirection_data = if let Some(auth_url) = &response.three_ds_auth_url {
+            let mut form_fields = HashMap::new();
+            form_fields.insert(
+                "ThreeDsRequest".to_string(),
+                response.three_ds_auth_request.clone().unwrap_or_default(),
+            );
+            if let Some(continue_url) = &item.router_data.request.router_return_url {
+                form_fields.insert("ReturnUrl".to_string(), continue_url.to_string());
+            }
+            form_fields.insert("transactionId".to_string(), operation.operation_id.clone());
+
+            Some(Box::new(
+                domain_types::router_response_types::RedirectForm::Form {
+                    endpoint: auth_url.clone(),
+                    method: common_utils::request::Method::Post,
+                    form_fields,
+                },
+            ))
+        } else {
+            None
+        };
+
+        // Hand back the `operationId` as the stable mandate reference id —
+        // this is the contract anchor a future RepeatPayment / MIT call
+        // replays via `recurrence.contractId`.
+        let mandate_reference = Some(Box::new(MandateReference {
+            connector_mandate_id: Some(operation.operation_id.clone()),
+            payment_method_id: None,
+            connector_mandate_request_reference_id: None,
+        }));
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(operation.operation_id.clone()),
+                redirection_data,
+                mandate_reference,
+                connector_metadata: connector_metadata.clone(),
+                network_txn_id: None,
+                connector_response_reference_id: Some(operation.order_id.clone()),
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+            }),
+            resource_common_data: PaymentFlowData {
+                status,
+                connector_feature_data: connector_metadata.map(Secret::new),
+                preprocessing_id: Some(operation.operation_id.clone()),
+                ..item.router_data.resource_common_data
+            },
             ..item.router_data
         })
     }
