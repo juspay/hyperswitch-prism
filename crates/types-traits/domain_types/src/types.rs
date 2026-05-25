@@ -9654,6 +9654,15 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                                         }
                                     ))
                                 }),
+                                router_response_types::RedirectForm::Mifinity {
+                                    initialization_token,
+                                } => Ok(grpc_api_types::payments::RedirectForm {
+                                    form_type: Some(grpc_api_types::payments::redirect_form::FormType::Mifinity(
+                                        grpc_api_types::payments::MifinityData {
+                                            initialization_token,
+                                        }
+                                    ))
+                                }),
                                 _ => Err(report!(
                                     ConnectorError::UnexpectedResponseError { context: ResponseTransformationErrorContext { http_status_code: None, additional_context: Some("Invalid redirect form type from connector response".to_owned()) } })),
                             }
