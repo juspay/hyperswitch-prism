@@ -7,7 +7,8 @@ use crate::{
 };
 use common_enums;
 use common_utils::{events::FlowName, lineage, metadata::MaskedMetadata, SecretSerdeValue};
-use connector_integration::types::ConnectorData;
+use connector_integration::types::{ConnectorData, ConnectorDataProvider};
+use domain_types::payment_method_data;
 use domain_types::{
     connector_flow::{
         Authenticate, Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
@@ -17,14 +18,14 @@ use domain_types::{
     },
     connector_types::{
         ClientAuthenticationTokenRequestData, ConnectorCustomerData, ConnectorCustomerResponse,
-        ConnectorResponseHeaders, MandateRevokeRequestData, MandateRevokeResponseData,
-        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
-        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
-        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
-        RawConnectorRequestResponse, RefundFlowData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, ServerAuthenticationTokenRequestData,
+        ConnectorResponseHeaders, ConnectorVariant, MandateRevokeRequestData,
+        MandateRevokeResponseData, PaymentCreateOrderData, PaymentCreateOrderResponse,
+        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
+        PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
+        PaymentsSyncData, RawConnectorRequestResponse, RefundFlowData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ServerAuthenticationTokenRequestData,
         ServerAuthenticationTokenResponseData, ServerSessionAuthenticationTokenRequestData,
         ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData,
     },
@@ -45,7 +46,6 @@ use domain_types::{
     },
     utils::ForeignTryFrom,
 };
-use domain_types::{connector_types::ConnectorEnum, payment_method_data};
 use external_services::service::EventProcessingParams;
 use grpc_api_types::payments::{
     customer_service_server::CustomerService,
@@ -338,10 +338,11 @@ impl CustomerService for Customer {
                         metadata_payload.lineage_ids,
                     );
                     let connector_config = &metadata_payload.connector_config;
-
                     //get connector data
                     let connector_data: ConnectorData<DefaultPCIHolder> =
-                        ConnectorData::get_connector_by_name(&connector);
+                        ConnectorData::from_connector_variant(&connector).ok_or_else(|| {
+                            tonic::Status::invalid_argument("Invalid Connector Received")
+                        })?;
 
                     // Get connector integration
                     let connector_integration: BoxedConnectorIntegrationV2<
@@ -398,7 +399,7 @@ impl CustomerService for Customer {
 
                     // Execute connector processing
                     let external_event_params = EventProcessingParams {
-                        connector_name: &connector.to_string(),
+                        connector_name: &connector.get_connector_name(),
                         service_name: &service_name,
                         service_type: utils::service_type_str(&config.server.type_),
                         flow_name: FlowName::CreateConnectorCustomer,
@@ -458,7 +459,7 @@ impl Payments {
         &self,
         config: &Arc<Config>,
         payload: AuthorizationRequest,
-        connector: ConnectorEnum,
+        connector: ConnectorVariant,
         connector_config: ConnectorSpecificConfig,
         metadata: &MaskedMetadata,
         metadata_payload: &utils::MetadataPayload,
@@ -468,7 +469,8 @@ impl Payments {
         payment_method_data: payment_method_data::PaymentMethodData<T>,
     ) -> Result<PaymentServiceAuthorizeResponse, tonic::Status> {
         //get connector data
-        let connector_data = ConnectorData::get_connector_by_name(&connector);
+        let connector_data = ConnectorData::from_connector_variant(&connector)
+            .ok_or_else(|| tonic::Status::invalid_argument("Invalid Connector Received"))?;
 
         // Get connector integration
         let connector_integration: BoxedConnectorIntegrationV2<
@@ -481,7 +483,7 @@ impl Payments {
 
         let connectors = utils::get_resolved_connectors(
             config,
-            &connector,
+            &connector_data.connector_name,
             &connector_config,
             metadata_payload.environment.as_deref(),
         )
@@ -527,7 +529,7 @@ impl Payments {
 
         // Execute connector processing
         let event_params = EventProcessingParams {
-            connector_name: &connector.to_string(),
+            connector_name: &connector.get_connector_name(),
             service_name,
             service_type: utils::service_type_str(&config.server.type_),
             flow_name: FlowName::Authorize,
@@ -582,7 +584,7 @@ impl Payments {
         &self,
         config: &Arc<Config>,
         payload: SetupRecurringRequest,
-        connector: ConnectorEnum,
+        connector: ConnectorVariant,
         connector_config: ConnectorSpecificConfig,
         metadata: &MaskedMetadata,
         metadata_payload: &utils::MetadataPayload,
@@ -592,7 +594,8 @@ impl Payments {
         payment_method_data: payment_method_data::PaymentMethodData<T>,
     ) -> Result<PaymentServiceSetupRecurringResponse, tonic::Status> {
         //get connector data
-        let connector_data = ConnectorData::get_connector_by_name(&connector);
+        let connector_data = ConnectorData::from_connector_variant(&connector)
+            .ok_or_else(|| tonic::Status::invalid_argument("Invalid Connector Received"))?;
 
         // Get connector integration
         let connector_integration: BoxedConnectorIntegrationV2<
@@ -648,7 +651,7 @@ impl Payments {
             .map_err(|e| tonic::Status::internal(format!("Test mode configuration error: {e}")))?;
 
         let event_params = EventProcessingParams {
-            connector_name: &connector.to_string(),
+            connector_name: &connector.get_connector_name(),
             service_name,
             service_type: utils::service_type_str(&config.server.type_),
             flow_name: FlowName::SetupMandate,
@@ -701,6 +704,7 @@ impl PaymentOperationsInternal for Payments {
         request_data_constructor: PaymentVoidData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_void_response,
+        connector_data_type: ConnectorData<DefaultPCIHolder>,
         all_keys_required: None
     );
 
@@ -716,6 +720,7 @@ impl PaymentOperationsInternal for Payments {
         request_data_constructor: RefundsData::foreign_try_from,
         common_flow_data_constructor: RefundFlowData::foreign_try_from,
         generate_response_fn: generate_refund_response,
+        connector_data_type: ConnectorData<DefaultPCIHolder>,
         all_keys_required: None
     );
 
@@ -731,6 +736,7 @@ impl PaymentOperationsInternal for Payments {
         request_data_constructor: PaymentsCaptureData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_capture_response,
+        connector_data_type: ConnectorData<DefaultPCIHolder>,
         all_keys_required: None
     );
 
@@ -746,6 +752,7 @@ impl PaymentOperationsInternal for Payments {
         request_data_constructor: PaymentsIncrementalAuthorizationData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_incremental_authorization_response,
+        connector_data_type: ConnectorData<DefaultPCIHolder>,
         all_keys_required: None
     );
 
@@ -761,6 +768,7 @@ impl PaymentOperationsInternal for Payments {
         request_data_constructor: PaymentsCancelPostCaptureData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_void_post_capture_response,
+        connector_data_type: ConnectorData<DefaultPCIHolder>,
         all_keys_required: None
     );
 
@@ -776,6 +784,7 @@ impl PaymentOperationsInternal for Payments {
         request_data_constructor: PaymentCreateOrderData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_create_order_response,
+        connector_data_type: ConnectorData<DefaultPCIHolder>,
         all_keys_required: None
     );
 }
@@ -840,7 +849,7 @@ impl PaymentService for Payments {
                         Box::pin(self.process_authorization_internal::<VaultTokenHolder>(
                             &config,
                             payload,
-                            metadata_payload.connector,
+                            metadata_payload.connector.clone(),
                             metadata_payload.connector_config.clone(),
                             metadata,
                             &metadata_payload,
@@ -861,7 +870,7 @@ impl PaymentService for Payments {
                         Box::pin(self.process_authorization_internal::<DefaultPCIHolder>(
                             &config,
                             payload,
-                            metadata_payload.connector,
+                            metadata_payload.connector.clone(),
                             metadata_payload.connector_config.clone(),
                             metadata,
                             &metadata_payload,
@@ -882,7 +891,7 @@ impl PaymentService for Payments {
                         Box::pin(self.process_authorization_internal::<DefaultPCIHolder>(
                             &config,
                             payload,
-                            metadata_payload.connector,
+                            metadata_payload.connector.clone(),
                             metadata_payload.connector_config.clone(),
                             metadata,
                             &metadata_payload,
@@ -949,11 +958,9 @@ impl PaymentService for Payments {
                         ..
                     } = metadata_payload;
                     let payload = request_data.payload;
-
-                    // Get connector data
                     let connector_data: ConnectorData<DefaultPCIHolder> =
-                        ConnectorData::get_connector_by_name(&connector);
-
+                        ConnectorData::from_connector_variant(&connector)
+                        .ok_or_else(|| tonic::Status::invalid_argument("Invalid Connector Received"))?;
                     // Get connector integration
                     let connector_integration: BoxedConnectorIntegrationV2<
                         '_,
@@ -969,7 +976,7 @@ impl PaymentService for Payments {
 
                     let connectors = utils::get_resolved_connectors(
                         &config,
-                        &connector,
+                        &connector_data.connector_name,
                         &metadata_payload.connector_config,
                         metadata_payload.environment.as_deref(),
                     )
@@ -1034,7 +1041,7 @@ impl PaymentService for Payments {
                         })?;
 
                     let event_params = EventProcessingParams {
-                        connector_name: &metadata_payload.connector.to_string(),
+                        connector_name: &connector.get_connector_name(),
                         service_name: &service_name,
                         service_type: utils::service_type_str(&config.server.type_),
                         flow_name,
@@ -1159,11 +1166,10 @@ impl PaymentService for Payments {
             |request_data| {
                 Box::pin(async move {
                     let metadata_payload = &request_data.extracted_metadata;
-                    let connector = metadata_payload.connector;
-
-                    // Get connector data to check if access token is needed
+                    let connector = &metadata_payload.connector;
                     let connector_data: ConnectorData<DefaultPCIHolder> =
-                        ConnectorData::get_connector_by_name(&connector);
+                        ConnectorData::from_connector_variant(connector)
+                        .ok_or_else(|| tonic::Status::invalid_argument("Invalid Connector Received"))?;
 
                     // Check if connector supports access tokens
                     let connectors = utils::connectors_with_connector_config_overrides(
@@ -1300,9 +1306,9 @@ impl PaymentService for Payments {
                         .map_err(|e| e.into_grpc_status())?
                         .map(ConnectorSourceVerificationSecrets::RedirectResponseSecret);
 
-                    // Get connector data
-                    let connector_data: ConnectorData<DefaultPCIHolder> =
-                        ConnectorData::get_connector_by_name(&connector);
+                       let connector_data: ConnectorData<DefaultPCIHolder> =
+                        ConnectorData::from_connector_variant(&connector)
+                        .ok_or_else(|| tonic::Status::invalid_argument("Invalid Connector Received"))?;
 
                     let decoded_body = match connector_data
                         .connector
@@ -1444,11 +1450,10 @@ impl PaymentService for Payments {
             |request_data| {
                 Box::pin(async move {
                     let metadata_payload = &request_data.extracted_metadata;
-                    let connector = metadata_payload.connector;
-
-                    // Get connector data to check if access token is needed
-                    let connector_data: ConnectorData<DefaultPCIHolder> =
-                        ConnectorData::get_connector_by_name(&connector);
+                    let connector = &metadata_payload.connector;
+                       let connector_data: ConnectorData<DefaultPCIHolder> =
+                        ConnectorData::from_connector_variant(connector)
+                        .ok_or_else(|| tonic::Status::invalid_argument("Invalid Connector Received"))?;
 
                     // Check if connector supports access tokens
                     let connectors = utils::connectors_with_connector_config_overrides(
@@ -1533,8 +1538,7 @@ impl PaymentService for Payments {
                     let metadata_payload = request_data.extracted_metadata;
                     // Convert proto request to intermediate type
                     let payload: SetupRecurringRequest = proto_payload.clone().into();
-                    let (connector, request_id, _lineage_ids) = (
-                        &metadata_payload.connector,
+                    let ( request_id, _lineage_ids) = (
                         &metadata_payload.request_id,
                         &metadata_payload.lineage_ids,
                     );
@@ -1555,7 +1559,7 @@ impl PaymentService for Payments {
                     Box::pin(self.handle_setup_recurring_internal::<VaultTokenHolder>(
                         &config,
                         payload,
-                        *connector,
+                        metadata_payload.connector.clone(),
                         metadata_payload.connector_config.clone(),
                         &request_data.masked_metadata,
                         &metadata_payload,
@@ -1576,7 +1580,7 @@ impl PaymentService for Payments {
                         Box::pin(self.handle_setup_recurring_internal::<DefaultPCIHolder>(
                         &config,
                         payload,
-                        *connector,
+                        metadata_payload.connector.clone(),
                         metadata_payload.connector_config.clone(),
                         &request_data.masked_metadata,
                         &metadata_payload,
@@ -1595,7 +1599,7 @@ impl PaymentService for Payments {
                         Box::pin(self.handle_setup_recurring_internal::<DefaultPCIHolder>(
                         &config,
                         payload,
-                        *connector,
+                        metadata_payload.connector.clone(),
                         metadata_payload.connector_config.clone(),
                         &request_data.masked_metadata,
                         &metadata_payload,
@@ -1835,11 +1839,12 @@ impl PaymentService for Payments {
                                 tonic::Status::invalid_argument("Invalid proxy card data")
                             })?
                     );
+
                     // Call process_authorization_internal directly with intermediate type
                     match Box::pin(self.process_authorization_internal::<VaultTokenHolder>(
                         &config,
                         payload,
-                        metadata_payload.connector,
+                        metadata_payload.connector.clone(),
                         metadata_payload.connector_config.clone(),
                         &metadata,
                         &metadata_payload,
@@ -1911,8 +1916,7 @@ impl PaymentService for Payments {
                     let metadata_payload = request_data.extracted_metadata;
                     // Convert proto request to intermediate type
                     let payload: SetupRecurringRequest = proto_payload.clone().into();
-                    let (connector, request_id, _lineage_ids) = (
-                        &metadata_payload.connector,
+                    let (request_id, _lineage_ids) = (
                         &metadata_payload.request_id,
                         &metadata_payload.lineage_ids,
                     );
@@ -1931,7 +1935,7 @@ impl PaymentService for Payments {
                     let setup_mandate_response = Box::pin(self.handle_setup_recurring_internal::<VaultTokenHolder>(
                         &config,
                         payload,
-                        *connector,
+                        metadata_payload.connector.clone(),
                         metadata_payload.connector_config.clone(),
                         &request_data.masked_metadata,
                         &metadata_payload,
@@ -1995,8 +1999,7 @@ impl PaymentMethodService for PaymentMethod {
                 Box::pin(async move {
                     let payload = request_data.payload;
                     let metadata_payload = request_data.extracted_metadata;
-                    let (connector, request_id, _lineage_ids) = (
-                        &metadata_payload.connector,
+                    let ( request_id, _lineage_ids) = (
                         &metadata_payload.request_id,
                         &metadata_payload.lineage_ids,
                     );
@@ -2018,7 +2021,7 @@ impl PaymentMethodService for PaymentMethod {
                     self.handle_tokenize_internal::<VaultTokenHolder>(
                         &config,
                         payload,
-                        *connector,
+                        metadata_payload.connector.clone(),
                         metadata_payload.connector_config.clone(),
                         &request_data.masked_metadata,
                         &metadata_payload,
@@ -2039,7 +2042,7 @@ impl PaymentMethodService for PaymentMethod {
                         self.handle_tokenize_internal::<DefaultPCIHolder>(
                         &config,
                         payload,
-                        *connector,
+                        metadata_payload.connector.clone(),
                         metadata_payload.connector_config.clone(),
                         &request_data.masked_metadata,
                         &metadata_payload,
@@ -2058,7 +2061,7 @@ impl PaymentMethodService for PaymentMethod {
                         self.handle_tokenize_internal::<DefaultPCIHolder>(
                         &config,
                         payload,
-                        *connector,
+                        metadata_payload.connector.clone(),
                         metadata_payload.connector_config.clone(),
                         &request_data.masked_metadata,
                         &metadata_payload,
@@ -2102,7 +2105,7 @@ impl PaymentMethod {
         &self,
         config: &Arc<Config>,
         request: PaymentMethodServiceTokenizeRequest,
-        connector: ConnectorEnum,
+        connector: ConnectorVariant,
         connector_config: ConnectorSpecificConfig,
         metadata: &MaskedMetadata,
         metadata_payload: &utils::MetadataPayload,
@@ -2112,7 +2115,8 @@ impl PaymentMethod {
         payment_method_data: payment_method_data::PaymentMethodData<T>,
     ) -> Result<PaymentMethodServiceTokenizeResponse, tonic::Status> {
         // Get connector data
-        let connector_data: ConnectorData<T> = ConnectorData::get_connector_by_name(&connector);
+        let connector_data: ConnectorData<T> = ConnectorData::from_connector_variant(&connector)
+            .ok_or_else(|| tonic::Status::invalid_argument("Invalid Connector Received"))?;
 
         // Get connector integration
         let connector_integration: BoxedConnectorIntegrationV2<
@@ -2163,7 +2167,7 @@ impl PaymentMethod {
 
         // Execute connector processing
         let event_params = EventProcessingParams {
-            connector_name: &connector.to_string(),
+            connector_name: &connector.get_connector_name(),
             service_name,
             service_type: utils::service_type_str(&config.server.type_),
             flow_name: FlowName::PaymentMethodToken,
@@ -2436,6 +2440,7 @@ impl MerchantAuthenticationOperational for MerchantAuthentication {
         request_data_constructor: ClientAuthenticationTokenRequestData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_sdk_session_token_response,
+        connector_data_type: ConnectorData<DefaultPCIHolder>,
         all_keys_required: None
     );
 }
@@ -2544,9 +2549,8 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                     );
                     let connector_config = &metadata_payload.connector_config;
 
-                    //get connector data
-                    let connector_data: ConnectorData<DefaultPCIHolder> =
-                        ConnectorData::get_connector_by_name(&connector);
+                    let connector_data: ConnectorData<DefaultPCIHolder> = ConnectorData::from_connector_variant(&connector)
+            .ok_or_else(|| tonic::Status::invalid_argument("Invalid Connector Received"))?;
 
                     let connectors = utils::connectors_with_connector_config_overrides(
                         connector_config,
@@ -2564,7 +2568,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
 
                     // Use the existing handle_session_token function
                     let event_params = EventParams {
-                        _connector_name: &connector.to_string(),
+                        _connector_name: &connector.get_connector_name(),
                         _service_name: &service_name,
                         service_type: utils::service_type_str(&config.server.type_),
                         request_id: &request_id,
@@ -2582,7 +2586,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         &payment_flow_data,
                         connector_config.clone(),
                         &payload,
-                        &connector.to_string(),
+                        &connector.get_connector_name(),
                         &service_name,
                         event_params,
                     ))
@@ -2654,16 +2658,15 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                 let service_name = service_name.clone();
                 Box::pin(async move {
                     let metadata_payload = request_data.extracted_metadata;
-                    let (connector, request_id, lineage_ids) = (
-                        metadata_payload.connector,
-                        metadata_payload.request_id,
-                        metadata_payload.lineage_ids,
-                    );
+                    let (request_id, lineage_ids) =
+                        (metadata_payload.request_id, metadata_payload.lineage_ids);
                     let connector_config = &metadata_payload.connector_config;
 
-                    // Get connector data
                     let connector_data: ConnectorData<DefaultPCIHolder> =
-                        ConnectorData::get_connector_by_name(&connector);
+                        ConnectorData::from_connector_variant(&metadata_payload.connector)
+                            .ok_or_else(|| {
+                                tonic::Status::invalid_argument("Invalid Connector Received")
+                            })?;
                     let access_token_create_request = request_data.payload;
                     let connectors = utils::connectors_with_connector_config_overrides(
                         connector_config,
@@ -2681,7 +2684,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
 
                     // Create event params for the handle_access_token function
                     let event_params = EventParams {
-                        _connector_name: &connector.to_string(),
+                        _connector_name: &metadata_payload.connector.get_connector_name(),
                         _service_name: &service_name,
                         service_type: utils::service_type_str(&config.server.type_),
                         request_id: &request_id,
@@ -2700,7 +2703,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         connector_data,
                         &payment_flow_data,
                         connector_config.clone(),
-                        &connector.to_string(),
+                        &metadata_payload.connector.get_connector_name(),
                         &service_name,
                         event_params,
                     ))
@@ -2727,6 +2730,7 @@ impl RecurringPaymentOperational for RecurringPayments {
         request_data_constructor: MandateRevokeRequestData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_mandate_revoke_response,
+        connector_data_type: ConnectorData<DefaultPCIHolder>,
         all_keys_required: None
     );
 }
@@ -2773,17 +2777,14 @@ impl RecurringPaymentService for RecurringPayments {
                 Box::pin(async move {
                     let payload = request_data.payload;
                     let metadata_payload = request_data.extracted_metadata;
-                    let (connector, request_id, lineage_ids) = (
-                        metadata_payload.connector,
+                    let (request_id, lineage_ids) = (
                         metadata_payload.request_id,
                         metadata_payload.lineage_ids,
                     );
                     let connector_config = &metadata_payload.connector_config;
 
-                    //get connector data
-                    let connector_data: ConnectorData<DefaultPCIHolder> =
-                        ConnectorData::get_connector_by_name(&connector);
-
+                        let connector_data: ConnectorData<DefaultPCIHolder> = ConnectorData::from_connector_variant(&metadata_payload.connector)
+            .ok_or_else(|| tonic::Status::invalid_argument("Invalid Connector Received"))?;
                     // Get connector integration
                     let connector_integration: BoxedConnectorIntegrationV2<
                         '_,
@@ -2892,7 +2893,7 @@ impl RecurringPaymentService for RecurringPayments {
                         })?;
 
                     let event_params = EventProcessingParams {
-                        connector_name: &connector.to_string(),
+                        connector_name: &metadata_payload.connector.get_connector_name(),
                         service_name: &service_name,
                         service_type: utils::service_type_str(&config.server.type_),
                         flow_name: FlowName::RepeatPayment,
@@ -2989,6 +2990,7 @@ impl PaymentMethodAuthOperational for PaymentMethodAuthentication {
         request_data_constructor: PaymentsPreAuthenticateData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_pre_authenticate_response,
+        connector_data_type: ConnectorData<DefaultPCIHolder>,
         all_keys_required: None,
         has_payment_method_data: option
     );
@@ -3005,6 +3007,7 @@ impl PaymentMethodAuthOperational for PaymentMethodAuthentication {
         request_data_constructor: PaymentsAuthenticateData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_authenticate_response,
+        connector_data_type: ConnectorData<DefaultPCIHolder>,
         all_keys_required: None,
         has_payment_method_data: option
     );
@@ -3021,6 +3024,7 @@ impl PaymentMethodAuthOperational for PaymentMethodAuthentication {
         request_data_constructor: PaymentsPostAuthenticateData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_post_authenticate_response,
+        connector_data_type: ConnectorData<DefaultPCIHolder>,
         all_keys_required: None,
         has_payment_method_data: option
     );

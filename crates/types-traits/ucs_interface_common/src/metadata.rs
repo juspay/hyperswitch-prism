@@ -27,7 +27,7 @@ pub struct MetadataPayload {
     pub tenant_id: String,
     pub request_id: String,
     pub merchant_id: String,
-    pub connector: connector_types::ConnectorEnum,
+    pub connector: connector_types::ConnectorVariant,
     pub lineage_ids: LineageIds<'static>,
     /// Typed connector integration config extracted from request metadata.
     ///
@@ -103,6 +103,64 @@ pub fn extract_lineage_fields_from_metadata(
         .to_owned()
 }
 
+pub fn connector_variant_from_metadata(
+    metadata: &metadata::MetadataMap,
+) -> CustomResult<connector_types::ConnectorVariant, IntegrationError> {
+    // Priority 1: Check x-connector header first
+    if let Some(value) = metadata.get(consts::X_CONNECTOR_NAME) {
+        let connector_str = value.to_str().map_err(|e| {
+            Report::new(IntegrationError::InvalidDataFormat {
+                field_name: "x-connector",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!("Invalid x-connector header value: {e}")),
+                    ..Default::default()
+                },
+            })
+        })?;
+        let connector = connector_types::ConnectorEnum::from_str(connector_str).map_err(|e| {
+            Report::new(IntegrationError::InvalidDataFormat {
+                field_name: "x-connector",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!("Invalid connector: {e}")),
+                    ..Default::default()
+                },
+            })
+        })?;
+        Ok(connector_types::ConnectorVariant::Payment(connector))
+    } else if let Some(value) = metadata.get(consts::X_SURCHARGE_CONNECTOR_NAME)
+    // Priority 2: Check x-surcharge-connector header
+    {
+        let connector_str = value.to_str().map_err(|e| {
+            Report::new(IntegrationError::InvalidDataFormat {
+                field_name: "x-surcharge-connector",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "Invalid x-surcharge-connector header value: {e}"
+                    )),
+                    ..Default::default()
+                },
+            })
+        })?;
+        let connector =
+            connector_types::SurchargeConnectorEnum::from_str(connector_str).map_err(|e| {
+                Report::new(IntegrationError::InvalidDataFormat {
+                    field_name: "x-surcharge-connector",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!("Invalid surcharge connector: {e}")),
+                        ..Default::default()
+                    },
+                })
+            })?;
+        Ok(connector_types::ConnectorVariant::Surcharge(connector))
+    } else {
+        // Neither header found
+        Err(Report::new(IntegrationError::MissingRequiredField {
+            field_name: "x-connector",
+            context: IntegrationErrorContext::default(),
+        }))
+    }
+}
+
 pub fn connector_from_metadata(
     metadata: &metadata::MetadataMap,
 ) -> CustomResult<connector_types::ConnectorEnum, IntegrationError> {
@@ -118,7 +176,6 @@ pub fn connector_from_metadata(
         })
     })
 }
-
 pub fn merchant_id_from_metadata(
     metadata: &metadata::MetadataMap,
 ) -> CustomResult<String, IntegrationError> {

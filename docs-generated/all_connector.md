@@ -124,11 +124,11 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Adyen](connectors/adyen.md) | ⚠ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ⚠ | ✓ | ✓ | ⚠ | ✓ | ✓ | ✓ | ⚠ | ⚠ | x | ⚠ | ⚠ | x | x | ✓ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ✓ | ✓ | ✓ | ✓ |
 | [Airwallex](connectors/airwallex.md) | ✓ | ✓ | x | ✓ | ✓ | ✓ | ⚠ | ⚠ | ? | ⚠ | ? | ✓ | ? | ? | ⚠ | ✓ | ? | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ |
 | [Authipay](connectors/authipay.md) | ✓ | ✓ | ✓ | ✓ | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ |
-| [Authorize.net](connectors/authorizedotnet.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | x | ⚠ | ✓ | ✓ | ✓ | ⚠ | ✓ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | x | x | x | ⚠ | x | x | ✓ | ✓ |
+| [Authorize.net](connectors/authorizedotnet.md) | ✓ | ✓ | ✓ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | x | ⚠ | ✓ | ✓ | ✓ | ⚠ | ✓ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | x | x | x | ⚠ | x | x | ✓ | ✓ |
 | [Axisbank](connectors/axisbank.md) | ? | ⚠ | ⚠ | ⚠ | ⚠ | ? | ⚠ | ⚠ | ⚠ | ? | ⚠ | ? | ⚠ | ⚠ | ⚠ | ? | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ |
 | [Bambora](connectors/bambora.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | x | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ |
 | [Bamboraapac](connectors/bamboraapac.md) | ✓ | ⚠ | ⚠ | ✓ | ⚠ | ✓ | x | ⚠ | ✓ | x | x | ✓ | ✓ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ |
-| [Bankofamerica](connectors/bankofamerica.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ✓ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ |
+| [Bankofamerica](connectors/bankofamerica.md) | ✓ | ✓ | ✓ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ✓ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ |
 | [Barclaycard](connectors/barclaycard.md) | ✓ | ✓ | ⚠ | ✓ | x | ✓ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ✓ | ✓ | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ |
 | [Billwerk](connectors/billwerk.md) | ✓ | ✓ | x | ✓ | ⚠ | ✓ | ⚠ | ⚠ | x | ✓ | ✓ | x | x | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ? | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ |
 | [Bluesnap](connectors/bluesnap.md) | ✓ | ✓ | x | ✓ | x | ✓ | x | ⚠ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | x | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ✓ | ✓ |
@@ -180,7 +180,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Peachpayments](connectors/peachpayments.md) | ✓ | ✓ | x | ✓ | x | ✓ | x | ⚠ | ✓ | x | x | ✓ | ✓ | x | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ✓ | ✓ |
 | [PhonePe](connectors/phonepe.md) | ✓ | ✓ | x | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | x | ⚠ | x | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | x | x | ✓ | ✓ |
 | [Pinelabsonline](connectors/pinelabsonline.md) | ? | ? | x | ? | ? | ? | x | ⚠ | ⚠ | ? | ⚠ | ? | ⚠ | ⚠ | ⚠ | ? | x | ⚠ | ⚠ | ✓ | x | x | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ |
-| [PlacetoPay](connectors/placetopay.md) | ✓ | ✓ | ⚠ | ✓ | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ? | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ |
+| [PlacetoPay](connectors/placetopay.md) | ✓ | ✓ | ✓ | ✓ | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ? | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ |
 | [Powertranz](connectors/powertranz.md) | ✓ | ✓ | ⚠ | ✓ | x | ✓ | x | ⚠ | ✓ | x | x | ✓ | ✓ | x | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ |
 | [Ppro](connectors/ppro.md) | ✓ | ✓ | x | ✓ | ⚠ | ✓ | x | ✓ | x | ? | ? | x | x | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ✓ |
 | [Rapyd](connectors/rapyd.md) | ✓ | ✓ | x | ✓ | ? | ✓ | ⚠ | ⚠ | ? | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | x | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ |
@@ -205,7 +205,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Wellsfargo](connectors/wellsfargo.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ⚠ | x | ✓ | ✓ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ |
 | [Worldpay](connectors/worldpay.md) | ✓ | ✓ | ⚠ | ✓ | x | ✓ | ✓ | ⚠ | ⚠ | ? | ⚠ | x | ⚠ | ✓ | x | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ? | ⚠ | ? | x | ⚠ | x | x | ⚠ | ⚠ |
 | [Worldpayvantiv](connectors/worldpayvantiv.md) | ✓ | ✓ | ✓ | ✓ | x | ✓ | ✓ | ⚠ | ⚠ | x | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ |
-| [Worldpayxml](connectors/worldpayxml.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | x | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | ⚠ |
+| [Worldpayxml](connectors/worldpayxml.md) | ✓ | ✓ | ✓ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | x | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | ⚠ |
 | [Xendit](connectors/xendit.md) | ✓ | ⚠ | x | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ |
 | [Zift](connectors/zift.md) | ✓ | ✓ | ⚠ | ✓ | x | ✓ | ⚠ | ⚠ | ✓ | ⚠ | x | ✓ | ✓ | ⚠ | ⚠ | ⚠ | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ |
 

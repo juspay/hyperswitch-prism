@@ -14,11 +14,11 @@ pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::genera
 const UNAUTHORIZED_STATUS_CODE: u16 = 401;
 
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, SetupMandate, Void},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, SetupMandate, Void, VoidPC},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, SetupMandateRequestData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, SetupMandateRequestData,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::ErrorResponse,
@@ -45,11 +45,12 @@ use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 use transformers::{
     BankOfAmericaAuthType, BankOfAmericaPaymentsResponseForSetupMandate,
-    BankOfAmericaPaymentsResponseForVoid, BankOfAmericaRefundRequestForRefund,
-    BankOfAmericaRefundResponseForRefund, BankOfAmericaRsyncResponseForRSync,
-    BankOfAmericaTransactionResponse, BankofamericaCaptureRequest, BankofamericaErrorResponse,
-    BankofamericaPaymentsRequest, BankofamericaPaymentsRequestForSetupMandate,
-    BankofamericaPaymentsResponse, BankofamericaPaymentsResponseForCapture,
+    BankOfAmericaPaymentsResponseForVoid, BankOfAmericaPaymentsResponseForVoidPC,
+    BankOfAmericaRefundRequestForRefund, BankOfAmericaRefundResponseForRefund,
+    BankOfAmericaRsyncResponseForRSync, BankOfAmericaTransactionResponse,
+    BankofamericaCaptureRequest, BankofamericaErrorResponse, BankofamericaPaymentsRequest,
+    BankofamericaPaymentsRequestForSetupMandate, BankofamericaPaymentsResponse,
+    BankofamericaPaymentsResponseForCapture, BankofamericaVoidPCRequestForVoidPC,
     BankofamericaVoidRequestForVoid,
 };
 
@@ -116,6 +117,11 @@ macros::macro_connector_payout_implementation!(
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Bankofamerica<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentVoidPostCaptureV2 for Bankofamerica<T>
 {
 }
 
@@ -266,6 +272,12 @@ macros::create_all_prerequisites!(
             request_body: BankofamericaVoidRequestForVoid,
             response_body: BankOfAmericaPaymentsResponseForVoid,
             router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ),
+        (
+            flow: VoidPC,
+            request_body: BankofamericaVoidPCRequestForVoidPC,
+            response_body: BankOfAmericaPaymentsResponseForVoidPC,
+            router_data: RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
         ),
         (
             flow: Refund,
@@ -564,6 +576,42 @@ macros::macro_connector_implementation!(
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Bankofamerica,
+    curl_request: Json(BankofamericaVoidPCRequestForVoidPC),
+    curl_response: BankOfAmericaPaymentsResponseForVoidPC,
+    flow_name: VoidPC,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsCancelPostCaptureData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+        &self,
+        req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+        self.build_headers(req)
+    }
+
+    fn get_url(
+        &self,
+        req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        let capture_id = &req.request.connector_transaction_id;
+        if capture_id.is_empty() {
+            return Err(IntegrationError::MissingConnectorTransactionID { context: Default::default() }.into());
+        }
+        Ok(format!(
+            "{}pts/v2/captures/{capture_id}/voids",
+            self.connector_base_url_payments(req)
+        ))
+    }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Bankofamerica,
     curl_request: Json(BankofamericaPaymentsRequestForSetupMandate<T>),
     curl_response: BankOfAmericaPaymentsResponseForSetupMandate,
     flow_name: SetupMandate,
@@ -681,6 +729,5 @@ macros::macro_connector_flow_status_impls!(
         PostAuthenticate,
         ClientAuthenticationToken,
         MandateRevoke,
-        VoidPC,
     ],
 );
