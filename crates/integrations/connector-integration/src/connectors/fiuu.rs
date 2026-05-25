@@ -12,14 +12,14 @@ use common_utils::{
     types::StringMajorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, Void},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
         ConnectorSpecifications, ConnectorWebhookSecrets, EventContext, EventType,
         MandateReferenceId, PaymentFlowData, PaymentVoidData, PaymentWebhookReference,
         PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundWebhookReference,
         RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails,
-        WebhookDetailsResponse, WebhookResourceReference,
+        SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -43,8 +43,9 @@ use tracing::{error, info, warn};
 use transformers::{
     self as fiuu, FiuuPaymentCancelRequest, FiuuPaymentCancelResponse, FiuuPaymentRequest,
     FiuuPaymentResponse, FiuuPaymentSyncRequest, FiuuPaymentsRequest as FiuuRepeatPaymentsRequest,
-    FiuuPaymentsResponse, FiuuPaymentsResponse as FiuuRepeatPaymentsResponse, FiuuRefundRequest,
-    FiuuRefundResponse, FiuuRefundSyncRequest, FiuuRefundSyncResponse, FiuuWebhooksResponse,
+    FiuuPaymentsResponse, FiuuPaymentsResponse as FiuuRepeatPaymentsResponse,
+    FiuuPaymentsResponse as FiuuSetupMandateResponse, FiuuRefundRequest, FiuuRefundResponse,
+    FiuuRefundSyncRequest, FiuuRefundSyncResponse, FiuuSetupMandateRequest, FiuuWebhooksResponse,
     PaymentCaptureRequest, PaymentCaptureResponse,
 };
 
@@ -104,6 +105,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Fiuu<T>
 {
 }
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::SetupMandateV2<T> for Fiuu<T>
+{
+}
 // Authentication trait implementations
 macros::macro_connector_payout_implementation!(
     connector: Fiuu,
@@ -156,6 +161,12 @@ macros::create_all_prerequisites!(
             request_body: FiuuRepeatPaymentsRequest<T>,
             response_body: FiuuRepeatPaymentsResponse,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: FiuuSetupMandateRequest<T>,
+            response_body: FiuuSetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -339,6 +350,44 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}RMS/API/Direct/1.4.0/index.php",
+                self.connector_base_url_payments(req)
+            ))
+        }
+    }
+);
+
+// SetupMandate (Pay.SetupRecurring) — Fiuu has no dedicated vault endpoint.
+// Tokenizing a card for off-session reuse goes through the same
+// `RMS/API/Direct/1.4.0/index.php` Direct API that Authorize uses, with
+// `mpstokenstatus=1` set on the card payload. The response carries an
+// `extraP.token` field which the shared `FiuuPaymentsResponse` transformer
+// lifts onto `MandateReference.connector_mandate_id`; RepeatPayment then
+// replays that id via its existing `RMS/API/Recurring/input_v7.php` flow.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Fiuu,
+    curl_request: FormData(FiuuSetupMandateRequest<T>),
+    curl_response: FiuuSetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!(
                 "{}RMS/API/Direct/1.4.0/index.php",
@@ -1104,7 +1153,6 @@ macros::macro_connector_flow_status_impls!(
         IncrementalAuthorization,
         VoidPC,
         CreateOrder,
-        SetupMandate,
         ServerSessionAuthenticationToken,
         ServerAuthenticationToken,
         CreateConnectorCustomer,
