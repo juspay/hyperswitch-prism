@@ -177,6 +177,7 @@ fn build_payload_cards_request_data<T: PaymentMethodDataTypes>(
             billing_address,
             processing_id: payload_auth.processing_account_id,
             keep_active: is_mandate,
+            customer_id: resource_common_data.connector_customer.clone(),
         })
     } else {
         Err(IntegrationError::NotSupported {
@@ -258,6 +259,7 @@ fn build_payload_bank_account_request_data(
                 status,
                 processing_id: payload_auth.processing_account_id,
                 keep_active: false,
+                customer_id: resource_common_data.connector_customer.clone(),
             })
         }
         BankDebitData::SepaBankDebit { .. }

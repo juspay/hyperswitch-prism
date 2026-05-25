@@ -60,6 +60,8 @@ pub struct PayloadCardsRequestData<T: PaymentMethodDataTypes> {
     /// This is true by default
     #[serde(rename = "payment_method[keep_active]")]
     pub keep_active: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -121,6 +123,8 @@ pub struct PayloadBankAccountRequestData {
     /// For one-time payments, set to false
     #[serde(rename = "payment_method[keep_active]")]
     pub keep_active: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer_id: Option<String>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, PartialEq)]
