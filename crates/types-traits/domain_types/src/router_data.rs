@@ -3146,13 +3146,13 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
                 ConnectorEnum::TwocTwopPaco => Err(err().into()),
-                            ConnectorEnum::Tamara => match auth {
-                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Tamara {
-                    api_key: api_key.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            }
+                ConnectorEnum::Tamara => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Tamara {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
             },
             connector_types::ConnectorVariant::Surcharge(connector_enum) => match connector_enum {
                 SurchargeConnectorEnum::Interpayments => match auth {
