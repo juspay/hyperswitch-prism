@@ -783,8 +783,26 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: void_post_capture flow for bankofamerica"
+        "status": "supported",
+        "proto_request": {
+          "merchant_reverse_id": "probe_reverse_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://apitest.merchant-services.bankofamerica.com/pts/v2/captures/probe_connector_txn_001/voids",
+          "method": "Post",
+          "headers": {
+            "accept": "application/hal+json;charset=utf-8",
+            "content-type": "application/json;charset=utf-8",
+            "date": "2020-01-01T00:00:00+00:00",
+            "digest": "SHA-256=cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "host": "apitest.merchant-services.bankofamerica.com",
+            "signature": "keyid=\"probe_key\", algorithm=\"HmacSHA256\", headers=\"host date (request-target) digest v-c-merchant-id\", signature=\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"",
+            "v-c-merchant-id": "probe_merchant",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"clientReferenceInformation\":{\"code\":\"probe_reverse_001\"}}"
+        }
       }
     },
     "setup_recurring": {

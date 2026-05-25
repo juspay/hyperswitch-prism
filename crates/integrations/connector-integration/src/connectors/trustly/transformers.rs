@@ -765,15 +765,15 @@ pub struct TrustlyWebhookData {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TrustlyWebhookAttributes {
-    pub bank: Secret<String>,
-    pub city: Secret<String>,
-    pub name: Secret<String>,
-    pub address: Secret<String>,
-    pub zipcode: Secret<String>,
-    pub personid: Secret<String>,
-    pub descriptor: String,
-    pub lastdigits: String,
-    pub clearinghouse: String,
+    pub bank: Option<Secret<String>>,
+    pub city: Option<Secret<String>>,
+    pub name: Option<Secret<String>>,
+    pub address: Option<Secret<String>>,
+    pub zipcode: Option<Secret<String>>,
+    pub personid: Option<Secret<String>>,
+    pub descriptor: Option<String>,
+    pub lastdigits: Option<String>,
+    pub clearinghouse: Option<String>,
 }
 
 pub fn verify_webhook_signature(
@@ -833,7 +833,10 @@ pub fn get_webhook_event(event: TrustlyWebhookMethod) -> domain_types::connector
         TrustlyWebhookMethod::Credit => {
             domain_types::connector_types::EventType::PaymentIntentSuccess
         }
-        TrustlyWebhookMethod::Debit | TrustlyWebhookMethod::Cancel => {
+        TrustlyWebhookMethod::Debit => {
+            domain_types::connector_types::EventType::PaymentIntentFailure
+        }
+        TrustlyWebhookMethod::Cancel => {
             domain_types::connector_types::EventType::PaymentIntentCancelled
         }
         TrustlyWebhookMethod::Account | TrustlyWebhookMethod::Pending => {

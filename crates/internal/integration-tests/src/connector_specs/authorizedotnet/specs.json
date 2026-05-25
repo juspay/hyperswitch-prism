@@ -5,6 +5,7 @@
     "PaymentService/Authorize",
     "PaymentService/Capture",
     "PaymentService/Void",
+    "PaymentService/Reverse",
     "PaymentService/Refund",
     "PaymentService/Get",
     "RefundService/Get",
