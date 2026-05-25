@@ -282,19 +282,16 @@ impl EventService for EventServiceImpl {
         // Parse metadata to get connector config
         let request_data = RequestData::from_grpc_request(request, config.clone())?;
         let metadata_payload = request_data.extracted_metadata;
-
-        let req = request_data.payload;
-        let event_type = req.event_type;
-
-        let event_type_enum = grpc_api_types::payments::NotifyEventType::try_from(event_type)
-            .map_err(|_| tonic::Status::invalid_argument("Invalid event type"))?;
+        let event_type_enum =
+            grpc_api_types::payments::NotifyEventType::try_from(request_data.payload.event_type)
+                .map_err(|_| tonic::Status::invalid_argument("Invalid event type"))?;
 
         match event_type_enum {
             grpc_api_types::payments::NotifyEventType::SurchargePaymentSucceeded => {
-                     Box::pin(self.handle_payment_surcharge_notify(
+                Box::pin(self.handle_payment_surcharge_notify(
                     req,
-                     &service_name,
-                   config,
+                    &service_name,
+                    config,
                     metadata_payload.connector_config,
                 ))
                 .await
@@ -379,17 +376,19 @@ impl EventServiceImpl {
             return_raw_connector_data: config.common.return_raw_connector_data,
         };
 
-        let response_result = Box::pin(external_services::service::execute_connector_processing_step(
-            &config.proxy,
-            connector_integration,
-            router_data,
-            None,
-            event_params,
-            None,
-            common_enums::CallConnectorAction::Trigger,
-            None,
-            None,
-        ))
+        let response_result = Box::pin(
+            external_services::service::execute_connector_processing_step(
+                &config.proxy,
+                connector_integration,
+                router_data,
+                None,
+                event_params,
+                None,
+                common_enums::CallConnectorAction::Trigger,
+                None,
+                None,
+            ),
+        )
         .await
         .into_grpc_status()?;
 
@@ -465,17 +464,19 @@ impl EventServiceImpl {
             return_raw_connector_data: config.common.return_raw_connector_data,
         };
 
-        let response_result = Box::pin(external_services::service::execute_connector_processing_step(
-            &config.proxy,
-            connector_integration,
-            router_data,
-            None,
-            event_params,
-            None,
-            common_enums::CallConnectorAction::Trigger,
-            None,
-            None,
-        ))
+        let response_result = Box::pin(
+            external_services::service::execute_connector_processing_step(
+                &config.proxy,
+                connector_integration,
+                router_data,
+                None,
+                event_params,
+                None,
+                common_enums::CallConnectorAction::Trigger,
+                None,
+                None,
+            ),
+        )
         .await
         .into_grpc_status()?;
 
