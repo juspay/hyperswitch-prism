@@ -544,7 +544,7 @@ connector_base_url = "https://api.trustly.com/v1/"
 # 2C2P PACO
 [[overrides]]
 _context_ = { connector = "twoc_twop_paco" }
-connector_base_url = "https://core.demo-paco.2c2p.com/"
+connector_base_url = "https://core.demo-paco.2c2p.com"
 
 # Wells Fargo
 [[overrides]]
