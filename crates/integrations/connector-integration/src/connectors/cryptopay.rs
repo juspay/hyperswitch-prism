@@ -5,7 +5,8 @@ use std::fmt::Debug;
 use common_enums::CurrencyUnit;
 use transformers::{
     self as cryptopay, CryptopayPaymentsRequest, CryptopayPaymentsResponse,
-    CryptopayPaymentsResponse as CryptopayPaymentsSyncResponse,
+    CryptopayPaymentsResponse as CryptopayPaymentsSyncResponse, CryptopaySetupMandateRequest,
+    CryptopaySetupMandateResponse,
 };
 
 use super::macros;
@@ -13,10 +14,11 @@ use crate::types::ResponseRouterData;
 use hex::encode;
 
 use domain_types::{
-    connector_flow::{Authorize, PSync},
+    connector_flow::{Authorize, PSync, SetupMandate},
     connector_types::{
         ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData, PaymentsAuthorizeData,
-        PaymentsResponseData, PaymentsSyncData, RequestDetails, WebhookDetailsResponse,
+        PaymentsResponseData, PaymentsSyncData, RequestDetails, SetupMandateRequestData,
+        WebhookDetailsResponse,
     },
     payment_method_data::PaymentMethodDataTypes,
     types::Connectors,
@@ -145,6 +147,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::SetupMandateV2<T> for Cryptopay<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Cryptopay<T>
 {
 }
@@ -175,6 +181,12 @@ macros::create_all_prerequisites!(
             flow: PSync,
             response_body: CryptopayPaymentsSyncResponse,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: CryptopaySetupMandateRequest,
+            response_body: CryptopaySetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -306,6 +318,45 @@ macros::macro_connector_implementation!(
     }
 );
 
+// SetupMandate (Pay.SetupRecurring) — Cryptopay has no dedicated card/mandate
+// vault endpoint (crypto invoices are pull-based and tied to a hosted-page
+// redirect). The closest stable anchor we can hand back as a
+// `connector_mandate_id` is the invoice id itself: we create an invoice via
+// `POST /api/invoices` (same endpoint used by Authorize) and surface
+// `data.id` as the mandate reference. The downstream orchestrator then has
+// a stable id to replay on future RepeatPayment / SetupRecurring calls. Status
+// is mapped from CryptopayPaymentStatus exactly like Authorize, so a freshly
+// created invoice (status=`new`) lands as `AuthenticationPending` along with
+// the hosted-page redirect — the customer completes the crypto transfer on
+// Cryptopay, and the webhook moves the mandate to `Charged` afterwards.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Cryptopay,
+    curl_request: Json(CryptopaySetupMandateRequest),
+    curl_response: CryptopaySetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/api/invoices", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Cryptopay<T>
 {
@@ -411,7 +462,6 @@ macros::macro_connector_flow_status_impls!(
     not_implemented: [
         RSync,
         Refund,
-        SetupMandate,
         CreateConnectorCustomer,
         MandateRevoke,
         RepeatPayment,
