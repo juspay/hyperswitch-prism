@@ -414,7 +414,7 @@ impl CustomerService for Customer {
                         return_raw_connector_data: config.common.return_raw_connector_data,
                     };
 
-                    let response = Box::pin(
+                    let response = match Box::pin(
                         external_services::service::execute_connector_processing_step(
                             &config.proxy,
                             connector_integration,
@@ -428,7 +428,19 @@ impl CustomerService for Customer {
                         ),
                     )
                     .await
-                    .into_grpc_status()?;
+                    {
+                        Ok(rd) => rd,
+                        Err(err) => match ucs_env::error::extract_connector_error_response(&err) {
+                            Some(error_response) => RouterDataV2 {
+                                flow: std::marker::PhantomData,
+                                resource_common_data: payment_flow_data,
+                                connector_config: connector_config.clone(),
+                                request: connector_customer_request_data,
+                                response: Err(error_response),
+                            },
+                            None => return Err(IntoGrpcStatus::into_grpc_status(err)),
+                        },
+                    };
 
                     // Generate response using the new function
                     let connector_customer_response =
@@ -502,6 +514,8 @@ impl Payments {
             PaymentsAuthorizeData::foreign_try_from((payload.clone(), payment_method_data.clone()))
                 .into_grpc_status()?;
 
+        let fallback_request = payment_authorize_data.clone();
+
         // Construct router data
         let router_data = RouterDataV2::<
             Authorize,
@@ -544,8 +558,7 @@ impl Payments {
             return_raw_connector_data: config.common.return_raw_connector_data,
         };
 
-        // Execute connector processing - ONLY the authorize call
-        let response = external_services::service::execute_connector_processing_step(
+        let success_response = match external_services::service::execute_connector_processing_step(
             &config.proxy,
             connector_integration,
             router_data,
@@ -556,10 +569,20 @@ impl Payments {
             test_context,
             api_tag,
         )
-        .await;
-
-        // Generate response - connector flow errors propagate as Err(tonic::Status)
-        let success_response = response.into_grpc_status()?;
+        .await
+        {
+            Ok(rd) => rd,
+            Err(err) => match ucs_env::error::extract_connector_error_response(&err) {
+                Some(error_response) => RouterDataV2 {
+                    flow: std::marker::PhantomData,
+                    resource_common_data: payment_flow_data,
+                    connector_config: connector_config.clone(),
+                    request: fallback_request,
+                    response: Err(error_response),
+                },
+                None => return Err(IntoGrpcStatus::into_grpc_status(err)),
+            },
+        };
 
         let authorize_response =
             domain_types::types::generate_payment_authorize_response(success_response)
@@ -666,7 +689,7 @@ impl Payments {
             return_raw_connector_data: config.common.return_raw_connector_data,
         };
 
-        let response = Box::pin(
+        let success_response = match Box::pin(
             external_services::service::execute_connector_processing_step(
                 &config.proxy,
                 connector_integration,
@@ -679,10 +702,20 @@ impl Payments {
                 api_tag,
             ),
         )
-        .await;
-
-        // Generate response - connector flow errors propagate as Err(tonic::Status)
-        let success_response = response.into_grpc_status()?;
+        .await
+        {
+            Ok(rd) => rd,
+            Err(err) => match ucs_env::error::extract_connector_error_response(&err) {
+                Some(error_response) => RouterDataV2 {
+                    flow: std::marker::PhantomData,
+                    resource_common_data: payment_flow_data,
+                    connector_config: connector_config.clone(),
+                    request: setup_mandate_request_data,
+                    response: Err(error_response),
+                },
+                None => return Err(IntoGrpcStatus::into_grpc_status(err)),
+            },
+        };
 
         let setup_mandate_response =
             generate_setup_mandate_response(success_response).into_grpc_status()?;
@@ -1011,6 +1044,7 @@ impl PaymentService for Payments {
                     };
 
                     // Create router data
+                    let fallback_flow_data = payment_flow_data.clone();
                     let router_data = RouterDataV2::<
                         PSync,
                         PaymentFlowData,
@@ -1059,7 +1093,7 @@ impl PaymentService for Payments {
                     // handle_response field removed from proto (field 5 reserved)
                     let consume_or_trigger_flow = common_enums::CallConnectorAction::Trigger;
 
-                    let response_result = Box::pin(
+                    let response_result = match Box::pin(
                         external_services::service::execute_connector_processing_step(
                             &config.proxy,
                             connector_integration,
@@ -1073,7 +1107,19 @@ impl PaymentService for Payments {
                         ),
                     )
                     .await
-                    .into_grpc_status()?;
+                    {
+                        Ok(rd) => rd,
+                        Err(err) => match ucs_env::error::extract_connector_error_response(&err) {
+                            Some(error_response) => RouterDataV2 {
+                                flow: std::marker::PhantomData,
+                                resource_common_data: fallback_flow_data,
+                                connector_config: metadata_payload.connector_config.clone(),
+                                request: payments_sync_data,
+                                response: Err(error_response),
+                            },
+                            None => return Err(IntoGrpcStatus::into_grpc_status(err)),
+                        },
+                    };
 
                     // Generate response
                     let final_response =
@@ -2182,7 +2228,7 @@ impl PaymentMethod {
             return_raw_connector_data: config.common.return_raw_connector_data,
         };
 
-        let response = Box::pin(
+        let success_response = match Box::pin(
             external_services::service::execute_connector_processing_step(
                 &config.proxy,
                 connector_integration,
@@ -2195,10 +2241,20 @@ impl PaymentMethod {
                 api_tag,
             ),
         )
-        .await;
-
-        // Generate response - connector flow errors propagate as Err(tonic::Status)
-        let success_response = response.into_grpc_status()?;
+        .await
+        {
+            Ok(rd) => rd,
+            Err(err) => match ucs_env::error::extract_connector_error_response(&err) {
+                Some(error_response) => RouterDataV2 {
+                    flow: std::marker::PhantomData,
+                    resource_common_data: payment_flow_data,
+                    connector_config: connector_config.clone(),
+                    request: payment_method_token_request_data,
+                    response: Err(error_response),
+                },
+                None => return Err(IntoGrpcStatus::into_grpc_status(err)),
+            },
+        };
 
         let payment_method_token_response =
             domain_types::types::generate_create_payment_method_token_response(success_response)
@@ -2250,6 +2306,9 @@ impl MerchantAuthentication {
             ServerSessionAuthenticationTokenRequestData::foreign_try_from(payload.clone())
                 .into_grpc_status()?;
 
+        let fallback_request = session_token_request_data.clone();
+        let fallback_config = connector_config.clone();
+
         let session_token_router_data = RouterDataV2::<
             ServerSessionAuthenticationToken,
             PaymentFlowData,
@@ -2291,8 +2350,7 @@ impl MerchantAuthentication {
             return_raw_connector_data: config.common.return_raw_connector_data,
         };
 
-        // Execute connector processing
-        let response = Box::pin(
+        let response = match Box::pin(
             external_services::service::execute_connector_processing_step(
                 &config.proxy,
                 connector_integration,
@@ -2306,7 +2364,19 @@ impl MerchantAuthentication {
             ),
         )
         .await
-        .into_grpc_status()?;
+        {
+            Ok(rd) => rd,
+            Err(err) => match ucs_env::error::extract_connector_error_response(&err) {
+                Some(error_response) => RouterDataV2 {
+                    flow: std::marker::PhantomData,
+                    resource_common_data: payment_flow_data.clone(),
+                    connector_config: fallback_config,
+                    request: fallback_request,
+                    response: Err(error_response),
+                },
+                None => return Err(IntoGrpcStatus::into_grpc_status(err)),
+            },
+        };
 
         match response.response {
             Ok(session_response) => {
@@ -2364,6 +2434,9 @@ impl MerchantAuthentication {
         )
         .into_grpc_status()?;
 
+        let fallback_request = access_token_request_data.clone();
+        let fallback_config = connector_config.clone();
+
         // Create router data for access token flow
         let access_token_router_data = RouterDataV2::<
             ServerAuthenticationToken,
@@ -2406,7 +2479,7 @@ impl MerchantAuthentication {
             return_raw_connector_data: config.common.return_raw_connector_data,
         };
 
-        let response = Box::pin(
+        let response = match Box::pin(
             external_services::service::execute_connector_processing_step(
                 &config.proxy,
                 connector_integration,
@@ -2420,7 +2493,19 @@ impl MerchantAuthentication {
             ),
         )
         .await
-        .into_grpc_status()?;
+        {
+            Ok(rd) => rd,
+            Err(err) => match ucs_env::error::extract_connector_error_response(&err) {
+                Some(error_response) => RouterDataV2 {
+                    flow: std::marker::PhantomData,
+                    resource_common_data: payment_flow_data.clone(),
+                    connector_config: fallback_config,
+                    request: fallback_request,
+                    response: Err(error_response),
+                },
+                None => return Err(IntoGrpcStatus::into_grpc_status(err)),
+            },
+        };
 
         // Use generate_access_token_response for consistency
         domain_types::types::generate_access_token_response(response).into_grpc_status()
@@ -2868,6 +2953,7 @@ impl RecurringPaymentService for RecurringPayments {
                         .map_err(|e| e.into_grpc_status())?;
 
                     // Create router data
+                    let fallback_flow_data = payment_flow_data.clone();
                     let router_data: RouterDataV2<
                         RepeatPayment,
                         PaymentFlowData,
@@ -2908,7 +2994,7 @@ impl RecurringPaymentService for RecurringPayments {
                         return_raw_connector_data: config.common.return_raw_connector_data,
                     };
 
-                    let response = Box::pin(
+                    let response = match Box::pin(
                         external_services::service::execute_connector_processing_step(
                             &config.proxy,
                             connector_integration,
@@ -2922,7 +3008,19 @@ impl RecurringPaymentService for RecurringPayments {
                         ),
                     )
                     .await
-                    .map_err(|e| e.into_grpc_status())?;
+                    {
+                        Ok(rd) => rd,
+                        Err(err) => match ucs_env::error::extract_connector_error_response(&err) {
+                            Some(error_response) => RouterDataV2 {
+                                flow: std::marker::PhantomData,
+                                resource_common_data: fallback_flow_data,
+                                connector_config: connector_config.clone(),
+                                request: repeat_payment_data,
+                                response: Err(error_response),
+                            },
+                            None => return Err(IntoGrpcStatus::into_grpc_status(err)),
+                        },
+                    };
 
                     // Generate response
                     let repeat_payment_response = generate_repeat_payment_response(response)
