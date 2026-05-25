@@ -1,5 +1,5 @@
 {
-  "connector": "sanlam",
+  "connector": "absa_sanlam",
   "flows": {
     "authenticate": {
       "default": {
