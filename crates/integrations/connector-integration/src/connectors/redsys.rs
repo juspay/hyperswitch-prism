@@ -13,8 +13,7 @@ use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 use domain_types::{
     connector_flow::{
-        Authenticate, Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, SetupMandate,
-        Void,
+        Authenticate, Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, SetupMandate, Void,
     },
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,

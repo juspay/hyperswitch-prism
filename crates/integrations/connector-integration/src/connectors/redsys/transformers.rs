@@ -14,8 +14,7 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authenticate, Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, SetupMandate,
-        Void,
+        Authenticate, Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, SetupMandate, Void,
     },
     connector_types::{
         self, MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthenticateData,
