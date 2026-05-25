@@ -16,7 +16,7 @@ use domain_types::{
     },
     errors,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
@@ -940,10 +940,6 @@ impl From<PacoRefundResponseCode> for RefundStatus {
     }
 }
 
-/// Parse a PACO `apiResponse.responseCode` string into a `RefundStatus`.
-/// Returns `None` for an empty/missing code so callers can fall back to other
-/// signals (e.g. `paymentStatusInfo` tuple mapping). Codes outside the
-/// enumerated table parse as `Unknown` → `Pending`.
 pub fn classify_refund_response_code(code: Option<&str>) -> Option<RefundStatus> {
     let code = code?.trim();
     if code.is_empty() {
@@ -1206,7 +1202,7 @@ where
                 message: message.clone(),
                 reason: Some(message),
                 status_code: http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: connector_txn_id,
                 network_advice_code: None,
                 network_decline_code: None,
@@ -1274,7 +1270,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
                 message: message.clone(),
                 reason: Some(message),
                 status_code: http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: txn_id,
                 network_advice_code: None,
                 network_decline_code: None,
@@ -1340,7 +1336,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
                 message: message.clone(),
                 reason: Some(message),
                 status_code: http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: txn_id,
                 network_advice_code: None,
                 network_decline_code: None,
@@ -1406,7 +1402,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
                 message: message.clone(),
                 reason: Some(message),
                 status_code: http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: txn_id,
                 network_advice_code: None,
                 network_decline_code: None,
@@ -1616,7 +1612,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
                 message: message.clone(),
                 reason: Some(message),
                 status_code: http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: invoice.clone(),
                 network_advice_code: None,
                 network_decline_code: None,

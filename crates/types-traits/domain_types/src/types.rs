@@ -5948,6 +5948,52 @@ impl ForeignFrom<common_enums::RefundStatus> for grpc_api_types::payments::Refun
     }
 }
 
+// Map FlowStatus to PaymentStatus (for payment flow errors)
+impl ForeignFrom<router_data::FlowStatus> for grpc_api_types::payments::PaymentStatus {
+    fn foreign_from(status: router_data::FlowStatus) -> Self {
+        match status {
+            router_data::FlowStatus::Payment(attempt_status) => {
+                grpc_api_types::payments::PaymentStatus::foreign_from(attempt_status)
+            }
+            // For Refund/Dispute in payment context, this shouldn't happen
+            // but we provide sensible defaults
+            router_data::FlowStatus::Refund(_) | router_data::FlowStatus::Dispute(_) => {
+                Self::Unspecified
+            }
+        }
+    }
+}
+
+// Map FlowStatus to RefundStatus (for refund flow errors)
+impl ForeignFrom<router_data::FlowStatus> for grpc_api_types::payments::RefundStatus {
+    fn foreign_from(status: router_data::FlowStatus) -> Self {
+        match status {
+            router_data::FlowStatus::Refund(refund_status) => {
+                grpc_api_types::payments::RefundStatus::foreign_from(refund_status)
+            }
+            // For Payment/Dispute in refund context, map to failure
+            router_data::FlowStatus::Payment(_) | router_data::FlowStatus::Dispute(_) => {
+                Self::RefundFailure
+            }
+        }
+    }
+}
+
+// Map FlowStatus to DisputeStatus (for dispute flow errors)
+impl ForeignFrom<router_data::FlowStatus> for grpc_api_types::payments::DisputeStatus {
+    fn foreign_from(status: router_data::FlowStatus) -> Self {
+        match status {
+            router_data::FlowStatus::Dispute(dispute_status) => {
+                grpc_api_types::payments::DisputeStatus::foreign_from(dispute_status)
+            }
+            // For Payment/Refund in dispute context, map to default/unspecified
+            router_data::FlowStatus::Payment(_) | router_data::FlowStatus::Refund(_) => {
+                Self::default()
+            }
+        }
+    }
+}
+
 pub fn generate_payment_void_response(
     router_data_v2: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
 ) -> Result<PaymentServiceVoidResponse, error_stack::Report<ConnectorError>> {
@@ -7154,13 +7200,13 @@ pub fn generate_submit_evidence_response(
             })
         }
         Err(e) => {
-            let grpc_attempt_status = e
+            let status = e
                 .attempt_status
-                .map(grpc_api_types::payments::PaymentStatus::foreign_from)
+                .map(grpc_api_types::payments::DisputeStatus::foreign_from)
                 .unwrap_or_default();
 
             Ok(DisputeServiceSubmitEvidenceResponse {
-                dispute_status: grpc_attempt_status.into(),
+                dispute_status: status.into(),
                 dispute_id: e.connector_transaction_id.clone(),
                 submitted_evidence_ids: vec![],
                 connector_status_code: None,
@@ -7291,7 +7337,7 @@ pub fn generate_refund_sync_response(
         Err(e) => {
             let status = e
                 .attempt_status
-                .map(grpc_api_types::payments::PaymentStatus::foreign_from)
+                .map(grpc_api_types::payments::RefundStatus::foreign_from)
                 .unwrap_or_default();
             let response_headers = router_data_v2
                 .resource_common_data
@@ -8077,7 +8123,7 @@ pub fn generate_refund_response(
         Err(e) => {
             let status = e
                 .attempt_status
-                .map(grpc_api_types::payments::PaymentStatus::foreign_from)
+                .map(grpc_api_types::payments::RefundStatus::foreign_from)
                 .unwrap_or_default();
 
             Ok(RefundResponse {

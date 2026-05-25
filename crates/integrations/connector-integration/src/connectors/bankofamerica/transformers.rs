@@ -26,7 +26,7 @@ use domain_types::{
     payment_method_data::{
         self, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     utils::{is_payment_failure, CardIssuer},
 };
@@ -447,6 +447,7 @@ fn get_error_response(
         detailed_error_info,
         avs_message.flatten(),
     );
+
     let error_message = error_data
         .clone()
         .and_then(|error_details| error_details.reason);
@@ -458,7 +459,7 @@ fn get_error_response(
             .unwrap_or(NO_ERROR_MESSAGE.to_string()),
         reason,
         status_code,
-        attempt_status,
+        attempt_status: attempt_status.map(FlowStatus::Payment),
         connector_transaction_id: Some(transaction_id.clone()),
         network_advice_code,
         network_decline_code,

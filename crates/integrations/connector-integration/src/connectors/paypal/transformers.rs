@@ -39,7 +39,7 @@ use domain_types::{
             PayoutTransferResponse,
         },
     },
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, FlowStatus},
     router_data_v2::RouterDataV2,
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{RedirectForm, VerifyWebhookSourceResponseData, VerifyWebhookStatus},
@@ -3277,7 +3277,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 ..item.router_data.resource_common_data
                             },
                             response: Err(domain_types::router_data::ErrorResponse {
-                                attempt_status: Some(common_enums::AttemptStatus::Failure),
+                                attempt_status: Some(FlowStatus::Payment(
+                                    common_enums::AttemptStatus::Failure,
+                                )),
                                 code: "authentication_failed".to_string(),
                                 message: "3DS authentication failed".to_string(),
                                 connector_transaction_id: None,
