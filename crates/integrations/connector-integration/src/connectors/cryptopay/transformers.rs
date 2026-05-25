@@ -479,8 +479,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .request
                     .minor_amount
                     .unwrap_or(common_utils::types::MinorUnit::new(0));
-                let amount =
-                    CryptopayAmountConvertor::convert(minor_amount, item.router_data.request.currency)?;
+                let amount = CryptopayAmountConvertor::convert(
+                    minor_amount,
+                    item.router_data.request.currency,
+                )?;
 
                 Ok(Self {
                     price_amount: amount,
@@ -495,9 +497,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     metadata: item.router_data.request.metadata.clone().and_then(|meta| {
                         let inner = meta.expose();
                         match inner {
-                            serde_json::Value::Object(_) => {
-                                Some(pii::SecretSerdeValue::new(inner))
-                            }
+                            serde_json::Value::Object(_) => Some(pii::SecretSerdeValue::new(inner)),
                             _ => None,
                         }
                     }),

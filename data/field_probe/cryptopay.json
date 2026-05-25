@@ -602,8 +602,8 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for cryptopay"
+        "status": "not_supported",
+        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
       }
     },
     "recurring_charge": {
@@ -638,8 +638,8 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for cryptopay"
+        "status": "not_supported",
+        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
       }
     },
     "token_authorize": {
@@ -650,8 +650,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for cryptopay"
+        "status": "not_supported",
+        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
       }
     },
     "tokenize": {
