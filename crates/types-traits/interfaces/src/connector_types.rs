@@ -73,7 +73,6 @@ pub enum RedirectState {
     InitialRequest,
     RedirectWithParams,
     RedirectWithoutParams,
-
 }
 
 pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:

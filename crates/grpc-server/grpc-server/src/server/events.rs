@@ -361,5 +361,3 @@ async fn verify_webhook_source_external(
         }
     }
 }
-
-

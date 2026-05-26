@@ -259,7 +259,6 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     > {
         Ok(None)
     }
-
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Copy)]
