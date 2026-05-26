@@ -214,20 +214,29 @@ fn connector_request_reference_id_for(
                 Some(len) => uuid_part.chars().take(len).collect(),
                 None => uuid_part,
             };
-            // Write the generated value back into the body so the gRPC server,
-            // which reads the reference id from `<source_field>` in the proto
-            // payload (e.g. `merchant_transaction_id`) — not from the
-            // `x-connector-request-reference-id` header — sees the same value.
-            // `set_json_path_value` only updates existing fields, so for the
-            // common top-level single-segment path we insert/overwrite
-            // unconditionally to handle fields that were pruned earlier.
-            if !source_field.contains('.') {
-                if let Some(map) = grpc_req.as_object_mut() {
-                    map.insert(source_field.to_string(), Value::String(generated.clone()));
+            // Write the generated value back into the body when the source_field
+            // is part of this suite's request schema — otherwise grpcurl rejects
+            // unknown fields. We check the original `scenario.json` for this
+            // suite (before pruning), since the pruned grpc_req won't contain
+            // sentinel fields like "auto_generate".
+            let source_in_schema = load_scenario(suite, scenario)
+                .ok()
+                .and_then(|s| {
+                    lookup_json_path_with_case_fallback(&s.grpc_req, source_field).map(|_| ())
+                })
+                .is_some();
+            if source_in_schema {
+                if !source_field.contains('.') {
+                    if let Some(map) = grpc_req.as_object_mut() {
+                        map.insert(source_field.to_string(), Value::String(generated.clone()));
+                    }
+                } else {
+                    let _ = set_json_path_value(
+                        grpc_req,
+                        source_field,
+                        Value::String(generated.clone()),
+                    );
                 }
-            } else {
-                let _ =
-                    set_json_path_value(grpc_req, source_field, Value::String(generated.clone()));
             }
             return generated;
         }
@@ -3366,8 +3375,13 @@ pub fn run_scenario_test_with_options(
     let mut passed = 0usize;
     let mut failed = 0usize;
 
-    let dependency_chain = execute_dependency_chain(
+    let effective_deps = crate::harness::scenario_loader::effective_suite_dependencies(
+        suite,
+        connector,
         &target_suite_spec.depends_on,
+    );
+    let dependency_chain = execute_dependency_chain(
+        &effective_deps,
         connector,
         options,
         target_suite_spec.strict_dependencies,
@@ -3587,10 +3601,16 @@ pub fn run_suite_test_with_options(
     let mut failed = 0usize;
     let mut skipped = 0usize;
 
+    let effective_deps = crate::harness::scenario_loader::effective_suite_dependencies(
+        suite,
+        connector,
+        &target_suite_spec.depends_on,
+    );
+
     match target_suite_spec.dependency_scope {
         DependencyScope::Suite => {
             let dependency_chain = execute_dependency_chain(
-                &target_suite_spec.depends_on,
+                &effective_deps,
                 connector,
                 options,
                 target_suite_spec.strict_dependencies,
@@ -3723,7 +3743,7 @@ pub fn run_suite_test_with_options(
         DependencyScope::Scenario => {
             for scenario in scenarios.keys() {
                 let dependency_chain = execute_dependency_chain(
-                    &target_suite_spec.depends_on,
+                    &effective_deps,
                     connector,
                     options,
                     target_suite_spec.strict_dependencies,

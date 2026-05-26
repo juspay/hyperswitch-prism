@@ -126,6 +126,27 @@ pub fn load_suite_spec(suite: &str) -> Result<SuiteSpec, ScenarioError> {
         .map_err(|source| ScenarioError::SuiteSpecParse { path, source })
 }
 
+/// Returns the effective dependency list for a (suite, connector) pair —
+/// the global `suite_spec.json` `depends_on`, plus any
+/// `additional_dependencies` declared for this suite in the connector's
+/// `specs.json`. Connector additions are prepended (so they run first).
+pub fn effective_suite_dependencies(
+    suite: &str,
+    connector: &str,
+    base_deps: &[crate::harness::scenario_types::SuiteDependency],
+) -> Vec<crate::harness::scenario_types::SuiteDependency> {
+    let Some(conn_spec) = load_connector_spec(connector) else {
+        return base_deps.to_vec();
+    };
+    let Some(extras) = conn_spec.additional_dependencies.get(suite) else {
+        return base_deps.to_vec();
+    };
+    let mut merged = Vec::with_capacity(extras.len() + base_deps.len());
+    merged.extend(extras.iter().cloned());
+    merged.extend(base_deps.iter().cloned());
+    merged
+}
+
 /// Loads optional connector-specific browser automation hooks.
 ///
 /// Returns `None` when the spec file does not exist or cannot be read/parsed.

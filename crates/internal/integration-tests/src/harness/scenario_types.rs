@@ -259,6 +259,16 @@ pub struct ConnectorSuiteSpec {
     /// ~30s). Default: no polling (status returned on first call is final).
     #[serde(default)]
     pub sync_poll_until_terminal_seconds: Option<u64>,
+    /// Per-suite dependency additions for this connector. Keys are suite
+    /// names (e.g. `"PaymentService/Authorize"`); values are extra
+    /// `SuiteDependency` entries prepended to the global `suite_spec.json`'s
+    /// `depends_on` at runtime — but only when running this connector.
+    /// Use this when a connector requires upstream context from a suite that
+    /// isn't part of the standard global chain (e.g. Redsys
+    /// `PaymentService/Authorize` requires prior `PreAuthenticate` output
+    /// for 3DS card scenarios).
+    #[serde(default)]
+    pub additional_dependencies: HashMap<String, Vec<SuiteDependency>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
