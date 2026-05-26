@@ -103,6 +103,11 @@ message ConnectorErrorDetails {
   optional string message = 2; // Human-readable error message
   optional string reason = 3;  // Detailed explanation
   optional string connector_transaction_id = 4; // Connector's unique transaction ID for debugging and support reference
+  
+  // Attempt status from the connector flow (Payment/Refund/Dispute).
+  // Extracted from ErrorResponse.attempt_status (domain_types::FlowStatus).
+  // Only one of payment_status, refund_status, or dispute_status will be set.
+  optional FlowStatus status = 5;
 }
 
 // Metadata consolidates all metadata types
@@ -238,6 +243,17 @@ enum DisputeStatus {
   DISPUTE_CHALLENGED = 5; // Dispute is being challenged with evidence
   DISPUTE_WON = 6;
   DISPUTE_LOST = 7;
+}
+
+// Unified flow status wrapping payment, refund, or dispute status.
+// Used to represent the attempt status in error responses and flow results.
+// Only one variant should be set at a time.
+message FlowStatus {
+  oneof status {
+    PaymentStatus payment_status = 1;  // Status for payment flow
+    RefundStatus refund_status = 2;    // Status for refund flow
+    DisputeStatus dispute_status = 3;  // Status for dispute flow
+  }
 }
 
 // Status of a mandate

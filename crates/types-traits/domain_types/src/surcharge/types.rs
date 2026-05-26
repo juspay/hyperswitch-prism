@@ -174,6 +174,7 @@ pub fn generate_surcharge_calculate_response(
                         message: Some(e.message.clone()),
                         reason: e.reason.clone(),
                         connector_transaction_id: e.connector_transaction_id.clone(),
+                        status: None,
                     }),
                     issuer_details: None,
                 }),

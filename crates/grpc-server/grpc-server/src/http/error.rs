@@ -49,7 +49,7 @@ impl IntoResponse for HttpError {
 }
 
 /// Extract SDK error details from gRPC Status
-fn extract_sdk_error_from_status(status: &tonic::Status) -> Option<ErrorDetails> {
+fn extract_error_details_from_status(status: &tonic::Status) -> Option<ErrorDetails> {
     let details = status.details();
     // Try to decode IntegrationError from proto details
     if let Ok(integration_error) = grpc_api_types::payments::IntegrationError::decode(details) {
@@ -60,8 +60,9 @@ fn extract_sdk_error_from_status(status: &tonic::Status) -> Option<ErrorDetails>
     if let Ok(connector_error) = grpc_api_types::payments::ConnectorError::decode(details) {
         return Some(ErrorDetails::ConnectorError(Box::new(connector_error)));
     }
-}
 
+    None
+}
 
 // Convert tonic::Status to HTTP error
 impl From<tonic::Status> for HttpError {
@@ -89,7 +90,7 @@ impl From<tonic::Status> for HttpError {
         let message = status.message().to_string();
 
         // Extract SDK error details from Status
-        let details = extract_sdk_error_from_status(&status);
+        let details = extract_error_details_from_status(&status);
 
         Self {
             status: http_status,
