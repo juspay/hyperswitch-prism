@@ -323,6 +323,8 @@ pub enum AdyenPaymentMethod<
     Swish,
     #[serde(rename = "paypal")]
     AdyenPaypal,
+    #[serde(rename = "amazonpay")]
+    AmazonPay(Box<AmazonPayData>),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -345,6 +347,9 @@ pub struct MomoData {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TouchNGoData {}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AmazonPayData {}
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1078,6 +1083,8 @@ pub enum PaymentType {
     Alipay,
     #[serde(rename = "alipay_hk")]
     AlipayHk,
+    #[serde(rename = "amazonpay")]
+    AmazonPay,
     #[serde(rename = "doku_alfamart")]
     Alfamart,
     Alma,
@@ -1201,6 +1208,7 @@ impl TryFrom<&common_enums::PaymentMethodType> for PaymentType {
             common_enums::PaymentMethodType::Ach => Ok(Self::AchDirectDebit),
 
             common_enums::PaymentMethodType::Paypal => Ok(Self::Paypal),
+            common_enums::PaymentMethodType::AmazonPay => Ok(Self::AmazonPay),
             common_enums::PaymentMethodType::Pix => Ok(Self::Pix),
             common_enums::PaymentMethodType::Givex => Ok(Self::Giftcard),
             common_enums::PaymentMethodType::PaySafeCard => Ok(Self::PaySafeCard),
@@ -1566,8 +1574,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             WalletData::VippsRedirect { .. } => Ok(Self::Vipps),
             WalletData::SwishQr(_) => Ok(Self::Swish),
             WalletData::PaypalRedirect(_) => Ok(Self::AdyenPaypal),
-            WalletData::AmazonPayRedirect(_)
-            | WalletData::Paze(_)
+            WalletData::AmazonPayRedirect(_) => {
+                Ok(Self::AmazonPay(Box::new(AmazonPayData {})))
+            }
+            WalletData::Paze(_)
             | WalletData::RevolutPay(_)
             | WalletData::MobilePayRedirect(_)
             | WalletData::SamsungPay(_)
@@ -5235,6 +5245,7 @@ pub fn get_wait_screen_metadata(
         | PaymentType::Afterpaytouch
         | PaymentType::Alipay
         | PaymentType::AlipayHk
+        | PaymentType::AmazonPay
         | PaymentType::Alfamart
         | PaymentType::Alma
         | PaymentType::Applepay
@@ -7480,6 +7491,7 @@ pub fn get_present_to_shopper_metadata(
         | PaymentType::Afterpaytouch
         | PaymentType::Alipay
         | PaymentType::AlipayHk
+        | PaymentType::AmazonPay
         | PaymentType::Alma
         | PaymentType::Applepay
         | PaymentType::Bizum
