@@ -194,11 +194,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .resource_common_data
             .connector_request_reference_id
             .clone();
-        let webhook = router_data
-            .request
-            .webhook_url
-            .clone()
-            .unwrap_or_default();
+        let webhook = router_data.request.webhook_url.clone().unwrap_or_default();
         let return_url = router_data
             .request
             .router_return_url
@@ -217,7 +213,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let country_code = router_data
             .resource_common_data
             .get_optional_shipping_country()
-            .or(router_data.resource_common_data.get_optional_billing_country())
+            .or(router_data
+                .resource_common_data
+                .get_optional_billing_country())
             .ok_or(error_stack::report!(
                 errors::IntegrationError::MissingRequiredField {
                     field_name: "country_code",
@@ -233,7 +231,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let email = router_data
             .resource_common_data
             .get_optional_shipping_email()
-            .or(router_data.resource_common_data.get_optional_billing_email())
+            .or(router_data
+                .resource_common_data
+                .get_optional_billing_email())
             .or(router_data.request.email.clone())
             .ok_or(error_stack::report!(
                 errors::IntegrationError::MissingRequiredField {
@@ -247,7 +247,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let first_name = router_data
             .resource_common_data
             .get_optional_shipping_first_name()
-            .or(router_data.resource_common_data.get_optional_billing_first_name())
+            .or(router_data
+                .resource_common_data
+                .get_optional_billing_first_name())
             .map(|n| n.peek().to_string())
             .or_else(|| {
                 customer_name
@@ -264,7 +266,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let last_name = router_data
             .resource_common_data
             .get_optional_shipping_last_name()
-            .or(router_data.resource_common_data.get_optional_billing_last_name())
+            .or(router_data
+                .resource_common_data
+                .get_optional_billing_last_name())
             .map(|n| n.peek().to_string())
             .or_else(|| {
                 customer_name
@@ -283,7 +287,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .address
             .get_shipping()
             .and_then(|a| a.clone().phone.and_then(|p| p.number))
-            .or_else(|| router_data.resource_common_data.get_optional_billing_phone_number())
+            .or_else(|| {
+                router_data
+                    .resource_common_data
+                    .get_optional_billing_phone_number()
+            })
             .ok_or(error_stack::report!(
                 errors::IntegrationError::MissingRequiredField {
                     field_name: "phone_number",
@@ -295,7 +303,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let shipping_line1 = router_data
             .resource_common_data
             .get_optional_shipping_line1()
-            .or(router_data.resource_common_data.get_optional_billing_line1())
+            .or(router_data
+                .resource_common_data
+                .get_optional_billing_line1())
             .map(|l| l.peek().to_string())
             .unwrap_or_default();
         let shipping_city = router_data
@@ -307,20 +317,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let shipping_country = router_data
             .resource_common_data
             .get_optional_shipping_country()
-            .or(router_data.resource_common_data.get_optional_billing_country())
+            .or(router_data
+                .resource_common_data
+                .get_optional_billing_country())
             .map(|c| c.to_string())
             .unwrap_or_default();
         let shipping_first_name = router_data
             .resource_common_data
             .get_optional_shipping_first_name()
-            .or(router_data.resource_common_data.get_optional_billing_first_name())
+            .or(router_data
+                .resource_common_data
+                .get_optional_billing_first_name())
             .map(|n| n.peek().to_string())
             .or_else(|| Some(first_name.clone()))
             .unwrap_or_default();
         let shipping_last_name = router_data
             .resource_common_data
             .get_optional_shipping_last_name()
-            .or(router_data.resource_common_data.get_optional_billing_last_name())
+            .or(router_data
+                .resource_common_data
+                .get_optional_billing_last_name())
             .map(|n| n.peek().to_string())
             .or_else(|| Some(last_name.clone()))
             .unwrap_or_default();
@@ -329,7 +345,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .address
             .get_shipping()
             .and_then(|a| a.clone().phone.and_then(|p| p.number))
-            .or_else(|| router_data.resource_common_data.get_optional_billing_phone_number())
+            .or_else(|| {
+                router_data
+                    .resource_common_data
+                    .get_optional_billing_phone_number()
+            })
             .map(|p| p.peek().to_string())
             .or_else(|| Some(phone_number.clone()))
             .unwrap_or_default();
@@ -698,12 +718,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let comment = router_data.request.reason.clone().ok_or(error_stack::report!(
-            errors::IntegrationError::MissingRequiredField {
-                field_name: "reason",
-                context: Default::default()
-            }
-        ))?;
+        let comment = router_data
+            .request
+            .reason
+            .clone()
+            .ok_or(error_stack::report!(
+                errors::IntegrationError::MissingRequiredField {
+                    field_name: "reason",
+                    context: Default::default()
+                }
+            ))?;
         Ok(Self {
             total_amount: TamaraAmount {
                 amount: item
