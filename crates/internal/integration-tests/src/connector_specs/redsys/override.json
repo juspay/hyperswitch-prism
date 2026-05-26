@@ -15,10 +15,13 @@
               "value": "12"
             },
             "card_exp_year": {
-              "value": "30"
+              "value": "26"
             },
             "card_holder_name": {
-              "value": "Joseph Doe"
+              "value": "joseph Doe"
+            },
+            "card_cvc": {
+              "value": "123"
             }
           }
         },

@@ -9,6 +9,6 @@
     "PaymentService/Void"
   ],
   "request_id_source_field": "merchant_transaction_id",
-  "request_id_prefix": "rs",
+  "request_id_prefix": "0001",
   "request_id_length": 12
 }
