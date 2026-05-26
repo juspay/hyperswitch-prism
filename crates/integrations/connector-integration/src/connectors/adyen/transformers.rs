@@ -1574,9 +1574,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             WalletData::VippsRedirect { .. } => Ok(Self::Vipps),
             WalletData::SwishQr(_) => Ok(Self::Swish),
             WalletData::PaypalRedirect(_) => Ok(Self::AdyenPaypal),
-            WalletData::AmazonPayRedirect(_) => {
-                Ok(Self::AmazonPay(Box::new(AmazonPayData {})))
-            }
+            WalletData::AmazonPayRedirect(_) => Ok(Self::AmazonPay(Box::new(AmazonPayData {}))),
             WalletData::Paze(_)
             | WalletData::RevolutPay(_)
             | WalletData::MobilePayRedirect(_)

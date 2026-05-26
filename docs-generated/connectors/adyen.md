@@ -214,7 +214,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Google Pay Dec | ✓ |
 | Google Pay SDK | ⚠ |
 | PayPal SDK | ⚠ |
-| Amazon Pay | ⚠ |
+| Amazon Pay | ✓ |
 | Cash App | ⚠ |
 | PayPal | ✓ |
 | WeChat Pay | ⚠ |
