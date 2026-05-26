@@ -4,24 +4,36 @@
       "grpc_req": {
         "merchant_transaction_id": "nocc01",
         "amount": {
-          "minor_amount": 2500,
+          "minor_amount": 6000,
           "currency": "EUR"
         },
         "payment_method": {
           "card": {
-            "card_number": { "value": "4548812049400004" },
-            "card_exp_month": { "value": "12" },
-            "card_exp_year": { "value": "30" },
-            "card_holder_name": { "value": "Joseph Doe" }
+            "card_number": {
+              "value": "4548812049400004"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_holder_name": {
+              "value": "Joseph Doe"
+            }
           }
         },
         "address": {
           "billing_address": {
-            "state": { "value": "Madrid" },
+            "state": {
+              "value": "Ceuta"
+            },
             "country_alpha2_code": "ES"
           },
           "shipping_address": {
-            "state": { "value": "Madrid" },
+            "state": {
+              "value": "Ceuta"
+            },
             "country_alpha2_code": "ES"
           }
         }
@@ -31,24 +43,36 @@
       "grpc_req": {
         "merchant_transaction_id": "nodc01",
         "amount": {
-          "minor_amount": 2500,
+          "minor_amount": 6000,
           "currency": "EUR"
         },
         "payment_method": {
           "card": {
-            "card_number": { "value": "4548812049400004" },
-            "card_exp_month": { "value": "12" },
-            "card_exp_year": { "value": "30" },
-            "card_holder_name": { "value": "Joseph Doe" }
+            "card_number": {
+              "value": "4548812049400004"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_holder_name": {
+              "value": "Joseph Doe"
+            }
           }
         },
         "address": {
           "billing_address": {
-            "state": { "value": "Madrid" },
+            "state": {
+              "value": "Ceuta"
+            },
             "country_alpha2_code": "ES"
           },
           "shipping_address": {
-            "state": { "value": "Madrid" },
+            "state": {
+              "value": "Ceuta"
+            },
             "country_alpha2_code": "ES"
           }
         }
@@ -58,24 +82,36 @@
       "grpc_req": {
         "merchant_transaction_id": "mncc01",
         "amount": {
-          "minor_amount": 2500,
+          "minor_amount": 6000,
           "currency": "EUR"
         },
         "payment_method": {
           "card": {
-            "card_number": { "value": "4548812049400004" },
-            "card_exp_month": { "value": "12" },
-            "card_exp_year": { "value": "30" },
-            "card_holder_name": { "value": "Joseph Doe" }
+            "card_number": {
+              "value": "4548812049400004"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_holder_name": {
+              "value": "Joseph Doe"
+            }
           }
         },
         "address": {
           "billing_address": {
-            "state": { "value": "Madrid" },
+            "state": {
+              "value": "Ceuta"
+            },
             "country_alpha2_code": "ES"
           },
           "shipping_address": {
-            "state": { "value": "Madrid" },
+            "state": {
+              "value": "Ceuta"
+            },
             "country_alpha2_code": "ES"
           }
         }
@@ -85,24 +121,36 @@
       "grpc_req": {
         "merchant_transaction_id": "mndc01",
         "amount": {
-          "minor_amount": 2500,
+          "minor_amount": 6000,
           "currency": "EUR"
         },
         "payment_method": {
           "card": {
-            "card_number": { "value": "4548812049400004" },
-            "card_exp_month": { "value": "12" },
-            "card_exp_year": { "value": "30" },
-            "card_holder_name": { "value": "Joseph Doe" }
+            "card_number": {
+              "value": "4548812049400004"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_holder_name": {
+              "value": "Joseph Doe"
+            }
           }
         },
         "address": {
           "billing_address": {
-            "state": { "value": "Madrid" },
+            "state": {
+              "value": "Ceuta"
+            },
             "country_alpha2_code": "ES"
           },
           "shipping_address": {
-            "state": { "value": "Madrid" },
+            "state": {
+              "value": "Ceuta"
+            },
             "country_alpha2_code": "ES"
           }
         }
@@ -112,24 +160,36 @@
       "grpc_req": {
         "merchant_transaction_id": "3dcc01",
         "amount": {
-          "minor_amount": 5000,
+          "minor_amount": 6000,
           "currency": "EUR"
         },
         "payment_method": {
           "card": {
-            "card_number": { "value": "4548812049400004" },
-            "card_exp_month": { "value": "12" },
-            "card_exp_year": { "value": "30" },
-            "card_holder_name": { "value": "Joseph Doe" }
+            "card_number": {
+              "value": "4548814479727229"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_holder_name": {
+              "value": "Joseph Doe"
+            }
           }
         },
         "address": {
           "billing_address": {
-            "state": { "value": "Madrid" },
+            "state": {
+              "value": "Ceuta"
+            },
             "country_alpha2_code": "ES"
           },
           "shipping_address": {
-            "state": { "value": "Madrid" },
+            "state": {
+              "value": "Ceuta"
+            },
             "country_alpha2_code": "ES"
           }
         }
@@ -139,31 +199,47 @@
       "grpc_req": {
         "merchant_transaction_id": "nofp01",
         "amount": {
-          "minor_amount": 5000,
+          "minor_amount": 60000,
           "currency": "EUR"
         },
         "payment_method": {
           "card": {
-            "card_number": { "value": "4548812049400004" },
-            "card_exp_month": { "value": "12" },
-            "card_exp_year": { "value": "30" },
-            "card_holder_name": { "value": "Joseph Doe" }
+            "card_number": {
+              "value": "4548812049400004"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_holder_name": {
+              "value": "Joseph Doe"
+            }
           }
         },
         "address": {
           "billing_address": {
-            "state": { "value": "Madrid" },
+            "state": {
+              "value": "Ceuta"
+            },
             "country_alpha2_code": "ES"
           },
           "shipping_address": {
-            "state": { "value": "Madrid" },
+            "state": {
+              "value": "Ceuta"
+            },
             "country_alpha2_code": "ES"
           }
         }
       },
       "assert": {
         "status": {
-          "one_of": ["FAILURE", "AUTHORIZATION_FAILED", "AUTHENTICATION_FAILED"]
+          "one_of": [
+            "FAILURE",
+            "AUTHORIZATION_FAILED",
+            "AUTHENTICATION_FAILED"
+          ]
         }
       }
     }
@@ -172,7 +248,7 @@
     "void_authorized_payment": {
       "grpc_req": {
         "amount": {
-          "minor_amount": 2500,
+          "minor_amount": 6000,
           "currency": "EUR"
         }
       }
@@ -180,7 +256,7 @@
     "void_without_cancellation_reason": {
       "grpc_req": {
         "amount": {
-          "minor_amount": 2500,
+          "minor_amount": 6000,
           "currency": "EUR"
         }
       }
@@ -190,24 +266,36 @@
     "threeds_card_pre_authenticate": {
       "grpc_req": {
         "amount": {
-          "minor_amount": 5000,
+          "minor_amount": 6000,
           "currency": "EUR"
         },
         "payment_method": {
           "card": {
-            "card_number": { "value": "4548812049400004" },
-            "card_exp_month": { "value": "12" },
-            "card_exp_year": { "value": "30" },
-            "card_holder_name": { "value": "Joseph Doe" }
+            "card_number": {
+              "value": "4548817212493017"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_holder_name": {
+              "value": "Joseph Doe"
+            }
           }
         },
         "address": {
           "billing_address": {
-            "state": { "value": "Madrid" },
+            "state": {
+              "value": "Ceuta"
+            },
             "country_alpha2_code": "ES"
           },
           "shipping_address": {
-            "state": { "value": "Madrid" },
+            "state": {
+              "value": "Ceuta"
+            },
             "country_alpha2_code": "ES"
           }
         }
@@ -218,24 +306,36 @@
     "threeds_card_authenticate": {
       "grpc_req": {
         "amount": {
-          "minor_amount": 5000,
+          "minor_amount": 6000,
           "currency": "EUR"
         },
         "payment_method": {
           "card": {
-            "card_number": { "value": "4548812049400004" },
-            "card_exp_month": { "value": "12" },
-            "card_exp_year": { "value": "30" },
-            "card_holder_name": { "value": "Joseph Doe" }
+            "card_number": {
+              "value": "4548817212493017"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_holder_name": {
+              "value": "Joseph Doe"
+            }
           }
         },
         "address": {
           "billing_address": {
-            "state": { "value": "Madrid" },
+            "state": {
+              "value": "Ceuta"
+            },
             "country_alpha2_code": "ES"
           },
           "shipping_address": {
-            "state": { "value": "Madrid" },
+            "state": {
+              "value": "Ceuta"
+            },
             "country_alpha2_code": "ES"
           }
         }
