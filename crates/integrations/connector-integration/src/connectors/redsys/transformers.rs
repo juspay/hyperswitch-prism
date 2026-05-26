@@ -953,7 +953,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                 },
                 response: Err(domain_types::router_data::ErrorResponse {
                     code: err.error_code.clone(),
-                    message: err.error_code_description.clone().unwrap_or_else(|| err.error_code.clone()),
+                    message: err
+                        .error_code_description
+                        .clone()
+                        .unwrap_or_else(|| err.error_code.clone()),
                     reason: err.error_code_description.clone(),
                     status_code: item.http_code,
                     attempt_status: None,
@@ -1142,7 +1145,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                 },
                 response: Err(domain_types::router_data::ErrorResponse {
                     code: err.error_code.clone(),
-                    message: err.error_code_description.clone().unwrap_or_else(|| err.error_code.clone()),
+                    message: err
+                        .error_code_description
+                        .clone()
+                        .unwrap_or_else(|| err.error_code.clone()),
                     reason: err.error_code_description.clone(),
                     status_code: item.http_code,
                     attempt_status: None,
@@ -1460,7 +1466,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                 },
                 response: Err(domain_types::router_data::ErrorResponse {
                     code: err.error_code.clone(),
-                    message: err.error_code_description.clone().unwrap_or_else(|| err.error_code.clone()),
+                    message: err
+                        .error_code_description
+                        .clone()
+                        .unwrap_or_else(|| err.error_code.clone()),
                     reason: err.error_code_description.clone(),
                     status_code: item.http_code,
                     attempt_status: None,
@@ -1574,7 +1583,10 @@ impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
                 },
                 response: Err(domain_types::router_data::ErrorResponse {
                     code: err.error_code.clone(),
-                    message: err.error_code_description.clone().unwrap_or_else(|| err.error_code.clone()),
+                    message: err
+                        .error_code_description
+                        .clone()
+                        .unwrap_or_else(|| err.error_code.clone()),
                     reason: err.error_code_description.clone(),
                     status_code: item.http_code,
                     attempt_status: None,
@@ -1692,7 +1704,10 @@ impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
                 },
                 response: Err(domain_types::router_data::ErrorResponse {
                     code: err.error_code.clone(),
-                    message: err.error_code_description.clone().unwrap_or_else(|| err.error_code.clone()),
+                    message: err
+                        .error_code_description
+                        .clone()
+                        .unwrap_or_else(|| err.error_code.clone()),
                     reason: err.error_code_description.clone(),
                     status_code: item.http_code,
                     attempt_status: None,
@@ -1995,7 +2010,10 @@ impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
             responses::RedsysResponse::RedsysErrorResponse(ref err) => {
                 Err(domain_types::router_data::ErrorResponse {
                     code: err.error_code.clone(),
-                    message: err.error_code_description.clone().unwrap_or_else(|| err.error_code.clone()),
+                    message: err
+                        .error_code_description
+                        .clone()
+                        .unwrap_or_else(|| err.error_code.clone()),
                     reason: err.error_code_description.clone(),
                     status_code: item.http_code,
                     attempt_status: None,
