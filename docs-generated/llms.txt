@@ -22,6 +22,14 @@ integration_pattern:
 
 ---
 
+## Absasanlam
+connector_id: absasanlam
+doc: docs/connectors/absasanlam.md
+scenarios: none
+payment_methods: none
+flows: handle_event, parse_event
+examples_python: none
+
 ## ACI
 connector_id: aci
 doc: docs/connectors/aci.md
@@ -573,14 +581,6 @@ scenarios: checkout_autocapture, checkout_card, refund, void_payment
 payment_methods: Card
 flows: authorize, capture, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
 examples_python: examples/revolv3/revolv3.py
-
-## Sanlam
-connector_id: sanlam
-doc: docs/connectors/sanlam.md
-scenarios: none
-payment_methods: none
-flows: handle_event, parse_event
-examples_python: none
 
 ## Shift4
 connector_id: shift4
