@@ -234,23 +234,23 @@ impl From<&GetnetPaymentStatus> for RefundStatus {
 ///
 /// Globalgetnet uses *different* request shapes for different payment methods:
 ///   * `Standard`  → posted to `/dpm/payments-gwproxy/v2/payments`
-///                   (card / wallet etc. — legacy shape with top-level `order_id`,
-///                   `data.customer_id`, and `data.payment.{transaction_type, number_installments}`).
+///     (card / wallet etc. — legacy shape with top-level `order_id`,
+///     `data.customer_id`, and `data.payment.{transaction_type, number_installments}`).
 ///   * `Boleto`    → posted to `/dpm/payments-gwproxy/v2/payments/boleto`
-///                   (BRL voucher — different shape: no top-level `order_id`,
-///                   nested `data.order` object, required `data.customer` with `name`,
-///                   `data.boleto.expiration_date` in DD/MM/YYYY, no installments/transaction_type).
+///     (BRL voucher — different shape: no top-level `order_id`,
+///     nested `data.order` object, required `data.customer` with `name`,
+///     `data.boleto.expiration_date` in DD/MM/YYYY, no installments/transaction_type).
 ///   * `Pix`       → posted to `/dpm/payments-gwproxy/v2/payments/qrcode/pix`
-///                   (instant Pix QR — flat shape with `amount`, `currency`, `order_id`,
-///                   `customer_id`, `idempotency_key`; NO `data` wrapper, NO `request_id`).
+///     (instant Pix QR — flat shape with `amount`, `currency`, `order_id`,
+///     `customer_id`, `idempotency_key`; NO `data` wrapper, NO `request_id`).
 ///
 /// The discriminant is the `PaymentMethodData` of the request. `#[serde(untagged)]`
 /// makes serde flatten one of the shapes onto the wire without an extra wrapper.
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum GetnetAuthorizeRequest<T: PaymentMethodDataTypes> {
-    Standard(GetnetStandardAuthorize<T>),
-    Boleto(GetnetBoletoAuthorize),
+    Standard(Box<GetnetStandardAuthorize<T>>),
+    Boleto(Box<GetnetBoletoAuthorize>),
     Pix(GetnetPixAuthorize),
 }
 
@@ -702,11 +702,11 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                         payment_id,
                     },
                 };
-                return Ok(Self::Boleto(GetnetBoletoAuthorize {
+                return Ok(Self::Boleto(Box::new(GetnetBoletoAuthorize {
                     request_id: uuid::Uuid::new_v4().to_string(),
                     idempotency_key: uuid::Uuid::new_v4().to_string(),
                     data,
-                }));
+                })));
             }
             PaymentMethodData::BankTransfer(bt) => {
                 if matches!(bt.as_ref(), BankTransferData::Pix { .. }) {
@@ -872,12 +872,12 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         // Globalgetnet requires `request_id` and `idempotency_key` to be valid 36-char
         // UUIDs (the gateway validates the format), so we mint fresh ones here rather
         // than reusing `connector_request_reference_id` which may not be a UUID.
-        Ok(Self::Standard(GetnetStandardAuthorize {
+        Ok(Self::Standard(Box::new(GetnetStandardAuthorize {
             request_id: uuid::Uuid::new_v4().to_string(),
             idempotency_key: uuid::Uuid::new_v4().to_string(),
             order_id: request_ref_id,
             data,
-        }))
+        })))
     }
 }
 
