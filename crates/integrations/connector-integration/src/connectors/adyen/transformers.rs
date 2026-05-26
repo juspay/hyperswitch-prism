@@ -1576,11 +1576,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             WalletData::PaypalRedirect(_) => Ok(Self::AdyenPaypal),
             WalletData::SamsungPay(samsung_data) => {
                 Ok(Self::SamsungPay(Box::new(AdyenSamsungPayData {
-                    samsung_pay_token: samsung_data
-                        .payment_credential
-                        .token_data
-                        .data
-                        .clone(),
+                    samsung_pay_token: samsung_data.payment_credential.token_data.data.clone(),
                 })))
             }
             WalletData::AmazonPayRedirect(_)
