@@ -388,7 +388,7 @@ pub struct Connectors {
     pub finix: ConnectorParams,
     pub trustly: ConnectorParams,
     pub itaubank: ConnectorParams,
-    pub sanlam: ConnectorParams,
+    pub absa_sanlam: ConnectorParams,
     pub pinelabs_online: ConnectorParams,
     pub easebuzz: ConnectorParams,
     pub imerchantsolutions: ConnectorParams,
@@ -647,8 +647,8 @@ impl Connectors {
             ConnectorEnum::Revolv3 => {
                 patched.revolv3.apply(params_patch);
             }
-            ConnectorEnum::Sanlam => {
-                patched.sanlam.apply(params_patch);
+            ConnectorEnum::AbsaSanlam => {
+                patched.absa_sanlam.apply(params_patch);
             }
             ConnectorEnum::Shift4 => {
                 patched.shift4.apply(params_patch);
@@ -701,7 +701,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, multisafepay, nexixpay, payload, payme, placetopay, powertranz, revolv3, sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat",
+                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, multisafepay, nexixpay, payload, payme, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat",
                             connector
                         )),
                         ..Default::default()

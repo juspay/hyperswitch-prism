@@ -19,6 +19,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.05.26.0
+
+### Features
+
+- **connector:** Implement Reverse (VoidPostCapture) for PlaceToPay ([#1288](https://github.com/juspay/connector-service/pull/1288)) ([`d84328d`](https://github.com/juspay/connector-service/commit/d84328da3eb61cebbc0e57654a8465386018f08f))
+
+**Full Changelog:** [`2026.05.25.0...2026.05.26.0`](https://github.com/juspay/connector-service/compare/2026.05.25.0...2026.05.26.0)
+
+- - -
+
+## 2026.05.25.0
+
+### Bug Fixes
+
+- Populate proto-backed fields in proto-to-domain mappings ([#1231](https://github.com/juspay/connector-service/pull/1231)) ([`1a1fe66`](https://github.com/juspay/connector-service/commit/1a1fe6649974bb7caaa75ca9118b64d834ca00bb))
+
+### Testing
+
+- **bambora:** Harden integration test overrides ([#1317](https://github.com/juspay/connector-service/pull/1317)) ([`57e8e7e`](https://github.com/juspay/connector-service/commit/57e8e7ea8150df273dc8696b39556aea6276e979))
+- **datatrans:** Harden integration test overrides ([#1286](https://github.com/juspay/connector-service/pull/1286)) ([`dbfd68b`](https://github.com/juspay/connector-service/commit/dbfd68be6d981fbb5c7f7cee4a9e6a45ab6a23df))
+- **multisafepay:** Harden integration test overrides ([#1296](https://github.com/juspay/connector-service/pull/1296)) ([`380acf9`](https://github.com/juspay/connector-service/commit/380acf95c00469ccd184eec57d4f352a7c0f0ce9))
+- **powertranz:** Harden integration test overrides ([#1305](https://github.com/juspay/connector-service/pull/1305)) ([`5a55147`](https://github.com/juspay/connector-service/commit/5a55147877059d3c9a735586bbdbeef0896e3995))
+- **shift4:** Harden integration test overrides ([#1311](https://github.com/juspay/connector-service/pull/1311)) ([`f2ddb22`](https://github.com/juspay/connector-service/commit/f2ddb227d1819c861db79b45f5321395a67c8cba))
+- **wellsfargo:** Harden integration test overrides ([#1314](https://github.com/juspay/connector-service/pull/1314)) ([`b796f22`](https://github.com/juspay/connector-service/commit/b796f229822f1f36d1bf77a789beced423206211))
+
+**Full Changelog:** [`2026.05.22.0...2026.05.25.0`](https://github.com/juspay/connector-service/compare/2026.05.22.0...2026.05.25.0)
+
+- - -
+
 ## 2026.05.22.0
 
 ### Features

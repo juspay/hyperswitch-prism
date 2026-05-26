@@ -139,7 +139,7 @@ pub enum ConnectorEnum {
     Finix,
     Trustly,
     Itaubank,
-    Sanlam,
+    AbsaSanlam,
     PinelabsOnline,
     Easebuzz,
     Axisbank,
@@ -165,11 +165,49 @@ pub enum SurchargeConnectorEnum {
     Interpayments,
 }
 
-/// Unified connector enum that can represent either payment or surcharge connectors
+/// Enum representing connectors that support payout flows
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Display,
+    EnumIter,
+    EnumString,
+    serde::Deserialize,
+    Eq,
+    Hash,
+    PartialEq,
+    Serialize,
+)]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutConnectorEnum {
+    Loonio,
+    Paypal,
+    Itaubank,
+}
+
+impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
+    type Error = IntegrationError;
+
+    fn try_from(value: ConnectorEnum) -> Result<Self, Self::Error> {
+        match value {
+            ConnectorEnum::Loonio => Ok(Self::Loonio),
+            ConnectorEnum::Paypal => Ok(Self::Paypal),
+            ConnectorEnum::Itaubank => Ok(Self::Itaubank),
+            _ => Err(IntegrationError::InvalidDataFormat {
+                field_name: "connector",
+                context: IntegrationErrorContext::default(),
+            }),
+        }
+    }
+}
+
+/// Unified connector enum that can represent either payment, surcharge, or payout connectors
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConnectorVariant {
     Payment(ConnectorEnum),
     Surcharge(SurchargeConnectorEnum),
+    Payout(PayoutConnectorEnum),
 }
 
 impl ConnectorVariant {
@@ -189,10 +227,19 @@ impl ConnectorVariant {
         }
     }
 
+    /// Get the payout connector if this is a payout variant
+    pub fn as_payout(&self) -> Option<PayoutConnectorEnum> {
+        match self {
+            ConnectorVariant::Payout(conn) => Some(*conn),
+            _ => None,
+        }
+    }
+
     pub fn get_connector_name(&self) -> String {
         match self {
             ConnectorVariant::Payment(conn) => conn.to_string(),
             ConnectorVariant::Surcharge(conn) => conn.to_string(),
+            ConnectorVariant::Payout(conn) => conn.to_string(),
         }
     }
 }
@@ -4239,7 +4286,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Elavon(_) => Ok(Self::Payment(ConnectorEnum::Elavon)),
             AuthType::Fiserv(_) => Ok(Self::Payment(ConnectorEnum::Fiserv)),
             AuthType::Fiservemea(_) => Ok(Self::Payment(ConnectorEnum::Fiservemea)),
-            AuthType::Sanlam(_) => Ok(Self::Payment(ConnectorEnum::Sanlam)),
+            AuthType::AbsaSanlam(_) => Ok(Self::Payment(ConnectorEnum::AbsaSanlam)),
             AuthType::Forte(_) => Ok(Self::Payment(ConnectorEnum::Forte)),
             AuthType::Getnet(_) => Ok(Self::Payment(ConnectorEnum::Getnet)),
             AuthType::Globalpay(_) => Ok(Self::Payment(ConnectorEnum::Globalpay)),

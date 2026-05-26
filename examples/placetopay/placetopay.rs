@@ -20,6 +20,7 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "get",
     "proxy_authorize",
     "refund",
+    "reverse",
     "void",
 ];
 
@@ -180,6 +181,14 @@ pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRef
             currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
         }),
         reason: Some("customer_request".to_string()), // Reason for the refund.
+        ..Default::default()
+    }
+}
+
+pub fn build_reverse_request(connector_transaction_id: &str) -> PaymentServiceReverseRequest {
+    PaymentServiceReverseRequest {
+        merchant_reverse_id: Some("probe_reverse_001".to_string()), // Identification.
+        connector_transaction_id: connector_transaction_id.to_string(),
         ..Default::default()
     }
 }
@@ -441,6 +450,18 @@ pub async fn process_proxy_authorize(
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: PaymentService.Reverse
+#[allow(dead_code)]
+pub async fn process_reverse(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .reverse(build_reverse_request("12345"), &HashMap::new(), None)
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: PaymentService.Void
 #[allow(dead_code)]
 pub async fn process_void(
@@ -470,9 +491,10 @@ async fn main() {
         "process_capture" => process_capture(&client, "txn_001").await,
         "process_get" => process_get(&client, "txn_001").await,
         "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
+        "process_reverse" => process_reverse(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_get, process_proxy_authorize, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_get, process_proxy_authorize, process_reverse, process_void", flow);
             return;
         }
     };
