@@ -1755,6 +1755,9 @@ impl<
                 grpc_api_types::payments::payment_method::PaymentMethod::Klarna(_) => Ok(
                     Self::PayLater(payment_method_data::PayLaterData::KlarnaRedirect {}),
                 ),
+                grpc_api_types::payments::payment_method::PaymentMethod::PayBright(_) => Ok(
+                    Self::PayLater(payment_method_data::PayLaterData::PayBrightRedirect {}),
+                ),
                 // ============================================================================
                 // DIRECT DEBIT - Direct variants
                 // ============================================================================
@@ -2465,6 +2468,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::Affirm(_) => Ok(Some(PaymentMethodType::Affirm)),
                 grpc_api_types::payments::payment_method::PaymentMethod::AfterpayClearpay(_) => Ok(Some(PaymentMethodType::AfterpayClearpay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Klarna(_) => Ok(Some(PaymentMethodType::Klarna)),
+                grpc_api_types::payments::payment_method::PaymentMethod::PayBright(_) => Ok(Some(PaymentMethodType::PayBright)),
                 // ============================================================================
                 // DIRECT DEBIT - PaymentMethodType mappings
                 // ============================================================================
@@ -5643,6 +5647,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             } => Ok(Self::PayLater),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::PayBright(_)),
+            } => Ok(Self::PayLater),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::Boleto(_)),
             } => Ok(Self::Voucher),
             grpc_api_types::payments::PaymentMethod {
@@ -6832,6 +6840,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::AfterpayClearpay => Ok(Self::PayLater),
             grpc_api_types::payments::PaymentMethodType::Alma => Ok(Self::PayLater),
             grpc_api_types::payments::PaymentMethodType::Atome => Ok(Self::PayLater),
+            grpc_api_types::payments::PaymentMethodType::PayBright => Ok(Self::PayLater),
 
             grpc_api_types::payments::PaymentMethodType::BancontactCard => Ok(Self::BankRedirect),
             grpc_api_types::payments::PaymentMethodType::Ideal => Ok(Self::BankRedirect),
