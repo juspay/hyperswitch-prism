@@ -31,7 +31,7 @@ message CompositeAuthorizeRequest {
   optional int64 shipping_cost = 9; // Cost of shipping for the order
 
   // Payment Method and Capture Settings
-  PaymentMethod payment_method = 10; // Payment method to be used
+  optional PaymentMethod payment_method = 10; // Payment method to be used
   optional CaptureMethod capture_method = 11; // Method for capturing the payment
 
   // Authentication Details
@@ -140,6 +140,7 @@ message CompositeAuthorizeResponse {
   optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 1; // Access token flow response
   optional CustomerServiceCreateResponse create_customer_response = 2; // Create customer flow response
   optional PaymentServiceAuthorizeResponse authorize_response = 3; // Authorize flow response
+  optional PaymentServiceCreateOrderResponse create_order_response = 4; // Create order flow response
   CompositeStatus composite_status = 5; // Top-level status: COMPLETED means flow is done; REDIRECT_REQUIRED means caller must redirect customer and call again
   optional PaymentMethodAuthenticationServicePreAuthenticateResponse pre_authenticate_response = 6; // PreAuthenticate flow response
   optional PaymentMethodAuthenticationServiceAuthenticateResponse authenticate_response = 7; // Authenticate flow response

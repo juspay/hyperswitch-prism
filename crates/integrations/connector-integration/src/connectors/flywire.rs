@@ -290,7 +290,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
-        let title = response.title.clone().unwrap_or_else(|| "Error".to_string());
+        let title = response
+            .title
+            .clone()
+            .unwrap_or_else(|| "Error".to_string());
         let detail = response.detail.clone().unwrap_or_default();
         let first_detail_msg = response
             .errors

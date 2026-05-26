@@ -308,8 +308,8 @@ impl TryFrom<ResponseRouterData<FlywireCheckoutSessionResponse, Self>>
         // caller can render the result directly. The session UUID also flows
         // through as `connector_order_id` for the subsequent Authorize
         // (/checkout/sessions/{id}/confirm) call.
-        let html_data = FLYWIRE_HOSTED_TEMPLATE
-            .replace("__FLYWIRE_IFRAME_SRC__", &response.hosted_form.url);
+        let html_data =
+            FLYWIRE_HOSTED_TEMPLATE.replace("__FLYWIRE_IFRAME_SRC__", &response.hosted_form.url);
         let redirection_data = Some(Box::new(RedirectForm::Html { html_data }));
 
         Ok(Self {
@@ -390,9 +390,7 @@ impl TryFrom<ResponseRouterData<FlywirePayment, Self>>
 {
     type Error = error_stack::Report<ConnectorError>;
 
-    fn try_from(
-        item: ResponseRouterData<FlywirePayment, Self>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<FlywirePayment, Self>) -> Result<Self, Self::Error> {
         let response = item.response;
         let status = response.status.to_attempt_status();
         let raw_response = serde_json::to_string(&response).ok().map(Secret::new);
@@ -509,9 +507,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // will return the live status (delivered, etc.).
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(
-                    response.payment_reference.clone(),
-                ),
+                resource_id: ResponseId::ConnectorTransactionId(response.payment_reference.clone()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -663,9 +659,7 @@ impl<F> TryFrom<ResponseRouterData<FlywirePayment, Self>>
 {
     type Error = error_stack::Report<ConnectorError>;
 
-    fn try_from(
-        item: ResponseRouterData<FlywirePayment, Self>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<FlywirePayment, Self>) -> Result<Self, Self::Error> {
         let response = item.response;
         let raw_response = serde_json::to_string(&response).ok().map(Secret::new);
         let router_data = item.router_data;
@@ -736,9 +730,7 @@ impl TryFrom<FlywireWebhookBody> for WebhookDetailsResponse {
             .unwrap_or(AttemptStatus::Pending);
 
         Ok(Self {
-            resource_id: body
-                .payment_id
-                .map(ResponseId::ConnectorTransactionId),
+            resource_id: body.payment_id.map(ResponseId::ConnectorTransactionId),
             status,
             error_code: None,
             error_message: None,
