@@ -64,7 +64,7 @@ impl<T> RazorpayV2<T> {
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for RazorpayV2<T>
 {
-    fn should_do_order_create(&self) -> bool {
+    fn should_do_order_create(&self, _connector_order_id: Option<&str>) -> bool {
         true
     }
 }

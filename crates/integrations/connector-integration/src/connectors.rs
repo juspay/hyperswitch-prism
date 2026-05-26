@@ -274,3 +274,6 @@ pub mod hyperswitch;
 pub use self::hyperswitch::Hyperswitch;
 pub mod qwikcilver;
 pub use self::qwikcilver::Qwikcilver;
+
+pub mod flywire;
+pub use self::flywire::Flywire;

@@ -792,6 +792,12 @@ pub enum ConnectorSpecificConfig {
         password: Secret<String>,
         base_url: Option<String>,
     },
+    Flywire {
+        api_key: Secret<String>,
+        shared_secret: Option<Secret<String>>,
+        recipient_id: String,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -1132,6 +1138,10 @@ impl ConnectorSpecificConfig {
                 terminal_id,
                 username,
                 password
+            },
+            Flywire {
+                api_key,
+                recipient_id
             },
         )
     }
@@ -1565,6 +1575,10 @@ impl ConnectorSpecificConfig {
                     terminal_id,
                     username,
                     password
+                },
+                Flywire {
+                    api_key,
+                    recipient_id
                 },
             ),
             serde_json::Value::Object(connector_patch),
@@ -2179,6 +2193,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 username: qwikcilver.username.ok_or_else(err)?,
                 password: qwikcilver.password.ok_or_else(err)?,
                 base_url: qwikcilver.base_url,
+            }),
+            AuthType::Flywire(flywire) => Ok(Self::Flywire {
+                api_key: flywire.api_key.ok_or_else(err)?,
+                shared_secret: flywire.shared_secret,
+                recipient_id: flywire.recipient_id,
+                base_url: flywire.base_url,
             }),
         }
     }
@@ -3298,6 +3318,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 // is not used for Qwikcilver — configure via the proto
                 // QwikcilverConfig path instead.
                 ConnectorEnum::Qwikcilver => Err(err().into()),
+                ConnectorEnum::Flywire => Err(err().into()),
             },
             connector_types::ConnectorVariant::Surcharge(connector_enum) => match connector_enum {
                 SurchargeConnectorEnum::Interpayments => match auth {

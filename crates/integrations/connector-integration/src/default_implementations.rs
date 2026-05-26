@@ -230,6 +230,7 @@ default_impl_verify_webhook_source_v2!(
         Fiserv,
         Fiservcommercehub,
         Fiservemea,
+        Flywire,
         Forte,
         Getnet,
         Gigadat,

@@ -811,6 +811,7 @@ enum Connector {
   QWIKCILVER = 125;
   HYPERSWITCH = 126;
   TSYS_TRANSIT = 127;
+  FLYWIRE = 128;
 }
 
 // Payment method types
@@ -4874,6 +4875,18 @@ message TsysTransitConfig {
   optional string base_url = 50;
 }
 
+message FlywireConfig {
+  // Flywire Payments Platform API key (X-Authentication-Key header).
+  SecretString api_key = 1;
+  // HMAC SHA-256 shared secret for inbound webhook signature verification.
+  // Optional in sandbox; required for production.
+  optional SecretString shared_secret = 2;
+  // Flywire recipient code (3-letter or 5-alphanumeric, e.g. "ZENDD").
+  // Drives currency, payout target, required institutional fields.
+  string recipient_id = 3;
+  optional string base_url = 50;
+}
+
 message TwocTwopPacoConfig {
   // Company access token, used as both the `token`/`apikey` HTTP header and
   // as the `iss` / `CompanyApiKey` JWT claim.
@@ -5224,6 +5237,8 @@ message ConnectorSpecificConfig {
     HyperswitchConfig hyperswitch = 132;
     // TSYS_TRANSIT = 127
     TsysTransitConfig tsys_transit = 133;
+    // FLYWIRE = 128
+    FlywireConfig flywire = 134;
   }
 }
 

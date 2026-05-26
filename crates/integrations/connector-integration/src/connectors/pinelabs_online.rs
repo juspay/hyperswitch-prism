@@ -86,7 +86,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         true
     }
 
-    fn should_do_order_create(&self) -> bool {
+    fn should_do_order_create(&self, _connector_order_id: Option<&str>) -> bool {
         true
     }
 }

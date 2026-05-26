@@ -106,7 +106,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Cashfree<T>
 {
-    fn should_do_order_create(&self) -> bool {
+    fn should_do_order_create(&self, _connector_order_id: Option<&str>) -> bool {
         true // Cashfree V3 requires order creation
     }
 }

@@ -169,7 +169,12 @@ pub type BoxedSurchargeConnector = Box<&'static (dyn SurchargeServiceTrait + Syn
 pub type BoxedPayoutConnector = Box<&'static (dyn PayoutServiceTrait + Sync)>;
 
 pub trait ValidationTrait: ConnectorCommon {
-    fn should_do_order_create(&self) -> bool {
+    /// Whether the framework should invoke CreateOrder before the next flow
+    /// (typically Authorize). `connector_order_id` is the caller-supplied id
+    /// for an already-created order/session; connectors can short-circuit when
+    /// one is present (e.g., Flywire skips CreateOrder if the caller already
+    /// has a `session_id` from a prior CreateOrder call).
+    fn should_do_order_create(&self, _connector_order_id: Option<&str>) -> bool {
         false
     }
 

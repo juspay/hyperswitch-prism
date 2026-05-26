@@ -412,6 +412,7 @@ pub struct Connectors {
     pub tamara: ConnectorParams,
     pub hyperswitch: ConnectorParams,
     pub qwikcilver: ConnectorParams,
+    pub flywire: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -3120,7 +3121,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             payment_method_token: None,
             mit_category: None,
             merchant_request_id: None,
-            connector_order_id: None,
+            connector_order_id: req.connector_order_id,
             domain_data: req.domain_data,
             split_payments: None,
             partner_merchant_identifier_details: None,
