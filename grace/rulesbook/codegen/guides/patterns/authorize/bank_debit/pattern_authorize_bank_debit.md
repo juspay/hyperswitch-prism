@@ -88,13 +88,13 @@ pub enum BankDebitData {
 | Variant | Region | Key Fields | Use Case | Source |
 |---------|--------|------------|----------|--------|
 | **AchBankDebit** | USA | `account_number`, `routing_number` | US bank account debits | `payment_method_data.rs:573` |
-| **EftBankDebit** | South Africa | `account_number`, `branch_code`, `bank_name`, `bank_type` | SA EFT debit orders (e.g. Sanlam Multidata) | `payment_method_data.rs:582` |
+| **EftBankDebit** | South Africa | `account_number`, `branch_code`, `bank_name`, `bank_type` | SA EFT debit orders (e.g. AbsaSanlam Multidata) | `payment_method_data.rs:582` |
 | **SepaBankDebit** | EU | `iban` | Single Euro Payments Area | `payment_method_data.rs:589` |
 | **SepaGuaranteedBankDebit** | EU | `iban` | SEPA with payment guarantee (e.g. Novalnet Instant) | `payment_method_data.rs:593` |
 | **BecsBankDebit** | Australia | `account_number`, `bsb_number` | Australian bank debits | `payment_method_data.rs:597` |
 | **BacsBankDebit** | UK | `account_number`, `sort_code` | UK direct debits | `payment_method_data.rs:602` |
 
-> **Note on `EftBankDebit`**: Unlike other bank debit variants, EFT requires `bank_name` and `bank_type` to be populated (the Sanlam Multidata integration currently errors with `MissingRequiredField` if either is absent). See `crates/integrations/connector-integration/src/connectors/sanlammultidata/transformers.rs:176-205`.
+> **Note on `EftBankDebit`**: Unlike other bank debit variants, EFT requires `bank_name` and `bank_type` to be populated (the AbsaSanlam Multidata integration currently errors with `MissingRequiredField` if either is absent). See `crates/integrations/connector-integration/src/connectors/absa_sanlammultidata/transformers.rs:176-205`.
 
 > **Note on `SepaGuaranteedBankDebit`**: Structurally identical to `SepaBankDebit`, but signals the connector should attempt a guaranteed/insured variant of SEPA Direct Debit. Connectors that do not distinguish the two should coerce it to the standard SEPA flow or return `NotImplemented`.
 
@@ -105,23 +105,23 @@ pub enum BankDebitData {
 | **Adyen** | ✅ | ❌ | ✅ | ❌ | ❌ | ✅ | ✅ | Full mandate support |
 | **Stripe** | ✅ | ❌ | ✅ | ❌ | ✅ | ✅ | ✅ | Requires mandate_data for recurring |
 | **Novalnet** | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | SEPA only |
-| **Sanlammultidata** | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | EFT debit orders via Kafka transport (PR #1027); see `sanlammultidata/transformers.rs:153-214` |
+| **AbsaSanlammultidata** | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | EFT debit orders via Kafka transport (PR #1027); see `absa_sanlammultidata/transformers.rs:153-214` |
 | **PayPal** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | Not implemented |
 | **Worldpay** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | Not implemented |
 
-### EFT Bank Debit — Sanlammultidata Implementation
+### EFT Bank Debit — AbsaSanlammultidata Implementation
 
-**Source**: `crates/integrations/connector-integration/src/connectors/sanlammultidata/transformers.rs:153-214` (PR #1027)
+**Source**: `crates/integrations/connector-integration/src/connectors/absa_sanlammultidata/transformers.rs:153-214` (PR #1027)
 
-The Sanlam Multidata integration is the first and currently only connector to implement `EftBankDebit`. The match arm (lines 153-214) maps `BankDebitData::EftBankDebit { account_number, branch_code, bank_account_holder_name, bank_name, bank_type }` onto `SanlammultidataPaymentMethod::EftDebitOrder(EftDebitOrder { homing_account, homing_branch, homing_account_name, bank_name, bank_type })`. Key field mapping:
+The AbsaSanlam Multidata integration is the first and currently only connector to implement `EftBankDebit`. The match arm (lines 153-214) maps `BankDebitData::EftBankDebit { account_number, branch_code, bank_account_holder_name, bank_name, bank_type }` onto `AbsaSanlammultidataPaymentMethod::EftDebitOrder(EftDebitOrder { homing_account, homing_branch, homing_account_name, bank_name, bank_type })`. Key field mapping:
 
 | Domain Field | Connector Field | Required? |
 |--------------|-----------------|-----------|
 | `account_number` | `homing_account` | Yes |
 | `branch_code` | `homing_branch` | Yes |
 | `bank_account_holder_name` | `homing_account_name` | Yes — errors if missing (`transformers.rs:161-174`) |
-| `bank_name` | `bank_name` (Sanlam enum) | Yes — errors if missing or unmappable (`transformers.rs:176-190`) |
-| `bank_type` | `bank_type` (Sanlam enum, e.g. `Savings`, `Cheque`, `Current`, `Bond`, `Transmission`, `SubscriptionShare`) | Yes — errors if missing (`transformers.rs:192-205`) |
+| `bank_name` | `bank_name` (AbsaSanlam enum) | Yes — errors if missing or unmappable (`transformers.rs:176-190`) |
+| `bank_type` | `bank_type` (AbsaSanlam enum, e.g. `Savings`, `Cheque`, `Current`, `Bond`, `Transmission`, `SubscriptionShare`) | Yes — errors if missing (`transformers.rs:192-205`) |
 
 ## Quick Reference
 
@@ -1055,7 +1055,7 @@ is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
 | Sub-type | Region | Account Identifier | Routing Identifier | Holder Name Source | Special Handling |
 |----------|--------|-------------------|-------------------|-------------------|------------------|
 | **AchBankDebit** | USA | `account_number` | `routing_number` | `bank_account_holder_name` or billing name | State code conversion |
-| **EftBankDebit** | South Africa | `account_number` | `branch_code` | `bank_account_holder_name` (required — no billing fallback at connector) | `bank_name` + `bank_type` required; Kafka transport (Sanlammultidata) |
+| **EftBankDebit** | South Africa | `account_number` | `branch_code` | `bank_account_holder_name` (required — no billing fallback at connector) | `bank_name` + `bank_type` required; Kafka transport (AbsaSanlammultidata) |
 | **SepaBankDebit** | EU | `iban` | N/A | `bank_account_holder_name` or billing name | IBAN validation |
 | **SepaGuaranteedBankDebit** | EU | `iban` | N/A | `bank_account_holder_name` or billing name | Same shape as SEPA; signals guaranteed/insured debit |
 | **BecsBankDebit** | Australia | `account_number` | `bsb_number` | `bank_account_holder_name` or billing name | BSB formatting |
@@ -1173,16 +1173,16 @@ impl From<ConnectorBankDebitStatus> for common_enums::AttemptStatus {
 
 ## Best Practices
 
-### Non-HTTP Transports: Kafka-Based Request Publish (Sanlammultidata)
+### Non-HTTP Transports: Kafka-Based Request Publish (AbsaSanlammultidata)
 
-**Unique integration shape**: Most bank debit connectors publish authorize requests over HTTPS. Sanlammultidata is the first bank debit connector in the codebase to use a **Kafka-based request publish** pattern instead — the authorize request is serialized and produced to a Kafka topic, and the downstream processor consumes it out-of-band. Callers should not expect a synchronous response body on the produce call.
+**Unique integration shape**: Most bank debit connectors publish authorize requests over HTTPS. AbsaSanlammultidata is the first bank debit connector in the codebase to use a **Kafka-based request publish** pattern instead — the authorize request is serialized and produced to a Kafka topic, and the downstream processor consumes it out-of-band. Callers should not expect a synchronous response body on the produce call.
 
-Key surface area (see `crates/integrations/connector-integration/src/connectors/sanlammultidata.rs`):
+Key surface area (see `crates/integrations/connector-integration/src/connectors/absa_sanlammultidata.rs`):
 
-- **Transport declaration**: `get_transport_type(&self) -> TransportType::Kafka` — `sanlammultidata.rs:234-236`.
-- **Topic derivation**: `get_kafka_topic` returns `"{base_url}_payments_queue"` — `sanlammultidata.rs:245-250`.
-- **Record assembly**: `build_kafka_record` uses `KafkaRecordBuilder::new().topic(...).attach_default_headers().headers(...).set_optional_payload(self.get_request_body(req)?).build()` — `sanlammultidata.rs:259-271`.
-- **Imports**: `common_utils::request::{KafkaRecord, KafkaRecordBuilder, TransportType}` — `sanlammultidata.rs:9`.
+- **Transport declaration**: `get_transport_type(&self) -> TransportType::Kafka` — `absa_sanlammultidata.rs:234-236`.
+- **Topic derivation**: `get_kafka_topic` returns `"{base_url}_payments_queue"` — `absa_sanlammultidata.rs:245-250`.
+- **Record assembly**: `build_kafka_record` uses `KafkaRecordBuilder::new().topic(...).attach_default_headers().headers(...).set_optional_payload(self.get_request_body(req)?).build()` — `absa_sanlammultidata.rs:259-271`.
+- **Imports**: `common_utils::request::{KafkaRecord, KafkaRecordBuilder, TransportType}` — `absa_sanlammultidata.rs:9`.
 
 Implications when implementing a Kafka-transport connector:
 
@@ -1330,11 +1330,11 @@ async fn test_bank_debit_mandate_creation() {
 - **Adyen**: `crates/integrations/connector-integration/src/connectors/adyen/transformers.rs:1654-1696`
 - **Stripe**: `crates/integrations/connector-integration/src/connectors/stripe/transformers.rs:1204-1260`
 - **Novalnet**: `crates/integrations/connector-integration/src/connectors/novalnet/transformers.rs:467-527`
-- **Sanlammultidata (EFT)**: `crates/integrations/connector-integration/src/connectors/sanlammultidata/transformers.rs:153-214` — Kafka transport wiring at `crates/integrations/connector-integration/src/connectors/sanlammultidata.rs:234-271`
+- **AbsaSanlammultidata (EFT)**: `crates/integrations/connector-integration/src/connectors/absa_sanlammultidata/transformers.rs:153-214` — Kafka transport wiring at `crates/integrations/connector-integration/src/connectors/absa_sanlammultidata.rs:234-271`
 
 ## Change Log
 
 | Version | Date | Pinned SHA | Summary |
 |---------|------|------------|---------|
-| 1.4.0 | 2026-04-20 | `60540470cf84a350cc02b0d41565e5766437eb95` | Document new `EftBankDebit` and `SepaGuaranteedBankDebit` variants (enum now has 6 variants, was 4). Add Sanlammultidata (PR #1027) as first EFT implementer and first bank-debit connector using a Kafka-based request-publish transport. Update Supported Connectors matrix and Sub-type Variations to reflect all six variants. |
+| 1.4.0 | 2026-04-20 | `60540470cf84a350cc02b0d41565e5766437eb95` | Document new `EftBankDebit` and `SepaGuaranteedBankDebit` variants (enum now has 6 variants, was 4). Add AbsaSanlammultidata (PR #1027) as first EFT implementer and first bank-debit connector using a Kafka-based request-publish transport. Update Supported Connectors matrix and Sub-type Variations to reflect all six variants. |
 | 1.3.0 | 2026-02-19 | (prior)  | Prior revision — documented 4 bank debit variants (ACH, SEPA, BECS, BACS). |
