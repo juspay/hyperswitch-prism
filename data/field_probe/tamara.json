@@ -3,118 +3,118 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: authenticate flow for tamara"
+        "status": "not_supported",
+        "error": "authenticate flow not supported by tamara connector"
       }
     },
     "authorize": {
       "Ach": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "AchBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Affirm": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Afterpay": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Alfamart": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "AliPayRedirect": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "AmazonPayRedirect": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "ApplePay": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "ApplePayDecrypted": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "ApplePayThirdPartySdk": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Bacs": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "BacsBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "BancontactCard": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "BcaBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Becs": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "BillDeskRedirect": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Bizum": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Blik": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Bluecode": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "BniVaBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Boleto": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "BriVaBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Card": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "CashappQr": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "CashfreeRedirect": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "CimbVaBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "ClassicReward": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Crypto": {
         "status": "not_supported",
@@ -122,11 +122,11 @@
       },
       "Dana": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "DanamonVaBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "DuitNow": {
         "status": "not_supported",
@@ -134,35 +134,35 @@
       },
       "EVoucher": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "EaseBuzzRedirect": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Efecty": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Eft": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Eps": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "FamilyMart": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "GCash": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Giropay": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Givex": {
         "status": "not_supported",
@@ -170,87 +170,87 @@
       },
       "GoPay": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "GooglePay": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "GooglePayDecrypted": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "GooglePayThirdPartySdk": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Ideal": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Indomaret": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "IndonesianBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "InstantBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "InstantBankTransferFinland": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "InstantBankTransferPoland": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Interac": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "KakaoPay": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Klarna": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Lawson": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "LazyPayRedirect": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "LocalBankRedirect": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "LocalBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "MandiriVaBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "MbWay": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Mifinity": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "MiniStop": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "MobilePayRedirect": {
         "status": "not_supported",
@@ -258,43 +258,43 @@
       },
       "Momo": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "MultibancoBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Netbanking": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "OnlineBankingCzechRepublic": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "OnlineBankingFinland": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "OnlineBankingFpx": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "OnlineBankingPoland": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "OnlineBankingSlovakia": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "OnlineBankingThailand": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "OpenBanking": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "OpenBankingPis": {
         "status": "not_supported",
@@ -302,19 +302,19 @@
       },
       "OpenBankingUk": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Oxxo": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "PagoEfectivo": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "PayEasy": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "PaySafeCard": {
         "status": "not_supported",
@@ -322,15 +322,15 @@
       },
       "PayURedirect": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "PaypalRedirect": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "PaypalSdk": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Paysera": {
         "status": "not_supported",
@@ -342,63 +342,63 @@
       },
       "PermataBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "PhonePeRedirect": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Pix": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Przelewy24": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Pse": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "RedCompra": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "RedPagos": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "RevolutPay": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "SamsungPay": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Satispay": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Seicomart": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Sepa": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "SepaBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "SepaGuaranteedDebit": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "SevenEleven": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Skrill": {
         "status": "not_supported",
@@ -406,47 +406,47 @@
       },
       "Sofort": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Swish": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "TouchNGo": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Trustly": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Twint": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "UpiCollect": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "UpiIntent": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "UpiQr": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Vipps": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "WeChatPayQr": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       },
       "Wero": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       }
     },
     "capture": {
@@ -474,14 +474,14 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: client_authentication_token flow for tamara"
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by tamara connector"
       }
     },
     "create_customer": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: create_connector_customer flow for tamara"
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by tamara connector"
       }
     },
     "create_order": {
@@ -498,20 +498,20 @@
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: server_session_authentication_token flow for tamara"
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by tamara connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: accept_dispute flow for tamara"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by tamara connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: defend_dispute flow for tamara"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by tamara connector"
       }
     },
     "dispute_get": {
@@ -521,8 +521,8 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: submit_evidence flow for tamara"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by tamara connector"
       }
     },
     "eligibility": {
@@ -575,8 +575,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: incremental_authorization flow for tamara"
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by tamara connector"
       }
     },
     "parse_event": {
@@ -600,20 +600,20 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: post_authenticate flow for tamara"
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by tamara connector"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: pre_authenticate flow for tamara"
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by tamara connector"
       }
     },
     "proxy_authorize": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       }
     },
     "proxy_setup_recurring": {
@@ -680,8 +680,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: void_post_capture flow for tamara"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by tamara connector"
       }
     },
     "setup_recurring": {
@@ -693,7 +693,7 @@
     "token_authorize": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: first_name — Missing required field: first_name"
+        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
       }
     },
     "token_setup_recurring": {
@@ -715,25 +715,8 @@
     },
     "void": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_void_id": "probe_void_001",
-          "connector_transaction_id": "probe_connector_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          }
-        },
-        "sample": {
-          "url": "https://api-sandbox.tamara.co/orders/probe_connector_txn_001/cancel",
-          "method": "Post",
-          "headers": {
-            "authorization": "Bearer probe_key",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"total_amount\":{\"amount\":1000,\"currency\":\"USD\"}}"
-        }
+        "status": "error",
+        "error": "Stuck on field: amount. Missing void amount — Missing required field: amount. Missing void amount"
       }
     }
   }

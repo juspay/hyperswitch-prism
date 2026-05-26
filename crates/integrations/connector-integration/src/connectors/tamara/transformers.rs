@@ -7,9 +7,9 @@ use common_utils::{types::MinorUnit, Email};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, VerifyWebhookSource, Void},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        EventType, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId, VerifyWebhookSourceFlowData, EventType,
+        RefundsResponseData, ResponseId, VerifyWebhookSourceFlowData,
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
@@ -197,14 +197,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .router_return_url
             .clone()
             .unwrap_or_default();
-        let shipping_amount = router_data
-            .request
-            .shipping_cost
-            .unwrap_or(MinorUnit(0));
-        let tax_amount = router_data
-            .request
-            .order_tax_amount
-            .unwrap_or(MinorUnit(0));
+        let shipping_amount = router_data.request.shipping_cost.unwrap_or(MinorUnit(0));
+        let tax_amount = router_data.request.order_tax_amount.unwrap_or(MinorUnit(0));
         let country_code = router_data
             .resource_common_data
             .get_shipping_or_billing_country()?
@@ -435,7 +429,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .get_connector_transaction_id()
             .change_context(errors::IntegrationError::MissingConnectorTransactionID {
                 context: errors::IntegrationErrorContext {
-                    additional_context: Some("Missing connector transaction ID (order_id)".to_string()),
+                    additional_context: Some(
+                        "Missing connector transaction ID (order_id)".to_string(),
+                    ),
                     ..Default::default()
                 },
             })?;
@@ -535,10 +531,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
         ))?;
         Ok(Self {
-            total_amount: TamaraAmount {
-                amount,
-                currency,
-            },
+            total_amount: TamaraAmount { amount, currency },
         })
     }
 }
@@ -699,9 +692,9 @@ impl From<TamaraWebhookEvent> for AttemptStatus {
             }
             TamaraWebhookEvent::OrderCaptured => Self::Charged,
             TamaraWebhookEvent::OrderCanceled => Self::Voided,
-            TamaraWebhookEvent::OrderUpdated | TamaraWebhookEvent::OrderRefunded | TamaraWebhookEvent::Unknown => {
-                Self::Pending
-            }
+            TamaraWebhookEvent::OrderUpdated
+            | TamaraWebhookEvent::OrderRefunded
+            | TamaraWebhookEvent::Unknown => Self::Pending,
         }
     }
 }

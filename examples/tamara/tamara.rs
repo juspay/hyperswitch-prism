@@ -10,14 +10,7 @@ use hyperswitch_payments_client::ConnectorClient;
 use std::collections::HashMap;
 
 #[allow(dead_code)]
-pub const SUPPORTED_FLOWS: &[&str] = &[
-    "capture",
-    "get",
-    "parse_event",
-    "refund",
-    "refund_get",
-    "void",
-];
+pub const SUPPORTED_FLOWS: &[&str] = &["capture", "get", "parse_event", "refund", "refund_get"];
 
 #[allow(dead_code)]
 fn build_client() -> ConnectorClient {
@@ -118,19 +111,6 @@ pub fn build_verify_redirect_request() -> PaymentServiceVerifyRedirectResponseRe
     }
 }
 
-pub fn build_void_request(connector_transaction_id: &str) -> PaymentServiceVoidRequest {
-    PaymentServiceVoidRequest {
-        merchant_void_id: Some("probe_void_001".to_string()), // Identification.
-        connector_transaction_id: connector_transaction_id.to_string(),
-        amount: Some(Money {
-            // Amount Information.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
-        }),
-        ..Default::default()
-    }
-}
-
 // Flow: PaymentService.Capture
 #[allow(dead_code)]
 pub async fn process_capture(
@@ -203,22 +183,6 @@ pub async fn process_refund_get(
     Ok(format!("status: {:?}", response.status()))
 }
 
-// Flow: PaymentService.Void
-#[allow(dead_code)]
-pub async fn process_void(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .void(
-            build_void_request("probe_connector_txn_001"),
-            &HashMap::new(),
-            None,
-        )
-        .await?;
-    Ok(format!("status: {:?}", response.status()))
-}
-
 #[allow(dead_code)]
 #[tokio::main]
 async fn main() {
@@ -232,9 +196,8 @@ async fn main() {
         "process_parse_event" => process_parse_event(&client, "txn_001").await,
         "process_refund" => process_refund(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
-        "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_capture, process_get, process_parse_event, process_refund, process_refund_get, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_capture, process_get, process_parse_event, process_refund, process_refund_get", flow);
             return;
         }
     };

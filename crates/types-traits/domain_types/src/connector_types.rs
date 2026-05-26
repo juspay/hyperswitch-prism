@@ -934,16 +934,12 @@ impl PaymentFlowData {
     // `get_optional_shipping_or_billing_*` → Option  (chain further fallbacks as needed)
     // `get_shipping_or_billing_*`          → Result  (error is owned here; callers just use `?`)
 
-    pub fn get_optional_shipping_or_billing_country(
-        &self,
-    ) -> Option<common_enums::CountryAlpha2> {
+    pub fn get_optional_shipping_or_billing_country(&self) -> Option<common_enums::CountryAlpha2> {
         self.get_optional_shipping_country()
             .or_else(|| self.get_optional_billing_country())
     }
 
-    pub fn get_shipping_or_billing_country(
-        &self,
-    ) -> Result<common_enums::CountryAlpha2, Error> {
+    pub fn get_shipping_or_billing_country(&self) -> Result<common_enums::CountryAlpha2, Error> {
         self.get_optional_shipping_or_billing_country()
             .ok_or_else(missing_field_err("shipping_or_billing.address.country"))
     }
@@ -955,9 +951,7 @@ impl PaymentFlowData {
 
     pub fn get_shipping_or_billing_first_name(&self) -> Result<Secret<String>, Error> {
         self.get_optional_shipping_or_billing_first_name()
-            .ok_or_else(missing_field_err(
-                "shipping_or_billing.address.first_name",
-            ))
+            .ok_or_else(missing_field_err("shipping_or_billing.address.first_name"))
     }
 
     pub fn get_optional_shipping_or_billing_last_name(&self) -> Option<Secret<String>> {
@@ -967,9 +961,7 @@ impl PaymentFlowData {
 
     pub fn get_shipping_or_billing_last_name(&self) -> Result<Secret<String>, Error> {
         self.get_optional_shipping_or_billing_last_name()
-            .ok_or_else(missing_field_err(
-                "shipping_or_billing.address.last_name",
-            ))
+            .ok_or_else(missing_field_err("shipping_or_billing.address.last_name"))
     }
 
     // Same as `get_shipping_or_billing_phone_number` but doesn't require country code.

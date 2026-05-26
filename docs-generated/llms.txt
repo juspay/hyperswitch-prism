@@ -619,7 +619,7 @@ connector_id: tamara
 doc: docs/connectors/tamara.md
 scenarios: none
 payment_methods: none
-flows: capture, get, handle_event, parse_event, refund, refund_get, verify_redirect, void
+flows: capture, get, handle_event, parse_event, refund, refund_get, verify_redirect
 examples_python: none
 
 ## Truelayer

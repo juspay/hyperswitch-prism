@@ -3,15 +3,16 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
-use common_utils::{consts, errors::CustomResult, events, ext_traits::ByteSliceExt, types::MinorUnit};
+use common_utils::{
+    consts, errors::CustomResult, events, ext_traits::ByteSliceExt, types::MinorUnit,
+};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, VerifyWebhookSource, Void},
     connector_types::{
         EventType, PaymentFlowData, PaymentVoidData, PaymentWebhookReference,
         PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RequestDetails, ResponseId, VerifyWebhookSourceFlowData,
-        WebhookResourceReference,
+        RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        RequestDetails, ResponseId, VerifyWebhookSourceFlowData, WebhookResourceReference,
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
