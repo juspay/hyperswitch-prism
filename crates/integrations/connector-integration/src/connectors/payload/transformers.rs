@@ -1096,8 +1096,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let email = router_data.request.get_email()?;
         let name = router_data.request.get_name()?;
 
-        let primary_processing_id = PayloadAuthType::try_from(&router_data.connector_config)?
-            .primary_processing_id();
+        let primary_processing_id =
+            PayloadAuthType::try_from(&router_data.connector_config)?.primary_processing_id();
 
         Ok(Self {
             // `keep_active` controls whether the saved payment methods on this

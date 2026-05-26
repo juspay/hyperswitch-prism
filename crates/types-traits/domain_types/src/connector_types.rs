@@ -1852,9 +1852,7 @@ impl ConnectorCustomerData {
     }
 
     pub fn get_name(&self) -> Result<Secret<String>, Error> {
-        self.name
-            .clone()
-            .ok_or_else(missing_field_err("name"))
+        self.name.clone().ok_or_else(missing_field_err("name"))
     }
 }
 
