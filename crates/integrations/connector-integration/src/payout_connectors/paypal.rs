@@ -7,7 +7,10 @@ use domain_types::{
         PayoutCreate, PayoutCreateLink, PayoutCreateRecipient, PayoutEnrollDisburseAccount,
         PayoutGet, PayoutStage, PayoutTransfer, PayoutVoid,
     },
-    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    errors::{
+        ConnectorError, IntegrationError, IntegrationErrorContext,
+        ResponseTransformationErrorContext,
+    },
     payouts::payouts_types::{
         PayoutCreateLinkRequest, PayoutCreateLinkResponse, PayoutCreateRecipientRequest,
         PayoutCreateRecipientResponse, PayoutCreateRequest, PayoutCreateResponse,
@@ -151,7 +154,12 @@ impl ConnectorCommon for PaypalPayouts {
             .response
             .parse_struct("Paypal ErrorResponse")
             .change_context(ConnectorError::ResponseDeserializationFailed {
-                context: Default::default(),
+                context: ResponseTransformationErrorContext {
+                    http_status_code: Some(res.status_code),
+                    additional_context: Some(
+                        "PayPal - failed to deserialize error response".to_string(),
+                    ),
+                },
             })?;
 
         event_builder.map(|i| i.set_connector_response(&response));
@@ -269,7 +277,13 @@ impl
             .response
             .parse_struct("PaypalFulfillResponse")
             .change_context(ConnectorError::ResponseDeserializationFailed {
-                context: Default::default(),
+                context: ResponseTransformationErrorContext {
+                    http_status_code: Some(res.status_code),
+                    additional_context: Some(
+                        "PayPal Fulfill (PayoutTransfer) - failed to deserialize response"
+                            .to_string(),
+                    ),
+                },
             })?;
 
         event_builder.map(|i| i.set_connector_response(&response));
@@ -280,7 +294,13 @@ impl
             http_code: res.status_code,
         })
         .change_context(ConnectorError::ResponseDeserializationFailed {
-            context: Default::default(),
+            context: ResponseTransformationErrorContext {
+                http_status_code: Some(res.status_code),
+                additional_context: Some(
+                    "PayPal Fulfill (PayoutTransfer) - failed to map response to RouterData"
+                        .to_string(),
+                ),
+            },
         })
     }
 
@@ -375,7 +395,12 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
             .response
             .parse_struct("PaypalPayoutSyncResponse")
             .change_context(ConnectorError::ResponseDeserializationFailed {
-                context: Default::default(),
+                context: ResponseTransformationErrorContext {
+                    http_status_code: Some(res.status_code),
+                    additional_context: Some(
+                        "PayPal Get (PayoutGet) - failed to deserialize response".to_string(),
+                    ),
+                },
             })?;
 
         event_builder.map(|i| i.set_connector_response(&response));
@@ -386,7 +411,12 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
             http_code: res.status_code,
         })
         .change_context(ConnectorError::ResponseDeserializationFailed {
-            context: Default::default(),
+            context: ResponseTransformationErrorContext {
+                http_status_code: Some(res.status_code),
+                additional_context: Some(
+                    "PayPal Get (PayoutGet) - failed to map response to RouterData".to_string(),
+                ),
+            },
         })
     }
 

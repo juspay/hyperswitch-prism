@@ -208,15 +208,7 @@ impl ConnectorDataProvider for PayoutConnectorData {
     fn from_connector_variant(
         variant: &domain_types::connector_types::ConnectorVariant,
     ) -> Option<Self> {
-        // Try explicit payout variant first
-        if let Some(c) = variant.as_payout() {
-            return Some(Self::get_connector_by_name(&c));
-        }
-        // Backward-compat: fall back to converting a payment connector enum to payout
-        variant
-            .as_payment()
-            .and_then(|c| PayoutConnectorEnum::try_from(c).ok())
-            .map(|c| Self::get_connector_by_name(&c))
+        variant.as_payout().map(|c| Self::get_connector_by_name(&c))
     }
 }
 
