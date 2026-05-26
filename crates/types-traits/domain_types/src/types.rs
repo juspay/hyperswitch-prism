@@ -694,6 +694,9 @@ impl Connectors {
                 };
                 patched.trustpay.apply(trustpay_patch);
             }
+            ConnectorEnum::TwocTwopPaco => {
+                patched.twoc_twop_paco.apply(params_patch);
+            }
             _ => {
                 // Connector not supported for URL patching - return error
                 return Err(IntegrationError::InvalidDataFormat {
