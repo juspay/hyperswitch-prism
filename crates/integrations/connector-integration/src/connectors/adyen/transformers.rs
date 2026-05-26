@@ -28,14 +28,14 @@ use domain_types::{
         SetupMandateRequestData, SubmitEvidenceData,
     },
     payment_method_data::{
-        ApplePayPaymentData, BankDebitData, BankRedirectData, BankTransferData, Card,
+        self, ApplePayPaymentData, BankDebitData, BankRedirectData, BankTransferData, Card,
         CardRedirectData, DefaultPCIHolder, GiftCardData, GpayTokenizationData, NetworkTokenData,
         PayLaterData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, VoucherData,
         VoucherNextStepData, WalletData,
     },
     router_data::{
         ConnectorResponseData, ConnectorSpecificConfig, ErrorResponse,
-        ExtendedAuthorizationResponseData,
+        ExtendedAuthorizationResponseData, PazeDecryptedData,
     },
     router_data_v2::RouterDataV2,
     router_request_types::SyncRequestType,
@@ -171,6 +171,19 @@ pub struct AdyenCard<
     cvc: Option<Secret<String>>,
     holder_name: Option<Secret<String>>,
     brand: Option<CardBrand>, //Mandatory for mandate using network_txns_id
+    network_payment_reference: Option<Secret<String>>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenPazeData {
+    number: NetworkToken,
+    expiry_month: Secret<String>,
+    expiry_year: Secret<String>,
+    cvc: Option<Secret<String>>,
+    holder_name: Option<Secret<String>>,
+    brand: Option<CardBrand>, // Mandatory for mandate using network_txns_id
     network_payment_reference: Option<Secret<String>>,
 }
 
@@ -323,6 +336,8 @@ pub enum AdyenPaymentMethod<
     Swish,
     #[serde(rename = "paypal")]
     AdyenPaypal,
+    #[serde(rename = "networkToken")]
+    AdyenPaze(Box<AdyenPazeData>),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1204,6 +1219,7 @@ impl TryFrom<&common_enums::PaymentMethodType> for PaymentType {
             common_enums::PaymentMethodType::Pix => Ok(Self::Pix),
             common_enums::PaymentMethodType::Givex => Ok(Self::Giftcard),
             common_enums::PaymentMethodType::PaySafeCard => Ok(Self::PaySafeCard),
+            common_enums::PaymentMethodType::Paze => Ok(Self::NetworkToken),
             _ => Err(IntegrationError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
                 Default::default(),
@@ -1566,8 +1582,34 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             WalletData::VippsRedirect { .. } => Ok(Self::Vipps),
             WalletData::SwishQr(_) => Ok(Self::Swish),
             WalletData::PaypalRedirect(_) => Ok(Self::AdyenPaypal),
+            WalletData::Paze(paze_wallet_data) => {
+                let paze_decrypted_data = match paze_wallet_data.as_ref() {
+                    payment_method_data::PazeWalletData::Decrypted(paze_decrypted) => {
+                        (**paze_decrypted).clone()
+                    }
+                    payment_method_data::PazeWalletData::CompleteResponse(complete_response) => {
+                        serde_json::from_str::<PazeDecryptedData>(complete_response.peek())
+                            .change_context(IntegrationError::InvalidWalletToken {
+                                wallet_name: "Paze".to_string(),
+                                context: Default::default(),
+                            })?
+                    }
+                };
+                let paze_data = AdyenPazeData {
+                    number: paze_decrypted_data.token.payment_token,
+                    expiry_month: paze_decrypted_data.token.token_expiration_month,
+                    expiry_year: paze_decrypted_data.token.token_expiration_year,
+                    cvc: None,
+                    holder_name: paze_decrypted_data
+                        .billing_address
+                        .name
+                        .or_else(|| item.resource_common_data.get_optional_billing_full_name()),
+                    brand: get_adyen_card_network(paze_decrypted_data.payment_card_network.clone()),
+                    network_payment_reference: None,
+                };
+                Ok(Self::AdyenPaze(Box::new(paze_data)))
+            }
             WalletData::AmazonPayRedirect(_)
-            | WalletData::Paze(_)
             | WalletData::RevolutPay(_)
             | WalletData::MobilePayRedirect(_)
             | WalletData::SamsungPay(_)
