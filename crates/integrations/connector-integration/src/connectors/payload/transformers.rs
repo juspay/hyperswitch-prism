@@ -28,7 +28,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeOptionInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeOptionInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::{requests, responses};
@@ -118,6 +118,16 @@ impl TryFrom<&ConnectorSpecificConfig> for PayloadAuthType {
             }
             .into()),
         }
+    }
+}
+
+impl PayloadAuthType {
+    // The api_key / processing_account_id pair is the same across currencies in
+    // the Payload sandbox, so any currency-keyed entry yields the same id.
+    fn primary_processing_id(&self) -> Option<Secret<String>> {
+        self.auths
+            .values()
+            .find_map(|a| a.processing_account_id.clone())
     }
 }
 
@@ -1083,37 +1093,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
 
-        let email = router_data
-            .request
-            .email
-            .as_ref()
-            .map(|e| e.peek().clone())
-            .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "email",
-                context: Default::default(),
-            })?;
+        let email = router_data.request.get_email()?;
+        let name = router_data.request.get_name()?;
 
-        let name =
-            router_data
-                .request
-                .name
-                .clone()
-                .ok_or(IntegrationError::MissingRequiredField {
-                    field_name: "name",
-                    context: Default::default(),
-                })?;
-
-        // Pull processing_account_id from the currency-keyed auth map (any
-        // currency works because the api_key / processing_account_id pair is
-        // the same across currencies in the Payload sandbox).
-        let primary_processing_id = PayloadAuthType::try_from(&router_data.connector_config)
-            .ok()
-            .and_then(|auth| {
-                auth.auths
-                    .values()
-                    .next()
-                    .and_then(|a| a.processing_account_id.clone())
-            });
+        let primary_processing_id = PayloadAuthType::try_from(&router_data.connector_config)?
+            .primary_processing_id();
 
         Ok(Self {
             // `keep_active` controls whether the saved payment methods on this
