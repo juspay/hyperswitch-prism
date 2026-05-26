@@ -1907,6 +1907,16 @@ pub struct WebhookDetailsResponse {
 ///
 /// Mirrors the proto `EventReference` oneof. Each variant carries only the IDs that are
 /// meaningful for that resource type — no status, no credentials, no context.
+/// Dimensions of a webhook payment response that Euler can verify for integrity.
+///
+/// Integrity dimensions a connector can verify in a webhook payload.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum WebhookIntegrityCheck {
+    ConnectorTransactionId,
+    Amount,
+    Currency,
+}
+
 ///
 /// `connector_*_id` — the PSP-assigned identifier (always present when applicable).
 /// `merchant_*_id` — the caller-assigned identifier (order ID, invoice ID, etc.) when

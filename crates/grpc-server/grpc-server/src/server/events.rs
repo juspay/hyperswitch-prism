@@ -17,7 +17,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
-    utils::ForeignTryFrom,
+    utils::{ForeignFrom, ForeignTryFrom},
 };
 use external_services::service::EventProcessingParams;
 use grpc_api_types::payments::{
@@ -225,8 +225,8 @@ impl EventService for EventServiceImpl {
                     let integrity_checks: Vec<i32> = connector_data
                         .connector
                         .get_webhook_integrity_checks()
-                        .iter()
-                        .map(|c| i32::from(IntegrityCheckWrapper::from(c).0))
+                        .into_iter()
+                        .map(|c| i32::from(ProtoIntegrityCheck::foreign_from(c)))
                         .collect();
 
                     let mut response = connector_integration::webhook_utils::process_webhook_event(
@@ -362,15 +362,4 @@ async fn verify_webhook_source_external(
     }
 }
 
-struct IntegrityCheckWrapper(ProtoIntegrityCheck);
 
-impl From<&interfaces::connector_types::WebhookIntegrityCheck> for IntegrityCheckWrapper {
-    fn from(check: &interfaces::connector_types::WebhookIntegrityCheck) -> Self {
-        use interfaces::connector_types::WebhookIntegrityCheck as W;
-        IntegrityCheckWrapper(match check {
-            W::ConnectorTransactionId => ProtoIntegrityCheck::ConnectorTransactionId,
-            W::Amount => ProtoIntegrityCheck::Amount,
-            W::Currency => ProtoIntegrityCheck::Currency,
-        })
-    }
-}

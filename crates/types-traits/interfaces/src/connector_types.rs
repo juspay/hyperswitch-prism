@@ -3,6 +3,7 @@ use std::str::FromStr;
 
 use common_enums::{AttemptStatus, CaptureMethod, PaymentMethod, PaymentMethodType};
 use common_utils::{CustomResult, SecretSerdeValue};
+pub use domain_types::connector_types::WebhookIntegrityCheck;
 use domain_types::{
     connector_flow,
     connector_types::{
@@ -74,17 +75,6 @@ pub enum RedirectState {
     RedirectWithoutParams,
 
 }
-
-/// Dimensions of a webhook payment response that Euler can verify for integrity.
-///
-/// Integrity dimensions a connector can verify in a webhook payload.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum WebhookIntegrityCheck {
-    ConnectorTransactionId,
-    Amount,
-    Currency,
-}
-
 
 pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     ConnectorCommon
