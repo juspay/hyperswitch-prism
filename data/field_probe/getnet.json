@@ -101,7 +101,10 @@
           },
           "capture_method": "AUTOMATIC",
           "address": {
-            "billing_address": {}
+            "billing_address": {
+              "first_name": "John",
+              "last_name": "Doe"
+            }
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
@@ -122,7 +125,7 @@
             "via": "HyperSwitch",
             "x-transaction-channel-entry": "XX"
           },
-          "body": "{\"request_id\":\"00000000-0000-0000-0000-000000000000\",\"idempotency_key\":\"00000000-0000-0000-0000-000000000000\",\"data\":{\"amount\":1000,\"currency\":\"USD\",\"order\":{\"order_id\":\"probe_txn_001\",\"sales_tax\":0},\"customer\":{\"first_name\":\"Customer\",\"last_name\":\"Customer\",\"name\":\"Customer Customer\",\"document_type\":\"CPF\",\"document_number\":\"00000000000\",\"billing_address\":{\"street\":\"Endereco\",\"number\":\"S/N\",\"district\":\"Centro\",\"city\":\"Sao Paulo\",\"state\":\"SP\",\"country\":\"BR\",\"postal_code\":\"01310100\"}},\"boleto\":{\"expiration_date\":\"24/06/2026\"},\"payment\":{\"payment_method\":\"BOLETO\",\"payment_id\":\"00000000-0000-0000-0000-000000000000\"}}}"
+          "body": "{\"request_id\":\"00000000-0000-0000-0000-000000000000\",\"idempotency_key\":\"00000000-0000-0000-0000-000000000000\",\"data\":{\"amount\":1000,\"currency\":\"USD\",\"order\":{\"order_id\":\"probe_txn_001\",\"sales_tax\":0},\"customer\":{\"first_name\":\"John\",\"last_name\":\"Doe\",\"name\":\"John Doe\",\"document_type\":\"CPF\",\"document_number\":\"00000000000\",\"billing_address\":{\"street\":\"Endereco\",\"number\":\"S/N\",\"district\":\"Centro\",\"city\":\"Sao Paulo\",\"state\":\"SP\",\"country\":\"BR\",\"postal_code\":\"01310100\"}},\"boleto\":{\"expiration_date\":\"25/06/2026\"},\"payment\":{\"payment_method\":\"BOLETO\",\"payment_id\":\"00000000-0000-0000-0000-000000000000\"}}}"
         }
       },
       "BriVaBankTransfer": {
