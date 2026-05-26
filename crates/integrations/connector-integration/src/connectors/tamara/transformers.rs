@@ -198,12 +198,141 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .request
             .webhook_url
             .clone()
-            .unwrap_or_else(|| "https://example.com/webhook".to_string());
+            .unwrap_or_default();
         let return_url = router_data
             .request
             .router_return_url
             .clone()
-            .unwrap_or_else(|| "https://example.com/return".to_string());
+            .unwrap_or_default();
+        let shipping_amount = router_data
+            .request
+            .shipping_cost
+            .map(|s| s.get_amount_as_i64())
+            .unwrap_or(0);
+        let tax_amount = router_data
+            .request
+            .order_tax_amount
+            .map(|t| t.get_amount_as_i64())
+            .unwrap_or(0);
+        let country_code = router_data
+            .resource_common_data
+            .get_optional_shipping_country()
+            .or(router_data.resource_common_data.get_optional_billing_country())
+            .ok_or(error_stack::report!(
+                errors::IntegrationError::MissingRequiredField {
+                    field_name: "country_code",
+                    context: Default::default()
+                }
+            ))?
+            .to_string();
+        let description = router_data
+            .resource_common_data
+            .description
+            .clone()
+            .unwrap_or_default();
+        let email = router_data
+            .resource_common_data
+            .get_optional_shipping_email()
+            .or(router_data.resource_common_data.get_optional_billing_email())
+            .or(router_data.request.email.clone())
+            .ok_or(error_stack::report!(
+                errors::IntegrationError::MissingRequiredField {
+                    field_name: "email",
+                    context: Default::default()
+                }
+            ))?
+            .peek()
+            .to_string();
+        let customer_name = router_data.request.customer_name.clone();
+        let first_name = router_data
+            .resource_common_data
+            .get_optional_shipping_first_name()
+            .or(router_data.resource_common_data.get_optional_billing_first_name())
+            .map(|n| n.peek().to_string())
+            .or_else(|| {
+                customer_name
+                    .as_ref()
+                    .and_then(|name| name.split_whitespace().next())
+                    .map(|s| s.to_string())
+            })
+            .ok_or(error_stack::report!(
+                errors::IntegrationError::MissingRequiredField {
+                    field_name: "first_name",
+                    context: Default::default()
+                }
+            ))?;
+        let last_name = router_data
+            .resource_common_data
+            .get_optional_shipping_last_name()
+            .or(router_data.resource_common_data.get_optional_billing_last_name())
+            .map(|n| n.peek().to_string())
+            .or_else(|| {
+                customer_name
+                    .as_ref()
+                    .and_then(|name| name.split_whitespace().nth(1))
+                    .map(|s| s.to_string())
+            })
+            .ok_or(error_stack::report!(
+                errors::IntegrationError::MissingRequiredField {
+                    field_name: "last_name",
+                    context: Default::default()
+                }
+            ))?;
+        let phone_number = router_data
+            .resource_common_data
+            .address
+            .get_shipping()
+            .and_then(|a| a.clone().phone.and_then(|p| p.number))
+            .or_else(|| router_data.resource_common_data.get_optional_billing_phone_number())
+            .ok_or(error_stack::report!(
+                errors::IntegrationError::MissingRequiredField {
+                    field_name: "phone_number",
+                    context: Default::default()
+                }
+            ))?
+            .peek()
+            .to_string();
+        let shipping_line1 = router_data
+            .resource_common_data
+            .get_optional_shipping_line1()
+            .or(router_data.resource_common_data.get_optional_billing_line1())
+            .map(|l| l.peek().to_string())
+            .unwrap_or_default();
+        let shipping_city = router_data
+            .resource_common_data
+            .get_optional_shipping_city()
+            .or(router_data.resource_common_data.get_optional_billing_city())
+            .map(|c| c.peek().to_string())
+            .unwrap_or_default();
+        let shipping_country = router_data
+            .resource_common_data
+            .get_optional_shipping_country()
+            .or(router_data.resource_common_data.get_optional_billing_country())
+            .map(|c| c.to_string())
+            .unwrap_or_default();
+        let shipping_first_name = router_data
+            .resource_common_data
+            .get_optional_shipping_first_name()
+            .or(router_data.resource_common_data.get_optional_billing_first_name())
+            .map(|n| n.peek().to_string())
+            .or_else(|| Some(first_name.clone()))
+            .unwrap_or_default();
+        let shipping_last_name = router_data
+            .resource_common_data
+            .get_optional_shipping_last_name()
+            .or(router_data.resource_common_data.get_optional_billing_last_name())
+            .map(|n| n.peek().to_string())
+            .or_else(|| Some(last_name.clone()))
+            .unwrap_or_default();
+        let shipping_phone = router_data
+            .resource_common_data
+            .address
+            .get_shipping()
+            .and_then(|a| a.clone().phone.and_then(|p| p.number))
+            .or_else(|| router_data.resource_common_data.get_optional_billing_phone_number())
+            .map(|p| p.peek().to_string())
+            .or_else(|| Some(phone_number.clone()))
+            .unwrap_or_default();
 
         Ok(Self {
             total_amount: TamaraAmount {
@@ -211,18 +340,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 currency: currency.clone(),
             },
             shipping_amount: TamaraAmount {
-                amount: 0,
+                amount: shipping_amount,
                 currency: currency.clone(),
             },
             tax_amount: TamaraAmount {
-                amount: 0,
+                amount: tax_amount,
                 currency: currency.clone(),
             },
             order_reference_id: order_ref.clone(),
-            country_code: "SA".to_string(),
-            description: "Order".to_string(),
+            country_code,
+            description: description.clone(),
             items: vec![TamaraLineItem {
-                name: "Item".to_string(),
+                name: description.clone(),
                 quantity: 1,
                 reference_id: order_ref.clone(),
                 r#type: "Physical".to_string(),
@@ -237,24 +366,28 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 },
             }],
             consumer: TamaraConsumer {
-                first_name: "Customer".to_string(),
-                last_name: "Test".to_string(),
-                phone_number: "+966500000000".to_string(),
-                email: "customer@example.com".to_string(),
+                first_name,
+                last_name,
+                phone_number,
+                email,
             },
             merchant_url: TamaraMerchantUrl {
                 success: return_url.clone(),
                 failure: return_url.clone(),
                 cancel: return_url.clone(),
-                notification: Some(webhook),
+                notification: if webhook.is_empty() {
+                    None
+                } else {
+                    Some(webhook)
+                },
             },
             shipping_address: TamaraAddress {
-                first_name: "Customer".to_string(),
-                last_name: "Test".to_string(),
-                line1: "Address".to_string(),
-                city: "Riyadh".to_string(),
-                country_code: "SA".to_string(),
-                phone_number: "+966500000000".to_string(),
+                first_name: shipping_first_name,
+                last_name: shipping_last_name,
+                line1: shipping_line1,
+                city: shipping_city,
+                country_code: shipping_country,
+                phone_number: shipping_phone,
             },
             billing_address: None,
         })
@@ -564,6 +697,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let comment = router_data.request.reason.clone().ok_or(error_stack::report!(
+            errors::IntegrationError::MissingRequiredField {
+                field_name: "reason",
+                context: Default::default()
+            }
+        ))?;
         Ok(Self {
             total_amount: TamaraAmount {
                 amount: item
@@ -573,7 +713,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     .get_amount_as_i64(),
                 currency: item.router_data.request.currency.to_string(),
             },
-            comment: item.router_data.request.reason.clone().unwrap_or_default(),
+            comment,
         })
     }
 }
