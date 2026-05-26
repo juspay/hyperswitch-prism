@@ -2,13 +2,14 @@ use std::fmt::Debug;
 
 use crate::connectors::tamara::TamaraRouterData;
 use crate::types::ResponseRouterData;
-use common_enums::{AttemptStatus, RefundStatus};
+use common_enums::{AttemptStatus, Currency, RefundStatus};
+use common_utils::{types::MinorUnit, Email};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, VerifyWebhookSource, Void},
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId, VerifyWebhookSourceFlowData,
+        RefundsResponseData, ResponseId, VerifyWebhookSourceFlowData, EventType,
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
@@ -18,7 +19,7 @@ use domain_types::{
     router_response_types::{RedirectForm, VerifyWebhookSourceResponseData, VerifyWebhookStatus},
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{PeekInterface, Secret};
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
@@ -36,7 +37,10 @@ impl TryFrom<&ConnectorSpecificConfig> for TamaraAuthType {
             }),
             _ => Err(error_stack::report!(
                 errors::IntegrationError::FailedToObtainAuthType {
-                    context: errors::IntegrationErrorContext::default()
+                    context: errors::IntegrationErrorContext {
+                        additional_context: Some("Expected Tamara api_key".to_string()),
+                        ..Default::default()
+                    }
                 }
             )),
         }
@@ -68,8 +72,6 @@ pub enum TamaraPaymentStatus {
     PartiallyCaptured,
     Canceled,
     Updated,
-    FullyRefunded,
-    PartiallyRefunded,
     Expired,
 }
 
@@ -81,9 +83,6 @@ impl From<TamaraPaymentStatus> for AttemptStatus {
                 Self::Charged
             }
             TamaraPaymentStatus::Canceled | TamaraPaymentStatus::Updated => Self::Voided,
-            TamaraPaymentStatus::FullyRefunded | TamaraPaymentStatus::PartiallyRefunded => {
-                Self::Charged
-            }
             TamaraPaymentStatus::Declined | TamaraPaymentStatus::Expired => Self::Failure,
             TamaraPaymentStatus::New | TamaraPaymentStatus::Approved => Self::Pending,
         }
@@ -121,7 +120,6 @@ pub struct TamaraPaymentsRequest {
     pub consumer: TamaraConsumer,
     pub merchant_url: TamaraMerchantUrl,
     pub shipping_address: TamaraAddress,
-    pub billing_address: Option<TamaraAddress>,
 }
 
 #[derive(Debug, Serialize)]
@@ -129,7 +127,6 @@ pub struct TamaraLineItem {
     pub name: String,
     pub quantity: i32,
     pub reference_id: String,
-    pub r#type: String,
     pub sku: String,
     pub unit_price: TamaraAmount,
     pub total_amount: TamaraAmount,
@@ -137,10 +134,10 @@ pub struct TamaraLineItem {
 
 #[derive(Debug, Serialize)]
 pub struct TamaraConsumer {
-    pub first_name: String,
-    pub last_name: String,
-    pub phone_number: String,
-    pub email: String,
+    pub first_name: Secret<String>,
+    pub last_name: Secret<String>,
+    pub phone_number: Secret<String>,
+    pub email: Email,
 }
 
 #[derive(Debug, Serialize)]
@@ -153,12 +150,11 @@ pub struct TamaraMerchantUrl {
 
 #[derive(Debug, Serialize)]
 pub struct TamaraAddress {
-    pub first_name: String,
-    pub last_name: String,
+    pub first_name: Secret<String>,
+    pub last_name: Secret<String>,
     pub line1: String,
     pub city: String,
     pub country_code: String,
-    pub phone_number: String,
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -188,17 +184,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let amount = router_data.request.amount.get_amount_as_i64();
-        let currency = router_data.request.currency.to_string();
+        let amount = router_data.request.amount;
+        let currency = router_data.request.currency;
         let order_ref = router_data
             .resource_common_data
             .connector_request_reference_id
             .clone();
-        let webhook = router_data
-            .request
-            .webhook_url
-            .clone()
-            .unwrap_or_default();
+        let webhook = router_data.request.webhook_url.clone().unwrap_or_default();
         let return_url = router_data
             .request
             .router_return_url
@@ -207,132 +199,39 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let shipping_amount = router_data
             .request
             .shipping_cost
-            .map(|s| s.get_amount_as_i64())
-            .unwrap_or(0);
+            .unwrap_or(MinorUnit(0));
         let tax_amount = router_data
             .request
             .order_tax_amount
-            .map(|t| t.get_amount_as_i64())
-            .unwrap_or(0);
+            .unwrap_or(MinorUnit(0));
         let country_code = router_data
             .resource_common_data
-            .get_optional_shipping_country()
-            .or(router_data.resource_common_data.get_optional_billing_country())
-            .ok_or(error_stack::report!(
-                errors::IntegrationError::MissingRequiredField {
-                    field_name: "country_code",
-                    context: Default::default()
-                }
-            ))?
+            .get_shipping_or_billing_country()?
             .to_string();
         let description = router_data
             .resource_common_data
             .description
             .clone()
             .unwrap_or_default();
-        let email = router_data
-            .resource_common_data
-            .get_optional_shipping_email()
-            .or(router_data.resource_common_data.get_optional_billing_email())
-            .or(router_data.request.email.clone())
-            .ok_or(error_stack::report!(
-                errors::IntegrationError::MissingRequiredField {
-                    field_name: "email",
-                    context: Default::default()
-                }
-            ))?
-            .peek()
-            .to_string();
-        let customer_name = router_data.request.customer_name.clone();
+        let email = router_data.request.get_email()?;
         let first_name = router_data
             .resource_common_data
-            .get_optional_shipping_first_name()
-            .or(router_data.resource_common_data.get_optional_billing_first_name())
-            .map(|n| n.peek().to_string())
-            .or_else(|| {
-                customer_name
-                    .as_ref()
-                    .and_then(|name| name.split_whitespace().next())
-                    .map(|s| s.to_string())
-            })
-            .ok_or(error_stack::report!(
-                errors::IntegrationError::MissingRequiredField {
-                    field_name: "first_name",
-                    context: Default::default()
-                }
-            ))?;
+            .get_shipping_or_billing_first_name()?;
         let last_name = router_data
             .resource_common_data
-            .get_optional_shipping_last_name()
-            .or(router_data.resource_common_data.get_optional_billing_last_name())
-            .map(|n| n.peek().to_string())
-            .or_else(|| {
-                customer_name
-                    .as_ref()
-                    .and_then(|name| name.split_whitespace().nth(1))
-                    .map(|s| s.to_string())
-            })
-            .ok_or(error_stack::report!(
-                errors::IntegrationError::MissingRequiredField {
-                    field_name: "last_name",
-                    context: Default::default()
-                }
-            ))?;
+            .get_shipping_or_billing_last_name()?;
         let phone_number = router_data
             .resource_common_data
-            .address
-            .get_shipping()
-            .and_then(|a| a.clone().phone.and_then(|p| p.number))
-            .or_else(|| router_data.resource_common_data.get_optional_billing_phone_number())
-            .ok_or(error_stack::report!(
-                errors::IntegrationError::MissingRequiredField {
-                    field_name: "phone_number",
-                    context: Default::default()
-                }
-            ))?
-            .peek()
-            .to_string();
+            .get_shipping_or_billing_phone_number_plain()?;
         let shipping_line1 = router_data
             .resource_common_data
-            .get_optional_shipping_line1()
-            .or(router_data.resource_common_data.get_optional_billing_line1())
-            .map(|l| l.peek().to_string())
-            .unwrap_or_default();
+            .get_optional_shipping_or_billing_line1_string();
         let shipping_city = router_data
             .resource_common_data
-            .get_optional_shipping_city()
-            .or(router_data.resource_common_data.get_optional_billing_city())
-            .map(|c| c.peek().to_string())
-            .unwrap_or_default();
+            .get_optional_shipping_or_billing_city_string();
         let shipping_country = router_data
             .resource_common_data
-            .get_optional_shipping_country()
-            .or(router_data.resource_common_data.get_optional_billing_country())
-            .map(|c| c.to_string())
-            .unwrap_or_default();
-        let shipping_first_name = router_data
-            .resource_common_data
-            .get_optional_shipping_first_name()
-            .or(router_data.resource_common_data.get_optional_billing_first_name())
-            .map(|n| n.peek().to_string())
-            .or_else(|| Some(first_name.clone()))
-            .unwrap_or_default();
-        let shipping_last_name = router_data
-            .resource_common_data
-            .get_optional_shipping_last_name()
-            .or(router_data.resource_common_data.get_optional_billing_last_name())
-            .map(|n| n.peek().to_string())
-            .or_else(|| Some(last_name.clone()))
-            .unwrap_or_default();
-        let shipping_phone = router_data
-            .resource_common_data
-            .address
-            .get_shipping()
-            .and_then(|a| a.clone().phone.and_then(|p| p.number))
-            .or_else(|| router_data.resource_common_data.get_optional_billing_phone_number())
-            .map(|p| p.peek().to_string())
-            .or_else(|| Some(phone_number.clone()))
-            .unwrap_or_default();
+            .get_optional_shipping_or_billing_country_string();
 
         Ok(Self {
             total_amount: TamaraAmount {
@@ -354,7 +253,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 name: description.clone(),
                 quantity: 1,
                 reference_id: order_ref.clone(),
-                r#type: "Physical".to_string(),
                 sku: order_ref.clone(),
                 unit_price: TamaraAmount {
                     amount,
@@ -366,8 +264,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 },
             }],
             consumer: TamaraConsumer {
-                first_name,
-                last_name,
+                first_name: first_name.clone(),
+                last_name: last_name.clone(),
                 phone_number,
                 email,
             },
@@ -382,14 +280,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 },
             },
             shipping_address: TamaraAddress {
-                first_name: shipping_first_name,
-                last_name: shipping_last_name,
+                first_name,
+                last_name,
                 line1: shipping_line1,
                 city: shipping_city,
                 country_code: shipping_country,
-                phone_number: shipping_phone,
             },
-            billing_address: None,
         })
     }
 }
@@ -482,7 +378,7 @@ impl TryFrom<ResponseRouterData<TamaraPSyncResponse, Self>>
 #[derive(Debug, Deserialize, Serialize)]
 pub struct TamaraRSyncResponse {
     pub order_id: String,
-    pub status: TamaraPaymentStatus,
+    pub status: TamaraRefundStatus,
     pub order_reference_id: Option<String>,
 }
 
@@ -493,9 +389,8 @@ impl TryFrom<ResponseRouterData<TamaraRSyncResponse, Self>>
 
     fn try_from(item: ResponseRouterData<TamaraRSyncResponse, Self>) -> Result<Self, Self::Error> {
         let refund_status = match item.response.status {
-            TamaraPaymentStatus::FullyRefunded => RefundStatus::Success,
-            TamaraPaymentStatus::PartiallyRefunded => RefundStatus::Success,
-            _ => RefundStatus::Pending,
+            TamaraRefundStatus::FullyRefunded => RefundStatus::Success,
+            TamaraRefundStatus::PartiallyRefunded => RefundStatus::Success,
         };
 
         Ok(Self {
@@ -538,17 +433,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .request
             .get_connector_transaction_id()
             .change_context(errors::IntegrationError::MissingConnectorTransactionID {
-                context: Default::default(),
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some("Missing connector transaction ID (order_id)".to_string()),
+                    ..Default::default()
+                },
             })?;
         Ok(Self {
             order_id,
             total_amount: TamaraAmount {
-                amount: item
-                    .router_data
-                    .request
-                    .minor_amount_to_capture
-                    .get_amount_as_i64(),
-                currency: item.router_data.request.currency.to_string(),
+                amount: item.router_data.request.minor_amount_to_capture,
+                currency: item.router_data.request.currency,
             },
         })
     }
@@ -556,8 +450,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TamaraAmount {
-    pub amount: i64,
-    pub currency: String,
+    pub amount: MinorUnit,
+    pub currency: Currency,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -624,19 +518,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = router_data.request.amount.ok_or(error_stack::report!(
             errors::IntegrationError::MissingRequiredField {
                 field_name: "amount",
-                context: Default::default()
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some("Missing void amount".to_string()),
+                    ..Default::default()
+                }
             }
         ))?;
         let currency = router_data.request.currency.ok_or(error_stack::report!(
             errors::IntegrationError::MissingRequiredField {
                 field_name: "currency",
-                context: Default::default()
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some("Missing void currency".to_string()),
+                    ..Default::default()
+                }
             }
         ))?;
         Ok(Self {
             total_amount: TamaraAmount {
-                amount: amount.get_amount_as_i64(),
-                currency: currency.to_string(),
+                amount,
+                currency,
             },
         })
     }
@@ -698,20 +598,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let comment = router_data.request.reason.clone().ok_or(error_stack::report!(
-            errors::IntegrationError::MissingRequiredField {
-                field_name: "reason",
-                context: Default::default()
-            }
-        ))?;
+        let comment = router_data
+            .request
+            .reason
+            .clone()
+            .ok_or(error_stack::report!(
+                errors::IntegrationError::MissingRequiredField {
+                    field_name: "reason",
+                    context: errors::IntegrationErrorContext {
+                        additional_context: Some("Missing refund reason/comment".to_string()),
+                        ..Default::default()
+                    }
+                }
+            ))?;
         Ok(Self {
             total_amount: TamaraAmount {
-                amount: item
-                    .router_data
-                    .request
-                    .minor_refund_amount
-                    .get_amount_as_i64(),
-                currency: item.router_data.request.currency.to_string(),
+                amount: item.router_data.request.minor_refund_amount,
+                currency: item.router_data.request.currency,
             },
             comment,
         })
@@ -744,24 +647,84 @@ impl TryFrom<ResponseRouterData<TamaraRefundResponse, Self>>
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum TamaraWebhookEvent {
+    OrderApproved,
+    OrderAuthorised,
+    OrderCanceled,
+    OrderCaptured,
+    OrderRefunded,
+    OrderUpdated,
+    #[serde(other)]
+    Unknown,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TamaraWebhookEventType {
     pub order_id: String,
     pub order_reference_id: Option<String>,
     pub order_number: Option<String>,
-    pub event_type: String,
+    pub event_type: TamaraWebhookEvent,
     pub data: Option<serde_json::Value>,
+}
+
+impl From<TamaraWebhookEvent> for interfaces::webhooks::IncomingWebhookEvent {
+    fn from(event: TamaraWebhookEvent) -> Self {
+        match event {
+            TamaraWebhookEvent::OrderApproved | TamaraWebhookEvent::OrderAuthorised => {
+                Self::PaymentIntentAuthorizationSuccess
+            }
+            TamaraWebhookEvent::OrderCanceled => Self::PaymentIntentCancelled,
+            TamaraWebhookEvent::OrderCaptured => Self::PaymentIntentCaptureSuccess,
+            TamaraWebhookEvent::OrderRefunded => Self::RefundSuccess,
+            TamaraWebhookEvent::OrderUpdated => Self::PaymentIntentProcessing,
+            TamaraWebhookEvent::Unknown => Self::EventNotSupported,
+        }
+    }
 }
 
 impl From<TamaraWebhookEventType> for interfaces::webhooks::IncomingWebhookEvent {
     fn from(event: TamaraWebhookEventType) -> Self {
-        match event.event_type.as_str() {
-            "order_approved" | "order_authorised" => Self::PaymentIntentAuthorizationSuccess,
-            "order_canceled" => Self::PaymentIntentCancelled,
-            "order_captured" => Self::PaymentIntentCaptureSuccess,
-            "order_refunded" => Self::RefundSuccess,
-            "order_updated" => Self::PaymentIntentProcessing,
-            _ => Self::EventNotSupported,
+        Self::from(event.event_type)
+    }
+}
+
+impl From<TamaraWebhookEvent> for AttemptStatus {
+    fn from(event: TamaraWebhookEvent) -> Self {
+        match event {
+            TamaraWebhookEvent::OrderApproved | TamaraWebhookEvent::OrderAuthorised => {
+                Self::Authorized
+            }
+            TamaraWebhookEvent::OrderCaptured => Self::Charged,
+            TamaraWebhookEvent::OrderCanceled => Self::Voided,
+            TamaraWebhookEvent::OrderUpdated | TamaraWebhookEvent::OrderRefunded | TamaraWebhookEvent::Unknown => {
+                Self::Pending
+            }
+        }
+    }
+}
+
+impl From<TamaraWebhookEvent> for RefundStatus {
+    fn from(event: TamaraWebhookEvent) -> Self {
+        match event {
+            TamaraWebhookEvent::OrderRefunded => Self::Success,
+            _ => Self::Pending,
+        }
+    }
+}
+
+impl From<TamaraWebhookEvent> for EventType {
+    fn from(event: TamaraWebhookEvent) -> Self {
+        match event {
+            TamaraWebhookEvent::OrderApproved | TamaraWebhookEvent::OrderAuthorised => {
+                Self::PaymentIntentAuthorizationSuccess
+            }
+            TamaraWebhookEvent::OrderCanceled => Self::PaymentIntentCancelled,
+            TamaraWebhookEvent::OrderCaptured => Self::PaymentIntentCaptureSuccess,
+            TamaraWebhookEvent::OrderRefunded => Self::RefundSuccess,
+            TamaraWebhookEvent::OrderUpdated => Self::PaymentIntentProcessing,
+            TamaraWebhookEvent::Unknown => Self::IncomingWebhookEventUnspecified,
         }
     }
 }

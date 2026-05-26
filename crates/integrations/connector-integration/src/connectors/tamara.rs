@@ -3,14 +3,15 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
-use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, types::MinorUnit};
+use common_utils::{consts, errors::CustomResult, events, ext_traits::ByteSliceExt, types::MinorUnit};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, VerifyWebhookSource, Void},
     connector_types::{
         EventType, PaymentFlowData, PaymentVoidData, PaymentWebhookReference,
         PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RequestDetails, ResponseId, VerifyWebhookSourceFlowData, WebhookResourceReference,
+        RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RequestDetails, ResponseId, VerifyWebhookSourceFlowData,
+        WebhookResourceReference,
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
@@ -83,6 +84,16 @@ macros::create_all_prerequisites!(
             flow: RSync,
             response_body: TamaraRSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: VerifyWebhookSource,
+            response_body: TamaraSourceVerificationResponse,
+            router_data: RouterDataV2<
+                VerifyWebhookSource,
+                VerifyWebhookSourceFlowData,
+                VerifyWebhookSourceRequestData,
+                VerifyWebhookSourceResponseData,
+            >,
         )
     ],
     amount_converters: [
@@ -181,16 +192,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .parse_struct("TamaraWebhookEventType")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
-        match event.event_type.as_str() {
-            "order_approved" | "order_authorised" => {
-                Ok(EventType::PaymentIntentAuthorizationSuccess)
-            }
-            "order_canceled" => Ok(EventType::PaymentIntentCancelled),
-            "order_captured" => Ok(EventType::PaymentIntentCaptureSuccess),
-            "order_refunded" => Ok(EventType::RefundSuccess),
-            "order_updated" => Ok(EventType::PaymentIntentProcessing),
-            _ => Ok(EventType::IncomingWebhookEventUnspecified),
-        }
+        Ok(EventType::from(event.event_type))
     }
 
     fn get_webhook_event_reference(
@@ -225,17 +227,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .parse_struct("TamaraWebhookEventType")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
-        let status = match event.event_type.as_str() {
-            "order_approved" | "order_authorised" => AttemptStatus::Authorized,
-            "order_captured" => AttemptStatus::Charged,
-            "order_canceled" => AttemptStatus::Voided,
-            "order_updated" => AttemptStatus::Pending,
-            _ => AttemptStatus::Pending,
-        };
-
         Ok(domain_types::connector_types::WebhookDetailsResponse {
             resource_id: Some(ResponseId::ConnectorTransactionId(event.order_id.clone())),
-            status,
+            status: AttemptStatus::from(event.event_type),
             connector_response_reference_id: Some(event.order_id),
             mandate_reference: None,
             error_code: None,
@@ -266,16 +260,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .parse_struct("TamaraWebhookEventType")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
-        let refund_status = if event.event_type == "order_refunded" {
-            RefundStatus::Success
-        } else {
-            RefundStatus::Pending
-        };
-
         Ok(
             domain_types::connector_types::RefundWebhookDetailsResponse {
                 connector_refund_id: None,
-                status: refund_status,
+                status: RefundStatus::from(event.event_type),
                 connector_response_reference_id: None,
                 error_code: None,
                 error_message: None,
@@ -324,9 +312,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Tamara<T>
 {
-    fn should_do_order_create(&self) -> bool {
-        false
-    }
 }
 
 // Marker traits for flows with real macro_connector_implementation! impls.
@@ -355,30 +340,31 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// Stubs for every other flow — generates marker trait + ConnectorIntegrationV2 with get_url.
 macros::macro_connector_flow_status_impls!(
     connector: Tamara,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
-        Accept,
-        ClientAuthenticationToken,
         CreateOrder,
-        CreateConnectorCustomer,
-        DefendDispute,
-        MandateRevoke,
-        Authenticate,
-        IncrementalAuthorization,
-        PostAuthenticate,
-        PreAuthenticate,
-        PaymentMethodToken,
-        VoidPC,
-        RepeatPayment,
-        ServerAuthenticationToken,
-        ServerSessionAuthenticationToken,
         SetupMandate,
+        RepeatPayment,
+        PaymentMethodToken,
+        MandateRevoke,
+        ServerAuthenticationToken,
+    ],
+    not_supported: [
+        IncrementalAuthorization,
+        VoidPC,
+        Accept,
+        DefendDispute,
         SubmitEvidence,
-    ]
+        PreAuthenticate,
+        Authenticate,
+        PostAuthenticate,
+        ServerSessionAuthenticationToken,
+        CreateConnectorCustomer,
+        ClientAuthenticationToken,
+    ],
 );
 
 // ===== AUTHORIZE FLOW IMPLEMENTATION (creates order at /checkout) =====
@@ -564,106 +550,40 @@ macros::macro_connector_implementation!(
 );
 
 // ===== VERIFY WEBHOOK SOURCE (calls GET /orders/{order_id} as PSync for verification) =====
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        VerifyWebhookSource,
-        VerifyWebhookSourceFlowData,
-        VerifyWebhookSourceRequestData,
-        VerifyWebhookSourceResponseData,
-    > for Tamara<T>
-{
-    fn get_url(
-        &self,
-        req: &RouterDataV2<
-            VerifyWebhookSource,
-            VerifyWebhookSourceFlowData,
-            VerifyWebhookSourceRequestData,
-            VerifyWebhookSourceResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        let webhook_body: TamaraWebhookEventType = req
-            .request
-            .webhook_body
-            .parse_struct("TamaraWebhookEventType")
-            .change_context(IntegrationError::InvalidDataFormat {
-                field_name: "TamaraWebhookEventType",
-                context: Default::default(),
-            })?;
-        let base_url = &req.resource_common_data.connectors.tamara.base_url;
-        Ok(format!("{}/orders/{}", base_url, webhook_body.order_id))
-    }
-
-    fn get_headers(
-        &self,
-        req: &RouterDataV2<
-            VerifyWebhookSource,
-            VerifyWebhookSourceFlowData,
-            VerifyWebhookSourceRequestData,
-            VerifyWebhookSourceResponseData,
-        >,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-        self.build_headers_generic(&req.connector_config, &req.resource_common_data.connectors)
-    }
-
-    fn get_request_body(
-        &self,
-        _req: &RouterDataV2<
-            VerifyWebhookSource,
-            VerifyWebhookSourceFlowData,
-            VerifyWebhookSourceRequestData,
-            VerifyWebhookSourceResponseData,
-        >,
-    ) -> CustomResult<Option<common_utils::request::RequestContent>, IntegrationError> {
-        Ok(None)
-    }
-
-    fn handle_response_v2(
-        &self,
-        data: &RouterDataV2<
-            VerifyWebhookSource,
-            VerifyWebhookSourceFlowData,
-            VerifyWebhookSourceRequestData,
-            VerifyWebhookSourceResponseData,
-        >,
-        event_builder: Option<&mut events::Event>,
-        res: Response,
-    ) -> CustomResult<
-        RouterDataV2<
-            VerifyWebhookSource,
-            VerifyWebhookSourceFlowData,
-            VerifyWebhookSourceRequestData,
-            VerifyWebhookSourceResponseData,
-        >,
-        errors::ConnectorError,
-    > {
-        let verification_response: TamaraSourceVerificationResponse = res
-            .response
-            .parse_struct("TamaraSourceVerificationResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed {
-                context: Default::default(),
-            })?;
-        if let Some(event) = event_builder {
-            event.set_connector_response(&verification_response)
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_headers, get_content_type, get_error_response_v2],
+    connector: Tamara,
+    curl_response: TamaraSourceVerificationResponse,
+    flow_name: VerifyWebhookSource,
+    resource_common_data: VerifyWebhookSourceFlowData,
+    flow_request: VerifyWebhookSourceRequestData,
+    flow_response: VerifyWebhookSourceResponseData,
+    http_method: Get,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_url(
+            &self,
+            req: &RouterDataV2<
+                VerifyWebhookSource,
+                VerifyWebhookSourceFlowData,
+                VerifyWebhookSourceRequestData,
+                VerifyWebhookSourceResponseData,
+            >,
+        ) -> CustomResult<String, IntegrationError> {
+            let webhook_body: TamaraWebhookEventType = req
+                .request
+                .webhook_body
+                .parse_struct("TamaraWebhookEventType")
+                .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "TamaraWebhookEventType",
+                    context: Default::default(),
+                })?;
+            let base_url = &req.resource_common_data.connectors.tamara.base_url;
+            Ok(format!("{}/orders/{}", base_url, webhook_body.order_id))
         }
-        RouterDataV2::try_from(ResponseRouterData {
-            response: verification_response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed {
-            context: Default::default(),
-        })
     }
-
-    fn get_error_response_v2(
-        &self,
-        res: Response,
-        event_builder: Option<&mut events::Event>,
-        _connector_config: &ConnectorSpecificConfig,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder, _connector_config)
-    }
-}
+);
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyWebhookSourceV2 for Tamara<T>
@@ -725,7 +645,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             code: response
                 .errors
                 .and_then(|e: Vec<_>| e.into_iter().next().map(|e| e.error_code))
-                .unwrap_or_else(|| "UNKNOWN_ERROR".into()),
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response.message,
             reason: None,
             attempt_status: None,

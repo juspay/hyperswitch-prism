@@ -929,6 +929,101 @@ impl PaymentFlowData {
             .get_payment_method_billing()
             .and_then(|billing_address| billing_address.clone().email)
     }
+
+    // ── Shipping-with-billing-fallback helpers ──────────────────────────────
+    // `get_optional_shipping_or_billing_*` → Option  (chain further fallbacks as needed)
+    // `get_shipping_or_billing_*`          → Result  (error is owned here; callers just use `?`)
+
+    pub fn get_optional_shipping_or_billing_country(
+        &self,
+    ) -> Option<common_enums::CountryAlpha2> {
+        self.get_optional_shipping_country()
+            .or_else(|| self.get_optional_billing_country())
+    }
+
+    pub fn get_shipping_or_billing_country(
+        &self,
+    ) -> Result<common_enums::CountryAlpha2, Error> {
+        self.get_optional_shipping_or_billing_country()
+            .ok_or_else(missing_field_err("shipping_or_billing.address.country"))
+    }
+
+    pub fn get_optional_shipping_or_billing_first_name(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping_first_name()
+            .or_else(|| self.get_optional_billing_first_name())
+    }
+
+    pub fn get_shipping_or_billing_first_name(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_or_billing_first_name()
+            .ok_or_else(missing_field_err(
+                "shipping_or_billing.address.first_name",
+            ))
+    }
+
+    pub fn get_optional_shipping_or_billing_last_name(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping_last_name()
+            .or_else(|| self.get_optional_billing_last_name())
+    }
+
+    pub fn get_shipping_or_billing_last_name(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_or_billing_last_name()
+            .ok_or_else(missing_field_err(
+                "shipping_or_billing.address.last_name",
+            ))
+    }
+
+    // Same as `get_shipping_or_billing_phone_number` but doesn't require country code.
+    // Uses `phone.number` directly instead of `get_number_with_country_code()`.
+    pub fn get_optional_shipping_phone_number_plain(&self) -> Option<Secret<String>> {
+        self.address
+            .get_shipping()
+            .and_then(|shipping_address| shipping_address.clone().phone)
+            .and_then(|phone_details| phone_details.number)
+    }
+
+    pub fn get_optional_shipping_or_billing_phone_number_plain(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping_phone_number_plain()
+            .or_else(|| self.get_optional_billing_phone_number())
+    }
+
+    pub fn get_shipping_or_billing_phone_number_plain(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_or_billing_phone_number_plain()
+            .ok_or_else(missing_field_err("shipping_or_billing.phone"))
+    }
+
+    pub fn get_optional_shipping_or_billing_line1(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping_line1()
+            .or_else(|| self.get_optional_billing_line1())
+    }
+
+    pub fn get_optional_shipping_or_billing_city(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping_city()
+            .or_else(|| self.get_optional_billing_city())
+    }
+
+    // ── String-converting helpers ───────────────────────────────────────────
+    // For connector structs that store address fields as plain `String`
+    // (not `Secret<String>`), these hide the `.peek().to_string()` /
+    // `.to_string()` + `.unwrap_or_default()` at every call site.
+
+    pub fn get_optional_shipping_or_billing_line1_string(&self) -> String {
+        self.get_optional_shipping_or_billing_line1()
+            .map(|l| l.expose())
+            .unwrap_or_default()
+    }
+
+    pub fn get_optional_shipping_or_billing_city_string(&self) -> String {
+        self.get_optional_shipping_or_billing_city()
+            .map(|c| c.expose())
+            .unwrap_or_default()
+    }
+
+    pub fn get_optional_shipping_or_billing_country_string(&self) -> String {
+        self.get_optional_shipping_or_billing_country()
+            .map(|c| c.to_string())
+            .unwrap_or_default()
+    }
+
     pub fn to_connector_meta<T>(&self) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned,
