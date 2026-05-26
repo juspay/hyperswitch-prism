@@ -32,7 +32,7 @@ pub enum ErrorDetails {
         #[serde(skip_serializing_if = "Option::is_none")]
         http_status_code: Option<u32>,
         #[serde(skip_serializing_if = "Option::is_none")]
-        error_info: Box<Option<ErrorInfo>>,
+        error_info: Option<Box<ErrorInfo>>,
     },
 }
 
@@ -180,7 +180,7 @@ fn extract_error_details_from_status(status: &tonic::Status) -> Option<ErrorDeta
             error_code: err.error_code,
             error_message: err.error_message,
             http_status_code: err.http_status_code,
-            error_info: Box::new(err.error_info.map(convert_error_info)),
+            error_info: err.error_info.map(convert_error_info).map(Box::new),
         });
     }
 
