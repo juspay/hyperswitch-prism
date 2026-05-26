@@ -178,7 +178,8 @@ message PaymentMethod {
     Affirm affirm = 110;                                       // Affirm - US BNPL service
     AfterpayClearpay afterpay_clearpay = 111;                  // Afterpay/Clearpay - BNPL service
     Klarna klarna = 112;                                       // Klarna - Swedish BNPL service
-    
+    Walley walley = 116;                                       // Walley - Nordic BNPL service
+
     // NETWORK TRANSACTION METHODS (120-129) - For recurring payments with network transaction IDs
     CardDetailsForNetworkTransactionId card_details_for_network_transaction_id = 120; // Card details with network transaction ID
     NetworkTokenData network_token = 121; // Network token data
@@ -1054,6 +1055,11 @@ message Klarna {
   // Fields will be added as needed for Klarna integration
 }
 
+// Walley - Nordic BNPL service
+message Walley {
+  // Fields will be added as needed for Walley integration
+}
+
 /*
 
 // Alma - French BNPL service
@@ -1071,10 +1077,6 @@ message PayBright {
   // Fields will be added as needed for PayBright integration
 }
 
-// Walley - Nordic BNPL service
-message Walley {
-  // Fields will be added as needed for Walley integration
-}
 */
 
 // ============================================================================
