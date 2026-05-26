@@ -384,3 +384,84 @@ gh pr label add "grace" --repo juspay/hyperswitch-prism
 - **NEVER touch framework core** — only connector_specs/
 - Test credentials must exist in `creds.json` or connector will be skipped
 - Use `UCS_DEBUG_EFFECTIVE_REQ=1` to debug request payloads
+
+---
+
+## Hard-Won Learnings (case studies)
+
+### Locate the actual creds file before changing creds.json
+
+`.env.connector-tests` at the repo root can override `UCS_CREDS_PATH`. Check it first:
+
+```bash
+cat .env.connector-tests
+```
+
+If it points elsewhere (e.g. `/home/grace/connector-service5/hyperswitch-prism/creds.json`), edit THAT file, not `~/creds.json`. Symptom of editing the wrong one: tests behave as if your edits never landed.
+
+### Connector credentials format: flat, not legacy
+
+The harness (`crates/internal/integration-tests/src/harness/credentials.rs::extract_connector_block`) rejects any creds block containing `connector_account_details` with `CredentialError::LegacyFormat`. Use the flat proto-native shape directly:
+
+```json
+"redsys": {
+  "merchant_id":  { "value": "..." },
+  "terminal_id":  "001",
+  "sha256_pwd":   { "value": "..." }
+}
+```
+
+Field names map to the proto config message (`RedsysConfig` etc.). When in doubt, read `crates/types-traits/grpc-api-types/proto/payment.proto` for the target connector's `*Config` message.
+
+### When the request body to the connector is masked
+
+If you see `*** alloc::string::String ***` in logs and need to compare the actual outgoing JSON to a known-good payload (e.g. from PR description / Postman), add a temporary `tracing::error!` at the encoding boundary in the connector's transformer to dump the raw string. Revert before committing. Example for Redsys:
+
+```rust
+let merchant_parameters = request_data.get_merchant_parameters()?;
+tracing::error!(target = "redsys_debug", "MERCHANT_PARAMS: {merchant_parameters}");
+let ds_merchant_parameters = BASE64_ENGINE.encode(&merchant_parameters);
+```
+
+This is debugging-only; the connector code must remain unchanged in the final commit.
+
+### Short-id connectors and `request_id_source_field`
+
+If a connector caps the order/reference id length (e.g. Redsys's `DS_MERCHANT_ORDER` ≤ 12 chars), declare it in `specs.json`:
+
+```json
+"request_id_source_field": "merchant_transaction_id",
+"request_id_prefix": "0001",
+"request_id_length": 12
+```
+
+Redsys also requires the first 4 chars to be digits — hence the numeric `0001` prefix.
+
+The harness's `connector_request_reference_id_for` (scenario_api.rs:192) generates a unique short id and writes it back into the proto body's `request_id_source_field` path — but **only** when that field exists in the suite's `scenario.json`. Capture/Refund/Void protos don't have `merchant_transaction_id`, so the helper skips the write-back for them (otherwise grpcurl rejects with "no known field"). When in doubt, check the suite's `scenario.json` to confirm the field path is valid for that suite.
+
+### Card details matter for the test issuer
+
+Stuck on `0195` ("Requires SCA") for a low-value no_3ds payment? The issuer in the sandbox can reject specific card-detail combinations even with the LWV exemption set. Use the exact `card_exp_month`/`card_exp_year`/`card_cvc`/`card_holder_name` triples documented in the connector's integration PR (e.g. PR #641 for Redsys: `12/26`, cvc `123`, holder `joseph Doe`). Base scenario defaults (`12/30`, cvc `999`) often fail at the issuer.
+
+### Capture/Void cascade is by design
+
+`PaymentService/Capture`'s `suite_spec.json` depends on `PaymentService/Authorize/no3ds_manual_capture_credit_card`. Capturing an auto-captured payment makes no sense, so the framework chains manual_capture. If Capture is 0/6 but Refund is passing, look at manual_capture authorize first — that's the one the cascade needs.
+
+### Skip DDC for Redsys 3DS (exemption flow)
+
+For Redsys browser-driven 3DS testing you can skip the Device Data Collection step entirely by using the SCA-exemption flow: PreAuthenticate returns a continue URL, complete the challenge on the ACS, no DDC iframe needed. The connector accepts this path; the testing piece is a `browser_automation_spec.json` that drives the ACS interaction (similar to Stripe's existing hook). See `connector_specs/stripe/browser_automation_spec.json` for the reference shape — `waitFor` + `click` rules on the test ACS button.
+
+### Framework extension: `additional_dependencies` (per-connector chain)
+
+Some connectors require an upstream suite that isn't part of the standard global chain (e.g. Redsys 3DS Authorize needs prior PreAuthenticate data). `ConnectorSuiteSpec` supports an optional `additional_dependencies` map in `specs.json`:
+
+```json
+"additional_dependencies": {
+  "PaymentService/Authorize": [
+    { "suite": "PaymentMethodAuthenticationService/PreAuthenticate",
+      "context_map": { "authentication_data": "res.authentication_data" } }
+  ]
+}
+```
+
+These get prepended to the global suite_spec's `depends_on` at runtime, only for the connector that sets them. Caveat: the dependency applies suite-wide, so if your connector's no_3ds scenarios share the suite, they'll also get the upstream context. Per-scenario conditional dependencies are not yet supported — if mixing no_3ds and 3DS in the same suite, leave this field unset and accept the 3DS gap until the framework gains that primitive.
