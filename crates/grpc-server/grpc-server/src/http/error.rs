@@ -11,19 +11,15 @@ use serde::Serialize;
 pub struct HttpError {
     pub status: StatusCode,
     pub message: String,
-    pub sdk_error: Option<SdkErrorDetails>,
+    pub details: Option<ErrorDetails>,
 }
 
 /// Matches the SDK's SdkError enum structure
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
-pub enum SdkErrorDetails {
+pub enum ErrorDetails {
     IntegrationError(grpc_api_types::payments::IntegrationError),
-    ConnectorError(grpc_api_types::payments::ConnectorError),
-    NetworkError {
-        error_code: String,
-        error_message: String,
-    },
+    ConnectorError(Box<grpc_api_types::payments::ConnectorError>),
 }
 
 #[derive(Serialize)]
@@ -36,7 +32,7 @@ struct ErrorDetail {
     message: String,
     code: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    details: Option<SdkErrorDetails>,
+    details: Option<ErrorDetails>,
 }
 
 impl IntoResponse for HttpError {
@@ -45,7 +41,7 @@ impl IntoResponse for HttpError {
             error: ErrorDetail {
                 message: self.message.clone(),
                 code: format!("{}", self.status.as_u16()),
-                details: self.sdk_error,
+                details: self.details,
             },
         });
         (self.status, body).into_response()
@@ -53,42 +49,19 @@ impl IntoResponse for HttpError {
 }
 
 /// Extract SDK error details from gRPC Status
-fn extract_sdk_error_from_status(status: &tonic::Status) -> Option<SdkErrorDetails> {
+fn extract_sdk_error_from_status(status: &tonic::Status) -> Option<ErrorDetails> {
     let details = status.details();
-
-    if details.is_empty() {
-        // No proto details, try to infer NetworkError from gRPC code
-        return infer_network_error_from_code(status);
-    }
-
     // Try to decode IntegrationError from proto details
     if let Ok(integration_error) = grpc_api_types::payments::IntegrationError::decode(details) {
-        return Some(SdkErrorDetails::IntegrationError(integration_error));
+        return Some(ErrorDetails::IntegrationError(integration_error));
     }
 
     // Try to decode ConnectorError from proto details
     if let Ok(connector_error) = grpc_api_types::payments::ConnectorError::decode(details) {
-        return Some(SdkErrorDetails::ConnectorError(connector_error));
-    }
-
-    // Fallback to NetworkError inference
-    infer_network_error_from_code(status)
-}
-
-/// Infer NetworkError from gRPC status code
-fn infer_network_error_from_code(status: &tonic::Status) -> Option<SdkErrorDetails> {
-    match status.code() {
-        tonic::Code::DeadlineExceeded => Some(SdkErrorDetails::NetworkError {
-            error_code: "DEADLINE_EXCEEDED".to_string(),
-            error_message: status.message().to_string(),
-        }),
-        tonic::Code::Unavailable => Some(SdkErrorDetails::NetworkError {
-            error_code: "SERVICE_UNAVAILABLE".to_string(),
-            error_message: status.message().to_string(),
-        }),
-        _ => None,
+        return Some(ErrorDetails::ConnectorError(Box::new(connector_error)));
     }
 }
+
 
 // Convert tonic::Status to HTTP error
 impl From<tonic::Status> for HttpError {
@@ -116,12 +89,12 @@ impl From<tonic::Status> for HttpError {
         let message = status.message().to_string();
 
         // Extract SDK error details from Status
-        let sdk_error = extract_sdk_error_from_status(&status);
+        let details = extract_sdk_error_from_status(&status);
 
         Self {
             status: http_status,
             message,
-            sdk_error,
+            details,
         }
     }
 }
