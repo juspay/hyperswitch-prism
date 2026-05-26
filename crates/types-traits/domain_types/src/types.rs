@@ -1225,6 +1225,11 @@ impl<
                         payment_method_data::MbWayRedirection {},
                     ))),
                 ),
+                grpc_api_types::payments::payment_method::PaymentMethod::MobilePayRedirect(_) => Ok(
+                    Self::Wallet(payment_method_data::WalletData::MobilePayRedirect(Box::new(
+                        payment_method_data::MobilePayRedirection {},
+                    ))),
+                ),
                 grpc_api_types::payments::payment_method::PaymentMethod::MomoRedirect(_) => Ok(
                     Self::Wallet(payment_method_data::WalletData::MomoRedirect(
                         payment_method_data::MomoRedirection {},
