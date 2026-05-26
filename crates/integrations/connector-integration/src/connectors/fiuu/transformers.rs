@@ -911,13 +911,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Card(ref card) => {
                 // Force `mpstokenstatus=1` so Fiuu returns a token on the
                 // first call — this is what differentiates SetupMandate from
-                // a plain Authorize. We also pass `CustEmail` when present
-                // so the connector has enough context to register the token.
+                // a plain Authorize. Pass `CustEmail` when present so the
+                // connector has enough context to register the token; mirrors
+                // the request-email-with-billing-fallback pattern used by
+                // shift4 / airwallex / cybersource.
                 let customer_email = item
                     .router_data
-                    .resource_common_data
-                    .get_optional_billing_email()
-                    .filter(|email| !email.peek().is_empty());
+                    .request
+                    .email
+                    .clone()
+                    .or_else(|| {
+                        item.router_data
+                            .resource_common_data
+                            .get_optional_billing_email()
+                    });
                 Ok(FiuuPaymentMethodData::FiuuCardData(Box::new(
                     FiuuCardData {
                         txn_channel: TxnChannel::Creditan,
