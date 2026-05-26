@@ -2,41 +2,168 @@
   "PaymentService/Authorize": {
     "no3ds_auto_capture_credit_card": {
       "grpc_req": {
-        "merchant_transaction_id": "nocc01"
+        "merchant_transaction_id": "nocc01",
+        "amount": {
+          "minor_amount": 2500,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": { "value": "4548812049400004" },
+            "card_exp_month": { "value": "12" },
+            "card_exp_year": { "value": "30" },
+            "card_holder_name": { "value": "Joseph Doe" }
+          }
+        },
+        "address": {
+          "billing_address": {
+            "state": { "value": "Madrid" },
+            "country_alpha2_code": "ES"
+          },
+          "shipping_address": {
+            "state": { "value": "Madrid" },
+            "country_alpha2_code": "ES"
+          }
+        }
       }
     },
     "no3ds_auto_capture_debit_card": {
       "grpc_req": {
-        "merchant_transaction_id": "nodc01"
+        "merchant_transaction_id": "nodc01",
+        "amount": {
+          "minor_amount": 2500,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": { "value": "4548812049400004" },
+            "card_exp_month": { "value": "12" },
+            "card_exp_year": { "value": "30" },
+            "card_holder_name": { "value": "Joseph Doe" }
+          }
+        },
+        "address": {
+          "billing_address": {
+            "state": { "value": "Madrid" },
+            "country_alpha2_code": "ES"
+          },
+          "shipping_address": {
+            "state": { "value": "Madrid" },
+            "country_alpha2_code": "ES"
+          }
+        }
       }
     },
     "no3ds_manual_capture_credit_card": {
       "grpc_req": {
-        "merchant_transaction_id": "mncc01"
+        "merchant_transaction_id": "mncc01",
+        "amount": {
+          "minor_amount": 2500,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": { "value": "4548812049400004" },
+            "card_exp_month": { "value": "12" },
+            "card_exp_year": { "value": "30" },
+            "card_holder_name": { "value": "Joseph Doe" }
+          }
+        },
+        "address": {
+          "billing_address": {
+            "state": { "value": "Madrid" },
+            "country_alpha2_code": "ES"
+          },
+          "shipping_address": {
+            "state": { "value": "Madrid" },
+            "country_alpha2_code": "ES"
+          }
+        }
       }
     },
     "no3ds_manual_capture_debit_card": {
       "grpc_req": {
-        "merchant_transaction_id": "mndc01"
+        "merchant_transaction_id": "mndc01",
+        "amount": {
+          "minor_amount": 2500,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": { "value": "4548812049400004" },
+            "card_exp_month": { "value": "12" },
+            "card_exp_year": { "value": "30" },
+            "card_holder_name": { "value": "Joseph Doe" }
+          }
+        },
+        "address": {
+          "billing_address": {
+            "state": { "value": "Madrid" },
+            "country_alpha2_code": "ES"
+          },
+          "shipping_address": {
+            "state": { "value": "Madrid" },
+            "country_alpha2_code": "ES"
+          }
+        }
       }
     },
     "threeds_manual_capture_credit_card": {
       "grpc_req": {
-        "merchant_transaction_id": "3dcc01"
+        "merchant_transaction_id": "3dcc01",
+        "amount": {
+          "minor_amount": 5000,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": { "value": "4548812049400004" },
+            "card_exp_month": { "value": "12" },
+            "card_exp_year": { "value": "30" },
+            "card_holder_name": { "value": "Joseph Doe" }
+          }
+        },
+        "address": {
+          "billing_address": {
+            "state": { "value": "Madrid" },
+            "country_alpha2_code": "ES"
+          },
+          "shipping_address": {
+            "state": { "value": "Madrid" },
+            "country_alpha2_code": "ES"
+          }
+        }
       }
     },
     "no3ds_fail_payment": {
       "grpc_req": {
         "merchant_transaction_id": "nofp01",
+        "amount": {
+          "minor_amount": 5000,
+          "currency": "EUR"
+        },
         "payment_method": {
           "card": {
-            "card_exp_month": {
-              "value": "01"
-            },
-            "card_exp_year": {
-              "value": "20"
-            }
+            "card_number": { "value": "4548812049400004" },
+            "card_exp_month": { "value": "12" },
+            "card_exp_year": { "value": "30" },
+            "card_holder_name": { "value": "Joseph Doe" }
           }
+        },
+        "address": {
+          "billing_address": {
+            "state": { "value": "Madrid" },
+            "country_alpha2_code": "ES"
+          },
+          "shipping_address": {
+            "state": { "value": "Madrid" },
+            "country_alpha2_code": "ES"
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": ["FAILURE", "AUTHORIZATION_FAILED", "AUTHENTICATION_FAILED"]
         }
       }
     }
@@ -45,16 +172,72 @@
     "void_authorized_payment": {
       "grpc_req": {
         "amount": {
-          "minor_amount": 6000,
-          "currency": "USD"
+          "minor_amount": 2500,
+          "currency": "EUR"
         }
       }
     },
     "void_without_cancellation_reason": {
       "grpc_req": {
         "amount": {
-          "minor_amount": 6000,
-          "currency": "USD"
+          "minor_amount": 2500,
+          "currency": "EUR"
+        }
+      }
+    }
+  },
+  "PaymentMethodAuthenticationService/PreAuthenticate": {
+    "threeds_card_pre_authenticate": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 5000,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": { "value": "4548812049400004" },
+            "card_exp_month": { "value": "12" },
+            "card_exp_year": { "value": "30" },
+            "card_holder_name": { "value": "Joseph Doe" }
+          }
+        },
+        "address": {
+          "billing_address": {
+            "state": { "value": "Madrid" },
+            "country_alpha2_code": "ES"
+          },
+          "shipping_address": {
+            "state": { "value": "Madrid" },
+            "country_alpha2_code": "ES"
+          }
+        }
+      }
+    }
+  },
+  "PaymentMethodAuthenticationService/Authenticate": {
+    "threeds_card_authenticate": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 5000,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": { "value": "4548812049400004" },
+            "card_exp_month": { "value": "12" },
+            "card_exp_year": { "value": "30" },
+            "card_holder_name": { "value": "Joseph Doe" }
+          }
+        },
+        "address": {
+          "billing_address": {
+            "state": { "value": "Madrid" },
+            "country_alpha2_code": "ES"
+          },
+          "shipping_address": {
+            "state": { "value": "Madrid" },
+            "country_alpha2_code": "ES"
+          }
         }
       }
     }
