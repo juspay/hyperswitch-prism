@@ -14,12 +14,13 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authenticate, Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, Void,
+        Authenticate, Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, SetupMandate, Void,
     },
     connector_types::{
-        self, PaymentFlowData, PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        self, MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthenticateData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsPreAuthenticateData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, ResponseId, SetupMandateRequestData,
     },
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     router_data::ConnectorSpecificConfig,
@@ -2093,5 +2094,226 @@ impl TryFrom<ResponseRouterData<responses::RedsysSyncResponse, Self>>
             response,
             ..item.router_data
         })
+    }
+}
+
+// ============================================================================
+// SetupMandate (Pay.SetupRecurring)
+// ============================================================================
+//
+// Redsys does not expose a separate card-vault endpoint. To register a stored
+// credential we hit the same `/sis/rest/trataPeticionREST` endpoint as
+// Authorize with `Ds_Merchant_TransactionType = 0` (Payment) and a small
+// probe amount when the caller doesn't supply one. The exemption flag is
+// pinned to `MIT` so the issuer treats this as a merchant-initiated
+// credential-registration and skips SCA.
+//
+// The response is parsed the same way as Authorize, and the resulting
+// `Ds_Order` is surfaced as `mandate_reference.connector_mandate_id` — that
+// is the stable id the orchestrator replays on future RepeatPayment calls.
+
+/// Minimum amount used when the caller omits `amount` on SetupMandate.
+/// 1 minor unit (e.g., €0.01) is the smallest probe Redsys will accept.
+const REDSYS_SETUP_MANDATE_PROBE_MINOR_AMOUNT: i64 = 1;
+
+impl<T>
+    TryFrom<
+        RedsysRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for requests::RedsysSetupMandateRequest
+where
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+    T::Inner: Clone,
+{
+    type Error = Error;
+
+    fn try_from(
+        item: RedsysRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        let card_data = requests::RedsysCardData::try_from(&Some(
+            router_data.request.payment_method_data.clone(),
+        ))?;
+        let auth = RedsysAuthType::try_from(&router_data.connector_config)?;
+
+        // Resolve the amount used to register the mandate. Prefer the
+        // caller-supplied amount (in `amount` or `minor_amount`); otherwise
+        // fall back to a 1-minor-unit probe so Redsys accepts the request.
+        let amount_value = router_data
+            .request
+            .amount
+            .or_else(|| {
+                router_data
+                    .request
+                    .minor_amount
+                    .map(|m| m.get_amount_as_i64())
+            })
+            .unwrap_or(REDSYS_SETUP_MANDATE_PROBE_MINOR_AMOUNT);
+        let amount = common_utils::types::MinorUnit::new(amount_value);
+
+        let ds_merchant_transactiontype = match router_data.request.capture_method {
+            Some(common_enums::CaptureMethod::Manual) => {
+                requests::RedsysTransactionType::Preauthorization
+            }
+            _ => requests::RedsysTransactionType::Payment,
+        };
+
+        let ds_merchant_order = get_ds_merchant_order(
+            router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            router_data.request.metadata.as_ref(),
+        )?;
+
+        // SetupMandate is a no-3DS credential-registration call. Pick the
+        // SCA exemption based on amount: LWV when the probe amount is at or
+        // below the €30 LWV threshold (the common case for a card-on-file
+        // setup), otherwise TRA. `directpayment = true` tells Redsys to
+        // skip the 3DS roundtrip and authorize directly.
+        let ds_merchant_excep_sca = if amount <= *LWV_THRESHOLD {
+            requests::RedsysStrongCustomerAuthenticationException::Lwv
+        } else {
+            requests::RedsysStrongCustomerAuthenticationException::Tra
+        };
+
+        let payment_request = requests::RedsysPaymentRequest {
+            ds_merchant_amount: RedsysAmountConvertor::convert(
+                amount,
+                router_data.request.currency,
+            )?,
+            ds_merchant_currency: router_data.request.currency.iso_4217().to_owned(),
+            ds_merchant_cvv2: card_data.cvv2,
+            ds_merchant_emv3ds: None,
+            ds_merchant_expirydate: card_data.expiry_date,
+            ds_merchant_merchantcode: auth.merchant_id.clone(),
+            ds_merchant_order,
+            ds_merchant_pan: cards::CardNumber::try_from(card_data.card_number.peek().to_string())
+                .change_context(IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
+                })
+                .attach_printable("Invalid card number")?,
+            ds_merchant_terminal: auth.terminal_id.clone(),
+            ds_merchant_transactiontype,
+            ds_merchant_directpayment: Some(true),
+            ds_merchant_excep_sca: Some(ds_merchant_excep_sca),
+        };
+
+        let transaction = Self::try_from((&payment_request, &auth))?;
+        Ok(transaction)
+    }
+}
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = ResponseError;
+
+    fn try_from(
+        item: ResponseRouterData<responses::RedsysResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            responses::RedsysResponse::RedsysResponse(ref transaction) => {
+                let response_data: responses::RedsysPaymentsResponse = to_connector_response_data(
+                    &transaction.ds_merchant_parameters.clone().expose(),
+                    item.http_code,
+                )?;
+
+                // SetupMandate is always a non-3DS / MIT call, so reuse the
+                // shared Authorize response helper with `is_three_ds = false`
+                // and `use_transaction_response = true`.
+                let (payments_response, status, ds_order) = get_payments_response(
+                    response_data,
+                    item.router_data.request.capture_method,
+                    None,
+                    false,
+                    item.http_code,
+                    true,
+                )?;
+
+                // Surface `Ds_Order` as the connector_mandate_id so the
+                // orchestrator has a stable anchor to replay for future
+                // RepeatPayment / MIT calls.
+                let response = payments_response.map(|resp| match resp {
+                    PaymentsResponseData::TransactionResponse {
+                        resource_id,
+                        redirection_data,
+                        mandate_reference,
+                        connector_metadata,
+                        network_txn_id,
+                        connector_response_reference_id,
+                        incremental_authorization_allowed,
+                        status_code,
+                    } => {
+                        let mandate_reference =
+                            mandate_reference.or(Some(Box::new(MandateReference {
+                                connector_mandate_id: Some(ds_order.clone()),
+                                payment_method_id: None,
+                                connector_mandate_request_reference_id: None,
+                            })));
+                        PaymentsResponseData::TransactionResponse {
+                            resource_id,
+                            redirection_data,
+                            mandate_reference,
+                            connector_metadata,
+                            network_txn_id,
+                            connector_response_reference_id,
+                            incremental_authorization_allowed,
+                            status_code,
+                        }
+                    }
+                    other => other,
+                });
+
+                Ok(Self {
+                    resource_common_data: PaymentFlowData {
+                        status,
+                        reference_id: Some(ds_order),
+                        ..item.router_data.resource_common_data
+                    },
+                    response,
+                    ..item.router_data
+                })
+            }
+            responses::RedsysResponse::RedsysErrorResponse(ref err) => Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status: common_enums::AttemptStatus::Failure,
+                    ..item.router_data.resource_common_data
+                },
+                response: Err(domain_types::router_data::ErrorResponse {
+                    code: err.error_code.clone(),
+                    message: err.error_code_description.clone(),
+                    reason: Some(err.error_code_description.clone()),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }),
+                ..item.router_data
+            }),
+        }
     }
 }
