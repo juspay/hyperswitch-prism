@@ -127,18 +127,18 @@ impl ForeignTryFrom<grpc_api_types::surcharge::SurchargeServiceCalculateRequest>
     }
 }
 
-impl ForeignTryFrom<grpc_api_types::payments::NotifyConnectorsRequest>
+impl ForeignTryFrom<grpc_api_types::payments::NotifyConnectorRequest>
     for SurchargePaymentSucceededRequest
 {
     type Error = IntegrationError;
 
     fn foreign_try_from(
-        value: grpc_api_types::payments::NotifyConnectorsRequest,
+        value: grpc_api_types::payments::NotifyConnectorRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let connector_surcharge_id = value
             .content
             .and_then(|c| match c.content {
-                Some(grpc_api_types::payments::notify_connector_content::Content::SurchargeDetails(details)) => {
+                Some(grpc_api_types::payments::notify_connector_content::Content::SurchargeContent(details)) => {
                     Some(details.connector_surcharge_id)
                 }
                 _ => None,
@@ -157,18 +157,18 @@ impl ForeignTryFrom<grpc_api_types::payments::NotifyConnectorsRequest>
     }
 }
 
-impl ForeignTryFrom<grpc_api_types::payments::NotifyConnectorsRequest>
+impl ForeignTryFrom<grpc_api_types::payments::NotifyConnectorRequest>
     for SurchargeRefundSucceededRequest
 {
     type Error = IntegrationError;
 
     fn foreign_try_from(
-        value: grpc_api_types::payments::NotifyConnectorsRequest,
+        value: grpc_api_types::payments::NotifyConnectorRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let connector_surcharge_id = value
             .content
             .and_then(|c| match c.content {
-                Some(grpc_api_types::payments::notify_connector_content::Content::SurchargeDetails(details)) => {
+                Some(grpc_api_types::payments::notify_connector_content::Content::SurchargeContent(details)) => {
                     Some(details.connector_surcharge_id)
                 }
                 _ => None,
@@ -189,7 +189,7 @@ impl ForeignTryFrom<grpc_api_types::payments::NotifyConnectorsRequest>
 
 impl
     ForeignTryFrom<(
-        grpc_api_types::payments::NotifyConnectorsRequest,
+        grpc_api_types::payments::NotifyConnectorRequest,
         Connectors,
         &MaskedMetadata,
     )> for SurchargeFlowData
@@ -198,7 +198,7 @@ impl
 
     fn foreign_try_from(
         (value, connectors, _metadata): (
-            grpc_api_types::payments::NotifyConnectorsRequest,
+            grpc_api_types::payments::NotifyConnectorRequest,
             Connectors,
             &MaskedMetadata,
         ),
@@ -292,14 +292,14 @@ pub fn generate_surcharge_payment_succeeded_response(
         SurchargePaymentSucceededRequest,
         SurchargePaymentSucceededResponse,
     >,
-) -> Result<grpc_api_types::payments::NotifyConnectorsResponse, error_stack::Report<ConnectorError>>
+) -> Result<grpc_api_types::payments::NotifyConnectorResponse, error_stack::Report<ConnectorError>>
 {
     match router_data_v2.response {
-        Ok(response) => Ok(grpc_api_types::payments::NotifyConnectorsResponse {
+        Ok(response) => Ok(grpc_api_types::payments::NotifyConnectorResponse {
             status_code: response.status_code.into(),
             error: None,
         }),
-        Err(e) => Ok(grpc_api_types::payments::NotifyConnectorsResponse {
+        Err(e) => Ok(grpc_api_types::payments::NotifyConnectorResponse {
             status_code: e.status_code.into(),
             error: Some(grpc_api_types::payments::ErrorInfo {
                 unified_details: None,
@@ -322,14 +322,14 @@ pub fn generate_surcharge_refund_succeeded_response(
         SurchargeRefundSucceededRequest,
         SurchargeRefundSucceededResponse,
     >,
-) -> Result<grpc_api_types::payments::NotifyConnectorsResponse, error_stack::Report<ConnectorError>>
+) -> Result<grpc_api_types::payments::NotifyConnectorResponse, error_stack::Report<ConnectorError>>
 {
     match router_data_v2.response {
-        Ok(response) => Ok(grpc_api_types::payments::NotifyConnectorsResponse {
+        Ok(response) => Ok(grpc_api_types::payments::NotifyConnectorResponse {
             status_code: response.status_code.into(),
             error: None,
         }),
-        Err(e) => Ok(grpc_api_types::payments::NotifyConnectorsResponse {
+        Err(e) => Ok(grpc_api_types::payments::NotifyConnectorResponse {
             status_code: e.status_code.into(),
             error: Some(grpc_api_types::payments::ErrorInfo {
                 unified_details: None,

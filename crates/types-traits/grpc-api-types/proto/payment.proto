@@ -1374,7 +1374,7 @@ message EventServiceHandleResponse {
 }
 
 // Request for notifying connectors about surcharge events
-message NotifyConnectorsRequest {
+message NotifyConnectorRequest {
   // Merchant identification
   string merchant_id = 1;
 
@@ -1396,19 +1396,19 @@ message NotifyConnectorsRequest {
 message NotifyConnectorContent {
   oneof content {
     // surcharge details 
-    SurchargeDetails surcharge_details = 1;
+    SurchargeContent surcharge_content = 1;
   }
 }
 
 
 // Surcharge details object
-message SurchargeDetails {
+message SurchargeContent {
   // Connector surcharge identifier
   string connector_surcharge_id = 1;
 }
 
 // Response for notifying connectors
-message NotifyConnectorsResponse {
+message NotifyConnectorResponse {
   // Status of the notification
   uint32 status_code = 1;
 

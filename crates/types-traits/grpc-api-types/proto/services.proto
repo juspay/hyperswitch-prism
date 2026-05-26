@@ -93,7 +93,7 @@ service EventService {
   rpc HandleEvent(EventServiceHandleRequest) returns (EventServiceHandleResponse);
 
   // Notify connectors about surcharge events (payment succeeded, refund succeeded, refund failed).
-  rpc NotifyConnectors(NotifyConnectorsRequest) returns (NotifyConnectorsResponse);
+  rpc NotifyConnector(NotifyConnectorRequest) returns (NotifyConnectorResponse);
 }
 
 // ============================================================================

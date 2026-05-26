@@ -173,12 +173,12 @@ class GrpcEventClient:
             "event/handle_event",
             req, payment_pb2.EventServiceHandleResponse,
         )
-    def notify_connectors(self, req: payment_pb2.NotifyConnectorsRequest) -> payment_pb2.NotifyConnectorsResponse:
-        """EventService.NotifyConnectors — Notify connectors about surcharge events (payment succeeded, refund succeeded, refund failed)."""
+    def notify_connector(self, req: payment_pb2.NotifyConnectorRequest) -> payment_pb2.NotifyConnectorResponse:
+        """EventService.NotifyConnector — Notify connectors about surcharge events (payment succeeded, refund succeeded, refund failed)."""
         return _call_grpc(
             self._ffi, self._config,
-            "event/notify_connectors",
-            req, payment_pb2.NotifyConnectorsResponse,
+            "event/notify_connector",
+            req, payment_pb2.NotifyConnectorResponse,
         )
 
 class GrpcMerchantAuthenticationClient:
