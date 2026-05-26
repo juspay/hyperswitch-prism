@@ -195,7 +195,7 @@ macro_rules! impl_flow_handlers {
                     .as_payout()
                     .ok_or_else(|| IntegrationError {
                         error_message: "Invalid connector type for this flow".to_string(),
-                        error_code: "INVALID_CONNECTOR_TYPE".to_string(),
+                        error_code: "INVALID_CONNECTOR_TYPE_FOR_PAYOUT".to_string(),
                         suggested_action: None,
                         doc_url: None,
                     })?;
@@ -233,7 +233,7 @@ macro_rules! impl_flow_handlers {
                     .as_payout()
                     .ok_or_else(|| ConnectorError {
                         error_message: "Invalid connector type for this flow".to_string(),
-                        error_code: "INVALID_CONNECTOR_TYPE".to_string(),
+                        error_code: "INVALID_CONNECTOR_TYPE_FOR_PAYOUT".to_string(),
                         http_status_code: None,
                         error_info: None,
                     })?;
