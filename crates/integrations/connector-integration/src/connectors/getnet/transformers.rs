@@ -412,7 +412,7 @@ pub struct GetnetCard<T: PaymentMethodDataTypes> {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub number: Option<RawCardNumber<T>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub number_token: Option<String>,
+    pub number_token: Option<Secret<String>>,
     pub expiration_month: Secret<String>,
     pub expiration_year: Secret<String>,
     pub cardholder_name: Secret<String>,
@@ -463,9 +463,9 @@ pub struct GetnetAdditionalData {
 
 #[derive(Debug, Serialize)]
 pub struct GetnetDevice {
-    pub ip_address: String,
-    pub device_id: String,
-    pub finger_print: String,
+    pub ip_address: Secret<String>,
+    pub device_id: Secret<String>,
+    pub finger_print: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -521,109 +521,6 @@ pub struct GetnetBizum {
     pub phone_number: Option<Secret<String>>,
 }
 
-fn build_getnet_customer<T: PaymentMethodDataTypes>(
-    item: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-) -> GetnetCustomer {
-    // Use payment_method_billing address for first/last name/phone/email.
-    let first_name = item
-        .resource_common_data
-        .get_optional_billing_first_name()
-        .unwrap_or_else(|| Secret::new("Customer".to_string()));
-    let last_name = item
-        .resource_common_data
-        .get_optional_billing_last_name()
-        .unwrap_or_else(|| Secret::new("Customer".to_string()));
-    let email = item
-        .request
-        .email
-        .clone()
-        .or_else(|| item.resource_common_data.get_optional_billing_email());
-    let phone_number = item
-        .resource_common_data
-        .get_optional_billing_phone_number();
-
-    // Build billing address from billing address details if available.
-    let billing_address = item
-        .resource_common_data
-        .get_optional_billing()
-        .and_then(|addr| addr.address.as_ref())
-        .map(|details| GetnetAddress {
-            street: details.line1.clone(),
-            number: details.line2.clone(),
-            district: details.line3.clone(),
-            city: details.city.clone(),
-            state: details.state.clone(),
-            country: details.country.map(|c| c.to_string()),
-            postal_code: details.zip.clone(),
-        });
-
-    GetnetCustomer {
-        first_name,
-        last_name,
-        email,
-        document_type: None,
-        document_number: None,
-        phone_number,
-        billing_address,
-    }
-}
-
-fn build_getnet_device<T: PaymentMethodDataTypes>(
-    item: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-) -> Option<GetnetDevice> {
-    let browser_info = item.request.browser_info.as_ref()?;
-    let ip_address = browser_info.ip_address.map(|ip| ip.to_string())?;
-    let fallback_id = item
-        .resource_common_data
-        .connector_request_reference_id
-        .clone();
-    let device_id = browser_info
-        .user_agent
-        .clone()
-        .unwrap_or_else(|| fallback_id.clone());
-    let finger_print = browser_info.user_agent.clone().unwrap_or(fallback_id);
-    Some(GetnetDevice {
-        ip_address,
-        device_id,
-        finger_print,
-    })
-}
-
-fn build_three_ds_data<T: PaymentMethodDataTypes>(
-    item: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-) -> Option<GetnetThreeDsData> {
-    if !matches!(
-        item.resource_common_data.auth_type,
-        AuthenticationType::ThreeDs
-    ) {
-        return None;
-    }
-    let return_url = item.request.router_return_url.clone();
-    match item.request.authentication_data.as_ref() {
-        Some(auth_data) => Some(GetnetThreeDsData {
-            eci: auth_data.eci.clone(),
-            cavv: auth_data.cavv.clone(),
-            cres: None,
-            pares: None,
-            xid: None,
-            ds_transaction_id: auth_data.ds_trans_id.clone(),
-            three_ds_version: auth_data.message_version.as_ref().map(|v| v.to_string()),
-            return_url,
-        }),
-        // No authentication_data yet but auth_type is ThreeDs -> initial challenge flow
-        None => Some(GetnetThreeDsData {
-            eci: None,
-            cavv: None,
-            cres: None,
-            pares: None,
-            xid: None,
-            ds_transaction_id: None,
-            three_ds_version: None,
-            return_url,
-        }),
-    }
-}
-
 /// Return a `DD/MM/YYYY` string for `now() + days_from_now`. Globalgetnet's boleto
 /// endpoint rejects ISO-8601 / `YYYY-MM-DD` and only accepts this Brazilian-locale
 /// format. When the system clock fails (extremely unlikely outside container init),
@@ -659,15 +556,9 @@ fn digits_only(s: &str) -> String {
 fn build_boleto_customer<T: PaymentMethodDataTypes>(
     item: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
     boleto_data: &domain_types::payment_method_data::BoletoVoucherData,
-) -> GetnetBoletoCustomer {
-    let first_name = item
-        .resource_common_data
-        .get_optional_billing_first_name()
-        .unwrap_or_else(|| Secret::new("Customer".to_string()));
-    let last_name = item
-        .resource_common_data
-        .get_optional_billing_last_name()
-        .unwrap_or_else(|| Secret::new("Customer".to_string()));
+) -> Result<GetnetBoletoCustomer, error_stack::Report<IntegrationError>> {
+    let first_name = item.resource_common_data.get_billing_first_name()?;
+    let last_name = item.resource_common_data.get_billing_last_name()?;
     let full_name = Secret::new(format!("{} {}", first_name.peek(), last_name.peek()));
     let email = item
         .request
@@ -686,40 +577,36 @@ fn build_boleto_customer<T: PaymentMethodDataTypes>(
         .map(|s| Secret::new(digits_only(s.peek())))
         .unwrap_or_else(|| Secret::new("00000000000".to_string()));
 
-    let billing_details = item
+    let street = item
         .resource_common_data
-        .get_optional_billing()
-        .and_then(|addr| addr.address.clone());
-
-    let street = billing_details
-        .as_ref()
-        .and_then(|d| d.line1.clone())
+        .get_optional_billing_line1()
         .unwrap_or_else(|| Secret::new("Endereco".to_string()));
-    let number = billing_details
-        .as_ref()
-        .and_then(|d| d.line2.clone())
+    let number = item
+        .resource_common_data
+        .get_optional_billing_line2()
         .unwrap_or_else(|| Secret::new("S/N".to_string()));
-    let district = billing_details
-        .as_ref()
-        .and_then(|d| d.line3.clone())
+    let district = item
+        .resource_common_data
+        .get_optional_billing_line3()
         .unwrap_or_else(|| Secret::new("Centro".to_string()));
-    let city = billing_details
-        .as_ref()
-        .and_then(|d| d.city.clone())
+    let city = item
+        .resource_common_data
+        .get_optional_billing_city()
         .unwrap_or_else(|| Secret::new("Sao Paulo".to_string()));
-    let state = billing_details
-        .as_ref()
-        .and_then(|d| d.state.clone())
+    let state = item
+        .resource_common_data
+        .get_optional_billing_state()
         .unwrap_or_else(|| Secret::new("SP".to_string()));
-    let country = billing_details
-        .as_ref()
-        .and_then(|d| d.country.map(|c| c.to_string()))
+    let country = item
+        .resource_common_data
+        .get_optional_billing_country()
+        .map(|c| c.to_string())
         .unwrap_or_else(|| "BR".to_string());
-    let postal_code = billing_details
-        .as_ref()
-        .and_then(|d| d.zip.clone())
+    // Brazilian CEP — digits only, max 8 chars (Globalgetnet enforces ≤ 8).
+    let postal_code = item
+        .resource_common_data
+        .get_optional_billing_zip()
         .map(|z| {
-            // Brazilian CEP — digits only, max 8 chars (Globalgetnet enforces ≤ 8).
             let cleaned: String = z
                 .peek()
                 .chars()
@@ -740,7 +627,7 @@ fn build_boleto_customer<T: PaymentMethodDataTypes>(
         postal_code,
     };
 
-    GetnetBoletoCustomer {
+    Ok(GetnetBoletoCustomer {
         first_name,
         last_name,
         name: full_name,
@@ -749,7 +636,7 @@ fn build_boleto_customer<T: PaymentMethodDataTypes>(
         document_number,
         phone_number,
         billing_address,
-    }
+    })
 }
 
 impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
@@ -791,7 +678,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         match &item.request.payment_method_data {
             PaymentMethodData::Voucher(VoucherData::Boleto(boleto_data)) => {
                 let payment_id = uuid::Uuid::new_v4().to_string();
-                let customer = build_boleto_customer(item, boleto_data);
+                let customer = build_boleto_customer(item, boleto_data)?;
                 let data = GetnetBoletoData {
                     amount: item.request.minor_amount,
                     // Globalgetnet's boleto endpoint requires BRL — the seller config
@@ -895,7 +782,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 // `bin`) together, so this is strictly one-or-the-other.
                 let (number, number_token) =
                     match item.resource_common_data.get_session_token().ok() {
-                        Some(token) => (None, Some(token)),
+                        Some(token) => (None, Some(Secret::new(token))),
                         None => (Some(card_data.card_number.clone()), None),
                     };
                 Some(GetnetCard {
@@ -962,16 +849,10 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
             tdsver: tdsver_field,
         };
 
-        // The schema for /dpm/payments-gwproxy/v2/payments rejects *every* shape of
-        // `data.customer` and `data.additional_data.three_ds` we tried in the sandbox,
-        // so both are omitted entirely. 3DS challenge is performed automatically by
-        // Globalgetnet based on seller config / card BIN policy; when challenge is
-        // required the response carries a `next_step.redirect_url`. The builders
-        // below are retained for future-proofing.
-        let _ = build_getnet_customer(item);
-        let _ = build_getnet_device(item);
-        let _ = build_three_ds_data(item);
-
+        // The /dpm/payments-gwproxy/v2/payments schema rejects `data.customer` and
+        // `data.additional_data.three_ds`, so both are omitted. 3DS challenge is
+        // initiated by Globalgetnet itself based on seller / BIN policy; when
+        // required the response carries `next_step.redirect_url`.
         let customer_id = item
             .resource_common_data
             .get_customer_id()
@@ -1065,17 +946,13 @@ pub struct GetnetAuthorizeResponse {
 /// "Copia e Cola" payload (a self-describing payment string, NOT a URL); the
 /// SDK is expected to either render it as a QR code or display it for the
 /// customer to copy/paste into their banking app.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(default)]
 pub struct GetnetPixAdditionalData {
-    #[serde(default)]
     pub transaction_id: Option<String>,
-    #[serde(default)]
     pub qr_code: Option<String>,
-    #[serde(default)]
     pub creation_date_qrcode: Option<String>,
-    #[serde(default)]
     pub expiration_date_qrcode: Option<String>,
-    #[serde(default)]
     pub psp_code: Option<String>,
 }
 
@@ -1103,8 +980,8 @@ pub struct GetnetBoletoResponseDetails {
     pub bar_code: Option<Secret<String>>,
     pub issue_date: Option<String>,
     pub expiration_date: Option<String>,
-    pub our_number: Option<String>,
-    pub document_number: Option<String>,
+    pub our_number: Option<Secret<String>>,
+    pub document_number: Option<Secret<String>>,
     #[serde(default)]
     pub pix: Option<serde_json::Value>,
     #[serde(rename = "_links", default)]
@@ -2237,7 +2114,7 @@ pub struct GetnetTokenizeRequest<T: PaymentMethodDataTypes> {
 pub struct GetnetTokenizeResponse {
     /// 128-char hex token returned by Cofre. Reused by Authorize as
     /// `data.payment.card.number_token`.
-    pub number_token: String,
+    pub number_token: Secret<String>,
 }
 
 impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
@@ -2299,7 +2176,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         // leave `resource_common_data.status` untouched.
         Ok(Self {
             response: Ok(PaymentMethodTokenResponse {
-                token: item.response.number_token,
+                token: item.response.number_token.expose(),
             }),
             ..item.router_data
         })
