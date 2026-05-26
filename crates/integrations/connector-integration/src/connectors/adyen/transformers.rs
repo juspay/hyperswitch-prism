@@ -323,6 +323,8 @@ pub enum AdyenPaymentMethod<
     Swish,
     #[serde(rename = "paypal")]
     AdyenPaypal,
+    #[serde(rename = "samsungpay")]
+    SamsungPay(Box<AdyenSamsungPayData>),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1071,6 +1073,12 @@ pub struct AdyenApplePay {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdyenSamsungPayData {
+    #[serde(rename = "samsungPayToken")]
+    samsung_pay_token: Secret<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PaymentType {
     Affirm,
@@ -1566,11 +1574,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             WalletData::VippsRedirect { .. } => Ok(Self::Vipps),
             WalletData::SwishQr(_) => Ok(Self::Swish),
             WalletData::PaypalRedirect(_) => Ok(Self::AdyenPaypal),
+            WalletData::SamsungPay(samsung_data) => {
+                Ok(Self::SamsungPay(Box::new(AdyenSamsungPayData {
+                    samsung_pay_token: samsung_data
+                        .payment_credential
+                        .token_data
+                        .data
+                        .clone(),
+                })))
+            }
             WalletData::AmazonPayRedirect(_)
             | WalletData::Paze(_)
             | WalletData::RevolutPay(_)
             | WalletData::MobilePayRedirect(_)
-            | WalletData::SamsungPay(_)
             | WalletData::AliPayQr(_)
             | WalletData::ApplePayRedirect(_)
             | WalletData::ApplePayThirdPartySdk(_)
