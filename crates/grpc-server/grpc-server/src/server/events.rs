@@ -9,7 +9,7 @@ use common_utils::events::FlowName;
 use connector_integration::types::ConnectorData;
 use domain_types::{
     connector_flow::VerifyWebhookSource,
-    connector_types::VerifyWebhookSourceFlowData,
+    connector_types::{VerifyWebhookSourceFlowData, WebhookIntegrityCheck},
     errors::WebhookError,
     payment_method_data::DefaultPCIHolder,
     router_data::ConnectorSpecificConfig,
@@ -222,12 +222,9 @@ impl EventService for EventServiceImpl {
                         }
                     };
 
-                    let integrity_checks: Vec<i32> = connector_data
+                    let supported_integrity_checks: Vec<WebhookIntegrityCheck> = connector_data
                         .connector
-                        .get_webhook_integrity_checks()
-                        .into_iter()
-                        .map(|c| i32::from(ProtoIntegrityCheck::foreign_from(c)))
-                        .collect();
+                        .get_webhook_integrity_checks();
 
                     let mut response = connector_integration::webhook_utils::process_webhook_event(
                         connector_data,
@@ -240,7 +237,10 @@ impl EventService for EventServiceImpl {
                     )
                     .into_grpc_status()?;
 
-                    response.integrity_checks = integrity_checks;
+                    response.supported_integrity_checks = supported_integrity_checks
+                        .into_iter()
+                        .map(|c| i32::from(ProtoIntegrityCheck::foreign_from(c)))
+                        .collect();
 
                     Ok(tonic::Response::new(response))
                 })
