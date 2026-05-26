@@ -14,12 +14,124 @@ pub struct HttpError {
     pub details: Option<ErrorDetails>,
 }
 
-/// Matches the SDK's SdkError enum structure
+/// Matches the SDK's SdkError enum structure with automatic "type" discriminator
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ErrorDetails {
-    IntegrationError(grpc_api_types::payments::IntegrationError),
-    ConnectorError(Box<grpc_api_types::payments::ConnectorError>),
+    IntegrationError {
+        error_code: String,
+        error_message: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        suggested_action: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        doc_url: Option<String>,
+    },
+    ConnectorError {
+        error_code: String,
+        error_message: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        http_status_code: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        error_info: Box<Option<ErrorInfo>>,
+    },
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ErrorInfo {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    unified_details: Option<grpc_api_types::payments::UnifiedErrorDetails>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    issuer_details: Option<grpc_api_types::payments::IssuerErrorDetails>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    connector_details: Option<ConnectorErrorDetails>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ConnectorErrorDetails {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    code: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    message: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reason: Option<String>,
+
+    // Custom serializer for FlowStatus - outputs string enum names like "REFUND_FAILURE"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(serialize_with = "serialize_flow_status_option")]
+    status: Option<grpc_api_types::payments::FlowStatus>,
+}
+
+/// Custom serializer for FlowStatus that converts oneof enum values to strings
+fn serialize_flow_status_option<S>(
+    flow_status: &Option<grpc_api_types::payments::FlowStatus>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    use grpc_api_types::payments::{flow_status, DisputeStatus, PaymentStatus, RefundStatus};
+    use serde::Serialize;
+
+    match flow_status {
+        Some(fs) => match &fs.status {
+            Some(flow_status::Status::PaymentStatus(val)) => {
+                let status_str = PaymentStatus::try_from(*val)
+                    .map(|e| e.as_str_name())
+                    .unwrap_or("PAYMENT_STATUS_UNSPECIFIED");
+
+                let mut map = serde_json::Map::new();
+                map.insert(
+                    "payment_status".to_string(),
+                    serde_json::Value::String(status_str.to_string()),
+                );
+                serde_json::Value::Object(map).serialize(serializer)
+            }
+            Some(flow_status::Status::RefundStatus(val)) => {
+                let status_str = RefundStatus::try_from(*val)
+                    .map(|e| e.as_str_name())
+                    .unwrap_or("REFUND_STATUS_UNSPECIFIED");
+
+                let mut map = serde_json::Map::new();
+                map.insert(
+                    "refund_status".to_string(),
+                    serde_json::Value::String(status_str.to_string()),
+                );
+                serde_json::Value::Object(map).serialize(serializer)
+            }
+            Some(flow_status::Status::DisputeStatus(val)) => {
+                let status_str = DisputeStatus::try_from(*val)
+                    .map(|e| e.as_str_name())
+                    .unwrap_or("DISPUTE_STATUS_UNSPECIFIED");
+
+                let mut map = serde_json::Map::new();
+                map.insert(
+                    "dispute_status".to_string(),
+                    serde_json::Value::String(status_str.to_string()),
+                );
+                serde_json::Value::Object(map).serialize(serializer)
+            }
+            None => serializer.serialize_none(),
+        },
+        None => serializer.serialize_none(),
+    }
+}
+
+/// Convert proto ErrorInfo to wrapper
+fn convert_error_info(ei: grpc_api_types::payments::ErrorInfo) -> ErrorInfo {
+    ErrorInfo {
+        unified_details: ei.unified_details,
+        issuer_details: ei.issuer_details,
+        connector_details: ei.connector_details.map(|cd| ConnectorErrorDetails {
+            code: cd.code,
+            message: cd.message,
+            reason: cd.reason,
+            status: cd.status, // FlowStatus - will use custom serializer
+        }),
+    }
 }
 
 #[derive(Serialize)]
@@ -51,14 +163,25 @@ impl IntoResponse for HttpError {
 /// Extract SDK error details from gRPC Status
 fn extract_error_details_from_status(status: &tonic::Status) -> Option<ErrorDetails> {
     let details = status.details();
+
     // Try to decode IntegrationError from proto details
-    if let Ok(integration_error) = grpc_api_types::payments::IntegrationError::decode(details) {
-        return Some(ErrorDetails::IntegrationError(integration_error));
+    if let Ok(err) = grpc_api_types::payments::IntegrationError::decode(details) {
+        return Some(ErrorDetails::IntegrationError {
+            error_code: err.error_code,
+            error_message: err.error_message,
+            suggested_action: err.suggested_action,
+            doc_url: err.doc_url,
+        });
     }
 
     // Try to decode ConnectorError from proto details
-    if let Ok(connector_error) = grpc_api_types::payments::ConnectorError::decode(details) {
-        return Some(ErrorDetails::ConnectorError(Box::new(connector_error)));
+    if let Ok(err) = grpc_api_types::payments::ConnectorError::decode(details) {
+        return Some(ErrorDetails::ConnectorError {
+            error_code: err.error_code,
+            error_message: err.error_message,
+            http_status_code: err.http_status_code,
+            error_info: Box::new(err.error_info.map(convert_error_info)),
+        });
     }
 
     None
