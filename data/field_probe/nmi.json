@@ -65,8 +65,42 @@
         "error": "This feature is not implemented: Payment method not supported"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay": {
+              "payment_data": {
+                "encrypted_data": "eyJkYXRhIjoicHJvYmVfZW5jcnlwdGVkX3BheW1lbnRfZGF0YV9iYXNlNjRfZW5jb2RlZA=="
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type_name": "debit"
+              },
+              "transaction_identifier": "probe_txn_identifier"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://secure.nmi.com/api/transact.php",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "security_key=probe_key&type=sale&amount=10.0&currency=USD&orderid=probe_txn_001&applepay_payment_data=a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
+        }
       },
       "ApplePayDecrypted": {
         "status": "not_implemented",
