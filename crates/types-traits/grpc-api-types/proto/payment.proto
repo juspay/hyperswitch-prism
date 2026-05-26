@@ -748,7 +748,7 @@ enum Connector {
   PPRO = 113;
   FISERVCOMMERCEHUB = 114;
   TRUSTLY = 115;
-  SANLAM = 116;
+  ABSA_SANLAM = 116;
   PINELABS_ONLINE = 117;
   IMERCHANTSOLUTIONS = 118;
   AXISBANK = 119;
@@ -4063,7 +4063,7 @@ message FiservcommercehubConfig {
   optional string base_url = 50;
 }
 
-message SanlamConfig {
+message AbsaSanlamConfig {
   SecretString api_key = 1;
   SecretString merchant_id = 2;
   optional string base_url = 50;
@@ -4546,8 +4546,8 @@ message ConnectorSpecificConfig {
     // TRUSTLY = 116
     TrustlyConfig trustly = 115;
 
-    // SANLAM = 116
-    SanlamConfig sanlam = 116;
+    // ABSA_SANLAM = 116
+    AbsaSanlamConfig absa_sanlam = 116;
 
     // PINELABS_ONLINE = 117
     PinelabsOnlineConfig pinelabs_online = 117;

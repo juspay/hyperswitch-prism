@@ -284,7 +284,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             public_key: None,
             base_url: None,
         },
-        ConnectorEnum::Sanlam => ConnectorSpecificConfig::Sanlam {
+        ConnectorEnum::AbsaSanlam => ConnectorSpecificConfig::AbsaSanlam {
             api_key: k(),
             merchant_id: m(),
             base_url: None,

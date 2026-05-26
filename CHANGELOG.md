@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.05.26.0
+
+### Features
+
+- **connector:** Implement Reverse (VoidPostCapture) for PlaceToPay ([#1288](https://github.com/juspay/connector-service/pull/1288)) ([`d84328d`](https://github.com/juspay/connector-service/commit/d84328da3eb61cebbc0e57654a8465386018f08f))
+
+**Full Changelog:** [`2026.05.25.0...2026.05.26.0`](https://github.com/juspay/connector-service/compare/2026.05.25.0...2026.05.26.0)
+
+- - -
+
 ## 2026.05.25.0
 
 ### Bug Fixes
