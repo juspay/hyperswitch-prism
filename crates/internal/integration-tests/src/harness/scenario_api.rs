@@ -198,7 +198,12 @@ fn connector_request_reference_id_for(
     // Load connector spec to check for custom reference ID configuration.
     // Silently ignore errors — an absent spec means default behaviour.
     if let Some(spec) = load_connector_spec(connector) {
-        if let Some(source_field) = spec.request_id_source_field.as_deref() {
+        let source_field_owned: Option<String> = spec
+            .request_id_source_field_per_suite
+            .get(suite)
+            .cloned()
+            .or_else(|| spec.request_id_source_field.clone());
+        if let Some(source_field) = source_field_owned.as_deref() {
             if let Some(value) =
                 lookup_json_path_with_case_fallback(grpc_req, source_field).and_then(Value::as_str)
             {

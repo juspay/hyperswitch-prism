@@ -173,19 +173,19 @@
         "payment_method": {
           "card": {
             "card_number": {
-              "value": "4548814479727229"
+              "value": "4548817212493017"
             },
             "card_exp_month": {
               "value": "12"
             },
             "card_exp_year": {
-              "value": "26"
-            },
-            "card_holder_name": {
-              "value": "joseph Doe"
+              "value": "49"
             },
             "card_cvc": {
               "value": "123"
+            },
+            "card_holder_name": {
+              "value": "joseph Doe"
             }
           }
         },
@@ -202,6 +202,19 @@
             },
             "country_alpha2_code": "ES"
           }
+        },
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480,
+          "language": "en"
         }
       }
     },
@@ -293,10 +306,13 @@
               "value": "12"
             },
             "card_exp_year": {
-              "value": "30"
+              "value": "49"
+            },
+            "card_cvc": {
+              "value": "123"
             },
             "card_holder_name": {
-              "value": "Joseph Doe"
+              "value": "joseph Doe"
             }
           }
         },
@@ -313,6 +329,19 @@
             },
             "country_alpha2_code": "ES"
           }
+        },
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480,
+          "language": "en"
         }
       }
     }
@@ -333,10 +362,13 @@
               "value": "12"
             },
             "card_exp_year": {
-              "value": "30"
+              "value": "49"
+            },
+            "card_cvc": {
+              "value": "123"
             },
             "card_holder_name": {
-              "value": "Joseph Doe"
+              "value": "joseph Doe"
             }
           }
         },
@@ -353,6 +385,19 @@
             },
             "country_alpha2_code": "ES"
           }
+        },
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480,
+          "language": "en"
         }
       }
     }
