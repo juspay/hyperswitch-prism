@@ -1,8 +1,8 @@
 use domain_types::{
-    connector_flow::Authorize,
+    connector_flow::{Authorize, SetupMandate},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, ResponseId,
-        WebhookDetailsResponse,
+        MandateReference, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
+        PaymentsSyncData, ResponseId, SetupMandateRequestData, WebhookDetailsResponse,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -27,7 +27,7 @@ use common_utils::consts;
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{ExposeInterface, Secret};
 
 #[derive(Default, Debug, Serialize)]
 pub struct CryptopayPaymentsRequest {
@@ -408,6 +408,214 @@ impl<F> TryFrom<ResponseRouterData<CryptopayPaymentsResponse, Self>>
                 ..router_data
             }),
         }
+    }
+}
+
+// =============================================================================
+// SETUP MANDATE (Pay.SetupRecurring) FLOW - REQUEST / RESPONSE TRANSFORMERS
+// =============================================================================
+// Cryptopay does not expose a dedicated mandate/vault endpoint — there is no
+// "store the crypto wallet for later" call. The closest stable id we can hand
+// back as a `connector_mandate_id` is the invoice id produced by
+// `POST /api/invoices` (the same endpoint Authorize uses). SetupMandate
+// therefore mirrors the Authorize request shape (price/pay currency, custom
+// id, redirect URLs) and surfaces the resulting invoice id as the
+// `connector_mandate_id` on a `MandateReference`. RepeatPayment can then
+// replay that id on subsequent crypto charges via its existing MandatePayment
+// path. Status passes through unchanged from CryptopayPaymentStatus, so a
+// freshly created invoice (status=`new`) lands as `AuthenticationPending`
+// together with the hosted-page redirect — the webhook completes the mandate
+// when the customer finishes the crypto transfer.
+
+#[derive(Default, Debug, Serialize)]
+pub struct CryptopaySetupMandateRequest {
+    price_amount: StringMajorUnit,
+    price_currency: common_enums::Currency,
+    pay_currency: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    network: Option<String>,
+    success_redirect_url: Option<String>,
+    unsuccess_redirect_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    metadata: Option<pii::SecretSerdeValue>,
+    custom_id: String,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        CryptopayRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for CryptopaySetupMandateRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: CryptopayRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::Crypto(cryptodata) => {
+                let pay_currency = cryptodata.get_pay_currency()?;
+                // SetupMandate carries an optional minor_amount; if the caller
+                // omits it (a pure "register the mandate" probe), fall back to
+                // a 0-value invoice in the requested currency. The connector
+                // still accepts the call and returns a valid invoice id we
+                // can use as `connector_mandate_id`.
+                let minor_amount = item
+                    .router_data
+                    .request
+                    .minor_amount
+                    .unwrap_or(common_utils::types::MinorUnit::new(0));
+                let amount = CryptopayAmountConvertor::convert(
+                    minor_amount,
+                    item.router_data.request.currency,
+                )?;
+
+                Ok(Self {
+                    price_amount: amount,
+                    price_currency: item.router_data.request.currency,
+                    pay_currency,
+                    network: cryptodata.network,
+                    success_redirect_url: item.router_data.request.router_return_url.clone(),
+                    unsuccess_redirect_url: item.router_data.request.router_return_url.clone(),
+                    // Cryptopay only accepts metadata as a JSON object. Mirror
+                    // the Authorize-side filter (`get_metadata_as_object`) so
+                    // anything else is dropped silently rather than failing.
+                    metadata: item.router_data.request.metadata.clone().and_then(|meta| {
+                        let inner = meta.expose();
+                        match inner {
+                            serde_json::Value::Object(_) => Some(pii::SecretSerdeValue::new(inner)),
+                            _ => None,
+                        }
+                    }),
+                    custom_id: item
+                        .router_data
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone(),
+                })
+            }
+            PaymentMethodData::Card(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::PaymentMethodToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: get_unimplemented_payment_method_error_message("CryptoPay"),
+                    connector: "Cryptopay",
+                    context: Default::default(),
+                }))
+            }
+        }
+    }
+}
+
+// SetupMandate response shape is identical to the Authorize invoice response.
+// We re-use the existing `CryptopayPaymentsResponse` body for deserialization
+// and only customise the response-side mapping so that `mandate_reference` is
+// populated with the invoice id.
+pub type CryptopaySetupMandateResponse = CryptopayPaymentsResponse;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<CryptopaySetupMandateResponse, Self>>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<CryptopaySetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response: cryptopay_response,
+            router_data,
+            http_code,
+        } = item;
+        let status = common_enums::AttemptStatus::from(cryptopay_response.data.status.clone());
+        let invoice_id = cryptopay_response.data.id.clone();
+        let response = if is_payment_failure(status) {
+            let payment_response = &cryptopay_response.data;
+            Err(ErrorResponse {
+                code: payment_response
+                    .name
+                    .clone()
+                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                message: payment_response
+                    .status_context
+                    .clone()
+                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                reason: payment_response.status_context.clone(),
+                status_code: http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(invoice_id.clone()),
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+            })
+        } else {
+            let redirection_data = cryptopay_response
+                .data
+                .hosted_page_url
+                .clone()
+                .map(|x| RedirectForm::from((x, common_utils::request::Method::Get)));
+            let mandate_reference = Some(Box::new(MandateReference {
+                connector_mandate_id: Some(invoice_id.clone()),
+                payment_method_id: None,
+                connector_mandate_request_reference_id: None,
+            }));
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(invoice_id.clone()),
+                redirection_data: redirection_data.map(Box::new),
+                mandate_reference,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: cryptopay_response
+                    .data
+                    .custom_id
+                    .clone()
+                    .or(Some(invoice_id)),
+                incremental_authorization_allowed: None,
+                status_code: http_code,
+            })
+        };
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                ..router_data.resource_common_data
+            },
+            response,
+            ..router_data
+        })
     }
 }
 
