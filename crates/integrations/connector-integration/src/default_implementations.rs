@@ -135,7 +135,7 @@ default_impl_verify_webhook_source_v2!(
         Phonepe,
         Ppro,
         Revolut,
-        Sanlam,
+        AbsaSanlam,
         Trustly,
         Trustpay,
         Worldpayvantiv,

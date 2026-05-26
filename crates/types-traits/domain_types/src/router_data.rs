@@ -732,7 +732,7 @@ pub enum ConnectorSpecificConfig {
         private_key: Option<Secret<String>>,
         base_url: Option<String>,
     },
-    Sanlam {
+    AbsaSanlam {
         api_key: Secret<String>,
         merchant_id: Secret<String>,
         base_url: Option<String>,
@@ -875,7 +875,7 @@ impl ConnectorSpecificConfig {
                 merchant_account,
                 api_secret
             },
-            Sanlam { api_key, base_url },
+            AbsaSanlam { api_key, base_url },
             Bamboraapac {
                 username,
                 password,
@@ -1377,7 +1377,7 @@ impl ConnectorSpecificConfig {
                     api_secret,
                     merchant_acceptor_key
                 },
-                Sanlam { api_key, base_url },
+                AbsaSanlam { api_key, base_url },
                 Trustpay {
                     api_key,
                     project_id,
@@ -1746,10 +1746,10 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 secret_key: rapyd.secret_key.ok_or_else(err)?,
                 base_url: rapyd.base_url,
             }),
-            AuthType::Sanlam(sanlam) => Ok(Self::Sanlam {
-                api_key: sanlam.api_key.ok_or_else(err)?,
-                merchant_id: sanlam.merchant_id.ok_or_else(err)?,
-                base_url: sanlam.base_url,
+            AuthType::AbsaSanlam(absa_sanlam) => Ok(Self::AbsaSanlam {
+                api_key: absa_sanlam.api_key.ok_or_else(err)?,
+                merchant_id: absa_sanlam.merchant_id.ok_or_else(err)?,
+                base_url: absa_sanlam.base_url,
             }),
             AuthType::Redsys(redsys) => Ok(Self::Redsys {
                 merchant_id: redsys.merchant_id.ok_or_else(err)?,
@@ -2327,8 +2327,8 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
 
-                ConnectorEnum::Sanlam => match auth {
-                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Sanlam {
+                ConnectorEnum::AbsaSanlam => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::AbsaSanlam {
                         api_key: api_key.clone(),
                         merchant_id: key1.clone(),
                         base_url: None,
