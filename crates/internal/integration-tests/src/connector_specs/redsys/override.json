@@ -3,7 +3,7 @@
     "no3ds_auto_capture_credit_card": {
       "grpc_req": {
         "amount": {
-          "minor_amount": 6000,
+          "minor_amount": 2500,
           "currency": "EUR"
         },
         "payment_method": {
@@ -44,7 +44,7 @@
     "no3ds_auto_capture_debit_card": {
       "grpc_req": {
         "amount": {
-          "minor_amount": 6000,
+          "minor_amount": 2500,
           "currency": "EUR"
         },
         "payment_method": {
@@ -82,7 +82,7 @@
     "no3ds_manual_capture_credit_card": {
       "grpc_req": {
         "amount": {
-          "minor_amount": 6000,
+          "minor_amount": 2500,
           "currency": "EUR"
         },
         "payment_method": {
@@ -120,7 +120,7 @@
     "no3ds_manual_capture_debit_card": {
       "grpc_req": {
         "amount": {
-          "minor_amount": 6000,
+          "minor_amount": 2500,
           "currency": "EUR"
         },
         "payment_method": {
@@ -245,7 +245,7 @@
     "void_authorized_payment": {
       "grpc_req": {
         "amount": {
-          "minor_amount": 6000,
+          "minor_amount": 2500,
           "currency": "EUR"
         }
       }
@@ -253,7 +253,7 @@
     "void_without_cancellation_reason": {
       "grpc_req": {
         "amount": {
-          "minor_amount": 6000,
+          "minor_amount": 2500,
           "currency": "EUR"
         }
       }

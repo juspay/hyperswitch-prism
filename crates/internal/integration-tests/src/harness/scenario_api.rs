@@ -193,7 +193,7 @@ fn connector_request_reference_id_for(
     connector: &str,
     suite: &str,
     scenario: &str,
-    grpc_req: &Value,
+    grpc_req: &mut Value,
 ) -> String {
     // Load connector spec to check for custom reference ID configuration.
     // Silently ignore errors — an absent spec means default behaviour.
@@ -210,10 +210,26 @@ fn connector_request_reference_id_for(
             // Source field absent or empty — generate with optional prefix/length.
             let prefix = spec.request_id_prefix.as_deref().unwrap_or("");
             let uuid_part = format!("{}{}", prefix, Uuid::new_v4().simple());
-            return match spec.request_id_length {
+            let generated: String = match spec.request_id_length {
                 Some(len) => uuid_part.chars().take(len).collect(),
                 None => uuid_part,
             };
+            // Write the generated value back into the body so the gRPC server,
+            // which reads the reference id from `<source_field>` in the proto
+            // payload (e.g. `merchant_transaction_id`) — not from the
+            // `x-connector-request-reference-id` header — sees the same value.
+            // `set_json_path_value` only updates existing fields, so for the
+            // common top-level single-segment path we insert/overwrite
+            // unconditionally to handle fields that were pruned earlier.
+            if !source_field.contains('.') {
+                if let Some(map) = grpc_req.as_object_mut() {
+                    map.insert(source_field.to_string(), Value::String(generated.clone()));
+                }
+            } else {
+                let _ =
+                    set_json_path_value(grpc_req, source_field, Value::String(generated.clone()));
+            }
+            return generated;
         }
     }
 
@@ -1737,9 +1753,6 @@ pub fn build_grpcurl_request_from_payload(
     let merchant_id = merchant_id.unwrap_or(DEFAULT_MERCHANT_ID);
     let tenant_id = tenant_id.unwrap_or(DEFAULT_TENANT_ID);
 
-    let payload = serde_json::to_string_pretty(grpc_req)
-        .map_err(|source| ScenarioError::JsonSerialize { source })?;
-
     let config = load_connector_config(connector).map_or_else(
         |error| {
             if require_auth {
@@ -1754,9 +1767,15 @@ pub fn build_grpcurl_request_from_payload(
         |config| Ok(Some(config)),
     )?;
 
+    // Resolve the reference id first; the helper writes the generated value
+    // back into the body's `request_id_source_field` so the payload contains
+    // the same id we attach to the header.
+    let mut grpc_req_eff = grpc_req.clone();
     let request_id = format!("{suite}_{scenario}_req");
     let connector_request_reference_id =
-        connector_request_reference_id_for(connector, suite, scenario, grpc_req);
+        connector_request_reference_id_for(connector, suite, scenario, &mut grpc_req_eff);
+    let payload = serde_json::to_string_pretty(&grpc_req_eff)
+        .map_err(|source| ScenarioError::JsonSerialize { source })?;
     let suite_spec = load_suite_spec(suite).ok();
     let method = grpc_method_for_suite(suite, suite_spec.as_ref())?;
 
@@ -2144,9 +2163,9 @@ pub fn execute_tonic_request_from_payload(
         })?;
 
     let request_id = format!("{suite}_{scenario}_req");
+    let mut grpc_req = grpc_req.clone();
     let connector_request_reference_id =
-        connector_request_reference_id_for(&connector, suite, scenario, grpc_req);
-    let grpc_req = grpc_req.clone();
+        connector_request_reference_id_for(&connector, suite, scenario, &mut grpc_req);
 
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
