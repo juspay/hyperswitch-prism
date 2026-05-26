@@ -237,6 +237,9 @@
             "AUTHORIZATION_FAILED",
             "AUTHENTICATION_FAILED"
           ]
+        },
+        "error.connector_details.message": {
+          "must_exist": true
         }
       }
     }
