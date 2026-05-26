@@ -1866,6 +1866,9 @@ pub struct PaymentCreateOrderResponse {
     pub connector_order_id: String,
     /// Optional SDK session data for wallet flows (Apple Pay, Google Pay) and other SDK types
     pub session_data: Option<ClientAuthenticationTokenData>,
+    /// Optional client-rendered redirect produced during order creation
+    /// (hosted-checkout connectors like Flywire return their iframe HTML here).
+    pub redirection_data: Option<Box<RedirectForm>>,
 }
 
 #[derive(Debug, Clone)]

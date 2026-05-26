@@ -575,6 +575,7 @@ impl TryFrom<ResponseRouterData<PinelabsOnlineCreateOrderResponse, Self>>
                     response: Ok(PaymentCreateOrderResponse {
                         connector_order_id: order_id.clone(),
                         session_data: None,
+                        redirection_data: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status: AttemptStatus::Pending,

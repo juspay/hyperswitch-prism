@@ -13,10 +13,49 @@ use domain_types::{
     payment_method_data::PaymentMethodDataTypes,
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
+    router_response_types::RedirectForm,
 };
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+
+// Iframe + postMessage wrapper around the Flywire hosted form URL.
+// `__FLYWIRE_IFRAME_SRC__` is replaced at runtime with the live session URL.
+const FLYWIRE_HOSTED_TEMPLATE: &str = r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flywire Payment Listener</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; }
+    h2 { text-align: center; padding: 16px; }
+    iframe { width: 100%; height: calc(100vh - 70px); border: none; }
+  </style>
+</head>
+<body>
+  <h2>Flywire Payment</h2>
+  <iframe id="flywireFrame" src="__FLYWIRE_IFRAME_SRC__" allow="payment"></iframe>
+  <script>
+    window.addEventListener("message", (event) => {
+      console.log("Received message:", event);
+      if (!event.origin.endsWith(".flywire.com")) {
+        console.warn("Unauthorized origin:", event.origin);
+        return;
+      }
+      const result = event.data;
+      console.log("Flywire Result:", result);
+      if (result.success) {
+        console.log("Payment Success");
+        window.location.href = "https://zenda.com/payment-success";
+      } else if (result.success === false) {
+        console.log("Payment Failed");
+        window.location.href = "https://zenda.com/payment-failure";
+      }
+    });
+  </script>
+</body>
+</html>"#;
 
 // =============================================================================
 // Auth
@@ -265,18 +304,19 @@ impl TryFrom<ResponseRouterData<FlywireCheckoutSessionResponse, Self>>
         let raw_response = serde_json::to_string(&response).ok().map(Secret::new);
         let session_id = response.id.clone();
 
-        // The session UUID becomes `connector_order_id` so the subsequent
-        // Authorize call can read it from PaymentFlowData and target the
-        // /checkout/sessions/{id}/confirm endpoint.
-        //
-        // The hosted form URL is returned to the caller verbatim via
-        // `raw_connector_response` (the full Flywire JSON, including
-        // `hosted_form.url`) since PaymentCreateOrderResponse has no
-        // structured field for it.
+        // Wrap the hosted form URL in our iframe + postMessage template so the
+        // caller can render the result directly. The session UUID also flows
+        // through as `connector_order_id` for the subsequent Authorize
+        // (/checkout/sessions/{id}/confirm) call.
+        let html_data = FLYWIRE_HOSTED_TEMPLATE
+            .replace("__FLYWIRE_IFRAME_SRC__", &response.hosted_form.url);
+        let redirection_data = Some(Box::new(RedirectForm::Html { html_data }));
+
         Ok(Self {
             response: Ok(PaymentCreateOrderResponse {
                 connector_order_id: session_id.clone(),
                 session_data: None,
+                redirection_data,
             }),
             resource_common_data: PaymentFlowData {
                 status: AttemptStatus::Pending,

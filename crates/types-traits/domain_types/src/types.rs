@@ -5570,9 +5570,13 @@ pub fn generate_create_order_response(
         Ok(PaymentCreateOrderResponse {
             connector_order_id,
             session_data,
+            redirection_data,
         }) => {
             let grpc_session_data = session_data
                 .map(grpc_api_types::payments::ClientAuthenticationTokenData::foreign_try_from)
+                .transpose()?;
+            let grpc_redirection_data = redirection_data
+                .map(|form| grpc_api_types::payments::RedirectForm::foreign_try_from(*form))
                 .transpose()?;
 
             PaymentServiceCreateOrderResponse {
@@ -5585,6 +5589,7 @@ pub fn generate_create_order_response(
                 raw_connector_request,
                 raw_connector_response,
                 session_data: grpc_session_data,
+                redirection_data: grpc_redirection_data,
             }
         }
         Err(err) => PaymentServiceCreateOrderResponse {
@@ -5611,6 +5616,7 @@ pub fn generate_create_order_response(
             raw_connector_request,
             raw_connector_response,
             session_data: None,
+            redirection_data: None,
         },
     };
     Ok(response)

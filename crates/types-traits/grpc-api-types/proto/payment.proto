@@ -2866,6 +2866,10 @@ message PaymentServiceCreateOrderResponse {
   // SDK Session Data
   optional ClientAuthenticationTokenData session_data =
       9; // SDK session data for wallets (Apple Pay, Google Pay) and other SDK types
+
+  // Optional client-rendered redirect (HTML / form / URI). For hosted-checkout
+  // connectors that produce the redirect target during order creation.
+  optional RedirectForm redirection_data = 10;
 }
 
 // Request message for processing a refund
