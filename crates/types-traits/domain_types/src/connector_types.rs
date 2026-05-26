@@ -1340,26 +1340,26 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
             .ok_or_else(missing_field_err("browser_info.ip_address"))
     }
     // fn get_original_amount(&self) -> i64 {
-    //     self.surcharge_content
+    //     self.surcharge_details
     //         .as_ref()
-    //         .map(|surcharge_content| surcharge_content.original_amount.get_amount_as_i64())
+    //         .map(|surcharge_details| surcharge_details.original_amount.get_amount_as_i64())
     //         .unwrap_or(self.amount)
     // }
     // fn get_surcharge_amount(&self) -> Option<i64> {
-    //     self.surcharge_content
+    //     self.surcharge_details
     //         .as_ref()
-    //         .map(|surcharge_content| surcharge_content.surcharge_amount.get_amount_as_i64())
+    //         .map(|surcharge_details| surcharge_details.surcharge_amount.get_amount_as_i64())
     // }
     // fn get_tax_on_surcharge_amount(&self) -> Option<i64> {
-    //     self.surcharge_content.as_ref().map(|surcharge_content| {
-    //         surcharge_content
+    //     self.surcharge_details.as_ref().map(|surcharge_details| {
+    //         surcharge_details
     //             .tax_on_surcharge_amount
     //             .get_amount_as_i64()
     //     })
     // }
     // fn get_total_surcharge_amount(&self) -> Option<i64> {
-    //     self.surcharge_content.as_ref().map(|surcharge_content| {
-    //         surcharge_content
+    //     self.surcharge_details.as_ref().map(|surcharge_details| {
+    //         surcharge_details
     //             .get_total_surcharge_amount()
     //             .get_amount_as_i64()
     //     })
