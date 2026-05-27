@@ -111,7 +111,10 @@ pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
 {
 }
 
-pub trait SurchargeServiceTrait: ConnectorCommon + SurchargeCalculateV2 {}
+pub trait SurchargeServiceTrait:
+    ConnectorCommon + SurchargeCalculateV2 + SurchargePaymentSucceededV2 + SurchargeRefundSucceededV2
+{
+}
 
 pub trait PayoutServiceTrait:
     ConnectorCommon
@@ -815,10 +818,5 @@ pub trait SurchargeRefundSucceededV2:
     SurchargeRefundSucceededRequest,
     SurchargeRefundSucceededResponse,
 >
-{
-}
-
-pub trait SurchargeServiceTrait:
-    ConnectorCommon + SurchargeCalculateV2 + SurchargePaymentSucceededV2 + SurchargeRefundSucceededV2
 {
 }
