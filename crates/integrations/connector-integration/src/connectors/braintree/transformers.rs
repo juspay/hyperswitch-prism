@@ -8,7 +8,7 @@ use common_utils::{
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken, RSync,
-        RepeatPayment, Void, VoidPC,
+        RepeatPayment, SetupMandate, Void, VoidPC,
     },
     connector_types::{
         self, AmountInfo, ApplePayPaymentRequest, ApplePaySessionResponse,
@@ -22,7 +22,7 @@ use domain_types::{
         PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
         PaypalClientAuthenticationResponse, PaypalTransactionInfo, RefundFlowData, RefundSyncData,
         RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId, SdkNextAction,
-        SecretInfoToInitiateSdk, ThirdPartySdkSessionResponse,
+        SecretInfoToInitiateSdk, SetupMandateRequestData, ThirdPartySdkSessionResponse,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
@@ -3076,6 +3076,155 @@ impl TryFrom<ResponseRouterData<BraintreeVoidPCResponse, Self>>
                 };
                 Ok(Self {
                     response,
+                    ..item.router_data
+                })
+            }
+        }
+    }
+}
+
+// =============================================================================
+// SETUP MANDATE (Pay.SetupRecurring) FLOW - REQUEST / RESPONSE TRANSFORMERS
+// =============================================================================
+// Braintree does not expose a pure "store-only" mutation that accepts raw card
+// data and produces a multi-use payment method token in a single shot. The
+// closest stable path that returns a `paymentMethod.id` we can hand back as a
+// `connector_mandate_id` is `tokenizeCreditCard` — the same mutation the
+// PaymentMethodToken flow already uses. SetupMandate therefore tokenizes the
+// card and surfaces the resulting Braintree payment method id as the
+// `connector_mandate_id` on a `MandateReference`, which RepeatPayment then
+// consumes via the existing `MandatePayment` request path.
+
+pub type BraintreeSetupMandateRequest<T> = GenericBraintreeRequest<VariableInput<T>>;
+pub type BraintreeSetupMandateResponse = BraintreeTokenResponse;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        BraintreeRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for BraintreeSetupMandateRequest<T>
+{
+    type Error = Report<IntegrationError>;
+    fn try_from(
+        item: BraintreeRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::Card(card_data) => Ok(Self {
+                query: constants::TOKENIZE_CREDIT_CARD.to_string(),
+                variables: VariableInput {
+                    input: InputData {
+                        credit_card: CreditCardData {
+                            number: card_data.card_number,
+                            expiration_year: card_data.card_exp_year,
+                            expiration_month: card_data.card_exp_month,
+                            cvv: card_data.card_cvc,
+                            cardholder_name: item
+                                .router_data
+                                .resource_common_data
+                                .get_optional_billing_full_name()
+                                .unwrap_or(Secret::new("".to_string())),
+                        },
+                    },
+                },
+            }),
+            PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::PaymentMethodToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("braintree"),
+                    connector: "Braintree",
+                    context: Default::default(),
+                }))
+            }
+        }
+    }
+}
+
+// Response transformer: a successful `tokenizeCreditCard` response carries a
+// `paymentMethod.id` which we mirror on both `resource_id` (so PSync /
+// downstream lookups have something to anchor on) and `mandate_reference`
+// (so the orchestrator can persist it and replay it on RepeatPayment).
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<BraintreeSetupMandateResponse, Self>>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<BraintreeSetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            BraintreeSetupMandateResponse::ErrorResponse(error_response) => Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status: enums::AttemptStatus::Failure,
+                    ..item.router_data.resource_common_data
+                },
+                response: build_error_response(error_response.errors.as_ref(), item.http_code)
+                    .map_err(|err| *err),
+                ..item.router_data
+            }),
+            BraintreeSetupMandateResponse::TokenResponse(token_response) => {
+                let payment_method_id = token_response
+                    .data
+                    .tokenize_credit_card
+                    .payment_method
+                    .id
+                    .expose();
+                let mandate_reference = Some(Box::new(MandateReference {
+                    connector_mandate_id: Some(payment_method_id.clone()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                }));
+                Ok(Self {
+                    resource_common_data: PaymentFlowData {
+                        status: enums::AttemptStatus::Charged,
+                        ..item.router_data.resource_common_data
+                    },
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(payment_method_id),
+                        redirection_data: None,
+                        mandate_reference,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
+                        status_code: item.http_code,
+                    }),
                     ..item.router_data
                 })
             }

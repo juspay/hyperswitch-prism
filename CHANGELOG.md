@@ -19,6 +19,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.05.26.1
+
+### Features
+
+- **framework:** Refactor Payout flows in domain and integration layer ([#1388](https://github.com/juspay/connector-service/pull/1388)) ([`d6cf55b`](https://github.com/juspay/connector-service/commit/d6cf55b58cea5f7abdd150e3cae21343afc4fbca))
+
+### Bug Fixes
+
+- **connector:** 2c2p_paco fix superposition url ([#1411](https://github.com/juspay/connector-service/pull/1411)) ([`17e7fe8`](https://github.com/juspay/connector-service/commit/17e7fe8e21a0209d99d3b04dcd1ec785af810f45))
+
+### Miscellaneous Tasks
+
+- Change Sanlam connector name to AbsaSanlam ([#1390](https://github.com/juspay/connector-service/pull/1390)) ([`f26f7bd`](https://github.com/juspay/connector-service/commit/f26f7bd00ce127aaeec7c2d87d63fcca65b151a8))
+
+**Full Changelog:** [`2026.05.26.0...2026.05.26.1`](https://github.com/juspay/connector-service/compare/2026.05.26.0...2026.05.26.1)
+
+- - -
+
+## 2026.05.26.0
+
+### Features
+
+- **connector:** Implement Reverse (VoidPostCapture) for PlaceToPay ([#1288](https://github.com/juspay/connector-service/pull/1288)) ([`d84328d`](https://github.com/juspay/connector-service/commit/d84328da3eb61cebbc0e57654a8465386018f08f))
+
+**Full Changelog:** [`2026.05.25.0...2026.05.26.0`](https://github.com/juspay/connector-service/compare/2026.05.25.0...2026.05.26.0)
+
+- - -
+
+## 2026.05.25.0
+
+### Bug Fixes
+
+- Populate proto-backed fields in proto-to-domain mappings ([#1231](https://github.com/juspay/connector-service/pull/1231)) ([`1a1fe66`](https://github.com/juspay/connector-service/commit/1a1fe6649974bb7caaa75ca9118b64d834ca00bb))
+
+### Testing
+
+- **bambora:** Harden integration test overrides ([#1317](https://github.com/juspay/connector-service/pull/1317)) ([`57e8e7e`](https://github.com/juspay/connector-service/commit/57e8e7ea8150df273dc8696b39556aea6276e979))
+- **datatrans:** Harden integration test overrides ([#1286](https://github.com/juspay/connector-service/pull/1286)) ([`dbfd68b`](https://github.com/juspay/connector-service/commit/dbfd68be6d981fbb5c7f7cee4a9e6a45ab6a23df))
+- **multisafepay:** Harden integration test overrides ([#1296](https://github.com/juspay/connector-service/pull/1296)) ([`380acf9`](https://github.com/juspay/connector-service/commit/380acf95c00469ccd184eec57d4f352a7c0f0ce9))
+- **powertranz:** Harden integration test overrides ([#1305](https://github.com/juspay/connector-service/pull/1305)) ([`5a55147`](https://github.com/juspay/connector-service/commit/5a55147877059d3c9a735586bbdbeef0896e3995))
+- **shift4:** Harden integration test overrides ([#1311](https://github.com/juspay/connector-service/pull/1311)) ([`f2ddb22`](https://github.com/juspay/connector-service/commit/f2ddb227d1819c861db79b45f5321395a67c8cba))
+- **wellsfargo:** Harden integration test overrides ([#1314](https://github.com/juspay/connector-service/pull/1314)) ([`b796f22`](https://github.com/juspay/connector-service/commit/b796f229822f1f36d1bf77a789beced423206211))
+
+**Full Changelog:** [`2026.05.22.0...2026.05.25.0`](https://github.com/juspay/connector-service/compare/2026.05.22.0...2026.05.25.0)
+
+- - -
+
+## 2026.05.22.0
+
+### Features
+
+- **connector:**
+  - Implement Reverse (VoidPostCapture) for bankofamerica ([#1283](https://github.com/juspay/connector-service/pull/1283)) ([`95e1229`](https://github.com/juspay/connector-service/commit/95e1229e1975fb0ac82c4ba9ad499a7dd03d04e0))
+  - Implement Reverse (VoidPostCapture) for authorizedotnet ([#1276](https://github.com/juspay/connector-service/pull/1276)) ([`1fb0984`](https://github.com/juspay/connector-service/commit/1fb09840ca49a28a63ef91174abaa23d3e10dc5e))
+  - Implement Reverse (VoidPostCapture) for WorldpayXML ([#1285](https://github.com/juspay/connector-service/pull/1285)) ([`98c5838`](https://github.com/juspay/connector-service/commit/98c58388c6e1d87ea73dd9d0b2a5cef5ee2da3a1))
+- **twoc_twop_paco:** Add connector_order_id for refund ([#1377](https://github.com/juspay/connector-service/pull/1377)) ([`648f5f7`](https://github.com/juspay/connector-service/commit/648f5f7f4ecd8be6ba96c934dc920808e1ca3afa))
+- Add surcharge flow ([#1279](https://github.com/juspay/connector-service/pull/1279)) ([`75dff40`](https://github.com/juspay/connector-service/commit/75dff403a399421992032e2a27329eb240d422bb))
+
+### Bug Fixes
+
+- **codegen:** Add missing _connector_config param to add_connector.sh template ([#1384](https://github.com/juspay/connector-service/pull/1384)) ([`0a61ff6`](https://github.com/juspay/connector-service/commit/0a61ff6dbbc3b1330cff7c06e684745736db59f7))
+
+### Testing
+
+- **paypal:** Harden integration test overrides ([#1302](https://github.com/juspay/connector-service/pull/1302)) ([`cca6a9d`](https://github.com/juspay/connector-service/commit/cca6a9dc1da8b2470f571dbb95b5a779bc71a0f8))
+
+**Full Changelog:** [`2026.05.21.0...2026.05.22.0`](https://github.com/juspay/connector-service/compare/2026.05.21.0...2026.05.22.0)
+
+- - -
+
 ## 2026.05.21.0
 
 ### Bug Fixes
