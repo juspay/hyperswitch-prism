@@ -1437,8 +1437,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRecipientRequest
                                 grpc_api_types::payments::CountryAlpha2::try_from(c)
                                     .ok()
                                     .and_then(|cc| {
-                                        common_enums::CountryAlpha2::try_from(cc.as_str_name())
-                                            .ok()
+                                        common_enums::CountryAlpha2::try_from(cc.as_str_name()).ok()
                                     })
                             }),
                             line1: b.line1.clone(),
@@ -1451,12 +1450,12 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRecipientRequest
                             origin_zip: None,
                         });
                 let phone_details = billing.as_ref().and_then(|b| {
-                    b.phone_number
-                        .as_ref()
-                        .map(|phone| super::super::payment_address::PhoneDetails {
+                    b.phone_number.as_ref().map(|phone| {
+                        super::super::payment_address::PhoneDetails {
                             number: Some(phone.clone()),
                             country_code: b.phone_country_code.clone(),
-                        })
+                        }
+                    })
                 });
                 let email = billing
                     .as_ref()
@@ -1525,9 +1524,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRecipientRequest
                     customer_id,
                     customer_email,
                     customer_name: cust.name.map(hyperswitch_masking::Secret::new),
-                    customer_phone_number: cust
-                        .phone_number
-                        .map(hyperswitch_masking::Secret::new),
+                    customer_phone_number: cust.phone_number.map(hyperswitch_masking::Secret::new),
                     customer_phone_country_code: cust.phone_country_code.clone(),
                 })
             })
@@ -1643,9 +1640,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceEnrollDisburseAccountR
                     customer_id,
                     customer_email,
                     customer_name: cust.name.map(hyperswitch_masking::Secret::new),
-                    customer_phone_number: cust
-                        .phone_number
-                        .map(hyperswitch_masking::Secret::new),
+                    customer_phone_number: cust.phone_number.map(hyperswitch_masking::Secret::new),
                     customer_phone_country_code: cust.phone_country_code.clone(),
                 })
             })
