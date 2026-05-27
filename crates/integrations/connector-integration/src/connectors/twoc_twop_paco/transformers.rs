@@ -20,6 +20,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
+use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -664,34 +665,26 @@ pub fn build_refund_request(
     let office_id = auth.office_id.clone();
     let amount =
         PacoTransactionAmount::new(item.request.minor_refund_amount, item.request.currency)?;
-    let original_order_no = item
-        .request
-        .refund_connector_metadata
-        .as_ref()
-        .and_then(extract_paco_original_order_no)
-        .or_else(|| {
-            item.request
-                .connector_feature_data
-                .as_ref()
-                .and_then(extract_paco_original_order_no)
-        })
-        .ok_or_else(|| errors::IntegrationError::MissingRequiredField {
-            field_name: "refund_metadata.original_order_no",
+    let original_order_no = item.request.get_connector_order_id().change_context(
+        errors::IntegrationError::MissingRequiredField {
+            field_name: "connector_order_id",
             context: errors::IntegrationErrorContext {
                 suggested_action: Some(
-                    "Pass the original Authorize orderNo via either `refund_metadata` \
-                         (preferred) or `connector_feature_data` on the Refund request, \
-                         e.g. {\"original_order_no\":\"<auth orderNo>\",\"maker_id\":\"<operator id>\"}."
+                    "Pass the original Authorize's `orderNo` (== the \
+                             `merchant_transaction_id` you sent on Authorize) as \
+                             `connector_order_id` on the Refund request."
                         .to_string(),
                 ),
                 doc_url: Some("https://devzone.2c2p.com/reference/refund".to_string()),
                 additional_context: Some(
-                    "PACO matches refunds against the original transaction's \
-                         orderNo, which is not derivable from connector_transaction_id."
+                    "PACO matches refunds against the original transaction's `orderNo`, \
+                             which is not derivable from `connector_transaction_id` (PACO's \
+                             `invoiceNo2C2P`)."
                         .to_string(),
                 ),
             },
-        })?;
+        },
+    )?;
     let maker_id = item
         .request
         .refund_connector_metadata
@@ -716,23 +709,6 @@ pub fn build_refund_request(
             maker: PacoHumanActor { username: maker_id },
         },
     })
-}
-
-fn extract_paco_original_order_no(meta: &common_utils::SecretSerdeValue) -> Option<String> {
-    let value = meta.peek();
-    if let Some(s) = value.as_str() {
-        if !s.is_empty() {
-            return Some(s.to_string());
-        }
-    }
-    if let Some(obj) = value.as_object() {
-        if let Some(s) = obj.get("original_order_no").and_then(|v| v.as_str()) {
-            if !s.is_empty() {
-                return Some(s.to_string());
-            }
-        }
-    }
-    None
 }
 
 fn extract_paco_maker_id(meta: &common_utils::SecretSerdeValue) -> Option<String> {
@@ -1369,12 +1345,22 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
                 network_error_message: None,
             };
             return Ok(Self {
+                resource_common_data: RefundFlowData {
+                    status: refund_status,
+                    raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
+                    ..router_data.resource_common_data
+                },
                 response: Err(error),
                 ..router_data
             });
         }
 
         Ok(Self {
+            resource_common_data: RefundFlowData {
+                status: refund_status,
+                raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
+                ..router_data.resource_common_data
+            },
             response: Ok(RefundsResponseData {
                 connector_refund_id,
                 refund_status,
@@ -1582,12 +1568,22 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
                 network_error_message: None,
             };
             return Ok(Self {
+                resource_common_data: RefundFlowData {
+                    status: refund_status,
+                    raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
+                    ..router_data.resource_common_data
+                },
                 response: Err(error),
                 ..router_data
             });
         }
 
         Ok(Self {
+            resource_common_data: RefundFlowData {
+                status: refund_status,
+                raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
+                ..router_data.resource_common_data
+            },
             response: Ok(RefundsResponseData {
                 connector_refund_id,
                 refund_status,

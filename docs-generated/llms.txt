@@ -22,6 +22,14 @@ integration_pattern:
 
 ---
 
+## Absasanlam
+connector_id: absasanlam
+doc: docs/connectors/absasanlam.md
+scenarios: none
+payment_methods: none
+flows: handle_event, parse_event
+examples_python: none
+
 ## ACI
 connector_id: aci
 doc: docs/connectors/aci.md
@@ -59,7 +67,7 @@ connector_id: authorizedotnet
 doc: docs/connectors/authorizedotnet.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Ach, Card
-flows: authorize, capture, create_customer, get, handle_event, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
+flows: authorize, capture, create_customer, get, handle_event, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, reverse, setup_recurring, void
 examples_python: examples/authorizedotnet/authorizedotnet.py
 
 ## Axisbank
@@ -91,7 +99,7 @@ connector_id: bankofamerica
 doc: docs/connectors/bankofamerica.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
+flows: authorize, capture, get, proxy_authorize, proxy_setup_recurring, refund, refund_get, reverse, setup_recurring, void
 examples_python: examples/bankofamerica/bankofamerica.py
 
 ## Barclaycard
@@ -123,7 +131,7 @@ connector_id: braintree
 doc: docs/connectors/braintree.md
 scenarios: none
 payment_methods: ApplePayThirdPartySdk, GooglePayThirdPartySdk, PaypalSdk
-flows: authorize, capture, create_client_authentication_token, get, refund, reverse, tokenize, void
+flows: authorize, capture, create_client_authentication_token, get, proxy_setup_recurring, refund, reverse, setup_recurring, tokenize, void
 examples_python: none
 
 ## Calida
@@ -251,7 +259,7 @@ connector_id: fiuu
 doc: docs/connectors/fiuu.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: ApplePayDecrypted, Card, GooglePay, OnlineBankingFpx
-flows: authorize, capture, get, handle_event, parse_event, proxy_authorize, recurring_charge, refund, refund_get, void
+flows: authorize, capture, get, handle_event, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
 examples_python: examples/fiuu/fiuu.py
 
 ## Forte
@@ -435,7 +443,7 @@ connector_id: payload
 doc: docs/connectors/payload.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Ach, Card
-flows: authorize, capture, create_client_authentication_token, get, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, void
+flows: authorize, capture, create_client_authentication_token, create_customer, get, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, void
 examples_python: examples/payload/payload.py
 
 ## Payme
@@ -507,7 +515,7 @@ connector_id: placetopay
 doc: docs/connectors/placetopay.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, proxy_authorize, refund, void
+flows: authorize, capture, get, proxy_authorize, refund, reverse, void
 examples_python: examples/placetopay/placetopay.py
 
 ## Powertranz
@@ -573,14 +581,6 @@ scenarios: checkout_autocapture, checkout_card, refund, void_payment
 payment_methods: Card
 flows: authorize, capture, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
 examples_python: examples/revolv3/revolv3.py
-
-## Sanlam
-connector_id: sanlam
-doc: docs/connectors/sanlam.md
-scenarios: none
-payment_methods: none
-flows: handle_event, parse_event
-examples_python: none
 
 ## Shift4
 connector_id: shift4
@@ -707,7 +707,7 @@ connector_id: worldpayxml
 doc: docs/connectors/worldpayxml.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, proxy_authorize, refund, refund_get, void
+flows: authorize, capture, get, proxy_authorize, refund, refund_get, reverse, void
 examples_python: examples/worldpayxml/worldpayxml.py
 
 ## Xendit

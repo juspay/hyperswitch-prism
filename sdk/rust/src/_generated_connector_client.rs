@@ -55,6 +55,9 @@ use grpc_api_types::payouts::{
     PayoutServiceStageResponse, PayoutServiceTransferRequest, PayoutServiceTransferResponse,
     PayoutServiceVoidRequest, PayoutServiceVoidResponse,
 };
+use grpc_api_types::surcharge::{
+    SurchargeServiceCalculateRequest, SurchargeServiceCalculateResponse,
+};
 
 /// ConnectorClient — high-level Rust wrapper for the Connector Service.
 ///
@@ -579,6 +582,14 @@ impl ConnectorClient {
         refund_get_req_handler,
         refund_get_res_handler
     );
+    // ── SurchargeService flows ───────────────────────────────────────────────────
+    impl_flow_method!(
+        calculate,
+        SurchargeServiceCalculateRequest,
+        SurchargeServiceCalculateResponse,
+        surcharge_calculate_req_handler,
+        surcharge_calculate_res_handler
+    );
 }
 
 /// Internal helper to build the context-heavy FfiRequestData from raw inputs.
@@ -614,13 +625,13 @@ pub fn build_ffi_request<T>(
             })?;
 
     let connector =
-        domain_types::connector_types::ConnectorEnum::foreign_try_from(config_variant.clone())
+        domain_types::connector_types::ConnectorVariant::foreign_try_from(config_variant.clone())
             .map_err(|e| SdkError::IntegrationError {
-                error_code: "CONNECTOR_MAPPING_FAILED".to_string(),
-                error_message: format!("Connector mapping failed: {e}"),
-                suggested_action: None,
-                doc_url: None,
-            })?;
+            error_code: "CONNECTOR_MAPPING_FAILED".to_string(),
+            error_message: format!("Connector mapping failed: {e}"),
+            suggested_action: None,
+            doc_url: None,
+        })?;
 
     let connector_config = ConnectorSpecificConfig::foreign_try_from(proto_config.clone())
         .map_err(|e| SdkError::IntegrationError {

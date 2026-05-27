@@ -722,8 +722,20 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: void_post_capture flow for placetopay"
+        "status": "supported",
+        "proto_request": {
+          "merchant_reverse_id": "probe_reverse_001",
+          "connector_transaction_id": "12345"
+        },
+        "sample": {
+          "url": "https://test.placetopay.com/rest/gateway/transaction",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"auth\":{\"login\":\"probe_user\",\"tranKey\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"nonce\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"seed\":\"2020-01-01T00:00:00+00:00\"},\"internalReference\":12345,\"action\":\"reverse\"}"
+        }
       }
     },
     "setup_recurring": {
