@@ -3466,10 +3466,7 @@ message PaymentMethodServiceTokenizeRequest {
   // Environment Configuration
   optional bool test_mode = 9;
 
-  // State Information — carries the OAuth access_token for connectors that
-  // pre-fetch it via MerchantAuthenticationService.CreateServerAuthenticationToken
-  // (e.g. Globalgetnet). Matches the convention used by PaymentService.Authorize
-  // (PaymentServiceAuthorizeRequest.state).
+  // State Information
   optional ConnectorState state = 10;
 }
 
