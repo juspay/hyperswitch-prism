@@ -9,6 +9,7 @@ use prost_types::{
 
 // Fields intentionally present in granular requests but excluded from composite request.
 const DEFAULT_IGNORE_GRANULAR_ONLY_FIELDS: &[&str] = &["connector"];
+const AUTHORIZE_IGNORE_GRANULAR_ONLY_FIELDS: &[&str] = &["connector", "domain_context", "payment"];
 
 // Fields intentionally present only in the composite request.
 const DEFAULT_IGNORE_COMPOSITE_ONLY_FIELDS: &[&str] = &[];
@@ -34,7 +35,7 @@ const COMPOSITE_FLOW_SPECS: &[CompositeFlowSpec] = &[
             "CustomerServiceCreateRequest",
             "PaymentServiceAuthorizeRequest",
         ],
-        ignore_granular_only_fields: DEFAULT_IGNORE_GRANULAR_ONLY_FIELDS,
+        ignore_granular_only_fields: AUTHORIZE_IGNORE_GRANULAR_ONLY_FIELDS,
         ignore_composite_only_fields: DEFAULT_IGNORE_COMPOSITE_ONLY_FIELDS,
     },
     CompositeFlowSpec {
