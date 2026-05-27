@@ -667,7 +667,7 @@ connector_id: twoctwoppaco
 doc: docs/connectors/twoctwoppaco.md
 scenarios: none
 payment_methods: none
-flows: 
+flows: verify_redirect
 examples_python: none
 
 ## Volt
