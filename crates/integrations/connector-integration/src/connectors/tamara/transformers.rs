@@ -92,8 +92,17 @@ impl From<TamaraPaymentStatus> for AttemptStatus {
 #[derive(Debug, Deserialize, Clone, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TamaraRefundStatus {
-    FullyRefunded,
+    New,
+    Declined,
+    Expired,
+    Approved,
+    Authorised,
+    PartiallyCaptured,
+    FullyCaptured,
     PartiallyRefunded,
+    FullyRefunded,
+    Canceled,
+    Updated,
 }
 
 impl From<TamaraRefundStatus> for RefundStatus {
@@ -102,6 +111,15 @@ impl From<TamaraRefundStatus> for RefundStatus {
             TamaraRefundStatus::FullyRefunded | TamaraRefundStatus::PartiallyRefunded => {
                 Self::Success
             }
+            TamaraRefundStatus::PartiallyCaptured | TamaraRefundStatus::FullyCaptured => {
+                Self::Pending
+            }
+            TamaraRefundStatus::Approved | TamaraRefundStatus::Authorised => Self::Pending,
+            TamaraRefundStatus::Declined
+            | TamaraRefundStatus::Expired
+            | TamaraRefundStatus::Canceled
+            | TamaraRefundStatus::Updated => Self::Failure,
+            TamaraRefundStatus::New => Self::Pending,
         }
     }
 }
@@ -373,10 +391,7 @@ impl TryFrom<ResponseRouterData<TamaraRSyncResponse, Self>>
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(item: ResponseRouterData<TamaraRSyncResponse, Self>) -> Result<Self, Self::Error> {
-        let refund_status = match item.response.status {
-            TamaraRefundStatus::FullyRefunded => RefundStatus::Success,
-            TamaraRefundStatus::PartiallyRefunded => RefundStatus::Success,
-        };
+        let refund_status = RefundStatus::from(item.response.status);
 
         Ok(Self {
             response: Ok(RefundsResponseData {
