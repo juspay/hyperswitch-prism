@@ -2842,6 +2842,10 @@ message PaymentServiceCreateOrderRequest {
   // Payment Method Type
   optional PaymentMethodType payment_method_type =
       8; // The type of payment method (e.g., apple_pay, google_pay)
+
+  // Return URL the customer should be redirected to after completing
+  // the connector-hosted form (used by hosted-checkout connectors).
+  optional string return_url = 9;
 }
 
 // Response message for create order operation

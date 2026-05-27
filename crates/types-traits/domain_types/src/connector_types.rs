@@ -1859,6 +1859,7 @@ pub struct PaymentCreateOrderData {
     pub metadata: Option<SecretSerdeValue>,
     pub webhook_url: Option<String>,
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    pub return_url: Option<String>,
 }
 
 #[derive(Debug, Clone)]

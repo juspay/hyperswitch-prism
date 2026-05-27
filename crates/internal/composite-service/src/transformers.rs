@@ -82,6 +82,7 @@ impl ForeignFrom<&CompositeAuthorizeRequest> for PaymentServiceCreateOrderReques
             state: item.state.clone(),
             test_mode: item.test_mode,
             payment_method_type: None,
+            return_url: item.return_url.clone(),
         }
     }
 }

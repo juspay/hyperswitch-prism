@@ -11258,6 +11258,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCreateOrderRequest>
                 .transpose()?,
             webhook_url,
             payment_method_type,
+            return_url: value.return_url.clone(),
         })
     }
 }
@@ -11316,7 +11317,7 @@ impl
             customer_id: None, // PaymentServiceCreateOrderRequest doesn't have customer_id field
             connector_customer: None,
             description: None,
-            return_url: None,
+            return_url: value.return_url.clone(),
             connector_feature_data,
             amount_captured: None,
             minor_amount_captured: None,

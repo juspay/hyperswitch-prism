@@ -20,7 +20,8 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 // Iframe + postMessage wrapper around the Flywire hosted form URL.
-// `__FLYWIRE_IFRAME_SRC__` is replaced at runtime with the live session URL.
+// `__FLYWIRE_IFRAME_SRC__` is replaced at runtime with the live session URL;
+// `__FLYWIRE_RETURN_URL__` is replaced with the merchant's return_url.
 const FLYWIRE_HOSTED_TEMPLATE: &str = r#"<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -47,10 +48,10 @@ const FLYWIRE_HOSTED_TEMPLATE: &str = r#"<!DOCTYPE html>
       console.log("Flywire Result:", result);
       if (result.success) {
         console.log("Payment Success");
-        window.location.href = "https://zenda.com/payment-success";
+        window.location.href = "__FLYWIRE_RETURN_URL__";
       } else if (result.success === false) {
         console.log("Payment Failed");
-        window.location.href = "https://zenda.com/payment-failure";
+        window.location.href = "__FLYWIRE_RETURN_URL__";
       }
     });
   </script>
@@ -307,9 +308,18 @@ impl TryFrom<ResponseRouterData<FlywireCheckoutSessionResponse, Self>>
         // Wrap the hosted form URL in our iframe + postMessage template so the
         // caller can render the result directly. The session UUID also flows
         // through as `connector_order_id` for the subsequent Authorize
-        // (/checkout/sessions/{id}/confirm) call.
-        let html_data =
-            FLYWIRE_HOSTED_TEMPLATE.replace("__FLYWIRE_IFRAME_SRC__", &response.hosted_form.url);
+        // (/checkout/sessions/{id}/confirm) call. The merchant's return_url
+        // (from the request) is substituted into the postMessage success/failure
+        // handlers; empty string fallback if absent.
+        let return_url = item
+            .router_data
+            .resource_common_data
+            .return_url
+            .clone()
+            .unwrap_or_default();
+        let html_data = FLYWIRE_HOSTED_TEMPLATE
+            .replace("__FLYWIRE_IFRAME_SRC__", &response.hosted_form.url)
+            .replace("__FLYWIRE_RETURN_URL__", &return_url);
         let redirection_data = Some(Box::new(RedirectForm::Html { html_data }));
 
         Ok(Self {
