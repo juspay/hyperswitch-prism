@@ -1041,15 +1041,46 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             account_type: None,
                         })
                     }
+                    domain_types::payment_method_data::WalletData::ApplePay(apple_pay_data) => {
+                        // Get merchant_identity_id from auth
+                        let auth = FinixAuthType::try_from(&item.router_data.connector_config)?;
+                        let merchant_identity = auth.merchant_identity_id.peek().to_string();
+
+                        // Extract the encrypted Apple Pay payment data
+                        let encrypted_data = apple_pay_data
+                            .payment_data
+                            .get_encrypted_apple_pay_payment_data_mandatory()
+                            .change_context(IntegrationError::InvalidWalletToken {
+                                wallet_name: "Apple Pay".to_string(),
+                                context: Default::default(),
+                            })?;
+
+                        Ok(Self {
+                            instrument_type: FinixPaymentInstrumentType::ApplePay,
+                            name: None,
+                            number: None,
+                            security_code: None,
+                            expiration_month: None,
+                            expiration_year: None,
+                            identity: customer_id,
+                            tags: None,
+                            address: None,
+                            merchant_identity: Some(Secret::new(merchant_identity)),
+                            third_party_token: Some(Secret::new(encrypted_data.clone())),
+                            account_number: None,
+                            bank_code: None,
+                            account_type: None,
+                        })
+                    }
                     _ => Err(IntegrationError::NotImplemented(
-                        "Only Google Pay wallet tokenization is supported".into(),
+                        "Only Google Pay and Apple Pay wallet tokenization are supported".into(),
                         Default::default(),
                     )
                     .into()),
                 }
             }
             _ => Err(IntegrationError::NotImplemented(
-                "Only card, bank debit, and Google Pay tokenization are supported".into(),
+                "Only card, bank debit, Google Pay and Apple Pay tokenization are supported".into(),
                 Default::default(),
             )
             .into()),
@@ -1277,15 +1308,46 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             account_type: None,
                         })
                     }
+                    domain_types::payment_method_data::WalletData::ApplePay(apple_pay_data) => {
+                        // Get merchant_identity_id from auth for wallet tokenization
+                        let auth = FinixAuthType::try_from(&item.router_data.connector_config)?;
+                        let merchant_identity = auth.merchant_identity_id.peek().to_string();
+
+                        // Extract the encrypted Apple Pay payment data
+                        let encrypted_data = apple_pay_data
+                            .payment_data
+                            .get_encrypted_apple_pay_payment_data_mandatory()
+                            .change_context(IntegrationError::InvalidWalletToken {
+                                wallet_name: "Apple Pay".to_string(),
+                                context: Default::default(),
+                            })?;
+
+                        Ok(Self {
+                            instrument_type: FinixPaymentInstrumentType::ApplePay,
+                            name: None,
+                            number: None,
+                            security_code: None,
+                            expiration_month: None,
+                            expiration_year: None,
+                            identity: customer_id,
+                            tags,
+                            address: None,
+                            merchant_identity: Some(Secret::new(merchant_identity)),
+                            third_party_token: Some(Secret::new(encrypted_data.clone())),
+                            account_number: None,
+                            bank_code: None,
+                            account_type: None,
+                        })
+                    }
                     _ => Err(IntegrationError::NotImplemented(
-                        "Only Google Pay wallet is supported for SetupMandate".into(),
+                        "Only Google Pay and Apple Pay wallet are supported for SetupMandate".into(),
                         Default::default(),
                     )
                     .into()),
                 }
             }
             _ => Err(IntegrationError::NotImplemented(
-                "Only card, bank debit (ACH), and Google Pay are supported for SetupMandate".into(),
+                "Only card, bank debit (ACH), Google Pay and Apple Pay are supported for SetupMandate".into(),
                 Default::default(),
             )
             .into()),
