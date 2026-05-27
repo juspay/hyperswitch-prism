@@ -5,6 +5,8 @@ use grpc_api_types::payments::{
     CustomerServiceCreateRequest, CustomerServiceCreateResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
     PaymentMethodAuthenticationServiceAuthenticateRequest,
     PaymentMethodAuthenticationServiceAuthenticateResponse,
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
@@ -16,7 +18,7 @@ use grpc_api_types::payments::{
 };
 
 use crate::utils::{
-    get_access_token, get_connector_customer_id, grpc_connector_from_connector_enum,
+    get_access_token, get_connector_customer_id, get_session_token, grpc_connector_from_connector_enum,
 };
 
 pub trait ForeignFrom<F>: Sized {
@@ -33,6 +35,29 @@ impl ForeignFrom<(&CompositeAuthorizeRequest, &ConnectorEnum)>
             metadata: item.metadata.clone(),
             connector_feature_data: item.connector_feature_data.clone(),
             test_mode: item.test_mode,
+        }
+    }
+}
+
+impl ForeignFrom<(&CompositeAuthorizeRequest, &ConnectorEnum)>
+    for MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest
+{
+    fn foreign_from((item, _connector): (&CompositeAuthorizeRequest, &ConnectorEnum)) -> Self {
+        use grpc_api_types::payments::{
+            merchant_authentication_service_create_server_session_authentication_token_request::DomainContext,
+            PaymentSessionContext,
+        };
+        
+        Self {
+            merchant_server_session_id: item.merchant_server_session_id.clone(),
+            connector_feature_data: item.connector_feature_data.clone(),
+            state: item.state.clone(),
+            test_mode: item.test_mode,
+            domain_context: Some(DomainContext::Payment(PaymentSessionContext {
+                amount: item.amount.clone(),
+                metadata: item.metadata.clone(),
+                browser_info: item.browser_info.clone(),
+            })),
         }
     }
 }
@@ -69,6 +94,7 @@ impl
     ForeignFrom<(
         &CompositeAuthorizeRequest,
         Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+        Option<&MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse>,
         Option<&CustomerServiceCreateResponse>,
         Option<&PaymentMethodAuthenticationServiceAuthenticateResponse>,
         Option<&PaymentMethodAuthenticationServicePostAuthenticateResponse>,
@@ -78,12 +104,14 @@ impl
         (
             item,
             access_token_response,
+            session_token_response,
             create_customer_response,
             authenticate_response,
             post_authenticate_response,
         ): (
             &CompositeAuthorizeRequest,
             Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+            Option<&MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse>,
             Option<&CustomerServiceCreateResponse>,
             Option<&PaymentMethodAuthenticationServiceAuthenticateResponse>,
             Option<&PaymentMethodAuthenticationServicePostAuthenticateResponse>,
@@ -138,7 +166,7 @@ impl
             return_url: item.return_url.clone(),
             webhook_url: item.webhook_url.clone(),
             complete_authorize_url: item.complete_authorize_url.clone(),
-            session_token: item.session_token.clone(),
+            session_token: get_session_token(item.session_token.clone(), session_token_response),
             order_category: item.order_category.clone(),
             merchant_order_id: item.merchant_order_id.clone(),
             setup_future_usage: item.setup_future_usage,

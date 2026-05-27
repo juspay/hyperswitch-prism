@@ -4,7 +4,8 @@ use common_utils::consts::X_CONNECTOR_NAME;
 use domain_types::connector_types::ConnectorEnum;
 use grpc_api_types::payments::{
     AccessToken, CustomerServiceCreateResponse,
-    MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse, PaymentStatus,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse, PaymentStatus,
 };
 
 pub fn connector_from_composite_authorize_metadata(
@@ -71,6 +72,17 @@ pub fn get_access_token(
 ) -> Option<AccessToken> {
     access_token_from_request.or_else(|| {
         access_token_from_create_server_authentication_token_response(access_token_response)
+    })
+}
+
+pub fn get_session_token(
+    session_token_from_request: Option<String>,
+    session_token_response: Option<
+        &MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
+    >,
+) -> Option<String> {
+    session_token_from_request.or_else(|| {
+        session_token_response.map(|response| response.session_token.clone())
     })
 }
 
