@@ -191,7 +191,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .connector_request_reference_id
             .clone();
         let webhook = router_data.request.webhook_url.clone().unwrap_or_default();
-        let webhook = router_data.request.webhook_url.clone().unwrap_or_default();
         let return_url = router_data
             .request
             .router_return_url
@@ -231,15 +230,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             total_amount: TamaraAmount {
                 amount,
-                currency: currency.clone(),
+                currency,
             },
             shipping_amount: TamaraAmount {
                 amount: shipping_amount,
-                currency: currency.clone(),
+                currency,
             },
             tax_amount: TamaraAmount {
                 amount: tax_amount,
-                currency: currency.clone(),
+                currency,
             },
             order_reference_id: order_ref.clone(),
             country_code,
@@ -251,11 +250,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 sku: order_ref.clone(),
                 unit_price: TamaraAmount {
                     amount,
-                    currency: currency.clone(),
+                    currency,
                 },
                 total_amount: TamaraAmount {
                     amount,
-                    currency: currency.clone(),
+                    currency,
                 },
             }],
             consumer: TamaraConsumer {
@@ -576,6 +575,7 @@ impl TryFrom<ResponseRouterData<TamaraVoidResponse, Self>>
 pub struct TamaraRefundRequest {
     pub total_amount: TamaraAmount,
     pub comment: String,
+    pub merchant_refund_id: String,
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -610,6 +610,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 amount: item.router_data.request.minor_refund_amount,
                 currency: item.router_data.request.currency,
             },
+            merchant_refund_id: item.router_data.request.refund_id.clone(),
             comment,
         })
     }
