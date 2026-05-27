@@ -92,7 +92,7 @@ service EventService {
   // Response mirrors PaymentService.Get / RefundService.Get / DisputeService.Get.
   rpc HandleEvent(EventServiceHandleRequest) returns (EventServiceHandleResponse);
 
-  // Notify connectors about surcharge events (payment succeeded, refund succeeded, refund failed).
+  // Notify connectors about events (payment succeeded, refund succeeded, refund failed).
   rpc NotifyConnector(NotifyConnectorRequest) returns (NotifyConnectorResponse);
 }
 
