@@ -1373,7 +1373,7 @@ message EventServiceHandleResponse {
   optional EventAckResponse event_ack_response = 5;
 }
 
-// Request for notifying connectors about surcharge events
+// Request for notifying connectors about events
 message NotifyConnectorRequest {
   // Merchant identification
   string merchant_id = 1;
