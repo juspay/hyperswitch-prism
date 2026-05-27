@@ -202,6 +202,29 @@ impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
     }
 }
 
+impl ForeignTryFrom<AuthType> for PayoutConnectorEnum {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(config: AuthType) -> Result<Self, error_stack::Report<Self::Error>> {
+        match config {
+            AuthType::Paypal(_) => Ok(Self::Paypal),
+            AuthType::Loonio(_) => Ok(Self::Loonio),
+            AuthType::Itaubank(_) => Ok(Self::Itaubank),
+            _ => Err(error_stack::Report::new(
+                IntegrationError::InvalidDataFormat {
+                    field_name: "connector",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Connector is not supported for payout flows".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                },
+            )),
+        }
+    }
+}
+
 /// Unified connector enum that can represent either payment, surcharge, or payout connectors
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConnectorVariant {
