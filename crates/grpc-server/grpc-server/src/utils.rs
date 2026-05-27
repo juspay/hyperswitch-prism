@@ -724,31 +724,6 @@ macro_rules! implement_connector_operation {
             let common_flow_data = $common_flow_data_constructor((payload.clone(), config.connectors.clone(), &masked_metadata))
                 .into_grpc_status()?;
 
-            // Thread the OAuth access_token from `state.access_token` into `PaymentFlowData`
-            // when the connector declares it needs one, mirroring the main Authorize variant.
-            // This is what makes ServerAuthenticationToken-gated flows (Globalgetnet 3DS, etc.)
-            // usable through the `option` macro pattern.
-            let common_flow_data = {
-                let should_do_access_token = connector_data
-                    .connector
-                    .should_do_access_token(None);
-                if should_do_access_token {
-                    let access_token = payload
-                        .state
-                        .as_ref()
-                        .and_then(|state| state.access_token.as_ref())
-                        .ok_or_else(|| tonic::Status::invalid_argument(
-                            "Connector requires an access token; provide it via state.access_token",
-                        ))?;
-                    let access_token_data =
-                        domain_types::connector_types::ServerAuthenticationTokenResponseData::foreign_try_from(access_token)
-                            .into_grpc_status()?;
-                    common_flow_data.set_access_token(Some(access_token_data))
-                } else {
-                    common_flow_data
-                }
-            };
-
             // Create router data
             let router_data = domain_types::router_data_v2::RouterDataV2::<
                 $flow_marker,
