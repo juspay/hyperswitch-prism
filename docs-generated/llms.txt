@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 88
+# Connectors: 89
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 88
+  total_connectors: 89
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -349,6 +349,14 @@ scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_paymen
 payment_methods: Ach, Card
 flows: authorize, capture, create_client_authentication_token, create_server_authentication_token, get, recurring_charge, refund, refund_get, setup_recurring, token_authorize, void
 examples_python: examples/jpmorgan/jpmorgan.py
+
+## Juspay
+connector_id: juspay
+doc: docs/connectors/juspay.md
+scenarios: checkout_autocapture, refund, void_payment, get_payment
+payment_methods: AliPayRedirect, AmazonPayRedirect, ApplePay, ApplePayDecrypted, ApplePayThirdPartySdk, GCash, GoPay, GooglePay, GooglePayDecrypted, GooglePayThirdPartySdk, KakaoPay, LazyPayRedirect, Momo, Netbanking, PaypalRedirect, PaypalSdk, PhonePeRedirect, SamsungPay, TouchNGo, UpiCollect, UpiIntent, UpiQr, WeChatPayQr
+flows: authorize, capture, create_order, get, proxy_authorize, refund, refund_get, void
+examples_python: examples/juspay/juspay.py
 
 ## Loonio
 connector_id: loonio
