@@ -108,6 +108,13 @@ pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     + MandateRevokeV2
     + VerifyWebhookSourceV2
     + VerifyRedirectResponse
+{
+}
+
+pub trait SurchargeServiceTrait: ConnectorCommon + SurchargeCalculateV2 {}
+
+pub trait PayoutServiceTrait:
+    ConnectorCommon
     + PayoutCreateV2
     + PayoutTransferV2
     + PayoutGetV2
@@ -137,6 +144,8 @@ pub trait PaymentVoidPostCaptureV2:
 pub type BoxedConnector<T> = Box<&'static (dyn ConnectorServiceTrait<T> + Sync)>;
 
 pub type BoxedSurchargeConnector = Box<&'static (dyn SurchargeServiceTrait + Sync)>;
+
+pub type BoxedPayoutConnector = Box<&'static (dyn PayoutServiceTrait + Sync)>;
 
 pub trait ValidationTrait: ConnectorCommon {
     fn should_do_order_create(&self) -> bool {

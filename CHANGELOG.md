@@ -19,6 +19,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.05.26.1
+
+### Features
+
+- **framework:** Refactor Payout flows in domain and integration layer ([#1388](https://github.com/juspay/connector-service/pull/1388)) ([`d6cf55b`](https://github.com/juspay/connector-service/commit/d6cf55b58cea5f7abdd150e3cae21343afc4fbca))
+
+### Bug Fixes
+
+- **connector:** 2c2p_paco fix superposition url ([#1411](https://github.com/juspay/connector-service/pull/1411)) ([`17e7fe8`](https://github.com/juspay/connector-service/commit/17e7fe8e21a0209d99d3b04dcd1ec785af810f45))
+
+### Miscellaneous Tasks
+
+- Change Sanlam connector name to AbsaSanlam ([#1390](https://github.com/juspay/connector-service/pull/1390)) ([`f26f7bd`](https://github.com/juspay/connector-service/commit/f26f7bd00ce127aaeec7c2d87d63fcca65b151a8))
+
+**Full Changelog:** [`2026.05.26.0...2026.05.26.1`](https://github.com/juspay/connector-service/compare/2026.05.26.0...2026.05.26.1)
+
+- - -
+
 ## 2026.05.26.0
 
 ### Features
