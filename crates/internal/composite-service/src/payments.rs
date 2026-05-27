@@ -17,8 +17,7 @@ use grpc_api_types::payments::{
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
-    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
-    PaymentMethod,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse, PaymentMethod,
     PaymentMethodAuthenticationServiceAuthenticateRequest,
     PaymentMethodAuthenticationServiceAuthenticateResponse,
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
@@ -273,12 +272,13 @@ where
     > {
         let connector_data = ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(connector);
         let should_do_session_token = connector_data.connector.should_do_session_token();
-        
-        let should_create_session_token = payload.session_token.as_ref().is_none() && should_do_session_token;
+
+        let should_create_session_token =
+            payload.session_token.as_ref().is_none() && should_do_session_token;
 
         let session_token_response = match should_create_session_token {
             true => {
-                let session_token_payload = 
+                let session_token_payload =
                     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest::foreign_from((payload, connector));
                 let mut session_token_request = tonic::Request::new(session_token_payload);
                 *session_token_request.metadata_mut() = metadata.clone();
@@ -509,7 +509,12 @@ where
             .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
             .await?;
         let session_token_response = self
-            .create_server_session_authentication_token(&connector, &payload, &metadata, &extensions)
+            .create_server_session_authentication_token(
+                &connector,
+                &payload,
+                &metadata,
+                &extensions,
+            )
             .await?;
         let create_customer_response = self
             .create_connector_customer(&connector, &payload, &metadata, &extensions)

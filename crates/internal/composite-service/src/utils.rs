@@ -81,9 +81,8 @@ pub fn get_session_token(
         &MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
     >,
 ) -> Option<String> {
-    session_token_from_request.or_else(|| {
-        session_token_response.map(|response| response.session_token.clone())
-    })
+    session_token_from_request
+        .or_else(|| session_token_response.map(|response| response.session_token.clone()))
 }
 
 /// Check if payment status indicates a terminal state (success or failure)

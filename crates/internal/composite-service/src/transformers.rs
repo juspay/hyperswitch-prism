@@ -18,7 +18,8 @@ use grpc_api_types::payments::{
 };
 
 use crate::utils::{
-    get_access_token, get_connector_customer_id, get_session_token, grpc_connector_from_connector_enum,
+    get_access_token, get_connector_customer_id, get_session_token,
+    grpc_connector_from_connector_enum,
 };
 
 pub trait ForeignFrom<F>: Sized {
@@ -47,14 +48,14 @@ impl ForeignFrom<(&CompositeAuthorizeRequest, &ConnectorEnum)>
             merchant_authentication_service_create_server_session_authentication_token_request::DomainContext,
             PaymentSessionContext,
         };
-        
+
         Self {
             merchant_server_session_id: item.merchant_server_session_id.clone(),
             connector_feature_data: item.connector_feature_data.clone(),
             state: item.state.clone(),
             test_mode: item.test_mode,
             domain_context: Some(DomainContext::Payment(PaymentSessionContext {
-                amount: item.amount.clone(),
+                amount: item.amount,
                 metadata: item.metadata.clone(),
                 browser_info: item.browser_info.clone(),
             })),
