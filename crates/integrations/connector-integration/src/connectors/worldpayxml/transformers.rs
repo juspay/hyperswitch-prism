@@ -1243,7 +1243,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let auth = WorldpayxmlAuthType::try_from(&router_data.connector_config)?;
         let request = &router_data.request;
 
-        let card = crate::utils::get_payout_card(&request.payout_method_data)?;
+        let card = request
+            .payout_method_data
+            .as_ref()
+            .ok_or_else(|| IntegrationError::MissingRequiredField {
+                field_name: "payout_method_data",
+                context: Default::default(),
+            })?
+            .get_card()?;
 
         let formatted_year = crate::utils::format_expiry_year(&card.expiry_year);
 

@@ -1,6 +1,9 @@
 use cards::CardNumber;
 use common_utils::Email;
+use error_stack::Report;
 use hyperswitch_masking::Secret;
+
+use crate::errors::IntegrationError;
 
 /// The payout method information required for carrying out a payout
 #[derive(Debug, Clone)]
@@ -15,6 +18,19 @@ pub enum PayoutMethodData {
 impl Default for PayoutMethodData {
     fn default() -> Self {
         Self::Card(CardPayout::default())
+    }
+}
+
+impl PayoutMethodData {
+    pub fn get_card(&self) -> Result<&CardPayout, Report<IntegrationError>> {
+        match self {
+            Self::Card(card) => Ok(card),
+            _ => Err(IntegrationError::not_implemented(
+                "Payouts: only card payouts are supported",
+                Default::default(),
+            )
+            .into()),
+        }
     }
 }
 

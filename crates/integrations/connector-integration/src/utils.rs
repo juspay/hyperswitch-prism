@@ -20,7 +20,6 @@ use domain_types::{
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
-    payouts::payout_method_data::{CardPayout, PayoutMethodData},
     router_data::ErrorResponse,
     router_response_types::Response,
 };
@@ -606,24 +605,6 @@ pub fn build_card_holder_name(
             Some(Secret::new(full))
         }
     })
-}
-
-pub fn get_payout_card(
-    payout_method_data: &Option<PayoutMethodData>,
-) -> Result<&CardPayout, Report<IntegrationError>> {
-    match payout_method_data {
-        Some(PayoutMethodData::Card(card)) => Ok(card),
-        Some(_other) => Err(IntegrationError::not_implemented(
-            "Payouts: only card payouts are supported",
-            Default::default(),
-        )
-        .into()),
-        None => Err(IntegrationError::MissingRequiredField {
-            field_name: "payout_method_data",
-            context: Default::default(),
-        }
-        .into()),
-    }
 }
 
 pub fn card_network_to_type_code(network: &common_enums::CardNetwork) -> Option<&'static str> {

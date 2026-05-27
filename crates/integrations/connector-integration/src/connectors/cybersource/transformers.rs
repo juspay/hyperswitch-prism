@@ -5923,7 +5923,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             business_application_id: CybersourcePayoutBusinessType::PersonToPerson,
         };
 
-        let card = utils::get_payout_card(&request.payout_method_data)?;
+        let card = request
+            .payout_method_data
+            .as_ref()
+            .ok_or_else(|| IntegrationError::MissingRequiredField {
+                field_name: "payout_method_data",
+                context: Default::default(),
+            })?
+            .get_card()?;
         let card_type = card
             .card_network
             .as_ref()
