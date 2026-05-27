@@ -202,6 +202,27 @@ impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
     }
 }
 
+impl ForeignTryFrom<AuthType> for SurchargeConnectorEnum {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(config: AuthType) -> Result<Self, error_stack::Report<Self::Error>> {
+        match config {
+            AuthType::Interpayments(_) => Ok(Self::Interpayments),
+            _ => Err(error_stack::Report::new(
+                IntegrationError::InvalidDataFormat {
+                    field_name: "connector",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Connector is not supported for surcharge flows".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                },
+            )),
+        }
+    }
+}
+
 impl ForeignTryFrom<AuthType> for PayoutConnectorEnum {
     type Error = IntegrationError;
 

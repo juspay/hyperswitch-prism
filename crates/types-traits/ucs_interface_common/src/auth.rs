@@ -1,7 +1,7 @@
 use common_utils::{
     consts::{
         X_API_KEY, X_API_SECRET, X_AUTH, X_AUTH_KEY_MAP, X_CONNECTOR_CONFIG, X_KEY1, X_KEY2,
-        X_PAYOUT_CONNECTOR_NAME,
+        X_PAYOUT_CONNECTOR_NAME, X_SURCHARGE_CONNECTOR_NAME,
     },
     errors::CustomResult,
 };
@@ -53,6 +53,10 @@ fn connector_variant_from_config_and_metadata(
     if metadata.get(X_PAYOUT_CONNECTOR_NAME).is_some() {
         Ok(connector_types::ConnectorVariant::Payout(
             connector_types::PayoutConnectorEnum::foreign_try_from(config.clone())?,
+        ))
+    } else if metadata.get(X_SURCHARGE_CONNECTOR_NAME).is_some() {
+        Ok(connector_types::ConnectorVariant::Surcharge(
+            connector_types::SurchargeConnectorEnum::foreign_try_from(config.clone())?,
         ))
     } else {
         connector_types::ConnectorVariant::foreign_try_from(config.clone())
