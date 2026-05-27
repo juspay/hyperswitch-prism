@@ -152,6 +152,31 @@ pub fn connector_variant_from_metadata(
                 })
             })?;
         Ok(connector_types::ConnectorVariant::Surcharge(connector))
+    } else if let Some(value) = metadata.get(consts::X_PAYOUT_CONNECTOR_NAME)
+    // Priority 3: Check x-payout-connector header
+    {
+        let connector_str = value.to_str().map_err(|e| {
+            Report::new(IntegrationError::InvalidDataFormat {
+                field_name: "x-payout-connector",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "Invalid x-payout-connector header value: {e}"
+                    )),
+                    ..Default::default()
+                },
+            })
+        })?;
+        let connector =
+            connector_types::PayoutConnectorEnum::from_str(connector_str).map_err(|e| {
+                Report::new(IntegrationError::InvalidDataFormat {
+                    field_name: "x-payout-connector",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!("Invalid payout connector: {e}")),
+                        ..Default::default()
+                    },
+                })
+            })?;
+        Ok(connector_types::ConnectorVariant::Payout(connector))
     } else {
         // Neither header found
         Err(Report::new(IntegrationError::MissingRequiredField {

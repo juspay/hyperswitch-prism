@@ -1,6 +1,9 @@
-pub mod transformers;
-
-use super::macros;
+use super::{
+    macros,
+    sanlam_common::transformers::{
+        self as absa_sanlam, AbsaSanlamPaymentsRequest, AbsaSanlamPaymentsResponse,
+    },
+};
 use crate::types::ResponseRouterData;
 use common_enums::CurrencyUnit;
 use common_utils::{
@@ -32,7 +35,6 @@ use interfaces::{
 };
 use serde::Serialize;
 use std::fmt::Debug;
-use transformers::{self as sanlam, SanlamPaymentsRequest, SanlamPaymentsResponse};
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -41,37 +43,37 @@ pub(crate) mod headers {
 }
 
 macros::macro_connector_payout_implementation!(
-    connector: Sanlam,
+    connector: AbsaSanlam,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
 );
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ConnectorServiceTrait<T> for Sanlam<T>
+    connector_types::ConnectorServiceTrait<T> for AbsaSanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAuthorizeV2<T> for Sanlam<T>
+    connector_types::PaymentAuthorizeV2<T> for AbsaSanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::VerifyRedirectResponse for Sanlam<T>
+    connector_types::VerifyRedirectResponse for AbsaSanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> SourceVerification
-    for Sanlam<T>
+    for AbsaSanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> BodyDecoding
-    for Sanlam<T>
+    for AbsaSanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ValidationTrait for Sanlam<T>
+    connector_types::ValidationTrait for AbsaSanlam<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Sanlam<T>
+    connector_types::IncomingWebhook for AbsaSanlam<T>
 {
     fn get_webhook_source_verification_signature(
         &self,
@@ -82,7 +84,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .headers
             .get("x-signature")
             .ok_or(WebhookError::WebhookSignatureNotFound)
-            .attach_printable("Missing incoming webhook signature for Sanlam")?;
+            .attach_printable("Missing incoming webhook signature for AbsaSanlam")?;
 
         hex::decode(signature).change_context(WebhookError::WebhookSourceVerificationFailed)
     }
@@ -126,17 +128,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        let details: sanlam::SanlamWebhookEvent =
-            request
-                .body
-                .parse_struct("SanlamWebhookEvent")
-                .change_context(WebhookError::WebhookEventTypeNotFound)?;
+        let details: absa_sanlam::AbsaSanlamWebhookEvent = request
+            .body
+            .parse_struct("AbsaSanlamWebhookEvent")
+            .change_context(WebhookError::WebhookEventTypeNotFound)?;
 
         let event_type = match details {
-            sanlam::SanlamWebhookEvent::Payment(ref event) => match event.event_type {
-                sanlam::SanlamWebhookEventType::PaymentSucceeded => EventType::PaymentIntentSuccess,
-                sanlam::SanlamWebhookEventType::PaymentFailed => EventType::PaymentIntentFailure,
-                sanlam::SanlamWebhookEventType::DisputeOpened => EventType::DisputeOpened,
+            absa_sanlam::AbsaSanlamWebhookEvent::Payment(ref event) => match event.event_type {
+                absa_sanlam::AbsaSanlamWebhookEventType::PaymentSucceeded => {
+                    EventType::PaymentIntentSuccess
+                }
+                absa_sanlam::AbsaSanlamWebhookEventType::PaymentFailed => {
+                    EventType::PaymentIntentFailure
+                }
+                absa_sanlam::AbsaSanlamWebhookEventType::DisputeOpened => EventType::DisputeOpened,
             },
         };
 
@@ -147,14 +152,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
-        let details: sanlam::SanlamWebhookEvent =
-            request
-                .body
-                .parse_struct("SanlamWebhookEvent")
-                .change_context(WebhookError::WebhookReferenceIdNotFound)?;
+        let details: absa_sanlam::AbsaSanlamWebhookEvent = request
+            .body
+            .parse_struct("AbsaSanlamWebhookEvent")
+            .change_context(WebhookError::WebhookReferenceIdNotFound)?;
 
         let id = match details {
-            sanlam::SanlamWebhookEvent::Payment(ref event) => {
+            absa_sanlam::AbsaSanlamWebhookEvent::Payment(ref event) => {
                 WebhookResourceReference::Payment(PaymentWebhookReference {
                     connector_transaction_id: None,
                     merchant_transaction_id: Some(event.payment.user_reference.clone()),
@@ -172,11 +176,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let details: sanlam::SanlamWebhookEvent =
-            request
-                .body
-                .parse_struct("SanlamWebhookEvent")
-                .change_context(WebhookError::WebhookResponseEncodingFailed)?;
+        let details: absa_sanlam::AbsaSanlamWebhookEvent = request
+            .body
+            .parse_struct("AbsaSanlamWebhookEvent")
+            .change_context(WebhookError::WebhookResponseEncodingFailed)?;
 
         let response = WebhookDetailsResponse::try_from(details)
             .change_context(WebhookError::WebhookResponseEncodingFailed);
@@ -190,13 +193,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 macros::create_all_prerequisites!(
-    connector_name: Sanlam,
+    connector_name: AbsaSanlam,
     generic_type: T,
     api: [
         (
             flow: Authorize,
-            request_body: SanlamPaymentsRequest,
-            response_body: SanlamPaymentsResponse,
+            request_body: AbsaSanlamPaymentsRequest,
+            response_body: AbsaSanlamPaymentsResponse,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         )
     ],
@@ -224,16 +227,16 @@ macros::create_all_prerequisites!(
             &self,
             req: &'a RouterDataV2<F, PaymentFlowData, Req, Res>,
         ) -> &'a str {
-            &req.resource_common_data.connectors.sanlam.base_url
+            &req.resource_common_data.connectors.absa_sanlam.base_url
         }
     }
 );
 
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: Sanlam,
-    curl_request: Json(SanlamPaymentsRequest),
-    curl_response: SanlamPaymentsResponse,
+    connector: AbsaSanlam,
+    curl_request: Json(AbsaSanlamPaymentsRequest),
+    curl_response: AbsaSanlamPaymentsResponse,
     flow_name: Authorize,
     resource_common_data: PaymentFlowData,
     flow_request: PaymentsAuthorizeData<T>,
@@ -296,10 +299,10 @@ macros::macro_connector_implementation!(
 );
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
-    for Sanlam<T>
+    for AbsaSanlam<T>
 {
     fn id(&self) -> &'static str {
-        "sanlam"
+        "absa_sanlam"
     }
 
     fn get_currency_unit(&self) -> CurrencyUnit {
@@ -311,14 +314,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        connectors.sanlam.base_url.as_ref()
+        connectors.absa_sanlam.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
         auth_type: &ConnectorSpecificConfig,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-        let auth = sanlam::SanlamAuthType::try_from(auth_type).change_context(
+        let auth = absa_sanlam::AbsaSanlamAuthType::try_from(auth_type).change_context(
             IntegrationError::FailedToObtainAuthType {
                 context: Default::default(),
             },
@@ -337,7 +340,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 }
 
 macros::macro_connector_flow_status_impls!(
-    connector: Sanlam,
+    connector: AbsaSanlam,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [

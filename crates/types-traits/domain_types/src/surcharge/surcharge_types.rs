@@ -76,7 +76,42 @@ pub struct SurchargeCalculateRequest {
     pub country: Option<common_enums::CountryAlpha2>,
 }
 
-/// Integrity object for surcharge calculation
+/// Request data for surcharge payment succeeded notification
+#[derive(Debug, Clone)]
+pub struct SurchargePaymentSucceededRequest {
+    pub connector_surcharge_id: String,
+}
+
+/// Request data for surcharge refund succeeded notification
+#[derive(Debug, Clone)]
+pub struct SurchargeRefundSucceededRequest {
+    pub connector_surcharge_id: String,
+}
+
+/// Response data for surcharge payment succeeded notification
+#[derive(Debug, Clone)]
+pub struct SurchargePaymentSucceededResponse {
+    pub status_code: u16,
+}
+
+/// Response data for surcharge refund succeeded notification
+#[derive(Debug, Clone)]
+pub struct SurchargeRefundSucceededResponse {
+    pub status_code: u16,
+}
+
+/// Integrity object for surcharge payment succeeded notification
+#[derive(Debug, Clone, PartialEq)]
+pub struct SurchargePaymentSucceededIntegrityObject {
+    pub connector_surcharge_id: String,
+}
+
+/// Integrity object for surcharge refund succeeded notification
+#[derive(Debug, Clone, PartialEq)]
+pub struct SurchargeRefundSucceededIntegrityObject {
+    pub connector_surcharge_id: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SurchargeCalculateIntegrityObject {
     pub amount: MinorUnit,

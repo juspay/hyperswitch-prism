@@ -25,6 +25,8 @@ use domain_types::payouts::payouts_types::{
 use domain_types::router_request_types::VerifyWebhookSourceRequestData;
 use domain_types::surcharge::surcharge_types::{
     SurchargeCalculateIntegrityObject, SurchargeCalculateRequest,
+    SurchargePaymentSucceededIntegrityObject, SurchargePaymentSucceededRequest,
+    SurchargeRefundSucceededIntegrityObject, SurchargeRefundSucceededRequest,
 };
 use domain_types::{
     payment_method_data::PaymentMethodDataTypes,
@@ -197,6 +199,8 @@ impl_check_integrity!(PayoutEnrollDisburseAccountRequest);
 impl_check_integrity!(PayoutGetRequest);
 impl_check_integrity!(PayoutVoidRequest);
 impl_check_integrity!(SurchargeCalculateRequest);
+impl_check_integrity!(SurchargePaymentSucceededRequest);
+impl_check_integrity!(SurchargeRefundSucceededRequest);
 
 // ========================================================================
 // GET INTEGRITY OBJECT IMPLEMENTATIONS
@@ -1388,6 +1392,34 @@ impl GetIntegrityObject<SurchargeCalculateIntegrityObject> for SurchargeCalculat
     }
 }
 
+impl GetIntegrityObject<SurchargePaymentSucceededIntegrityObject>
+    for SurchargePaymentSucceededRequest
+{
+    fn get_response_integrity_object(&self) -> Option<SurchargePaymentSucceededIntegrityObject> {
+        None // Surcharge payment succeeded responses don't have integrity objects
+    }
+
+    fn get_request_integrity_object(&self) -> SurchargePaymentSucceededIntegrityObject {
+        SurchargePaymentSucceededIntegrityObject {
+            connector_surcharge_id: self.connector_surcharge_id.clone(),
+        }
+    }
+}
+
+impl GetIntegrityObject<SurchargeRefundSucceededIntegrityObject>
+    for SurchargeRefundSucceededRequest
+{
+    fn get_response_integrity_object(&self) -> Option<SurchargeRefundSucceededIntegrityObject> {
+        None // Surcharge refund succeeded responses don't have integrity objects
+    }
+
+    fn get_request_integrity_object(&self) -> SurchargeRefundSucceededIntegrityObject {
+        SurchargeRefundSucceededIntegrityObject {
+            connector_surcharge_id: self.connector_surcharge_id.clone(),
+        }
+    }
+}
+
 // --- GENERATED FLOW INTEGRITY IMPLEMENTATIONS ---
 
 impl FlowIntegrity for PayoutTransferIntegrityObject {
@@ -1613,6 +1645,54 @@ impl FlowIntegrity for SurchargeCalculateIntegrityObject {
                 "currency",
                 &req_integrity_object.currency.to_string(),
                 &res_integrity_object.currency.to_string(),
+            ));
+        }
+
+        check_integrity_result(mismatched_fields, connector_transaction_id)
+    }
+}
+
+impl FlowIntegrity for SurchargePaymentSucceededIntegrityObject {
+    type IntegrityObject = Self;
+
+    fn compare(
+        req_integrity_object: Self,
+        res_integrity_object: Self,
+        connector_transaction_id: Option<String>,
+    ) -> Result<(), IntegrityCheckError> {
+        let mut mismatched_fields = Vec::new();
+
+        if req_integrity_object.connector_surcharge_id
+            != res_integrity_object.connector_surcharge_id
+        {
+            mismatched_fields.push(format_mismatch(
+                "connector_surcharge_id",
+                &req_integrity_object.connector_surcharge_id,
+                &res_integrity_object.connector_surcharge_id,
+            ));
+        }
+
+        check_integrity_result(mismatched_fields, connector_transaction_id)
+    }
+}
+
+impl FlowIntegrity for SurchargeRefundSucceededIntegrityObject {
+    type IntegrityObject = Self;
+
+    fn compare(
+        req_integrity_object: Self,
+        res_integrity_object: Self,
+        connector_transaction_id: Option<String>,
+    ) -> Result<(), IntegrityCheckError> {
+        let mut mismatched_fields = Vec::new();
+
+        if req_integrity_object.connector_surcharge_id
+            != res_integrity_object.connector_surcharge_id
+        {
+            mismatched_fields.push(format_mismatch(
+                "connector_surcharge_id",
+                &req_integrity_object.connector_surcharge_id,
+                &res_integrity_object.connector_surcharge_id,
             ));
         }
 
