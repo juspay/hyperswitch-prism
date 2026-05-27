@@ -280,5 +280,32 @@
         }
       }
     }
+  },
+  "PaymentService/Get": {
+    "sync_payment": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate"
+      }
+    },
+    "sync_payment_with_handle_response": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate"
+      }
+    },
+    "sync_upi_collect": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate"
+      }
+    },
+    "sync_upi_intent": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate"
+      }
+    },
+    "sync_upi_qr": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate"
+      }
+    }
   }
 }
