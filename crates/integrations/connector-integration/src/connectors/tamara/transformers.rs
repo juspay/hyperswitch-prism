@@ -228,10 +228,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .get_optional_shipping_or_billing_country_string();
 
         Ok(Self {
-            total_amount: TamaraAmount {
-                amount,
-                currency,
-            },
+            total_amount: TamaraAmount { amount, currency },
             shipping_amount: TamaraAmount {
                 amount: shipping_amount,
                 currency,
@@ -248,14 +245,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 quantity: 1,
                 reference_id: order_ref.clone(),
                 sku: order_ref.clone(),
-                unit_price: TamaraAmount {
-                    amount,
-                    currency,
-                },
-                total_amount: TamaraAmount {
-                    amount,
-                    currency,
-                },
+                unit_price: TamaraAmount { amount, currency },
+                total_amount: TamaraAmount { amount, currency },
             }],
             consumer: TamaraConsumer {
                 first_name: first_name.clone(),

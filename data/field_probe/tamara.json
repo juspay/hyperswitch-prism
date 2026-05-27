@@ -655,7 +655,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"total_amount\":{\"amount\":1000,\"currency\":\"USD\"},\"comment\":\"customer_request\"}"
+          "body": "{\"total_amount\":{\"amount\":1000,\"currency\":\"USD\"},\"comment\":\"customer_request\",\"merchant_refund_id\":\"probe_refund_001\"}"
         }
       }
     },
