@@ -251,5 +251,34 @@
         "order_category": "pay"
       }
     }
+  },
+  "PaymentService/Refund": {
+    "refund_full_amount": {
+      "grpc_req": {
+        "payment_amount": 100,
+        "refund_amount": {
+          "minor_amount": 100,
+          "currency": "AED"
+        }
+      }
+    },
+    "refund_partial_amount": {
+      "grpc_req": {
+        "payment_amount": 100,
+        "refund_amount": {
+          "minor_amount": 50,
+          "currency": "AED"
+        }
+      }
+    },
+    "refund_with_reason": {
+      "grpc_req": {
+        "payment_amount": 100,
+        "refund_amount": {
+          "minor_amount": 100,
+          "currency": "AED"
+        }
+      }
+    }
   }
 }
