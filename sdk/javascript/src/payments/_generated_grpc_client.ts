@@ -565,7 +565,7 @@ export class GrpcEventClient {
     return callGrpc(this.ffi, this.config, "event/handle_event",
       req, types.EventServiceHandleRequest, types.EventServiceHandleResponse);
   }
-  /** EventService.NotifyConnector — Notify connectors about surcharge events (payment succeeded, refund succeeded, refund failed). */
+  /** EventService.NotifyConnector — Notify connectors about events (payment succeeded, refund succeeded, refund failed). */
   async notifyConnector(req: unknown): Promise<unknown> {
     return callGrpc(this.ffi, this.config, "event/notify_connector",
       req, types.NotifyConnectorRequest, types.NotifyConnectorResponse);
