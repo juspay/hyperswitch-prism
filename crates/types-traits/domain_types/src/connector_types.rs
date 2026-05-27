@@ -12,7 +12,7 @@ use common_utils::{
     CustomResult, CustomerId, Email, SecretSerdeValue,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString};
 use time::PrimitiveDateTime;
@@ -1841,6 +1841,19 @@ pub struct ConnectorCustomerData {
     pub phone: Option<Secret<String>>,
     pub preprocessing_id: Option<String>,
     pub split_payments: Option<SplitPaymentsRequest>,
+}
+
+impl ConnectorCustomerData {
+    pub fn get_email(&self) -> Result<Email, Error> {
+        self.email
+            .as_ref()
+            .map(|e| e.peek().clone())
+            .ok_or_else(missing_field_err("email"))
+    }
+
+    pub fn get_name(&self) -> Result<Secret<String>, Error> {
+        self.name.clone().ok_or_else(missing_field_err("name"))
+    }
 }
 
 #[derive(Debug, Clone)]

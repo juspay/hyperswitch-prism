@@ -9,14 +9,14 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund, RepeatPayment,
-        SetupMandate, Void,
+        Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer, PSync, RSync,
+        Refund, RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
-        ClientAuthenticationTokenRequestData, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        SetupMandateRequestData,
+        ClientAuthenticationTokenRequestData, ConnectorCustomerData, ConnectorCustomerResponse,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, SetupMandateRequestData,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -35,10 +35,10 @@ use std::fmt::Debug;
 use transformers::{
     self as payload, PayloadAuthorizeResponse, PayloadCaptureRequest, PayloadCaptureResponse,
     PayloadCardsRequestData, PayloadClientAuthRequest, PayloadClientAuthResponse,
-    PayloadErrorResponse, PayloadPSyncResponse, PayloadPaymentsRequest, PayloadRSyncResponse,
-    PayloadRefundRequest, PayloadRefundResponse, PayloadRepeatPaymentRequest,
-    PayloadRepeatPaymentResponse, PayloadSetupMandateResponse, PayloadVoidRequest,
-    PayloadVoidResponse,
+    PayloadCustomerRequest, PayloadCustomerResponse, PayloadErrorResponse, PayloadPSyncResponse,
+    PayloadPaymentsRequest, PayloadRSyncResponse, PayloadRefundRequest, PayloadRefundResponse,
+    PayloadRepeatPaymentRequest, PayloadRepeatPaymentResponse, PayloadSetupMandateResponse,
+    PayloadVoidRequest, PayloadVoidResponse,
 };
 
 use super::macros;
@@ -89,6 +89,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Payload<T>
+{
+    /// Enable automatic connector customer creation before payment.
+    /// When enabled, UCS will automatically call CreateConnectorCustomer before
+    /// Authorize, supplying the resulting customer_id downstream.
+    fn should_create_connector_customer(&self) -> bool {
+        true
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::CreateConnectorCustomer for Payload<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -173,6 +184,12 @@ macros::create_all_prerequisites!(
             request_body: PayloadClientAuthRequest,
             response_body: PayloadClientAuthResponse,
             router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ),
+        (
+            flow: CreateConnectorCustomer,
+            request_body: PayloadCustomerRequest,
+            response_body: PayloadCustomerResponse,
+            router_data: RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,
         )
     ],
     amount_converters: [],
@@ -589,6 +606,49 @@ macros::macro_connector_implementation!(
     }
 );
 
+// CreateConnectorCustomer flow implementation
+// POST {base_url}/customers — body is JSON, headers reuse `build_headers`
+// (Basic-auth Authorization + JSON Content-Type). UCS auto-invokes this
+// ahead of Authorize because `should_create_connector_customer()` returns
+// true; the returned customer id is plumbed through `connector_customer` on
+// the downstream Authorize router data.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_error_response_v2],
+    connector: Payload,
+    curl_request: Json(PayloadCustomerRequest),
+    curl_response: PayloadCustomerResponse,
+    flow_name: CreateConnectorCustomer,
+    resource_common_data: PaymentFlowData,
+    flow_request: ConnectorCustomerData,
+    flow_response: ConnectorCustomerResponse,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_content_type(&self) -> &'static str {
+            "application/json"
+        }
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let mut header = vec![(
+                headers::CONTENT_TYPE.to_string(),
+                "application/json".to_string().into(),
+            )];
+            let mut api_key = self.get_auth_header(&req.connector_config)?;
+            header.append(&mut api_key);
+            Ok(header)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/customers", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
 // Webhook implementation
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Payload<T>
@@ -680,7 +740,6 @@ macros::macro_connector_flow_status_impls!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
         PaymentMethodToken,
-        CreateConnectorCustomer,
     ],
     not_supported: [
         IncrementalAuthorization,
