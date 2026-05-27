@@ -145,6 +145,7 @@ default_impl_verify_webhook_source_v2!(
         Airwallex,
         Authipay,
         Axisbank,
+        Deutschebank,
         Bambora,
         Bamboraapac,
         Bankofamerica,

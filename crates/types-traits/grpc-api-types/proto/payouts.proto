@@ -526,6 +526,44 @@ message PayoutServiceEnrollDisburseAccountResponse {
   uint32 status_code = 5;
 }
 
+// Request message for checking eligibility of a payout (e.g. SEPA VoP / payee verification).
+message PayoutServiceEligibilityRequest {
+  // Identification
+  optional string merchant_payout_id = 1;
+  // Address Information
+  PayoutAddress address = 2;
+  // Payout Method Data
+  optional PayoutMethod payout_method_data = 3;
+  // Amount Information
+  Money amount = 4;
+  // Currency in which payout will be received
+  Currency destination_currency = 5;
+  // Customer Details
+  optional Customer customer = 6;
+  // access token
+  optional SecretString access_token = 7;
+  // Source Bank Data
+  optional SourceBankData source_bank_data = 8;
+}
+
+// Response message for payout eligibility check.
+// When eligible, the connector returns an opaque identifier in `connector_payout_id`
+// (e.g. DB's VoP-ID) that downstream Transfer/Get calls must echo back.
+message PayoutServiceEligibilityResponse {
+  // Identification
+  optional string merchant_payout_id = 1;
+  // Payout Status (RequiresFulfillment when eligible, Ineligible/Failure otherwise)
+  optional PayoutEnums.PayoutStatus payout_status = 2;
+  // Connector-side eligibility identifier (carried forward to Transfer/Get).
+  optional string connector_payout_id = 3;
+  // Whether the payout is eligible
+  optional bool payout_eligible = 4;
+  // Error Code
+  optional ErrorInfo error = 5;
+  // HTTP status code from the connector
+  uint32 status_code = 6;
+}
+
 // Request message for checking payout eligibility
 message PayoutMethodEligibilityRequest {
   // Identification

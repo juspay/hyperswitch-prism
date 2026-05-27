@@ -329,6 +329,9 @@ service PayoutService {
 
   // Enroll disburse account.
   rpc EnrollDisburseAccount(PayoutServiceEnrollDisburseAccountRequest) returns (PayoutServiceEnrollDisburseAccountResponse);
+
+  // Check eligibility of a payout before initiating it (e.g. SEPA VoP / payee verification).
+  rpc Eligibility(PayoutServiceEligibilityRequest) returns (PayoutServiceEligibilityResponse);
 }
 
 // ============================================================================

@@ -2,21 +2,23 @@ use common_utils::events::FlowName;
 use connector_integration::types::PayoutConnectorData;
 use domain_types::{
     connector_flow::{
-        PayoutCreate, PayoutCreateLink, PayoutCreateRecipient, PayoutEnrollDisburseAccount,
-        PayoutGet, PayoutStage, PayoutTransfer, PayoutVoid,
+        PayoutCreate, PayoutCreateLink, PayoutCreateRecipient, PayoutEligibility,
+        PayoutEnrollDisburseAccount, PayoutGet, PayoutStage, PayoutTransfer, PayoutVoid,
     },
     payouts::payouts_types::{
         PayoutCreateLinkRequest, PayoutCreateLinkResponse, PayoutCreateRecipientRequest,
         PayoutCreateRecipientResponse, PayoutCreateRequest, PayoutCreateResponse,
-        PayoutEnrollDisburseAccountRequest, PayoutEnrollDisburseAccountResponse, PayoutFlowData,
-        PayoutGetRequest, PayoutGetResponse, PayoutStageRequest, PayoutStageResponse,
-        PayoutTransferRequest, PayoutTransferResponse, PayoutVoidRequest, PayoutVoidResponse,
+        PayoutEligibilityRequest, PayoutEligibilityResponse, PayoutEnrollDisburseAccountRequest,
+        PayoutEnrollDisburseAccountResponse, PayoutFlowData, PayoutGetRequest, PayoutGetResponse,
+        PayoutStageRequest, PayoutStageResponse, PayoutTransferRequest, PayoutTransferResponse,
+        PayoutVoidRequest, PayoutVoidResponse,
     },
     payouts::types::{
         generate_payout_create_link_response, generate_payout_create_recipient_response,
-        generate_payout_create_response, generate_payout_enroll_disburse_account_response,
-        generate_payout_get_response, generate_payout_stage_response,
-        generate_payout_transfer_response, generate_payout_void_response,
+        generate_payout_create_response, generate_payout_eligibility_response,
+        generate_payout_enroll_disburse_account_response, generate_payout_get_response,
+        generate_payout_stage_response, generate_payout_transfer_response,
+        generate_payout_void_response,
     },
     utils::ForeignTryFrom,
 };
@@ -24,6 +26,7 @@ use grpc_api_types::payouts::{
     payout_service_server::PayoutService, PayoutServiceCreateLinkRequest,
     PayoutServiceCreateLinkResponse, PayoutServiceCreateRecipientRequest,
     PayoutServiceCreateRecipientResponse, PayoutServiceCreateRequest, PayoutServiceCreateResponse,
+    PayoutServiceEligibilityRequest, PayoutServiceEligibilityResponse,
     PayoutServiceEnrollDisburseAccountRequest, PayoutServiceEnrollDisburseAccountResponse,
     PayoutServiceGetRequest, PayoutServiceGetResponse, PayoutServiceStageRequest,
     PayoutServiceStageResponse, PayoutServiceTransferRequest, PayoutServiceTransferResponse,
@@ -179,6 +182,21 @@ impl PayoutService for Payouts {
         )
         .await
     }
+
+    async fn eligibility(
+        &self,
+        request: tonic::Request<PayoutServiceEligibilityRequest>,
+    ) -> Result<tonic::Response<PayoutServiceEligibilityResponse>, tonic::Status> {
+        let (config, service_name) = self.extract_request_metadata(&request)?;
+        grpc_logging_wrapper(
+            request,
+            &service_name,
+            config,
+            FlowName::PayoutEligibility,
+            |request_data| self.internal_payout_eligibility(request_data),
+        )
+        .await
+    }
 }
 
 pub(crate) trait PayoutOperationsInternal {
@@ -236,6 +254,13 @@ pub(crate) trait PayoutOperationsInternal {
         request: RequestData<PayoutServiceEnrollDisburseAccountRequest>,
     ) -> impl std::future::Future<
         Output = Result<tonic::Response<PayoutServiceEnrollDisburseAccountResponse>, tonic::Status>,
+    > + Send;
+
+    fn internal_payout_eligibility(
+        &self,
+        request: RequestData<PayoutServiceEligibilityRequest>,
+    ) -> impl std::future::Future<
+        Output = Result<tonic::Response<PayoutServiceEligibilityResponse>, tonic::Status>,
     > + Send;
 }
 
@@ -364,6 +389,22 @@ impl PayoutOperationsInternal for Payouts {
         request_data_constructor: PayoutEnrollDisburseAccountRequest::foreign_try_from,
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_enroll_disburse_account_response,
+        connector_data_type: PayoutConnectorData,
+        all_keys_required: None
+    );
+
+    implement_connector_operation!(
+        fn_name: internal_payout_eligibility,
+        log_prefix: "PAYOUT_ELIGIBILITY",
+        request_type: PayoutServiceEligibilityRequest,
+        response_type: PayoutServiceEligibilityResponse,
+        flow_marker: PayoutEligibility,
+        resource_common_data_type: PayoutFlowData,
+        request_data_type: PayoutEligibilityRequest,
+        response_data_type: PayoutEligibilityResponse,
+        request_data_constructor: PayoutEligibilityRequest::foreign_try_from,
+        common_flow_data_constructor: PayoutFlowData::foreign_try_from,
+        generate_response_fn: generate_payout_eligibility_response,
         connector_data_type: PayoutConnectorData,
         all_keys_required: None
     );

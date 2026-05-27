@@ -760,6 +760,16 @@ pub enum ConnectorSpecificConfig {
         response_audience: Option<Secret<String>>,
         base_url: Option<String>,
     },
+    Deutschebank {
+        apikey: Secret<String>,
+        customer_identifier: Secret<String>,
+        consumer_identifier: Secret<String>,
+        key_id: Secret<String>,
+        signing_private_key: Secret<String>,
+        client_certificate: Secret<String>,
+        client_certificate_key: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -1079,6 +1089,11 @@ impl ConnectorSpecificConfig {
                 access_token,
                 office_id,
                 paco_kid
+            },
+            Deutschebank {
+                apikey,
+                customer_identifier,
+                consumer_identifier
             },
         )
     }
@@ -1491,6 +1506,12 @@ impl ConnectorSpecificConfig {
                     access_token,
                     office_id,
                     paco_kid
+                },
+                Deutschebank {
+                    apikey,
+                    customer_identifier,
+                    consumer_identifier,
+                    base_url
                 },
             ),
             serde_json::Value::Object(connector_patch),
@@ -2068,6 +2089,16 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 merchant_identity_id: finix.merchant_identity_id.ok_or_else(err)?,
                 merchant_id: finix.merchant_id.ok_or_else(err)?,
                 base_url: finix.base_url,
+            }),
+            AuthType::Deutschebank(deutschebank) => Ok(Self::Deutschebank {
+                apikey: deutschebank.apikey.ok_or_else(err)?,
+                customer_identifier: deutschebank.customer_identifier.ok_or_else(err)?,
+                consumer_identifier: deutschebank.consumer_identifier.ok_or_else(err)?,
+                key_id: deutschebank.key_id.ok_or_else(err)?,
+                signing_private_key: deutschebank.signing_private_key.ok_or_else(err)?,
+                client_certificate: deutschebank.client_certificate.ok_or_else(err)?,
+                client_certificate_key: deutschebank.client_certificate_key.ok_or_else(err)?,
+                base_url: deutschebank.base_url,
             }),
         }
     }
@@ -3138,6 +3169,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
                 ConnectorEnum::TwocTwopPaco => Err(err().into()),
+                ConnectorEnum::Deutschebank => Err(err().into()),
             },
             connector_types::ConnectorVariant::Surcharge(connector_enum) => match connector_enum {
                 SurchargeConnectorEnum::Interpayments => match auth {
@@ -3198,6 +3230,11 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                // Deutsche Bank CSEAL needs 7 secrets (apikey + 2 identifiers + key_id +
+                // signing_private_key + mTLS cert + mTLS key) — more than any
+                // ConnectorAuthType variant can carry. Callers must use the typed
+                // `x-connector-config` JSON header (DeutschebankConfig).
+                PayoutConnectorEnum::Deutschebank => Err(err().into()),
             },
         }
     }

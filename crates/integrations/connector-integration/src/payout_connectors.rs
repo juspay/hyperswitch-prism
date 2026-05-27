@@ -6,3 +6,6 @@ pub use self::loonio::LoonioPayouts;
 
 pub mod paypal;
 pub use self::paypal::PaypalPayouts;
+
+pub mod deutschebank;
+pub use self::deutschebank::DeutschebankPayouts;

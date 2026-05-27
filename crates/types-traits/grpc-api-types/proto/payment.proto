@@ -3867,6 +3867,27 @@ message LoonioConfig {
   optional string base_url = 50;
 }
 
+// Deutsche Bank BaaS (Banking-as-a-Service) configuration for SEPA payouts via CSEAL.
+// CSEAL uses mTLS plus IETF HTTP Signatures draft (RSA-SHA256 over
+// `date (request-target) digest`) for request authentication.
+message DeutschebankConfig {
+  // BaaS API key (apikey header).
+  SecretString apikey = 1;
+  // Customer identifier registered with DB (x-customer-identifier header).
+  SecretString customer_identifier = 2;
+  // API consumer identifier (i-apiconsumer-identifier header).
+  SecretString consumer_identifier = 3;
+  // Key id used as `keyId=...` in the Signature header (e.g. ZURICH-STAGING-1).
+  SecretString key_id = 4;
+  // PEM-encoded RSA private key (PKCS#8) used to sign requests.
+  SecretString signing_private_key = 5;
+  // PEM-encoded mTLS client certificate chain.
+  SecretString client_certificate = 6;
+  // PEM-encoded mTLS client certificate private key.
+  SecretString client_certificate_key = 7;
+  optional string base_url = 50;
+}
+
 message PaysafeConfig {
   SecretString username = 1;
   SecretString password = 2;
@@ -4583,6 +4604,9 @@ message ConnectorSpecificConfig {
 
     // INTERPAYMENTS = 126
     InterpaymentsConfig interpayments = 126;
+
+    // DEUTSCHEBANK = 24
+    DeutschebankConfig deutschebank = 127;
   }
 }
 

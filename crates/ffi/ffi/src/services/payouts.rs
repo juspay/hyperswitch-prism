@@ -1,26 +1,27 @@
 use grpc_api_types::payouts::{
     PayoutServiceCreateLinkRequest, PayoutServiceCreateLinkResponse,
     PayoutServiceCreateRecipientRequest, PayoutServiceCreateRecipientResponse,
-    PayoutServiceCreateRequest, PayoutServiceCreateResponse,
-    PayoutServiceEnrollDisburseAccountRequest, PayoutServiceEnrollDisburseAccountResponse,
-    PayoutServiceGetRequest, PayoutServiceGetResponse, PayoutServiceStageRequest,
-    PayoutServiceStageResponse, PayoutServiceTransferRequest, PayoutServiceTransferResponse,
-    PayoutServiceVoidRequest, PayoutServiceVoidResponse,
+    PayoutServiceCreateRequest, PayoutServiceCreateResponse, PayoutServiceEligibilityRequest,
+    PayoutServiceEligibilityResponse, PayoutServiceEnrollDisburseAccountRequest,
+    PayoutServiceEnrollDisburseAccountResponse, PayoutServiceGetRequest, PayoutServiceGetResponse,
+    PayoutServiceStageRequest, PayoutServiceStageResponse, PayoutServiceTransferRequest,
+    PayoutServiceTransferResponse, PayoutServiceVoidRequest, PayoutServiceVoidResponse,
 };
 
 use crate::macros::{payout_req_transformer, payout_res_transformer};
 
 use domain_types::{
     connector_flow::{
-        PayoutCreate, PayoutCreateLink, PayoutCreateRecipient, PayoutEnrollDisburseAccount,
-        PayoutGet, PayoutStage, PayoutTransfer, PayoutVoid,
+        PayoutCreate, PayoutCreateLink, PayoutCreateRecipient, PayoutEligibility,
+        PayoutEnrollDisburseAccount, PayoutGet, PayoutStage, PayoutTransfer, PayoutVoid,
     },
     payouts::payouts_types::{
         PayoutCreateLinkRequest, PayoutCreateLinkResponse, PayoutCreateRecipientRequest,
         PayoutCreateRecipientResponse, PayoutCreateRequest, PayoutCreateResponse,
-        PayoutEnrollDisburseAccountRequest, PayoutEnrollDisburseAccountResponse, PayoutFlowData,
-        PayoutGetRequest, PayoutGetResponse, PayoutStageRequest, PayoutStageResponse,
-        PayoutTransferRequest, PayoutTransferResponse, PayoutVoidRequest, PayoutVoidResponse,
+        PayoutEligibilityRequest, PayoutEligibilityResponse, PayoutEnrollDisburseAccountRequest,
+        PayoutEnrollDisburseAccountResponse, PayoutFlowData, PayoutGetRequest, PayoutGetResponse,
+        PayoutStageRequest, PayoutStageResponse, PayoutTransferRequest, PayoutTransferResponse,
+        PayoutVoidRequest, PayoutVoidResponse,
     },
 };
 
@@ -198,4 +199,26 @@ payout_res_transformer!(
     request_data_type: PayoutEnrollDisburseAccountRequest,
     response_data_type: PayoutEnrollDisburseAccountResponse,
     generate_response_fn: generate_payout_enroll_disburse_account_response,
+);
+
+// payout eligibility request transformer
+payout_req_transformer!(
+    fn_name: payout_eligibility_req_transformer,
+    request_type: PayoutServiceEligibilityRequest,
+    flow_marker: PayoutEligibility,
+    resource_common_data_type: PayoutFlowData,
+    request_data_type: PayoutEligibilityRequest,
+    response_data_type: PayoutEligibilityResponse,
+);
+
+// payout eligibility response transformer
+payout_res_transformer!(
+    fn_name: payout_eligibility_res_transformer,
+    request_type: PayoutServiceEligibilityRequest,
+    response_type: PayoutServiceEligibilityResponse,
+    flow_marker: PayoutEligibility,
+    resource_common_data_type: PayoutFlowData,
+    request_data_type: PayoutEligibilityRequest,
+    response_data_type: PayoutEligibilityResponse,
+    generate_response_fn: generate_payout_eligibility_response,
 );

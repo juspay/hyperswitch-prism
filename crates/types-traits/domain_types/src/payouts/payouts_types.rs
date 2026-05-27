@@ -395,3 +395,24 @@ pub struct PayoutEnrollDisburseAccountResponse {
     pub connector_payout_id: Option<String>,
     pub status_code: u16,
 }
+
+#[derive(Debug, Clone)]
+pub struct PayoutEligibilityRequest {
+    pub merchant_payout_id: Option<String>,
+    pub amount: common_utils::types::MinorUnit,
+    pub source_currency: common_enums::Currency,
+    pub destination_currency: common_enums::Currency,
+    pub payout_method_data: Option<PayoutMethodData>,
+    pub source_bank_data: Option<Bank>,
+    pub customer: Option<PayoutCustomer>,
+    pub address: Option<PayoutAddress>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PayoutEligibilityResponse {
+    pub merchant_payout_id: Option<String>,
+    pub payout_status: common_enums::PayoutStatus,
+    pub connector_payout_id: Option<String>,
+    pub payout_eligible: Option<bool>,
+    pub status_code: u16,
+}

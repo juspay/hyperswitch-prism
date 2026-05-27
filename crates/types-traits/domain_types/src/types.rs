@@ -395,6 +395,7 @@ pub struct Connectors {
     pub axisbank: ConnectorParams,
     pub twoc_twop_paco: ConnectorParams,
     pub interpayments: ConnectorParams,
+    pub deutschebank: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -696,6 +697,9 @@ impl Connectors {
             }
             ConnectorEnum::TwocTwopPaco => {
                 patched.twoc_twop_paco.apply(params_patch);
+            }
+            ConnectorEnum::Deutschebank => {
+                patched.deutschebank.apply(params_patch);
             }
             _ => {
                 // Connector not supported for URL patching - return error
