@@ -43,6 +43,7 @@ impl
                 }
             }),
             test_mode: None,
+            description: value.description.clone(),
         })
     }
 }
@@ -1519,6 +1520,7 @@ impl
                 }
             }),
             test_mode: None,
+            description: value.description.clone(),
         })
     }
 }
@@ -1559,6 +1561,7 @@ impl
                 }
             }),
             test_mode: None,
+            description: None,
         })
     }
 }
@@ -1599,6 +1602,7 @@ impl
                 }
             }),
             test_mode: None,
+            description: None,
         })
     }
 }
@@ -1639,6 +1643,7 @@ impl
                 }
             }),
             test_mode: None,
+            description: None,
         })
     }
 }
@@ -1679,6 +1684,7 @@ impl
                 }
             }),
             test_mode: None,
+            description: None,
         })
     }
 }
@@ -1719,6 +1725,7 @@ impl
                 }
             }),
             test_mode: None,
+            description: None,
         })
     }
 }
@@ -1759,6 +1766,7 @@ impl
                 }
             }),
             test_mode: None,
+            description: None,
         })
     }
 }

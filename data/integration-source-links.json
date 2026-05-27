@@ -65,5 +65,12 @@
     "https://developer.peachpayments.com/docs/dashboard-response-codes",
     "https://developer.peachpayments.com/docs/reference-webhooks",
     "https://peachpayments.docs.oppwa.com/reference/parameters"
+  ],
+  "WORLDPAYXML": [
+    "http://dtd.worldpay.com/v1/ElemList.html",
+    "http://dtd.worldpay.com/v1/paymentService_v1.dtd.html",
+    "https://docs.worldpay.com/apis/wpg/manage/modificationrequests",
+    "https://documentation.ixopay.com/docs/tokenex/worldpaywpg",
+    "https://github.com/activemerchant/active_merchant/blob/master/lib/active_merchant/billing/gateways/worldpay.rb"
   ]
 }

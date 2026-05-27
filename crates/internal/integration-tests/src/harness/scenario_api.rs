@@ -363,10 +363,10 @@ fn maybe_execute_browser_automation_for_suite(
     effective_req: &mut Value,
 ) -> Result<(), ScenarioError> {
     // Convention-based Google Pay token generation
-    // If the request has payment_method.google_pay.tokenization_data.encrypted_data.token,
+    // If the request has payment_method.google_pay_sdk.tokenization_data.encrypted_data.token,
     // automatically generate a real token via browser automation
-    if let Some(token_field) =
-        effective_req.pointer("/payment_method/google_pay/tokenization_data/encrypted_data/token")
+    if let Some(token_field) = effective_req
+        .pointer("/payment_method/google_pay_sdk/tokenization_data/encrypted_data/token")
     {
         if token_field.is_string() {
             return execute_google_pay_token_generation(suite, scenario, connector, effective_req);
@@ -971,7 +971,7 @@ fn execute_google_pay_token_generation(
     };
 
     // 9. Inject the token into the request.
-    let target_path = "payment_method.google_pay.tokenization_data.encrypted_data.token";
+    let target_path = "payment_method.google_pay_sdk.tokenization_data.encrypted_data.token";
     if !set_json_path_value(effective_req, target_path, token_value) {
         return Err(ScenarioError::GrpcurlExecution {
             message: format!(
@@ -2739,6 +2739,28 @@ pub fn execute_tonic_request_from_payload(
                 );
                 let mut client = grpc_api_types::payments::payment_method_service_client::PaymentMethodServiceClient::new(channel.clone());
                 let response = client.eligibility(request).await.map_err(|error| {
+                    ScenarioError::GrpcurlExecution {
+                        message: format!(
+                            "tonic execution failed for '{suite}/{scenario}': {error}"
+                        ),
+                    }
+                })?;
+                serialize_tonic_response(&response.into_inner())
+            }
+            "SurchargeService/Calculate" => {
+                let payload: grpc_api_types::surcharge::SurchargeServiceCalculateRequest =
+                    parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
+                let mut request = tonic::Request::new(payload);
+                add_connector_metadata(
+                    &mut request,
+                    &config,
+                    &merchant_id,
+                    &tenant_id,
+                    &request_id,
+                    &connector_request_reference_id,
+                );
+                let mut client = grpc_api_types::surcharge::surcharge_service_client::SurchargeServiceClient::new(channel.clone());
+                let response = client.calculate(request).await.map_err(|error| {
                     ScenarioError::GrpcurlExecution {
                         message: format!(
                             "tonic execution failed for '{suite}/{scenario}': {error}"
@@ -4679,6 +4701,7 @@ fn grpc_method_for_suite(suite: &str, spec: Option<&SuiteSpec>) -> Result<String
         "PaymentService/ProxySetupRecurring" => "types.PaymentService/ProxySetupRecurring",
         "PaymentMethodService/Eligibility" => "types.PaymentMethodService/Eligibility",
         "EventService/HandleEvent" => "types.EventService/HandleEvent",
+        "SurchargeService/Calculate" => "types.SurchargeService/Calculate",
         _ => {
             return Err(ScenarioError::UnsupportedSuite {
                 suite: suite.to_string(),

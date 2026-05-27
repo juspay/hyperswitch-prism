@@ -29,5 +29,21 @@
         }
       }
     }
+  },
+  "PaymentService/Reverse": {
+    "reverse_fail_invalid_transaction_id": {
+      "assert": {
+        "status": {
+          "one_of": [
+            "VOIDED",
+            "CANCELED",
+            "REVERSED",
+            "FAILED",
+            "PROCESSING_ERROR"
+          ]
+        },
+        "error": null
+      }
+    }
   }
 }

@@ -1,11 +1,11 @@
 // This file is auto-generated. Do not edit manually.
 // Replace YOUR_API_KEY and placeholder values with real data.
-// Regenerate: python3 scripts/generate-connector-docs.py sanlam
+// Regenerate: python3 scripts/generate-connector-docs.py absasanlam
 //
-// Sanlam — all scenarios and flows in one file.
-// Run a scenario:  ./gradlew run --args="sanlam processCheckoutCard"
+// Absasanlam — all scenarios and flows in one file.
+// Run a scenario:  ./gradlew run --args="absasanlam processCheckoutCard"
 
-package examples.sanlam
+package examples.absasanlam
 
 import types.Payment.*
 import types.PaymentMethods.*
@@ -14,23 +14,13 @@ import payments.HttpMethod
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
-import payments.ConnectorSpecificConfig
-import types.Payment.SanlamConfig
-import payments.SecretString
+
 
 val SUPPORTED_FLOWS = listOf<String>("parse_event")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    .setConnectorConfig(
-        ConnectorSpecificConfig.newBuilder()
-            .setSanlam(SanlamConfig.newBuilder()
-                .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
-                .setMerchantId(SecretString.newBuilder().setValue("YOUR_MERCHANT_ID").build())
-                .setBaseUrl("YOUR_BASE_URL")
-                .build())
-            .build()
-    )
+    // .setConnectorConfig(...) — set your Absasanlam credentials here
     .build()
 
 

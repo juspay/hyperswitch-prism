@@ -78,6 +78,13 @@ pub mod auth_headers {
     pub const PAYPAL_AUTH_ASSERTION: &str = "PayPal-Auth-Assertion";
 }
 
+/// Constants for PayPal connector.
+pub mod constants {
+    pub const DEFAULT_NOTIFICATION_LANGUAGE: &str = "en-US";
+    pub const DEFAULT_PARTNER_ATTRIBUTION_ID: &str = "HyperSwitchPPCP_SP";
+    pub const DEFAULT_LEGACY_PARTNER_ATTRIBUTION_ID: &str = "HyperSwitchlegacy_Ecom";
+}
+
 const ORDER_QUANTITY: u16 = 1;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]

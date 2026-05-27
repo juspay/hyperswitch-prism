@@ -337,6 +337,7 @@ pub enum FlowName {
     CreateOrder,
     ServerSessionAuthenticationToken,
     ServerAuthenticationToken,
+    SurchargeCalculate,
     CreateConnectorCustomer,
     PaymentMethodToken,
     PreAuthenticate,
@@ -393,6 +394,7 @@ impl FlowName {
             Self::PayoutCreateRecipient => "PayoutCreateRecipient",
             Self::PayoutEnrollDisburseAccount => "PayoutEnrollDisburseAccount",
             Self::MandateRevoke => "MandateRevoke",
+            Self::SurchargeCalculate => "SurchargeCalculate",
             Self::Unknown => "Unknown",
         }
     }

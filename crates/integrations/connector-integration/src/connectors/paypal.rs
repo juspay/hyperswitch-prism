@@ -9,10 +9,14 @@ use common_utils::{
     ext_traits::ByteSliceExt,
     StringMajorUnit,
 };
+#[allow(unused_imports)]
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, CreateOrder, PSync, PostAuthenticate, RSync,
-        Refund, RepeatPayment, ServerAuthenticationToken, SetupMandate, VerifyWebhookSource, Void,
+        Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,
+        CreateConnectorCustomer, CreateOrder, DefendDispute, IncrementalAuthorization,
+        MandateRevoke, PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund,
+        RepeatPayment, ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate,
+        SubmitEvidence, VerifyWebhookSource, Void, VoidPC,
     },
     connector_types::{
         ClientAuthenticationTokenRequestData, EventContext, PaymentCreateOrderData,
@@ -42,13 +46,13 @@ use std::fmt::{Debug, Write};
 use super::macros;
 use crate::{
     connectors::paypal::transformers::{
-        self as paypal, auth_headers, PaypalAuthResponse, PaypalAuthUpdateRequest,
-        PaypalAuthUpdateResponse, PaypalCaptureResponse, PaypalClientAuthTokenRequest,
-        PaypalClientAuthTokenResponse, PaypalOrderCreateRequest, PaypalOrderCreateResponse,
-        PaypalPaymentsCancelResponse, PaypalPaymentsCaptureRequest, PaypalPaymentsRequest,
-        PaypalRefundRequest, PaypalRepeatPaymentRequest, PaypalRepeatPaymentResponse,
-        PaypalSetupMandatesResponse, PaypalSyncResponse, PaypalZeroMandateRequest, RefundResponse,
-        RefundSyncResponse,
+        self as paypal, auth_headers, constants as paypal_constants, PaypalAuthResponse,
+        PaypalAuthUpdateRequest, PaypalAuthUpdateResponse, PaypalCaptureResponse,
+        PaypalClientAuthTokenRequest, PaypalClientAuthTokenResponse, PaypalOrderCreateRequest,
+        PaypalOrderCreateResponse, PaypalPaymentsCancelResponse, PaypalPaymentsCaptureRequest,
+        PaypalPaymentsRequest, PaypalRefundRequest, PaypalRepeatPaymentRequest,
+        PaypalRepeatPaymentResponse, PaypalSetupMandatesResponse, PaypalSyncResponse,
+        PaypalZeroMandateRequest, RefundResponse, RefundSyncResponse,
     },
     types::ResponseRouterData,
     utils::{self, ConnectorErrorType, ConnectorErrorTypeMapping},
@@ -85,12 +89,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-macros::macro_connector_payout_implementation!(
-    connector: Paypal,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
-);
-
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Paypal<T>
 {
@@ -122,6 +120,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Paypal<T>
 {
 }
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Paypal<T>
 {
@@ -535,7 +534,7 @@ macros::create_all_prerequisites!(
                 let partner_attribution_id = connector_metadata
                     .and_then(|metadata| metadata.get("paypal_partner_attribution_id"))
                     .and_then(|value| value.as_str())
-                    .unwrap_or("HyperSwitchPPCP_SP");
+                    .unwrap_or(paypal_constants::DEFAULT_PARTNER_ATTRIBUTION_ID);
 
                 headers.extend(vec![
                     (
@@ -551,7 +550,7 @@ macros::create_all_prerequisites!(
                 let legacy_attribution_id = connector_metadata
                     .and_then(|metadata| metadata.get("paypal_legacy_partner_attribution_id"))
                     .and_then(|value| value.as_str())
-                    .unwrap_or("HyperSwitchlegacy_Ecom");
+                    .unwrap_or(paypal_constants::DEFAULT_LEGACY_PARTNER_ATTRIBUTION_ID);
 
                 headers.extend(vec![(
                     auth_headers::PAYPAL_PARTNER_ATTRIBUTION_ID.to_string(),
