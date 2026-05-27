@@ -3,6 +3,7 @@ use std::str::FromStr;
 
 use common_enums::{AttemptStatus, CaptureMethod, PaymentMethod, PaymentMethodType};
 use common_utils::{CustomResult, SecretSerdeValue};
+pub use domain_types::connector_types::WebhookIntegrityCheck;
 use domain_types::{
     connector_flow,
     connector_types::{
@@ -427,6 +428,10 @@ pub trait IncomingWebhook {
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<bool, error_stack::Report<WebhookError>> {
         Ok(false)
+    }
+
+    fn get_webhook_integrity_checks(&self) -> Vec<WebhookIntegrityCheck> {
+        vec![]
     }
 
     /// fn get_webhook_source_verification_signature

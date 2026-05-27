@@ -1341,6 +1341,14 @@ message RedirectResponseSecrets {
   optional string additional_secret = 2;
 }
 
+// Integrity dimensions a connector can confirm are present in a webhook payload.
+enum IntegrityCheck {
+  INTEGRITY_CHECK_UNSPECIFIED = 0; // Default value
+  INTEGRITY_CHECK_CONNECTOR_TRANSACTION_ID = 1; // Maps to: EventContent.*.connector_transaction_id
+  INTEGRITY_CHECK_AMOUNT = 2; // Maps to: EventContent.payments_response.amount.minor_amount
+  INTEGRITY_CHECK_CURRENCY = 3; // Maps to: EventContent.payments_response.amount.currency
+}
+
 // Response for EventService.HandleEvent.
 // event_content mirrors PaymentService.Get / RefundService.Get / DisputeService.Get.
 // Returns INVALID_ARGUMENT if required EventContext fields are absent for this connector.
@@ -1362,6 +1370,9 @@ message EventServiceHandleResponse {
 
   // Suggested HTTP response to send back to the connector for webhook acknowledgement
   optional EventAckResponse event_ack_response = 5;
+
+  // Integrity fields that downstream can use to verify the webhook payload.
+  repeated IntegrityCheck supported_integrity_checks = 6;
 }
 
 // Suggested HTTP response for webhook acknowledgement (status, headers, body).

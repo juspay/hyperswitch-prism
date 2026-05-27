@@ -1,5 +1,7 @@
 use std::fmt::Debug;
 
+use grpc_api_types::payments::IntegrityCheck as ProtoIntegrityCheck;
+
 use crate::request::RequestData;
 use crate::utils::{self, get_config_from_request, grpc_logging_wrapper_with_parser};
 use common_enums;
@@ -7,7 +9,7 @@ use common_utils::events::FlowName;
 use connector_integration::types::{ConnectorData, ConnectorDataProvider};
 use domain_types::{
     connector_flow::VerifyWebhookSource,
-    connector_types::VerifyWebhookSourceFlowData,
+    connector_types::{VerifyWebhookSourceFlowData, WebhookIntegrityCheck},
     errors::WebhookError,
     payment_method_data::DefaultPCIHolder,
     router_data::ConnectorSpecificConfig,
@@ -15,7 +17,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
-    utils::ForeignTryFrom,
+    utils::{ForeignFrom, ForeignTryFrom},
 };
 use external_services::service::EventProcessingParams;
 use grpc_api_types::payments::{
@@ -224,7 +226,11 @@ impl EventService for EventServiceImpl {
                         }
                     };
 
-                    let response = connector_integration::webhook_utils::process_webhook_event(
+                    let supported_integrity_checks: Vec<WebhookIntegrityCheck> = connector_data
+                        .connector
+                        .get_webhook_integrity_checks();
+
+                    let mut response = connector_integration::webhook_utils::process_webhook_event(
                         connector_data,
                         request_details,
                         webhook_secrets,
@@ -234,6 +240,11 @@ impl EventService for EventServiceImpl {
                         event_context,
                     )
                     .into_grpc_status()?;
+
+                    response.supported_integrity_checks = supported_integrity_checks
+                        .into_iter()
+                        .map(|c| i32::from(ProtoIntegrityCheck::foreign_from(c)))
+                        .collect();
 
                     Ok(tonic::Response::new(response))
                 })
