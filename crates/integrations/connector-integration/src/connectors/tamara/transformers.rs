@@ -245,6 +245,32 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .resource_common_data
             .get_optional_shipping_or_billing_country_string();
 
+        let items = match router_data.resource_common_data.order_details.clone() {
+            Some(od) => od
+                .iter()
+                .enumerate()
+                .map(|(i, data)| TamaraLineItem {
+                    name: data.product_name.clone(),
+                    quantity: i32::from(data.quantity),
+                    reference_id: data.product_id.clone().unwrap_or_else(|| format!("item_{i}")),
+                    sku: data.product_id.clone().unwrap_or_else(|| format!("item_{i}")),
+                    unit_price: TamaraAmount { amount: data.amount, currency },
+                    total_amount: TamaraAmount {
+                        amount: MinorUnit(data.amount.0 * i64::from(data.quantity)),
+                        currency,
+                    },
+                })
+                .collect(),
+            None => vec![TamaraLineItem {
+                name: description.clone(),
+                quantity: 1,
+                reference_id: order_ref.clone(),
+                sku: order_ref.clone(),
+                unit_price: TamaraAmount { amount, currency },
+                total_amount: TamaraAmount { amount, currency },
+            }],
+        };
+
         Ok(Self {
             total_amount: TamaraAmount { amount, currency },
             shipping_amount: TamaraAmount {
@@ -258,14 +284,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             order_reference_id: order_ref.clone(),
             country_code,
             description: description.clone(),
-            items: vec![TamaraLineItem {
-                name: description.clone(),
-                quantity: 1,
-                reference_id: order_ref.clone(),
-                sku: order_ref.clone(),
-                unit_price: TamaraAmount { amount, currency },
-                total_amount: TamaraAmount { amount, currency },
-            }],
+            items,
             consumer: TamaraConsumer {
                 first_name: first_name.clone(),
                 last_name: last_name.clone(),
