@@ -143,10 +143,9 @@ pub struct TamaraPaymentsRequest {
 #[derive(Debug, Serialize)]
 pub struct TamaraLineItem {
     pub name: String,
-    pub quantity: i32,
+    pub quantity: u16,
     pub reference_id: String,
     pub sku: String,
-    pub unit_price: TamaraAmount,
     pub total_amount: TamaraAmount,
 }
 
@@ -254,14 +253,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     .enumerate()
                     .map(|(i, data)| TamaraLineItem {
                         name: data.product_name.clone(),
-                        quantity: i32::from(data.quantity),
+                        quantity: data.quantity,
                         reference_id: data.product_id.clone().unwrap_or_else(|| format!("item_{i}")),
                         sku: data.product_id.clone().unwrap_or_else(|| format!("item_{i}")),
-                        unit_price: TamaraAmount { amount: data.amount, currency },
-                        total_amount: TamaraAmount {
-                            amount: MinorUnit(data.amount.0 * i64::from(data.quantity)),
-                            currency,
-                        },
+                        total_amount: TamaraAmount { amount: data.amount, currency },
                     })
                     .collect()
             })
