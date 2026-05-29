@@ -598,14 +598,14 @@ pub fn build_card_holder_name(
     })
 }
 
-/// CyberSource processor card-type code for a `CardNetwork`.
-/// Used by CyberSource and connectors that run on the CyberSource backend (e.g. Wells Fargo).
-pub trait CybersourceCardTypeCode {
-    fn cybersource_type_code(&self) -> Option<&'static str>;
+/// CyberSource-style processor card-type code for a `CardNetwork`.
+/// Used by CyberSource and connectors that run on the same backend (e.g. Wells Fargo).
+pub trait CardTypeCode {
+    fn type_code(&self) -> Option<&'static str>;
 }
 
-impl CybersourceCardTypeCode for common_enums::CardNetwork {
-    fn cybersource_type_code(&self) -> Option<&'static str> {
+impl CardTypeCode for common_enums::CardNetwork {
+    fn type_code(&self) -> Option<&'static str> {
         match self {
             Self::Visa => Some("001"),
             Self::Mastercard => Some("002"),

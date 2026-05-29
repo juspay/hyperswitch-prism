@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 // Re-export from common utils for use in this connector
-use crate::utils::CybersourceCardTypeCode;
+use crate::utils::CardTypeCode;
 pub use crate::utils::{convert_metadata_to_merchant_defined_info, MerchantDefinedInformation};
 
 // Type alias for WellsfargoRouterData to avoid using super::
@@ -488,7 +488,7 @@ fn get_card_type_code(
         Err(_) => match card_data
             .card_network
             .as_ref()
-            .and_then(|network| network.cybersource_type_code())
+            .and_then(|network| network.type_code())
         {
             Some(code) => Ok(code.to_string()),
             None => Err(IntegrationError::MissingRequiredField {

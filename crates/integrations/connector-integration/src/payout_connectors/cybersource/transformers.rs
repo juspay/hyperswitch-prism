@@ -1,4 +1,5 @@
 use cards::CardNumber;
+use common_utils::types::StringMajorUnit;
 use domain_types::{
     connector_flow::PayoutTransfer,
     errors::{ConnectorError, IntegrationError},
@@ -10,11 +11,26 @@ use error_stack::ResultExt;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    connectors::cybersource::transformers::{Amount, ClientReferenceInformation, OrderInformation},
-    types::ResponseRouterData,
-    utils::CybersourceCardTypeCode,
-};
+use crate::{types::ResponseRouterData, utils::CardTypeCode};
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientReferenceInformation {
+    code: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrderInformation {
+    amount_details: Amount,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Amount {
+    total_amount: StringMajorUnit,
+    currency: common_enums::Currency,
+}
 
 pub struct CybersourceAuthType {
     pub(super) api_key: Secret<String>,
@@ -145,7 +161,7 @@ pub struct CybersourcePayoutCard {
 }
 
 pub(super) struct CybersourcePayoutContext {
-    pub total_amount: common_utils::types::StringMajorUnit,
+    pub total_amount: StringMajorUnit,
 }
 
 impl
@@ -217,7 +233,7 @@ impl
         let card_type = card
             .card_network
             .as_ref()
-            .and_then(|network| network.cybersource_type_code().map(str::to_string))
+            .and_then(|network| network.type_code().map(str::to_string))
             .or_else(|| {
                 domain_types::utils::get_card_issuer(&card.card_number.get_card_no())
                     .ok()

@@ -908,14 +908,14 @@ pub struct OrderInformationIncrementalAuthorization {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OrderInformation {
-    pub(crate) amount_details: Amount,
+    amount_details: Amount,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Amount {
-    pub(crate) total_amount: StringMajorUnit,
-    pub(crate) currency: common_enums::Currency,
+    total_amount: StringMajorUnit,
+    currency: common_enums::Currency,
 }
 
 #[derive(Debug, Serialize)]
@@ -3224,7 +3224,7 @@ impl TryFrom<ResponseRouterData<CybersourcePaymentsIncrementalAuthorizationRespo
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientReferenceInformation {
-    pub(crate) code: Option<String>,
+    code: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

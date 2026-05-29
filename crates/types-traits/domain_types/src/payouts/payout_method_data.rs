@@ -25,10 +25,9 @@ impl PayoutMethodData {
     pub fn get_card(&self) -> Result<&CardPayout, Report<IntegrationError>> {
         match self {
             Self::Card(card) => Ok(card),
-            _ => Err(IntegrationError::not_implemented(
-                "Payouts: only card payouts are supported",
-                Default::default(),
-            )
+            _ => Err(IntegrationError::MismatchedPaymentData {
+                context: Default::default(),
+            }
             .into()),
         }
     }
