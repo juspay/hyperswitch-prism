@@ -581,15 +581,6 @@ fn collect_values_by_removing_signature(value: &Value, signature: &str) -> Vec<S
     }
 }
 
-pub fn format_expiry_year(year: &Secret<String>) -> Secret<String> {
-    let y = year.peek();
-    if y.len() == 2 {
-        Secret::new(format!("20{y}"))
-    } else {
-        Secret::new(y.clone())
-    }
-}
-
 pub fn build_card_holder_name(
     explicit_name: &Option<Secret<String>>,
     billing_first_name: Option<Secret<String>>,
@@ -607,18 +598,26 @@ pub fn build_card_holder_name(
     })
 }
 
-pub fn card_network_to_type_code(network: &common_enums::CardNetwork) -> Option<&'static str> {
-    match network {
-        common_enums::CardNetwork::Visa => Some("001"),
-        common_enums::CardNetwork::Mastercard => Some("002"),
-        common_enums::CardNetwork::AmericanExpress => Some("003"),
-        common_enums::CardNetwork::Discover => Some("004"),
-        common_enums::CardNetwork::DinersClub => Some("005"),
-        common_enums::CardNetwork::JCB => Some("007"),
-        common_enums::CardNetwork::Maestro => Some("042"),
-        common_enums::CardNetwork::CartesBancaires => Some("036"),
-        common_enums::CardNetwork::UnionPay => Some("062"),
-        _ => None,
+/// CyberSource processor card-type code for a `CardNetwork`.
+/// Used by CyberSource and connectors that run on the CyberSource backend (e.g. Wells Fargo).
+pub trait CybersourceCardTypeCode {
+    fn cybersource_type_code(&self) -> Option<&'static str>;
+}
+
+impl CybersourceCardTypeCode for common_enums::CardNetwork {
+    fn cybersource_type_code(&self) -> Option<&'static str> {
+        match self {
+            Self::Visa => Some("001"),
+            Self::Mastercard => Some("002"),
+            Self::AmericanExpress => Some("003"),
+            Self::Discover => Some("004"),
+            Self::DinersClub => Some("005"),
+            Self::JCB => Some("007"),
+            Self::Maestro => Some("042"),
+            Self::CartesBancaires => Some("036"),
+            Self::UnionPay => Some("062"),
+            _ => None,
+        }
     }
 }
 

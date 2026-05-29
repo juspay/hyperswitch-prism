@@ -12,8 +12,8 @@ use common_utils::{
 use domain_types::{
     connector_flow::{
         Authenticate, Authorize, Capture, ClientAuthenticationToken, IncrementalAuthorization,
-        MandateRevoke, PSync, PayoutTransfer, PostAuthenticate, PreAuthenticate, RSync, Refund,
-        RepeatPayment, SetupMandate, Void, VoidPC,
+        MandateRevoke, PSync, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
+        SetupMandate, Void, VoidPC,
     },
     connector_types::{
         ClientAuthenticationTokenRequestData, MandateRevokeRequestData, MandateRevokeResponseData,
@@ -24,7 +24,6 @@ use domain_types::{
         RepeatPaymentData, SetupMandateRequestData,
     },
     payment_method_data::PaymentMethodDataTypes,
-    payouts::payouts_types::{PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse},
     router_data::ErrorResponse,
     router_data_v2::RouterDataV2,
     router_response_types::Response,
@@ -49,7 +48,7 @@ use transformers::{
     self as cybersource, CybersourceAuthEnrollmentRequest, CybersourceAuthSetupRequest,
     CybersourceAuthSetupResponse, CybersourceAuthValidateRequest, CybersourceAuthenticateResponse,
     CybersourceAuthenticateResponse as CybersourcePostAuthenticateResponse,
-    CybersourceClientAuthRequest, CybersourceClientAuthResponse, CybersourceFulfillResponse,
+    CybersourceClientAuthRequest, CybersourceClientAuthResponse,
     CybersourcePaymentsCaptureRequest, CybersourcePaymentsIncrementalAuthorizationRequest,
     CybersourcePaymentsIncrementalAuthorizationResponse, CybersourcePaymentsRequest,
     CybersourcePaymentsResponse, CybersourcePaymentsResponse as CybersourceCaptureResponse,
@@ -57,9 +56,9 @@ use transformers::{
     CybersourcePaymentsResponse as CybersourceVoidResponse,
     CybersourcePaymentsResponse as CybersourceSetupMandateResponse,
     CybersourcePaymentsResponse as CybersourceRepeatPaymentResponse,
-    CybersourcePayoutFulfillRequest, CybersourceRefundRequest, CybersourceRefundResponse,
-    CybersourceRepeatPaymentRequest, CybersourceRsyncResponse, CybersourceTransactionResponse,
-    CybersourceVoidPCRequest, CybersourceVoidRequest, CybersourceZeroMandateRequest,
+    CybersourceRefundRequest, CybersourceRefundResponse, CybersourceRepeatPaymentRequest,
+    CybersourceRsyncResponse, CybersourceTransactionResponse, CybersourceVoidPCRequest,
+    CybersourceVoidRequest, CybersourceZeroMandateRequest,
 };
 
 use super::macros;
@@ -80,26 +79,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Cybersource<T>
-{
-}
-
-macros::macro_connector_payout_implementation!(
-    connector: Cybersource,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    payout_flows: [
-        PayoutCreate,
-        PayoutGet,
-        PayoutVoid,
-        PayoutStage,
-        PayoutCreateLink,
-        PayoutCreateRecipient,
-        PayoutEnrollDisburseAccount
-    ]
-);
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PayoutTransferV2 for Cybersource<T>
 {
 }
 
@@ -303,12 +282,6 @@ macros::create_all_prerequisites!(
             request_body: CybersourcePaymentsIncrementalAuthorizationRequest,
             response_body: CybersourcePaymentsIncrementalAuthorizationResponse,
             router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
-        ),
-        (
-            flow: PayoutTransfer,
-            request_body: CybersourcePayoutFulfillRequest,
-            response_body: CybersourceFulfillResponse,
-            router_data: RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
         )
     ],
     amount_converters: [
@@ -390,13 +363,6 @@ macros::create_all_prerequisites!(
         pub fn connector_base_url_refunds<'a, F, Req, Res>(
             &self,
             req: &'a RouterDataV2<F, RefundFlowData, Req, Res>,
-        ) -> &'a str {
-            &req.resource_common_data.connectors.cybersource.base_url
-        }
-
-        pub fn connector_base_url_payouts<'a, F, Req, Res>(
-            &self,
-            req: &'a RouterDataV2<F, PayoutFlowData, Req, Res>,
         ) -> &'a str {
             &req.resource_common_data.connectors.cybersource.base_url
         }
@@ -998,91 +964,6 @@ macros::macro_connector_implementation!(
     }
 );
 
-macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: Cybersource,
-    curl_request: Json(CybersourcePayoutFulfillRequest),
-    curl_response: CybersourceFulfillResponse,
-    flow_name: PayoutTransfer,
-    resource_common_data: PayoutFlowData,
-    flow_request: PayoutTransferRequest,
-    flow_response: PayoutTransferResponse,
-    http_method: Post,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    other_functions: {
-        fn get_headers(
-            &self,
-            req: &RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
-        }
-        fn get_url(
-            &self,
-            req: &RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
-        ) -> CustomResult<String, IntegrationError> {
-            Ok(format!(
-                "{}pts/v2/payouts",
-                self.connector_base_url_payouts(req)
-            ))
-        }
-
-        fn get_5xx_error_response(
-            &self,
-            res: Response,
-            event_builder: Option<&mut events::Event>,
-            _connector_config: &ConnectorSpecificConfig,
-        ) -> CustomResult<ErrorResponse, ConnectorError> {
-            let parsed: Result<
-                cybersource::CybersourceServerErrorResponse,
-                Report<common_utils::errors::ParsingError>,
-            > = res.response.parse_struct("CybersourceServerErrorResponse");
-            if let Ok(response) = parsed {
-                with_error_response_body!(event_builder, response);
-                let code = response
-                    .reason
-                    .as_ref()
-                    .map(|r| format!("{:?}", r).to_uppercase())
-                    .unwrap_or_else(|| NO_ERROR_CODE.to_string());
-                let message = response
-                    .message
-                    .clone()
-                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string());
-                return Ok(ErrorResponse {
-                    status_code: res.status_code,
-                    code,
-                    message: message.clone(),
-                    reason: Some(message),
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    network_advice_code: None,
-                    network_decline_code: None,
-                    network_error_message: None,
-                });
-            }
-
-            let error_message = match res.status_code {
-                500 => "internal_server_error",
-                501 => "not_implemented",
-                502 => "bad_gateway",
-                503 => "service_unavailable",
-                504 => "gateway_timeout",
-                _ => "unknown_error",
-            };
-            Ok(ErrorResponse {
-                status_code: res.status_code,
-                code: res.status_code.to_string(),
-                message: error_message.to_string(),
-                reason: String::from_utf8(res.response.to_vec()).ok(),
-                attempt_status: None,
-                connector_transaction_id: None,
-                network_advice_code: None,
-                network_decline_code: None,
-                network_error_message: None,
-            })
-        }
-    }
-);
 
 // Manual implementation for ClientAuthenticationToken flow.
 // Cannot use macro_connector_implementation! because Cybersource Flex v2 sessions API

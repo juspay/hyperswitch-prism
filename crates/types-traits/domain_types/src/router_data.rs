@@ -3198,6 +3198,34 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                PayoutConnectorEnum::Worldpayxml => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Worldpayxml {
+                        api_username: api_key.clone(),
+                        api_password: key1.clone(),
+                        merchant_code: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                PayoutConnectorEnum::Cybersource => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Cybersource {
+                        api_key: api_key.clone(),
+                        merchant_account: key1.clone(),
+                        api_secret: api_secret.clone(),
+                        base_url: None,
+                        disable_avs: None,
+                        disable_cvn: None,
+                    }),
+                    _ => Err(err().into()),
+                },
             },
         }
     }
