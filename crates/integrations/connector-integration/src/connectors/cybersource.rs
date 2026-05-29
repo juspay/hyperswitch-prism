@@ -48,17 +48,17 @@ use transformers::{
     self as cybersource, CybersourceAuthEnrollmentRequest, CybersourceAuthSetupRequest,
     CybersourceAuthSetupResponse, CybersourceAuthValidateRequest, CybersourceAuthenticateResponse,
     CybersourceAuthenticateResponse as CybersourcePostAuthenticateResponse,
-    CybersourceClientAuthRequest, CybersourceClientAuthResponse,
-    CybersourcePaymentsCaptureRequest, CybersourcePaymentsIncrementalAuthorizationRequest,
+    CybersourceClientAuthRequest, CybersourceClientAuthResponse, CybersourcePaymentsCaptureRequest,
+    CybersourcePaymentsIncrementalAuthorizationRequest,
     CybersourcePaymentsIncrementalAuthorizationResponse, CybersourcePaymentsRequest,
     CybersourcePaymentsResponse, CybersourcePaymentsResponse as CybersourceCaptureResponse,
     CybersourcePaymentsResponse as CybersourceVoidPCResponse,
     CybersourcePaymentsResponse as CybersourceVoidResponse,
     CybersourcePaymentsResponse as CybersourceSetupMandateResponse,
-    CybersourcePaymentsResponse as CybersourceRepeatPaymentResponse,
-    CybersourceRefundRequest, CybersourceRefundResponse, CybersourceRepeatPaymentRequest,
-    CybersourceRsyncResponse, CybersourceTransactionResponse, CybersourceVoidPCRequest,
-    CybersourceVoidRequest, CybersourceZeroMandateRequest,
+    CybersourcePaymentsResponse as CybersourceRepeatPaymentResponse, CybersourceRefundRequest,
+    CybersourceRefundResponse, CybersourceRepeatPaymentRequest, CybersourceRsyncResponse,
+    CybersourceTransactionResponse, CybersourceVoidPCRequest, CybersourceVoidRequest,
+    CybersourceZeroMandateRequest,
 };
 
 use super::macros;
@@ -963,7 +963,6 @@ macros::macro_connector_implementation!(
         }
     }
 );
-
 
 // Manual implementation for ClientAuthenticationToken flow.
 // Cannot use macro_connector_implementation! because Cybersource Flex v2 sessions API

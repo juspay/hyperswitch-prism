@@ -2,9 +2,7 @@ use cards::CardNumber;
 use domain_types::{
     connector_flow::PayoutTransfer,
     errors::{ConnectorError, IntegrationError},
-    payouts::payouts_types::{
-        PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse,
-    },
+    payouts::payouts_types::{PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
 };
@@ -13,9 +11,7 @@ use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connectors::cybersource::transformers::{
-        Amount, ClientReferenceInformation, OrderInformation,
-    },
+    connectors::cybersource::transformers::{Amount, ClientReferenceInformation, OrderInformation},
     types::ResponseRouterData,
     utils::CybersourceCardTypeCode,
 };
@@ -154,7 +150,12 @@ pub(super) struct CybersourcePayoutContext {
 
 impl
     TryFrom<(
-        &RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
+        &RouterDataV2<
+            PayoutTransfer,
+            PayoutFlowData,
+            PayoutTransferRequest,
+            PayoutTransferResponse,
+        >,
         CybersourcePayoutContext,
     )> for CybersourcePayoutFulfillRequest
 {

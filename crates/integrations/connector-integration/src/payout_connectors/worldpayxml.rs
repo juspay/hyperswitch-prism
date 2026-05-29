@@ -85,15 +85,19 @@ impl WorldpayxmlPayouts {
         Ok(headers)
     }
 
-    fn parse_xml_response<T>(bytes: bytes::Bytes, status_code: u16) -> CustomResult<T, ConnectorError>
+    fn parse_xml_response<T>(
+        bytes: bytes::Bytes,
+        status_code: u16,
+    ) -> CustomResult<T, ConnectorError>
     where
         T: serde::de::DeserializeOwned,
     {
         if bytes.is_empty() {
-            return Err(
-                crate::utils::response_handling_fail_for_connector(status_code, "worldpayxml")
-                    .into(),
-            );
+            return Err(crate::utils::response_handling_fail_for_connector(
+                status_code,
+                "worldpayxml",
+            )
+            .into());
         }
         let response_str = String::from_utf8(bytes.to_vec())
             .change_context(crate::utils::response_handling_fail_for_connector(
@@ -221,7 +225,12 @@ impl
             PayoutTransferResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        Ok(req.resource_common_data.connectors.worldpayxml.base_url.to_string())
+        Ok(req
+            .resource_common_data
+            .connectors
+            .worldpayxml
+            .base_url
+            .to_string())
     }
 
     fn get_headers(
@@ -301,7 +310,12 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
         &self,
         req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
     ) -> CustomResult<String, IntegrationError> {
-        Ok(req.resource_common_data.connectors.worldpayxml.base_url.to_string())
+        Ok(req
+            .resource_common_data
+            .connectors
+            .worldpayxml
+            .base_url
+            .to_string())
     }
 
     fn get_headers(
@@ -366,7 +380,12 @@ impl ConnectorIntegrationV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, Payou
         &self,
         req: &RouterDataV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, PayoutVoidResponse>,
     ) -> CustomResult<String, IntegrationError> {
-        Ok(req.resource_common_data.connectors.worldpayxml.base_url.to_string())
+        Ok(req
+            .resource_common_data
+            .connectors
+            .worldpayxml
+            .base_url
+            .to_string())
     }
 
     fn get_headers(

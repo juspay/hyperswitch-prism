@@ -1192,7 +1192,6 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
     }
 }
 
-
 // ===== VOID POST CAPTURE TRANSFORMERS =====
 // Uses <cancelOrRefund/> element which acts as cancel if pre-settlement, refund if post-settlement
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

@@ -22,8 +22,8 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 // Re-export from common utils for use in this connector
-pub use crate::utils::{convert_metadata_to_merchant_defined_info, MerchantDefinedInformation};
 use crate::utils::CybersourceCardTypeCode;
+pub use crate::utils::{convert_metadata_to_merchant_defined_info, MerchantDefinedInformation};
 
 // Type alias for WellsfargoRouterData to avoid using super::
 pub type WellsFargoRouterData<RD, T> = super::WellsfargoRouterData<RD, T>;

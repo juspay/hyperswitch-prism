@@ -108,8 +108,14 @@ fn worldpayxml_amount_exponent(currency: common_enums::Currency) -> String {
 
 // ----- PayoutTransfer (PoFulfill) request -----
 impl
-    TryFrom<&RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>>
-    for requests::WorldpayxmlPayoutTransferRequest
+    TryFrom<
+        &RouterDataV2<
+            PayoutTransfer,
+            PayoutFlowData,
+            PayoutTransferRequest,
+            PayoutTransferResponse,
+        >,
+    > for requests::WorldpayxmlPayoutTransferRequest
 {
     type Error = Report<IntegrationError>;
 
@@ -449,4 +455,3 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlPayoutVoidResponse, Self>>
         })
     }
 }
-

@@ -42,8 +42,7 @@ use ring::{digest, hmac};
 use time::OffsetDateTime;
 
 use crate::{
-    connectors::cybersource::transformers as cs_payments,
-    types::ResponseRouterData,
+    connectors::cybersource::transformers as cs_payments, types::ResponseRouterData,
     with_error_response_body,
 };
 use transformers::{CybersourceAuthType, CybersourceFulfillResponse, CybersourcePayoutContext};
@@ -51,8 +50,7 @@ use transformers::{CybersourceAuthType, CybersourceFulfillResponse, CybersourceP
 mod headers {
     pub(super) const CONTENT_TYPE: &str = "Content-Type";
     pub(super) const ACCEPT: &str = "Accept";
-    pub(super) const CONNECTOR_UNAUTHORIZED_ERROR: &str =
-        "Authentication Error from the connector";
+    pub(super) const CONNECTOR_UNAUTHORIZED_ERROR: &str = "Authentication Error from the connector";
 }
 
 pub struct CybersourcePayouts;
@@ -97,12 +95,12 @@ impl CybersourcePayouts {
             "host: {host}\ndate: {date}\n{request_target}v-c-merchant-id: {}",
             auth.merchant_account.peek()
         );
-        let key_value = BASE64_ENGINE.decode(auth.api_secret.clone().expose()).change_context(
-            IntegrationError::InvalidConnectorConfig {
+        let key_value = BASE64_ENGINE
+            .decode(auth.api_secret.clone().expose())
+            .change_context(IntegrationError::InvalidConnectorConfig {
                 config: "connector_account_details.api_secret",
                 context: Default::default(),
-            },
-        )?;
+            })?;
         let key = hmac::Key::new(hmac::HMAC_SHA256, &key_value);
         let signature_value =
             BASE64_ENGINE.encode(hmac::sign(&key, signature_string.as_bytes()).as_ref());
@@ -123,11 +121,10 @@ impl CybersourcePayouts {
         let date = OffsetDateTime::now_utc();
         let auth = CybersourceAuthType::try_from(connector_config)?;
         let base_url = self.base_url(connectors);
-        let cybersource_host = url::Url::parse(base_url).change_context(
-            IntegrationError::RequestEncodingFailed {
+        let cybersource_host =
+            url::Url::parse(base_url).change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
-            },
-        )?;
+            })?;
         let host = cybersource_host
             .host_str()
             .ok_or(IntegrationError::RequestEncodingFailed {
@@ -139,8 +136,14 @@ impl CybersourcePayouts {
                 .unwrap_or_default()
                 .as_bytes(),
         );
-        let signature =
-            Self::generate_signature(&auth, host.to_string(), path.as_str(), &sha256, date, http_method)?;
+        let signature = Self::generate_signature(
+            &auth,
+            host.to_string(),
+            path.as_str(),
+            &sha256,
+            date,
+            http_method,
+        )?;
 
         let mut headers = vec![
             (
@@ -239,7 +242,11 @@ impl ConnectorCommon for CybersourcePayouts {
                                 .message
                                 .clone()
                                 .map_or(error_message.to_string(), |msg| msg.to_string()),
-                            cs_payments::get_error_reason(response.message, detailed_error_info, None),
+                            cs_payments::get_error_reason(
+                                response.message,
+                                detailed_error_info,
+                                None,
+                            ),
                         )
                     }
                 };
@@ -410,10 +417,10 @@ impl
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
-        let connector_req =
-            transformers::CybersourcePayoutFulfillRequest::try_from((req, CybersourcePayoutContext {
-                total_amount,
-            }))?;
+        let connector_req = transformers::CybersourcePayoutFulfillRequest::try_from((
+            req,
+            CybersourcePayoutContext { total_amount },
+        ))?;
         Ok(Some(RequestContent::Json(Box::new(connector_req))))
     }
 
