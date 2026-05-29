@@ -1,13 +1,12 @@
 use std::fmt::Debug;
 
 use domain_types::{
-    connector_types::{ConnectorEnum, SurchargeConnectorEnum},
+    connector_types::{ConnectorEnum, PayoutConnectorEnum, SurchargeConnectorEnum},
     payment_method_data::PaymentMethodDataTypes,
 };
-use interfaces::connector_types::{BoxedConnector, BoxedSurchargeConnector};
+use interfaces::connector_types::{BoxedConnector, BoxedPayoutConnector, BoxedSurchargeConnector};
 
-use crate::connectors;
-use crate::surcharge_connectors;
+use crate::{connectors, payout_connectors, surcharge_connectors};
 
 #[derive(Clone)]
 pub struct ConnectorData<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static> {
@@ -144,6 +143,30 @@ impl SurchargeConnectorData {
     }
 }
 
+#[derive(Clone)]
+pub struct PayoutConnectorData {
+    pub connector: BoxedPayoutConnector,
+    pub connector_name: PayoutConnectorEnum,
+}
+
+impl PayoutConnectorData {
+    pub fn get_connector_by_name(connector_name: &PayoutConnectorEnum) -> Self {
+        let connector = Self::convert_connector(*connector_name);
+        Self {
+            connector,
+            connector_name: *connector_name,
+        }
+    }
+
+    fn convert_connector(connector_name: PayoutConnectorEnum) -> BoxedPayoutConnector {
+        match connector_name {
+            PayoutConnectorEnum::Loonio => Box::new(payout_connectors::LoonioPayouts::new()),
+            PayoutConnectorEnum::Paypal => Box::new(payout_connectors::PaypalPayouts::new()),
+            PayoutConnectorEnum::Itaubank => Box::new(payout_connectors::ItaubankPayouts::new()),
+        }
+    }
+}
+
 /// Trait abstracting over connector data types
 pub trait ConnectorDataProvider: Sized {
     type ConnectorEnumType: Copy;
@@ -177,6 +200,16 @@ impl ConnectorDataProvider for SurchargeConnectorData {
         variant
             .as_surcharge()
             .map(|c| Self::get_connector_by_name(&c))
+    }
+}
+
+impl ConnectorDataProvider for PayoutConnectorData {
+    type ConnectorEnumType = PayoutConnectorEnum;
+
+    fn from_connector_variant(
+        variant: &domain_types::connector_types::ConnectorVariant,
+    ) -> Option<Self> {
+        variant.as_payout().map(|c| Self::get_connector_by_name(&c))
     }
 }
 

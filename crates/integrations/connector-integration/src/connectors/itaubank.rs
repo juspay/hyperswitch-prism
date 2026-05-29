@@ -9,14 +9,12 @@ use domain_types::{
     connector_types::*,
     errors::{self},
     payment_method_data::PaymentMethodDataTypes,
-    payouts::payouts_types::*,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
 };
-use hyperswitch_masking::ExposeInterface;
-use hyperswitch_masking::{Mask, Maskable};
+use hyperswitch_masking::Maskable;
 use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
@@ -26,19 +24,14 @@ use interfaces::{
 };
 use serde::Serialize;
 
-use crate::types::ResponseRouterData;
-
 use self::transformers::{
     ItaubankAccessTokenRequest, ItaubankAccessTokenResponse, ItaubankAuthType,
-    ItaubankErrorResponse, ItaubankPayoutGetResponse, ItaubankTransferRequest,
-    ItaubankTransferResponse,
+    ItaubankErrorResponse,
 };
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
     pub(crate) const ACCEPT: &str = "Accept";
     pub(crate) const USER_AGENT: &str = "User-Agent";
-    pub(crate) const AUTHORIZATION: &str = "Authorization";
-    pub(crate) const X_ITAU_API_KEY: &str = "x-itau-apikey";
 }
 
 use std::fmt::Debug;
@@ -49,29 +42,9 @@ use super::macros;
 macros::create_all_prerequisites!(
     connector_name: Itaubank,
     generic_type: T,
-    api: [
-        (
-            flow: PayoutGet,
-            response_body: ItaubankPayoutGetResponse,
-            router_data: RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-        )
-    ],
+    api: [],
     amount_converters: [],
     member_functions: {}
-);
-
-macros::macro_connector_payout_implementation!(
-    connector: Itaubank,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    payout_flows: [
-        PayoutCreate,
-        PayoutVoid,
-        PayoutStage,
-        PayoutCreateLink,
-        PayoutCreateRecipient,
-        PayoutEnrollDisburseAccount
-    ]
 );
 
 fn construct_itaubank_error_message(error_res: &ItaubankErrorResponse) -> String {
@@ -353,259 +326,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder, _connector_config)
-    }
-}
-
-// ===== PAYOUT TRANSFER FLOW =====
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PayoutTransferV2 for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PayoutTransfer,
-        PayoutFlowData,
-        PayoutTransferRequest,
-        PayoutTransferResponse,
-    > for Itaubank<T>
-{
-    fn get_http_method(&self) -> common_utils::request::Method {
-        common_utils::request::Method::Post
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        "application/json"
-    }
-
-    fn get_certificate(
-        &self,
-        req: &RouterDataV2<
-            PayoutTransfer,
-            PayoutFlowData,
-            PayoutTransferRequest,
-            PayoutTransferResponse,
-        >,
-    ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, errors::IntegrationError> {
-        let auth = ItaubankAuthType::try_from(&req.connector_config)?;
-        Ok(auth.certificates)
-    }
-
-    fn get_certificate_key(
-        &self,
-        req: &RouterDataV2<
-            PayoutTransfer,
-            PayoutFlowData,
-            PayoutTransferRequest,
-            PayoutTransferResponse,
-        >,
-    ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, errors::IntegrationError> {
-        let auth = ItaubankAuthType::try_from(&req.connector_config)?;
-        Ok(auth.private_key)
-    }
-
-    fn get_url(
-        &self,
-        req: &RouterDataV2<
-            PayoutTransfer,
-            PayoutFlowData,
-            PayoutTransferRequest,
-            PayoutTransferResponse,
-        >,
-    ) -> CustomResult<String, errors::IntegrationError> {
-        let base_url = build_env_specific_endpoint(
-            self.base_url(&req.resource_common_data.connectors),
-            req.resource_common_data.test_mode,
-        );
-        Ok(format!("{base_url}/v1/transferencias"))
-    }
-
-    fn get_headers(
-        &self,
-        req: &RouterDataV2<
-            PayoutTransfer,
-            PayoutFlowData,
-            PayoutTransferRequest,
-            PayoutTransferResponse,
-        >,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
-        let access_token = req.resource_common_data.get_access_token().map_err(|_| {
-            errors::IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
-            }
-        })?;
-        let auth = ItaubankAuthType::try_from(&req.connector_config)?;
-
-        Ok(vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                "application/json".to_string().into(),
-            ),
-            (headers::ACCEPT.to_string(), "*/*".to_string().into()),
-            (
-                headers::AUTHORIZATION.to_string(),
-                format!("Bearer {access_token}").into_masked(),
-            ),
-            (
-                headers::USER_AGENT.to_string(),
-                "Hyperswitch".to_string().into(),
-            ),
-            (
-                headers::X_ITAU_API_KEY.to_string(),
-                auth.client_id.expose().into_masked(),
-            ),
-        ])
-    }
-
-    fn get_request_body(
-        &self,
-        req: &RouterDataV2<
-            PayoutTransfer,
-            PayoutFlowData,
-            PayoutTransferRequest,
-            PayoutTransferResponse,
-        >,
-    ) -> CustomResult<Option<RequestContent>, errors::IntegrationError> {
-        let connector_req = ItaubankTransferRequest::try_from(req)?;
-        Ok(Some(RequestContent::Json(Box::new(connector_req))))
-    }
-
-    fn handle_response_v2(
-        &self,
-        data: &RouterDataV2<
-            PayoutTransfer,
-            PayoutFlowData,
-            PayoutTransferRequest,
-            PayoutTransferResponse,
-        >,
-        event_builder: Option<&mut events::Event>,
-        res: Response,
-    ) -> CustomResult<
-        RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
-        errors::ConnectorError,
-    > {
-        let response: Result<ItaubankTransferResponse, _> =
-            res.response.parse_struct("ItaubankTransferResponse");
-
-        match response {
-            Ok(transfer_res) => {
-                event_builder.map(|i| i.set_connector_response(&transfer_res));
-                Ok(RouterDataV2 {
-                    response: Ok(PayoutTransferResponse {
-                        merchant_payout_id: None,
-                        payout_status: transfer_res.transfer_status.get_payout_status(),
-                        connector_payout_id: Some(transfer_res.id),
-                        status_code: res.status_code,
-                    }),
-                    ..data.clone()
-                })
-            }
-            Err(_) => {
-                tracing::error!(
-                    "Failed to parse transfer response from Itaubank. Status: {}, Raw: {:?}",
-                    res.status_code,
-                    res.response
-                );
-                Err(errors::ConnectorError::ResponseDeserializationFailed {
-                    context: Default::default(),
-                }
-                .into())
-            }
-        }
-    }
-
-    fn get_error_response_v2(
-        &self,
-        res: Response,
-        event_builder: Option<&mut events::Event>,
-        _connector_config: &ConnectorSpecificConfig,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder, _connector_config)
-    }
-}
-
-// ===== PAYOUT GET FLOW =====
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PayoutGetV2 for Itaubank<T>
-{
-}
-
-macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: Itaubank,
-    curl_response: ItaubankPayoutGetResponse,
-    flow_name: PayoutGet,
-    resource_common_data: PayoutFlowData,
-    flow_request: PayoutGetRequest,
-    flow_response: PayoutGetResponse,
-    http_method: Get,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    other_functions: {
-        fn get_headers(
-            &self,
-            req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
-            let access_token = req.resource_common_data.get_access_token().map_err(|_| {
-                errors::IntegrationError::FailedToObtainAuthType {
-                    context: Default::default(),
-                }
-            })?;
-            let auth = ItaubankAuthType::try_from(&req.connector_config)?;
-
-            Ok(vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    "application/json".to_string().into(),
-                ),
-                (headers::ACCEPT.to_string(), "*/*".to_string().into()),
-                (
-                    headers::AUTHORIZATION.to_string(),
-                    format!("Bearer {access_token}").into_masked(),
-                ),
-                (
-                    headers::USER_AGENT.to_string(),
-                    "Hyperswitch".to_string().into(),
-                ),
-                (
-                    headers::X_ITAU_API_KEY.to_string(),
-                    auth.client_id.expose().into_masked(),
-                )
-            ])
-        }
-        fn get_url(
-            &self,
-            req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-        ) -> CustomResult<String, errors::IntegrationError> {
-            let base_url = build_env_specific_endpoint(
-                self.base_url(&req.resource_common_data.connectors),
-                req.resource_common_data.test_mode,
-            );
-            let connector_payout_id = req.request.connector_payout_id.clone().ok_or(errors::IntegrationError::MissingConnectorTransactionID{ context: Default::default() })?;
-            Ok(format!("{}v1/pagamentos_sispag/{}", base_url, connector_payout_id))
-        }
-        fn get_certificate(
-            &self,
-            req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-        ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, errors::IntegrationError> {
-            let auth = ItaubankAuthType::try_from(&req.connector_config)?;
-            Ok(auth.certificates)
-        }
-        fn get_certificate_key(
-            &self,
-            req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-        ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, errors::IntegrationError> {
-            let auth = ItaubankAuthType::try_from(&req.connector_config)?;
-            Ok(auth.private_key)
-        }
-    }
-);
-
-fn build_env_specific_endpoint(base_url: &str, test_mode: Option<bool>) -> String {
-    if test_mode.unwrap_or(true) {
-        format!("{base_url}/itau-ep9-gtw-sispag-ext")
-    } else {
-        format!("{base_url}/sispag")
     }
 }
 
