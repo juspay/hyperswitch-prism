@@ -274,6 +274,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   AxisbankConfig: ["merchantKid", "juspayKid", "merchantPrivateKey", "juspayPublicKey"],
   TwocTwopPacoConfig: ["accessToken", "officeId", "pacoKid", "merchantSigningPrivateKey", "merchantEncryptionPrivateKey", "pacoSigningPublicKey", "pacoEncryptionPublicKey", "responseAudience"],
   InterpaymentsConfig: ["apiKey"],
+  JuspayConfig: ["apiKey", "merchantId"],
   PaymentServiceTokenAuthorizeRequest: ["connectorToken", "metadata", "connectorFeatureData"],
   PaymentServiceTokenSetupRecurringRequest: ["connectorToken", "metadata", "connectorFeatureData"],
   PaymentServiceProxyAuthorizeRequest: ["metadata", "connectorFeatureData"],
