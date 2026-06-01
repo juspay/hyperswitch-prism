@@ -627,8 +627,40 @@
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: repeat_payment flow for nexixpay"
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1/orders/mit",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "correlation-id": "00000000-0000-0000-0000-000000000000",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"order\":{\"orderId\":\"\",\"amount\":\"1000\",\"currency\":\"USD\",\"customerInfo\":{\"cardHolderName\":\"Cardholder\",\"shippingAddress\":null}},\"contractId\":\"probe-mandate-123\",\"captureType\":\"IMPLICIT\"}"
+        }
       }
     },
     "recurring_revoke": {

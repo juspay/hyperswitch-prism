@@ -9,10 +9,11 @@ import asyncio
 import sys
 from payments import PaymentClient
 from payments import PaymentMethodAuthenticationClient
+from payments import RecurringPaymentClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["capture", "get", "pre_authenticate", "refund", "refund_get", "setup_recurring", "void"]
+SUPPORTED_FLOWS = ["capture", "get", "pre_authenticate", "recurring_charge", "refund", "refund_get", "setup_recurring", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -67,6 +68,28 @@ def _build_pre_authenticate_request():
         ),
         enrolled_for_3ds=False,  # Authentication Details.
         return_url="https://example.com/3ds-return",  # URLs for Redirection.
+    )
+
+def _build_recurring_charge_request():
+    return payment_pb2.RecurringPaymentServiceChargeRequest(
+        connector_recurring_payment_id=payment_pb2.MandateReference(  # Reference to existing mandate.
+            connector_mandate_id=payment_pb2.ConnectorMandateReferenceId(  # mandate_id sent by the connector.
+                connector_mandate_id="probe-mandate-123",
+            ),
+        ),
+        amount=payment_pb2.Money(  # Amount Information.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+        payment_method=payment_methods_pb2.PaymentMethod(  # Optional payment Method Information (for network transaction flows).
+            token=payment_methods_pb2.TokenPaymentMethodType(
+                token=payment_methods_pb2.SecretString(value="probe_pm_token"),  # The token string representing a payment method.
+            ),
+        ),
+        return_url="https://example.com/recurring-return",
+        connector_customer_id="cust_probe_123",
+        payment_method_type=payment_pb2.PaymentMethodType.Value("PAY_PAL"),
+        off_session=True,  # Behavioral Flags and Preferences.
     )
 
 def _build_refund_request(connector_transaction_id: str):
@@ -152,6 +175,15 @@ async def process_pre_authenticate(merchant_transaction_id: str, config: sdk_con
     pre_response = await paymentmethodauthentication_client.pre_authenticate(_build_pre_authenticate_request())
 
     return {"status": pre_response.status}
+
+
+async def process_recurring_charge(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: RecurringPaymentService.Charge"""
+    recurringpayment_client = RecurringPaymentClient(config)
+
+    recurring_response = await recurringpayment_client.charge(_build_recurring_charge_request())
+
+    return {"status": recurring_response.status}
 
 
 async def process_refund(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

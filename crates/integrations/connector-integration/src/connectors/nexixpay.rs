@@ -32,12 +32,12 @@ use serde::Serialize;
 use transformers as nexixpay;
 use transformers::{
     NexixpayCaptureRequest, NexixpayCaptureResponse, NexixpayClientAuthRequest,
-    NexixpayClientAuthResponse, NexixpayPaymentsRequest, NexixpayPaymentsResponse,
-    NexixpayPostAuthenticateRequest, NexixpayPostAuthenticateResponse,
+    NexixpayClientAuthResponse, NexixpayMandatePaymentRequest, NexixpayPaymentsRequest,
+    NexixpayPaymentsResponse, NexixpayPostAuthenticateRequest, NexixpayPostAuthenticateResponse,
     NexixpayPreAuthenticateRequest, NexixpayPreAuthenticateResponse, NexixpayRSyncResponse,
-    NexixpayMandatePaymentRequest, NexixpayRefundRequest, NexixpayRefundResponse,
-    NexixpayRepeatPaymentResponse, NexixpaySetupMandateRequest, NexixpaySetupMandateResponse,
-    NexixpaySyncResponse, NexixpayVoidRequest, NexixpayVoidResponse,
+    NexixpayRefundRequest, NexixpayRefundResponse, NexixpayRepeatPaymentResponse,
+    NexixpaySetupMandateRequest, NexixpaySetupMandateResponse, NexixpaySyncResponse,
+    NexixpayVoidRequest, NexixpayVoidResponse,
 };
 use uuid::Uuid;
 
