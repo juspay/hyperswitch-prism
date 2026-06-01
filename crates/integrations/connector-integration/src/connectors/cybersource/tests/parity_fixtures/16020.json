@@ -1,0 +1,7 @@
+{
+  "description": "Regression fixture for GH #16020: card.type should be '001' (Visa) not null when card_network is absent",
+  "card_number": "4242424242424242",
+  "expected_card_type": "001",
+  "expected_card_issuer": "Visa",
+  "source": "Shadow-validation diff: HS request had type='001', UCS request had type=null due to Debug-format masking of card number in fallback path"
+}

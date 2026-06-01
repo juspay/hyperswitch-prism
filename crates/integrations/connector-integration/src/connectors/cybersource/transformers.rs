@@ -178,7 +178,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     {
                         Some(card_network) => Some(card_network.to_string()),
                         None => domain_types::utils::get_card_issuer(
-                            &(format!("{:?}", ccard.card_number.0)),
+                            ccard.card_number.peek(),
                         )
                         .ok()
                         .map(card_issuer_to_string),
@@ -1370,7 +1370,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let card_type = match raw_card_type.clone().and_then(get_cybersource_card_type) {
             Some(card_network) => Some(card_network.to_string()),
-            None => domain_types::utils::get_card_issuer(&(format!("{:?}", ccard.card_number.0)))
+            None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
                 .ok()
                 .map(card_issuer_to_string),
         };
@@ -2530,7 +2530,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 {
                     Some(card_network) => Some(card_network.to_string()),
                     None => domain_types::utils::get_card_issuer(
-                        &(format!("{:?}", ccard.card_number.0)),
+                        ccard.card_number.peek(),
                     )
                     .ok()
                     .map(card_issuer_to_string),
@@ -3560,7 +3560,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 {
                     Some(card_network) => Some(card_network.to_string()),
                     None => domain_types::utils::get_card_issuer(
-                        &(format!("{:?}", ccard.card_number.0)),
+                        ccard.card_number.peek(),
                     )
                     .ok()
                     .map(card_issuer_to_string),
@@ -3838,7 +3838,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 {
                     Some(card_network) => Some(card_network.to_string()),
                     None => domain_types::utils::get_card_issuer(
-                        &(format!("{:?}", ccard.card_number.0)),
+                        ccard.card_number.peek(),
                     )
                     .ok()
                     .map(card_issuer_to_string),
@@ -5773,5 +5773,27 @@ impl TryFrom<ResponseRouterData<CybersourceClientAuthResponse, Self>>
             }),
             ..item.router_data
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(serde::Deserialize)]
+    struct ParityFixture {
+        card_number: String,
+        expected_card_type: String,
+    }
+
+    #[test]
+    fn test_parity_16020_card_type_fallback() {
+        let raw = include_str!("tests/parity_fixtures/16020.json");
+        let fixture: ParityFixture = serde_json::from_str(raw).unwrap();
+
+        let card_issuer =
+            domain_types::utils::get_card_issuer(&fixture.card_number).expect("card issuer lookup");
+        let card_type = card_issuer_to_string(card_issuer);
+        assert_eq!(card_type, fixture.expected_card_type);
     }
 }
