@@ -375,6 +375,11 @@ fn prune_all_default_top_level_keys(root: &mut Value) {
             // Only prune if: (a) the value has at least one primitive leaf,
             // AND (b) all leaves are defaults.  Subtrees with no primitive
             // leaves (e.g. oneof selectors like `{ "ideal": {} }`) are kept.
+            // Scalar "auto_generate" sentinels are exempt — resolve_auto_generate
+            // runs after this and needs the field present to substitute a value.
+            if matches!(val, Value::String(s) if s == "auto_generate") {
+                return false;
+            }
             contains_primitive_leaf(val) && has_only_default_leaves(val)
         })
         .map(|(key, _)| key.clone())
