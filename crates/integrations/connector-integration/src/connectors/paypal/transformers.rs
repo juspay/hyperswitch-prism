@@ -2627,12 +2627,12 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalThreeDsSyncResponse, Self>>
                 ..item.router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
             }),
@@ -2702,7 +2702,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 ..item.router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Some(Box::new(paypal_threeds_link(
                     (
                         link,
@@ -2713,7 +2713,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
             }),
