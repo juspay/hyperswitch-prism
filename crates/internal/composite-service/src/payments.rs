@@ -14,7 +14,8 @@ use grpc_api_types::payments::{
     CompositeCaptureResponse, CompositeGetRequest, CompositeGetResponse, CompositeRefundGetRequest,
     CompositeRefundGetResponse, CompositeRefundRequest, CompositeRefundResponse,
     CompositeSetupRecurringRequest, CompositeSetupRecurringResponse, CompositeStatus,
-    CompositeVoidRequest, CompositeVoidResponse, ConnectorState, CustomerServiceCreateResponse,
+    CompositeVoidRequest, CompositeVoidResponse, ConnectorState, Customer,
+    CustomerServiceCreateResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
@@ -36,6 +37,47 @@ use crate::transformers::ForeignFrom;
 use crate::utils::{
     connector_from_composite_metadata, is_failure_payment_status, is_terminal_payment_status,
 };
+
+/// Trait for abstracting access to common fields needed for connector customer creation.
+pub trait CompositeCustomerRequest {
+    fn state(&self) -> Option<&ConnectorState>;
+    fn customer(&self) -> Option<&Customer>;
+    fn build_create_customer_request(
+        &self,
+    ) -> grpc_api_types::payments::CustomerServiceCreateRequest;
+}
+
+impl CompositeCustomerRequest for CompositeAuthorizeRequest {
+    fn state(&self) -> Option<&ConnectorState> {
+        self.state.as_ref()
+    }
+
+    fn customer(&self) -> Option<&Customer> {
+        self.customer.as_ref()
+    }
+
+    fn build_create_customer_request(
+        &self,
+    ) -> grpc_api_types::payments::CustomerServiceCreateRequest {
+        grpc_api_types::payments::CustomerServiceCreateRequest::foreign_from(self)
+    }
+}
+
+impl CompositeCustomerRequest for CompositeSetupRecurringRequest {
+    fn state(&self) -> Option<&ConnectorState> {
+        self.state.as_ref()
+    }
+
+    fn customer(&self) -> Option<&Customer> {
+        self.customer.as_ref()
+    }
+
+    fn build_create_customer_request(
+        &self,
+    ) -> grpc_api_types::payments::CustomerServiceCreateRequest {
+        grpc_api_types::payments::CustomerServiceCreateRequest::foreign_from(self)
+    }
+}
 
 /// Decoded CRes (Challenge Response) from 3DS challenge completion.
 /// Trait for abstracting access to common fields needed for access token creation.
@@ -320,22 +362,20 @@ where
         Ok(session_token_response)
     }
 
-    async fn create_connector_customer(
+    async fn create_connector_customer<Req: CompositeCustomerRequest>(
         &self,
         connector: &ConnectorEnum,
-        payload: &CompositeAuthorizeRequest,
+        payload: &Req,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
     ) -> Result<Option<CustomerServiceCreateResponse>, tonic::Status> {
         let connector_data = ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(connector);
         let connector_customer_id = payload
-            .state
-            .as_ref()
+            .state()
             .and_then(|state| state.connector_customer_id.clone())
             .or_else(|| {
                 payload
-                    .customer
-                    .as_ref()
+                    .customer()
                     .and_then(|c| c.connector_customer_id.clone())
             });
         let should_create_connector_customer =
@@ -344,8 +384,7 @@ where
 
         let create_customer_response = match should_create_connector_customer {
             true => {
-                let create_customer_payload =
-                    grpc_api_types::payments::CustomerServiceCreateRequest::foreign_from(payload);
+                let create_customer_payload = payload.build_create_customer_request();
                 let mut create_customer_request = tonic::Request::new(create_customer_payload);
                 *create_customer_request.metadata_mut() = metadata.clone();
                 *create_customer_request.extensions_mut() = extensions.clone();
@@ -768,11 +807,15 @@ where
         access_token_response: Option<
             &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
         >,
+        create_customer_response: Option<&CustomerServiceCreateResponse>,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
     ) -> Result<PaymentServiceSetupRecurringResponse, tonic::Status> {
-        let setup_recurring_payload =
-            PaymentServiceSetupRecurringRequest::foreign_from((payload, access_token_response));
+        let setup_recurring_payload = PaymentServiceSetupRecurringRequest::foreign_from((
+            payload,
+            access_token_response,
+            create_customer_response,
+        ));
 
         let mut setup_recurring_request = tonic::Request::new(setup_recurring_payload);
         *setup_recurring_request.metadata_mut() = metadata.clone();
@@ -797,11 +840,15 @@ where
         let access_token_response = self
             .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
             .await?;
-        println!("access_token_response: {:?}", access_token_response);
+        let create_customer_response = self
+            .create_connector_customer(&connector, &payload, &metadata, &extensions)
+            .await?;
+
         let setup_recurring_response = self
             .setup_recurring(
                 &payload,
                 access_token_response.as_ref(),
+                create_customer_response.as_ref(),
                 &metadata,
                 &extensions,
             )
@@ -809,6 +856,7 @@ where
 
         Ok(tonic::Response::new(CompositeSetupRecurringResponse {
             access_token_response,
+            create_customer_response,
             setup_recurring: Some(setup_recurring_response),
         }))
     }

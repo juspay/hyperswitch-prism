@@ -50,6 +50,20 @@ pub fn get_connector_customer_id(
         .or_else(|| create_connector_customer_response.map(|res| res.connector_customer_id.clone()))
 }
 
+/// Updates the customer object with the resolved connector_customer_id if present
+pub fn update_customer_with_connector_id(
+    customer: Option<grpc_api_types::payments::Customer>,
+    connector_customer_id: Option<String>,
+) -> Option<grpc_api_types::payments::Customer> {
+    customer.map(|mut cust| {
+        // Only update if we have a resolved connector_customer_id
+        if let Some(id) = connector_customer_id {
+            cust.connector_customer_id = Some(id);
+        }
+        cust
+    })
+}
+
 pub fn access_token_from_create_server_authentication_token_response(
     access_token_response: Option<
         &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,

@@ -20,7 +20,7 @@ use grpc_api_types::payments::{
 
 use crate::utils::{
     get_access_token, get_connector_customer_id, get_session_token,
-    grpc_connector_from_connector_enum,
+    grpc_connector_from_connector_enum, update_customer_with_connector_id,
 };
 
 pub trait ForeignFrom<F>: Sized {
@@ -92,6 +92,34 @@ impl ForeignFrom<&CompositeAuthorizeRequest> for CustomerServiceCreateRequest {
     }
 }
 
+impl ForeignFrom<&CompositeSetupRecurringRequest> for CustomerServiceCreateRequest {
+    fn foreign_from(item: &CompositeSetupRecurringRequest) -> Self {
+        let customer = item.customer.as_ref();
+        Self {
+            merchant_customer_id: item
+                .merchant_customer_id
+                .clone()
+                .or_else(|| customer.and_then(|c| c.id.clone())),
+            customer_name: item
+                .customer_name
+                .clone()
+                .or_else(|| customer.and_then(|c| c.name.clone())),
+            email: item
+                .email
+                .clone()
+                .or_else(|| customer.and_then(|c| c.email.clone())),
+            phone_number: item
+                .phone_number
+                .clone()
+                .or_else(|| customer.and_then(|c| c.phone_number.clone())),
+            address: item.address.clone(),
+            metadata: item.metadata.clone(),
+            connector_feature_data: item.connector_feature_data.clone(),
+            test_mode: item.test_mode,
+        }
+    }
+}
+
 impl
     ForeignFrom<(
         &CompositeAuthorizeRequest,
@@ -136,7 +164,7 @@ impl
 
         let resolved_state = Some(ConnectorState {
             access_token,
-            connector_customer_id,
+            connector_customer_id: connector_customer_id.clone(),
         });
 
         // Prefer authentication_data from post-auth, then from authenticate, then from request
@@ -158,7 +186,10 @@ impl
             shipping_cost: item.shipping_cost,
             payment_method: item.payment_method.clone(),
             capture_method: item.capture_method,
-            customer: item.customer.clone(),
+            customer: update_customer_with_connector_id(
+                item.customer.clone(),
+                connector_customer_id.clone(),
+            ),
             address: item.address.clone(),
             auth_type: item.auth_type,
             enrolled_for_3ds: item.enrolled_for_3ds,
@@ -630,12 +661,14 @@ impl
     ForeignFrom<(
         &CompositeSetupRecurringRequest,
         Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+        Option<&CustomerServiceCreateResponse>,
     )> for PaymentServiceSetupRecurringRequest
 {
     fn foreign_from(
-        (item, access_token_response): (
+        (item, access_token_response, create_customer_response): (
             &CompositeSetupRecurringRequest,
             Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+            Option<&CustomerServiceCreateResponse>,
         ),
     ) -> Self {
         let access_token_from_req = item
@@ -645,21 +678,27 @@ impl
 
         let access_token = get_access_token(access_token_from_req, access_token_response);
 
-        let connector_customer_id = item
+        let connector_customer_id_from_req = item
             .state
             .as_ref()
             .and_then(|state| state.connector_customer_id.clone());
 
+        let connector_customer_id =
+            get_connector_customer_id(connector_customer_id_from_req, create_customer_response);
+
         let resolved_state = Some(ConnectorState {
             access_token,
-            connector_customer_id,
+            connector_customer_id: connector_customer_id.clone(),
         });
 
         Self {
             merchant_recurring_payment_id: item.merchant_recurring_payment_id.clone(),
             amount: item.amount,
             payment_method: item.payment_method.clone(),
-            customer: item.customer.clone(),
+            customer: update_customer_with_connector_id(
+                item.customer.clone(),
+                connector_customer_id.clone(),
+            ),
             address: item.address.clone(),
             auth_type: item.auth_type,
             enrolled_for_3ds: item.enrolled_for_3ds,

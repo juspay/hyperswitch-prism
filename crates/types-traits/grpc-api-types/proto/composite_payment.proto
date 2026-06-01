@@ -476,7 +476,8 @@ message CompositeSetupRecurringRequest {
 // Response message for composite setup recurring flow.
 message CompositeSetupRecurringResponse {
   optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 1;
-  optional PaymentServiceSetupRecurringResponse setup_recurring = 2;
+  optional CustomerServiceCreateResponse create_customer_response = 2;
+  optional PaymentServiceSetupRecurringResponse setup_recurring = 3;
 }
 
 // Request for CompositeEventService.HandleEvent.

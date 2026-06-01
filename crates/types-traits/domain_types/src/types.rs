@@ -3649,11 +3649,11 @@ impl<
                 .map(common_utils::types::MinorUnit::new),
             customer_id: value
                 .customer
-                .and_then(|customer| customer.connector_customer_id)
+                .and_then(|customer| customer.id)
                 .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
                 .transpose()
                 .change_context(IntegrationError::InvalidDataFormat {
-                    field_name: "customer.connector_customer_id",
+                    field_name: "customer.id",
                     context: IntegrationErrorContext {
                         additional_context: Some("Failed to parse Customer Id".to_string()),
                         ..Default::default()
