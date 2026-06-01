@@ -36,9 +36,8 @@ use crate::connectors::payload::{PayloadAmountConvertor, PayloadRouterData};
 use crate::types::ResponseRouterData;
 
 pub use super::requests::{
-    PayloadBankAccountRequestData, PayloadCaptureRequest, PayloadCardsRequestData,
-    PayloadCustomerRequest, PayloadPaymentsRequest, PayloadRefundRequest,
-    PayloadRepeatPaymentRequest, PayloadVoidRequest,
+    PayloadCaptureRequest, PayloadCustomerRequest, PayloadPaymentRequestData,
+    PayloadPaymentsRequest, PayloadRefundRequest, PayloadRepeatPaymentRequest, PayloadVoidRequest,
 };
 pub use super::responses::{
     PayloadAuthorizeResponse, PayloadCaptureResponse, PayloadCustomerResponse,
@@ -49,9 +48,6 @@ pub use super::responses::{
 
 type Error = error_stack::Report<IntegrationError>;
 type ResponseError = error_stack::Report<ConnectorError>;
-
-// Constants
-const PAYMENT_METHOD_TYPE_CARD: &str = "card";
 
 // Helper function to check if capture method is manual
 fn is_manual_capture(capture_method: Option<enums::CaptureMethod>) -> bool {
@@ -131,8 +127,7 @@ impl PayloadAuthType {
     }
 }
 
-// Helper function to build card request data
-fn build_payload_cards_request_data<T: PaymentMethodDataTypes>(
+fn build_payload_card_request_data<T: PaymentMethodDataTypes>(
     payment_method_data: &PaymentMethodData<T>,
     connector_config: &ConnectorSpecificConfig,
     currency: enums::Currency,
@@ -140,22 +135,24 @@ fn build_payload_cards_request_data<T: PaymentMethodDataTypes>(
     resource_common_data: &PaymentFlowData,
     capture_method: Option<enums::CaptureMethod>,
     is_mandate: bool,
-) -> Result<PayloadCardsRequestData<T>, Error> {
+) -> Result<PayloadPaymentRequestData<T>, Error> {
     if let PaymentMethodData::Card(req_card) = payment_method_data {
         let payload_auth = PayloadAuth::try_from((connector_config, currency))?;
 
         let card = requests::PayloadCard {
-            number: req_card.card_number.clone(),
-            expiry: req_card.get_card_expiry_month_year_2_digit_with_delimiter("/".to_string())?,
-            cvc: req_card.card_cvc.clone(),
+            card: requests::PayloadCardData {
+                card_number: req_card.card_number.clone(),
+                expiry: req_card
+                    .get_card_expiry_month_year_2_digit_with_delimiter("/".to_string())?,
+                card_code: req_card.card_cvc.clone(),
+            },
         };
 
-        // Get billing address to access zip and state
         let billing_addr = resource_common_data.get_billing_address()?;
 
-        let billing_address = requests::BillingAddress {
+        let billing_address = Some(requests::BillingAddress {
             city: resource_common_data.get_billing_city()?,
-            country: resource_common_data.get_billing_country()?,
+            country_code: resource_common_data.get_billing_country()?,
             postal_code: billing_addr.zip.clone().ok_or(
                 IntegrationError::MissingRequiredField {
                     field_name: "billing.address.zip",
@@ -169,24 +166,24 @@ fn build_payload_cards_request_data<T: PaymentMethodDataTypes>(
                 },
             )?,
             street_address: resource_common_data.get_billing_line1()?,
-        };
+        });
 
-        // For manual capture, set status to "authorized"
         let status = if is_manual_capture(capture_method) {
             Some(responses::PayloadPaymentStatus::Authorized)
         } else {
             None
         };
 
-        Ok(PayloadCardsRequestData {
+        Ok(PayloadPaymentRequestData {
             amount,
-            card,
+            payment_method: requests::PayloadPaymentMethod {
+                method: requests::PayloadPaymentMethods::Card(card),
+                billing_address,
+                keep_active: is_mandate,
+            },
             transaction_types: requests::TransactionTypes::Payment,
-            payment_method_type: PAYMENT_METHOD_TYPE_CARD.to_string(),
             status,
-            billing_address,
             processing_id: payload_auth.processing_account_id,
-            keep_active: is_mandate,
             customer_id: resource_common_data.connector_customer.clone(),
         })
     } else {
@@ -199,15 +196,14 @@ fn build_payload_cards_request_data<T: PaymentMethodDataTypes>(
     }
 }
 
-// Helper function to build bank account (ACH) request data
-fn build_payload_bank_account_request_data(
+fn build_payload_bank_account_request_data<T: PaymentMethodDataTypes>(
     bank_debit_data: &BankDebitData,
     connector_config: &ConnectorSpecificConfig,
     currency: enums::Currency,
     amount: FloatMajorUnit,
     capture_method: Option<enums::CaptureMethod>,
     resource_common_data: &PaymentFlowData,
-) -> Result<PayloadBankAccountRequestData, Error> {
+) -> Result<PayloadPaymentRequestData<T>, Error> {
     match bank_debit_data {
         BankDebitData::AchBankDebit {
             account_number,
@@ -248,10 +244,13 @@ fn build_payload_bank_account_request_data(
                 }
             };
 
-            let bank_account = requests::PayloadBankAccount {
-                account_number: account_number.clone(),
-                routing_number: routing_number.clone(),
-                account_type,
+            let bank = requests::PayloadBank {
+                bank_account: requests::PayloadBankAccountInner {
+                    account_number: account_number.clone(),
+                    routing_number: routing_number.clone(),
+                    account_type,
+                },
+                account_holder,
             };
 
             let status = if is_manual_capture(capture_method) {
@@ -260,15 +259,16 @@ fn build_payload_bank_account_request_data(
                 None
             };
 
-            Ok(PayloadBankAccountRequestData {
+            Ok(PayloadPaymentRequestData {
                 amount,
-                bank_account,
+                payment_method: requests::PayloadPaymentMethod {
+                    method: requests::PayloadPaymentMethods::BankAccount(bank),
+                    billing_address: None,
+                    keep_active: false,
+                },
                 transaction_types: requests::TransactionTypes::Payment,
-                payment_method_type: requests::PAYMENT_METHOD_TYPE_BANK_ACCOUNT.to_string(),
-                account_holder,
                 status,
                 processing_id: payload_auth.processing_account_id,
-                keep_active: false,
                 customer_id: resource_common_data.connector_customer.clone(),
             })
         }
@@ -298,7 +298,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             >,
             T,
         >,
-    > for PayloadCardsRequestData<T>
+    > for PayloadPaymentRequestData<T>
 {
     type Error = Error;
 
@@ -322,18 +322,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             }
             .into()),
-            _ => {
-                // For SetupMandate, is_mandate is always true
-                build_payload_cards_request_data(
-                    &router_data.request.payment_method_data,
-                    &router_data.connector_config,
-                    router_data.request.currency,
-                    FloatMajorUnit::zero(),
-                    &router_data.resource_common_data,
-                    None, // No capture_method for SetupMandate
-                    true,
-                )
-            }
+            _ => build_payload_card_request_data(
+                &router_data.request.payment_method_data,
+                &router_data.connector_config,
+                router_data.request.currency,
+                FloatMajorUnit::zero(),
+                &router_data.resource_common_data,
+                None,
+                true,
+            ),
         }
     }
 }
@@ -377,7 +374,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Card(_) => {
                 let is_mandate = router_data.request.is_mandate_payment();
 
-                let cards_data = build_payload_cards_request_data(
+                let payment_data = build_payload_card_request_data(
                     &router_data.request.payment_method_data,
                     &router_data.connector_config,
                     router_data.request.currency,
@@ -387,10 +384,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     is_mandate,
                 )?;
 
-                Ok(Self::PayloadCardsRequest(Box::new(cards_data)))
+                Ok(Self::PayloadPaymentRequest(Box::new(payment_data)))
             }
             PaymentMethodData::BankDebit(bank_debit_data) => {
-                let bank_account_data = build_payload_bank_account_request_data(
+                let payment_data = build_payload_bank_account_request_data(
                     bank_debit_data,
                     &router_data.connector_config,
                     router_data.request.currency,
@@ -399,7 +396,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     &router_data.resource_common_data,
                 )?;
 
-                Ok(Self::PayloadBankAccountRequest(Box::new(bank_account_data)))
+                Ok(Self::PayloadPaymentRequest(Box::new(payment_data)))
             }
             // Payload connector supports GooglePay and ApplePay wallets, but not yet integrated
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
@@ -597,7 +594,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             transaction_type: requests::TransactionTypes::Refund,
             amount,
-            ledger_assoc_transaction_id: connector_transaction_id,
+            ledger: vec![requests::PayloadRefundLedgerEntry {
+                assoc_transaction_id: connector_transaction_id,
+            }],
         })
     }
 }
