@@ -2,18 +2,14 @@ pub mod transformers;
 
 use bytes::Bytes;
 use common_enums::CurrencyUnit;
-use common_utils::{
-    errors::CustomResult,
-    events,
-    types::StringMajorUnit,
-};
+use common_utils::{errors::CustomResult, events, types::StringMajorUnit};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
-        ConnectorWebhookSecrets, EventType, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
-        RefundsData, RefundsResponseData, RequestDetails, WebhookDetailsResponse,
-        WebhookResourceReference,
+        ConnectorWebhookSecrets, EventType, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RequestDetails,
+        WebhookDetailsResponse, WebhookResourceReference,
     },
     errors::WebhookError,
     payment_method_data::PaymentMethodDataTypes,
@@ -48,9 +44,7 @@ pub(crate) type AsiaPayRSyncRequest = transformers::AsiaPayRSyncRequest;
 pub(crate) type AsiaPayRSyncResponse = transformers::AsiaPayMerchantApiResponse;
 
 use super::macros;
-use crate::{
-    types::ResponseRouterData, with_error_response_body,
-};
+use crate::{types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 
@@ -88,8 +82,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response_str = String::from_utf8_lossy(&res.response);
-        let response: transformers::AsiaPayErrorResponse =
-            serde_qs::from_str(&response_str).unwrap_or(transformers::AsiaPayErrorResponse {
+        let response: transformers::AsiaPayErrorResponse = serde_qs::from_str(&response_str)
+            .unwrap_or(transformers::AsiaPayErrorResponse {
                 error_code: Some(res.status_code.to_string()),
                 error_message: Some(response_str.to_string()),
             });
@@ -278,11 +272,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<bool, error_stack::Report<WebhookError>> {
         let body_str = String::from_utf8(request.body.to_vec())
             .map_err(|_| WebhookError::WebhookBodyDecodingFailed)?;
-        let webhook: transformers::AsiaPayWebhookBody = serde_qs::from_str(&body_str)
-            .map_err(|_| WebhookError::WebhookBodyDecodingFailed)?;
+        let webhook: transformers::AsiaPayWebhookBody =
+            serde_qs::from_str(&body_str).map_err(|_| WebhookError::WebhookBodyDecodingFailed)?;
 
-        let secret = connector_webhook_secret
-            .ok_or(WebhookError::WebhookVerificationSecretNotFound)?;
+        let secret =
+            connector_webhook_secret.ok_or(WebhookError::WebhookVerificationSecretNotFound)?;
         let secret_str = String::from_utf8(secret.secret.to_vec())
             .map_err(|_| WebhookError::WebhookVerificationSecretNotFound)?;
 
@@ -300,8 +294,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
         let body_str = String::from_utf8(request.body.to_vec())
             .map_err(|_| WebhookError::WebhookBodyDecodingFailed)?;
-        let webhook: transformers::AsiaPayWebhookBody = serde_qs::from_str(&body_str)
-            .map_err(|_| WebhookError::WebhookBodyDecodingFailed)?;
+        let webhook: transformers::AsiaPayWebhookBody =
+            serde_qs::from_str(&body_str).map_err(|_| WebhookError::WebhookBodyDecodingFailed)?;
         Ok(webhook.get_webhook_event_type())
     }
 
@@ -311,8 +305,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
         let body_str = String::from_utf8(request.body.to_vec())
             .map_err(|_| WebhookError::WebhookBodyDecodingFailed)?;
-        let webhook: transformers::AsiaPayWebhookBody = serde_qs::from_str(&body_str)
-            .map_err(|_| WebhookError::WebhookBodyDecodingFailed)?;
+        let webhook: transformers::AsiaPayWebhookBody =
+            serde_qs::from_str(&body_str).map_err(|_| WebhookError::WebhookBodyDecodingFailed)?;
         Ok(Some(transformers::get_webhook_resource_reference(&webhook)))
     }
 
@@ -325,8 +319,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
         let body_str = String::from_utf8(request.body.to_vec())
             .map_err(|_| WebhookError::WebhookBodyDecodingFailed)?;
-        let webhook: transformers::AsiaPayWebhookBody = serde_qs::from_str(&body_str)
-            .map_err(|_| WebhookError::WebhookBodyDecodingFailed)?;
+        let webhook: transformers::AsiaPayWebhookBody =
+            serde_qs::from_str(&body_str).map_err(|_| WebhookError::WebhookBodyDecodingFailed)?;
         Ok(transformers::get_webhook_details_response(&webhook))
     }
 }
@@ -391,12 +385,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _event_builder: Option<&mut events::Event>,
         res: Response,
     ) -> CustomResult<
-        RouterDataV2<
-            Authorize,
-            PaymentFlowData,
-            PaymentsAuthorizeData<T>,
-            PaymentsResponseData,
-        >,
+        RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ConnectorError,
     > {
         let response = AsiaPayRedirectResponse {

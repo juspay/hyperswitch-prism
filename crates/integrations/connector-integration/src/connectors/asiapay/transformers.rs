@@ -111,8 +111,12 @@ fn map_order_status(status: &str) -> AttemptStatus {
         "Cancelled" | "Voided" | "Reverse Auth" | "Reversal Void" | "Reversal-CB" => {
             AttemptStatus::Voided
         }
-        "Refunded" | "Partial Refunded" | "RequestRefund" | "RequestPartialRefund"
-        | "ChargeBack" | "Partial ChargeBack" => AttemptStatus::AutoRefunded,
+        "Refunded"
+        | "Partial Refunded"
+        | "RequestRefund"
+        | "RequestPartialRefund"
+        | "ChargeBack"
+        | "Partial ChargeBack" => AttemptStatus::AutoRefunded,
         _ => AttemptStatus::Pending,
     }
 }
@@ -136,7 +140,6 @@ pub struct AsiaPayPaymentRequest {
     pub cancel_url: String,
     pub secure_hash: Secret<String>,
 }
-
 
 #[derive(Debug, Deserialize)]
 pub struct AsiaPayRedirectResponse {
@@ -167,21 +170,13 @@ pub struct AsiaPayRedirectResponse {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    TryFrom<
-        ResponseRouterData<
-            AsiaPayRedirectResponse,
-            Self,
-        >,
-    >
+    TryFrom<ResponseRouterData<AsiaPayRedirectResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            AsiaPayRedirectResponse,
-            Self,
-        >,
+        item: ResponseRouterData<AsiaPayRedirectResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let router_data = item.router_data;
 
@@ -530,20 +525,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // RSync response
-impl TryFrom<
-    ResponseRouterData<
-        AsiaPayMerchantApiResponse,
-        Self,
-    >,
-> for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
+impl TryFrom<ResponseRouterData<AsiaPayMerchantApiResponse, Self>>
+    for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            AsiaPayMerchantApiResponse,
-            Self,
-        >,
+        item: ResponseRouterData<AsiaPayMerchantApiResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let router_data = item.router_data;
         let response = &item.response;
@@ -620,20 +608,13 @@ pub struct AsiaPayMerchantApiResponse {
 }
 
 // Capture response
-impl TryFrom<
-    ResponseRouterData<
-        AsiaPayMerchantApiResponse,
-        Self,
-    >,
-> for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
+impl TryFrom<ResponseRouterData<AsiaPayMerchantApiResponse, Self>>
+    for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            AsiaPayMerchantApiResponse,
-            Self,
-        >,
+        item: ResponseRouterData<AsiaPayMerchantApiResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let router_data = item.router_data;
         let response = &item.response;
@@ -643,13 +624,12 @@ impl TryFrom<
 
         if result_code == "0" {
             let status = map_order_status(order_status);
-            let connector_transaction_id =
-                response.pay_ref.clone().unwrap_or_else(|| {
-                    match &router_data.request.connector_transaction_id {
-                        ResponseId::ConnectorTransactionId(id) => id.clone(),
-                        _ => String::new(),
-                    }
-                });
+            let connector_transaction_id = response.pay_ref.clone().unwrap_or_else(|| {
+                match &router_data.request.connector_transaction_id {
+                    ResponseId::ConnectorTransactionId(id) => id.clone(),
+                    _ => String::new(),
+                }
+            });
 
             Ok(Self {
                 resource_common_data: PaymentFlowData {
@@ -691,20 +671,13 @@ impl TryFrom<
 }
 
 // Void response
-impl TryFrom<
-    ResponseRouterData<
-        AsiaPayMerchantApiResponse,
-        Self,
-    >,
-> for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
+impl TryFrom<ResponseRouterData<AsiaPayMerchantApiResponse, Self>>
+    for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            AsiaPayMerchantApiResponse,
-            Self,
-        >,
+        item: ResponseRouterData<AsiaPayMerchantApiResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let router_data = item.router_data;
         let response = &item.response;
@@ -759,20 +732,13 @@ impl TryFrom<
 }
 
 // PSync response
-impl TryFrom<
-    ResponseRouterData<
-        AsiaPayMerchantApiResponse,
-        Self,
-    >,
-> for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
+impl TryFrom<ResponseRouterData<AsiaPayMerchantApiResponse, Self>>
+    for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            AsiaPayMerchantApiResponse,
-            Self,
-        >,
+        item: ResponseRouterData<AsiaPayMerchantApiResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let router_data = item.router_data;
         let response = &item.response;
@@ -802,14 +768,13 @@ impl TryFrom<
         let order_status = response.order_status.as_deref().unwrap_or("Pending");
         let status = map_order_status(order_status);
 
-        let connector_transaction_id =
-            response.pay_ref.clone().unwrap_or_else(|| {
-                router_data
-                    .request
-                    .connector_transaction_id
-                    .get_connector_transaction_id()
-                    .unwrap_or_default()
-            });
+        let connector_transaction_id = response.pay_ref.clone().unwrap_or_else(|| {
+            router_data
+                .request
+                .connector_transaction_id
+                .get_connector_transaction_id()
+                .unwrap_or_default()
+        });
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
@@ -832,20 +797,13 @@ impl TryFrom<
 }
 
 // Refund response
-impl TryFrom<
-    ResponseRouterData<
-        AsiaPayMerchantApiResponse,
-        Self,
-    >,
-> for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
+impl TryFrom<ResponseRouterData<AsiaPayMerchantApiResponse, Self>>
+    for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            AsiaPayMerchantApiResponse,
-            Self,
-        >,
+        item: ResponseRouterData<AsiaPayMerchantApiResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let router_data = item.router_data;
         let response = &item.response;
@@ -977,9 +935,7 @@ pub fn get_webhook_details_response(webhook: &AsiaPayWebhookBody) -> WebhookDeta
     let connector_transaction_id = webhook.pay_ref.clone().unwrap_or_default();
 
     WebhookDetailsResponse {
-        resource_id: Some(ResponseId::ConnectorTransactionId(
-            connector_transaction_id,
-        )),
+        resource_id: Some(ResponseId::ConnectorTransactionId(connector_transaction_id)),
         status,
         connector_response_reference_id: webhook.order_ref.clone(),
         mandate_reference: None,
