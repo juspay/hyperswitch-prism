@@ -518,16 +518,19 @@ macros::macro_connector_implementation!(
 );
 
 // Setup Mandate
-// NexiXPay does not expose a dedicated "tokenize the card without moving funds"
-// endpoint. The closest documented anchor that future RepeatPayment / MIT calls
-// can replay against is the `operationId` returned by `/orders/3steps/init`,
-// which Nexi tracks as the originating "contract" operation. SetupMandate
-// therefore reuses the `/orders/3steps/init` endpoint with `recurrence.action
-// = CONTRACT_CREATION` + `actionType = VERIFY` and `amount = 0`, and surfaces
-// the returned `operationId` as `mandate_reference.connector_mandate_id`. The
-// status comes back as `AuthenticationPending` (3DS challenge required) for a
-// real card — the customer completes the 3DS hop on Nexi's hosted page and the
-// existing PreAuthenticate/PostAuthenticate flows finish wiring the contract.
+// NexiXPay has no dedicated "tokenize the card without moving funds" endpoint, so
+// SetupMandate reuses the `/orders/3steps/init` endpoint (same request shape as
+// PreAuthenticate — see the `NexixpaySetupMandateRequest` type alias) with
+// `recurrence.action = CONTRACT_CREATION` + `contractType = MIT_UNSCHEDULED` +
+// `actionType = VERIFY` and `amount = 0`. The merchant-assigned `contractId`
+// (derived from `connector_request_reference_id`) is surfaced back as
+// `mandate_reference.connector_mandate_id` so a future RepeatPayment / MIT call
+// can replay it — mirroring hyperswitch. The Nexi `operationId` is NOT the
+// mandate anchor; it is kept on `connector_feature_data` / `preprocessing_id`
+// only so the downstream PostAuthenticate / PSync flows can drive the 3DS
+// handshake. Status comes back as `AuthenticationPending` (3DS challenge
+// required) for a real card — the customer completes the 3DS hop on Nexi's
+// hosted page.
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Nexixpay,

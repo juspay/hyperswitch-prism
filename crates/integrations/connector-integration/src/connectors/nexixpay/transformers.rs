@@ -1800,35 +1800,28 @@ impl TryFrom<ResponseRouterData<NexixpayClientAuthResponse, Self>>
 
 // ===== SETUP MANDATE (Pay.SetupRecurring) FLOW STRUCTURES =====
 //
-// NexiXPay does not expose a "tokenize the card without moving funds" endpoint.
-// The closest stable anchor it gives back is the `operationId` returned by
-// `/orders/3steps/init` — the same call that PreAuthenticate uses to kick off
-// the 3DS hop on a regular purchase. Nexi tracks that operationId as the
-// originating "contract" operation, and the documented way to wire up future
-// CIT / MIT charges is to replay the contract via `recurrence.contractId`.
+// NexiXPay has no dedicated "tokenize the card without moving funds" endpoint.
+// A stored credential is created by replaying a merchant-assigned `contractId`
+// on `/orders/3steps/init` with `recurrence.action = CONTRACT_CREATION`; future
+// CIT / MIT charges replay that same `contractId`.
 //
-// SetupMandate therefore mirrors the PreAuthenticate request shape (card +
-// billing customer info + zero-amount order) but pins the recurrence to
-// `CONTRACT_CREATION` + `MIT_UNSCHEDULED`, and adds `actionType = VERIFY` so
-// Nexi treats this as a card-verification (no funds move). The response
-// surfaces the returned `operationId` as `mandate_reference.connector_mandate_id`
-// so the orchestrator can hand it back on a future RepeatPayment / MIT call.
-// 3DS will still be required for a real card — status passes through as
-// `AuthenticationPending` and the customer completes the handshake on Nexi's
-// hosted page. The existing PreAuthenticate metadata wiring (operationId stored
-// on `connector_feature_data`) is preserved so the same downstream flows
-// (PostAuthenticate / PSync) keep working.
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NexixpaySetupMandateRequest {
-    pub order: NexixpayPreAuthOrder,
-    pub card: NexixpayCardData,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub recurrence: Option<NexixpayRecurrence>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub action_type: Option<NexixpayPaymentRequestActionType>,
-}
+// This mirrors hyperswitch, where SetupMandate reuses the Authorize "init"
+// request (`NexixpayPaymentsRequest`) rather than a bespoke body. In prism the
+// "init" request is `NexixpayPreAuthenticateRequest`, so SetupMandate reuses it
+// verbatim (hence the type alias below). The only thing that makes it a *setup*
+// call is that the `TryFrom` impl below always pins the recurrence to
+// `CONTRACT_CREATION` + `MIT_UNSCHEDULED` with `actionType = VERIFY` on a
+// zero-amount order (card verification — no funds move).
+//
+// The `contractId` is sourced from `connector_request_reference_id` (prism's
+// analog of hyperswitch's `connector_mandate_request_reference_id`, populated
+// from the `merchant_recurring_payment_id` on the SetupRecurring request), and
+// the SAME value is surfaced back as `mandate_reference.connector_mandate_id`
+// (see the response transformer) so the orchestrator can replay it on a future
+// RepeatPayment / MIT call. The Nexi `operationId` is NOT the mandate anchor —
+// it is preserved on `connector_feature_data` / `preprocessing_id` purely so the
+// downstream PostAuthenticate / PSync flows can drive the 3DS handshake.
+pub type NexixpaySetupMandateRequest = NexixpayPreAuthenticateRequest;
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
@@ -1953,28 +1946,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             description: item.resource_common_data.description.clone(),
         };
 
-        // CONTRACT_CREATION + MIT_UNSCHEDULED — this is how Nexi documents
-        // setting up a stored credential. Nexi requires a `contractId` on the
-        // wire for CONTRACT_CREATION: if the caller passed one through
-        // `mandate_id`, forward it; otherwise mint a deterministic one off
-        // the order id so the call is accepted on a pure "register the
-        // mandate" probe.
-        let provided_contract_id = item
-            .request
-            .mandate_id
-            .as_ref()
-            .and_then(|mandate_ids| mandate_ids.mandate_reference_id.clone())
-            .and_then(|reference_id| match reference_id {
-                MandateReferenceId::ConnectorMandateId(mandate_data) => {
-                    mandate_data.get_connector_mandate_request_reference_id()
-                }
-                _ => None,
-            });
-        let contract_id = provided_contract_id.unwrap_or_else(|| order.order_id.clone());
-
+        // CONTRACT_CREATION + MIT_UNSCHEDULED — this is how Nexi registers a
+        // stored credential. Nexi requires a merchant-assigned `contractId` on
+        // the wire; we use the order id, which is derived from
+        // `connector_request_reference_id` (== `merchant_recurring_payment_id`)
+        // and is prism's analog of hyperswitch's `connector_mandate_request_reference_id`
+        // (hyperswitch sources the SetupMandate contractId from that same
+        // request reference — never from `mandate_id`, which is always absent on
+        // a fresh setup). Nexi echoes this value back as `operation.order_id`,
+        // and the response transformer surfaces it as
+        // `mandate_reference.connector_mandate_id`, so the wire `contractId` and
+        // the stored mandate anchor are guaranteed to be the same value — the
+        // round-trip a future RepeatPayment / MIT call relies on.
         let recurrence = Some(NexixpayRecurrence {
             action: NexixpayRecurringAction::ContractCreation,
-            contract_id: Some(Secret::new(contract_id)),
+            contract_id: Some(Secret::new(order.order_id.clone())),
             contract_type: Some(ContractType::MitUnscheduled),
         });
 
@@ -1992,9 +1978,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // SetupMandate response shape is identical to the PreAuthenticate init
 // response — same operation envelope, same optional 3DS auth payload — so we
 // re-use the existing response body and only customise the response-side
-// mapping to populate `mandate_reference.connector_mandate_id` with the Nexi
-// `operationId` (the stable anchor a future RepeatPayment / MIT call will
-// replay).
+// mapping to populate `mandate_reference.connector_mandate_id` with the
+// `contractId` we created (echoed back as `operation.order_id`), which is the
+// stable anchor a future RepeatPayment / MIT call replays via
+// `recurrence.contractId`.
 pub type NexixpaySetupMandateResponse = NexixpayPreAuthenticateResponse;
 
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NexixpaySetupMandateResponse, Self>>
@@ -2045,7 +2032,12 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NexixpaySetupMandateR
                 "ThreeDsRequest".to_string(),
                 response.three_ds_auth_request.clone().unwrap_or_default(),
             );
-            if let Some(continue_url) = &item.router_data.request.router_return_url {
+            // ReturnUrl — where the cardholder returns after the 3DS challenge.
+            // Use `complete_authorize_url` (the continuation endpoint), matching
+            // hyperswitch's SetupMandate 3DS form (`get_complete_authorize_url`)
+            // and the PreAuthenticate sibling's intent — NOT `router_return_url`,
+            // which points at the PSync `/response` endpoint, not the continuation.
+            if let Some(continue_url) = &item.router_data.request.complete_authorize_url {
                 form_fields.insert("ReturnUrl".to_string(), continue_url.to_string());
             }
             form_fields.insert("transactionId".to_string(), operation.operation_id.clone());
@@ -2061,18 +2053,26 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NexixpaySetupMandateR
             None
         };
 
-        // Hand back the `operationId` as the stable mandate reference id —
-        // this is the contract anchor a future RepeatPayment / MIT call
-        // replays via `recurrence.contractId`.
+        // Hand back the `contractId` we created as the stable mandate
+        // reference id. Nexi echoes it as `operation.order_id` (it equals the
+        // `contractId` sent on `recurrence.contractId`), and this is the exact
+        // value a future RepeatPayment / MIT call must replay. This matches
+        // hyperswitch, which surfaces the same `connector_mandate_request_reference_id`
+        // it sent — NOT the one-shot `operationId` (that is kept on
+        // connector_metadata / preprocessing_id below for the 3DS continuation).
         let mandate_reference = Some(Box::new(MandateReference {
-            connector_mandate_id: Some(operation.operation_id.clone()),
+            connector_mandate_id: Some(operation.order_id.clone()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
         }));
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(operation.operation_id.clone()),
+                // resource_id == order id (the contract reference), matching
+                // hyperswitch's SetupMandate response. The Nexi `operationId`
+                // needed to drive PSync / the 3DS continuation is carried on
+                // `connector_feature_data` / `preprocessing_id` below, not here.
+                resource_id: ResponseId::ConnectorTransactionId(operation.order_id.clone()),
                 redirection_data,
                 mandate_reference,
                 connector_metadata: connector_metadata.clone(),
