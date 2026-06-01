@@ -9,13 +9,13 @@ use prost_types::{
 
 // Fields intentionally present in granular requests but excluded from composite request.
 const DEFAULT_IGNORE_GRANULAR_ONLY_FIELDS: &[&str] = &["connector"];
-const AUTHORIZE_IGNORE_GRANULAR_ONLY_FIELDS: &[&str] = &["connector", "domain_context", "payment"];
+const PAYMENTS_IGNORE_GRANULAR_ONLY_FIELDS: &[&str] = &["connector", "domain_context", "payment"];
 
 // Fields intentionally present only in the composite request.
 const DEFAULT_IGNORE_COMPOSITE_ONLY_FIELDS: &[&str] = &[];
 
 // Fields present only in composite requests for flows that don't have payment_method in their granular request
-const IGNORE_COMPOSITE_ONLY_FIELDS: &[&str] = &["payment_method"];
+const IGNORE_COMPOSITE_ONLY_FIELDS: &[&str] = &["payment_method", "merchant_request_id", "order_details", "tokenization_strategy"];
 
 struct CompositeFlowSpec {
     name: &'static str,
@@ -35,7 +35,7 @@ const COMPOSITE_FLOW_SPECS: &[CompositeFlowSpec] = &[
             "CustomerServiceCreateRequest",
             "PaymentServiceAuthorizeRequest",
         ],
-        ignore_granular_only_fields: AUTHORIZE_IGNORE_GRANULAR_ONLY_FIELDS,
+        ignore_granular_only_fields: PAYMENTS_IGNORE_GRANULAR_ONLY_FIELDS,
         ignore_composite_only_fields: DEFAULT_IGNORE_COMPOSITE_ONLY_FIELDS,
     },
     CompositeFlowSpec {
@@ -73,10 +73,12 @@ const COMPOSITE_FLOW_SPECS: &[CompositeFlowSpec] = &[
         composite_request_message: "CompositeSetupRecurringRequest",
         granular_request_messages: &[
             "MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest",
+            "MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest",
+            "CustomerServiceCreateRequest",
             "PaymentServiceSetupRecurringRequest",
         ],
-        ignore_granular_only_fields: DEFAULT_IGNORE_GRANULAR_ONLY_FIELDS,
-        ignore_composite_only_fields: IGNORE_COMPOSITE_ONLY_FIELDS,
+        ignore_granular_only_fields: PAYMENTS_IGNORE_GRANULAR_ONLY_FIELDS,
+        ignore_composite_only_fields: DEFAULT_IGNORE_COMPOSITE_ONLY_FIELDS,
     },
 ];
 

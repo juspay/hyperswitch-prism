@@ -74,7 +74,7 @@ impl ForeignFrom<(&CompositeSetupRecurringRequest, &ConnectorEnum)>
         };
 
         Self {
-            merchant_server_session_id: None,  // SetupRecurring doesn't have this field
+            merchant_server_session_id: item.merchant_server_session_id.clone(),
             connector_feature_data: item.connector_feature_data.clone(),
             state: item.state.clone(),
             test_mode: item.test_mode,

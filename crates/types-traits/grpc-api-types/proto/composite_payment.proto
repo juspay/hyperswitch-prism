@@ -411,6 +411,7 @@ message CompositeSetupRecurringRequest {
 
   // Session and Token Information
   optional string session_token = 14;
+  optional string merchant_server_session_id = 45;  // Server session identifier for tracking
 
   // Order Details
   optional int64 order_tax_amount = 15;
@@ -452,20 +453,11 @@ message CompositeSetupRecurringRequest {
   // Mandate setup details
   optional SetupMandateDetails setup_mandate_details = 35;
 
-  // Order Line Items
-  repeated OrderDetailsWithAmount order_details = 36;
-
-  // Tokenization Configuration
-  optional Tokenization tokenization_strategy = 37;
-
   // Environment Configuration
   optional bool test_mode = 38;
 
   // Access Token
   optional string merchant_access_token_id = 39;
-
-  // Request ID
-  optional string merchant_request_id = 40;
 
   optional string customer_name = 41;
   optional SecretString email = 42;
