@@ -215,16 +215,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     additional_context: Some("Amount conversion failed".to_string()),
                 },
             })?;
-        let amount_str = stringify_amount(&amount).change_context(
-            ConnectorError::ResponseHandlingFailed {
+        let amount_str =
+            stringify_amount(&amount).change_context(ConnectorError::ResponseHandlingFailed {
                 context: domain_types::errors::ResponseTransformationErrorContext {
                     http_status_code: Some(item.http_code),
-                    additional_context: Some(
-                        "Failed to serialize amount to string".to_string(),
-                    ),
+                    additional_context: Some("Failed to serialize amount to string".to_string()),
                 },
-            },
-        )?;
+            })?;
 
         let pay_type = match router_data.request.capture_method {
             Some(CaptureMethod::Manual) => "H",
