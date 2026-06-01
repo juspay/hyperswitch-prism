@@ -178,7 +178,8 @@ message PaymentMethod {
     Affirm affirm = 110;                                       // Affirm - US BNPL service
     AfterpayClearpay afterpay_clearpay = 111;                  // Afterpay/Clearpay - BNPL service
     Klarna klarna = 112;                                       // Klarna - Swedish BNPL service
-    
+    PayBright pay_bright = 115;                                // PayBright - Canadian BNPL service
+
     // NETWORK TRANSACTION METHODS (120-129) - For recurring payments with network transaction IDs
     CardDetailsForNetworkTransactionId card_details_for_network_transaction_id = 120; // Card details with network transaction ID
     NetworkTokenData network_token = 121; // Network token data
@@ -1054,6 +1055,11 @@ message Klarna {
   // Fields will be added as needed for Klarna integration
 }
 
+// PayBright - Canadian BNPL service
+message PayBright {
+  // Fields will be added as needed for PayBright integration
+}
+
 /*
 
 // Alma - French BNPL service
@@ -1064,11 +1070,6 @@ message Alma {
 // Atome - Asian BNPL service
 message Atome {
   // Fields will be added as needed for Atome integration
-}
-
-// PayBright - Canadian BNPL service
-message PayBright {
-  // Fields will be added as needed for PayBright integration
 }
 
 // Walley - Nordic BNPL service

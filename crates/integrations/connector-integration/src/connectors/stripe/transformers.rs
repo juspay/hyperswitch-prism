@@ -795,6 +795,8 @@ pub enum StripePaymentMethodType {
     #[serde(rename = "cashapp")]
     Cashapp,
     RevolutPay,
+    #[serde(rename = "paybright")]
+    PayBright,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -815,6 +817,7 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             common_enums::PaymentMethodType::Klarna => Ok(Self::Klarna),
             common_enums::PaymentMethodType::Affirm => Ok(Self::Affirm),
             common_enums::PaymentMethodType::AfterpayClearpay => Ok(Self::AfterpayClearpay),
+            common_enums::PaymentMethodType::PayBright => Ok(Self::PayBright),
             common_enums::PaymentMethodType::Eps => Ok(Self::Eps),
             common_enums::PaymentMethodType::Giropay => Ok(Self::Giropay),
             common_enums::PaymentMethodType::Ideal => Ok(Self::Ideal),
@@ -879,7 +882,6 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             | common_enums::PaymentMethodType::OpenBanking
             | common_enums::PaymentMethodType::OpenBankingPIS
             | common_enums::PaymentMethodType::PagoEfectivo
-            | common_enums::PaymentMethodType::PayBright
             | common_enums::PaymentMethodType::Pse
             | common_enums::PaymentMethodType::RedCompra
             | common_enums::PaymentMethodType::RedPagos
@@ -1141,9 +1143,9 @@ impl TryFrom<&PayLaterData> for StripePaymentMethodType {
             PayLaterData::KlarnaRedirect { .. } => Ok(Self::Klarna),
             PayLaterData::AffirmRedirect {} => Ok(Self::Affirm),
             PayLaterData::AfterpayClearpayRedirect { .. } => Ok(Self::AfterpayClearpay),
+            PayLaterData::PayBrightRedirect {} => Ok(Self::PayBright),
 
             PayLaterData::KlarnaSdk { .. }
-            | PayLaterData::PayBrightRedirect {}
             | PayLaterData::WalleyRedirect {}
             | PayLaterData::AlmaRedirect {}
             | PayLaterData::AtomeRedirect {} => Err(IntegrationError::NotImplemented(
@@ -2478,6 +2480,8 @@ pub enum StripePaymentMethodDetailsResponse {
     Klarna,
     Affirm,
     AfterpayClearpay,
+    #[serde(rename = "paybright")]
+    PayBright,
     AmazonPay,
     ApplePay,
     #[serde(rename = "us_bank_account")]
@@ -2533,6 +2537,7 @@ impl StripePaymentMethodDetailsResponse {
             | Self::Klarna
             | Self::Affirm
             | Self::AfterpayClearpay
+            | Self::PayBright
             | Self::AmazonPay
             | Self::ApplePay
             | Self::Ach
@@ -2948,6 +2953,7 @@ pub fn get_payment_method_id(
             | Some(StripePaymentMethodDetailsResponse::Klarna)
             | Some(StripePaymentMethodDetailsResponse::Affirm)
             | Some(StripePaymentMethodDetailsResponse::AfterpayClearpay)
+            | Some(StripePaymentMethodDetailsResponse::PayBright)
             | Some(StripePaymentMethodDetailsResponse::AmazonPay)
             | Some(StripePaymentMethodDetailsResponse::ApplePay)
             | Some(StripePaymentMethodDetailsResponse::Ach)
@@ -3534,6 +3540,8 @@ pub enum StripePaymentMethodOptions {
     Klarna {},
     Affirm {},
     AfterpayClearpay {},
+    #[serde(rename = "paybright")]
+    PayBright {},
     AmazonPay {},
     Eps {},
     Giropay {},
