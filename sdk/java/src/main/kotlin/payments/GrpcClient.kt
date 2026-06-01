@@ -179,6 +179,11 @@ class GrpcEventClient internal constructor(
      */
     suspend fun handle_event(req: EventServiceHandleRequest): EventServiceHandleResponse =
         callGrpc(config, "event/handle_event", req, EventServiceHandleResponse.parser())
+    /**
+     * EventService.NotifyConnector — Notify connectors about events (payment succeeded, refund succeeded, refund failed).
+     */
+    suspend fun notify_connector(req: NotifyConnectorRequest): NotifyConnectorResponse =
+        callGrpc(config, "event/notify_connector", req, NotifyConnectorResponse.parser())
 }
 
 /**

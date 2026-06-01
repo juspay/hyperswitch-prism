@@ -39,6 +39,8 @@ pub const X_REQUEST_ID: &str = "x-request-id";
 pub const X_CONNECTOR_NAME: &str = "x-connector";
 /// Header key for surcharge connector identification
 pub const X_SURCHARGE_CONNECTOR_NAME: &str = "x-surcharge-connector";
+/// Header key for payout connector identification
+pub const X_PAYOUT_CONNECTOR_NAME: &str = "x-payout-connector";
 /// Header key for merchant identification
 pub const X_MERCHANT_ID: &str = "x-merchant-id";
 /// Header key for reference identification
