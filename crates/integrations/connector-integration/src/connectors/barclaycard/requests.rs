@@ -40,6 +40,26 @@ pub struct CardPaymentInformation<T: PaymentMethodDataTypes + Sync + Send + 'sta
 #[serde(untagged)]
 pub enum PaymentInformation<T: PaymentMethodDataTypes + Sync + Send + 'static + Serialize> {
     Cards(Box<CardPaymentInformation<T>>),
+    GooglePay(Box<GooglePayPaymentInformation>),
+}
+
+/// Fluid data wrapper used for Google Pay (and Apple Pay) wallet tokens.
+///
+/// CyberSource (and Barclaycard Smartpay Fuse as its whitelabel) expects the
+/// Google Pay token to be Base64-encoded and placed in `paymentInformation.fluidData.value`.
+/// The corresponding `processingInformation.paymentSolution` must be `"012"` for Google Pay.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayPaymentInformation {
+    pub fluid_data: FluidData,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FluidData {
+    pub value: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub descriptor: Option<String>,
 }
 
 #[derive(Debug, Serialize)]

@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use base64::Engine as _;
 use common_utils::types::StringMajorUnit;
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
@@ -10,7 +11,9 @@ use domain_types::{
         ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::{
+        GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, WalletData,
+    },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
 };
@@ -480,30 +483,67 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data.request.currency,
         )?;
 
-        let ccard = match &router_data.request.payment_method_data {
-            PaymentMethodData::Card(card) => Ok(card),
-            _ => Err(IntegrationError::NotImplemented(
-                "Only card payments are supported".to_string(),
-                Default::default(),
-            )),
-        }?;
+        let (payment_information, payment_solution) = match &router_data.request.payment_method_data
+        {
+            PaymentMethodData::Card(ccard) => {
+                let card_network = ccard.card_network.clone();
+                let card_type = card_network
+                    .and_then(get_barclaycard_card_type)
+                    .map(|s| s.to_string());
 
-        let card_network = ccard.card_network.clone();
-        let card_type = card_network
-            .and_then(get_barclaycard_card_type)
-            .map(|s| s.to_string());
-
-        let payment_information =
-            requests::PaymentInformation::Cards(Box::new(requests::CardPaymentInformation {
-                card: requests::Card {
-                    number: ccard.card_number.clone(),
-                    expiration_month: ccard.card_exp_month.clone(),
-                    expiration_year: ccard.get_expiry_year_4_digit(),
-                    security_code: ccard.card_cvc.clone(),
-                    card_type,
-                    type_selection_indicator: Some(TYPE_SELECTION_INDICATOR_PRIMARY.to_owned()),
-                },
-            }));
+                let pi = requests::PaymentInformation::Cards(Box::new(
+                    requests::CardPaymentInformation {
+                        card: requests::Card {
+                            number: ccard.card_number.clone(),
+                            expiration_month: ccard.card_exp_month.clone(),
+                            expiration_year: ccard.get_expiry_year_4_digit(),
+                            security_code: ccard.card_cvc.clone(),
+                            card_type,
+                            type_selection_indicator: Some(
+                                TYPE_SELECTION_INDICATOR_PRIMARY.to_owned(),
+                            ),
+                        },
+                    },
+                ));
+                (pi, None)
+            }
+            PaymentMethodData::Wallet(WalletData::GooglePay(gpay_data)) => {
+                match &gpay_data.tokenization_data {
+                    GpayTokenizationData::Encrypted(encrypted_data) => {
+                        // Barclaycard (Smartpay Fuse / CyberSource whitelabel) expects the
+                        // full Google Pay token JSON to be Base64-encoded and placed in
+                        // paymentInformation.fluidData.value, with
+                        // processingInformation.paymentSolution = "012".
+                        let token_b64 =
+                            super::BASE64_ENGINE.encode(encrypted_data.token.as_bytes());
+                        let pi = requests::PaymentInformation::GooglePay(Box::new(
+                            requests::GooglePayPaymentInformation {
+                                fluid_data: requests::FluidData {
+                                    value: Secret::new(token_b64),
+                                    descriptor: None,
+                                },
+                            },
+                        ));
+                        (pi, Some("012".to_string()))
+                    }
+                    GpayTokenizationData::Decrypted(_) => {
+                        return Err(IntegrationError::NotImplemented(
+                            "Google Pay DIRECT (decrypted) mode is not supported by Barclaycard"
+                                .to_string(),
+                            Default::default(),
+                        )
+                        .into())
+                    }
+                }
+            }
+            _ => {
+                return Err(IntegrationError::NotImplemented(
+                    "Payment method not supported for Barclaycard Authorize".to_string(),
+                    Default::default(),
+                )
+                .into())
+            }
+        };
 
         let email = router_data
             .resource_common_data
@@ -535,7 +575,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 router_data.request.capture_method,
                 Some(common_enums::CaptureMethod::Automatic) | None
             )),
-            payment_solution: None, // Only set for wallet payments (GooglePay="012", ApplePay="001")
+            payment_solution, // "012" for GooglePay, None for cards
             cavv_algorithm: Some(CAVV_ALGORITHM_ATN.to_string()),
         };
 
