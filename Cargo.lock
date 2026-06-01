@@ -3232,6 +3232,7 @@ dependencies = [
  "prost-build",
  "prost-types",
  "serde",
+ "serde_json",
  "tonic 0.14.5",
  "tonic-build",
  "tonic-prost",
