@@ -79,6 +79,45 @@ impl CompositeCustomerRequest for CompositeSetupRecurringRequest {
     }
 }
 
+/// Trait for abstracting access to common fields needed for session token creation.
+pub trait CompositeSessionTokenRequest {
+    fn session_token(&self) -> Option<String>;
+    fn build_session_token_request(
+        &self,
+        connector: &ConnectorEnum,
+    ) -> MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest;
+}
+
+impl CompositeSessionTokenRequest for CompositeAuthorizeRequest {
+    fn session_token(&self) -> Option<String> {
+        self.session_token.clone()
+    }
+
+    fn build_session_token_request(
+        &self,
+        connector: &ConnectorEnum,
+    ) -> MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest {
+        MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest::foreign_from((
+            self, connector,
+        ))
+    }
+}
+
+impl CompositeSessionTokenRequest for CompositeSetupRecurringRequest {
+    fn session_token(&self) -> Option<String> {
+        self.session_token.clone()
+    }
+
+    fn build_session_token_request(
+        &self,
+        connector: &ConnectorEnum,
+    ) -> MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest {
+        MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest::foreign_from((
+            self, connector,
+        ))
+    }
+}
+
 /// Decoded CRes (Challenge Response) from 3DS challenge completion.
 /// Trait for abstracting access to common fields needed for access token creation.
 pub trait CompositeAccessTokenRequest {
@@ -295,7 +334,6 @@ where
                 .connector
                 .should_do_access_token(payment_method)
         };
-        print!("should_do_access_token: {should_do_access_token}");
         let payload_access_token = payload
             .state()
             .and_then(|state| state.access_token.as_ref())
@@ -319,15 +357,14 @@ where
             }
             false => None,
         };
-        print!("access_token_response: {access_token_response:?}");
 
         Ok(access_token_response)
     }
 
-    async fn create_server_session_authentication_token(
+    async fn create_server_session_authentication_token<Req: CompositeSessionTokenRequest>(
         &self,
         connector: &ConnectorEnum,
-        payload: &CompositeAuthorizeRequest,
+        payload: &Req,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
     ) -> Result<
@@ -338,12 +375,11 @@ where
         let should_do_session_token = connector_data.connector.should_do_session_token();
 
         let should_create_session_token =
-            payload.session_token.as_ref().is_none() && should_do_session_token;
+            payload.session_token().is_none() && should_do_session_token;
 
         let session_token_response = match should_create_session_token {
             true => {
-                let session_token_payload =
-                    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest::foreign_from((payload, connector));
+                let session_token_payload = payload.build_session_token_request(connector);
                 let mut session_token_request = tonic::Request::new(session_token_payload);
                 *session_token_request.metadata_mut() = metadata.clone();
                 *session_token_request.extensions_mut() = extensions.clone();
@@ -807,6 +843,9 @@ where
         access_token_response: Option<
             &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
         >,
+        session_token_response: Option<
+            &MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
+        >,
         create_customer_response: Option<&CustomerServiceCreateResponse>,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
@@ -814,6 +853,7 @@ where
         let setup_recurring_payload = PaymentServiceSetupRecurringRequest::foreign_from((
             payload,
             access_token_response,
+            session_token_response,
             create_customer_response,
         ));
 
@@ -840,6 +880,14 @@ where
         let access_token_response = self
             .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
             .await?;
+        let session_token_response = self
+            .create_server_session_authentication_token(
+                &connector,
+                &payload,
+                &metadata,
+                &extensions,
+            )
+            .await?;
         let create_customer_response = self
             .create_connector_customer(&connector, &payload, &metadata, &extensions)
             .await?;
@@ -848,6 +896,7 @@ where
             .setup_recurring(
                 &payload,
                 access_token_response.as_ref(),
+                session_token_response.as_ref(),
                 create_customer_response.as_ref(),
                 &metadata,
                 &extensions,
@@ -856,6 +905,7 @@ where
 
         Ok(tonic::Response::new(CompositeSetupRecurringResponse {
             access_token_response,
+            session_token_response,
             create_customer_response,
             setup_recurring: Some(setup_recurring_response),
         }))

@@ -477,7 +477,8 @@ message CompositeSetupRecurringRequest {
 message CompositeSetupRecurringResponse {
   optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 1;
   optional CustomerServiceCreateResponse create_customer_response = 2;
-  optional PaymentServiceSetupRecurringResponse setup_recurring = 3;
+  optional MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse session_token_response = 3;
+  optional PaymentServiceSetupRecurringResponse setup_recurring = 4;
 }
 
 // Request for CompositeEventService.HandleEvent.

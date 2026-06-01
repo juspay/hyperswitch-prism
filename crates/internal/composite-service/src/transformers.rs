@@ -64,6 +64,29 @@ impl ForeignFrom<(&CompositeAuthorizeRequest, &ConnectorEnum)>
     }
 }
 
+impl ForeignFrom<(&CompositeSetupRecurringRequest, &ConnectorEnum)>
+    for MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest
+{
+    fn foreign_from((item, _connector): (&CompositeSetupRecurringRequest, &ConnectorEnum)) -> Self {
+        use grpc_api_types::payments::{
+            merchant_authentication_service_create_server_session_authentication_token_request::DomainContext,
+            PaymentSessionContext,
+        };
+
+        Self {
+            merchant_server_session_id: None,  // SetupRecurring doesn't have this field
+            connector_feature_data: item.connector_feature_data.clone(),
+            state: item.state.clone(),
+            test_mode: item.test_mode,
+            domain_context: Some(DomainContext::Payment(PaymentSessionContext {
+                amount: item.amount,
+                metadata: item.metadata.clone(),
+                browser_info: item.browser_info.clone(),
+            })),
+        }
+    }
+}
+
 impl ForeignFrom<&CompositeAuthorizeRequest> for CustomerServiceCreateRequest {
     fn foreign_from(item: &CompositeAuthorizeRequest) -> Self {
         let customer = item.customer.as_ref();
@@ -661,13 +684,15 @@ impl
     ForeignFrom<(
         &CompositeSetupRecurringRequest,
         Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+        Option<&MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse>,
         Option<&CustomerServiceCreateResponse>,
     )> for PaymentServiceSetupRecurringRequest
 {
     fn foreign_from(
-        (item, access_token_response, create_customer_response): (
+        (item, access_token_response, session_token_response, create_customer_response): (
             &CompositeSetupRecurringRequest,
             Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+            Option<&MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse>,
             Option<&CustomerServiceCreateResponse>,
         ),
     ) -> Self {
@@ -708,7 +733,7 @@ impl
             return_url: item.return_url.clone(),
             webhook_url: item.webhook_url.clone(),
             complete_authorize_url: item.complete_authorize_url.clone(),
-            session_token: item.session_token.clone(),
+            session_token: get_session_token(item.session_token.clone(), session_token_response),
             order_tax_amount: item.order_tax_amount,
             order_category: item.order_category.clone(),
             merchant_order_id: item.merchant_order_id.clone(),
