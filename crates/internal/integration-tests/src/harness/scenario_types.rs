@@ -242,9 +242,17 @@ pub struct ConnectorSuiteSpec {
     pub supported_suites: Vec<String>,
     /// If set, the harness reads this request field as the connector request
     /// reference ID instead of generating the default `{suite}_{scenario}_ref`.
-    /// Example: `"merchant_order_id"`.
+    /// Example: `"merchant_order_id"`. This is the default for all suites
+    /// unless overridden in `request_id_source_field_per_suite`.
     #[serde(default)]
     pub request_id_source_field: Option<String>,
+    /// Per-suite overrides for `request_id_source_field`. Use when a connector
+    /// reads the reference id from a different proto field in different suites
+    /// (e.g. Redsys uses `merchant_transaction_id` for Authorize but
+    /// `merchant_order_id` for PreAuthenticate/Authenticate). Keys are suite
+    /// names (e.g. `"PaymentMethodAuthenticationService/PreAuthenticate"`).
+    #[serde(default)]
+    pub request_id_source_field_per_suite: HashMap<String, String>,
     /// Prefix for auto-generated reference IDs when `request_id_source_field`
     /// is set but resolves to an empty value. Defaults to `""`.
     #[serde(default)]
@@ -259,6 +267,16 @@ pub struct ConnectorSuiteSpec {
     /// ~30s). Default: no polling (status returned on first call is final).
     #[serde(default)]
     pub sync_poll_until_terminal_seconds: Option<u64>,
+    /// Per-suite dependency additions for this connector. Keys are suite
+    /// names (e.g. `"PaymentService/Authorize"`); values are extra
+    /// `SuiteDependency` entries prepended to the global `suite_spec.json`'s
+    /// `depends_on` at runtime — but only when running this connector.
+    /// Use this when a connector requires upstream context from a suite that
+    /// isn't part of the standard global chain (e.g. Redsys
+    /// `PaymentService/Authorize` requires prior `PreAuthenticate` output
+    /// for 3DS card scenarios).
+    #[serde(default)]
+    pub additional_dependencies: HashMap<String, Vec<SuiteDependency>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
