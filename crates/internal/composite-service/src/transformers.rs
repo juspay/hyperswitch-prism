@@ -1,8 +1,9 @@
 use domain_types::connector_types::ConnectorEnum;
 use grpc_api_types::payments::{
     CompositeAuthorizeRequest, CompositeCaptureRequest, CompositeGetRequest,
-    CompositeRefundGetRequest, CompositeRefundRequest, CompositeVoidRequest, ConnectorState,
-    CustomerServiceCreateRequest, CustomerServiceCreateResponse,
+    CompositeRefundGetRequest, CompositeRefundRequest, CompositeSetupRecurringRequest,
+    CompositeVoidRequest, ConnectorState, CustomerServiceCreateRequest,
+    CustomerServiceCreateResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
@@ -14,7 +15,7 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentServiceAuthorizeRequest,
     PaymentServiceCaptureRequest, PaymentServiceGetRequest, PaymentServiceRefundRequest,
-    PaymentServiceVoidRequest, RefundServiceGetRequest,
+    PaymentServiceSetupRecurringRequest, PaymentServiceVoidRequest, RefundServiceGetRequest,
 };
 
 use crate::utils::{
@@ -607,6 +608,88 @@ impl
             test_mode: item.test_mode,
             merchant_order_id: item.merchant_order_id.clone(),
             merchant_request_id: item.merchant_request_id.clone(),
+        }
+    }
+}
+
+impl ForeignFrom<(&CompositeSetupRecurringRequest, &ConnectorEnum)>
+    for MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
+{
+    fn foreign_from((item, connector): (&CompositeSetupRecurringRequest, &ConnectorEnum)) -> Self {
+        Self {
+            merchant_access_token_id: item.merchant_access_token_id.clone(),
+            connector: grpc_connector_from_connector_enum(connector),
+            metadata: item.metadata.clone(),
+            connector_feature_data: item.connector_feature_data.clone(),
+            test_mode: item.test_mode,
+        }
+    }
+}
+
+impl
+    ForeignFrom<(
+        &CompositeSetupRecurringRequest,
+        Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+    )> for PaymentServiceSetupRecurringRequest
+{
+    fn foreign_from(
+        (item, access_token_response): (
+            &CompositeSetupRecurringRequest,
+            Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+        ),
+    ) -> Self {
+        let access_token_from_req = item
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.clone());
+
+        let access_token = get_access_token(access_token_from_req, access_token_response);
+
+        let connector_customer_id = item
+            .state
+            .as_ref()
+            .and_then(|state| state.connector_customer_id.clone());
+
+        let resolved_state = Some(ConnectorState {
+            access_token,
+            connector_customer_id,
+        });
+
+        Self {
+            merchant_recurring_payment_id: item.merchant_recurring_payment_id.clone(),
+            amount: item.amount,
+            payment_method: item.payment_method.clone(),
+            customer: item.customer.clone(),
+            address: item.address.clone(),
+            auth_type: item.auth_type,
+            enrolled_for_3ds: item.enrolled_for_3ds,
+            authentication_data: item.authentication_data.clone(),
+            metadata: item.metadata.clone(),
+            connector_feature_data: item.connector_feature_data.clone(),
+            return_url: item.return_url.clone(),
+            webhook_url: item.webhook_url.clone(),
+            complete_authorize_url: item.complete_authorize_url.clone(),
+            session_token: item.session_token.clone(),
+            order_tax_amount: item.order_tax_amount,
+            order_category: item.order_category.clone(),
+            merchant_order_id: item.merchant_order_id.clone(),
+            shipping_cost: item.shipping_cost,
+            setup_future_usage: item.setup_future_usage,
+            off_session: item.off_session,
+            request_incremental_authorization: item.request_incremental_authorization,
+            request_extended_authorization: item.request_extended_authorization,
+            enable_partial_authorization: item.enable_partial_authorization,
+            customer_acceptance: item.customer_acceptance.clone(),
+            browser_info: item.browser_info.clone(),
+            payment_experience: item.payment_experience,
+            payment_channel: item.payment_channel,
+            billing_descriptor: item.billing_descriptor.clone(),
+            state: resolved_state,
+            order_id: item.order_id.clone(),
+            locale: item.locale.clone(),
+            connector_testing_data: item.connector_testing_data.clone(),
+            l2_l3_data: item.l2_l3_data.clone(),
+            setup_mandate_details: item.setup_mandate_details.clone(),
         }
     }
 }

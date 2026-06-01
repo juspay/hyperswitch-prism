@@ -22,6 +22,9 @@ service CompositePaymentService {
 
   // Runs composite capture flow.
   rpc Capture(CompositeCaptureRequest) returns (CompositeCaptureResponse);
+
+  // Runs composite setup recurring flow.
+  rpc SetupRecurring(CompositeSetupRecurringRequest) returns (CompositeSetupRecurringResponse);
 }
 
 service CompositeRefundService {

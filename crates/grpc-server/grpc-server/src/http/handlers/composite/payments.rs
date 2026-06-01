@@ -7,7 +7,8 @@ use grpc_api_types::payments::{
     composite_payment_service_server::CompositePaymentService, CompositeAuthorizeRequest,
     CompositeAuthorizeResponse, CompositeCaptureRequest, CompositeCaptureResponse,
     CompositeGetRequest, CompositeGetResponse, CompositeRefundRequest, CompositeRefundResponse,
-    CompositeVoidRequest, CompositeVoidResponse,
+    CompositeSetupRecurringRequest, CompositeSetupRecurringResponse, CompositeVoidRequest,
+    CompositeVoidResponse,
 };
 use std::sync::Arc;
 
@@ -55,5 +56,13 @@ http_handler!(
     CompositeCaptureRequest,
     CompositeCaptureResponse,
     capture,
+    composite_payments_service
+);
+
+http_handler!(
+    setup_recurring,
+    CompositeSetupRecurringRequest,
+    CompositeSetupRecurringResponse,
+    setup_recurring,
     composite_payments_service
 );

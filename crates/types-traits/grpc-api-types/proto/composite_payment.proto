@@ -382,6 +382,103 @@ message CompositeCaptureResponse {
   optional PaymentServiceCaptureResponse capture_response = 2;
 }
 
+// Request message for composite setup recurring flow.
+message CompositeSetupRecurringRequest {
+  // Identification
+  string merchant_recurring_payment_id = 1;
+
+  // Mandate Details
+  Money amount = 2;
+  PaymentMethod payment_method = 3;
+
+  optional Customer customer = 4;
+  
+  // Address Information
+  PaymentAddress address = 5;
+
+  // Authentication Details
+  AuthenticationType auth_type = 6;
+  bool enrolled_for_3ds = 7;
+  optional AuthenticationData authentication_data = 8;
+
+  optional SecretString metadata = 9;
+  optional SecretString connector_feature_data = 10;
+
+  // URLs for Redirection and Webhooks
+  optional string return_url = 11;
+  optional string webhook_url = 12;
+  optional string complete_authorize_url = 13;
+
+  // Session and Token Information
+  optional string session_token = 14;
+
+  // Order Details
+  optional int64 order_tax_amount = 15;
+  optional string order_category = 16;
+  optional string merchant_order_id = 17;
+  optional int64 shipping_cost = 18;
+
+  // Behavioral Flags and Preferences
+  optional FutureUsage setup_future_usage = 19;
+  optional bool off_session = 20;
+  bool request_incremental_authorization = 21;
+  optional bool request_extended_authorization = 22;
+  optional bool enable_partial_authorization = 23;
+
+  // Contextual Information
+  optional CustomerAcceptance customer_acceptance = 24;
+  optional BrowserInformation browser_info = 25;
+  optional PaymentExperience payment_experience = 26;
+  optional PaymentChannel payment_channel = 27;
+
+  // Billing Descriptor
+  optional BillingDescriptor billing_descriptor = 28;
+
+  // State Information
+  optional ConnectorState state = 29;
+
+  // Order ID from create order
+  optional string order_id = 31;
+
+  // Locale Information
+  optional string locale = 32;
+
+  // Testing Data
+  optional SecretString connector_testing_data = 33;
+
+  // Level 2 / Level 3 data for enhanced payment processing
+  optional L2L3Data l2_l3_data = 34;
+
+  // Mandate setup details
+  optional SetupMandateDetails setup_mandate_details = 35;
+
+  // Order Line Items
+  repeated OrderDetailsWithAmount order_details = 36;
+
+  // Tokenization Configuration
+  optional Tokenization tokenization_strategy = 37;
+
+  // Environment Configuration
+  optional bool test_mode = 38;
+
+  // Access Token
+  optional string merchant_access_token_id = 39;
+
+  // Request ID
+  optional string merchant_request_id = 40;
+
+  optional string customer_name = 41;
+  optional SecretString email = 42;
+  optional string merchant_customer_id = 43;
+  optional string phone_number = 44;
+}
+
+// Response message for composite setup recurring flow.
+message CompositeSetupRecurringResponse {
+  optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 1;
+  optional PaymentServiceSetupRecurringResponse setup_recurring = 2;
+}
+
 // Request for CompositeEventService.HandleEvent.
 // Use when webhook secrets are already resolved (e.g. merchant identity in webhook URL).
 // Supply event_context for connectors that require it (see connector integration guide).

@@ -33,6 +33,10 @@ pub fn create_router(state: AppState) -> Router {
             post(handlers::composite::payments::capture),
         )
         .route(
+            "/composite/payments/register",
+            post(handlers::composite::payments::setup_recurring),
+        )
+        .route(
             "/composite/events/handle",
             post(handlers::composite::events::handle_event),
         )

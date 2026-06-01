@@ -8,7 +8,7 @@ use grpc_api_types::payments::{
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse, PaymentStatus,
 };
 
-pub fn connector_from_composite_authorize_metadata(
+pub fn connector_from_composite_metadata(
     metadata: &tonic::metadata::MetadataMap,
 ) -> Result<ConnectorEnum, Box<tonic::Status>> {
     metadata

@@ -12,7 +12,8 @@ use grpc_api_types::payments::{
     payment_service_server::PaymentService, refund_service_server::RefundService,
     CompositeAuthorizeRequest, CompositeAuthorizeResponse, CompositeCaptureRequest,
     CompositeCaptureResponse, CompositeGetRequest, CompositeGetResponse, CompositeRefundGetRequest,
-    CompositeRefundGetResponse, CompositeRefundRequest, CompositeRefundResponse, CompositeStatus,
+    CompositeRefundGetResponse, CompositeRefundRequest, CompositeRefundResponse,
+    CompositeSetupRecurringRequest, CompositeSetupRecurringResponse, CompositeStatus,
     CompositeVoidRequest, CompositeVoidResponse, ConnectorState, CustomerServiceCreateResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
@@ -25,15 +26,15 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentServiceAuthorizeRequest,
     PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest, PaymentServiceCaptureResponse,
-    PaymentServiceGetResponse, PaymentServiceRefundRequest, PaymentServiceVoidRequest,
-    PaymentServiceVoidResponse, RefundResponse, RefundServiceGetRequest,
+    PaymentServiceGetResponse, PaymentServiceRefundRequest, PaymentServiceSetupRecurringRequest,
+    PaymentServiceSetupRecurringResponse, PaymentServiceVoidRequest, PaymentServiceVoidResponse,
+    RefundResponse, RefundServiceGetRequest,
 };
 use interfaces::connector_types::AuthenticationStep;
 
 use crate::transformers::ForeignFrom;
 use crate::utils::{
-    connector_from_composite_authorize_metadata, is_failure_payment_status,
-    is_terminal_payment_status,
+    connector_from_composite_metadata, is_failure_payment_status, is_terminal_payment_status,
 };
 
 /// Decoded CRes (Challenge Response) from 3DS challenge completion.
@@ -161,6 +162,25 @@ impl CompositeAccessTokenRequest for CompositeCaptureRequest {
     }
 }
 
+impl CompositeAccessTokenRequest for CompositeSetupRecurringRequest {
+    fn payment_method(&self) -> Option<PaymentMethod> {
+        self.payment_method.clone()
+    }
+
+    fn state(&self) -> Option<&ConnectorState> {
+        self.state.as_ref()
+    }
+
+    fn build_access_token_request(
+        &self,
+        connector: &ConnectorEnum,
+    ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+        MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
+            self, connector,
+        ))
+    }
+}
+
 /// Holds the mutable state accumulated during composite authorize flow execution.
 #[derive(Default)]
 struct AuthorizeCompositeState {
@@ -233,6 +253,7 @@ where
                 .connector
                 .should_do_access_token(payment_method)
         };
+        print!("should_do_access_token: {should_do_access_token}");
         let payload_access_token = payload
             .state()
             .and_then(|state| state.access_token.as_ref())
@@ -256,6 +277,7 @@ where
             }
             false => None,
         };
+        print!("access_token_response: {access_token_response:?}");
 
         Ok(access_token_response)
     }
@@ -502,8 +524,7 @@ where
     ) -> Result<tonic::Response<CompositeAuthorizeResponse>, tonic::Status> {
         let (metadata, extensions, payload) = request.into_parts();
 
-        let connector =
-            connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
+        let connector = connector_from_composite_metadata(&metadata).map_err(|err| *err)?;
 
         let access_token_response = self
             .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
@@ -672,8 +693,7 @@ where
     ) -> Result<tonic::Response<CompositeGetResponse>, tonic::Status> {
         let (metadata, extensions, payload) = request.into_parts();
 
-        let connector =
-            connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
+        let connector = connector_from_composite_metadata(&metadata).map_err(|err| *err)?;
         let access_token_response = self
             .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
             .await?;
@@ -723,8 +743,7 @@ where
     ) -> Result<tonic::Response<CompositeRefundResponse>, tonic::Status> {
         let (metadata, extensions, payload) = request.into_parts();
 
-        let connector =
-            connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
+        let connector = connector_from_composite_metadata(&metadata).map_err(|err| *err)?;
         let access_token_response = self
             .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
             .await?;
@@ -740,6 +759,57 @@ where
         Ok(tonic::Response::new(CompositeRefundResponse {
             access_token_response,
             refund_response: Some(refund_response),
+        }))
+    }
+
+    async fn setup_recurring(
+        &self,
+        payload: &CompositeSetupRecurringRequest,
+        access_token_response: Option<
+            &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+        >,
+        metadata: &tonic::metadata::MetadataMap,
+        extensions: &tonic::Extensions,
+    ) -> Result<PaymentServiceSetupRecurringResponse, tonic::Status> {
+        let setup_recurring_payload =
+            PaymentServiceSetupRecurringRequest::foreign_from((payload, access_token_response));
+
+        let mut setup_recurring_request = tonic::Request::new(setup_recurring_payload);
+        *setup_recurring_request.metadata_mut() = metadata.clone();
+        *setup_recurring_request.extensions_mut() = extensions.clone();
+
+        let setup_recurring_response = self
+            .payment_service
+            .setup_recurring(setup_recurring_request)
+            .await?
+            .into_inner();
+
+        Ok(setup_recurring_response)
+    }
+
+    async fn process_composite_setup_recurring(
+        &self,
+        request: tonic::Request<CompositeSetupRecurringRequest>,
+    ) -> Result<tonic::Response<CompositeSetupRecurringResponse>, tonic::Status> {
+        let (metadata, extensions, payload) = request.into_parts();
+
+        let connector = connector_from_composite_metadata(&metadata).map_err(|err| *err)?;
+        let access_token_response = self
+            .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
+            .await?;
+        println!("access_token_response: {:?}", access_token_response);
+        let setup_recurring_response = self
+            .setup_recurring(
+                &payload,
+                access_token_response.as_ref(),
+                &metadata,
+                &extensions,
+            )
+            .await?;
+
+        Ok(tonic::Response::new(CompositeSetupRecurringResponse {
+            access_token_response,
+            setup_recurring: Some(setup_recurring_response),
         }))
     }
 
@@ -774,8 +844,7 @@ where
     ) -> Result<tonic::Response<CompositeRefundGetResponse>, tonic::Status> {
         let (metadata, extensions, payload) = request.into_parts();
 
-        let connector =
-            connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
+        let connector = connector_from_composite_metadata(&metadata).map_err(|err| *err)?;
         let access_token_response = self
             .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
             .await?;
@@ -821,8 +890,7 @@ where
     ) -> Result<tonic::Response<CompositeVoidResponse>, tonic::Status> {
         let (metadata, extensions, payload) = request.into_parts();
 
-        let connector =
-            connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
+        let connector = connector_from_composite_metadata(&metadata).map_err(|err| *err)?;
         let access_token_response = self
             .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
             .await?;
@@ -872,8 +940,7 @@ where
     ) -> Result<tonic::Response<CompositeCaptureResponse>, tonic::Status> {
         let (metadata, extensions, payload) = request.into_parts();
 
-        let connector =
-            connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
+        let connector = connector_from_composite_metadata(&metadata).map_err(|err| *err)?;
         let access_token_response = self
             .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
             .await?;
@@ -935,6 +1002,13 @@ where
         request: tonic::Request<CompositeCaptureRequest>,
     ) -> Result<tonic::Response<CompositeCaptureResponse>, tonic::Status> {
         self.process_composite_capture(request).await
+    }
+
+    async fn setup_recurring(
+        &self,
+        request: tonic::Request<CompositeSetupRecurringRequest>,
+    ) -> Result<tonic::Response<CompositeSetupRecurringResponse>, tonic::Status> {
+        self.process_composite_setup_recurring(request).await
     }
 }
 
