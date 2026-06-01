@@ -323,6 +323,8 @@ pub enum AdyenPaymentMethod<
     Swish,
     #[serde(rename = "paypal")]
     AdyenPaypal,
+    #[serde(rename = "revolutpay")]
+    RevolutPay(Box<RevolutPayData>),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -345,6 +347,9 @@ pub struct MomoData {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TouchNGoData {}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RevolutPayData {}
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1125,6 +1130,8 @@ pub enum PaymentType {
     PaySafeCard,
     PayBright,
     Paypal,
+    #[serde(rename = "revolutpay")]
+    RevolutPay,
     Scheme,
     #[serde(rename = "networkToken")]
     NetworkToken,
@@ -1201,6 +1208,7 @@ impl TryFrom<&common_enums::PaymentMethodType> for PaymentType {
             common_enums::PaymentMethodType::Ach => Ok(Self::AchDirectDebit),
 
             common_enums::PaymentMethodType::Paypal => Ok(Self::Paypal),
+            common_enums::PaymentMethodType::RevolutPay => Ok(Self::RevolutPay),
             common_enums::PaymentMethodType::Pix => Ok(Self::Pix),
             common_enums::PaymentMethodType::Givex => Ok(Self::Giftcard),
             common_enums::PaymentMethodType::PaySafeCard => Ok(Self::PaySafeCard),
@@ -1566,9 +1574,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             WalletData::VippsRedirect { .. } => Ok(Self::Vipps),
             WalletData::SwishQr(_) => Ok(Self::Swish),
             WalletData::PaypalRedirect(_) => Ok(Self::AdyenPaypal),
+            WalletData::RevolutPay(_) => Ok(Self::RevolutPay(Box::new(RevolutPayData {}))),
             WalletData::AmazonPayRedirect(_)
             | WalletData::Paze(_)
-            | WalletData::RevolutPay(_)
             | WalletData::MobilePayRedirect(_)
             | WalletData::SamsungPay(_)
             | WalletData::AliPayQr(_)
@@ -5252,6 +5260,7 @@ pub fn get_wait_screen_metadata(
         | PaymentType::Klarna
         | PaymentType::Kakaopay
         | PaymentType::MobilePay
+        | PaymentType::RevolutPay
         | PaymentType::Momo
         | PaymentType::MomoAtm
         | PaymentType::OnlineBankingCzechRepublic
@@ -7500,6 +7509,7 @@ pub fn get_present_to_shopper_metadata(
         | PaymentType::MobilePay
         | PaymentType::Momo
         | PaymentType::MomoAtm
+        | PaymentType::RevolutPay
         | PaymentType::OnlineBankingCzechRepublic
         | PaymentType::OnlineBankingFinland
         | PaymentType::OnlineBankingPoland
