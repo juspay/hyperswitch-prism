@@ -15,7 +15,12 @@ const PAYMENTS_IGNORE_GRANULAR_ONLY_FIELDS: &[&str] = &["connector", "domain_con
 const DEFAULT_IGNORE_COMPOSITE_ONLY_FIELDS: &[&str] = &[];
 
 // Fields present only in composite requests for flows that don't have payment_method in their granular request
-const IGNORE_COMPOSITE_ONLY_FIELDS: &[&str] = &["payment_method", "merchant_request_id", "order_details", "tokenization_strategy"];
+const IGNORE_COMPOSITE_ONLY_FIELDS: &[&str] = &[
+    "payment_method",
+    "merchant_request_id",
+    "order_details",
+    "tokenization_strategy",
+];
 
 struct CompositeFlowSpec {
     name: &'static str,
