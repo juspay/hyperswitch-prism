@@ -264,27 +264,16 @@ macro_rules! payout_req_transformer {
         request_data_type: $request_data_type:ty,
         response_data_type: $response_data_type:ty $(,)?
     ) => {
-        pub fn $fn_name<
-            T: domain_types::payment_method_data::PaymentMethodDataTypes
-                + Default
-                + Eq
-                + std::fmt::Debug
-                + Send
-                + Sync
-                + Clone
-                + serde::Serialize
-                + serde::de::DeserializeOwned
-                + 'static,
-        >(
+        pub fn $fn_name(
             payload: $request_type,
             config: &std::sync::Arc<ucs_env::configs::Config>,
-            connector: domain_types::connector_types::ConnectorEnum,
+            connector: domain_types::connector_types::PayoutConnectorEnum,
             connector_config: domain_types::router_data::ConnectorSpecificConfig,
             metadata: &common_utils::metadata::MaskedMetadata,
         ) -> Result<Option<common_utils::request::Request>, grpc_api_types::payments::IntegrationError> {
 
-            let connector_data: connector_integration::types::ConnectorData<T> =
-                connector_integration::types::ConnectorData::get_connector_by_name(&connector);
+            let connector_data: connector_integration::types::PayoutConnectorData =
+                connector_integration::types::PayoutConnectorData::get_connector_by_name(&connector);
 
             let connector_integration: interfaces::connector_integration_v2::BoxedConnectorIntegrationV2<
                 '_,
@@ -362,27 +351,16 @@ macro_rules! payout_res_transformer {
         response_data_type: $response_data_type:ty,
         generate_response_fn: $generate_response_fn:ident,
     ) => {
-        pub fn $fn_name<
-            T: domain_types::payment_method_data::PaymentMethodDataTypes
-                + Default
-                + Eq
-                + std::fmt::Debug
-                + Send
-                + serde::Serialize
-                + serde::de::DeserializeOwned
-                + Clone
-                + Sync
-                + 'static,
-        >(
+        pub fn $fn_name(
             payload: $request_type,
             config: &std::sync::Arc<ucs_env::configs::Config>,
-            connector: domain_types::connector_types::ConnectorEnum,
+            connector: domain_types::connector_types::PayoutConnectorEnum,
             connector_config: domain_types::router_data::ConnectorSpecificConfig,
             metadata: &common_utils::metadata::MaskedMetadata,
             response: domain_types::router_response_types::Response,
         ) -> Result<$response_type, Box<grpc_api_types::payments::ConnectorError>> {
-            let connector_data: connector_integration::types::ConnectorData<T> =
-                connector_integration::types::ConnectorData::get_connector_by_name(&connector);
+            let connector_data: connector_integration::types::PayoutConnectorData =
+                connector_integration::types::PayoutConnectorData::get_connector_by_name(&connector);
 
             let connector_integration: interfaces::connector_integration_v2::BoxedConnectorIntegrationV2<
                 '_,

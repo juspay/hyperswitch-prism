@@ -14,8 +14,10 @@ use tonic::{transport::Channel, Request};
 
 fn add_mock_metadata<T>(request: &mut Request<T>) {
     request.metadata_mut().append(
-        "x-connector",
-        "xendit".parse().expect("Failed to parse x-connector"),
+        "x-payout-connector",
+        "loonio"
+            .parse()
+            .expect("Failed to parse x-payout-connector"),
     );
     request.metadata_mut().append(
         "x-auth",

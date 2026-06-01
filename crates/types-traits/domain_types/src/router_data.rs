@@ -2100,7 +2100,9 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
     fn foreign_try_from(
         (auth, connector): (&ConnectorAuthType, &connector_types::ConnectorVariant),
     ) -> Result<Self, Error> {
-        use connector_types::{ConnectorEnum, ConnectorVariant, SurchargeConnectorEnum};
+        use connector_types::{
+            ConnectorEnum, ConnectorVariant, PayoutConnectorEnum, SurchargeConnectorEnum,
+        };
 
         let err = || errors::IntegrationError::FailedToObtainAuthType {
             context: Default::default(),
@@ -3175,6 +3177,57 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 SurchargeConnectorEnum::Interpayments => match auth {
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Interpayments {
                         api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+            },
+            connector_types::ConnectorVariant::Payout(connector_enum) => match connector_enum {
+                PayoutConnectorEnum::Loonio => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Loonio {
+                        merchant_id: api_key.clone(),
+                        merchant_token: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                PayoutConnectorEnum::Paypal => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Paypal {
+                        client_id: key1.clone(),
+                        client_secret: api_key.clone(),
+                        payer_id: None,
+                        base_url: None,
+                    }),
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Paypal {
+                        client_id: key1.clone(),
+                        client_secret: api_key.clone(),
+                        payer_id: Some(api_secret.clone()),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                PayoutConnectorEnum::Itaubank => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Itaubank {
+                        client_id: api_key.clone(),
+                        client_secret: key1.clone(),
+                        certificates: None,
+                        private_key: None,
+                        base_url: None,
+                    }),
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::Itaubank {
+                        client_id: api_key.clone(),
+                        client_secret: key1.clone(),
+                        certificates: Some(api_secret.clone()),
+                        private_key: Some(key2.clone()),
                         base_url: None,
                     }),
                     _ => Err(err().into()),

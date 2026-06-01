@@ -355,6 +355,7 @@ pub enum FlowName {
     PayoutCreateLink,
     PayoutCreateRecipient,
     PayoutEnrollDisburseAccount,
+    NotifyConnector,
 }
 
 impl FlowName {
@@ -395,6 +396,7 @@ impl FlowName {
             Self::PayoutEnrollDisburseAccount => "PayoutEnrollDisburseAccount",
             Self::MandateRevoke => "MandateRevoke",
             Self::SurchargeCalculate => "SurchargeCalculate",
+            Self::NotifyConnector => "NotifyConnector",
             Self::Unknown => "Unknown",
         }
     }
