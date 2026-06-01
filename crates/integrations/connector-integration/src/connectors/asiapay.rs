@@ -284,8 +284,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .compute_expected_hash(&secret_str)
             .map_err(|_| WebhookError::WebhookSourceVerificationFailed)?;
 
-        let received = webhook.secure_hash.as_deref().unwrap_or("");
-        Ok(expected.eq_ignore_ascii_case(received))
+        let received = webhook
+            .secure_hash
+            .as_deref()
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        let expected_lower = expected.to_ascii_lowercase();
+        #[allow(deprecated)]
+        Ok(ring::constant_time::verify_slices_are_equal(
+            expected_lower.as_bytes(),
+            received.as_bytes(),
+        )
+        .is_ok())
     }
 
     fn get_event_type(

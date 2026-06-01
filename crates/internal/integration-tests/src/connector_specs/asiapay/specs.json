@@ -1,0 +1,12 @@
+{
+  "connector": "asiapay",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "PaymentService/Void",
+    "RefundService/Get",
+    "EventService/HandleEvent"
+  ]
+}

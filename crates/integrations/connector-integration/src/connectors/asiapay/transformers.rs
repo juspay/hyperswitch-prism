@@ -93,11 +93,17 @@ fn compute_sha256_hex(input: &str) -> Result<String, error_stack::Report<Integra
     Ok(hex::encode(digest.as_ref()))
 }
 
-fn stringify_amount(amount: &StringMajorUnit) -> String {
+fn stringify_amount(
+    amount: &StringMajorUnit,
+) -> Result<String, error_stack::Report<IntegrationError>> {
     serde_json::to_value(amount)
         .ok()
         .and_then(|v| v.as_str().map(String::from))
-        .unwrap_or_default()
+        .ok_or_else(|| {
+            error_stack::report!(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })
+        })
 }
 
 fn map_order_status(status: &str) -> AttemptStatus {
@@ -117,7 +123,7 @@ fn map_order_status(status: &str) -> AttemptStatus {
         | "RequestPartialRefund"
         | "ChargeBack"
         | "Partial ChargeBack" => AttemptStatus::AutoRefunded,
-        _ => AttemptStatus::Pending,
+        _ => AttemptStatus::Failure,
     }
 }
 
@@ -209,7 +215,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     additional_context: Some("Amount conversion failed".to_string()),
                 },
             })?;
-        let amount_str = stringify_amount(&amount);
+        let amount_str = stringify_amount(&amount).change_context(
+            ConnectorError::ResponseHandlingFailed {
+                context: domain_types::errors::ResponseTransformationErrorContext {
+                    http_status_code: Some(item.http_code),
+                    additional_context: Some(
+                        "Failed to serialize amount to string".to_string(),
+                    ),
+                },
+            },
+        )?;
 
         let pay_type = match router_data.request.capture_method {
             Some(CaptureMethod::Manual) => "H",
