@@ -464,6 +464,15 @@ enum WebhookEventType {
   RECOVERY_INVOICE_CANCEL = 40;  // Recovery invoice cancelled
 }
 
+// Type of event for outgoing connector notifications (not webhooks)
+enum NotifyEventType {
+  NOTIFY_EVENT_TYPE_UNSPECIFIED = 0; // Default unspecified event
+
+  // Surcharge events
+  SURCHARGE_PAYMENT_SUCCEEDED = 1; // Surcharge payment succeeded
+  SURCHARGE_REFUND_SUCCEEDED = 2;  // Surcharge refund succeeded
+}
+
 // Currency codes (ISO 4217)
 // Note: Using enum for type safety. Consider string for flexibility.
 enum Currency {
@@ -1341,6 +1350,14 @@ message RedirectResponseSecrets {
   optional string additional_secret = 2;
 }
 
+// Integrity dimensions a connector can confirm are present in a webhook payload.
+enum IntegrityCheck {
+  INTEGRITY_CHECK_UNSPECIFIED = 0; // Default value
+  INTEGRITY_CHECK_CONNECTOR_TRANSACTION_ID = 1; // Maps to: EventContent.*.connector_transaction_id
+  INTEGRITY_CHECK_AMOUNT = 2; // Maps to: EventContent.payments_response.amount.minor_amount
+  INTEGRITY_CHECK_CURRENCY = 3; // Maps to: EventContent.payments_response.amount.currency
+}
+
 // Response for EventService.HandleEvent.
 // event_content mirrors PaymentService.Get / RefundService.Get / DisputeService.Get.
 // Returns INVALID_ARGUMENT if required EventContext fields are absent for this connector.
@@ -1362,6 +1379,52 @@ message EventServiceHandleResponse {
 
   // Suggested HTTP response to send back to the connector for webhook acknowledgement
   optional EventAckResponse event_ack_response = 5;
+
+  // Integrity fields that downstream can use to verify the webhook payload.
+  repeated IntegrityCheck supported_integrity_checks = 6;
+}
+
+// Request for notifying connectors about events
+message NotifyConnectorRequest {
+  // Merchant identification
+  string merchant_id = 1;
+
+  // Unique event identifier
+  string event_id = 2;
+
+  // Event type
+  NotifyEventType event_type = 3;
+
+  // Event content with notify connector content 
+  NotifyConnectorContent content = 4;
+
+  // Timestamp when the event occurred (Unix timestamp in seconds)
+  int64 timestamp = 5;
+}
+
+
+// Content of an event
+message NotifyConnectorContent {
+  oneof content {
+    // surcharge details 
+    SurchargeContent surcharge_content = 1;
+  }
+}
+
+
+// Surcharge details object
+message SurchargeContent {
+  // Connector surcharge identifier
+  string connector_surcharge_id = 1;
+}
+
+// Response for notifying connectors
+message NotifyConnectorResponse {
+  // Status of the notification
+  uint32 status_code = 1;
+
+  // Optional error information if notification failed
+  optional ErrorInfo error = 2;
 }
 
 // Suggested HTTP response for webhook acknowledgement (status, headers, body).

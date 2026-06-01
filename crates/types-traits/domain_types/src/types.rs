@@ -13899,6 +13899,24 @@ pub fn generate_mandate_revoke_response(
     }
 }
 
+impl ForeignFrom<connector_types::WebhookIntegrityCheck>
+    for grpc_api_types::payments::IntegrityCheck
+{
+    fn foreign_from(check: connector_types::WebhookIntegrityCheck) -> Self {
+        match check {
+            connector_types::WebhookIntegrityCheck::ConnectorTransactionId => {
+                grpc_api_types::payments::IntegrityCheck::ConnectorTransactionId
+            }
+            connector_types::WebhookIntegrityCheck::Amount => {
+                grpc_api_types::payments::IntegrityCheck::Amount
+            }
+            connector_types::WebhookIntegrityCheck::Currency => {
+                grpc_api_types::payments::IntegrityCheck::Currency
+            }
+        }
+    }
+}
+
 impl From<connector_types::WebhookResourceReference> for grpc_api_types::payments::EventReference {
     fn from(r: connector_types::WebhookResourceReference) -> Self {
         use connector_types::{

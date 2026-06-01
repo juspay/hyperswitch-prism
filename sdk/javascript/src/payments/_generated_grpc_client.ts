@@ -334,6 +334,9 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   NmiData: { "amount": "Money" },
   RequestDetails: { "headers": "HeadersEntry" },
   EventServiceHandleResponse: { "eventContent": "EventContent", "eventAckResponse": "EventAckResponse" },
+  NotifyConnectorRequest: { "content": "NotifyConnectorContent" },
+  NotifyConnectorContent: { "surchargeContent": "SurchargeContent" },
+  NotifyConnectorResponse: { "error": "ErrorInfo" },
   EventAckResponse: { "headers": "HeadersEntry" },
   EventContent: { "paymentsResponse": "PaymentServiceGetResponse", "refundsResponse": "RefundResponse", "disputesResponse": "DisputeResponse" },
   InteracCustomerInfo: { "customerInfo": "CustomerInfo" },
@@ -561,6 +564,11 @@ export class GrpcEventClient {
   async handleEvent(req: unknown): Promise<unknown> {
     return callGrpc(this.ffi, this.config, "event/handle_event",
       req, types.EventServiceHandleRequest, types.EventServiceHandleResponse);
+  }
+  /** EventService.NotifyConnector — Notify connectors about events (payment succeeded, refund succeeded, refund failed). */
+  async notifyConnector(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "event/notify_connector",
+      req, types.NotifyConnectorRequest, types.NotifyConnectorResponse);
   }
 }
 
