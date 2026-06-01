@@ -7,7 +7,7 @@
 
 import { PaymentClient, MerchantAuthenticationClient, DisputeClient, EventClient, RecurringPaymentClient, types } from 'hyperswitch-prism';
 const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, EvidenceType, FutureUsage, HttpMethod, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "create_order", "dispute_accept", "dispute_defend", "dispute_submit_evidence", "incremental_authorization", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "reverse", "setup_recurring", "token_authorize", "void"];
+export const SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "create_order", "dispute_accept", "dispute_defend", "dispute_submit_evidence", "incremental_authorization", "parse_event", "proxy_authorize", "recurring_charge", "refund", "reverse", "setup_recurring", "token_authorize", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -189,51 +189,6 @@ function _buildProxyAuthorizeRequest(): types.IPaymentServiceProxyAuthorizeReque
         "captureMethod": CaptureMethod.AUTOMATIC,
         "authType": AuthenticationType.NO_THREE_DS,
         "returnUrl": "https://example.com/return",
-        "browserInfo": {
-            "colorDepth": 24,  // Display Information.
-            "screenHeight": 900,
-            "screenWidth": 1440,
-            "javaEnabled": false,  // Browser Settings.
-            "javaScriptEnabled": true,
-            "language": "en-US",
-            "timeZoneOffsetMinutes": -480,
-            "acceptHeader": "application/json",  // Browser Headers.
-            "userAgent": "Mozilla/5.0 (probe-bot)",
-            "acceptLanguage": "en-US,en;q=0.9",
-            "ipAddress": "1.2.3.4"  // Device Information.
-        }
-    };
-}
-
-function _buildProxySetupRecurringRequest(): types.IPaymentServiceProxySetupRecurringRequest {
-    return {
-        "merchantRecurringPaymentId": "probe_proxy_mandate_001",
-        "amount": {
-            "minorAmount": 0,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        },
-        "cardProxy": {  // Card proxy for vault-aliased payments.
-            "cardNumber": {"value": "4111111111111111"},  // Card Identification.
-            "cardExpMonth": {"value": "03"},
-            "cardExpYear": {"value": "2030"},
-            "cardCvc": {"value": "123"},
-            "cardHolderName": {"value": "John Doe"},  // Cardholder Information.
-            "cardNetwork": CardNetwork.VISA
-        },
-        "customer": {
-            "connectorCustomerId": "probe_customer_001"  // Customer ID in the connector system.
-        },
-        "address": {
-            "billingAddress": {
-            }
-        },
-        "returnUrl": "https://example.com/return",
-        "customerAcceptance": {
-            "acceptanceType": AcceptanceType.OFFLINE,  // Type of acceptance (e.g., online, offline).
-            "acceptedAt": 0  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
-        },
-        "authType": AuthenticationType.NO_THREE_DS,
-        "setupFutureUsage": FutureUsage.OFF_SESSION,
         "browserInfo": {
             "colorDepth": 24,  // Display Information.
             "screenHeight": 900,
@@ -556,15 +511,6 @@ async function proxyAuthorize(merchantTransactionId: string, config: types.IConn
     return proxyResponse;
 }
 
-// Flow: PaymentService.ProxySetupRecurring
-async function proxySetupRecurring(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
-
-    const proxyResponse = await paymentClient.proxySetupRecurring(_buildProxySetupRecurringRequest());
-
-    return proxyResponse;
-}
-
 // Flow: RecurringPaymentService.Charge
 async function recurringCharge(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const recurringPaymentClient = new RecurringPaymentClient(config);
@@ -622,7 +568,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, authorize, capture, createClientAuthenticationToken, createOrder, disputeAccept, disputeDefend, disputeSubmitEvidence, handleEvent, incrementalAuthorization, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, reverse, setupRecurring, tokenAuthorize, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildCreateOrderRequest, _buildDisputeAcceptRequest, _buildDisputeDefendRequest, _buildDisputeSubmitEvidenceRequest, _buildHandleEventRequest, _buildIncrementalAuthorizationRequest, _buildParseEventRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildReverseRequest, _buildSetupRecurringRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, authorize, capture, createClientAuthenticationToken, createOrder, disputeAccept, disputeDefend, disputeSubmitEvidence, handleEvent, incrementalAuthorization, parseEvent, proxyAuthorize, recurringCharge, refund, reverse, setupRecurring, tokenAuthorize, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildCreateOrderRequest, _buildDisputeAcceptRequest, _buildDisputeDefendRequest, _buildDisputeSubmitEvidenceRequest, _buildHandleEventRequest, _buildIncrementalAuthorizationRequest, _buildParseEventRequest, _buildProxyAuthorizeRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildReverseRequest, _buildSetupRecurringRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
 };
 
 // CLI runner
