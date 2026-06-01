@@ -19,6 +19,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.01.0
+
+### Bug Fixes
+
+- **connector:** Update types.rs for payouts ([#1430](https://github.com/juspay/connector-service/pull/1430)) ([`2fd7868`](https://github.com/juspay/connector-service/commit/2fd78686639fe4c3820e47f8955c0be2a8ab95cd))
+
+**Full Changelog:** [`2026.05.28.0...2026.06.01.0`](https://github.com/juspay/connector-service/compare/2026.05.28.0...2026.06.01.0)
+
+- - -
+
+## 2026.05.28.0
+
+### Features
+
+- **connector:**
+  - Implement CreateConnectorCustomer for payload ([#1391](https://github.com/juspay/connector-service/pull/1391)) ([`4d97105`](https://github.com/juspay/connector-service/commit/4d971059ad3993a46d9b65720359a202e03ae35f))
+  - Implement Pay.SetupRecurring for fiuu ([#1399](https://github.com/juspay/connector-service/pull/1399)) ([`fad20a6`](https://github.com/juspay/connector-service/commit/fad20a6da1237b5c426634c2097881876ca7036a))
+  - Implement Pay.SetupRecurring for braintree ([#1397](https://github.com/juspay/connector-service/pull/1397)) ([`6687a25`](https://github.com/juspay/connector-service/commit/6687a258646dd8e28b7ed8d41234daadde721fa7))
+  - Webhook integrity check ENUM support added in ucs ([#1378](https://github.com/juspay/connector-service/pull/1378)) ([`a5830ce`](https://github.com/juspay/connector-service/commit/a5830ceec509a5183b90941d51cdd463c6be06f3))
+- [InterPayments] implement surcharge payment & refund event handling via notify connector ([#1369](https://github.com/juspay/connector-service/pull/1369)) ([`166697d`](https://github.com/juspay/connector-service/commit/166697dc9ae7c32eaad017c12b3172a510a73604))
+
+### Documentation
+
+- Add PayoutService API reference documentation ([#1340](https://github.com/juspay/connector-service/pull/1340)) ([`29554ed`](https://github.com/juspay/connector-service/commit/29554ed7046ca481c927dc64bdc4c3b8ad7dcff3))
+
+**Full Changelog:** [`2026.05.26.1...2026.05.28.0`](https://github.com/juspay/connector-service/compare/2026.05.26.1...2026.05.28.0)
+
+- - -
+
 ## 2026.05.26.1
 
 ### Features

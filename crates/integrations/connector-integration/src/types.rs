@@ -209,7 +209,14 @@ impl ConnectorDataProvider for PayoutConnectorData {
     fn from_connector_variant(
         variant: &domain_types::connector_types::ConnectorVariant,
     ) -> Option<Self> {
-        variant.as_payout().map(|c| Self::get_connector_by_name(&c))
+        variant
+            .as_payout()
+            .or_else(|| {
+                variant
+                    .as_payment()
+                    .and_then(|c| PayoutConnectorEnum::try_from(c).ok())
+            })
+            .map(|c| Self::get_connector_by_name(&c))
     }
 }
 
