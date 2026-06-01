@@ -5548,7 +5548,10 @@ fn convert_metadata_to_merchant_defined_info(
     let mut result: Vec<utils::MerchantDefinedInformation> = metadata
         .and_then(|value| value.as_object().cloned())
         .map(|map| {
-            map.into_iter()
+            let sorted: std::collections::BTreeMap<String, serde_json::Value> =
+                map.into_iter().collect();
+            sorted
+                .into_iter()
                 .map(|(key, value)| {
                     let mdi = utils::MerchantDefinedInformation {
                         key: iter,
@@ -5773,5 +5776,24 @@ impl TryFrom<ResponseRouterData<CybersourceClientAuthResponse, Self>>
             }),
             ..item.router_data
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parity_16409_merchant_defined_info_ordering() {
+        let metadata = serde_json::json!({"z": "1", "a": "2", "m": "3"});
+        let result =
+            convert_metadata_to_merchant_defined_info(Some(metadata), None).expect("non-empty");
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0].key, 1);
+        assert!(result[0].value.starts_with("a="));
+        assert_eq!(result[1].key, 2);
+        assert!(result[1].value.starts_with("m="));
+        assert_eq!(result[2].key, 3);
+        assert!(result[2].value.starts_with("z="));
     }
 }
