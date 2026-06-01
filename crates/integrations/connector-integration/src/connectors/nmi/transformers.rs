@@ -211,10 +211,12 @@ impl NmiMerchantDefinedField {
         let inner = metadata
             .as_object()
             .map(|obj| {
-                obj.iter()
+                let sorted: std::collections::BTreeMap<&String, &serde_json::Value> =
+                    obj.iter().collect();
+                sorted
+                    .into_iter()
                     .enumerate()
                     .map(|(index, (hs_key, hs_value))| {
-                        // Extract string value properly to avoid JSON encoding
                         let value_str = hs_value
                             .as_str()
                             .map(str::to_owned)
@@ -295,6 +297,8 @@ pub struct NmiPaymentsRequest<T: PaymentMethodDataTypes> {
     #[serde(flatten)]
     #[serde(skip_serializing_if = "Option::is_none")]
     shipping_details: Option<NmiShippingDetails>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    customer_vault: Option<CustomerAction>,
     // Fields for 3DS completion (when redirect_response is present)
     #[serde(skip_serializing_if = "Option::is_none")]
     customer_vault_id: Option<Secret<String>>,
@@ -434,6 +438,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 merchant_defined_field: None,
                 billing_details: None,
                 shipping_details: None,
+                customer_vault: None,
                 customer_vault_id: Some(three_ds_data.customer_vault_id),
                 email: router_data.request.email.clone(),
                 cardholder_auth: three_ds_data.card_holder_auth,
@@ -579,6 +584,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .resource_common_data
                         .get_optional_shipping_email(),
                 }),
+                customer_vault: router_data.request.is_mandate_payment().then_some(CustomerAction::AddCustomer),
                 customer_vault_id: None,
                 email: None,
                 cardholder_auth: None,
@@ -1927,5 +1933,37 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
             ..item.router_data
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hyperswitch_masking::PeekInterface;
+
+    #[test]
+    fn test_parity_16028_merchant_defined_field_ordering() {
+        let metadata: serde_json::Value =
+            serde_json::from_str(include_str!("tests/parity_fixtures/16028.json")).unwrap();
+        let mdf = NmiMerchantDefinedField::new(&metadata);
+
+        assert_eq!(
+            mdf.inner
+                .get("merchant_defined_field_1")
+                .map(|s| s.peek().to_string()),
+            Some("login_date=2019-09-10T10:11:12Z".to_string()),
+        );
+        assert_eq!(
+            mdf.inner
+                .get("merchant_defined_field_2")
+                .map(|s| s.peek().to_string()),
+            Some("new_customer=true".to_string()),
+        );
+        assert_eq!(
+            mdf.inner
+                .get("merchant_defined_field_3")
+                .map(|s| s.peek().to_string()),
+            Some("udf1=value1".to_string()),
+        );
     }
 }
