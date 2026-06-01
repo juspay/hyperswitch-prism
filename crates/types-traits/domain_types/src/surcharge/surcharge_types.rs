@@ -1,5 +1,5 @@
 use crate::{
-    connector_types::{ConnectorResponseHeaders, RawConnectorRequestResponse},
+    connector_types::{ConnectorHttpStatusCode, ConnectorResponseHeaders, RawConnectorRequestResponse},
     types::Connectors,
 };
 use common_enums::Currency;
@@ -44,6 +44,8 @@ impl ConnectorResponseHeaders for SurchargeFlowData {
         self.connector_response_headers.as_ref()
     }
 }
+
+impl ConnectorHttpStatusCode for SurchargeFlowData {}
 
 /// Strategy for handling calculated surcharge
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -1,0 +1,11 @@
+{
+    "token": "8d97bfb7cf0141e09f56fd7337dca4131c3b550d3e367d5752e7fba54ef69cc4",
+    "request_id": "019dda64-085b-70f1-89c9-26dfcdc86741",
+    "brand": "VISA",
+    "pan": "411111XXXXXX1111",
+    "card_holder": "Joseph Doe",
+    "card_expiry_month": "06",
+    "card_expiry_year": "2050",
+    "issuer": "CONOTOXIA SP Z O.O.",
+    "country": "PL"
+}
