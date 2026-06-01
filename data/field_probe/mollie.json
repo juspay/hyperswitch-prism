@@ -205,12 +205,51 @@
         "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "GooglePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "encrypted_data": {
+                  "token_type": "PAYMENT_GATEWAY",
+                  "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "description": "Probe payment"
+        },
+        "sample": {
+          "url": "https://api.mollie.com/v2/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":\"10.00\"},\"description\":\"Probe payment\",\"redirectUrl\":\"https://example.com/return\",\"webhookUrl\":\"\",\"metadata\":{\"orderId\":\"probe_txn_001\"},\"method\":\"creditcard\",\"cardToken\":null,\"billingAddress\":null,\"shippingAddress\":null,\"sequenceType\":\"oneoff\",\"captureMode\":\"automatic\",\"locale\":null,\"cancelUrl\":null,\"customerId\":null,\"googlePayPaymentToken\":\"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\"}"
+        }
       },
       "GooglePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Google Pay DIRECT (decrypted) mode is not supported by Mollie"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
