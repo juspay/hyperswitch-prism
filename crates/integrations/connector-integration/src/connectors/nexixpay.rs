@@ -7,13 +7,14 @@ use common_utils::{consts, errors::CustomResult, events, ext_traits::ByteSliceEx
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, PSync, PostAuthenticate, PreAuthenticate,
-        RSync, Refund, SetupMandate, Void,
+        RSync, Refund, RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
         ClientAuthenticationTokenRequestData, PaymentFlowData, PaymentVoidData,
         PaymentsAuthorizeData, PaymentsCaptureData, PaymentsPostAuthenticateData,
         PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, SetupMandateRequestData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        SetupMandateRequestData,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -34,8 +35,9 @@ use transformers::{
     NexixpayClientAuthResponse, NexixpayPaymentsRequest, NexixpayPaymentsResponse,
     NexixpayPostAuthenticateRequest, NexixpayPostAuthenticateResponse,
     NexixpayPreAuthenticateRequest, NexixpayPreAuthenticateResponse, NexixpayRSyncResponse,
-    NexixpayRefundRequest, NexixpayRefundResponse, NexixpaySetupMandateRequest,
-    NexixpaySetupMandateResponse, NexixpaySyncResponse, NexixpayVoidRequest, NexixpayVoidResponse,
+    NexixpayMandatePaymentRequest, NexixpayRefundRequest, NexixpayRefundResponse,
+    NexixpayRepeatPaymentResponse, NexixpaySetupMandateRequest, NexixpaySetupMandateResponse,
+    NexixpaySyncResponse, NexixpayVoidRequest, NexixpayVoidResponse,
 };
 use uuid::Uuid;
 
@@ -114,6 +116,12 @@ macros::create_all_prerequisites!(
             request_body: NexixpaySetupMandateRequest,
             response_body: NexixpaySetupMandateResponse,
             router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: NexixpayMandatePaymentRequest,
+            response_body: NexixpayRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -214,6 +222,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Nexixpay<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RepeatPaymentV2<T> for Nexixpay<T>
 {
 }
 
@@ -559,7 +572,37 @@ macros::macro_connector_implementation!(
     }
 );
 
-// Repeat Payment
+// Repeat Payment (MIT) — POST /orders/mit replaying the stored contractId
+// (surfaced by SetupMandate as mandate_reference.connector_mandate_id). Single
+// off-session call, no 3DS. Mirrors hyperswitch, which routes off-session
+// Authorize payments to /orders/mit.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Nexixpay,
+    curl_request: Json(NexixpayMandatePaymentRequest<T>),
+    curl_response: NexixpayRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/orders/mit", self.connector_base_url_payments(req)))
+        }
+    }
+);
 
 // Sdk Session Token - ClientAuthenticationToken
 // Uses the /orders/hpp endpoint to create a hosted payment page order
@@ -775,7 +818,6 @@ macros::macro_connector_flow_status_impls!(
     not_implemented: [
         IncrementalAuthorization,
         VoidPC,
-        RepeatPayment,
         MandateRevoke,
         CreateOrder,
         ServerSessionAuthenticationToken,
