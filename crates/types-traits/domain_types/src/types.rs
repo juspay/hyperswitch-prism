@@ -14013,3 +14013,146 @@ impl From<connector_types::WebhookResourceReference> for grpc_api_types::payment
         }
     }
 }
+
+#[cfg(test)]
+mod payment_method_propagation_tests {
+    use super::*;
+    use crate::utils::ForeignTryFrom;
+
+    fn wallet_payment_method() -> grpc_api_types::payments::PaymentMethod {
+        grpc_api_types::payments::PaymentMethod {
+            payment_method: Some(
+                grpc_api_types::payments::payment_method::PaymentMethod::GooglePaySdk(
+                    Default::default(),
+                ),
+            ),
+            ..Default::default()
+        }
+    }
+
+    fn bank_debit_payment_method() -> grpc_api_types::payments::PaymentMethod {
+        grpc_api_types::payments::PaymentMethod {
+            payment_method: Some(
+                grpc_api_types::payments::payment_method::PaymentMethod::Ach(Default::default()),
+            ),
+            ..Default::default()
+        }
+    }
+
+    fn bank_redirect_payment_method() -> grpc_api_types::payments::PaymentMethod {
+        grpc_api_types::payments::PaymentMethod {
+            payment_method: Some(
+                grpc_api_types::payments::payment_method::PaymentMethod::Ideal(Default::default()),
+            ),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn psync_wallet_payment_method() {
+        let req = grpc_api_types::payments::PaymentServiceGetRequest {
+            payment_method: Some(wallet_payment_method()),
+            ..Default::default()
+        };
+        let metadata = MaskedMetadata::default();
+        let result =
+            PaymentFlowData::foreign_try_from((req, Connectors::default(), &metadata)).unwrap();
+        assert_eq!(result.payment_method, PaymentMethod::Wallet);
+    }
+
+    #[test]
+    fn psync_none_defaults_to_card() {
+        let req = grpc_api_types::payments::PaymentServiceGetRequest {
+            payment_method: None,
+            ..Default::default()
+        };
+        let metadata = MaskedMetadata::default();
+        let result =
+            PaymentFlowData::foreign_try_from((req, Connectors::default(), &metadata)).unwrap();
+        assert_eq!(result.payment_method, PaymentMethod::Card);
+    }
+
+    #[test]
+    fn void_bank_debit_payment_method() {
+        let req = grpc_api_types::payments::PaymentServiceVoidRequest {
+            payment_method: Some(bank_debit_payment_method()),
+            ..Default::default()
+        };
+        let metadata = MaskedMetadata::default();
+        let result =
+            PaymentFlowData::foreign_try_from((req, Connectors::default(), &metadata)).unwrap();
+        assert_eq!(result.payment_method, PaymentMethod::BankDebit);
+    }
+
+    #[test]
+    fn void_none_defaults_to_card() {
+        let req = grpc_api_types::payments::PaymentServiceVoidRequest {
+            payment_method: None,
+            ..Default::default()
+        };
+        let metadata = MaskedMetadata::default();
+        let result =
+            PaymentFlowData::foreign_try_from((req, Connectors::default(), &metadata)).unwrap();
+        assert_eq!(result.payment_method, PaymentMethod::Card);
+    }
+
+    #[test]
+    fn capture_bank_redirect_payment_method() {
+        let req = grpc_api_types::payments::PaymentServiceCaptureRequest {
+            payment_method: Some(bank_redirect_payment_method()),
+            ..Default::default()
+        };
+        let metadata = MaskedMetadata::default();
+        let result =
+            PaymentFlowData::foreign_try_from((req, Connectors::default(), &metadata)).unwrap();
+        assert_eq!(result.payment_method, PaymentMethod::BankRedirect);
+    }
+
+    #[test]
+    fn capture_none_defaults_to_card() {
+        let req = grpc_api_types::payments::PaymentServiceCaptureRequest {
+            payment_method: None,
+            ..Default::default()
+        };
+        let metadata = MaskedMetadata::default();
+        let result =
+            PaymentFlowData::foreign_try_from((req, Connectors::default(), &metadata)).unwrap();
+        assert_eq!(result.payment_method, PaymentMethod::Card);
+    }
+
+    #[test]
+    fn reverse_wallet_payment_method() {
+        let req = grpc_api_types::payments::PaymentServiceReverseRequest {
+            payment_method: Some(wallet_payment_method()),
+            ..Default::default()
+        };
+        let metadata = MaskedMetadata::default();
+        let result =
+            PaymentFlowData::foreign_try_from((req, Connectors::default(), &metadata)).unwrap();
+        assert_eq!(result.payment_method, PaymentMethod::Wallet);
+    }
+
+    #[test]
+    fn incremental_auth_bank_debit_payment_method() {
+        let req = grpc_api_types::payments::PaymentServiceIncrementalAuthorizationRequest {
+            payment_method: Some(bank_debit_payment_method()),
+            ..Default::default()
+        };
+        let metadata = MaskedMetadata::default();
+        let result =
+            PaymentFlowData::foreign_try_from((req, Connectors::default(), &metadata)).unwrap();
+        assert_eq!(result.payment_method, PaymentMethod::BankDebit);
+    }
+
+    #[test]
+    fn connector_customer_wallet_payment_method() {
+        let req = grpc_api_types::payments::CustomerServiceCreateRequest {
+            payment_method: Some(wallet_payment_method()),
+            ..Default::default()
+        };
+        let metadata = MaskedMetadata::default();
+        let result =
+            PaymentFlowData::foreign_try_from((req, Connectors::default(), &metadata)).unwrap();
+        assert_eq!(result.payment_method, PaymentMethod::Wallet);
+    }
+}
