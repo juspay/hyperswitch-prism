@@ -15,7 +15,7 @@ use domain_types::{
         PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
         RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
+    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
 };
@@ -118,6 +118,13 @@ pub struct DatatransCard<
     pub card_type: Option<String>,
 }
 
+// Google Pay data for Datatrans API
+// Datatrans expects PAY.token as a serialized JSON string from Google Pay JS API
+#[derive(Debug, Serialize)]
+pub struct DatatransGooglePayData {
+    pub token: Secret<String>,
+}
+
 // Authorize request structure based on tech spec
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -127,11 +134,14 @@ pub struct DatatransPaymentsRequest<
     pub currency: Currency,
     pub refno: String,
     pub amount: MinorUnit,
-    pub card: DatatransCard<T>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card: Option<DatatransCard<T>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auto_settle: Option<bool>,
     // Don't skip serializing - we want "option": null to appear in JSON
     pub option: Option<DatatransPaymentOptions>,
+    #[serde(rename = "PAY", skip_serializing_if = "Option::is_none")]
+    pub pay: Option<DatatransGooglePayData>,
 }
 
 // Payment options for Datatrans API
@@ -170,17 +180,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         // Extract card data or token
-        let card = match &router_data.request.payment_method_data {
+        let (card, pay) = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card_data) => {
                 // Direct card flow - use raw card details
-                DatatransCard {
+                let card = DatatransCard {
                     alias: None,
                     number: Some(card_data.card_number.clone()),
                     expiry_month: Some(card_data.card_exp_month.clone()),
                     expiry_year: Some(card_data.get_card_expiry_year_2_digit()?),
                     cvv: Some(card_data.card_cvc.clone()),
                     card_type: Some("PLAIN".to_string()),
-                }
+                };
+                (Some(card), None)
             }
             // TODO: CardToken flow for Datatrans Secure Fields SDK.
             // When the client SDK collects card data via Secure Fields, the transactionId
@@ -190,16 +201,37 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             // transactionId from the client authentication token response.
             PaymentMethodData::PaymentMethodToken(token_data) => {
                 let token = token_data.token.clone();
-
-                DatatransCard {
+                let card = DatatransCard {
                     alias: Some(token),
                     number: None,
                     expiry_month: None,
                     expiry_year: None,
                     cvv: None,
                     card_type: None,
-                }
+                };
+                (Some(card), None)
             }
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                WalletData::GooglePay(gpay_data) => {
+                    let token = gpay_data
+                        .tokenization_data
+                        .get_encrypted_google_pay_token()
+                        .map_err(|_| IntegrationError::MissingRequiredField {
+                            field_name: "google_pay.tokenization_data.token",
+                            context: Default::default(),
+                        })?;
+                    let pay = DatatransGooglePayData {
+                        token: Secret::new(token),
+                    };
+                    (None, Some(pay))
+                }
+                _ => Err(IntegrationError::NotImplemented(
+                    domain_types::utils::get_unimplemented_payment_method_error_message(
+                        "Datatrans",
+                    ),
+                    Default::default(),
+                ))?,
+            },
             _ => Err(IntegrationError::NotImplemented(
                 UNSUPPORTED_PAYMENT_METHOD_ERROR.to_string(),
                 Default::default(),
@@ -223,6 +255,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             card,
             auto_settle,
             option: None, // Set to null to match Hyperswitch
+            pay,
         })
     }
 }

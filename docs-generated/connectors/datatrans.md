@@ -196,8 +196,8 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Apple Pay | ⚠ |
 | Apple Pay Dec | ⚠ |
 | Apple Pay SDK | ⚠ |
-| Google Pay | ⚠ |
-| Google Pay Dec | ⚠ |
+| Google Pay | ✓ |
+| Google Pay Dec | ? |
 | Google Pay SDK | ⚠ |
 | PayPal SDK | ⚠ |
 | Amazon Pay | ⚠ |
@@ -304,6 +304,27 @@ Authorize a payment amount on a payment method. This reserves funds without capt
     "card_exp_year": "2030",
     "card_cvc": "737",
     "card_holder_name": "John Doe"
+  }
+}
+```
+
+##### Google Pay
+
+```python
+"payment_method": {
+  "google_pay": {
+    "type": "CARD",
+    "description": "Visa 1111",
+    "info": {
+      "card_network": "VISA",
+      "card_details": "1111"
+    },
+    "tokenization_data": {
+      "encrypted_data": {
+        "token_type": "PAYMENT_GATEWAY",
+        "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
+      }
+    }
   }
 }
 ```

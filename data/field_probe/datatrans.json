@@ -30,23 +30,23 @@
       },
       "AliPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "AmazonPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "ApplePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "ApplePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "Bacs": {
         "status": "not_implemented",
@@ -70,7 +70,7 @@
       },
       "BillDeskRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "Bizum": {
         "status": "not_implemented",
@@ -82,7 +82,7 @@
       },
       "Bluecode": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
@@ -133,11 +133,11 @@
       },
       "CashappQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "CashfreeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
@@ -153,7 +153,7 @@
       },
       "Dana": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
@@ -169,7 +169,7 @@
       },
       "EaseBuzzRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "Efecty": {
         "status": "not_implemented",
@@ -189,7 +189,7 @@
       },
       "GCash": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "Giropay": {
         "status": "not_implemented",
@@ -201,19 +201,57 @@
       },
       "GoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "GooglePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "encrypted_data": {
+                  "token_type": "PAYMENT_GATEWAY",
+                  "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.sandbox.datatrans.com/v1/transactions/authorize",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"currency\":\"USD\",\"refno\":\"probe_txn_001\",\"amount\":1000,\"autoSettle\":true,\"option\":null,\"PAY\":{\"token\":\"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\"}}"
+        }
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "status": "error",
+        "error": "Stuck on field: google_pay.tokenization_data.token — Missing required field: google_pay.tokenization_data.token"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "Ideal": {
         "status": "not_implemented",
@@ -245,7 +283,7 @@
       },
       "KakaoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "Klarna": {
         "status": "not_implemented",
@@ -257,7 +295,7 @@
       },
       "LazyPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
@@ -273,11 +311,11 @@
       },
       "MbWay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "Mifinity": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "MiniStop": {
         "status": "not_implemented",
@@ -289,7 +327,7 @@
       },
       "Momo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
@@ -353,15 +391,15 @@
       },
       "PayURedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "Paysera": {
         "status": "not_supported",
@@ -377,7 +415,7 @@
       },
       "PhonePeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "Pix": {
         "status": "not_implemented",
@@ -401,15 +439,15 @@
       },
       "RevolutPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "Satispay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "Seicomart": {
         "status": "not_implemented",
@@ -441,11 +479,11 @@
       },
       "Swish": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "TouchNGo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "Trustly": {
         "status": "not_implemented",
@@ -453,7 +491,7 @@
       },
       "Twint": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "UpiCollect": {
         "status": "not_implemented",
@@ -469,15 +507,15 @@
       },
       "Vipps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "WeChatPayQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       },
       "Wero": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Selected payment method through Datatrans"
       }
     },
     "capture": {
