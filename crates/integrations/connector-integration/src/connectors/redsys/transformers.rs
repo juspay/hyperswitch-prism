@@ -21,7 +21,9 @@ use domain_types::{
         PaymentsCaptureData, PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::{
+        GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, WalletData,
+    },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_response_types,
@@ -953,8 +955,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                 },
                 response: Err(domain_types::router_data::ErrorResponse {
                     code: err.error_code.clone(),
-                    message: err.error_code_description.clone(),
-                    reason: Some(err.error_code_description.clone()),
+                    message: err.error_code_description.clone().unwrap_or_default(),
+                    reason: Some(err.error_code_description.clone().unwrap_or_default()),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -1142,8 +1144,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                 },
                 response: Err(domain_types::router_data::ErrorResponse {
                     code: err.error_code.clone(),
-                    message: err.error_code_description.clone(),
-                    reason: Some(err.error_code_description.clone()),
+                    message: err.error_code_description.clone().unwrap_or_default(),
+                    reason: Some(err.error_code_description.clone().unwrap_or_default()),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -1154,6 +1156,32 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                 ..item.router_data
             }),
         }
+    }
+}
+
+impl SignatureCalculationData for requests::RedsysGooglePayRequest {
+    fn get_merchant_parameters(&self) -> Result<String, Error> {
+        self.encode_to_string_of_json()
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })
+    }
+
+    fn get_order_id(&self) -> String {
+        self.ds_merchant_order.clone()
+    }
+}
+
+impl SignatureCalculationData for requests::RedsysGooglePayDecryptedRequest {
+    fn get_merchant_parameters(&self) -> Result<String, Error> {
+        self.encode_to_string_of_json()
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })
+    }
+
+    fn get_order_id(&self) -> String {
+        self.ds_merchant_order.clone()
     }
 }
 
@@ -1254,6 +1282,93 @@ where
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
+
+        // Branch: Google Pay wallet payments use a different request structure
+        if let PaymentMethodData::Wallet(WalletData::GooglePay(ref gpay_data)) =
+            item.router_data.request.payment_method_data
+        {
+            let auth = RedsysAuthType::try_from(&router_data.connector_config)?;
+            let is_auto_capture = router_data.request.is_auto_capture();
+            let ds_merchant_transactiontype = if is_auto_capture {
+                requests::RedsysTransactionType::Payment
+            } else {
+                requests::RedsysTransactionType::Preauthorization
+            };
+            let ds_merchant_order = get_ds_merchant_order(
+                router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+                router_data.request.metadata.as_ref(),
+            )?;
+            let amount = RedsysAmountConvertor::convert(
+                router_data.request.amount,
+                router_data.request.currency,
+            )?;
+            let currency = router_data.request.currency.iso_4217().to_owned();
+
+            match &gpay_data.tokenization_data {
+                GpayTokenizationData::Encrypted(ref encrypted_data) => {
+                    let gpay_request = requests::RedsysGooglePayRequest {
+                        ds_merchant_amount: amount,
+                        ds_merchant_currency: currency,
+                        ds_merchant_merchantcode: auth.merchant_id.clone(),
+                        ds_merchant_order,
+                        ds_merchant_terminal: auth.terminal_id.clone(),
+                        ds_merchant_transactiontype,
+                        ds_xpaydata: Secret::new(encrypted_data.token.clone()),
+                        ds_xpaytype: "Google".to_string(),
+                        ds_xpayorigen: "WEB".to_string(),
+                        ds_merchant_emv3ds: None,
+                    };
+                    return Self::try_from((&gpay_request, &auth));
+                }
+                GpayTokenizationData::Decrypted(ref decrypted_data) => {
+                    let exp_year = decrypted_data.get_two_digit_expiry_year().change_context(
+                        IntegrationError::RequestEncodingFailed {
+                            context: Default::default(),
+                        },
+                    )?;
+                    let exp_month = decrypted_data.get_expiry_month().change_context(
+                        IntegrationError::RequestEncodingFailed {
+                            context: Default::default(),
+                        },
+                    )?;
+                    // Redsys expects YYMM format (e.g. "2612" for Dec 2026)
+                    let expiration_date =
+                        Secret::new(format!("{}{}", exp_year.expose(), exp_month.expose()));
+                    let pan = Secret::new(
+                        decrypted_data
+                            .application_primary_account_number
+                            .get_card_no(),
+                    );
+                    let payment_method = if decrypted_data.cryptogram.is_some() {
+                        "TOKENIZED_CARD".to_string()
+                    } else {
+                        "CARD".to_string()
+                    };
+                    let decoded_data = requests::RedsysXPayDecodedData {
+                        cryptogram: decrypted_data.cryptogram.clone(),
+                        eci_ind: decrypted_data.eci_indicator.clone(),
+                        expiration_date,
+                        token: pan,
+                        payment_method,
+                    };
+                    let gpay_request = requests::RedsysGooglePayDecryptedRequest {
+                        ds_merchant_amount: amount,
+                        ds_merchant_currency: currency,
+                        ds_merchant_merchantcode: auth.merchant_id.clone(),
+                        ds_merchant_order,
+                        ds_merchant_terminal: auth.terminal_id.clone(),
+                        ds_merchant_transactiontype,
+                        ds_xpaydecodeddata: decoded_data,
+                        ds_xpaytype: "Google".to_string(),
+                        ds_xpayorigen: "WEB".to_string(),
+                    };
+                    return Self::try_from((&gpay_request, &auth));
+                }
+            }
+        }
 
         let card_data = requests::RedsysCardData::try_from(&Some(
             item.router_data.request.payment_method_data.clone(),
@@ -1460,8 +1575,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                 },
                 response: Err(domain_types::router_data::ErrorResponse {
                     code: err.error_code.clone(),
-                    message: err.error_code_description.clone(),
-                    reason: Some(err.error_code_description.clone()),
+                    message: err.error_code_description.clone().unwrap_or_default(),
+                    reason: Some(err.error_code_description.clone().unwrap_or_default()),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -1574,8 +1689,8 @@ impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
                 },
                 response: Err(domain_types::router_data::ErrorResponse {
                     code: err.error_code.clone(),
-                    message: err.error_code_description.clone(),
-                    reason: Some(err.error_code_description.clone()),
+                    message: err.error_code_description.clone().unwrap_or_default(),
+                    reason: Some(err.error_code_description.clone().unwrap_or_default()),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -1692,8 +1807,8 @@ impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
                 },
                 response: Err(domain_types::router_data::ErrorResponse {
                     code: err.error_code.clone(),
-                    message: err.error_code_description.clone(),
-                    reason: Some(err.error_code_description.clone()),
+                    message: err.error_code_description.clone().unwrap_or_default(),
+                    reason: Some(err.error_code_description.clone().unwrap_or_default()),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -1995,8 +2110,8 @@ impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
             responses::RedsysResponse::RedsysErrorResponse(ref err) => {
                 Err(domain_types::router_data::ErrorResponse {
                     code: err.error_code.clone(),
-                    message: err.error_code_description.clone(),
-                    reason: Some(err.error_code_description.clone()),
+                    message: err.error_code_description.clone().unwrap_or_default(),
+                    reason: Some(err.error_code_description.clone().unwrap_or_default()),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,

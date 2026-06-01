@@ -191,6 +191,51 @@ pub struct RedsysOperationRequest {
     pub ds_merchant_transactiontype: RedsysTransactionType,
 }
 
+/// Decoded Google Pay token data (DIRECT mode) for DS_XPAYDECODEDDATA
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RedsysXPayDecodedData {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cryptogram: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eci_ind: Option<String>,
+    pub expiration_date: Secret<String>,
+    pub token: Secret<String>,
+    pub payment_method: String,
+}
+
+/// Google Pay request (PAYMENT_GATEWAY mode — encrypted token via DS_XPAYDATA)
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub struct RedsysGooglePayRequest {
+    pub ds_merchant_amount: StringMinorUnit,
+    pub ds_merchant_currency: String,
+    pub ds_merchant_merchantcode: Secret<String>,
+    pub ds_merchant_order: String,
+    pub ds_merchant_terminal: Secret<String>,
+    pub ds_merchant_transactiontype: RedsysTransactionType,
+    pub ds_xpaydata: Secret<String>,
+    pub ds_xpaytype: String,
+    pub ds_xpayorigen: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ds_merchant_emv3ds: Option<RedsysEmvThreeDsRequestData>,
+}
+
+/// Google Pay request (DIRECT mode — decoded token via DS_XPAYDECODEDDATA)
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub struct RedsysGooglePayDecryptedRequest {
+    pub ds_merchant_amount: StringMinorUnit,
+    pub ds_merchant_currency: String,
+    pub ds_merchant_merchantcode: Secret<String>,
+    pub ds_merchant_order: String,
+    pub ds_merchant_terminal: Secret<String>,
+    pub ds_merchant_transactiontype: RedsysTransactionType,
+    pub ds_xpaydecodeddata: RedsysXPayDecodedData,
+    pub ds_xpaytype: String,
+    pub ds_xpayorigen: String,
+}
+
 /// SOAP XML messages container for sync operations
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]

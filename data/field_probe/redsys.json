@@ -221,12 +221,12 @@
         "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "GooglePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "status": "error",
+        "error": "Field 'ds_merchant_order' is too long for connector 'Redsys'"
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "status": "error",
+        "error": "Field 'ds_merchant_order' is too long for connector 'Redsys'"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
