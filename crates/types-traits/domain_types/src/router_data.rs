@@ -3155,6 +3155,21 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
                 ConnectorEnum::TwocTwopPaco => Err(err().into()),
+                ConnectorEnum::Asiapay => match auth {
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::Asiapay {
+                        merchant_id: api_key.clone(),
+                        secure_hash_secret: key1.clone(),
+                        login_id: api_secret.clone(),
+                        password: key2.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
             },
             connector_types::ConnectorVariant::Surcharge(connector_enum) => match connector_enum {
                 SurchargeConnectorEnum::Interpayments => match auth {
@@ -3164,21 +3179,6 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
-            },
-            ConnectorEnum::Asiapay => match auth {
-                ConnectorAuthType::MultiAuthKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                    key2,
-                } => Ok(Self::Asiapay {
-                    merchant_id: api_key.clone(),
-                    secure_hash_secret: key1.clone(),
-                    login_id: api_secret.clone(),
-                    password: key2.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
             },
         }
     }
