@@ -510,7 +510,7 @@ async fn test_refund_sync() {
 }
 
 #[tokio::test]
-#[ignore = "requires twin backend on http://localhost:8777; run with --ignored after `cargo run -p twin`"]
+#[ignore = "integration test: spins up an in-process server and needs CONNECTOR_AUTH_FILE_PATH (creds.json)"]
 async fn test_verify_redirect_response_success() {
     grpc_test!(client, PaymentServiceClient<Channel>, {
         let request = create_verify_redirect_request(
@@ -526,9 +526,59 @@ async fn test_verify_redirect_response_success() {
             .expect("gRPC verify_redirect_response call failed")
             .into_inner();
 
+        // Dummy performs no hash/signature verification or payload decryption, so there is
+        // nothing to source-verify — source_verified is always false (PPRO/Revolut pattern).
         assert!(
-            response.source_verified,
-            "VerifyRedirectResponse should report source_verified=true for a valid dummy redirect"
+            !response.source_verified,
+            "Dummy does no source verification; source_verified must be false"
+        );
+        // `dummy_status=success` is still parsed best-effort and mapped to a payment status.
+        assert_eq!(
+            response.status,
+            Some(i32::from(PaymentStatus::Charged)),
+            "dummy_status=success should map to Charged, got {:?}",
+            response.status
+        );
+        assert_eq!(
+            response.connector_transaction_id.as_deref(),
+            Some("DUMMY-pi_test_12345"),
+            "dummy_id should be echoed as the connector transaction id"
+        );
+    });
+}
+
+#[tokio::test]
+#[ignore = "integration test: spins up an in-process server and needs CONNECTOR_AUTH_FILE_PATH (creds.json)"]
+async fn test_verify_redirect_response_missing_status_is_ok() {
+    // Regression test for the "Missing required field: dummy_status" 400. Real callers (e.g. Euler)
+    // send `query_params: null`; the dummy connector must respond gracefully (no error) with
+    // source_verified=false and no status, rather than failing the request.
+    grpc_test!(client, PaymentServiceClient<Channel>, {
+        let request = PaymentServiceVerifyRedirectResponseRequest {
+            merchant_order_id: Some(generate_unique_id("dummy_redirect")),
+            request_details: Some(RequestDetails {
+                method: i32::from(HttpMethod::Get),
+                uri: None,
+                headers: HashMap::new(),
+                body: vec![],
+                query_params: None,
+            }),
+            redirect_response_secrets: None,
+        };
+        let mut grpc_request = Request::new(request);
+        add_dummy_metadata(&mut grpc_request);
+
+        let response = client
+            .verify_redirect_response(grpc_request)
+            .await
+            .expect("verify_redirect_response must succeed even without dummy_status")
+            .into_inner();
+
+        assert!(!response.source_verified);
+        assert_eq!(
+            response.status, None,
+            "no dummy_status → no status, got {:?}",
+            response.status
         );
     });
 }

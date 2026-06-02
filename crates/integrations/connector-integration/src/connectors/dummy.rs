@@ -214,7 +214,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _request: &domain_types::connector_types::RequestDetails,
         _secrets: Option<interfaces::verification::ConnectorSourceVerificationSecrets>,
     ) -> CustomResult<bool, IntegrationError> {
-        Ok(true)
+        // Dummy performs no hash/signature verification or payload decryption, so there is
+        // nothing to source-verify. Matches the PPRO/Revolut "not applicable" pattern.
+        Ok(false)
     }
 
     fn process_redirect_response(
@@ -222,19 +224,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: &domain_types::connector_types::RequestDetails,
     ) -> CustomResult<domain_types::connector_types::RedirectDetailsResponse, IntegrationError>
     {
+        // Best-effort: pull `dummy_status`/`dummy_id` out of the redirect query string when present
+        // (lets tests simulate an outcome), but never error when they're absent — real callers
+        // (e.g. Euler) send `query_params: null`, and a missing status is not a failure here.
         let query = request.query_params.as_deref().unwrap_or("");
         let (status, dummy_id) = dummy::parse_dummy_redirect_query(query);
-
-        let status = status.ok_or(IntegrationError::MissingRequiredField {
-            field_name: "dummy_status",
-            context: Default::default(),
-        })?;
 
         Ok(domain_types::connector_types::RedirectDetailsResponse {
             resource_id: dummy_id
                 .clone()
                 .map(domain_types::connector_types::ResponseId::ConnectorTransactionId),
-            status: Some(status.to_attempt_status()),
+            status: status.map(|s| s.to_attempt_status()),
             response_amount: None,
             connector_response_reference_id: dummy_id,
             error_code: None,

@@ -106,29 +106,78 @@
     "verify_redirect_basic": {
       "grpc_req": {
         "request_details": {
-          "uri": "https://example.com/payment/redirect?dummy_status=success&dummy_id=DUMMY-pi_test_12345"
+          "uri": "https://example.com/payment/redirect?dummy_status=success&dummy_id=DUMMY-pi_test_12345",
+          "query_params": "dummy_status=success&dummy_id=DUMMY-pi_test_12345"
+        }
+      },
+      "assert": {
+        "source_verified": {
+          "equals": false
+        },
+        "status": {
+          "equals": "CHARGED"
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": null,
+        "error.connector_details.code": {
+          "must_not_exist": true
+        },
+        "error.connector_details.message": {
+          "must_not_exist": true
         }
       }
     },
     "verify_redirect_with_params": {
       "grpc_req": {
         "request_details": {
-          "uri": "https://example.com/payment/redirect?dummy_status=success&dummy_id=DUMMY-pi_test_67890"
+          "uri": "https://example.com/payment/redirect?dummy_status=success&dummy_id=DUMMY-pi_test_67890",
+          "query_params": "dummy_status=success&dummy_id=DUMMY-pi_test_67890"
+        }
+      },
+      "assert": {
+        "source_verified": {
+          "equals": false
+        },
+        "status": {
+          "equals": "CHARGED"
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": null,
+        "error.connector_details.code": {
+          "must_not_exist": true
+        },
+        "error.connector_details.message": {
+          "must_not_exist": true
         }
       }
     },
     "verify_redirect_fail_tampered": {
       "grpc_req": {
         "request_details": {
-          "uri": "https://example.com/payment/redirect?status=success&payment_id=tampered_xyz"
+          "uri": "https://example.com/payment/redirect?status=success&payment_id=tampered_xyz",
+          "query_params": "status=success&payment_id=tampered_xyz"
         }
       },
       "assert": {
         "source_verified": {
-          "equals": true
+          "equals": false
         },
-        "error": {
-          "must_exist": true
+        "status": {
+          "must_not_exist": true
+        },
+        "connector_transaction_id": {
+          "must_not_exist": true
+        },
+        "error": null,
+        "error.connector_details.code": {
+          "must_not_exist": true
+        },
+        "error.connector_details.message": {
+          "must_not_exist": true
         }
       }
     }
