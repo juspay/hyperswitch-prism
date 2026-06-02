@@ -365,26 +365,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 })
             });
 
-        let card_holder_name = item
-            .resource_common_data
-            .address
-            .get_payment_method_billing()
-            .and_then(|billing| {
-                billing.address.as_ref().and_then(|addr| {
-                    match (&addr.first_name, &addr.last_name) {
-                        (Some(first), Some(last)) => {
-                            Some(format!("{} {}", first.peek(), last.peek()))
-                        }
-                        (Some(first), None) => Some(first.peek().to_string()),
-                        (None, Some(last)) => Some(last.peek().to_string()),
-                        (None, None) => None,
-                    }
-                })
-            })
-            .unwrap_or_else(|| "Cardholder".to_string());
+        // Prefer the cardholder name carried on the card itself, falling back to
+        // the billing full name. Error rather than send a placeholder so we never
+        // submit a fabricated name to the processor (mirrors hyperswitch, which
+        // requires a real billing name here).
+        let card_holder_name = card_data
+            .card_holder_name
+            .clone()
+            .or_else(|| item.resource_common_data.get_optional_billing_full_name())
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "payment_method.card.card_holder_name",
+                context: Default::default(),
+            })?;
 
         let customer_info = NexixpayCustomerInfo {
-            card_holder_name: Secret::new(card_holder_name),
+            card_holder_name,
             billing_address,
             shipping_address: None,
         };
@@ -1223,27 +1218,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 })
             });
 
-        // Get cardholder name from billing address or use default
-        let card_holder_name = item
-            .resource_common_data
-            .address
-            .get_payment_method_billing()
-            .and_then(|billing| {
-                billing.address.as_ref().and_then(|addr| {
-                    match (&addr.first_name, &addr.last_name) {
-                        (Some(first), Some(last)) => {
-                            Some(format!("{} {}", first.peek(), last.peek()))
-                        }
-                        (Some(first), None) => Some(first.peek().to_string()),
-                        (None, Some(last)) => Some(last.peek().to_string()),
-                        (None, None) => None,
-                    }
-                })
-            })
-            .unwrap_or_else(|| "Cardholder".to_string()); // Default fallback
+        // Cardholder name: prefer the card's own holder name, fall back to the
+        // billing full name, and error if neither is present (no placeholder).
+        let card_holder_name = card_data
+            .card_holder_name
+            .clone()
+            .or_else(|| item.resource_common_data.get_optional_billing_full_name())
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "payment_method.card.card_holder_name",
+                context: Default::default(),
+            })?;
 
         let customer_info = NexixpayCustomerInfo {
-            card_holder_name: Secret::new(card_holder_name),
+            card_holder_name,
             billing_address,
             shipping_address: None, // Match Hyperswitch - always null for PreAuthenticate
         };
@@ -1906,26 +1893,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 })
             });
 
-        let card_holder_name = item
-            .resource_common_data
-            .address
-            .get_payment_method_billing()
-            .and_then(|billing| {
-                billing.address.as_ref().and_then(|addr| {
-                    match (&addr.first_name, &addr.last_name) {
-                        (Some(first), Some(last)) => {
-                            Some(format!("{} {}", first.peek(), last.peek()))
-                        }
-                        (Some(first), None) => Some(first.peek().to_string()),
-                        (None, Some(last)) => Some(last.peek().to_string()),
-                        (None, None) => None,
-                    }
-                })
-            })
-            .unwrap_or_else(|| "Cardholder".to_string());
+        // Cardholder name: prefer the card's own holder name, fall back to the
+        // billing full name, and error if neither is present (no placeholder).
+        let card_holder_name = card_data
+            .card_holder_name
+            .clone()
+            .or_else(|| item.resource_common_data.get_optional_billing_full_name())
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "payment_method.card.card_holder_name",
+                context: Default::default(),
+            })?;
 
         let customer_info = NexixpayCustomerInfo {
-            card_holder_name: Secret::new(card_holder_name),
+            card_holder_name,
             billing_address,
             shipping_address: None,
         };
@@ -2153,8 +2133,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )))?,
         };
 
-        // Billing / cardholder come from PaymentFlowData (off-session, so default
-        // the name if billing is absent).
+        // Billing / cardholder come from PaymentFlowData. There is no card on an
+        // MIT, so the cardholder name is taken from the billing full name (and is
+        // required) — matching hyperswitch, which errors when it is absent.
         let billing_address = item
             .resource_common_data
             .address
@@ -2190,26 +2171,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 })
             });
 
-        let card_holder_name = item
-            .resource_common_data
-            .address
-            .get_payment_method_billing()
-            .and_then(|billing| {
-                billing.address.as_ref().and_then(|addr| {
-                    match (&addr.first_name, &addr.last_name) {
-                        (Some(first), Some(last)) => {
-                            Some(format!("{} {}", first.peek(), last.peek()))
-                        }
-                        (Some(first), None) => Some(first.peek().to_string()),
-                        (None, Some(last)) => Some(last.peek().to_string()),
-                        (None, None) => None,
-                    }
-                })
-            })
-            .unwrap_or_else(|| "Cardholder".to_string());
+        let card_holder_name = item.resource_common_data.get_billing_full_name()?;
 
         let customer_info = NexixpayCustomerInfo {
-            card_holder_name: Secret::new(card_holder_name),
+            card_holder_name,
             billing_address,
             shipping_address: None,
         };
