@@ -681,5 +681,11 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             merchant_id: m(),
             base_url: None,
         },
+        ConnectorEnum::Mercadopago => ConnectorSpecificConfig::Mercadopago {
+            api_key: k(),
+            public_key: Some(k()),
+            base_url: None,
+        },
+
     }
 }

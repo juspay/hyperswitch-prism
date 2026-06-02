@@ -72,5 +72,12 @@
     "https://docs.worldpay.com/apis/wpg/manage/modificationrequests",
     "https://documentation.ixopay.com/docs/tokenex/worldpaywpg",
     "https://github.com/activemerchant/active_merchant/blob/master/lib/active_merchant/billing/gateways/worldpay.rb"
+  ],
+  "T-kassa": [
+    "https://developer.tbank.ru/eacq/api/init",
+    "https://developer.tbank.ru/eacq/intro/developer/token",
+    "https://developer.tbank.ru/eacq/api/get-state",
+    "https://developer.tbank.ru/eacq/api",
+    "https://developer.tbank.ru/eacq/intro"
   ]
 }
