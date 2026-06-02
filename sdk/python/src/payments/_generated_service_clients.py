@@ -185,3 +185,10 @@ class RefundClient(_ConnectorClientBase):
     def refund_get(self, request, options=None):
         """RefundService.Get — Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication."""
         return self._execute_flow("refund_get", request, _pb2.RefundResponse, options)
+
+class SurchargeClient(_ConnectorClientBase):
+    """SurchargeService flows"""
+
+    def surcharge_calculate(self, request, options=None):
+        """SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing."""
+        return self._execute_flow("surcharge_calculate", request, _pb2.SurchargeServiceCalculateResponse, options)

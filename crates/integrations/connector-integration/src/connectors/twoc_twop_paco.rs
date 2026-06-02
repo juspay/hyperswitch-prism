@@ -533,7 +533,29 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         ) -> CustomResult<String, errors::IntegrationError> {
             let base_url = self.connector_base_url_refunds(req);
-            let order_no = req.request.connector_refund_id.clone();
+            let order_no = req
+                .request
+                .get_connector_order_id()
+                .change_context(errors::IntegrationError::MissingRequiredField {
+                    field_name: "connector_order_id",
+                    context: errors::IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Pass the original Authorize's `orderNo` (== the \
+                                 `merchant_transaction_id` you sent on Authorize) as \
+                                 `connector_order_id` on the RSync request."
+                                .to_string(),
+                        ),
+                        doc_url: Some(
+                            "https://devzone.2c2p.com/reference/inquiry".to_string(),
+                        ),
+                        additional_context: Some(
+                            "PACO's Inquiry endpoint matches refund-sync by `orderNo`, \
+                                 which is not derivable from `connector_transaction_id` \
+                                 (PACO's `invoiceNo2C2P`) or `connector_refund_id`."
+                                .to_string(),
+                        ),
+                    },
+                })?;
             Ok(format!(
                 "{base_url}/api/2.0/Inquiry/transactionStatus?orderNo={}",
                 urlencoding::encode(&order_no),

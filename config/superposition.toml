@@ -86,7 +86,7 @@ api_tags_tags_psync = { value = "", schema = { type = "string" } }
 environment = { position = 1, schema = { type = "string", enum = ["sandbox", "development", "production"] } }
 
 # Connector dimension - determines which payment processor URLs to use
-connector = { position = 2, schema = { type = "string", enum = ["stripe", "adyen", "paypal", "razorpay", "checkout", "braintree", "worldpay", "cybersource", "payme", "bluesnap", "fiserv", "trustpay", "volt", "hipay", "xendit", "phonepe", "cashfree", "payu", "paytm", "dlocal", "rapyd", "aci", "nuvei", "forte", "authorizedotnet", "elavon", "bamboraapac", "billwerk", "paysafe", "worldpayvantiv", "worldpayxml", "tsys", "bankofamerica", "powertranz", "revolut", "airwallex", "bambora", "shift4", "multisafepay", "iatapay", "jpmorgan", "nmi", "nexixpay", "authipay", "stax", "trustpayments", "fiservemea", "datatrans", "silverflow", "celero", "globalpay", "razorpayv2", "fiuu", "payload", "cashtocode", "novalnet", "nexinets", "noon", "mifinity", "calida", "cryptopay", "helcim", "placetopay", "barclaycard", "gigadat", "loonio", "mollie", "sanlam", "truelayer", "trustly", "zift", "revolv3", "fiservcommercehub", "finix", "wellsfargo", "imerchantsolutions"] } }
+connector = { position = 2, schema = { type = "string", enum = ["stripe", "adyen", "paypal", "razorpay", "checkout", "braintree", "worldpay", "cybersource", "payme", "bluesnap", "fiserv", "trustpay", "volt", "hipay", "xendit", "phonepe", "cashfree", "payu", "paytm", "dlocal", "rapyd", "aci", "nuvei", "forte", "authorizedotnet", "elavon", "bamboraapac", "billwerk", "paysafe", "worldpayvantiv", "worldpayxml", "tsys", "bankofamerica", "powertranz", "revolut", "airwallex", "bambora", "shift4", "multisafepay", "iatapay", "jpmorgan", "nmi", "nexixpay", "authipay", "stax", "trustpayments", "fiservemea", "datatrans", "silverflow", "celero", "globalpay", "razorpayv2", "fiuu", "payload", "cashtocode", "novalnet", "nexinets", "noon", "mifinity", "calida", "cryptopay", "helcim", "placetopay", "barclaycard", "gigadat", "loonio", "mollie", "absa_sanlam", "truelayer", "trustly", "twoc_twop_paco", "zift", "revolv3", "fiservcommercehub", "finix", "wellsfargo", "imerchantsolutions"] } }
 
 # ============================================================================
 # Development Environment Overrides
@@ -526,10 +526,10 @@ connector_base_url = "https://api.mollie.com/v2/"
 _context_ = { connector = "revolv3" }
 connector_base_url = "https://api.revolv3.com/"
 
-# Sanlam
+# AbsaSanlam
 [[overrides]]
-_context_ = { connector = "sanlam" }
-connector_base_url = "https://api.sanlampay.com/"
+_context_ = { connector = "absa_sanlam" }
+connector_base_url = "https://api.absa_sanlampay.com/"
 
 # TrueLayer
 [[overrides]]
@@ -540,6 +540,11 @@ connector_base_url = "https://api.truelayer.com/"
 [[overrides]]
 _context_ = { connector = "trustly" }
 connector_base_url = "https://api.trustly.com/v1/"
+
+# 2C2P PACO
+[[overrides]]
+_context_ = { connector = "twoc_twop_paco" }
+connector_base_url = "https://core.demo-paco.2c2p.com"
 
 # Wells Fargo
 [[overrides]]
@@ -841,10 +846,10 @@ connector_base_url = "https://api.mollie.com/v2/"
 _context_ = { connector = "revolv3", environment = "production" }
 connector_base_url = "https://api.revolv3.com/"
 
-# Sanlam Production
+# AbsaSanlam Production
 [[overrides]]
-_context_ = { connector = "sanlam", environment = "production" }
-connector_base_url = "https://api.sanlampay.com/"
+_context_ = { connector = "absa_sanlam", environment = "production" }
+connector_base_url = "https://api.absa_sanlampay.com/"
 
 # TrueLayer Production
 [[overrides]]
@@ -855,6 +860,11 @@ connector_base_url = "https://api.truelayer.com/"
 [[overrides]]
 _context_ = { connector = "trustly", environment = "production" }
 connector_base_url = "https://api.trustly.com/v1/"
+
+# 2C2P PACO Production
+[[overrides]]
+_context_ = { connector = "twoc_twop_paco", environment = "production" }
+connector_base_url = "https://core.paco.2c2p.com/"
 
 # Wells Fargo Production
 [[overrides]]

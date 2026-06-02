@@ -531,6 +531,23 @@ export class UniffiClient extends _UniffiClientBase {
     return this.callRes('submit_evidence', responseBytes, requestBytes, optionsBytes);
   }
 
+  /** Build connector HTTP request for surcharge_calculate flow. */
+  surchargeCalculateReq(
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callReq('surcharge_calculate', requestBytes, optionsBytes);
+  }
+
+  /** Parse connector HTTP response for surcharge_calculate flow. */
+  surchargeCalculateRes(
+    responseBytes: Buffer | Uint8Array,
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callRes('surcharge_calculate', responseBytes, requestBytes, optionsBytes);
+  }
+
   /** Build connector HTTP request for token_authorize flow. */
   tokenAuthorizeReq(
     requestBytes: Buffer | Uint8Array,

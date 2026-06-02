@@ -6,7 +6,9 @@ use error_stack::Report;
 use tonic::metadata;
 use ucs_env::{configs, error::ResultExtGrpc};
 
-use crate::utils::{connector_and_config_from_metadata, connector_from_metadata, MetadataPayload};
+use crate::utils::{
+    connector_and_config_from_metadata, connector_variant_from_metadata, MetadataPayload,
+};
 use ucs_interface_common::metadata::{
     merchant_id_from_metadata, request_id_from_metadata, tenant_id_from_metadata,
 };
@@ -88,7 +90,7 @@ fn extract_routing_metadata_only(
         // If X_AUTH is "NoKey", skip full auth parsing and hardcode connector_config to NoKey.
         // This is a special convention used by certain webhook flows that don't require auth credentials.
         Some(v) if v.eq_ignore_ascii_case("NoKey") => {
-            let connector = connector_from_metadata(metadata)?;
+            let connector = connector_variant_from_metadata(metadata)?;
             (connector, ConnectorSpecificConfig::NoKey)
         }
         // For all other cases, resolve connector and config through the standard metadata parsing.
