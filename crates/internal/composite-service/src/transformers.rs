@@ -439,7 +439,10 @@ impl ForeignFrom<&CompositeAuthorizeRequest>
             return_url: item.return_url.clone(),
             continue_redirection_url: item.continue_redirection_url.clone(),
             browser_info: item.browser_info.clone(),
-            state: None,
+            // Thread the caller-supplied ConnectorState (access token + connector
+            // customer id) into the PreAuthenticate sub-request, so OAuth-gated
+            // connectors (should_do_access_token) don't fail with FAILED_TO_OBTAIN_AUTH_TYPE.
+            state: item.state.clone(),
             capture_method: item.capture_method,
             description: item.description.clone(),
         }
@@ -476,7 +479,9 @@ impl
             return_url: item.return_url.clone(),
             continue_redirection_url: item.continue_redirection_url.clone(),
             browser_info: item.browser_info.clone(),
-            state: None,
+            // Thread the caller-supplied ConnectorState (access token) into the
+            // sub-request so OAuth-gated connectors don't fail FAILED_TO_OBTAIN_AUTH_TYPE.
+            state: item.state.clone(),
             redirection_response: item.redirection_response.clone(),
             capture_method: item.capture_method,
         }
@@ -513,7 +518,9 @@ impl
             return_url: item.return_url.clone(),
             continue_redirection_url: item.continue_redirection_url.clone(),
             browser_info: item.browser_info.clone(),
-            state: None,
+            // Thread the caller-supplied ConnectorState (access token) into the
+            // sub-request so OAuth-gated connectors don't fail FAILED_TO_OBTAIN_AUTH_TYPE.
+            state: item.state.clone(),
             redirection_response: item.redirection_response.clone(),
             capture_method: item.capture_method,
         }
