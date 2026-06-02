@@ -681,5 +681,11 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             merchant_id: m(),
             base_url: None,
         },
+        ConnectorEnum::Btcpay => ConnectorSpecificConfig::Btcpay {
+            api_key: k(),
+            store_id: None,
+            base_url: None,
+        },
+
     }
 }

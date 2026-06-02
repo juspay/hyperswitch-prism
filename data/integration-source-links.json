@@ -72,5 +72,11 @@
     "https://docs.worldpay.com/apis/wpg/manage/modificationrequests",
     "https://documentation.ixopay.com/docs/tokenex/worldpaywpg",
     "https://github.com/activemerchant/active_merchant/blob/master/lib/active_merchant/billing/gateways/worldpay.rb"
+  ],
+  "BTCPay": [
+    "https://docs.btcpayserver.org/API/Greenfield/v1/",
+    "https://docs.btcpayserver.org/Development/GreenFieldExample/",
+    "https://github.com/btcpayserver/btcpayserver/blob/master/docs/greenfield-authorization.md",
+    "https://docs.btcpayserver.org/Invoices/"
   ]
 }
