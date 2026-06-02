@@ -257,6 +257,8 @@ pub mod juspay_upi_stack;
 pub mod axisbank;
 pub use self::axisbank::Axisbank;
 
+pub mod tsys_xml;
+pub use self::tsys_xml::TsysXml;
 pub mod twoc_twop_paco;
 pub use self::twoc_twop_paco::TwocTwopPaco;
 

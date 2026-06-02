@@ -169,6 +169,8 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
+
+                    mit_category: None,
                     payment_channel: None,
                 },
                 response: Err(ErrorResponse::default()),
@@ -323,6 +325,8 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
+
+                    mit_category: None,
                     payment_channel: None,
                 },
                 response: Err(ErrorResponse::default()),

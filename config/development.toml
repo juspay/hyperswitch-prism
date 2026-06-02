@@ -23,7 +23,7 @@ type = "grpc"
 
 [metrics]
 host = "0.0.0.0"
-port = 8080
+port = 8081
 
 [proxy]
 idle_pool_connection_timeout = 90
@@ -155,6 +155,7 @@ pinelabs_online.base_url = "https://pluraluat.v2.pinepg.in/api/pay/v1"
 easebuzz.base_url = "https://testpay.easebuzz.in"
 easebuzz.secondary_base_url = "https://testdashboard.easebuzz.in"
 axisbank.base_url = "https://upiuatv3.axisbank.com/api/b2/"
+tsys_xml.base_url = "https://stagegw.transnox.com/servlets/TransNox_API_Server"
 
 # Generic Events Configuration
 [events]

@@ -75,7 +75,7 @@ connector_id: axisbank
 doc: docs/connectors/axisbank.md
 scenarios: none
 payment_methods: none
-flows: 
+flows:
 examples_python: none
 
 ## Bambora
@@ -699,7 +699,7 @@ connector_id: twoctwoppaco
 doc: docs/connectors/twoctwoppaco.md
 scenarios: none
 payment_methods: none
-flows: 
+flows:
 examples_python: none
 
 ## Volt

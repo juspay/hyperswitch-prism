@@ -1,0 +1,677 @@
+mod requests;
+mod responses;
+pub mod transformers;
+
+use std::fmt::Debug;
+
+use common_enums::CurrencyUnit;
+use common_utils::{
+    errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMajorUnit,
+};
+use domain_types::{
+    connector_flow::{
+        Authorize, Capture, CreateConnectorCustomer, PSync, RSync, Refund, RepeatPayment,
+        SetupMandate, Void,
+    },
+    connector_types::{
+        ConnectorCustomerData, ConnectorCustomerResponse, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        SetupMandateRequestData,
+    },
+    errors::{ConnectorError, IntegrationError},
+    payment_method_data::PaymentMethodDataTypes,
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data_v2::RouterDataV2,
+    router_response_types::Response,
+    types::Connectors,
+};
+use error_stack::ResultExt;
+use hyperswitch_masking::Maskable;
+use interfaces::{
+    api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
+    decode::BodyDecoding, verification::SourceVerification,
+};
+use serde::Serialize;
+use transformers::{self as tsys_xml};
+
+use requests::{
+    TsysXmlAddCustomerRequest, TsysXmlAuthorizeRequest, TsysXmlCaptureRequest,
+    TsysXmlCardAuthenticationRequest, TsysXmlRSyncRequest, TsysXmlRepeatPaymentRequest,
+    TsysXmlReturnRequest, TsysXmlTransactionInquiryRequest, TsysXmlVoidRequest,
+};
+use responses::{
+    TsysXmlAddCustomerResponse, TsysXmlAuthorizeResponse, TsysXmlCaptureResponse,
+    TsysXmlCardAuthenticationResponse, TsysXmlRSyncResponse, TsysXmlRepeatPaymentResponse,
+    TsysXmlReturnResponse, TsysXmlTransactionInquiryResponse, TsysXmlVoidResponse,
+};
+
+use super::macros::{self, GetSoapXml};
+use crate::{types::ResponseRouterData, utils, with_error_response_body};
+
+const CONTENT_TYPE_XML: &str = "text/xml";
+
+pub(crate) mod headers {
+    pub(crate) const CONTENT_TYPE: &str = "Content-Type";
+}
+
+// =============================================================================
+// AMOUNT CONVERTER
+// =============================================================================
+// TransIT expects amounts as a decimal string in major currency units (e.g. "1.25").
+macros::create_amount_converter_wrapper!(connector_name: TsysXml, amount_type: StringMajorUnit);
+
+// =============================================================================
+// CONNECTOR STRUCT + PREREQUISITES
+// =============================================================================
+macros::create_all_prerequisites!(
+    connector_name: TsysXml,
+    generic_type: T,
+    api: [
+        (
+            flow: Authorize,
+            request_body: TsysXmlAuthorizeRequest<T>,
+            response_body: TsysXmlAuthorizeResponse,
+            response_format: xml,
+            router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: PSync,
+            request_body: TsysXmlTransactionInquiryRequest,
+            response_body: TsysXmlTransactionInquiryResponse,
+            response_format: xml,
+            router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+        ),
+        (
+            flow: Capture,
+            request_body: TsysXmlCaptureRequest,
+            response_body: TsysXmlCaptureResponse,
+            response_format: xml,
+            router_data: RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+        ),
+        (
+            flow: Refund,
+            request_body: TsysXmlReturnRequest,
+            response_body: TsysXmlReturnResponse,
+            response_format: xml,
+            router_data: RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+        ),
+        (
+            flow: RSync,
+            request_body: TsysXmlRSyncRequest,
+            response_body: TsysXmlRSyncResponse,
+            response_format: xml,
+            router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: Void,
+            request_body: TsysXmlVoidRequest,
+            response_body: TsysXmlVoidResponse,
+            response_format: xml,
+            router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ),
+        (
+            flow: CreateConnectorCustomer,
+            request_body: TsysXmlAddCustomerRequest,
+            response_body: TsysXmlAddCustomerResponse,
+            response_format: xml,
+            router_data: RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: TsysXmlCardAuthenticationRequest,
+            response_body: TsysXmlCardAuthenticationResponse,
+            response_format: xml,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: TsysXmlRepeatPaymentRequest<T>,
+            response_body: TsysXmlRepeatPaymentResponse,
+            response_format: xml,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        )
+    ],
+    amount_converters: [
+        amount_converter: StringMajorUnit
+    ],
+    member_functions: {
+        pub fn connector_base_url_payments<'a, F, Req, Res>(
+            &self,
+            req: &'a RouterDataV2<F, PaymentFlowData, Req, Res>,
+        ) -> &'a str {
+            &req.resource_common_data.connectors.tsys_xml.base_url
+        }
+
+        pub fn connector_base_url_refunds<'a, F, Req, Res>(
+            &self,
+            req: &'a RouterDataV2<F, RefundFlowData, Req, Res>,
+        ) -> &'a str {
+            &req.resource_common_data.connectors.tsys_xml.base_url
+        }
+    }
+);
+
+// =============================================================================
+// CONNECTOR COMMON IMPLEMENTATION
+// =============================================================================
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
+    for TsysXml<T>
+{
+    fn id(&self) -> &'static str {
+        "tsys_xml"
+    }
+
+    fn get_currency_unit(&self) -> CurrencyUnit {
+        // TransIT expects amounts in major units (decimal string, e.g. "1.25").
+        CurrencyUnit::Base
+    }
+
+    fn common_get_content_type(&self) -> &'static str {
+        CONTENT_TYPE_XML
+    }
+
+    fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
+        connectors.tsys_xml.base_url.as_ref()
+    }
+
+    fn get_auth_header(
+        &self,
+        _auth_type: &ConnectorSpecificConfig,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+        // TransIT uses body-based authentication (deviceID / transactionKey /
+        // developerID are flattened into the XML payload). No HTTP auth headers.
+        Ok(vec![])
+    }
+
+    fn build_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+        let response: tsys_xml::TsysXmlErrorResponse = res
+            .response
+            .parse_struct("TsysXmlErrorResponse")
+            .change_context(utils::response_deserialization_fail(
+                res.status_code,
+                "tsys_xml: response body did not match the expected format; confirm API version and connector documentation.",
+            ))?;
+
+        with_error_response_body!(event_builder, response);
+
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response
+                .response_code
+                .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
+            message: response
+                .response_message
+                .clone()
+                .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
+            reason: response.response_message,
+            attempt_status: None,
+            connector_transaction_id: None,
+            network_decline_code: None,
+            network_advice_code: None,
+            network_error_message: None,
+        })
+    }
+}
+
+// =============================================================================
+// REQUIRED MARKER TRAITS
+// =============================================================================
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::ConnectorServiceTrait<T> for TsysXml<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::ValidationTrait for TsysXml<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::IncomingWebhook for TsysXml<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::VerifyRedirectResponse for TsysXml<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> SourceVerification
+    for TsysXml<T>
+{
+}
+
+// XML connectors mirror worldpayxml: keep `BodyDecoding` at the default
+// (NoAlgorithm) for now — the response body is parsed via the XML response
+// pattern in the macro layer, not via this trait.
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> BodyDecoding
+    for TsysXml<T>
+{
+}
+
+// Authorize is the only payments-flow currently wired; the remaining
+// trait-marker impls stay in the `macro_connector_flow_status_impls!`
+// `not_implemented` block below.
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentAuthorizeV2<T> for TsysXml<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentSyncV2 for TsysXml<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentCapture for TsysXml<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RefundV2 for TsysXml<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RefundSyncV2 for TsysXml<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentVoidV2 for TsysXml<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::CreateConnectorCustomer for TsysXml<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::SetupMandateV2<T> for TsysXml<T>
+{
+}
+
+// RepeatPayment (MIT replay) reuses the Authorize XML shape — Path A / Path B
+// dispatch is handled inside the request transformer via `decode_mandate_dispatch`.
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RepeatPaymentV2<T> for TsysXml<T>
+{
+}
+
+// =============================================================================
+// AUTHORIZE FLOW
+// =============================================================================
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: TsysXml,
+    curl_request: SoapXml(TsysXmlAuthorizeRequest<T>),
+    curl_response: TsysXmlAuthorizeResponse,
+    flow_name: Authorize,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsAuthorizeData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            _req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            // TransIT auth lives in the request body; only Content-Type is required.
+            Ok(vec![
+                (headers::CONTENT_TYPE.to_string(), CONTENT_TYPE_XML.to_string().into()),
+            ])
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // TransIT exposes a single POST `/` endpoint that dispatches on the
+            // XML root element (tech spec § Sequence Diagrams).
+            Ok(self.connector_base_url_payments(req).to_string())
+        }
+    }
+);
+
+// =============================================================================
+// PSYNC FLOW
+// =============================================================================
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: TsysXml,
+    curl_request: SoapXml(TsysXmlTransactionInquiryRequest),
+    curl_response: TsysXmlTransactionInquiryResponse,
+    flow_name: PSync,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsSyncData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            _req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            // TransIT auth lives in the request body; only Content-Type is required.
+            Ok(vec![
+                (headers::CONTENT_TYPE.to_string(), CONTENT_TYPE_XML.to_string().into()),
+            ])
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // TransIT exposes a single POST `/` endpoint that dispatches on the
+            // XML root element (tech spec § Sequence Diagrams).
+            Ok(self.connector_base_url_payments(req).to_string())
+        }
+    }
+);
+
+// =============================================================================
+// CAPTURE FLOW
+// =============================================================================
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: TsysXml,
+    curl_request: SoapXml(TsysXmlCaptureRequest),
+    curl_response: TsysXmlCaptureResponse,
+    flow_name: Capture,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsCaptureData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            _req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            // TransIT auth lives in the request body; only Content-Type is required.
+            Ok(vec![
+                (headers::CONTENT_TYPE.to_string(), CONTENT_TYPE_XML.to_string().into()),
+            ])
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // TransIT exposes a single POST `/` endpoint that dispatches on the
+            // XML root element (tech spec § Sequence Diagrams).
+            Ok(self.connector_base_url_payments(req).to_string())
+        }
+    }
+);
+
+// =============================================================================
+// REFUND FLOW
+// =============================================================================
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: TsysXml,
+    curl_request: SoapXml(TsysXmlReturnRequest),
+    curl_response: TsysXmlReturnResponse,
+    flow_name: Refund,
+    resource_common_data: RefundFlowData,
+    flow_request: RefundsData,
+    flow_response: RefundsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            _req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            // TransIT auth lives in the request body; only Content-Type is required.
+            Ok(vec![
+                (headers::CONTENT_TYPE.to_string(), CONTENT_TYPE_XML.to_string().into()),
+            ])
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // TransIT exposes a single POST `/` endpoint that dispatches on the
+            // XML root element (tech spec § Sequence Diagrams).
+            Ok(self.connector_base_url_refunds(req).to_string())
+        }
+    }
+);
+
+// =============================================================================
+// RSYNC FLOW
+// =============================================================================
+//
+// TransIT refunds are sync-final on the `<ReturnResponse>` (no separate
+// refund-status-poll endpoint). However, HS still dispatches RSync to verify
+// terminal status, so we reuse the PSync request/response shape
+// (`<TransactionInquiry>`) and map the response to `RefundStatus` instead of
+// `AttemptStatus`.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: TsysXml,
+    curl_request: SoapXml(TsysXmlRSyncRequest),
+    curl_response: TsysXmlRSyncResponse,
+    flow_name: RSync,
+    resource_common_data: RefundFlowData,
+    flow_request: RefundSyncData,
+    flow_response: RefundsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            _req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            // TransIT auth lives in the request body; only Content-Type is required.
+            Ok(vec![
+                (headers::CONTENT_TYPE.to_string(), CONTENT_TYPE_XML.to_string().into()),
+            ])
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // TransIT exposes a single POST `/` endpoint that dispatches on the
+            // XML root element (tech spec § Sequence Diagrams).
+            Ok(self.connector_base_url_refunds(req).to_string())
+        }
+    }
+);
+
+// =============================================================================
+// VOID FLOW
+// =============================================================================
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: TsysXml,
+    curl_request: SoapXml(TsysXmlVoidRequest),
+    curl_response: TsysXmlVoidResponse,
+    flow_name: Void,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentVoidData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            _req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            // TransIT auth lives in the request body; only Content-Type is required.
+            Ok(vec![
+                (headers::CONTENT_TYPE.to_string(), CONTENT_TYPE_XML.to_string().into()),
+            ])
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // TransIT exposes a single POST `/` endpoint that dispatches on the
+            // XML root element (tech spec § Sequence Diagrams).
+            Ok(self.connector_base_url_payments(req).to_string())
+        }
+    }
+);
+
+// =============================================================================
+// CREATE CONNECTOR CUSTOMER FLOW — TransIT `<AddCustomer>` (vault setup, Path B)
+// =============================================================================
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: TsysXml,
+    curl_request: SoapXml(TsysXmlAddCustomerRequest),
+    curl_response: TsysXmlAddCustomerResponse,
+    flow_name: CreateConnectorCustomer,
+    resource_common_data: PaymentFlowData,
+    flow_request: ConnectorCustomerData,
+    flow_response: ConnectorCustomerResponse,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            _req: &RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            Ok(vec![
+                (headers::CONTENT_TYPE.to_string(), CONTENT_TYPE_XML.to_string().into()),
+            ])
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(self.connector_base_url_payments(req).to_string())
+        }
+    }
+);
+
+// =============================================================================
+// SETUP MANDATE FLOW — TransIT `<CardAuthentication>` (zero-dollar CIT verify)
+// =============================================================================
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: TsysXml,
+    curl_request: SoapXml(TsysXmlCardAuthenticationRequest),
+    curl_response: TsysXmlCardAuthenticationResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            _req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            Ok(vec![
+                (headers::CONTENT_TYPE.to_string(), CONTENT_TYPE_XML.to_string().into()),
+            ])
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(self.connector_base_url_payments(req).to_string())
+        }
+    }
+);
+
+// =============================================================================
+// REPEAT PAYMENT FLOW — TransIT `<Sale>` / `<Auth>` replay (MIT)
+// =============================================================================
+//
+// TransIT does not expose a distinct "RecurringCharge" endpoint — MIT replays
+// fire the same `<Sale>` (auto-capture) / `<Auth>` (manual capture) XML against
+// the same POST `/` endpoint. The request transformer (`TryFrom<&TsysXmlRouterData
+// <RouterDataV2<RepeatPayment, ..., RepeatPaymentData<T>, ...>>>`) converts the
+// upstream `RepeatPaymentData` into the same `TsysXmlAuthorizeRequest` body that
+// the Authorize flow emits, with the mandate id propagated so the existing
+// `decode_mandate_dispatch()` logic picks Path A (NTID) or Path B (vault).
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: TsysXml,
+    curl_request: SoapXml(TsysXmlRepeatPaymentRequest<T>),
+    curl_response: TsysXmlRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            _req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            Ok(vec![
+                (headers::CONTENT_TYPE.to_string(), CONTENT_TYPE_XML.to_string().into()),
+            ])
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(self.connector_base_url_payments(req).to_string())
+        }
+    }
+);
+
+// =============================================================================
+// FLOW STATUS IMPLEMENTATIONS — remaining flows are scaffolded as `not_implemented`.
+// =============================================================================
+macros::macro_connector_payout_implementation!(
+    connector: TsysXml,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
+);
+
+macros::macro_connector_flow_status_impls!(
+    connector: TsysXml,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    not_implemented: [
+        CreateOrder,
+        IncrementalAuthorization,
+        VoidPC,
+        PaymentMethodToken,
+        ServerAuthenticationToken,
+        ServerSessionAuthenticationToken,
+        ClientAuthenticationToken,
+        MandateRevoke,
+        PreAuthenticate,
+        Authenticate,
+        PostAuthenticate,
+        SubmitEvidence,
+        DefendDispute,
+    ],
+    not_supported: [
+        Accept,
+    ],
+);

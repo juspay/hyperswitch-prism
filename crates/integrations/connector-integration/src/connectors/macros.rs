@@ -376,6 +376,16 @@ macro_rules! expand_fn_handle_response {
             use error_stack::ResultExt;
             paste::paste! {let bridge = self.[< $flow:snake >];}
 
+            if stringify!($connector) == "TsysXml" {
+                tracing::info!(
+                    connector = stringify!($connector),
+                    flow = stringify!($flow),
+                    http_status = res.status_code,
+                    raw_response = %String::from_utf8_lossy(res.response.as_ref()),
+                    "tsys_xml raw connector response"
+                );
+            }
+
             // Apply preprocessing if specified in the macro
             let response_bytes = self
                 .preprocess_response_bytes(data, res.response, res.status_code)
@@ -408,6 +418,15 @@ macro_rules! expand_fn_handle_response {
             macro_types::ConnectorError,
         > {
             paste::paste! {let bridge = self.[< $flow:snake >];}
+            if stringify!($connector) == "TsysXml" {
+                tracing::info!(
+                    connector = stringify!($connector),
+                    flow = stringify!($flow),
+                    http_status = res.status_code,
+                    raw_response = %String::from_utf8_lossy(res.response.as_ref()),
+                    "tsys_xml raw connector response"
+                );
+            }
             let response_body = bridge.response(res.response, res.status_code)?;
             event_builder.map(|i| i.set_connector_response(&response_body));
             let response_router_data = ResponseRouterData {

@@ -38,7 +38,7 @@ message PaySafeCard {
 // ============================================================================
 
 // PaymentMethod represents a payment instrument used to process a payment
-// It contains a oneof field with all possible payment method 
+// It contains a oneof field with all possible payment method
 message PaymentMethod {
   oneof payment_method {
     // CARD METHODS (1-9) - Direct variants
@@ -46,11 +46,11 @@ message PaymentMethod {
     CardRedirect card_redirect = 4;                     // Card redirect flow
     ProxyCardDetails card_proxy = 7;                         // Generic card proxy payment
     TokenPaymentMethodType token = 8;                   // Payment tokens
-    
+
     // ============================================================================
     // DIGITAL WALLETS (10-178)
     // ============================================================================
-    
+
     // --- SDK-BASED WALLETS ---
     // Native wallet SDK integrations with encrypted token exchange
     AppleWallet apple_pay_sdk = 10;                          // Apple Pay
@@ -58,12 +58,12 @@ message PaymentMethod {
     PaypalSdkWallet paypal_sdk = 12;                     // PayPal SDK
     PazeWallet paze_sdk = 13;                                // Paze
     SamsungWallet samsung_pay_sdk = 14;                      // Samsung Pay
-    
+
     // --- THIRD PARTY SDK WALLETS ---
     // Third-party SDK integrations providing tokenized payment data
     ApplePayThirdPartySdkWallet apple_pay_third_party_sdk = 15;   // Apple Pay Third Party SDK
     GooglePayThirdPartySdkWallet google_pay_third_party_sdk = 16;  // Google Pay Third Party SDK
-    
+
     // --- REDIRECT WALLETS ---
     // User redirects to wallet provider to authorize payment
     AmazonPayRedirectWallet amazon_pay_redirect = 17;    // Amazon Pay
@@ -104,7 +104,7 @@ message PaymentMethod {
     MBWay mb_way = 182;                                   // MB WAY
     Satispay satispay = 183;                              // Satispay
     Wero wero = 184;                                      // Wero
-    
+
     // --- QR CODE WALLETS ---
     // User scans QR code with wallet app to complete payment
     CashappQrWallet cashapp_qr = 178;                     // Cash App
@@ -115,7 +115,7 @@ message PaymentMethod {
     UpiCollect upi_collect = 30;                        // UPI Collect
     UpiIntent upi_intent = 31;                          // UPI Intent
     UpiQr upi_qr = 32;                                  // UPI QR
-    
+
     // ONLINE BANKING (40-59) - Direct variants
     OnlineBankingThailand online_banking_thailand = 40;
     OnlineBankingCzechRepublic online_banking_czech_republic = 41;
@@ -139,13 +139,13 @@ message PaymentMethod {
     Interac interac = 59;                                     // Interac - Canadian bank redirect payment method
     Bizum bizum = 156;
     EftBankRedirect eft_bank_redirect = 157;
-    
+
     // MOBILE PAYMENTS (60-69) - Direct variants
     DuitNow duit_now = 60;
-    
+
     // CRYPTOCURRENCY (70-79) - Direct variant
     CryptoCurrency crypto = 70;
-    
+
     // REWARDS (80-89) - Flattened direct variants
     ClassicReward classic_reward = 80;                  // Classic reward points
     EVoucher e_voucher = 81;                           // Electronic voucher (e-voucher)
@@ -182,12 +182,12 @@ message PaymentMethod {
     AfterpayClearpay afterpay_clearpay = 111;                  // Afterpay/Clearpay - BNPL service
     Klarna klarna = 112;                                       // Klarna - Swedish BNPL service
     Alma alma = 113;                                           // Alma - French BNPL service
-    
+
     // NETWORK TRANSACTION METHODS (120-129) - For recurring payments with network transaction IDs
     CardDetailsForNetworkTransactionId card_details_for_network_transaction_id = 120; // Card details with network transaction ID
     NetworkTokenData network_token = 121; // Network token data
     DecryptedWalletTokenDetailsForNetworkTransactionId decrypted_wallet_token_details_for_network_transaction_id = 122; // Network Transaction ID and Decrypted Wallet Token Details
-    
+
     // GIFT CARDS (130-139)
     Givex givex = 137;                                         // Givex gift card
     PaySafeCard pay_safe_card = 138;                           // Paysafecard - Prepaid payment method
@@ -250,10 +250,10 @@ message CardDetails {
   SecretString card_exp_month = 2;
   SecretString card_exp_year = 3;
   SecretString card_cvc = 4;
-  
+
   // Cardholder Information
   optional SecretString card_holder_name = 5;
-  
+
   // Card Metadata
   optional string card_issuer = 6;
   optional CardNetwork card_network = 7;
@@ -270,10 +270,10 @@ message ProxyCardDetails {
   SecretString card_exp_month = 2;
   SecretString card_exp_year = 3;
   SecretString card_cvc = 4;
-  
+
   // Cardholder Information
   optional SecretString card_holder_name = 5;
-  
+
   // Card Metadata
   optional string card_issuer = 6;
   optional CardNetwork card_network = 7;
@@ -318,7 +318,7 @@ message AppleWallet {
     }
   }
   PaymentData payment_data = 1;
-  
+
   // Payment method details
   message PaymentMethod {
     string display_name = 1;
@@ -326,7 +326,7 @@ message AppleWallet {
     string type = 3;
   }
   PaymentMethod payment_method = 2;
-  
+
   // Transaction identifier
   string transaction_identifier = 3;
 }
@@ -335,13 +335,13 @@ message AppleWallet {
 message ApplePayDecryptedData {
   // The primary account number
   CardNumberType application_primary_account_number = 1;
-  
+
   // The application expiration date (PAN expiry month)
   SecretString application_expiration_month = 2;
-  
+
   // The application expiration date (PAN expiry year)
   SecretString application_expiration_year = 3;
-  
+
   // Cryptogram data for Apple Pay transactions
   ApplePayCryptogramData payment_data = 4;
 }
@@ -350,7 +350,7 @@ message ApplePayDecryptedData {
 message ApplePayCryptogramData {
   // The online payment cryptogram
   SecretString online_payment_cryptogram = 1;
-  
+
   // The ECI (Electronic Commerce Indicator) value
   optional string eci_indicator = 2;
 }
@@ -359,23 +359,23 @@ message ApplePayCryptogramData {
 message GoogleWallet {
   // Type of payment method
   string type = 1;
-  
+
   // User-facing description of the payment method
   string description = 2;
-  
+
   // Payment method information
   message PaymentMethodInfo {
     // Card network name
     string card_network = 1;
-    
+
     // Card details (usually last 4 digits)
     string card_details = 2;
-    
+
     // Assurance details
     message AssuranceDetails {
       // Indicates that cardholder possession validation has been performed
       bool card_holder_authenticated = 1;
-      
+
       // Indicates that identification and verification was performed
       bool account_verified = 2;
     }
@@ -397,16 +397,16 @@ message GoogleWallet {
 message GooglePayDecryptedData {
   // The card's expiry month
   SecretString card_exp_month = 1;
-  
+
   // The card's expiry year
   SecretString card_exp_year = 2;
-  
+
   // The Primary Account Number (PAN) of the card
   CardNumberType application_primary_account_number = 3;
-  
+
   // Cryptogram generated by the Network
   optional SecretString cryptogram = 4;
-  
+
   // Electronic Commerce Indicator
   optional string eci_indicator = 5;
 }
@@ -415,7 +415,7 @@ message GooglePayDecryptedData {
 message GooglePayEncryptedTokenizationData {
   // The type of the token
   string token_type = 1;
-  
+
   // Token generated for the wallet
   string token = 2;
 }
@@ -425,26 +425,26 @@ message SamsungWallet {
   message PaymentCredential {
     // Method type
     optional string method = 1;
-    
+
     // Whether this is a recurring payment
     optional bool recurring_payment = 2;
-    
+
     CardNetwork card_brand = 3;
-    
+
     // Last four digits of DPAN (Device Primary Account Number)
     optional SecretString dpan_last_four_digits = 4;
-    
+
     // Last four digits of card
     SecretString card_last_four_digits = 5;
-    
+
     // 3DS token data
-    message TokenData {  
+    message TokenData {
       // 3DS type
       optional string type = 1;
-      
+
       // 3DS version
       string version = 2;
-      
+
       // Token data
       SecretString data = 3;
     }
@@ -702,7 +702,7 @@ message ApplePayThirdPartySdkWallet {
   optional SecretString token = 1;
 }
 
-// Google Pay Third Party SDK - Google Pay with token from third-party SDK  
+// Google Pay Third Party SDK - Google Pay with token from third-party SDK
 message GooglePayThirdPartySdkWallet {
   // Payment token from third-party SDK
   optional SecretString token = 1;
@@ -769,19 +769,19 @@ message NetbankingPayment {
 message PixPayment {
   // Unique key for PIX transfer
   optional SecretString pix_key = 1;
-  
+
   // CPF (Brazilian tax identification number)
   optional SecretString cpf = 2;
-  
+
   // CNPJ (Brazilian company tax identification number)
   optional SecretString cnpj = 3;
-  
+
   // Source bank account ID
   optional string source_bank_account_id = 4;
-  
+
   // Destination bank account ID
   optional string destination_bank_account_id = 5;
-  
+
   // Session expiry date for Pix QR code (ISO 8601 format, max 5 days from now for Adyen)
   optional string expiry_date = 6;
 }
@@ -822,7 +822,7 @@ message MultibancoBankTransfer {
 
 // Eft Bank Redirect (Electronic Funds Transfer) - Generic electronic transfer of funds
 message EftBankRedirect {
-  // Identifier for the specific Eft provider/service to be used  
+  // Identifier for the specific Eft provider/service to be used
   // Examples: "ozow", "paystack", "instant_eft"
   string provider = 1;
 }
@@ -972,7 +972,7 @@ message Ideal {
 message Sofort {
     // The country for bank payment
     optional CountryAlpha2 country = 1;
-    
+
     // Preferred language for bank payment
     optional string preferred_language = 2;
 }
@@ -987,10 +987,10 @@ message Trustly {
 message Giropay {
   // Bank account bic code
   optional SecretString bank_account_bic = 2;
-  
+
   // Bank account iban
   optional SecretString bank_account_iban = 3;
-  
+
   // The country for bank payment
   optional CountryAlpha2 country = 4;
 }
@@ -999,7 +999,7 @@ message Giropay {
 message Eps {
   // The bank name for eps
   optional BankNames bank_name = 2;
-  
+
   // The country for bank payment
   optional CountryAlpha2 country = 3;
 }
@@ -1019,7 +1019,7 @@ message Blik {
 message Interac {
   // The country for the Interac payment (typically CA for Canada)
   optional CountryAlpha2 country = 1;
-  
+
   // The email address for the Interac e-Transfer notification
   optional SecretString email = 2;
 }
@@ -1033,13 +1033,13 @@ message Pse {
 message BancontactCard {
   // The card number
   CardNumberType card_number = 1;
-  
+
   // The card's expiry month
   SecretString card_exp_month = 2;
-  
+
   // The card's expiry year
   SecretString card_exp_year = 3;
-  
+
   // The card holder's name
   SecretString card_holder_name = 4;
 }
@@ -1108,7 +1108,7 @@ message DuitNow {
 message CryptoCurrency {
   // Currency to pay with
   optional string pay_currency = 1;
-  
+
   // Blockchain network
   optional string network = 2;
 }
@@ -1207,7 +1207,7 @@ message JCSVoucher {
 message Becs {
   // Account number for Becs payment method
   SecretString account_number = 1;
-  
+
   // Bank-State-Branch (bsb) number
   SecretString bsb_number = 2;
 
@@ -1219,22 +1219,22 @@ message Becs {
 message Ach {
   // Account number for ach bank debit payment
   SecretString account_number = 1;
-  
+
   // Routing number for ach bank debit payment
   SecretString routing_number = 2;
-  
+
   // Card holder name
   SecretString card_holder_name = 3;
-  
+
   // Bank account holder name
   SecretString bank_account_holder_name = 4;
-  
+
   // Bank name
   BankNames bank_name = 5;
-  
+
   // Bank type
   BankType bank_type = 6;
-  
+
   // Bank holder type
   BankHolderType bank_holder_type = 7;
 }
@@ -1243,16 +1243,16 @@ message Ach {
 message Eft {
   // Account number for eft bank debit payment
   SecretString account_number = 1;
-  
+
   // Branch code for eft bank debit payment
   SecretString branch_code = 2;
-  
+
   // Bank account holder name
   SecretString bank_account_holder_name = 3;
-  
+
   // Bank name
   BankNames bank_name = 4;
-  
+
   // Bank type
   BankType bank_type = 5;
 }
@@ -1261,7 +1261,7 @@ message Eft {
 message Sepa {
   // International bank account number (iban) for SEPA
   SecretString iban = 1;
-  
+
   // Owner name for bank debit
   optional SecretString bank_account_holder_name = 2;
 }
@@ -1270,10 +1270,10 @@ message Sepa {
 message  Bacs {
   // Account number for Bacs payment method
   SecretString account_number = 1;
-  
+
   // Sort code for Bacs payment method
   SecretString sort_code = 2;
-  
+
   // Holder name for bank debit
   optional SecretString bank_account_holder_name = 3;
 }
