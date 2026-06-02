@@ -7,7 +7,7 @@ use common_utils::{
 use domain_types::{
     connector_flow::{
         Authorize, Capture, CreateConnectorCustomer, PSync, RSync, Refund, RepeatPayment,
-        SetupMandate, Void, VoidPC,
+        ServerSessionAuthenticationToken, SetupMandate, Void, VoidPC,
     },
     connector_types::{
         ConnectorCustomerData, ConnectorCustomerResponse, ConnectorSpecifications,
@@ -15,7 +15,9 @@ use domain_types::{
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
         RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RepeatPaymentData,
-        RequestDetails, ResponseId, SetupMandateRequestData, WebhookDetailsResponse,
+        RequestDetails, ResponseId, ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData,
+        WebhookDetailsResponse,
     },
     errors::{ConnectorError, IntegrationError, WebhookError},
     payment_method_data::PaymentMethodDataTypes,
@@ -32,7 +34,7 @@ use interfaces::{
     connector_types::{
         self, ConnectorServiceTrait, IncomingWebhook, PaymentAuthorizeV2, PaymentCapture,
         PaymentSyncV2, PaymentVoidPostCaptureV2, PaymentVoidV2, RefundSyncV2, RefundV2,
-        RepeatPaymentV2, SetupMandateV2, ValidationTrait,
+        RepeatPaymentV2, ServerSessionAuthentication, SetupMandateV2, ValidationTrait,
     },
     decode::BodyDecoding,
     verification::SourceVerification,
@@ -46,6 +48,7 @@ use self::transformers::{
     AuthorizedotnetPSyncResponse, AuthorizedotnetPaymentsRequest, AuthorizedotnetRSyncRequest,
     AuthorizedotnetRSyncResponse, AuthorizedotnetRefundRequest, AuthorizedotnetRefundResponse,
     AuthorizedotnetRepeatPaymentRequest, AuthorizedotnetRepeatPaymentResponse,
+    AuthorizedotnetSdkSessionTokenRequest, AuthorizedotnetSdkSessionTokenResponse,
     AuthorizedotnetSetupMandateRequest, AuthorizedotnetSetupMandateResponse,
     AuthorizedotnetVoidPCRequest, AuthorizedotnetVoidPCResponse, AuthorizedotnetVoidRequest,
     AuthorizedotnetVoidResponse, AuthorizedotnetWebhookEventType, AuthorizedotnetWebhookObjectId,
@@ -84,6 +87,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn should_create_connector_customer(&self) -> bool {
         true
     }
+
+    fn should_do_session_token(&self) -> bool {
+        true
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    ServerSessionAuthentication for Authorizedotnet<T>
+{
 }
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     IncomingWebhook for Authorizedotnet<T>
@@ -459,6 +471,12 @@ macros::create_all_prerequisites!(
             request_body: AuthorizedotnetVoidPCRequest,
             response_body: AuthorizedotnetVoidPCResponse,
             router_data: RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ),
+        (
+            flow: ServerSessionAuthenticationToken,
+            request_body: AuthorizedotnetSdkSessionTokenRequest,
+            response_body: AuthorizedotnetSdkSessionTokenResponse,
+            router_data: RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
         )
     ],
     amount_converters: [
@@ -817,6 +835,39 @@ macros::macro_connector_implementation!(
     }
 );
 
+// Implement SDKSessionToken (ServerSessionAuthenticationToken) flow.
+// Backed by Authorize.Net's `getMerchantDetailsRequest`, returning the merchant's
+// `publicClientKey` which the front-end Accept.js / AcceptUI SDK consumes.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Authorizedotnet,
+    curl_request: Json(AuthorizedotnetSdkSessionTokenRequest),
+    curl_response: AuthorizedotnetSdkSessionTokenResponse,
+    flow_name: ServerSessionAuthenticationToken,
+    resource_common_data: PaymentFlowData,
+    flow_request: ServerSessionAuthenticationTokenRequestData,
+    flow_response: ServerSessionAuthenticationTokenResponseData,
+    http_method: Post,
+    preprocess_response: true,
+    generic_type: T,
+    [PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(self.connector_base_url_payments(req).to_string())
+        }
+    }
+);
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     ConnectorSpecifications for Authorizedotnet<T>
 {
@@ -829,7 +880,6 @@ macros::macro_connector_flow_status_impls!(
     not_implemented: [
         IncrementalAuthorization,
         CreateOrder,
-        ServerSessionAuthenticationToken,
         ServerAuthenticationToken,
         PaymentMethodToken,
         ClientAuthenticationToken,
