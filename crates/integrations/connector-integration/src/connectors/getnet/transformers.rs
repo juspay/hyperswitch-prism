@@ -617,73 +617,23 @@ fn build_boleto_customer<T: PaymentMethodDataTypes>(
             })
         })?;
 
-    // `street` and `city` have error-propagating getters; use them directly.
+    // Globalgetnet's boleto schema rejects a partial address — every field is required,
+    // so use the error-propagating getters and surface a MissingRequiredField on absence.
     let street = item.resource_common_data.get_billing_line1()?;
+    let number = item.resource_common_data.get_billing_line2()?;
+    let district = item.resource_common_data.get_billing_line3()?;
     let city = item.resource_common_data.get_billing_city()?;
+    let state = item.resource_common_data.get_billing_state()?;
     let country = item.resource_common_data.get_billing_country()?.to_string();
-    // `line2` (number), `line3` (district), `state` and `zip` have no required getter,
-    // so enforce them explicitly — Globalgetnet's boleto schema rejects a partial address.
-    let number = item.resource_common_data.get_optional_billing_line2().ok_or_else(|| {
-            error_stack::report!(IntegrationError::MissingRequiredField {
-                field_name: "payment_method_data.billing.address.line2",
-                context: IntegrationErrorContext {
-                    suggested_action: Some("Provide the street number (billing address line2) — required by Globalgetnet.".to_string()),
-                    doc_url: None,
-                    additional_context: None,
-                },
-            })
-        })?;
-    let district = item.resource_common_data.get_optional_billing_line3().ok_or_else(|| {
-            error_stack::report!(IntegrationError::MissingRequiredField {
-                field_name: "payment_method_data.billing.address.line3",
-                context: IntegrationErrorContext {
-                    suggested_action: Some("Provide the district/bairro (billing address line3) — required by Globalgetnet boleto.".to_string()),
-                    doc_url: None,
-                    additional_context: None,
-                },
-            })
-        })?;
-    let state = item
-        .resource_common_data
-        .get_optional_billing_state()
-        .ok_or_else(|| {
-            error_stack::report!(IntegrationError::MissingRequiredField {
-                field_name: "payment_method_data.billing.address.state",
-                context: IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Provide the billing state — required by Globalgetnet boleto.".to_string(),
-                    ),
-                    doc_url: None,
-                    additional_context: None,
-                },
-            })
-        })?;
     // Brazilian CEP — digits only, max 8 chars (Globalgetnet enforces ≤ 8).
-    let postal_code = item
-        .resource_common_data
-        .get_optional_billing_zip()
-        .map(|z| {
-            let cleaned: String = z
-                .peek()
-                .chars()
-                .filter(|c| c.is_ascii_digit())
-                .take(8)
-                .collect();
-            Secret::new(cleaned)
-        })
-        .ok_or_else(|| {
-            error_stack::report!(IntegrationError::MissingRequiredField {
-                field_name: "payment_method_data.billing.address.zip",
-                context: IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Provide the billing postal code (CEP) — required by Globalgetnet."
-                            .to_string(),
-                    ),
-                    doc_url: None,
-                    additional_context: None,
-                },
-            })
-        })?;
+    let zip = item.resource_common_data.get_billing_zip()?;
+    let postal_code = Secret::new(
+        zip.peek()
+            .chars()
+            .filter(|c| c.is_ascii_digit())
+            .take(8)
+            .collect::<String>(),
+    );
 
     let billing_address = GetnetBoletoAddress {
         street,
@@ -772,15 +722,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 };
                 return Ok(Self::Boleto(Box::new(GetnetBoletoAuthorize {
                     request_id: uuid::Uuid::new_v4().to_string(),
-                    idempotency_key: item
-                        .resource_common_data
-                        .merchant_request_id
-                        .clone()
-                        .unwrap_or_else(|| {
-                            item.resource_common_data
-                                .connector_request_reference_id
-                                .clone()
-                        }),
+                    idempotency_key: item.resource_common_data.get_merchant_request_id()?,
                     data,
                 })));
             }
@@ -819,15 +761,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                         currency: item.request.currency,
                         order_id: request_ref_id,
                         customer_id,
-                        idempotency_key: item
-                            .resource_common_data
-                            .merchant_request_id
-                            .clone()
-                            .unwrap_or_else(|| {
-                                item.resource_common_data
-                                    .connector_request_reference_id
-                                    .clone()
-                            }),
+                        idempotency_key: item.resource_common_data.get_merchant_request_id()?,
                     }));
                 }
             }
@@ -964,15 +898,10 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         };
 
         // `request_id` is a fresh per-attempt UUID. `idempotency_key` reuses the caller's
-        // `merchant_request_id` when supplied (so a retried request de-duplicates), else
-        // falls back to `connector_request_reference_id` — matching the Capture/Refund flows.
+        // `merchant_request_id` so a retried request de-duplicates; it is required.
         Ok(Self::Standard(Box::new(GetnetStandardAuthorize {
             request_id: uuid::Uuid::new_v4().to_string(),
-            idempotency_key: item
-                .resource_common_data
-                .merchant_request_id
-                .clone()
-                .unwrap_or_else(|| request_ref_id.clone()),
+            idempotency_key: item.resource_common_data.get_merchant_request_id()?,
             order_id: request_ref_id,
             data,
         })))
@@ -1761,36 +1690,11 @@ fn build_threeds_address<T: PaymentMethodDataTypes>(
         PaymentsResponseData,
     >,
 ) -> Result<GetnetThreeDsAddress, error_stack::Report<IntegrationError>> {
-    // `line1` (street) and `country` have error-propagating getters; use them directly.
+    // The 3DS enrolment billing address is mandatory; use the error-propagating getters.
     let street = item.resource_common_data.get_billing_line1()?;
+    let number = item.resource_common_data.get_billing_line2()?;
     let country = item.resource_common_data.get_billing_country()?.to_string();
-    // `line2` (number) and `zip` have no required getter, so enforce them explicitly.
-    let number = item.resource_common_data.get_optional_billing_line2().ok_or_else(|| {
-            error_stack::report!(IntegrationError::MissingRequiredField {
-                field_name: "payment_method_data.billing.address.line2",
-                context: IntegrationErrorContext {
-                    suggested_action: Some("Provide the street number (billing address line2) — required by Globalgetnet.".to_string()),
-                    doc_url: None,
-                    additional_context: None,
-                },
-            })
-        })?;
-    let postal_code = item
-        .resource_common_data
-        .get_optional_billing_zip()
-        .ok_or_else(|| {
-            error_stack::report!(IntegrationError::MissingRequiredField {
-                field_name: "payment_method_data.billing.address.zip",
-                context: IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Provide the billing postal code (CEP) — required by Globalgetnet."
-                            .to_string(),
-                    ),
-                    doc_url: None,
-                    additional_context: None,
-                },
-            })
-        })?;
+    let postal_code = item.resource_common_data.get_billing_zip()?;
 
     Ok(GetnetThreeDsAddress {
         street,
