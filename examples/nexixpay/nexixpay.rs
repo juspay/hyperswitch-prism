@@ -126,6 +126,14 @@ pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest 
             ..Default::default()
         }),
         return_url: Some("https://example.com/recurring-return".to_string()),
+        address: Some(PaymentAddress {
+            // Address Information.
+            billing_address: Some(Address {
+                first_name: Some(Secret::new("John".to_string())), // Personal Information.
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
         connector_customer_id: Some("cust_probe_123".to_string()),
         payment_method_type: Some(PaymentMethodType::PayPal.into()),
         off_session: Some(true), // Behavioral Flags and Preferences.

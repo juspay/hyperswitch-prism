@@ -87,6 +87,11 @@ def _build_recurring_charge_request():
             ),
         ),
         return_url="https://example.com/recurring-return",
+        address=payment_pb2.PaymentAddress(  # Address Information.
+            billing_address=payment_pb2.Address(
+                first_name=payment_methods_pb2.SecretString(value="John"),  # Personal Information.
+            ),
+        ),
         connector_customer_id="cust_probe_123",
         payment_method_type=payment_pb2.PaymentMethodType.Value("PAY_PAL"),
         off_session=True,  # Behavioral Flags and Preferences.

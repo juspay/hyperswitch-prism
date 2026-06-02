@@ -609,7 +609,7 @@
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"order\":{\"orderId\":\"\",\"amount\":\"1000\",\"currency\":\"USD\",\"customerInfo\":{\"cardHolderName\":\"Cardholder\",\"billingAddress\":{},\"shippingAddress\":null}},\"card\":{\"pan\":\"4111111111111111\",\"expiryDate\":\"0330\",\"cvv\":\"737\"},\"recurrence\":{\"action\":\"NO_RECURRING\",\"contractId\":null,\"contractType\":null}}"
+          "body": "{\"order\":{\"orderId\":\"\",\"amount\":\"1000\",\"currency\":\"USD\",\"customerInfo\":{\"cardHolderName\":\"John Doe\",\"billingAddress\":{},\"shippingAddress\":null}},\"card\":{\"pan\":\"4111111111111111\",\"expiryDate\":\"0330\",\"cvv\":\"737\"},\"recurrence\":{\"action\":\"NO_RECURRING\",\"contractId\":null,\"contractType\":null}}"
         }
       }
     },
@@ -646,6 +646,11 @@
             }
           },
           "return_url": "https://example.com/recurring-return",
+          "address": {
+            "billing_address": {
+              "first_name": "John"
+            }
+          },
           "connector_customer_id": "cust_probe_123",
           "payment_method_type": "PAY_PAL",
           "off_session": true
@@ -659,7 +664,7 @@
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"order\":{\"orderId\":\"\",\"amount\":\"1000\",\"currency\":\"USD\",\"customerInfo\":{\"cardHolderName\":\"Cardholder\",\"shippingAddress\":null}},\"contractId\":\"probe-mandate-123\",\"captureType\":\"IMPLICIT\"}"
+          "body": "{\"order\":{\"orderId\":\"\",\"amount\":\"1000\",\"currency\":\"USD\",\"customerInfo\":{\"cardHolderName\":\"John\",\"billingAddress\":{\"name\":\"John\"},\"shippingAddress\":null}},\"contractId\":\"probe-mandate-123\",\"captureType\":\"IMPLICIT\"}"
         }
       }
     },
@@ -762,7 +767,7 @@
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"order\":{\"orderId\":\"probe_mandate_001\",\"amount\":\"0\",\"currency\":\"USD\",\"customerInfo\":{\"cardHolderName\":\"Cardholder\",\"billingAddress\":{},\"shippingAddress\":null}},\"card\":{\"pan\":\"4111111111111111\",\"expiryDate\":\"0330\",\"cvv\":\"737\"},\"recurrence\":{\"action\":\"CONTRACT_CREATION\",\"contractId\":\"probe_mandate_001\",\"contractType\":\"MIT_UNSCHEDULED\"},\"actionType\":\"VERIFY\"}"
+          "body": "{\"order\":{\"orderId\":\"probe_mandate_001\",\"amount\":\"0\",\"currency\":\"USD\",\"customerInfo\":{\"cardHolderName\":\"John Doe\",\"billingAddress\":{},\"shippingAddress\":null}},\"card\":{\"pan\":\"4111111111111111\",\"expiryDate\":\"0330\",\"cvv\":\"737\"},\"recurrence\":{\"action\":\"CONTRACT_CREATION\",\"contractId\":\"probe_mandate_001\",\"contractType\":\"MIT_UNSCHEDULED\"},\"actionType\":\"VERIFY\"}"
         }
       }
     },

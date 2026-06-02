@@ -154,6 +154,11 @@ fun recurringCharge(txnId: String, config: ConnectorConfig = _defaultConfig) {
             }
         }
         returnUrl = "https://example.com/recurring-return"
+        addressBuilder.apply {  // Address Information.
+            billingAddressBuilder.apply {
+                firstNameBuilder.value = "John"  // Personal Information.
+            }
+        }
         connectorCustomerId = "cust_probe_123"
         paymentMethodType = PaymentMethodType.PAY_PAL
         offSession = true  // Behavioral Flags and Preferences.

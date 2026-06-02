@@ -82,6 +82,11 @@ function _buildRecurringChargeRequest(): types.IRecurringPaymentServiceChargeReq
             }
         },
         "returnUrl": "https://example.com/recurring-return",
+        "address": {  // Address Information.
+            "billingAddress": {
+                "firstName": {"value": "John"}  // Personal Information.
+            }
+        },
         "connectorCustomerId": "cust_probe_123",
         "paymentMethodType": PaymentMethodType.PAY_PAL,
         "offSession": true  // Behavioral Flags and Preferences.
