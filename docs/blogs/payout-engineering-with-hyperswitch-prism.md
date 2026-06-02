@@ -34,15 +34,15 @@ graph TB
     SC1 -. "fix here..." .-> SC1
     AC1 -. "...doesn't propagate here" .-> AC1
 
-    style App fill:#c0392b,color:#fff,stroke:#922b21
-    style SC1 fill:#f5cba7,stroke:#e67e22
-    style AC1 fill:#f5cba7,stroke:#e67e22
-    style PC1 fill:#f5cba7,stroke:#e67e22
-    style WC1 fill:#f5cba7,stroke:#e67e22
-    style SA fill:#d5dbdb,stroke:#95a5a6
-    style AA fill:#d5dbdb,stroke:#95a5a6
-    style PA fill:#d5dbdb,stroke:#95a5a6
-    style WA fill:#d5dbdb,stroke:#95a5a6
+    style App fill:#c0392b,color:#fff,stroke:#e74c3c
+    style SC1 fill:#d35400,color:#fff,stroke:#e67e22
+    style AC1 fill:#d35400,color:#fff,stroke:#e67e22
+    style PC1 fill:#d35400,color:#fff,stroke:#e67e22
+    style WC1 fill:#d35400,color:#fff,stroke:#e67e22
+    style SA fill:#5d6d7e,color:#fff,stroke:#7f8c8d
+    style AA fill:#5d6d7e,color:#fff,stroke:#7f8c8d
+    style PA fill:#5d6d7e,color:#fff,stroke:#7f8c8d
+    style WA fill:#5d6d7e,color:#fff,stroke:#7f8c8d
 ```
 *N processors means N independent codepaths. A fix in one does not propagate.*
 
@@ -111,17 +111,17 @@ graph TB
 
     Resp --> App
 
-    style App fill:#1a5276,color:#fff,stroke:#154360
-    style Schema fill:#1e8bc3,color:#fff,stroke:#1a6fa0
-    style ST fill:#d6eaf8,stroke:#5dade2
-    style AT fill:#d6eaf8,stroke:#5dade2
-    style PT fill:#d6eaf8,stroke:#5dade2
-    style WT fill:#d6eaf8,stroke:#5dade2
-    style SA fill:#d5dbdb,stroke:#95a5a6
-    style AA fill:#d5dbdb,stroke:#95a5a6
-    style PA fill:#d5dbdb,stroke:#95a5a6
-    style WA fill:#d5dbdb,stroke:#95a5a6
-    style Resp fill:#1e8bc3,color:#fff,stroke:#1a6fa0
+    style App fill:#1a5276,color:#fff,stroke:#2471a3
+    style Schema fill:#117a65,color:#fff,stroke:#1abc9c
+    style ST fill:#1a6fa0,color:#fff,stroke:#2e86c1
+    style AT fill:#1a6fa0,color:#fff,stroke:#2e86c1
+    style PT fill:#1a6fa0,color:#fff,stroke:#2e86c1
+    style WT fill:#1a6fa0,color:#fff,stroke:#2e86c1
+    style SA fill:#5d6d7e,color:#fff,stroke:#7f8c8d
+    style AA fill:#5d6d7e,color:#fff,stroke:#7f8c8d
+    style PA fill:#5d6d7e,color:#fff,stroke:#7f8c8d
+    style WA fill:#5d6d7e,color:#fff,stroke:#7f8c8d
+    style Resp fill:#117a65,color:#fff,stroke:#1abc9c
 ```
 *One schema at the top, N thin transformers at the bottom. Business logic and contracts are written once.*
 
