@@ -303,9 +303,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             shipping_address: TamaraAddress {
                 first_name,
                 last_name,
-                line1: shipping_line1,
-                city: shipping_city,
-                country_code: shipping_country,
+                line1: shipping_line1.into(),
+                city: shipping_city.into(),
+                country_code: shipping_country.into(),
             },
         })
     }

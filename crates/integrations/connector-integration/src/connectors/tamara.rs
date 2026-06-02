@@ -193,22 +193,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             })?;
 
         // Split JWT into 3 parts: header.payload.signature
-        let parts: Vec<&str> = token.splitn(3, '.').collect();
-        if parts.len() != 3 {
-            return Err(error_stack::report!(
-                errors::WebhookError::WebhookSourceVerificationFailed
-            )
-            .attach_printable(
-                "Invalid JWT format: expected 3 dot-separated segments",
-            ));
-        }
+        let token_parts: Vec<&str> = token.splitn(3, '.').collect();
+        let (header, payload, signature_b64) = match token_parts.as_slice() {
+            [h, p, s] => (h, p, *s),
+            _ => {
+                return Err(error_stack::report!(
+                    errors::WebhookError::WebhookSourceVerificationFailed
+                )
+                .attach_printable(
+                    "Invalid JWT format: expected 3 dot-separated segments",
+                ))
+            }
+        };
 
         // JWT message = base64url(header).base64url(payload)
-        let message = format!("{}.{}", parts[0], parts[1]);
+        let message = format!("{}.{}", header, payload);
 
         // Decode signature from URL-safe base64 without padding
         let signature = consts::BASE64_ENGINE_URL_SAFE_NO_PAD
-            .decode(parts[2])
+            .decode(signature_b64)
             .change_context(errors::WebhookError::WebhookSourceVerificationFailed)
             .attach_printable("Failed to decode JWT signature from base64url")?;
 
