@@ -160,5 +160,25 @@
         "timeout_secs": 31
       }
     }
+  },
+  "CustomerService/Create": {
+    "create_customer": {
+      "grpc_req": {
+        "customer_name": "Payload Test",
+        "email": {
+          "value": "payload-test@example.com"
+        },
+        "phone_number": "+15005550101"
+      }
+    },
+    "CustomerService/Create": {
+      "grpc_req": {
+        "customer_name": "Payload Test",
+        "email": {
+          "value": "payload-test@example.com"
+        },
+        "phone_number": "+15005550101"
+      }
+    }
   }
 }
