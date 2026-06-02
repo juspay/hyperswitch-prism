@@ -915,15 +915,42 @@ pub struct PacoData {
     pub psp_response: Option<PacoPriorPaymentResponseDetails>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone)]
 pub struct TwocTwopPacoNonUiResponse {
-    #[serde(default)]
     pub data: Option<PacoData>,
-    #[serde(default)]
     pub api_response: Option<PacoApiResponse>,
-    #[serde(default)]
     pub version: Option<String>,
+    pub raw_json: serde_json::Value,
+}
+
+impl Serialize for TwocTwopPacoNonUiResponse {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.raw_json.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for TwocTwopPacoNonUiResponse {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Parsed {
+            #[serde(default)]
+            data: Option<PacoData>,
+            #[serde(default)]
+            api_response: Option<PacoApiResponse>,
+            #[serde(default)]
+            version: Option<String>,
+        }
+        let raw_json = serde_json::Value::deserialize(deserializer)?;
+        let parsed: Parsed =
+            serde_json::from_value(raw_json.clone()).map_err(serde::de::Error::custom)?;
+        Ok(Self {
+            data: parsed.data,
+            api_response: parsed.api_response,
+            version: parsed.version,
+            raw_json,
+        })
+    }
 }
 
 impl TwocTwopPacoNonUiResponse {
@@ -1371,13 +1398,38 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone)]
 pub struct TwocTwopPacoInquiryResponse {
-    #[serde(default)]
     pub api_response: Option<PacoApiResponse>,
-    #[serde(default, deserialize_with = "deserialize_inquiry_data")]
     pub data: Option<PacoInquiryData>,
+    pub raw_json: serde_json::Value,
+}
+
+impl Serialize for TwocTwopPacoInquiryResponse {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.raw_json.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for TwocTwopPacoInquiryResponse {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Parsed {
+            #[serde(default)]
+            api_response: Option<PacoApiResponse>,
+            #[serde(default, deserialize_with = "deserialize_inquiry_data")]
+            data: Option<PacoInquiryData>,
+        }
+        let raw_json = serde_json::Value::deserialize(deserializer)?;
+        let parsed: Parsed =
+            serde_json::from_value(raw_json.clone()).map_err(serde::de::Error::custom)?;
+        Ok(Self {
+            api_response: parsed.api_response,
+            data: parsed.data,
+            raw_json,
+        })
+    }
 }
 
 fn deserialize_inquiry_data<'de, D>(deserializer: D) -> Result<Option<PacoInquiryData>, D::Error>
