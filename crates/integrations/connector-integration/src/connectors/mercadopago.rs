@@ -230,7 +230,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     }))
                 };
                 tracing::error!(deserialization_error =? error_msg);
-                domain_types::utils::handle_json_response_deserialization_failure(res, "mercadopago")
+                domain_types::utils::handle_json_response_deserialization_failure(
+                    res,
+                    "mercadopago",
+                )
             }
         }
     }

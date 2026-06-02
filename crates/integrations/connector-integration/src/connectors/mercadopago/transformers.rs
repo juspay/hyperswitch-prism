@@ -180,13 +180,12 @@ impl
             >,
         >,
     ) -> Result<Self, Self::Error> {
-        let auth = MercadopagoAuthType::try_from(&item.router_data.connector_config).map_err(
-            |_| {
+        let auth =
+            MercadopagoAuthType::try_from(&item.router_data.connector_config).map_err(|_| {
                 error_stack::report!(ConnectorError::ResponseHandlingFailed {
                     context: Default::default(),
                 })
-            },
-        )?;
+            })?;
         let session_token = auth
             .public_key
             .ok_or_else(|| {
@@ -240,7 +239,12 @@ fn map_card_network_to_payment_method_id(
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         MercadopagoRouterData<
-            RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     > for MercadopagoPaymentsRequest
@@ -249,7 +253,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
     fn try_from(
         item: MercadopagoRouterData<
-            RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     ) -> Result<Self, Self::Error> {
@@ -311,10 +320,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .clone(),
             ),
             payer: MercadopagoPayer {
-                email: request
-                    .email
-                    .as_ref()
-                    .map(|e| e.peek().to_string()),
+                email: request.email.as_ref().map(|e| e.peek().to_string()),
             },
         })
     }
@@ -375,17 +381,26 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<
         ResponseRouterData<
             MercadopagoPaymentsResponse,
-            RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
         >,
-    >
-    for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
+    > for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<
             MercadopagoPaymentsResponse,
-            RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
         >,
     ) -> Result<Self, Self::Error> {
         let is_manual_capture = matches!(
