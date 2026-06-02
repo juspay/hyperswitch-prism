@@ -519,6 +519,16 @@ fun tokenize(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Token: ${response.paymentMethodToken}")
 }
 
+// Flow: PaymentService.VerifyRedirectResponse
+fun verifyRedirect(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = PaymentServiceVerifyRedirectResponseRequest.newBuilder().apply {
+
+    }.build()
+    val response = client.verify_redirect_response(request)
+    println("Source verified: ${response.sourceVerified}")
+}
+
 // Flow: PaymentService.Void
 fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -555,7 +565,8 @@ fun main(args: Array<String>) {
         "setupRecurring" -> setupRecurring(txnId)
         "tokenAuthorize" -> tokenAuthorize(txnId)
         "tokenize" -> tokenize(txnId)
+        "verifyRedirect" -> verifyRedirect(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createCustomer, get, handleEvent, incrementalAuthorization, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, tokenize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createCustomer, get, handleEvent, incrementalAuthorization, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, tokenize, verifyRedirect, void")
     }
 }

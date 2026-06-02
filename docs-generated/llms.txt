@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 89
+# Connectors: 90
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 89
+  total_connectors: 90
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -211,7 +211,7 @@ connector_id: dummy
 doc: docs/connectors/dummy.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Ach, AchBankTransfer, Affirm, Afterpay, AliPayRedirect, AmazonPayRedirect, ApplePay, ApplePayDecrypted, Bacs, BacsBankTransfer, BancontactCard, Becs, Blik, Card, CashappQr, Eps, Giropay, GooglePay, Ideal, Klarna, MbWay, MultibancoBankTransfer, Przelewy24, RevolutPay, Satispay, Sepa, SepaBankTransfer, Trustly, UpiCollect, UpiIntent, UpiQr, WeChatPayQr, Wero
-flows: authorize, capture, create_client_authentication_token, create_customer, get, handle_event, incremental_authorization, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, tokenize, void
+flows: authorize, capture, create_client_authentication_token, create_customer, get, handle_event, incremental_authorization, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, tokenize, verify_redirect, void
 examples_python: examples/dummy/dummy.py
 
 ## Easebuzz

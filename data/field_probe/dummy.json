@@ -1895,8 +1895,7 @@
     },
     "verify_redirect": {
       "default": {
-        "status": "not_supported",
-        "error": "Missing required field: dummy_status"
+        "status": "supported"
       }
     },
     "void": {

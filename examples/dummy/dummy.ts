@@ -293,6 +293,11 @@ function _buildTokenizeRequest(): types.IPaymentMethodServiceTokenizeRequest {
     };
 }
 
+function _buildVerifyRedirectRequest(): types.IPaymentServiceVerifyRedirectResponseRequest {
+    return {
+    };
+}
+
 function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServiceVoidRequest {
     return {
         "merchantVoidId": "probe_void_001",  // Identification.
@@ -561,6 +566,15 @@ async function tokenize(merchantTransactionId: string, config: types.IConnectorC
     return tokenizeResponse;
 }
 
+// Flow: PaymentService.VerifyRedirectResponse
+async function verifyRedirect(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const verifyResponse = await paymentClient.verifyRedirectResponse(_buildVerifyRedirectRequest());
+
+    return verifyResponse;
+}
+
 // Flow: PaymentService.Void
 async function voidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -573,7 +587,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createCustomer, get, handleEvent, incrementalAuthorization, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, tokenize, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildCreateCustomerRequest, _buildGetRequest, _buildHandleEventRequest, _buildIncrementalAuthorizationRequest, _buildParseEventRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildTokenAuthorizeRequest, _buildTokenizeRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createCustomer, get, handleEvent, incrementalAuthorization, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, tokenize, verifyRedirect, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildCreateCustomerRequest, _buildGetRequest, _buildHandleEventRequest, _buildIncrementalAuthorizationRequest, _buildParseEventRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildTokenAuthorizeRequest, _buildTokenizeRequest, _buildVerifyRedirectRequest, _buildVoidRequest
 };
 
 // CLI runner
