@@ -395,6 +395,7 @@ pub struct Connectors {
     pub axisbank: ConnectorParams,
     pub twoc_twop_paco: ConnectorParams,
     pub interpayments: ConnectorParams,
+    pub juspay: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -693,6 +694,9 @@ impl Connectors {
                     base_url_bank_redirects: urls.base_url_bank_redirects.clone(),
                 };
                 patched.trustpay.apply(trustpay_patch);
+            }
+            ConnectorEnum::TwocTwopPaco => {
+                patched.twoc_twop_paco.apply(params_patch);
             }
             _ => {
                 // Connector not supported for URL patching - return error
@@ -2788,6 +2792,11 @@ pub struct AuthorizationRequest {
     pub test_mode: Option<bool>,
     pub payment_method_token: Option<Secret<String>>,
     pub merchant_request_id: Option<String>,
+    /// Connector-side order identifier when a `CreateOrder` has already been
+    /// performed (e.g. Juspay's merchant `order_id`). Propagated to
+    /// `PaymentFlowData::connector_order_id` so the Authorize TryFrom can
+    /// attach the payment to the right pre-existing order.
+    pub connector_order_id: Option<String>,
 }
 
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
@@ -2879,6 +2888,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             test_mode: req.test_mode,
             payment_method_token: None,
             merchant_request_id: req.merchant_request_id,
+            connector_order_id: req.connector_order_id,
         }
     }
 }
@@ -2942,6 +2952,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             test_mode: req.test_mode,
             payment_method_token: None,
             merchant_request_id: None,
+            connector_order_id: None,
         }
     }
 }
@@ -4370,7 +4381,7 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             access_token,
             session_token: value.session_token,
             reference_id: value.merchant_order_id.clone(),
-            connector_order_id: None,
+            connector_order_id: value.connector_order_id.clone(),
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: value.test_mode,
@@ -4657,7 +4668,11 @@ impl
             access_token,
             session_token: None,
             reference_id: value.connector_order_reference_id.clone(),
-            connector_order_id: None,
+            // Also expose connector_order_reference_id as connector_order_id so
+            // connectors that anchor sync on the merchant order id (e.g. Juspay
+            // `GET /orders/{order_id}`) can read it from the same field they use
+            // during CreateOrder / Authorize.
+            connector_order_id: value.connector_order_reference_id.clone(),
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: value.test_mode,
@@ -14005,6 +14020,24 @@ pub fn generate_mandate_revoke_response(
             raw_connector_response,
             raw_connector_request,
         }),
+    }
+}
+
+impl ForeignFrom<connector_types::WebhookIntegrityCheck>
+    for grpc_api_types::payments::IntegrityCheck
+{
+    fn foreign_from(check: connector_types::WebhookIntegrityCheck) -> Self {
+        match check {
+            connector_types::WebhookIntegrityCheck::ConnectorTransactionId => {
+                grpc_api_types::payments::IntegrityCheck::ConnectorTransactionId
+            }
+            connector_types::WebhookIntegrityCheck::Amount => {
+                grpc_api_types::payments::IntegrityCheck::Amount
+            }
+            connector_types::WebhookIntegrityCheck::Currency => {
+                grpc_api_types::payments::IntegrityCheck::Currency
+            }
+        }
     }
 }
 

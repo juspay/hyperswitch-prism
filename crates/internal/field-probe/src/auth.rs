@@ -676,5 +676,10 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             response_audience: None,
             base_url: None,
         },
+        ConnectorEnum::Juspay => ConnectorSpecificConfig::Juspay {
+            api_key: k(),
+            merchant_id: m(),
+            base_url: None,
+        },
     }
 }
