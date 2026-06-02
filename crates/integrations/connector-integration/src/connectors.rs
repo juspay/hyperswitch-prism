@@ -262,3 +262,6 @@ pub use self::twoc_twop_paco::TwocTwopPaco;
 
 pub mod juspay;
 pub use self::juspay::Juspay;
+
+pub mod tpay;
+pub use self::tpay::Tpay;

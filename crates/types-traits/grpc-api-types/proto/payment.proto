@@ -764,6 +764,7 @@ enum Connector {
   EASEBUZZ = 120;
   TWOC_TWOP_PACO = 121;
   JUSPAY = 122;
+  TPAY = 123;
 }
 
 // Payment method types
@@ -1633,6 +1634,7 @@ message ConnectorSpecificClientAuthenticationResponse {
     NexinetsClientAuthenticationResponse nexinets = 24;
     NexixpayClientAuthenticationResponse nexixpay = 25;
     RevolutClientAuthenticationResponse revolut = 26;
+    TpayClientAuthenticationResponse tpay = 27;
   }
 }
 
@@ -1672,6 +1674,17 @@ message GlobalpayClientAuthenticationResponse {
   SecretString access_token = 1;
   optional string token_type = 2;
   optional int64 expires_in = 3;
+}
+
+// TPay SDK initialization data — OAuth access_token plus Google Pay client-SDK init config
+message TpayClientAuthenticationResponse {
+  SecretString access_token = 1;
+  optional string token_type = 2;
+  optional int64 expires_in = 3;
+  string gateway = 4;
+  optional string gateway_merchant_id = 5;
+  repeated string allowed_card_networks = 6;
+  repeated string allowed_card_auth_methods = 7;
 }
 
 // Bluesnap SDK initialization data — pfToken for Hosted Payment Fields initialization
@@ -4371,6 +4384,12 @@ message JuspayConfig {
   optional string base_url = 50;
 }
 
+message TpayConfig {
+  SecretString api_key = 1;
+  SecretString client_secret = 2;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -4648,6 +4667,8 @@ message ConnectorSpecificConfig {
 
     // JUSPAY = 122
     JuspayConfig juspay = 127;
+    // TPAY = 123
+    TpayConfig tpay = 128;
   }
 }
 

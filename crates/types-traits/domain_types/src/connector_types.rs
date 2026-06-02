@@ -145,6 +145,7 @@ pub enum ConnectorEnum {
     Axisbank,
     TwocTwopPaco,
     Juspay,
+    Tpay,
 }
 
 // snake case for enum variants
@@ -380,6 +381,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Axisbank => Ok(Self::Axisbank),
             grpc_api_types::payments::Connector::TwocTwopPaco => Ok(Self::TwocTwopPaco),
             grpc_api_types::payments::Connector::Juspay => Ok(Self::Juspay),
+            grpc_api_types::payments::Connector::Tpay => Ok(Self::Tpay),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -3850,6 +3852,8 @@ pub enum ConnectorSpecificClientAuthenticationResponse {
     Nexixpay(NexixpayClientAuthenticationResponse),
     /// Revolut SDK initialization data — order_id and token for Revolut Pay widget initialization
     Revolut(RevolutClientAuthenticationResponse),
+    /// TPay SDK initialization data — OAuth access_token plus Google Pay client-SDK init config
+    Tpay(TpayClientAuthenticationResponse),
 }
 
 /// Stripe's client_secret for browser-side stripe.confirmPayment()
@@ -3914,6 +3918,28 @@ pub struct GlobalpayClientAuthenticationResponse {
     pub token_type: Option<String>,
     /// The number of seconds until the token expires
     pub expires_in: Option<i64>,
+}
+
+/// TPay's OAuth access token plus the static Google Pay client-SDK init config.
+/// The `access_token` authenticates subsequent server-to-server calls; the
+/// Google Pay fields (`gateway`, `gateway_merchant_id`, allowed networks/auth
+/// methods) initialize the client-side Google Pay SDK per the TPay spec.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TpayClientAuthenticationResponse {
+    /// The OAuth Bearer access token returned by POST /oauth/auth
+    pub access_token: Secret<String>,
+    /// Token type (always "Bearer")
+    pub token_type: Option<String>,
+    /// Token validity in seconds (default 7200)
+    pub expires_in: Option<i64>,
+    /// Google Pay tokenization gateway identifier (constant "tpaycom")
+    pub gateway: String,
+    /// Merchant identifier assigned at registration (gatewayMerchantId)
+    pub gateway_merchant_id: Option<String>,
+    /// Allowed card networks for Google Pay (e.g., ["MASTERCARD","VISA"])
+    pub allowed_card_networks: Vec<String>,
+    /// Allowed card auth methods for Google Pay (e.g., ["PAN_ONLY","CRYPTOGRAM_3DS"])
+    pub allowed_card_auth_methods: Vec<String>,
 }
 
 /// Bluesnap's pfToken for client-side Hosted Payment Fields initialization
@@ -4503,6 +4529,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::PinelabsOnline(_) => Ok(Self::Payment(ConnectorEnum::PinelabsOnline)),
             AuthType::Easebuzz(_) => Ok(Self::Payment(ConnectorEnum::Easebuzz)),
             AuthType::Juspay(_) => Ok(Self::Payment(ConnectorEnum::Juspay)),
+            AuthType::Tpay(_) => Ok(Self::Payment(ConnectorEnum::Tpay)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),
             AuthType::Interpayments(_) => {

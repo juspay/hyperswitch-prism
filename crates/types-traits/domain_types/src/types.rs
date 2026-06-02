@@ -396,6 +396,7 @@ pub struct Connectors {
     pub twoc_twop_paco: ConnectorParams,
     pub interpayments: ConnectorParams,
     pub juspay: ConnectorParams,
+    pub tpay: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -11634,6 +11635,23 @@ ConnectorSpecificClientAuthenticationResponse::Cybersource(cybersource_data) => 
                         grpc_api_types::payments::RevolutClientAuthenticationResponse {
                             order_id: revolut_data.order_id,
                             token: Some(revolut_data.token),
+                        },
+                    ),
+                ),
+            }
+        }
+        ConnectorSpecificClientAuthenticationResponse::Tpay(tpay_data) => {
+            grpc_api_types::payments::ConnectorSpecificClientAuthenticationResponse {
+                connector: Some(
+                    grpc_api_types::payments::connector_specific_client_authentication_response::Connector::Tpay(
+                        grpc_api_types::payments::TpayClientAuthenticationResponse {
+                            access_token: Some(tpay_data.access_token),
+                            token_type: tpay_data.token_type,
+                            expires_in: tpay_data.expires_in,
+                            gateway: tpay_data.gateway,
+                            gateway_merchant_id: tpay_data.gateway_merchant_id,
+                            allowed_card_networks: tpay_data.allowed_card_networks,
+                            allowed_card_auth_methods: tpay_data.allowed_card_auth_methods,
                         },
                     ),
                 ),

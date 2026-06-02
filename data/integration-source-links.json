@@ -72,5 +72,12 @@
     "https://docs.worldpay.com/apis/wpg/manage/modificationrequests",
     "https://documentation.ixopay.com/docs/tokenex/worldpaywpg",
     "https://github.com/activemerchant/active_merchant/blob/master/lib/active_merchant/billing/gateways/worldpay.rb"
+  ],
+  "TPay": [
+    "https://docs-api.tpay.com/en/first-steps/authorization/",
+    "https://docs-api.tpay.com/en/first-steps/integration-methods/",
+    "https://docs-api.tpay.com/en/payment-methods/cards/",
+    "https://docs-api.tpay.com/en/payment-methods/google-pay/",
+    "https://api.tpay.com/"
   ]
 }
