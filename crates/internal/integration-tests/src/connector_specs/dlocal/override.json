@@ -1,1 +1,136 @@
-{}
+{
+  "PaymentService/Authorize": {
+    "no3ds_auto_capture_credit_card": {
+      "grpc_req": {
+        "customer": {
+          "name": "Dlocal Test",
+          "email": {
+            "value": "dlocal-test@example.com"
+          },
+          "id": "cust_dlocal_test",
+          "phone_number": "+15005550101",
+          "connector_customer_id": ""
+        }
+      }
+    },
+    "no3ds_auto_capture_debit_card": {
+      "grpc_req": {
+        "customer": {
+          "name": "Dlocal Test",
+          "email": {
+            "value": "dlocal-test@example.com"
+          },
+          "id": "cust_dlocal_test",
+          "phone_number": "+15005550101",
+          "connector_customer_id": ""
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card": {
+      "grpc_req": {
+        "customer": {
+          "name": "Dlocal Test",
+          "email": {
+            "value": "dlocal-test@example.com"
+          },
+          "id": "cust_dlocal_test",
+          "phone_number": "+15005550101",
+          "connector_customer_id": ""
+        }
+      }
+    },
+    "no3ds_manual_capture_debit_card": {
+      "grpc_req": {
+        "customer": {
+          "name": "Dlocal Test",
+          "email": {
+            "value": "dlocal-test@example.com"
+          },
+          "id": "cust_dlocal_test",
+          "phone_number": "+15005550101",
+          "connector_customer_id": ""
+        }
+      }
+    },
+    "threeds_manual_capture_credit_card": {
+      "grpc_req": {
+        "customer": {
+          "name": "Dlocal Test",
+          "email": {
+            "value": "dlocal-test@example.com"
+          },
+          "id": "cust_dlocal_test",
+          "phone_number": "+15005550101",
+          "connector_customer_id": ""
+        }
+      }
+    },
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "customer": {
+          "name": "Dlocal Test",
+          "email": {
+            "value": "dlocal-test@example.com"
+          },
+          "id": "cust_dlocal_test",
+          "phone_number": "+15005550101",
+          "connector_customer_id": ""
+        }
+      }
+    }
+  },
+  "PaymentService/SetupRecurring": {
+    "setup_recurring": {
+      "grpc_req": {
+        "customer": {
+          "name": "Dlocal Test",
+          "email": {
+            "value": "dlocal-test@example.com"
+          },
+          "id": "cust_dlocal_test",
+          "phone_number": "+15005550101",
+          "connector_customer_id": ""
+        }
+      }
+    },
+    "setup_recurring_with_order_context": {
+      "grpc_req": {
+        "customer": {
+          "name": "Dlocal Test",
+          "email": {
+            "value": "dlocal-test@example.com"
+          },
+          "id": "cust_dlocal_test",
+          "phone_number": "+15005550101",
+          "connector_customer_id": ""
+        }
+      }
+    },
+    "setup_recurring_with_webhook": {
+      "grpc_req": {
+        "customer": {
+          "name": "Dlocal Test",
+          "email": {
+            "value": "dlocal-test@example.com"
+          },
+          "id": "cust_dlocal_test",
+          "phone_number": "+15005550101",
+          "connector_customer_id": ""
+        }
+      }
+    },
+    "PaymentService/SetupRecurring": {
+      "grpc_req": {
+        "customer": {
+          "name": "Dlocal Test",
+          "email": {
+            "value": "dlocal-test@example.com"
+          },
+          "id": "cust_dlocal_test",
+          "phone_number": "+15005550101",
+          "connector_customer_id": ""
+        }
+      }
+    }
+  }
+}
