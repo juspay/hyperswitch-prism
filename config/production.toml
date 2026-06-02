@@ -23,6 +23,7 @@ bypass_proxy_urls = ["localhost", "local"]
 mitm_proxy_enabled = false
 
 [connectors]
+t_kassa.base_url = "https://securepay.tinkoff.ru/v2"
 juspay.base_url = "https://api.juspay.in/"
 peachpayments.base_url = "https://api.bankint.peachpayments.com/v/1"
 finix.base_url = "https://finix.live-payments-api.com"

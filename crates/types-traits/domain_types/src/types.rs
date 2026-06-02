@@ -396,6 +396,7 @@ pub struct Connectors {
     pub twoc_twop_paco: ConnectorParams,
     pub interpayments: ConnectorParams,
     pub juspay: ConnectorParams,
+    pub t_kassa: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -11634,6 +11635,18 @@ ConnectorSpecificClientAuthenticationResponse::Cybersource(cybersource_data) => 
                         grpc_api_types::payments::RevolutClientAuthenticationResponse {
                             order_id: revolut_data.order_id,
                             token: Some(revolut_data.token),
+                        },
+                    ),
+                ),
+            }
+        }
+                ConnectorSpecificClientAuthenticationResponse::TKassa(t_kassa_data) => {
+            grpc_api_types::payments::ConnectorSpecificClientAuthenticationResponse {
+                connector: Some(
+                    grpc_api_types::payments::connector_specific_client_authentication_response::Connector::TKassa(
+                        grpc_api_types::payments::TKassaClientAuthenticationResponse {
+                            payment_id: t_kassa_data.payment_id,
+                            payment_url: t_kassa_data.payment_url,
                         },
                     ),
                 ),

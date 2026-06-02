@@ -145,6 +145,7 @@ pub enum ConnectorEnum {
     Axisbank,
     TwocTwopPaco,
     Juspay,
+    TKassa,
 }
 
 // snake case for enum variants
@@ -380,6 +381,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Axisbank => Ok(Self::Axisbank),
             grpc_api_types::payments::Connector::TwocTwopPaco => Ok(Self::TwocTwopPaco),
             grpc_api_types::payments::Connector::Juspay => Ok(Self::Juspay),
+            grpc_api_types::payments::Connector::TKassa => Ok(Self::TKassa),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -3850,6 +3852,18 @@ pub enum ConnectorSpecificClientAuthenticationResponse {
     Nexixpay(NexixpayClientAuthenticationResponse),
     /// Revolut SDK initialization data — order_id and token for Revolut Pay widget initialization
     Revolut(RevolutClientAuthenticationResponse),
+    /// T-kassa (T-Bank) SDK initialization data — payment_id + payment_url from /v2/Init for the mobile SDK session
+    TKassa(TKassaClientAuthenticationResponse),
+}
+
+/// T-kassa's payment_id and payment_url returned by /v2/Init, handed to the T-Bank mobile SDK
+/// to drive the client-facing payment session.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TKassaClientAuthenticationResponse {
+    /// Payment identifier in the T-Business system (PaymentId from Init). Acts as the SDK session token.
+    pub payment_id: String,
+    /// Hosted payment form URL (PaymentURL from Init) the SDK opens to complete the payment.
+    pub payment_url: Option<String>,
 }
 
 /// Stripe's client_secret for browser-side stripe.confirmPayment()
@@ -4503,6 +4517,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::PinelabsOnline(_) => Ok(Self::Payment(ConnectorEnum::PinelabsOnline)),
             AuthType::Easebuzz(_) => Ok(Self::Payment(ConnectorEnum::Easebuzz)),
             AuthType::Juspay(_) => Ok(Self::Payment(ConnectorEnum::Juspay)),
+            AuthType::TKassa(_) => Ok(Self::Payment(ConnectorEnum::TKassa)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),
             AuthType::Interpayments(_) => {
