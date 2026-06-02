@@ -1514,12 +1514,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             (MandateDispatch::Ntid { ntid }, true, _) => {
                 (Some(TsysXmlCardOnFile::Y), None, None, Some(ntid.clone()))
             }
-            (MandateDispatch::Ntid { ntid }, false, _) => (
-                Some(TsysXmlCardOnFile::Y),
-                None,
-                None,
-                Some(ntid.clone()),
-            ),
+            (MandateDispatch::Ntid { ntid }, false, _) => {
+                (Some(TsysXmlCardOnFile::Y), None, None, Some(ntid.clone()))
+            }
             (MandateDispatch::Vault { .. }, true, _) => {
                 (Some(TsysXmlCardOnFile::Y), None, None, None)
             }
