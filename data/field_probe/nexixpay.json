@@ -90,7 +90,7 @@
       },
       "Boleto": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method Voucher(Boleto(BoletoVoucherData { social_security_number: None }))"
+        "error": "This feature is not implemented: Payment method Voucher(Boleto(BoletoVoucherData { social_security_number: None, expiration_date: None }))"
       },
       "BriVaBankTransfer": {
         "status": "not_implemented",

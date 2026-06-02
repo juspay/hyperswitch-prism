@@ -46,6 +46,9 @@ def _build_authorize_request(capture_method: str):
             ),
         ),
         capture_method=payment_pb2.CaptureMethod.Value(capture_method),  # Method for capturing the payment.
+        customer=payment_pb2.Customer(  # Customer Information.
+            connector_customer_id="cust_probe_123",  # Customer ID in the connector system.
+        ),
         address=payment_pb2.PaymentAddress(  # Address Information.
             billing_address=payment_pb2.Address(),
         ),
@@ -112,6 +115,9 @@ def _build_proxy_authorize_request():
             card_cvc=payment_methods_pb2.SecretString(value="123"),
             card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
             card_network=payment_methods_pb2.CardNetwork.Value("VISA"),
+        ),
+        customer=payment_pb2.Customer(
+            connector_customer_id="cust_probe_123",  # Customer ID in the connector system.
         ),
         address=payment_pb2.PaymentAddress(
             billing_address=payment_pb2.Address(),

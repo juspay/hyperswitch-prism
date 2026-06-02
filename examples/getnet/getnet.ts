@@ -41,6 +41,9 @@ function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaym
             }
         },
         "captureMethod": captureMethod,  // Method for capturing the payment.
+        "customer": {  // Customer Information.
+            "connectorCustomerId": "cust_probe_123"  // Customer ID in the connector system.
+        },
         "address": {  // Address Information.
             "billingAddress": {
             }
@@ -112,6 +115,9 @@ function _buildProxyAuthorizeRequest(): types.IPaymentServiceProxyAuthorizeReque
             "cardCvc": {"value": "123"},
             "cardHolderName": {"value": "John Doe"},  // Cardholder Information.
             "cardNetwork": CardNetwork.VISA
+        },
+        "customer": {
+            "connectorCustomerId": "cust_probe_123"  // Customer ID in the connector system.
         },
         "address": {
             "billingAddress": {

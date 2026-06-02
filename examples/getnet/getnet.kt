@@ -58,6 +58,9 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
             }
         }
         captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment.
+        customerBuilder.apply {  // Customer Information.
+            connectorCustomerId = "cust_probe_123"  // Customer ID in the connector system.
+        }
         addressBuilder.apply {  // Address Information.
             billingAddressBuilder.apply {
             }
@@ -302,6 +305,9 @@ fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
             cardCvcBuilder.value = "123"
             cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
             cardNetwork = CardNetwork.VISA
+        }
+        customerBuilder.apply {
+            connectorCustomerId = "cust_probe_123"  // Customer ID in the connector system.
         }
         addressBuilder.apply {
             billingAddressBuilder.apply {

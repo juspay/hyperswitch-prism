@@ -74,6 +74,11 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
                 .unwrap_or_default()
                 .into(),
         ), // Method for capturing the payment.
+        customer: Some(Customer {
+            // Customer Information.
+            connector_customer_id: Some("cust_probe_123".to_string()), // Customer ID in the connector system.
+            ..Default::default()
+        }),
         address: Some(PaymentAddress {
             // Address Information.
             billing_address: Some(Address {
@@ -165,6 +170,10 @@ pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
             card_cvc: Some(Secret::new("123".to_string())),
             card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
             card_network: Some(CardNetwork::Visa.into()),
+            ..Default::default()
+        }),
+        customer: Some(Customer {
+            connector_customer_id: Some("cust_probe_123".to_string()), // Customer ID in the connector system.
             ..Default::default()
         }),
         address: Some(PaymentAddress {
