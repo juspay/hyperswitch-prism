@@ -7,11 +7,14 @@ use domain_types::errors::{
     ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, CreateOrder, RSync, Refund},
+    connector_flow::{
+        Authorize, Capture, CreateOrder, RSync, Refund, ServerSessionAuthenticationToken,
+    },
     connector_types::{
         PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData,
         PaymentsCaptureData, PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        RefundsResponseData, ResponseId, ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData,
     },
     payment_method_data::{
         BankRedirectData, Card, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
@@ -1181,6 +1184,124 @@ impl ForeignTryFrom<(RazorpayOrderResponse, Self, u16, bool)>
             response: Ok(order_response),
             resource_common_data: PaymentFlowData {
                 connector_order_id: Some(response.id),
+                ..data.resource_common_data
+            },
+            ..data
+        })
+    }
+}
+
+// ================================
+// ServerSessionAuthenticationToken (SDKSessionToken) Flow
+// ================================
+//
+// Razorpay's Standard Checkout (SDK Session Token) flow creates an Order
+// server-side (POST /v1/orders, HTTP Basic auth) to obtain an `order_id`,
+// which is surfaced as the session token handed to the client-side
+// Razorpay Checkout JS SDK.
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct RazorpaySessionTokenRequest {
+    pub amount: MinorUnit,
+    pub currency: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub receipt: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_capture: Option<i8>,
+}
+
+impl
+    TryFrom<
+        &RazorpayRouterData<
+            &RouterDataV2<
+                ServerSessionAuthenticationToken,
+                PaymentFlowData,
+                ServerSessionAuthenticationTokenRequestData,
+                ServerSessionAuthenticationTokenResponseData,
+            >,
+        >,
+    > for RazorpaySessionTokenRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: &RazorpayRouterData<
+            &RouterDataV2<
+                ServerSessionAuthenticationToken,
+                PaymentFlowData,
+                ServerSessionAuthenticationTokenRequestData,
+                ServerSessionAuthenticationTokenResponseData,
+            >,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let request_data = &item.router_data.request;
+
+        // Razorpay receipt is capped at 40 characters.
+        let receipt = {
+            let reference = item
+                .router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone();
+            if reference.is_empty() {
+                None
+            } else {
+                Some(reference.chars().take(40).collect::<String>())
+            }
+        };
+
+        Ok(Self {
+            amount: item.amount,
+            currency: request_data.currency.to_string(),
+            receipt,
+            payment_capture: Some(1),
+        })
+    }
+}
+
+impl
+    ForeignTryFrom<(
+        RazorpayOrderResponse,
+        RouterDataV2<
+            ServerSessionAuthenticationToken,
+            PaymentFlowData,
+            ServerSessionAuthenticationTokenRequestData,
+            ServerSessionAuthenticationTokenResponseData,
+        >,
+        u16,
+    )>
+    for RouterDataV2<
+        ServerSessionAuthenticationToken,
+        PaymentFlowData,
+        ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData,
+    >
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        (response, data, _status_code): (
+            RazorpayOrderResponse,
+            RouterDataV2<
+                ServerSessionAuthenticationToken,
+                PaymentFlowData,
+                ServerSessionAuthenticationTokenRequestData,
+                ServerSessionAuthenticationTokenResponseData,
+            >,
+            u16,
+        ),
+    ) -> Result<Self, Self::Error> {
+        // The order_id returned by Razorpay is the SDK session token.
+        let session_token = response.id.clone();
+
+        Ok(Self {
+            response: Ok(ServerSessionAuthenticationTokenResponseData {
+                session_token: session_token.clone(),
+            }),
+            resource_common_data: PaymentFlowData {
+                connector_order_id: Some(session_token.clone()),
+                session_token: Some(session_token),
                 ..data.resource_common_data
             },
             ..data
