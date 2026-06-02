@@ -6,8 +6,11 @@
     "PaymentService/Void",
     "PaymentService/Refund",
     "PaymentService/Get",
-    "RefundService/Get", 
+    "RefundService/Get",
     "PaymentService/SetupRecurring",
     "RecurringPaymentService/Charge"
-  ]
+  ],
+  "request_id_source_field": "merchant_transaction_id",
+  "request_id_prefix": "pbx",
+  "request_id_length": 24
 }
