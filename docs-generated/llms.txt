@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 89
+# Connectors: 90
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 89
+  total_connectors: 90
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -132,6 +132,14 @@ doc: docs/connectors/braintree.md
 scenarios: none
 payment_methods: ApplePayThirdPartySdk, GooglePayThirdPartySdk, PaypalSdk
 flows: authorize, capture, create_client_authentication_token, get, proxy_setup_recurring, refund, reverse, setup_recurring, tokenize, void
+examples_python: none
+
+## Btcpay
+connector_id: btcpay
+doc: docs/connectors/btcpay.md
+scenarios: none
+payment_methods: none
+flows: 
 examples_python: none
 
 ## Calida

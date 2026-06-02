@@ -1,0 +1,628 @@
+{
+  "connector": "btcpay",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for btcpay"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "AchBankTransfer": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Affirm": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Afterpay": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Alfamart": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "AliPayRedirect": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "AmazonPayRedirect": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "ApplePay": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "ApplePayDecrypted": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Bacs": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "BacsBankTransfer": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "BancontactCard": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "BcaBankTransfer": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Becs": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "BillDeskRedirect": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Bizum": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Blik": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Bluecode": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "BniVaBankTransfer": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Boleto": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "BriVaBankTransfer": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Card": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "CashappQr": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "CashfreeRedirect": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "CimbVaBankTransfer": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "ClassicReward": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "EVoucher": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "EaseBuzzRedirect": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Efecty": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Eft": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Eps": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "FamilyMart": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "GCash": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Giropay": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "GooglePay": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "GooglePayDecrypted": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Ideal": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Indomaret": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "IndonesianBankTransfer": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "InstantBankTransfer": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "InstantBankTransferFinland": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "InstantBankTransferPoland": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Interac": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "KakaoPay": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Klarna": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Lawson": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "LazyPayRedirect": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "LocalBankRedirect": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "LocalBankTransfer": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "MbWay": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Mifinity": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "MiniStop": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "MultibancoBankTransfer": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Netbanking": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "OnlineBankingFinland": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "OnlineBankingFpx": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "OnlineBankingPoland": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "OnlineBankingThailand": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "OpenBanking": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "OpenBankingUk": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Oxxo": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "PagoEfectivo": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "PayEasy": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "PaypalRedirect": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "PaypalSdk": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PermataBankTransfer": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "PhonePeRedirect": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Pix": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Przelewy24": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Pse": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "RedCompra": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "RedPagos": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "RevolutPay": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "SamsungPay": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Satispay": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Seicomart": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Sepa": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "SepaBankTransfer": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "SevenEleven": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Sofort": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Swish": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "TouchNGo": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Trustly": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Twint": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "UpiCollect": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "UpiIntent": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "UpiQr": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Vipps": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "WeChatPayQr": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      },
+      "Wero": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: capture flow for btcpay"
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for btcpay"
+      }
+    },
+    "create_customer": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for btcpay"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for btcpay"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for btcpay"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for btcpay"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for btcpay"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for btcpay"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_sync flow for btcpay"
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for btcpay"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for btcpay"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for btcpay"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for btcpay"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for btcpay"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for btcpay"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund flow for btcpay"
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund_sync flow for btcpay"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for btcpay"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for btcpay"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Invalid connector configuration: store_id"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for btcpay"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for btcpay"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void flow for btcpay"
+      }
+    }
+  }
+}

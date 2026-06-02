@@ -48,25 +48,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Btcp
         request_metadata: Option<&hyperswitch_masking::Secret<serde_json::Value>>,
     ) -> CustomResult<String, IntegrationError> {
         if let Some(metadata) = request_metadata {
-            let parsed: btcpay::BtcpayMetadata =
-                serde_json::from_value(metadata.clone().expose()).change_context(
-                    IntegrationError::InvalidConnectorConfig {
-                        config: "metadata.store_id",
-                        context: Default::default(),
-                    },
-                )?;
+            let parsed: btcpay::BtcpayMetadata = serde_json::from_value(metadata.clone().expose())
+                .change_context(IntegrationError::InvalidConnectorConfig {
+                    config: "metadata.store_id",
+                    context: Default::default(),
+                })?;
             return Ok(parsed.store_id);
         }
 
         let auth = btcpay::BtcpayAuthType::try_from(&req.connector_config)?;
-        auth.store_id
-            .map(|s| s.expose())
-            .ok_or_else(|| {
-                error_stack::report!(IntegrationError::InvalidConnectorConfig {
-                    config: "store_id",
-                    context: Default::default(),
-                })
+        auth.store_id.map(|s| s.expose()).ok_or_else(|| {
+            error_stack::report!(IntegrationError::InvalidConnectorConfig {
+                config: "store_id",
+                context: Default::default(),
             })
+        })
     }
 }
 
