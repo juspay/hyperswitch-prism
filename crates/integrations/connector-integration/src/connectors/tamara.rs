@@ -2,11 +2,15 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
 use base64::Engine;
+use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
 use common_utils::{
-    consts, crypto::{HmacSha256, SignMessage}, errors::CustomResult, events,
-    ext_traits::ByteSliceExt, types::MinorUnit,
+    consts,
+    crypto::{HmacSha256, SignMessage},
+    errors::CustomResult,
+    events,
+    ext_traits::ByteSliceExt,
+    types::MinorUnit,
 };
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
@@ -184,13 +188,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     )
             })?;
 
-        let secret = connector_webhook_secret
-            .ok_or_else(|| {
-                error_stack::report!(errors::WebhookError::WebhookVerificationSecretNotFound)
-                    .attach_printable(
-                        "Webhook secret (Notification Token) not configured for Tamara",
-                    )
-            })?;
+        let secret = connector_webhook_secret.ok_or_else(|| {
+            error_stack::report!(errors::WebhookError::WebhookVerificationSecretNotFound)
+                .attach_printable("Webhook secret (Notification Token) not configured for Tamara")
+        })?;
 
         // Split JWT into 3 parts: header.payload.signature
         let token_parts: Vec<&str> = token.splitn(3, '.').collect();
@@ -200,9 +201,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 return Err(error_stack::report!(
                     errors::WebhookError::WebhookSourceVerificationFailed
                 )
-                .attach_printable(
-                    "Invalid JWT format: expected 3 dot-separated segments",
-                ))
+                .attach_printable("Invalid JWT format: expected 3 dot-separated segments"))
             }
         };
 
