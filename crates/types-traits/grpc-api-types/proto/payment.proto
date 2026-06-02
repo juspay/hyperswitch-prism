@@ -763,7 +763,8 @@ enum Connector {
   AXISBANK = 119;
   EASEBUZZ = 120;
   TWOC_TWOP_PACO = 121;
-  TAMARA = 122;
+  JUSPAY = 122;
+  TAMARA = 123;
 }
 
 // Payment method types
@@ -4367,6 +4368,12 @@ message InterpaymentsConfig {
   optional string base_url = 50;
 }
 
+message JuspayConfig {
+  SecretString api_key = 1;
+  SecretString merchant_id = 2;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -4642,8 +4649,11 @@ message ConnectorSpecificConfig {
     // INTERPAYMENTS = 126
     InterpaymentsConfig interpayments = 126;
 
-    // TAMARA = 127
-    TamaraConfig tamara = 127;
+    // JUSPAY = 122
+    JuspayConfig juspay = 127;
+
+    // TAMARA = 123
+    TamaraConfig tamara = 128;
   }
 }
 

@@ -144,6 +144,7 @@ pub enum ConnectorEnum {
     Easebuzz,
     Axisbank,
     TwocTwopPaco,
+    Juspay,
     Tamara,
 }
 
@@ -379,6 +380,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Imerchantsolutions => Ok(Self::Imerchantsolutions),
             grpc_api_types::payments::Connector::Axisbank => Ok(Self::Axisbank),
             grpc_api_types::payments::Connector::TwocTwopPaco => Ok(Self::TwocTwopPaco),
+            grpc_api_types::payments::Connector::Juspay => Ok(Self::Juspay),
             grpc_api_types::payments::Connector::Tamara => Ok(Self::Tamara),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
@@ -4535,6 +4537,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Ppro(_) => Ok(Self::Payment(ConnectorEnum::Ppro)),
             AuthType::PinelabsOnline(_) => Ok(Self::Payment(ConnectorEnum::PinelabsOnline)),
             AuthType::Easebuzz(_) => Ok(Self::Payment(ConnectorEnum::Easebuzz)),
+            AuthType::Juspay(_) => Ok(Self::Payment(ConnectorEnum::Juspay)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),
             AuthType::Interpayments(_) => {

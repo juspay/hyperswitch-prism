@@ -24,6 +24,7 @@ mitm_proxy_enabled = false
 
 [connectors]
 tamara.base_url = "https://api.tamara.co"
+juspay.base_url = "https://api.juspay.in/"
 peachpayments.base_url = "https://api.bankint.peachpayments.com/v/1"
 finix.base_url = "https://finix.live-payments-api.com"
 fiservcommercehub.base_url = "https://connect.fiservapis.com/ch/"

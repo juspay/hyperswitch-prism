@@ -24,6 +24,7 @@ mitm_proxy_enabled = false
 
 [connectors]
 tamara.base_url = "https://api-sandbox.tamara.co"
+juspay.base_url = "https://sandbox.juspay.in/"
 peachpayments.base_url = "https://apitest.bankint.ppay.io/v/1"
 finix.base_url = "https://finix.sandbox-payments-api.com"
 fiservcommercehub.base_url = "https://connect-cert.fiservapis.com/ch/"
