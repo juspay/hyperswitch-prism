@@ -1098,7 +1098,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                         let decoded_bytes = base64::Engine::decode(
                             &base64::prelude::BASE64_STANDARD,
-                            &encrypted_data_b64,
+                            encrypted_data_b64,
                         )
                         .change_context(
                             IntegrationError::InvalidWalletToken {
@@ -1412,7 +1412,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         let decoded_bytes =
                             base64::Engine::decode(
                                 &base64::prelude::BASE64_STANDARD,
-                                &encrypted_data_b64,
+                                encrypted_data_b64,
                             )
                             .change_context(IntegrationError::InvalidWalletToken {
                                 wallet_name: "Apple Pay".to_string(),
