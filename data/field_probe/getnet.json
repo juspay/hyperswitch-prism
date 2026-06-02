@@ -97,50 +97,8 @@
         "error": "BankTransfer variant is not supported by Getnet"
       },
       "Card": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "customer": {
-            "connector_customer_id": "cust_probe_123"
-          },
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "state": {
-            "access_token": {
-              "token": "probe_access_token",
-              "expires_in_seconds": 3600,
-              "token_type": "Bearer"
-            }
-          }
-        },
-        "sample": {
-          "url": "https://api-sbx.globalgetnet.com/dpm/payments-gwproxy/v2/payments",
-          "method": "Post",
-          "headers": {
-            "authorization": "Bearer probe_access_token",
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-transaction-channel-entry": "XX"
-          },
-          "body": "{\"request_id\":\"00000000-0000-0000-0000-000000000000\",\"idempotency_key\":\"probe_txn_001\",\"order_id\":\"probe_txn_001\",\"data\":{\"customer_id\":\"cust_probe_123\",\"amount\":1000,\"currency\":\"USD\",\"payment\":{\"payment_method\":\"CREDIT\",\"transaction_type\":\"FULL\",\"number_installments\":1,\"card\":{\"number\":\"4111111111111111\",\"expiration_month\":\"03\",\"expiration_year\":\"30\",\"cardholder_name\":\"John Doe\",\"security_code\":\"737\"}}}}"
-        }
+        "status": "error",
+        "error": "Stuck on field: merchant_request_id — Missing required field: merchant_request_id"
       },
       "CashappQr": {
         "status": "not_supported",
@@ -391,44 +349,8 @@
         "error": "Payment method is not supported by Getnet"
       },
       "Pix": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "pix": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "customer": {
-            "connector_customer_id": "cust_probe_123"
-          },
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "state": {
-            "access_token": {
-              "token": "probe_access_token",
-              "expires_in_seconds": 3600,
-              "token_type": "Bearer"
-            }
-          }
-        },
-        "sample": {
-          "url": "https://api-sbx.globalgetnet.com/dpm/payments-gwproxy/v2/payments/qrcode/pix",
-          "method": "Post",
-          "headers": {
-            "authorization": "Bearer probe_access_token",
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-transaction-channel-entry": "XX"
-          },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_txn_001\",\"customer_id\":\"cust_probe_123\",\"idempotency_key\":\"probe_txn_001\"}"
-        }
+        "status": "error",
+        "error": "Stuck on field: merchant_request_id — Missing required field: merchant_request_id"
       },
       "Przelewy24": {
         "status": "not_supported",
@@ -687,49 +609,8 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_proxy_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "card_proxy": {
-            "card_number": "4111111111111111",
-            "card_exp_month": "03",
-            "card_exp_year": "2030",
-            "card_cvc": "123",
-            "card_holder_name": "John Doe",
-            "card_network": "VISA"
-          },
-          "customer": {
-            "connector_customer_id": "cust_probe_123"
-          },
-          "address": {
-            "billing_address": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "state": {
-            "access_token": {
-              "token": "probe_access_token",
-              "expires_in_seconds": 3600,
-              "token_type": "Bearer"
-            }
-          }
-        },
-        "sample": {
-          "url": "https://api-sbx.globalgetnet.com/dpm/payments-gwproxy/v2/payments",
-          "method": "Post",
-          "headers": {
-            "authorization": "Bearer probe_access_token",
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-transaction-channel-entry": "XX"
-          },
-          "body": "{\"request_id\":\"00000000-0000-0000-0000-000000000000\",\"idempotency_key\":\"probe_proxy_txn_001\",\"order_id\":\"probe_proxy_txn_001\",\"data\":{\"customer_id\":\"cust_probe_123\",\"amount\":1000,\"currency\":\"USD\",\"payment\":{\"payment_method\":\"CREDIT\",\"transaction_type\":\"FULL\",\"number_installments\":1,\"card\":{\"number\":\"{{$card_number}}\",\"expiration_month\":\"{{$card_exp_month}}\",\"expiration_year\":\"{{$card_exp_year}}\",\"cardholder_name\":\"John Doe\",\"security_code\":\"{{$card_cvc}}\"}}}}"
-        }
+        "status": "error",
+        "error": "Stuck on field: merchant_request_id — Missing required field: merchant_request_id"
       }
     },
     "proxy_setup_recurring": {
