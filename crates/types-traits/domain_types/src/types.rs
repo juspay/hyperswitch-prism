@@ -12186,6 +12186,47 @@ impl ForeignTryFrom<grpc_api_types::payments::BankNames> for common_enums::BankN
             grpc_api_types::payments::BankNames::Yoursafe => Ok(Self::Yoursafe),
             grpc_api_types::payments::BankNames::N26 => Ok(Self::N26),
             grpc_api_types::payments::BankNames::Absa => Ok(Self::Absa),
+            grpc_api_types::payments::BankNames::AccessBank => Ok(Self::AccessBank),
+            grpc_api_types::payments::BankNames::Albaraka => Ok(Self::Albaraka),
+            grpc_api_types::payments::BankNames::ChinaConstructionBank => {
+                Ok(Self::ChinaConstructionBank)
+            }
+            grpc_api_types::payments::BankNames::Discovery => Ok(Self::Discovery),
+            grpc_api_types::payments::BankNames::EnlBank => Ok(Self::EnlBank),
+            grpc_api_types::payments::BankNames::FirstNationalBank => Ok(Self::FirstNationalBank),
+            grpc_api_types::payments::BankNames::GotymeBank => Ok(Self::GotymeBank),
+            grpc_api_types::payments::BankNames::HabibOverseas => Ok(Self::HabibOverseas),
+            grpc_api_types::payments::BankNames::HbzBank => Ok(Self::HbzBank),
+            grpc_api_types::payments::BankNames::Investec => Ok(Self::Investec),
+            grpc_api_types::payments::BankNames::JpMorganChase => Ok(Self::JpMorganChase),
+            grpc_api_types::payments::BankNames::Mtn => Ok(Self::Mtn),
+            grpc_api_types::payments::BankNames::Olympus => Ok(Self::Olympus),
+            grpc_api_types::payments::BankNames::OldMutual => Ok(Self::OldMutual),
+            grpc_api_types::payments::BankNames::PermanentBank => Ok(Self::PermanentBank),
+            grpc_api_types::payments::BankNames::SocieteGenerale => Ok(Self::SocieteGenerale),
+            grpc_api_types::payments::BankNames::StandardBank => Ok(Self::StandardBank),
+            grpc_api_types::payments::BankNames::StateBankOfIndia => Ok(Self::StateBankOfIndia),
+            grpc_api_types::payments::BankNames::Ubank => Ok(Self::Ubank),
+            grpc_api_types::payments::BankNames::VbsMutualBank => Ok(Self::VbsMutualBank),
+            grpc_api_types::payments::BankNames::BankZero => Ok(Self::BankZero),
+            grpc_api_types::payments::BankNames::BidvestBank => Ok(Self::BidvestBank),
+            grpc_api_types::payments::BankNames::BidvestBankAlliances => {
+                Ok(Self::BidvestBankAlliances)
+            }
+            grpc_api_types::payments::BankNames::FbcFidelityBank => Ok(Self::FbcFidelityBank),
+            grpc_api_types::payments::BankNames::FinbondEpe => Ok(Self::FinbondEpe),
+            grpc_api_types::payments::BankNames::FinbondMutualBank => Ok(Self::FinbondMutualBank),
+            grpc_api_types::payments::BankNames::Ithala => Ok(Self::Ithala),
+            grpc_api_types::payments::BankNames::PeoplesBankPepBank => Ok(Self::PeoplesBankPepBank),
+            grpc_api_types::payments::BankNames::PeoplesBank => Ok(Self::PeoplesBank),
+            grpc_api_types::payments::BankNames::PostBank => Ok(Self::PostBank),
+            grpc_api_types::payments::BankNames::Nedbank => Ok(Self::Nedbank),
+            grpc_api_types::payments::BankNames::Capitec => Ok(Self::Capitec),
+            grpc_api_types::payments::BankNames::CapitecBusiness => Ok(Self::CapitecBusiness),
+            grpc_api_types::payments::BankNames::AfricanBank => Ok(Self::AfricanBank),
+            grpc_api_types::payments::BankNames::AfricanBankBusiness => {
+                Ok(Self::AfricanBankBusiness)
+            }
             grpc_api_types::payments::BankNames::NationaleNederlanden => {
                 Ok(Self::NationaleNederlanden)
             }
