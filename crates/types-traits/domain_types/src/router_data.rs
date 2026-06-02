@@ -1509,7 +1509,7 @@ impl ConnectorSpecificConfig {
                     merchant_id
                 },
                 Robokassa { api_key },
-            Imerchantsolutions { api_key },
+                Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 TwocTwopPaco {
                     access_token,
@@ -3150,19 +3150,19 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
                 ConnectorEnum::Robokassa => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Robokassa {
-                    api_key: api_key.clone(),
-                    key1: key1.clone(),
-                    api_secret: api_secret.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::PinelabsOnline => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Robokassa {
+                        api_key: api_key.clone(),
+                        key1: key1.clone(),
+                        api_secret: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::PinelabsOnline => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::PinelabsOnline {
                         client_id: api_key.clone(),
                         client_secret: key1.clone(),
