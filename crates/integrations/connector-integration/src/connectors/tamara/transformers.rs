@@ -755,5 +755,3 @@ pub struct TamaraWebhookResourceObject {
     pub order_number: Option<String>,
     pub event_type: String,
 }
-
-
