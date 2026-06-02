@@ -224,10 +224,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(computed == signature)
     }
 
-    fn sample_webhook_body(&self) -> &'static [u8] {
-        br#"{"order_id":"4fdb781f-5e13-4ae2-9dc6-3ee49e3878a3","order_reference_id":"4464602579098","order_number":"90001860","event_type":"order_approved","data":[]}"#
-    }
-
     fn get_event_type(
         &self,
         request: RequestDetails,
