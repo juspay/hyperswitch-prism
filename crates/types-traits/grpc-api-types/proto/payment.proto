@@ -764,6 +764,7 @@ enum Connector {
   EASEBUZZ = 120;
   TWOC_TWOP_PACO = 121;
   JUSPAY = 122;
+  ROBOKASSA = 123;
 }
 
 // Payment method types
@@ -4371,6 +4372,16 @@ message JuspayConfig {
   optional string base_url = 50;
 }
 
+message RobokassaConfig {
+  // MerchantLogin — shop identifier sent in the request.
+  SecretString api_key = 1;
+  // Password #1 — used to sign the outgoing payment request.
+  SecretString key1 = 2;
+  // Password #2 — used to verify the ResultURL (webhook) notification.
+  SecretString api_secret = 3;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -4648,6 +4659,8 @@ message ConnectorSpecificConfig {
 
     // JUSPAY = 122
     JuspayConfig juspay = 127;
+    // ROBOKASSA = 123
+    RobokassaConfig robokassa = 128;
   }
 }
 

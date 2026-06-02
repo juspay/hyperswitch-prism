@@ -681,5 +681,12 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             merchant_id: m(),
             base_url: None,
         },
+        ConnectorEnum::Robokassa => ConnectorSpecificConfig::Robokassa {
+            api_key: k(),
+            key1: k(),
+            api_secret: k(),
+            base_url: None,
+        },
+
     }
 }

@@ -765,6 +765,15 @@ pub enum ConnectorSpecificConfig {
         merchant_id: Secret<String>,
         base_url: Option<String>,
     },
+    Robokassa {
+        /// MerchantLogin — shop identifier sent in the request.
+        api_key: Secret<String>,
+        /// Password #1 — used to sign the outgoing payment request.
+        key1: Secret<String>,
+        /// Password #2 — used to verify the ResultURL (webhook) notification.
+        api_secret: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -1082,6 +1091,7 @@ impl ConnectorSpecificConfig {
                 api_key,
                 merchant_id
             },
+            Robokassa { api_key },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             TwocTwopPaco {
@@ -1498,7 +1508,8 @@ impl ConnectorSpecificConfig {
                     api_key,
                     merchant_id
                 },
-                Imerchantsolutions { api_key },
+                Robokassa { api_key },
+            Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 TwocTwopPaco {
                     access_token,
@@ -2042,6 +2053,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: juspay.api_key.ok_or_else(err)?,
                 merchant_id: juspay.merchant_id.ok_or_else(err)?,
                 base_url: juspay.base_url,
+            }),
+            AuthType::Robokassa(robokassa) => Ok(Self::Robokassa {
+                api_key: robokassa.api_key.ok_or_else(err)?,
+                key1: robokassa.key1.ok_or_else(err)?,
+                api_secret: robokassa.api_secret.ok_or_else(err)?,
+                base_url: robokassa.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -3132,7 +3149,20 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
-                ConnectorEnum::PinelabsOnline => match auth {
+                ConnectorEnum::Robokassa => match auth {
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                } => Ok(Self::Robokassa {
+                    api_key: api_key.clone(),
+                    key1: key1.clone(),
+                    api_secret: api_secret.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err().into()),
+            },
+            ConnectorEnum::PinelabsOnline => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::PinelabsOnline {
                         client_id: api_key.clone(),
                         client_secret: key1.clone(),
