@@ -889,6 +889,60 @@ impl PaymentFlowData {
             ))
     }
 
+    pub fn get_billing_line2(&self) -> Result<Secret<String>, Error> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_details| billing_details.line2)
+            })
+            .ok_or_else(missing_field_err(
+                "payment_method_data.billing.address.line2",
+            ))
+    }
+
+    pub fn get_billing_line3(&self) -> Result<Secret<String>, Error> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_details| billing_details.line3)
+            })
+            .ok_or_else(missing_field_err(
+                "payment_method_data.billing.address.line3",
+            ))
+    }
+
+    pub fn get_billing_state(&self) -> Result<Secret<String>, Error> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_details| billing_details.state)
+            })
+            .ok_or_else(missing_field_err(
+                "payment_method_data.billing.address.state",
+            ))
+    }
+
+    pub fn get_billing_zip(&self) -> Result<Secret<String>, Error> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_details| billing_details.zip)
+            })
+            .ok_or_else(missing_field_err("payment_method_data.billing.address.zip"))
+    }
+
     pub fn get_billing_email(&self) -> Result<Email, Error> {
         self.address
             .get_payment_method_billing()

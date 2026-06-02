@@ -273,10 +273,10 @@ examples_python: examples/forte/forte.py
 ## Getnet
 connector_id: getnet
 doc: docs/connectors/getnet.md
-scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: Card
-flows: authorize, capture, create_server_authentication_token, get, proxy_authorize, refund, refund_get, void
-examples_python: examples/getnet/getnet.py
+scenarios: none
+payment_methods: none
+flows: capture, create_server_authentication_token, get, refund, refund_get, void
+examples_python: none
 
 ## Gigadat
 connector_id: gigadat

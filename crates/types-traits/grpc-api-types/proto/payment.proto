@@ -3535,6 +3535,9 @@ message PaymentMethodServiceTokenizeRequest {
 
   // Environment Configuration
   optional bool test_mode = 9;
+
+  // State Information
+  optional ConnectorState state = 10;
 }
 
 // Response message for tokenizing a payment method
