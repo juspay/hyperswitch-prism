@@ -226,6 +226,7 @@ fn create_refund_sync_request(transaction_id: &str, refund_id: &str) -> RefundSe
         refund_amount: None,
 
         merchant_request_id: None,
+        connector_order_id: None,
     }
 }
 

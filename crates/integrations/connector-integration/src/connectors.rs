@@ -224,8 +224,9 @@ pub use self::ppro::Ppro;
 pub mod fiservcommercehub;
 pub use self::fiservcommercehub::Fiservcommercehub;
 
-pub mod sanlam;
-pub use self::sanlam::Sanlam;
+pub mod absa_sanlam;
+pub mod sanlam_common;
+pub use self::absa_sanlam::AbsaSanlam;
 
 pub mod truelayer;
 pub use self::truelayer::Truelayer;
@@ -258,3 +259,6 @@ pub use self::axisbank::Axisbank;
 
 pub mod twoc_twop_paco;
 pub use self::twoc_twop_paco::TwocTwopPaco;
+
+pub mod juspay;
+pub use self::juspay::Juspay;

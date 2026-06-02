@@ -1,14 +1,23 @@
 use std::fmt::Debug;
 
-use domain_types::{connector_types::ConnectorEnum, payment_method_data::PaymentMethodDataTypes};
-use interfaces::connector_types::BoxedConnector;
+use domain_types::{
+    connector_types::{ConnectorEnum, PayoutConnectorEnum, SurchargeConnectorEnum},
+    payment_method_data::PaymentMethodDataTypes,
+};
+use interfaces::connector_types::{BoxedConnector, BoxedPayoutConnector, BoxedSurchargeConnector};
 
-use crate::connectors;
+use crate::{connectors, payout_connectors, surcharge_connectors};
 
 #[derive(Clone)]
 pub struct ConnectorData<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static> {
     pub connector: BoxedConnector<T>,
     pub connector_name: ConnectorEnum,
+}
+
+#[derive(Clone)]
+pub struct SurchargeConnectorData {
+    pub connector: BoxedSurchargeConnector,
+    pub connector_name: SurchargeConnectorEnum,
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde::Serialize>
@@ -91,7 +100,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Airwallex => Box::new(connectors::Airwallex::new()),
             ConnectorEnum::Bambora => Box::new(connectors::Bambora::new()),
             ConnectorEnum::Shift4 => Box::new(connectors::Shift4::new()),
-            ConnectorEnum::Sanlam => Box::new(connectors::Sanlam::new()),
+            ConnectorEnum::AbsaSanlam => Box::new(connectors::AbsaSanlam::new()),
             ConnectorEnum::Bamboraapac => Box::new(connectors::Bamboraapac::new()),
             ConnectorEnum::Tsys => Box::new(connectors::Tsys::new()),
             ConnectorEnum::Bankofamerica => Box::new(connectors::Bankofamerica::new()),
@@ -111,7 +120,103 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Imerchantsolutions => Box::new(connectors::Imerchantsolutions::new()),
             ConnectorEnum::Axisbank => Box::new(connectors::Axisbank::new()),
             ConnectorEnum::TwocTwopPaco => Box::new(connectors::TwocTwopPaco::new()),
+            ConnectorEnum::Juspay => Box::new(connectors::Juspay::<T>::new()),
         }
+    }
+}
+
+impl SurchargeConnectorData {
+    pub fn get_connector_by_name(connector_name: &SurchargeConnectorEnum) -> Self {
+        let connector = Self::convert_connector(*connector_name);
+        Self {
+            connector,
+            connector_name: *connector_name,
+        }
+    }
+
+    fn convert_connector(connector_name: SurchargeConnectorEnum) -> BoxedSurchargeConnector {
+        match connector_name {
+            SurchargeConnectorEnum::Interpayments => {
+                Box::new(surcharge_connectors::InterPayments::new())
+            }
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct PayoutConnectorData {
+    pub connector: BoxedPayoutConnector,
+    pub connector_name: PayoutConnectorEnum,
+}
+
+impl PayoutConnectorData {
+    pub fn get_connector_by_name(connector_name: &PayoutConnectorEnum) -> Self {
+        let connector = Self::convert_connector(*connector_name);
+        Self {
+            connector,
+            connector_name: *connector_name,
+        }
+    }
+
+    fn convert_connector(connector_name: PayoutConnectorEnum) -> BoxedPayoutConnector {
+        match connector_name {
+            PayoutConnectorEnum::Loonio => Box::new(payout_connectors::LoonioPayouts::new()),
+            PayoutConnectorEnum::Paypal => Box::new(payout_connectors::PaypalPayouts::new()),
+            PayoutConnectorEnum::Itaubank => Box::new(payout_connectors::ItaubankPayouts::new()),
+        }
+    }
+}
+
+/// Trait abstracting over connector data types
+pub trait ConnectorDataProvider: Sized {
+    type ConnectorEnumType: Copy;
+
+    /// Convert variant to this type
+    fn from_connector_variant(
+        variant: &domain_types::connector_types::ConnectorVariant,
+    ) -> Option<Self>;
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde::Serialize>
+    ConnectorDataProvider for ConnectorData<T>
+{
+    type ConnectorEnumType = ConnectorEnum;
+
+    fn from_connector_variant(
+        variant: &domain_types::connector_types::ConnectorVariant,
+    ) -> Option<Self> {
+        variant
+            .as_payment()
+            .map(|c| Self::get_connector_by_name(&c))
+    }
+}
+
+impl ConnectorDataProvider for SurchargeConnectorData {
+    type ConnectorEnumType = SurchargeConnectorEnum;
+
+    fn from_connector_variant(
+        variant: &domain_types::connector_types::ConnectorVariant,
+    ) -> Option<Self> {
+        variant
+            .as_surcharge()
+            .map(|c| Self::get_connector_by_name(&c))
+    }
+}
+
+impl ConnectorDataProvider for PayoutConnectorData {
+    type ConnectorEnumType = PayoutConnectorEnum;
+
+    fn from_connector_variant(
+        variant: &domain_types::connector_types::ConnectorVariant,
+    ) -> Option<Self> {
+        variant
+            .as_payout()
+            .or_else(|| {
+                variant
+                    .as_payment()
+                    .and_then(|c| PayoutConnectorEnum::try_from(c).ok())
+            })
+            .map(|c| Self::get_connector_by_name(&c))
     }
 }
 

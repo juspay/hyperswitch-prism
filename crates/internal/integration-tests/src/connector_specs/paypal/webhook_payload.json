@@ -33,6 +33,33 @@
       "merchant_event_id": "paypal_webhook_capture_001"
     }
   },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "id": "WH-7YX49823S2290830K-0JE13296W6855237",
+          "event_type": "PAYMENT.CAPTURE.DECLINED",
+          "resource_type": "capture",
+          "summary": "A payment capture was declined",
+          "resource": {
+            "supplementary_data": {
+              "related_ids": {
+                "order_id": "5O190127TN364715U"
+              }
+            },
+            "amount": {
+              "currency_code": "USD",
+              "value": "20.00"
+            },
+            "invoice_id": "test_invoice_002"
+          },
+          "create_time": "2023-04-05T12:10:00.000Z"
+        }
+      },
+      "merchant_event_id": "paypal_webhook_capture_declined_001"
+    }
+  },
   "refund_succeeded": {
     "grpc_req": {
       "request_details": {
@@ -58,9 +85,23 @@
           "PAYPAL-TRANSMISSION-SIG": "INVALID_BASE64_SIGNATURE=="
         },
         "body": {
-          "id": "WH-invalid",
+          "id": "WH-7YX49823S2290830K-0JE13296W6855238",
           "event_type": "PAYMENT.CAPTURE.COMPLETED",
-          "resource": {}
+          "resource_type": "capture",
+          "summary": "Payment completed for $ 20.00 USD",
+          "resource": {
+            "supplementary_data": {
+              "related_ids": {
+                "order_id": "5O190127TN364715V"
+              }
+            },
+            "amount": {
+              "currency_code": "USD",
+              "value": "20.00"
+            },
+            "invoice_id": "test_invoice_003"
+          },
+          "create_time": "2023-04-05T12:15:00.000Z"
         }
       },
       "merchant_event_id": "paypal_webhook_invalid_sig"

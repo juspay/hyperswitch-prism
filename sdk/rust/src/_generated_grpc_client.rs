@@ -37,6 +37,8 @@ use grpc_api_types::payments::{
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
+    NotifyConnectorRequest,
+    NotifyConnectorResponse,
     PaymentMethodAuthenticationServiceAuthenticateRequest,
     PaymentMethodAuthenticationServiceAuthenticateResponse,
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
@@ -201,6 +203,12 @@ impl_grpc_client!(
         handle_event,
         EventServiceHandleRequest,
         EventServiceHandleResponse
+    ),
+    (
+        notify_connector,
+        notify_connector,
+        NotifyConnectorRequest,
+        NotifyConnectorResponse
     ),
 );
 

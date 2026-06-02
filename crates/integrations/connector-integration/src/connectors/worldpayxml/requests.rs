@@ -318,3 +318,40 @@ pub struct WorldpayxmlOrderInquiry {
 
 // Type alias for RSync - reuses PSync request structure
 pub type WorldpayxmlRSyncRequest = WorldpayxmlPSyncRequest;
+
+#[derive(Debug, Serialize)]
+#[serde(rename = "paymentService")]
+pub struct WorldpayxmlVoidPCRequest {
+    #[serde(rename = "@version")]
+    pub version: String,
+    #[serde(rename = "@merchantCode")]
+    pub merchant_code: Secret<String>,
+    pub modify: WorldpayxmlVoidPCModify,
+}
+
+impl GetSoapXml for WorldpayxmlVoidPCRequest {
+    fn to_soap_xml(&self) -> String {
+        generate_soap_xml(self).unwrap_or_else(|_| {
+            String::from("<?xml version=\"1.0\" encoding=\"UTF-8\"?><paymentService/>")
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlVoidPCModify {
+    #[serde(rename = "orderModification")]
+    pub order_modification: WorldpayxmlVoidPCOrderModification,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlVoidPCOrderModification {
+    #[serde(rename = "@orderCode")]
+    pub order_code: String,
+    #[serde(rename = "cancelOrRefund")]
+    pub cancel_or_refund: WorldpayxmlCancelOrRefund,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlCancelOrRefund {
+    // Empty struct - generates <cancelOrRefund/> element
+}

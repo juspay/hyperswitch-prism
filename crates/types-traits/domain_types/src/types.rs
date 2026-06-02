@@ -388,12 +388,14 @@ pub struct Connectors {
     pub finix: ConnectorParams,
     pub trustly: ConnectorParams,
     pub itaubank: ConnectorParams,
-    pub sanlam: ConnectorParams,
+    pub absa_sanlam: ConnectorParams,
     pub pinelabs_online: ConnectorParams,
     pub easebuzz: ConnectorParams,
     pub imerchantsolutions: ConnectorParams,
     pub axisbank: ConnectorParams,
     pub twoc_twop_paco: ConnectorParams,
+    pub interpayments: ConnectorParams,
+    pub juspay: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -535,6 +537,12 @@ impl Connectors {
             ConnectorEnum::Revolut => {
                 patched.revolut.apply(params_patch);
             }
+            ConnectorEnum::Aci => {
+                patched.aci.apply(params_patch);
+            }
+            ConnectorEnum::Bankofamerica => {
+                patched.bankofamerica.apply(params_patch);
+            }
             ConnectorEnum::Worldpay => {
                 patched.worldpay.apply(params_patch);
             }
@@ -640,8 +648,8 @@ impl Connectors {
             ConnectorEnum::Revolv3 => {
                 patched.revolv3.apply(params_patch);
             }
-            ConnectorEnum::Sanlam => {
-                patched.sanlam.apply(params_patch);
+            ConnectorEnum::AbsaSanlam => {
+                patched.absa_sanlam.apply(params_patch);
             }
             ConnectorEnum::Shift4 => {
                 patched.shift4.apply(params_patch);
@@ -687,6 +695,9 @@ impl Connectors {
                 };
                 patched.trustpay.apply(trustpay_patch);
             }
+            ConnectorEnum::TwocTwopPaco => {
+                patched.twoc_twop_paco.apply(params_patch);
+            }
             _ => {
                 // Connector not supported for URL patching - return error
                 return Err(IntegrationError::InvalidDataFormat {
@@ -694,7 +705,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, multisafepay, nexixpay, payload, payme, placetopay, powertranz, revolv3, sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat",
+                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, multisafepay, nexixpay, payload, payme, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat",
                             connector
                         )),
                         ..Default::default()
@@ -2781,6 +2792,11 @@ pub struct AuthorizationRequest {
     pub test_mode: Option<bool>,
     pub payment_method_token: Option<Secret<String>>,
     pub merchant_request_id: Option<String>,
+    /// Connector-side order identifier when a `CreateOrder` has already been
+    /// performed (e.g. Juspay's merchant `order_id`). Propagated to
+    /// `PaymentFlowData::connector_order_id` so the Authorize TryFrom can
+    /// attach the payment to the right pre-existing order.
+    pub connector_order_id: Option<String>,
 }
 
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
@@ -2796,21 +2812,26 @@ pub struct SetupRecurringRequest {
     pub metadata: Option<Secret<String>>,
     pub connector_feature_data: Option<Secret<String>>,
     pub state: Option<grpc_payment_types::ConnectorState>,
+    pub session_token: Option<String>,
     pub setup_mandate_details: Option<grpc_payment_types::SetupMandateDetails>,
     pub customer_acceptance: Option<grpc_payment_types::CustomerAcceptance>,
     pub auth_type: AuthenticationType,
     pub authentication_data: Option<grpc_payment_types::AuthenticationData>,
     pub setup_future_usage: grpc_payment_types::FutureUsage,
+    pub request_incremental_authorization: bool,
+    pub enable_partial_authorization: Option<bool>,
     pub browser_info: Option<grpc_payment_types::BrowserInformation>,
     pub billing_descriptor: Option<grpc_payment_types::BillingDescriptor>,
     pub locale: Option<String>,
-    pub payment_channel: Option<i32>,
+    pub payment_channel: Option<grpc_payment_types::PaymentChannel>,
     pub complete_authorize_url: Option<String>,
     pub off_session: Option<bool>,
     pub order_category: Option<String>,
     pub order_id: Option<String>,
     pub order_tax_amount: Option<i64>,
+    pub shipping_cost: Option<i64>,
     pub merchant_order_id: Option<String>,
+    pub connector_testing_data: Option<Secret<String>>,
     pub l2_l3_data: Option<grpc_payment_types::L2l3Data>,
 }
 
@@ -2867,6 +2888,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             test_mode: req.test_mode,
             payment_method_token: None,
             merchant_request_id: req.merchant_request_id,
+            connector_order_id: req.connector_order_id,
         }
     }
 }
@@ -2882,7 +2904,9 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
                         grpc_payment_types::payment_method::PaymentMethod::CardProxy(card_proxy),
                     ),
                 });
-
+        let threeds_completion_indicator = req
+            .threeds_completion_indicator
+            .map(|_| req.threeds_completion_indicator());
         Self {
             merchant_transaction_id: req.merchant_transaction_id.clone(),
             amount: req.amount,
@@ -2910,14 +2934,14 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             enable_partial_authorization: None,
             customer_acceptance: req.customer_acceptance.clone(),
             browser_info: req.browser_info,
-            billing_descriptor: None,
+            billing_descriptor: req.billing_descriptor,
             payment_experience: None,
             description: req.description.clone(),
             payment_channel: grpc_payment_types::PaymentChannel::Unspecified,
             locale: None,
             state: req.state,
-            threeds_completion_indicator: None,
-            redirection_response: None,
+            threeds_completion_indicator,
+            redirection_response: req.redirection_response,
             continue_redirection_url: None,
             l2_l3_data: req.l2_l3_data,
             setup_mandate_details: req.setup_mandate_details,
@@ -2928,6 +2952,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             test_mode: req.test_mode,
             payment_method_token: None,
             merchant_request_id: None,
+            connector_order_id: None,
         }
     }
 }
@@ -2947,19 +2972,26 @@ impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecu
             metadata: req.metadata,
             connector_feature_data: req.connector_feature_data,
             state: req.state,
+            session_token: req.session_token,
             setup_mandate_details: req.setup_mandate_details,
             customer_acceptance: req.customer_acceptance,
             authentication_data: req.authentication_data,
             browser_info: req.browser_info,
             billing_descriptor: req.billing_descriptor,
             locale: req.locale,
-            payment_channel: req.payment_channel,
+            payment_channel: req
+                .payment_channel
+                .and_then(|v| grpc_payment_types::PaymentChannel::try_from(v).ok()),
             complete_authorize_url: req.complete_authorize_url,
             off_session: req.off_session,
+            request_incremental_authorization: req.request_incremental_authorization,
+            enable_partial_authorization: req.enable_partial_authorization,
             order_category: req.order_category,
             order_id: req.order_id,
             order_tax_amount: req.order_tax_amount,
+            shipping_cost: req.shipping_cost,
             merchant_order_id: req.merchant_order_id,
+            connector_testing_data: req.connector_testing_data,
             l2_l3_data: req.l2_l3_data,
         }
     }
@@ -2990,19 +3022,24 @@ impl From<grpc_payment_types::PaymentServiceProxySetupRecurringRequest> for Setu
             metadata: req.metadata,
             connector_feature_data: None,
             state: req.state,
+            session_token: None,
             setup_mandate_details: req.setup_mandate_details,
             customer_acceptance: req.customer_acceptance,
             authentication_data: req.authentication_data,
+            request_incremental_authorization: false,
+            enable_partial_authorization: None,
             browser_info: req.browser_info,
             billing_descriptor: None,
             locale: None,
             payment_channel: None,
             complete_authorize_url: None,
             off_session: None,
-            order_category: None,
+            order_category: req.order_category,
             order_id: None,
             order_tax_amount: None,
+            shipping_cost: None,
             merchant_order_id: None,
+            connector_testing_data: None,
             l2_l3_data: None,
         }
     }
@@ -3438,34 +3475,28 @@ impl<
             mandate_id: None,
             off_session: value.off_session,
             order_category: value.order_category,
-            session_token: None,
+            session_token: value.session_token,
             access_token,
             customer_acceptance: customer_acceptance
                 .map(mandates::CustomerAcceptance::foreign_try_from)
                 .transpose()?,
             enrolled_for_3ds: value.enrolled_for_3ds,
             related_transaction_id: None,
-            payment_experience: None,
-            customer_id: value
-                .customer
-                .and_then(|customer| customer.id)
-                .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
-                .transpose()
-                .change_context(IntegrationError::InvalidDataFormat {
-                    field_name: "customer.id",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Failed to parse Customer Id".to_string()),
-                        suggested_action: Some("Provide a valid customer ID".to_string()),
-                        doc_url: None,
-                    },
-                })?,
+            payment_experience: value
+                .payment_experience
+                .filter(|pe| *pe != grpc_payment_types::PaymentExperience::Unspecified)
+                .map(common_enums::PaymentExperience::foreign_try_from)
+                .transpose()?,
+            customer_id: Option::<CustomerId>::foreign_try_from(value.customer.clone())?,
             request_incremental_authorization: value.request_incremental_authorization,
             metadata: value
                 .metadata
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "metadata")))
                 .transpose()?,
             merchant_order_id: value.merchant_order_id,
-            order_tax_amount: None,
+            order_tax_amount: value
+                .order_tax_amount
+                .map(common_utils::types::MinorUnit::new),
             shipping_cost,
             merchant_account_id,
             integrity_object: None,
@@ -3561,6 +3592,17 @@ impl<
             .billing_descriptor
             .map(|descriptor| BillingDescriptor::from((&descriptor, None, None)));
 
+        let payment_channel = value
+            .payment_channel
+            .filter(|channel| !matches!(channel, grpc_payment_types::PaymentChannel::Unspecified))
+            .map(common_enums::PaymentChannel::foreign_try_from)
+            .transpose()?;
+
+        let connector_testing_data = value
+            .connector_testing_data
+            .map(|m| ForeignTryFrom::foreign_try_from((m, "connector_testing_data")))
+            .transpose()?;
+
         Ok(Self {
             currency: common_enums::Currency::foreign_try_from(amount.currency())?,
             payment_method_data,
@@ -3601,7 +3643,7 @@ impl<
                     })
                 })?,
             )?,
-            request_incremental_authorization: false,
+            request_incremental_authorization: value.request_incremental_authorization,
             metadata: value
                 .metadata
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "metadata")))
@@ -3626,10 +3668,10 @@ impl<
                     },
                 })?,
             integrity_object: None,
-            payment_channel: None,
-            enable_partial_authorization: None,
+            payment_channel,
+            enable_partial_authorization: value.enable_partial_authorization,
             locale: value.locale.clone(),
-            connector_testing_data: None,
+            connector_testing_data,
         })
     }
 }
@@ -4222,7 +4264,7 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
             auth_type: common_enums::AuthenticationType::foreign_try_from(
                 grpc_api_types::payments::AuthenticationType::try_from(value.auth_type)
                     .unwrap_or_default(),
-            )?, // Use direct enum
+            )?,
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_transaction_id,
             ),
@@ -4325,7 +4367,7 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_transaction_id,
             ),
-            customer_id: None,
+            customer_id: Option::<CustomerId>::foreign_try_from(value.customer.clone())?,
             connector_customer: value
                 .customer
                 .and_then(|customer| customer.connector_customer_id),
@@ -4338,11 +4380,11 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             amount: None,
             access_token,
             session_token: value.session_token,
-            reference_id: None,
-            connector_order_id: None,
+            reference_id: value.merchant_order_id.clone(),
+            connector_order_id: value.connector_order_id.clone(),
             preprocessing_id: None,
             connector_api_version: None,
-            test_mode: None,
+            test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
             connectors,
@@ -4411,8 +4453,10 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
             connector_request_reference_id: extract_connector_request_reference_id(&Some(
                 value.merchant_recurring_payment_id.clone(),
             )),
-            customer_id: None,
-            connector_customer: None,
+            customer_id: Option::<CustomerId>::foreign_try_from(value.customer.clone())?,
+            connector_customer: value
+                .customer
+                .and_then(|customer| customer.connector_customer_id),
             description: None,
             return_url: value.return_url.clone(),
             connector_feature_data,
@@ -4421,9 +4465,9 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
             minor_amount_capturable: None,
             amount: None,
             access_token,
-            session_token: None,
-            reference_id: None,
-            connector_order_id: None,
+            session_token: value.session_token,
+            reference_id: value.order_id.clone(),
+            connector_order_id: value.order_id,
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: None,
@@ -4624,7 +4668,11 @@ impl
             access_token,
             session_token: None,
             reference_id: value.connector_order_reference_id.clone(),
-            connector_order_id: None,
+            // Also expose connector_order_reference_id as connector_order_id so
+            // connectors that anchor sync on the merchant order id (e.g. Juspay
+            // `GET /orders/{order_id}`) can read it from the same field they use
+            // during CreateOrder / Authorize.
+            connector_order_id: value.connector_order_reference_id.clone(),
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: value.test_mode,
@@ -6632,6 +6680,7 @@ impl ForeignTryFrom<grpc_api_types::payments::RefundServiceGetRequest> for Refun
                 .refund_amount
                 .map(common_utils::types::Money::foreign_try_from)
                 .transpose()?,
+            connector_order_id: value.connector_order_id,
         })
     }
 }
@@ -7841,6 +7890,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceRefundRequest> for R
                 .transpose()?,
             integrity_object: None,
             split_refunds: None,
+            connector_order_id: value.connector_order_id,
         })
     }
 }
@@ -8700,21 +8750,7 @@ impl
                     .unwrap_or_default(),
             )?,
             connector_request_reference_id: value.merchant_recurring_payment_id,
-            customer_id: value
-                .customer
-                .clone()
-                .and_then(|customer| customer.id)
-                .clone()
-                .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
-                .transpose()
-                .change_context(IntegrationError::InvalidDataFormat {
-                    field_name: "customer.id",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Failed to parse Customer Id".to_string()),
-                        suggested_action: Some("Provide a valid customer ID".to_string()),
-                        doc_url: None,
-                    },
-                })?,
+            customer_id: Option::<CustomerId>::foreign_try_from(value.customer.clone())?,
             connector_customer: value
                 .customer
                 .and_then(|customer| customer.connector_customer_id),
@@ -8810,20 +8846,7 @@ impl
             address,
             auth_type: common_enums::AuthenticationType::default(),
             connector_request_reference_id: value.merchant_recurring_payment_id,
-            customer_id: value
-                .customer
-                .clone()
-                .and_then(|customer| customer.id)
-                .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
-                .transpose()
-                .change_context(IntegrationError::InvalidDataFormat {
-                    field_name: "customer.id",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Failed to parse Customer Id".to_string()),
-                        suggested_action: Some("Provide a valid customer ID".to_string()),
-                        doc_url: None,
-                    },
-                })?,
+            customer_id: Option::<CustomerId>::foreign_try_from(value.customer.clone())?,
             connector_customer: value
                 .customer
                 .and_then(|customer| customer.connector_customer_id),
@@ -8918,6 +8941,13 @@ impl<
 
         let setup_future_usage = value.setup_future_usage();
 
+        let payment_channel = match value.payment_channel() {
+            grpc_payment_types::PaymentChannel::Unspecified => None,
+            _ => Some(common_enums::PaymentChannel::foreign_try_from(
+                value.payment_channel(),
+            )?),
+        };
+
         let setup_mandate_details = MandateData {
             update_mandate_id: None,
             customer_acceptance: Some(mandates::CustomerAcceptance::foreign_try_from(
@@ -8938,13 +8968,6 @@ impl<
                     statement_descriptor_suffix: descriptor.statement_descriptor_suffix.clone(),
                     reference: descriptor.reference.clone(),
                 });
-
-        let payment_channel = match value.payment_channel() {
-            grpc_payment_types::PaymentChannel::Unspecified => None,
-            _ => Some(common_enums::PaymentChannel::foreign_try_from(
-                value.payment_channel(),
-            )?),
-        };
 
         Ok(Self {
             currency: amount.currency,
@@ -8978,16 +9001,16 @@ impl<
                 .map(<Option<common_enums::PaymentMethodType>>::foreign_try_from)
                 .transpose()?
                 .flatten(),
-            request_incremental_authorization: false,
+            request_incremental_authorization: value.request_incremental_authorization,
             metadata: value
                 .metadata
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "metadata")))
                 .transpose()?,
-            complete_authorize_url: None,
+            complete_authorize_url: value.complete_authorize_url.clone(),
             capture_method: None,
             integrity_object: None,
             minor_amount: Some(amount.amount),
-            shipping_cost: None,
+            shipping_cost: value.shipping_cost.map(common_utils::types::MinorUnit::new),
             customer_id: value
                 .customer
                 .and_then(|customer| customer.id)
@@ -9316,6 +9339,26 @@ impl ForeignTryFrom<&grpc_api_types::payouts::Customer> for CustomerInfo {
             customer_phone_number: value.phone_number.clone().map(Into::into),
             customer_phone_country_code: value.phone_country_code.clone(),
         })
+    }
+}
+
+impl ForeignTryFrom<Option<grpc_payment_types::Customer>> for Option<CustomerId> {
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        value: Option<grpc_payment_types::Customer>,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        value
+            .and_then(|customer| customer.id)
+            .map(|id| CustomerId::try_from(Cow::from(id)))
+            .transpose()
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "customer.id",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Failed to parse Customer Id".to_string()),
+                    suggested_action: Some("Provide a valid customer ID".to_string()),
+                    doc_url: None,
+                },
+            })
     }
 }
 
@@ -13518,16 +13561,16 @@ pub fn tokenized_setup_recurring_to_base(
         customer_acceptance: v.customer_acceptance,
         setup_mandate_details: v.setup_mandate_details,
         setup_future_usage: v.setup_future_usage,
-        // Fields not in TokenSetupRecurringRequest - set to None/default
+        billing_descriptor: v.billing_descriptor,
+        locale: v.locale,
+        // Fields absent from TokenSetupRecurringRequest - set to None/default
         auth_type: grpc_payment_types::AuthenticationType::NoThreeDs as i32,
         authentication_data: None,
-        billing_descriptor: None,
         browser_info: None,
         complete_authorize_url: None,
         connector_testing_data: None,
         enable_partial_authorization: None,
         enrolled_for_3ds: false,
-        locale: None,
         l2_l3_data: None,
         merchant_order_id: None,
         off_session: None,
@@ -13612,10 +13655,12 @@ pub fn proxied_authorize_to_base(
         threeds_completion_indicator: v.threeds_completion_indicator,
         redirection_response: v.redirection_response,
         billing_descriptor: v.billing_descriptor,
+        setup_mandate_details: v.setup_mandate_details,
+        test_mode: v.test_mode,
         complete_authorize_url: None,
         continue_redirection_url: None,
         description: v.description,
-        // Fields not present in PaymentServiceProxyAuthorizeRequest - set to None/default
+        // Fields absent from PaymentServiceProxyAuthorizeRequest - set to None/default
         enrolled_for_3ds: None,
         enable_partial_authorization: None,
         locale: None,
@@ -13627,13 +13672,11 @@ pub fn proxied_authorize_to_base(
         order_category: v.order_category,
         order_details: Vec::new(),
         session_token: None,
-        shipping_cost: None,
+        shipping_cost: v.shipping_cost,
         order_tax_amount: None,
         statement_descriptor_name: None,
         statement_descriptor_suffix: None,
         tokenization_strategy: None,
-        setup_mandate_details: None,
-        test_mode: None,
         merchant_request_id: None,
     })
 }
@@ -13726,9 +13769,10 @@ pub fn proxied_setup_recurring_to_base(
         setup_mandate_details: v.setup_mandate_details,
         setup_future_usage: v.setup_future_usage,
         browser_info: v.browser_info,
-        // Fields not in ProxySetupRecurringRequest - set to None/default
-        auth_type: grpc_payment_types::AuthenticationType::NoThreeDs as i32,
-        authentication_data: None,
+        auth_type: v.auth_type,
+        authentication_data: v.authentication_data,
+        order_category: v.order_category,
+        // Fields absent from ProxySetupRecurringRequest - set to None/default
         billing_descriptor: None,
         connector_feature_data: None,
         connector_testing_data: None,
@@ -13739,7 +13783,6 @@ pub fn proxied_setup_recurring_to_base(
         l2_l3_data: None,
         merchant_order_id: None,
         off_session: None,
-        order_category: None,
         order_id: None,
         order_tax_amount: None,
         payment_channel: None,
@@ -13865,6 +13908,24 @@ pub fn generate_mandate_revoke_response(
             raw_connector_response,
             raw_connector_request,
         }),
+    }
+}
+
+impl ForeignFrom<connector_types::WebhookIntegrityCheck>
+    for grpc_api_types::payments::IntegrityCheck
+{
+    fn foreign_from(check: connector_types::WebhookIntegrityCheck) -> Self {
+        match check {
+            connector_types::WebhookIntegrityCheck::ConnectorTransactionId => {
+                grpc_api_types::payments::IntegrityCheck::ConnectorTransactionId
+            }
+            connector_types::WebhookIntegrityCheck::Amount => {
+                grpc_api_types::payments::IntegrityCheck::Amount
+            }
+            connector_types::WebhookIntegrityCheck::Currency => {
+                grpc_api_types::payments::IntegrityCheck::Currency
+            }
+        }
     }
 }
 
