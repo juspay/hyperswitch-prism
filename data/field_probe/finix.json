@@ -812,7 +812,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"type\":\"APPLE_PAY\",\"identity\":\"cust_probe_123\",\"merchant_identity\":\"IDqM71Jqgs2wRqrcc31DrMio\",\"third_party_token\":\"{\\\"token\\\":{\\\"paymentData\\\":{\\\"data\\\":\\\"...\\\",\\\"signature\\\":\\\"...\\\",\\\"header\\\":{\\\"publicKeyHash\\\":\\\"...\\\",\\\"ephemeralPublicKey\\\":\\\"...\\\",\\\"transactionId\\\":\\\"...\\\"},\\\"version\\\":\\\"EC_v1\\\"},\\\"paymentMethod\\\":{\\\"displayName\\\":\\\"Visa 4242\\\",\\\"network\\\":\\\"Visa\\\",\\\"type\\\":\\\"debit\\\"},\\\"transactionIdentifier\\\":\\\"example_transaction_identifier\\\"}}\"}"
+          "body": "{\"type\":\"APPLE_PAY\",\"identity\":\"cust_probe_123\",\"merchant_identity\":\"probe_merchant_identity_id\",\"third_party_token\":\"{\\\"token\\\":{\\\"paymentData\\\":{\\\"data\\\":\\\"...\\\",\\\"signature\\\":\\\"...\\\",\\\"header\\\":{\\\"publicKeyHash\\\":\\\"...\\\",\\\"ephemeralPublicKey\\\":\\\"...\\\",\\\"transactionId\\\":\\\"...\\\"},\\\"version\\\":\\\"EC_v1\\\"},\\\"paymentMethod\\\":{\\\"displayName\\\":\\\"Visa 4242\\\",\\\"network\\\":\\\"Visa\\\",\\\"type\\\":\\\"debit\\\"},\\\"transactionIdentifier\\\":\\\"example_transaction_identifier\\\"}}\"}"
         }
       }
     },
