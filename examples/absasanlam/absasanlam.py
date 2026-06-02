@@ -1,9 +1,9 @@
 # This file is auto-generated. Do not edit manually.
 # Replace YOUR_API_KEY and placeholder values with real data.
-# Regenerate: python3 scripts/generate-connector-docs.py sanlam
+# Regenerate: python3 scripts/generate-connector-docs.py absasanlam
 #
-# Sanlam — all integration scenarios and flows in one file.
-# Run a scenario:  python3 sanlam.py checkout_card
+# Absasanlam — all integration scenarios and flows in one file.
+# Run a scenario:  python3 absasanlam.py checkout_card
 
 import asyncio
 import sys
@@ -14,13 +14,9 @@ SUPPORTED_FLOWS = ["parse_event"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    connector_config=payment_pb2.ConnectorSpecificConfig(
-        sanlam=payment_pb2.SanlamConfig(
-            api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
-            merchant_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ID"),
-            base_url="YOUR_BASE_URL",
-        ),
-    ),
+    # connector_config=payment_pb2.ConnectorSpecificConfig(
+    #     absasanlam=payment_pb2.AbsasanlamConfig(api_key=...),
+    # ),
 )
 
 

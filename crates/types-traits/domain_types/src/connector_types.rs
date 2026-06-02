@@ -12,7 +12,7 @@ use common_utils::{
     CustomResult, CustomerId, Email, SecretSerdeValue,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString};
 use time::PrimitiveDateTime;
@@ -140,11 +140,12 @@ pub enum ConnectorEnum {
     Finix,
     Trustly,
     Itaubank,
-    Sanlam,
+    AbsaSanlam,
     PinelabsOnline,
     Easebuzz,
     Axisbank,
     TwocTwopPaco,
+    Juspay,
 }
 
 // snake case for enum variants
@@ -166,11 +167,93 @@ pub enum SurchargeConnectorEnum {
     Interpayments,
 }
 
-/// Unified connector enum that can represent either payment or surcharge connectors
+/// Enum representing connectors that support payout flows
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Display,
+    EnumIter,
+    EnumString,
+    serde::Deserialize,
+    Eq,
+    Hash,
+    PartialEq,
+    Serialize,
+)]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutConnectorEnum {
+    Loonio,
+    Paypal,
+    Itaubank,
+}
+
+impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
+    type Error = IntegrationError;
+
+    fn try_from(value: ConnectorEnum) -> Result<Self, Self::Error> {
+        match value {
+            ConnectorEnum::Loonio => Ok(Self::Loonio),
+            ConnectorEnum::Paypal => Ok(Self::Paypal),
+            ConnectorEnum::Itaubank => Ok(Self::Itaubank),
+            _ => Err(IntegrationError::InvalidDataFormat {
+                field_name: "connector",
+                context: IntegrationErrorContext::default(),
+            }),
+        }
+    }
+}
+
+impl ForeignTryFrom<AuthType> for SurchargeConnectorEnum {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(config: AuthType) -> Result<Self, error_stack::Report<Self::Error>> {
+        match config {
+            AuthType::Interpayments(_) => Ok(Self::Interpayments),
+            _ => Err(error_stack::Report::new(
+                IntegrationError::InvalidDataFormat {
+                    field_name: "connector",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Connector is not supported for surcharge flows".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                },
+            )),
+        }
+    }
+}
+
+impl ForeignTryFrom<AuthType> for PayoutConnectorEnum {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(config: AuthType) -> Result<Self, error_stack::Report<Self::Error>> {
+        match config {
+            AuthType::Paypal(_) => Ok(Self::Paypal),
+            AuthType::Loonio(_) => Ok(Self::Loonio),
+            AuthType::Itaubank(_) => Ok(Self::Itaubank),
+            _ => Err(error_stack::Report::new(
+                IntegrationError::InvalidDataFormat {
+                    field_name: "connector",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Connector is not supported for payout flows".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                },
+            )),
+        }
+    }
+}
+
+/// Unified connector enum that can represent either payment, surcharge, or payout connectors
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConnectorVariant {
     Payment(ConnectorEnum),
     Surcharge(SurchargeConnectorEnum),
+    Payout(PayoutConnectorEnum),
 }
 
 impl ConnectorVariant {
@@ -190,10 +273,19 @@ impl ConnectorVariant {
         }
     }
 
+    /// Get the payout connector if this is a payout variant
+    pub fn as_payout(&self) -> Option<PayoutConnectorEnum> {
+        match self {
+            ConnectorVariant::Payout(conn) => Some(*conn),
+            _ => None,
+        }
+    }
+
     pub fn get_connector_name(&self) -> String {
         match self {
             ConnectorVariant::Payment(conn) => conn.to_string(),
             ConnectorVariant::Surcharge(conn) => conn.to_string(),
+            ConnectorVariant::Payout(conn) => conn.to_string(),
         }
     }
 }
@@ -289,6 +381,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Imerchantsolutions => Ok(Self::Imerchantsolutions),
             grpc_api_types::payments::Connector::Axisbank => Ok(Self::Axisbank),
             grpc_api_types::payments::Connector::TwocTwopPaco => Ok(Self::TwocTwopPaco),
+            grpc_api_types::payments::Connector::Juspay => Ok(Self::Juspay),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -1798,6 +1891,19 @@ pub struct ConnectorCustomerData {
     pub split_payments: Option<SplitPaymentsRequest>,
 }
 
+impl ConnectorCustomerData {
+    pub fn get_email(&self) -> Result<Email, Error> {
+        self.email
+            .as_ref()
+            .map(|e| e.peek().clone())
+            .ok_or_else(missing_field_err("email"))
+    }
+
+    pub fn get_name(&self) -> Result<Secret<String>, Error> {
+        self.name.clone().ok_or_else(missing_field_err("name"))
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ConnectorCustomerResponse {
     pub connector_customer_id: String,
@@ -1968,6 +2074,16 @@ pub struct WebhookDetailsResponse {
 ///
 /// Mirrors the proto `EventReference` oneof. Each variant carries only the IDs that are
 /// meaningful for that resource type — no status, no credentials, no context.
+/// Dimensions of a webhook payment response that Euler can verify for integrity.
+///
+/// Integrity dimensions a connector can verify in a webhook payload.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum WebhookIntegrityCheck {
+    ConnectorTransactionId,
+    Amount,
+    Currency,
+}
+
 ///
 /// `connector_*_id` — the PSP-assigned identifier (always present when applicable).
 /// `merchant_*_id` — the caller-assigned identifier (order ID, invoice ID, etc.) when
@@ -4250,7 +4366,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Elavon(_) => Ok(Self::Payment(ConnectorEnum::Elavon)),
             AuthType::Fiserv(_) => Ok(Self::Payment(ConnectorEnum::Fiserv)),
             AuthType::Fiservemea(_) => Ok(Self::Payment(ConnectorEnum::Fiservemea)),
-            AuthType::Sanlam(_) => Ok(Self::Payment(ConnectorEnum::Sanlam)),
+            AuthType::AbsaSanlam(_) => Ok(Self::Payment(ConnectorEnum::AbsaSanlam)),
             AuthType::Forte(_) => Ok(Self::Payment(ConnectorEnum::Forte)),
             AuthType::Getnet(_) => Ok(Self::Payment(ConnectorEnum::Getnet)),
             AuthType::Globalpay(_) => Ok(Self::Payment(ConnectorEnum::Globalpay)),
@@ -4343,6 +4459,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Ppro(_) => Ok(Self::Payment(ConnectorEnum::Ppro)),
             AuthType::PinelabsOnline(_) => Ok(Self::Payment(ConnectorEnum::PinelabsOnline)),
             AuthType::Easebuzz(_) => Ok(Self::Payment(ConnectorEnum::Easebuzz)),
+            AuthType::Juspay(_) => Ok(Self::Payment(ConnectorEnum::Juspay)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),
             AuthType::Interpayments(_) => {
