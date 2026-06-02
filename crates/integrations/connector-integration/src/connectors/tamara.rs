@@ -3,23 +3,24 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
+use base64::Engine;
 use common_utils::{
-    consts, errors::CustomResult, events, ext_traits::ByteSliceExt, types::MinorUnit,
+    consts, crypto::{HmacSha256, SignMessage}, errors::CustomResult, events,
+    ext_traits::ByteSliceExt, types::MinorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, VerifyWebhookSource, Void},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
         EventType, PaymentFlowData, PaymentVoidData, PaymentWebhookReference,
         PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
         RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RequestDetails, ResponseId, VerifyWebhookSourceFlowData, WebhookResourceReference,
+        RequestDetails, ResponseId, WebhookResourceReference,
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
-    router_request_types::VerifyWebhookSourceRequestData,
-    router_response_types::{Response, VerifyWebhookSourceResponseData},
+    router_response_types::Response,
     types::Connectors,
 };
 use error_stack::ResultExt;
@@ -32,8 +33,8 @@ use serde::Serialize;
 use transformers::{
     TamaraAuthType, TamaraCaptureRequest, TamaraCaptureResponse, TamaraErrorResponse,
     TamaraPSyncResponse, TamaraPaymentsRequest, TamaraPaymentsResponse, TamaraRSyncResponse,
-    TamaraRefundRequest, TamaraRefundResponse, TamaraSourceVerificationResponse, TamaraVoidRequest,
-    TamaraVoidResponse, TamaraWebhookEventType,
+    TamaraRefundRequest, TamaraRefundResponse, TamaraVoidRequest, TamaraVoidResponse,
+    TamaraWebhookEventType,
 };
 
 use super::macros;
@@ -85,16 +86,6 @@ macros::create_all_prerequisites!(
             flow: RSync,
             response_body: TamaraRSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ),
-        (
-            flow: VerifyWebhookSource,
-            response_body: TamaraSourceVerificationResponse,
-            router_data: RouterDataV2<
-                VerifyWebhookSource,
-                VerifyWebhookSourceFlowData,
-                VerifyWebhookSourceRequestData,
-                VerifyWebhookSourceResponseData,
-            >,
         )
     ],
     amount_converters: [
@@ -168,16 +159,66 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
     fn verify_webhook_source(
         &self,
-        _request: RequestDetails,
-        _connector_webhook_secret: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
+        request: RequestDetails,
+        connector_webhook_secret: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<bool, error_stack::Report<errors::WebhookError>> {
-        Err(
-            error_stack::report!(errors::WebhookError::WebhookSourceVerificationFailed)
-                .attach_printable(
-                    "Tamara requires external PSync verification, not inline HMAC verification",
-                ),
-        )
+        // Tamara sends a tamaraToken JWT in the Authorization header (Bearer) or query params.
+        // The JWT is signed with HS256 using the Notification Token (stored as webhook secret).
+        // Verify the JWT to confirm the webhook originated from Tamara.
+        let token = request
+            .headers
+            .get("authorization")
+            .and_then(|h| h.strip_prefix("Bearer ").map(String::from))
+            .or_else(|| {
+                request.query_params.as_ref().and_then(|qp| {
+                    url::form_urlencoded::parse(qp.as_bytes())
+                        .find(|(k, _)| k == "tamaraToken")
+                        .map(|(_, v)| v.into_owned())
+                })
+            })
+            .ok_or_else(|| {
+                error_stack::report!(errors::WebhookError::WebhookSignatureNotFound)
+                    .attach_printable(
+                        "Missing tamaraToken JWT in Authorization header or query params",
+                    )
+            })?;
+
+        let secret = connector_webhook_secret
+            .ok_or_else(|| {
+                error_stack::report!(errors::WebhookError::WebhookVerificationSecretNotFound)
+                    .attach_printable(
+                        "Webhook secret (Notification Token) not configured for Tamara",
+                    )
+            })?;
+
+        // Split JWT into 3 parts: header.payload.signature
+        let parts: Vec<&str> = token.splitn(3, '.').collect();
+        if parts.len() != 3 {
+            return Err(error_stack::report!(
+                errors::WebhookError::WebhookSourceVerificationFailed
+            )
+            .attach_printable(
+                "Invalid JWT format: expected 3 dot-separated segments",
+            ));
+        }
+
+        // JWT message = base64url(header).base64url(payload)
+        let message = format!("{}.{}", parts[0], parts[1]);
+
+        // Decode signature from URL-safe base64 without padding
+        let signature = consts::BASE64_ENGINE_URL_SAFE_NO_PAD
+            .decode(parts[2])
+            .change_context(errors::WebhookError::WebhookSourceVerificationFailed)
+            .attach_printable("Failed to decode JWT signature from base64url")?;
+
+        // Verify HMAC-SHA256
+        let computed = HmacSha256
+            .sign_message(&secret.secret, message.as_bytes())
+            .change_context(errors::WebhookError::WebhookSourceVerificationFailed)
+            .attach_printable("Failed to sign JWT message with HMAC-SHA256")?;
+
+        Ok(computed == signature)
     }
 
     fn sample_webhook_body(&self) -> &'static [u8] {
@@ -549,47 +590,6 @@ macros::macro_connector_implementation!(
         }
     }
 );
-
-// ===== VERIFY WEBHOOK SOURCE (calls GET /orders/{order_id} as PSync for verification) =====
-macros::macro_connector_implementation!(
-    connector_default_implementations: [get_headers, get_content_type, get_error_response_v2],
-    connector: Tamara,
-    curl_response: TamaraSourceVerificationResponse,
-    flow_name: VerifyWebhookSource,
-    resource_common_data: VerifyWebhookSourceFlowData,
-    flow_request: VerifyWebhookSourceRequestData,
-    flow_response: VerifyWebhookSourceResponseData,
-    http_method: Get,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    other_functions: {
-        fn get_url(
-            &self,
-            req: &RouterDataV2<
-                VerifyWebhookSource,
-                VerifyWebhookSourceFlowData,
-                VerifyWebhookSourceRequestData,
-                VerifyWebhookSourceResponseData,
-            >,
-        ) -> CustomResult<String, IntegrationError> {
-            let webhook_body: TamaraWebhookEventType = req
-                .request
-                .webhook_body
-                .parse_struct("TamaraWebhookEventType")
-                .change_context(IntegrationError::InvalidDataFormat {
-                    field_name: "TamaraWebhookEventType",
-                    context: Default::default(),
-                })?;
-            let base_url = &req.resource_common_data.connectors.tamara.base_url;
-            Ok(format!("{}/orders/{}", base_url, webhook_body.order_id))
-        }
-    }
-);
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::VerifyWebhookSourceV2 for Tamara<T>
-{
-}
 
 // ===== CONNECTOR COMMON IMPLEMENTATION =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon

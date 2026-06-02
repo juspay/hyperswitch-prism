@@ -5,18 +5,17 @@ use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, Currency, RefundStatus};
 use common_utils::{types::MinorUnit, Email};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, VerifyWebhookSource, Void},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
         EventType, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId, VerifyWebhookSourceFlowData,
+        RefundsResponseData, ResponseId,
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
-    router_request_types::VerifyWebhookSourceRequestData,
-    router_response_types::{RedirectForm, VerifyWebhookSourceResponseData, VerifyWebhookStatus},
+    router_response_types::RedirectForm,
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::Secret;
@@ -169,9 +168,9 @@ pub struct TamaraMerchantUrl {
 pub struct TamaraAddress {
     pub first_name: Secret<String>,
     pub last_name: Secret<String>,
-    pub line1: String,
-    pub city: String,
-    pub country_code: String,
+    pub line1: Secret<String>,
+    pub city: Secret<String>,
+    pub country_code: Secret<String>,
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -748,38 +747,4 @@ pub struct TamaraWebhookResourceObject {
     pub event_type: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct TamaraSourceVerificationResponse {
-    pub order_id: String,
-    pub status: TamaraPaymentStatus,
-    pub order_reference_id: Option<String>,
-}
 
-impl TryFrom<ResponseRouterData<TamaraSourceVerificationResponse, Self>>
-    for RouterDataV2<
-        VerifyWebhookSource,
-        VerifyWebhookSourceFlowData,
-        VerifyWebhookSourceRequestData,
-        VerifyWebhookSourceResponseData,
-    >
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-
-    fn try_from(
-        item: ResponseRouterData<TamaraSourceVerificationResponse, Self>,
-    ) -> Result<Self, Self::Error> {
-        let verification_status = match item.response.status {
-            TamaraPaymentStatus::Declined | TamaraPaymentStatus::Expired => {
-                VerifyWebhookStatus::SourceNotVerified
-            }
-            _ => VerifyWebhookStatus::SourceVerified,
-        };
-
-        Ok(Self {
-            response: Ok(VerifyWebhookSourceResponseData {
-                verify_webhook_status: verification_status,
-            }),
-            ..item.router_data
-        })
-    }
-}
