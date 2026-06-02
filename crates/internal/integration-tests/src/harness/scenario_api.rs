@@ -3380,13 +3380,8 @@ pub fn run_scenario_test_with_options(
     let mut passed = 0usize;
     let mut failed = 0usize;
 
-    let effective_deps = crate::harness::scenario_loader::effective_suite_dependencies(
-        suite,
-        connector,
-        &target_suite_spec.depends_on,
-    );
     let dependency_chain = execute_dependency_chain(
-        &effective_deps,
+        &target_suite_spec.depends_on,
         connector,
         options,
         target_suite_spec.strict_dependencies,
@@ -3606,16 +3601,10 @@ pub fn run_suite_test_with_options(
     let mut failed = 0usize;
     let mut skipped = 0usize;
 
-    let effective_deps = crate::harness::scenario_loader::effective_suite_dependencies(
-        suite,
-        connector,
-        &target_suite_spec.depends_on,
-    );
-
     match target_suite_spec.dependency_scope {
         DependencyScope::Suite => {
             let dependency_chain = execute_dependency_chain(
-                &effective_deps,
+                &target_suite_spec.depends_on,
                 connector,
                 options,
                 target_suite_spec.strict_dependencies,
@@ -3748,7 +3737,7 @@ pub fn run_suite_test_with_options(
         DependencyScope::Scenario => {
             for scenario in scenarios.keys() {
                 let dependency_chain = execute_dependency_chain(
-                    &effective_deps,
+                    &target_suite_spec.depends_on,
                     connector,
                     options,
                     target_suite_spec.strict_dependencies,
