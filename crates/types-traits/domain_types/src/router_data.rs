@@ -1504,7 +1504,7 @@ impl ConnectorSpecificConfig {
                     merchant_id
                 },
                 TKassa { api_key },
-            Imerchantsolutions { api_key },
+                Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 TwocTwopPaco {
                     access_token,
@@ -3143,13 +3143,13 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
                 ConnectorEnum::TKassa => match auth {
-                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::TKassa {
-                    api_key: api_key.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::PinelabsOnline => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::TKassa {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::PinelabsOnline => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::PinelabsOnline {
                         client_id: api_key.clone(),
                         client_secret: key1.clone(),
