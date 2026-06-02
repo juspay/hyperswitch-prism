@@ -763,6 +763,7 @@ enum Connector {
   AXISBANK = 119;
   EASEBUZZ = 120;
   TWOC_TWOP_PACO = 121;
+  ASIAPAY = 122;
 }
 
 // Payment method types

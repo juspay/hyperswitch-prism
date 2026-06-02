@@ -677,6 +677,13 @@ pub enum ConnectorSpecificConfig {
         base_url: Option<String>,
         secondary_base_url: Option<String>,
     },
+    Asiapay {
+        merchant_id: Secret<String>,
+        secure_hash_secret: Secret<String>,
+        login_id: Secret<String>,
+        password: Secret<String>,
+        base_url: Option<String>,
+    },
     Cashtocode {
         auth_key_map: HashMap<common_enums::enums::Currency, common_utils::pii::SecretSerdeValue>,
         base_url: Option<String>,
@@ -1079,6 +1086,12 @@ impl ConnectorSpecificConfig {
                 access_token,
                 office_id,
                 paco_kid
+            },
+            Asiapay {
+                merchant_id,
+                secure_hash_secret,
+                login_id,
+                password
             },
         )
     }
@@ -1491,6 +1504,12 @@ impl ConnectorSpecificConfig {
                     access_token,
                     office_id,
                     paco_kid
+                },
+                Asiapay {
+                    merchant_id,
+                    secure_hash_secret,
+                    login_id,
+                    password
                 },
             ),
             serde_json::Value::Object(connector_patch),
@@ -3138,6 +3157,21 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
                 ConnectorEnum::TwocTwopPaco => Err(err().into()),
+                ConnectorEnum::Asiapay => match auth {
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::Asiapay {
+                        merchant_id: api_key.clone(),
+                        secure_hash_secret: key1.clone(),
+                        login_id: api_secret.clone(),
+                        password: key2.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
             },
             connector_types::ConnectorVariant::Surcharge(connector_enum) => match connector_enum {
                 SurchargeConnectorEnum::Interpayments => match auth {
