@@ -218,6 +218,46 @@ fn build_reference_tags(reference: &str) -> FinixTags {
     tags
 }
 
+/// Wraps the Apple Pay token before JSON-encoding it as `third_party_token`.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FinixApplePayPaymentToken {
+    pub token: FinixApplePayToken,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FinixApplePayToken {
+    pub payment_data: FinixApplePayEncryptedData,
+    pub payment_method: FinixApplePayPaymentMethod,
+    pub transaction_identifier: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FinixApplePayEncryptedData {
+    pub data: Secret<String>,
+    pub signature: Secret<String>,
+    pub header: FinixApplePayHeader,
+    pub version: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FinixApplePayHeader {
+    pub public_key_hash: String,
+    pub ephemeral_public_key: String,
+    pub transaction_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FinixApplePayPaymentMethod {
+    pub display_name: Secret<String>,
+    pub network: Secret<String>,
+    #[serde(rename = "type")]
+    pub method_type: Secret<String>,
+}
+
 #[derive(Debug, Serialize)]
 pub struct FinixCreatePaymentInstrumentRequest {
     #[serde(rename = "type")]
@@ -1046,10 +1086,56 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         let auth = FinixAuthType::try_from(&item.router_data.connector_config)?;
                         let merchant_identity = auth.merchant_identity_id.peek().to_string();
 
-                        // Extract the encrypted Apple Pay payment data
-                        let encrypted_data = apple_pay_data
+                        // Decode the base64-encoded Apple Pay encrypted data into the JSON
+                        // token structure that Finix expects as `third_party_token`.
+                        let encrypted_data_b64 = apple_pay_data
                             .payment_data
                             .get_encrypted_apple_pay_payment_data_mandatory()
+                            .change_context(IntegrationError::InvalidWalletToken {
+                                wallet_name: "Apple Pay".to_string(),
+                                context: Default::default(),
+                            })?;
+
+                        let decoded_bytes = base64::Engine::decode(
+                            &base64::prelude::BASE64_STANDARD,
+                            &encrypted_data_b64,
+                        )
+                        .change_context(
+                            IntegrationError::InvalidWalletToken {
+                                wallet_name: "Apple Pay".to_string(),
+                                context: Default::default(),
+                            },
+                        )?;
+
+                        let payment_data: FinixApplePayEncryptedData = serde_json::from_slice(
+                            &decoded_bytes,
+                        )
+                        .change_context(IntegrationError::InvalidWalletToken {
+                            wallet_name: "Apple Pay".to_string(),
+                            context: Default::default(),
+                        })?;
+
+                        let finix_token = FinixApplePayPaymentToken {
+                            token: FinixApplePayToken {
+                                payment_data,
+                                payment_method: FinixApplePayPaymentMethod {
+                                    display_name: Secret::new(
+                                        apple_pay_data.payment_method.display_name.clone(),
+                                    ),
+                                    network: Secret::new(
+                                        apple_pay_data.payment_method.network.clone(),
+                                    ),
+                                    method_type: Secret::new(
+                                        apple_pay_data.payment_method.pm_type.clone(),
+                                    ),
+                                },
+                                transaction_identifier: apple_pay_data
+                                    .transaction_identifier
+                                    .clone(),
+                            },
+                        };
+
+                        let third_party_token = serde_json::to_string(&finix_token)
                             .change_context(IntegrationError::InvalidWalletToken {
                                 wallet_name: "Apple Pay".to_string(),
                                 context: Default::default(),
@@ -1066,7 +1152,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             tags: None,
                             address: None,
                             merchant_identity: Some(Secret::new(merchant_identity)),
-                            third_party_token: Some(Secret::new(encrypted_data.clone())),
+                            third_party_token: Some(Secret::new(third_party_token)),
                             account_number: None,
                             bank_code: None,
                             account_type: None,
@@ -1313,14 +1399,61 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         let auth = FinixAuthType::try_from(&item.router_data.connector_config)?;
                         let merchant_identity = auth.merchant_identity_id.peek().to_string();
 
-                        // Extract the encrypted Apple Pay payment data
-                        let encrypted_data = apple_pay_data
+                        // Decode the base64-encoded Apple Pay encrypted data into the JSON
+                        // token structure that Finix expects as `third_party_token`.
+                        let encrypted_data_b64 = apple_pay_data
                             .payment_data
                             .get_encrypted_apple_pay_payment_data_mandatory()
                             .change_context(IntegrationError::InvalidWalletToken {
                                 wallet_name: "Apple Pay".to_string(),
                                 context: Default::default(),
                             })?;
+
+                        let decoded_bytes =
+                            base64::Engine::decode(
+                                &base64::prelude::BASE64_STANDARD,
+                                &encrypted_data_b64,
+                            )
+                            .change_context(IntegrationError::InvalidWalletToken {
+                                wallet_name: "Apple Pay".to_string(),
+                                context: Default::default(),
+                            })?;
+
+                        let payment_data: FinixApplePayEncryptedData =
+                            serde_json::from_slice(&decoded_bytes).change_context(
+                                IntegrationError::InvalidWalletToken {
+                                    wallet_name: "Apple Pay".to_string(),
+                                    context: Default::default(),
+                                },
+                            )?;
+
+                        let finix_token = FinixApplePayPaymentToken {
+                            token: FinixApplePayToken {
+                                payment_data,
+                                payment_method: FinixApplePayPaymentMethod {
+                                    display_name: Secret::new(
+                                        apple_pay_data.payment_method.display_name.clone(),
+                                    ),
+                                    network: Secret::new(
+                                        apple_pay_data.payment_method.network.clone(),
+                                    ),
+                                    method_type: Secret::new(
+                                        apple_pay_data.payment_method.pm_type.clone(),
+                                    ),
+                                },
+                                transaction_identifier: apple_pay_data
+                                    .transaction_identifier
+                                    .clone(),
+                            },
+                        };
+
+                        let third_party_token =
+                            serde_json::to_string(&finix_token).change_context(
+                                IntegrationError::InvalidWalletToken {
+                                    wallet_name: "Apple Pay".to_string(),
+                                    context: Default::default(),
+                                },
+                            )?;
 
                         Ok(Self {
                             instrument_type: FinixPaymentInstrumentType::ApplePay,
@@ -1333,7 +1466,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             tags,
                             address: None,
                             merchant_identity: Some(Secret::new(merchant_identity)),
-                            third_party_token: Some(Secret::new(encrypted_data.clone())),
+                            third_party_token: Some(Secret::new(third_party_token)),
                             account_number: None,
                             bank_code: None,
                             account_type: None,

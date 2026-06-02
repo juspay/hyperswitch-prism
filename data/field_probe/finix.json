@@ -776,6 +776,44 @@
           },
           "body": "{\"type\":\"PAYMENT_CARD\",\"name\":\"John Doe\",\"number\":\"4111111111111111\",\"security_code\":\"737\",\"expiration_month\":3,\"expiration_year\":2030,\"identity\":\"cust_probe_123\",\"tags\":null}"
         }
+      },
+      "ApplePay": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "wallet": {
+              "apple_pay": {
+                "payment_data": "eyJkYXRhIjoiZXhhbXBsZV9lbmNyeXB0ZWRfZGF0YSIsInNpZ25hdHVyZSI6ImV4YW1wbGVfc2lnbmF0dXJlIiwiaGVhZGVyIjp7InB1YmxpY0tleUhhc2giOiJleGFtcGxlX2hhc2giLCJlcGhlbWVyYWxQdWJsaWNLZXkiOiJleGFtcGxlX2tleSIsInRyYW5zYWN0aW9uSWQiOiJleGFtcGxlX3RyYW5zYWN0aW9uX2lkIn0sInZlcnNpb24iOiJFQ19FM19TRUNVUkVfUkVNT1RFX1BBWU1FTlQifQ==",
+                "payment_method": {
+                  "display_name": "Visa 4242",
+                  "network": "Visa",
+                  "type": "debit"
+                },
+                "transaction_identifier": "example_transaction_identifier"
+              }
+            }
+          },
+          "customer": {
+            "id": "cust_probe_123"
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://finix.sandbox-payments-api.com/payment_instruments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"type\":\"APPLE_PAY\",\"identity\":\"cust_probe_123\",\"merchant_identity\":\"IDqM71Jqgs2wRqrcc31DrMio\",\"third_party_token\":\"{\\\"token\\\":{\\\"paymentData\\\":{\\\"data\\\":\\\"...\\\",\\\"signature\\\":\\\"...\\\",\\\"header\\\":{\\\"publicKeyHash\\\":\\\"...\\\",\\\"ephemeralPublicKey\\\":\\\"...\\\",\\\"transactionId\\\":\\\"...\\\"},\\\"version\\\":\\\"EC_v1\\\"},\\\"paymentMethod\\\":{\\\"displayName\\\":\\\"Visa 4242\\\",\\\"network\\\":\\\"Visa\\\",\\\"type\\\":\\\"debit\\\"},\\\"transactionIdentifier\\\":\\\"example_transaction_identifier\\\"}}\"}"
+        }
       }
     },
     "verify_redirect": {
