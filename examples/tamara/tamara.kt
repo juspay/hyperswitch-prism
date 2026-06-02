@@ -99,7 +99,7 @@ fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
             method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
             uri = "https://example.com/webhook"  // URI of the request.
             putAllHeaders(mapOf())  // Headers of the HTTP request.
-            body = com.google.protobuf.ByteString.copyFromUtf8("{\"order_id\":\"4fdb781f-5e13-4ae2-9dc6-3ee49e3878a3\",\"order_reference_id\":\"4464602579098\",\"order_number\":\"90001860\",\"event_type\":\"order_approved\",\"data\":[]}")  // Body of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("{}")  // Body of the HTTP request.
         }
     }.build()
     val response = client.handle_event(request)
@@ -114,7 +114,7 @@ fun parseEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
             method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
             uri = "https://example.com/webhook"  // URI of the request.
             putAllHeaders(mapOf())  // Headers of the HTTP request.
-            body = com.google.protobuf.ByteString.copyFromUtf8("{\"order_id\":\"4fdb781f-5e13-4ae2-9dc6-3ee49e3878a3\",\"order_reference_id\":\"4464602579098\",\"order_number\":\"90001860\",\"event_type\":\"order_approved\",\"data\":[]}")  // Body of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("{}")  // Body of the HTTP request.
         }
     }.build()
     val response = client.parse_event(request)
