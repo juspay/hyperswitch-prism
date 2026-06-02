@@ -253,9 +253,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     .map(|(i, data)| TamaraLineItem {
                         name: data.product_name.clone(),
                         quantity: data.quantity,
-                        reference_id: data.product_id.clone().unwrap_or_else(|| format!("item_{i}")),
-                        sku: data.product_id.clone().unwrap_or_else(|| format!("item_{i}")),
-                        total_amount: TamaraAmount { amount: data.amount, currency },
+                        reference_id: data
+                            .product_id
+                            .clone()
+                            .unwrap_or_else(|| format!("item_{i}")),
+                        sku: data
+                            .product_id
+                            .clone()
+                            .unwrap_or_else(|| format!("item_{i}")),
+                        total_amount: TamaraAmount {
+                            amount: data.amount,
+                            currency,
+                        },
                     })
                     .collect()
             })
