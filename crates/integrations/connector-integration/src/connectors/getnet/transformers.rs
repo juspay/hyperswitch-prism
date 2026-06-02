@@ -1,7 +1,7 @@
 use crate::{connectors::getnet::GetnetRouterData, types::ResponseRouterData};
 use common_enums::{AttemptStatus, AuthenticationType, Currency, RefundStatus};
-use common_utils::{id_type::CustomerId, request::Method, types::MinorUnit, Email};
-use domain_types::errors::{ConnectorError, IntegrationError};
+use common_utils::{request::Method, types::MinorUnit, Email};
+use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
 use domain_types::router_request_types::AuthenticationData;
 use domain_types::{
     connector_flow::{
@@ -32,6 +32,17 @@ use time::{Duration as TimeDuration, OffsetDateTime};
 
 const TRANSACTION_TYPE_FULL: &str = "FULL";
 const DEFAULT_INSTALLMENTS: i32 = 1;
+
+/// Document type sent on the boleto `data.customer`. Globalgetnet expects the
+/// Brazilian individual-taxpayer document type ("CPF") for boleto payers.
+const BOLETO_DOCUMENT_TYPE_CPF: &str = "CPF";
+
+/// Number of days from "now" used as the boleto due date (`data.boleto.expiration_date`).
+/// 30 days is the standard Brazilian boleto payment window — a boleto must carry a
+/// future due date and 30 days is the conventional default merchants use when the
+/// caller doesn't specify one (UCS does not currently surface a per-payment boleto
+/// expiry on `PaymentsAuthorizeData`).
+const BOLETO_DUE_DAYS: i64 = 30;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum GetnetPaymentMethod {
@@ -521,19 +532,32 @@ pub struct GetnetBizum {
     pub phone_number: Option<Secret<String>>,
 }
 
-/// Return a `DD/MM/YYYY` string for `now() + days_from_now`. Globalgetnet's boleto
-/// endpoint rejects ISO-8601 / `YYYY-MM-DD` and only accepts this Brazilian-locale
-/// format. When the system clock fails (extremely unlikely outside container init),
-/// we fall back to a far-future placeholder rather than failing the payment.
-fn boleto_expiration_date(days_from_now: i64) -> String {
-    let target = OffsetDateTime::now_utc() + TimeDuration::days(days_from_now);
-    let date = target.date();
+/// Format a `Date` as Globalgetnet's required Brazilian-locale `DD/MM/YYYY`. The boleto
+/// endpoint rejects ISO-8601 / `YYYY-MM-DD`.
+fn format_boleto_date(date: time::Date) -> String {
     format!(
         "{:02}/{:02}/{:04}",
         date.day(),
         u8::from(date.month()),
         date.year()
     )
+}
+
+/// Return a `DD/MM/YYYY` boleto due date for `now() + days_from_now`. Used as the
+/// fallback when the caller didn't supply an explicit due date.
+fn boleto_expiration_date(days_from_now: i64) -> String {
+    let target = OffsetDateTime::now_utc() + TimeDuration::days(days_from_now);
+    format_boleto_date(target.date())
+}
+
+/// Resolve the boleto due date: prefer the merchant-supplied `expiration_date`, else
+/// fall back to the connector default ([`BOLETO_DUE_DAYS`] from now). Mirrors how
+/// connectors source the Pix expiry from the request and only default when absent.
+fn boleto_due_date(boleto_data: &domain_types::payment_method_data::BoletoVoucherData) -> String {
+    match boleto_data.expiration_date {
+        Some(dt) => format_boleto_date(dt.date()),
+        None => boleto_expiration_date(BOLETO_DUE_DAYS),
+    }
 }
 
 /// Strip everything that isn't `0-9`. Used for Brazilian phone numbers (the boleto
@@ -550,9 +574,11 @@ fn digits_only(s: &str) -> String {
 ///   * `document_number`
 ///   * `billing_address.{street, number, district, city, state, country, postal_code}`
 ///
-/// Sensible Brazilian defaults are applied for missing fields so the connector can
-/// still successfully tokenise a boleto when the merchant didn't supply full KYC
-/// (`"S/N"` for street number, `"Centro"` for district, `"00000000000"` for CPF).
+/// Globalgetnet enforces every one of these on the `/payments/boleto` endpoint, so
+/// they are treated as required: when the caller omits any of them we surface a
+/// `MissingRequiredField` error (with the exact field path) rather than silently
+/// injecting placeholder KYC that the gateway — or the Brazilian tax authority —
+/// would reject downstream.
 fn build_boleto_customer<T: PaymentMethodDataTypes>(
     item: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
     boleto_data: &domain_types::payment_method_data::BoletoVoucherData,
@@ -571,37 +597,67 @@ fn build_boleto_customer<T: PaymentMethodDataTypes>(
         .get_optional_billing_phone_number()
         .map(|p| Secret::new(digits_only(p.peek())));
 
+    // CPF — mandatory for boleto in Brazil; a placeholder document number would be
+    // rejected by the gateway and is meaningless for reconciliation.
     let document_number = boleto_data
         .social_security_number
         .as_ref()
         .map(|s| Secret::new(digits_only(s.peek())))
-        .unwrap_or_else(|| Secret::new("00000000000".to_string()));
+        .ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "payment_method_data.voucher.boleto.social_security_number",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Provide the payer's CPF — Globalgetnet requires it on every boleto."
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                    additional_context: None,
+                },
+            })
+        })?;
 
-    let street = item
-        .resource_common_data
-        .get_optional_billing_line1()
-        .unwrap_or_else(|| Secret::new("Endereco".to_string()));
-    let number = item
-        .resource_common_data
-        .get_optional_billing_line2()
-        .unwrap_or_else(|| Secret::new("S/N".to_string()));
-    let district = item
-        .resource_common_data
-        .get_optional_billing_line3()
-        .unwrap_or_else(|| Secret::new("Centro".to_string()));
-    let city = item
-        .resource_common_data
-        .get_optional_billing_city()
-        .unwrap_or_else(|| Secret::new("Sao Paulo".to_string()));
+    // `street` and `city` have error-propagating getters; use them directly.
+    let street = item.resource_common_data.get_billing_line1()?;
+    let city = item.resource_common_data.get_billing_city()?;
+    let country = item.resource_common_data.get_billing_country()?.to_string();
+    // `line2` (number), `line3` (district), `state` and `zip` have no required getter,
+    // so enforce them explicitly — Globalgetnet's boleto schema rejects a partial address.
+    let number = item.resource_common_data.get_optional_billing_line2().ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "payment_method_data.billing.address.line2",
+                context: IntegrationErrorContext {
+                    suggested_action: Some("Provide the street number (billing address line2) — required by Globalgetnet.".to_string()),
+                    doc_url: None,
+                    additional_context: None,
+                },
+            })
+        })?;
+    let district = item.resource_common_data.get_optional_billing_line3().ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "payment_method_data.billing.address.line3",
+                context: IntegrationErrorContext {
+                    suggested_action: Some("Provide the district/bairro (billing address line3) — required by Globalgetnet boleto.".to_string()),
+                    doc_url: None,
+                    additional_context: None,
+                },
+            })
+        })?;
     let state = item
         .resource_common_data
         .get_optional_billing_state()
-        .unwrap_or_else(|| Secret::new("SP".to_string()));
-    let country = item
-        .resource_common_data
-        .get_optional_billing_country()
-        .map(|c| c.to_string())
-        .unwrap_or_else(|| "BR".to_string());
+        .ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "payment_method_data.billing.address.state",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Provide the billing state — required by Globalgetnet boleto.".to_string(),
+                    ),
+                    doc_url: None,
+                    additional_context: None,
+                },
+            })
+        })?;
     // Brazilian CEP — digits only, max 8 chars (Globalgetnet enforces ≤ 8).
     let postal_code = item
         .resource_common_data
@@ -615,7 +671,19 @@ fn build_boleto_customer<T: PaymentMethodDataTypes>(
                 .collect();
             Secret::new(cleaned)
         })
-        .unwrap_or_else(|| Secret::new("01310100".to_string()));
+        .ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "payment_method_data.billing.address.zip",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Provide the billing postal code (CEP) — required by Globalgetnet."
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                    additional_context: None,
+                },
+            })
+        })?;
 
     let billing_address = GetnetBoletoAddress {
         street,
@@ -632,7 +700,7 @@ fn build_boleto_customer<T: PaymentMethodDataTypes>(
         last_name,
         name: full_name,
         email,
-        document_type: "CPF".to_string(),
+        document_type: BOLETO_DOCUMENT_TYPE_CPF.to_string(),
         document_number,
         phone_number,
         billing_address,
@@ -695,7 +763,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                     },
                     customer,
                     boleto: GetnetBoletoBlock {
-                        expiration_date: boleto_expiration_date(30),
+                        expiration_date: boleto_due_date(boleto_data),
                     },
                     payment: GetnetBoletoPayment {
                         payment_method: GetnetPaymentMethod::Boleto.to_string(),
@@ -704,7 +772,15 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 };
                 return Ok(Self::Boleto(Box::new(GetnetBoletoAuthorize {
                     request_id: uuid::Uuid::new_v4().to_string(),
-                    idempotency_key: uuid::Uuid::new_v4().to_string(),
+                    idempotency_key: item
+                        .resource_common_data
+                        .merchant_request_id
+                        .clone()
+                        .unwrap_or_else(|| {
+                            item.resource_common_data
+                                .connector_request_reference_id
+                                .clone()
+                        }),
                     data,
                 })));
             }
@@ -730,11 +806,12 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                         .into());
                     }
                     // Pix QR (instant) — flat body posted to
-                    // `/dpm/payments-gwproxy/v2/payments/qrcode/pix`.
+                    // `/dpm/payments-gwproxy/v2/payments/qrcode/pix`. Globalgetnet
+                    // requires `customer_id` on this endpoint, so propagate a clear
+                    // error when it's absent rather than sending an empty default.
                     let customer_id = item
                         .resource_common_data
-                        .get_customer_id()
-                        .unwrap_or_else(|_| CustomerId::default())
+                        .get_customer_id()?
                         .get_string_repr()
                         .to_string();
                     return Ok(Self::Pix(GetnetPixAuthorize {
@@ -742,7 +819,15 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                         currency: item.request.currency,
                         order_id: request_ref_id,
                         customer_id,
-                        idempotency_key: uuid::Uuid::new_v4().to_string(),
+                        idempotency_key: item
+                            .resource_common_data
+                            .merchant_request_id
+                            .clone()
+                            .unwrap_or_else(|| {
+                                item.resource_common_data
+                                    .connector_request_reference_id
+                                    .clone()
+                            }),
                     }));
                 }
             }
@@ -773,7 +858,14 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                     .or_else(|| item.resource_common_data.get_optional_billing_full_name())
                     .ok_or(IntegrationError::MissingRequiredField {
                         field_name: "payment_method.card.card_holder_name",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Provide the cardholder name, or a billing first/last name to derive it from."
+                                    .to_string(),
+                            ),
+                            doc_url: None,
+                            additional_context: None,
+                        },
                     })?;
                 // Prefer the Cofre token when present. UCS stashes the token
                 // returned by `PaymentMethodToken` on `session_token`; when set,
@@ -853,10 +945,12 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         // `data.additional_data.three_ds`, so both are omitted. 3DS challenge is
         // initiated by Globalgetnet itself based on seller / BIN policy; when
         // required the response carries `next_step.redirect_url`.
+        // `customer_id` is the only customer reference Globalgetnet's `/payments`
+        // endpoint accepts, so propagate a clear error when it's missing instead of
+        // sending an empty default the gateway would reject.
         let customer_id = item
             .resource_common_data
-            .get_customer_id()
-            .unwrap_or_else(|_| CustomerId::default())
+            .get_customer_id()?
             .get_string_repr()
             .to_string();
 
@@ -869,12 +963,16 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
             additional_data: None,
         };
 
-        // Globalgetnet requires `request_id` and `idempotency_key` to be valid 36-char
-        // UUIDs (the gateway validates the format), so we mint fresh ones here rather
-        // than reusing `connector_request_reference_id` which may not be a UUID.
+        // `request_id` is a fresh per-attempt UUID. `idempotency_key` reuses the caller's
+        // `merchant_request_id` when supplied (so a retried request de-duplicates), else
+        // falls back to `connector_request_reference_id` — matching the Capture/Refund flows.
         Ok(Self::Standard(Box::new(GetnetStandardAuthorize {
             request_id: uuid::Uuid::new_v4().to_string(),
-            idempotency_key: uuid::Uuid::new_v4().to_string(),
+            idempotency_key: item
+                .resource_common_data
+                .merchant_request_id
+                .clone()
+                .unwrap_or_else(|| request_ref_id.clone()),
             order_id: request_ref_id,
             data,
         })))
@@ -1438,9 +1536,16 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 .request
                 .amount
                 .ok_or(IntegrationError::MissingRequiredField {
-                    field_name: "amount",
-                    context: Default::default(),
-                })?;
+                field_name: "amount",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Provide the amount to void — Globalgetnet's cancel endpoint requires it."
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                    additional_context: None,
+                },
+            })?;
 
         Ok(Self {
             idempotency_key: router_data
@@ -1645,9 +1750,9 @@ fn protocol_to_msg_version(protocol: Option<&str>) -> Option<String> {
 }
 
 /// Build the address block required by `enrolments-initial.extra_fields.billing_address`.
-/// The Globalgetnet sandbox returns HTTP 500 when this object is absent, so we always
-/// populate it — falling back to Brazilian-style placeholders only when the caller
-/// didn't supply a billing address.
+/// Globalgetnet rejects 3DS enrolment (HTTP 500) when this object is absent, so the
+/// billing address is mandatory: each missing field surfaces a `MissingRequiredField`
+/// error naming the exact path rather than a placeholder the ACS would choke on.
 fn build_threeds_address<T: PaymentMethodDataTypes>(
     item: &RouterDataV2<
         PreAuthenticate,
@@ -1655,35 +1760,44 @@ fn build_threeds_address<T: PaymentMethodDataTypes>(
         PaymentsPreAuthenticateData<T>,
         PaymentsResponseData,
     >,
-) -> GetnetThreeDsAddress {
-    let billing_details = item
+) -> Result<GetnetThreeDsAddress, error_stack::Report<IntegrationError>> {
+    // `line1` (street) and `country` have error-propagating getters; use them directly.
+    let street = item.resource_common_data.get_billing_line1()?;
+    let country = item.resource_common_data.get_billing_country()?.to_string();
+    // `line2` (number) and `zip` have no required getter, so enforce them explicitly.
+    let number = item.resource_common_data.get_optional_billing_line2().ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "payment_method_data.billing.address.line2",
+                context: IntegrationErrorContext {
+                    suggested_action: Some("Provide the street number (billing address line2) — required by Globalgetnet.".to_string()),
+                    doc_url: None,
+                    additional_context: None,
+                },
+            })
+        })?;
+    let postal_code = item
         .resource_common_data
-        .get_optional_billing()
-        .and_then(|addr| addr.address.clone());
+        .get_optional_billing_zip()
+        .ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "payment_method_data.billing.address.zip",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Provide the billing postal code (CEP) — required by Globalgetnet."
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                    additional_context: None,
+                },
+            })
+        })?;
 
-    let street = billing_details
-        .as_ref()
-        .and_then(|d| d.line1.clone())
-        .unwrap_or_else(|| Secret::new("Address".to_string()));
-    let number = billing_details
-        .as_ref()
-        .and_then(|d| d.line2.clone())
-        .unwrap_or_else(|| Secret::new("S/N".to_string()));
-    let country = billing_details
-        .as_ref()
-        .and_then(|d| d.country.map(|c| c.to_string()))
-        .unwrap_or_else(|| "BR".to_string());
-    let postal_code = billing_details
-        .as_ref()
-        .and_then(|d| d.zip.clone())
-        .unwrap_or_else(|| Secret::new("00000000".to_string()));
-
-    GetnetThreeDsAddress {
+    Ok(GetnetThreeDsAddress {
         street,
         number,
         country,
         postal_code,
-    }
+    })
 }
 
 // ===== PreAuthenticate request: `POST /dpm/security-gwproxy/v2/enrolments-initial` =====
@@ -1722,7 +1836,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         // a debit-card 3DS scenario surfaces from QA.
         let operation = "CREDIT".to_string();
 
-        let billing_address = build_threeds_address(item);
+        let billing_address = build_threeds_address(item)?;
 
         Ok(Self {
             operation,
@@ -1783,27 +1897,37 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let item = &wrapper.router_data;
-        let auth_data = item.request.authentication_data.as_ref().ok_or(
-            IntegrationError::MissingRequiredField {
+        let auth_data = item.request.authentication_data.as_ref().ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
                 field_name: "request.authentication_data",
-                context: Default::default(),
-            },
-        )?;
+                context: IntegrationErrorContext {
+                    suggested_action: Some("Run PreAuthenticate before Authenticate — the 3DS enrolment result must be threaded into this step.".to_string()),
+                    doc_url: None,
+                    additional_context: None,
+                },
+            })
+        })?;
 
-        let transaction_id = auth_data.threeds_server_transaction_id.clone().ok_or(
-            IntegrationError::MissingRequiredField {
+        let transaction_id = auth_data.threeds_server_transaction_id.clone().ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
                 field_name: "authentication_data.threeds_server_transaction_id",
-                context: Default::default(),
-            },
-        )?;
-        let xid =
-            auth_data
-                .transaction_id
-                .clone()
-                .ok_or(IntegrationError::MissingRequiredField {
-                    field_name: "authentication_data.transaction_id",
-                    context: Default::default(),
-                })?;
+                context: IntegrationErrorContext {
+                    suggested_action: Some("PreAuthenticate must return a threeds_server_transaction_id before Authenticate can run.".to_string()),
+                    doc_url: None,
+                    additional_context: None,
+                },
+            })
+        })?;
+        let xid = auth_data.transaction_id.clone().ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "authentication_data.transaction_id",
+                context: IntegrationErrorContext {
+                    suggested_action: Some("PreAuthenticate must return a transaction_id (xid) before Authenticate can run.".to_string()),
+                    doc_url: None,
+                    additional_context: None,
+                },
+            })
+        })?;
 
         Ok(Self {
             transaction_id,
@@ -1844,14 +1968,13 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        // `get_redirect_response_payload()` already surfaces
+        // `MissingRequiredField { field_name: "request.redirect_response.payload" }`,
+        // so propagate it directly.
         let payload = wrapper
             .router_data
             .request
-            .get_redirect_response_payload()
-            .change_context(IntegrationError::MissingRequiredField {
-                field_name: "request.redirect_response.payload",
-                context: Default::default(),
-            })?;
+            .get_redirect_response_payload()?;
         let payload_json = payload.expose();
         // Accept either `cres` (canonical) or `CRES` (some browser-driven
         // posts uppercase form-field names).
@@ -1860,10 +1983,16 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
             .or_else(|| payload_json.get("CRES"))
             .and_then(|v| v.as_str())
             .map(|s| s.to_string())
-            .ok_or(IntegrationError::MissingRequiredField {
+            .ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
                 field_name: "request.redirect_response.payload.cres",
-                context: Default::default(),
-            })?;
+                context: IntegrationErrorContext {
+                    suggested_action: Some("The posted-back challenge payload must carry a `cres` (or `CRES`) field.".to_string()),
+                    doc_url: None,
+                    additional_context: None,
+                },
+            })
+        })?;
 
         Ok(Self { token })
     }

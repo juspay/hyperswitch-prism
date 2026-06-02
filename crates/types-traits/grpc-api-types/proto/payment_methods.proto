@@ -1117,6 +1117,10 @@ message Alfamart {
 message Boleto {
   // The shopper's social security number
   optional string social_security_number = 1;
+
+  // Merchant-controlled boleto due date (ISO 8601)
+  // use this when provided and otherwise fall back to a connector default.
+  optional string expiration_date = 2;
 }
 
 // Efecty - Colombian cash payment network

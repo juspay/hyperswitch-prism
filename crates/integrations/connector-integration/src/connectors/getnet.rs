@@ -146,6 +146,59 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn should_do_access_token(&self, _payment_method: Option<common_enums::PaymentMethod>) -> bool {
         true
     }
+
+    /// Globalgetnet cards are charged via the Cofre vault token rather than the raw
+    /// PAN, so card payments are auto-tokenized (`POST /dpm/cofre-gw-proxy/v1/tokens/card`)
+    /// before Authorize. The resulting `number_token` is then sent on `/payments`
+    /// (and is mandatory for the 3DS-authenticated final Authorize).
+    fn should_do_payment_method_token(
+        &self,
+        payment_method: common_enums::PaymentMethod,
+        _payment_method_type: Option<common_enums::PaymentMethodType>,
+    ) -> bool {
+        matches!(payment_method, common_enums::PaymentMethod::Card)
+    }
+
+    /// Drive the composite authorize flow through Globalgetnet's 3DS chain for card +
+    /// ThreeDs: PreAuthenticate (`enrolments-initial`) → Authenticate (`enrolments-continue`)
+    /// → [PostAuthenticate (`validations`) when a browser challenge is returned] → Authorize.
+    /// The frictionless sandbox path skips PostAuthenticate and goes straight to Authorize
+    /// once Authenticate completes. Any other payment method / auth type goes directly to
+    /// Authorize.
+    fn next_authentication_step(
+        &self,
+        auth_type: common_enums::AuthenticationType,
+        payment_method: common_enums::PaymentMethod,
+        redirect_state: connector_types::RedirectState,
+        completed_step: Option<connector_types::AuthenticationStep>,
+    ) -> connector_types::AuthenticationStep {
+        use connector_types::{AuthenticationStep, RedirectState};
+
+        if auth_type == common_enums::AuthenticationType::ThreeDs
+            && payment_method == common_enums::PaymentMethod::Card
+        {
+            match (redirect_state, completed_step) {
+                (RedirectState::InitialRequest, None) => AuthenticationStep::PreAuthenticate,
+                (RedirectState::InitialRequest, Some(AuthenticationStep::PreAuthenticate)) => {
+                    AuthenticationStep::Authenticate
+                }
+                // Frictionless: Authenticate resolved without a challenge → charge.
+                (RedirectState::InitialRequest, Some(AuthenticationStep::Authenticate)) => {
+                    AuthenticationStep::Authorize
+                }
+                // Challenge: the customer posted the ACS result back → validate it.
+                (RedirectState::RedirectWithParams, Some(AuthenticationStep::Authenticate)) => {
+                    AuthenticationStep::PostAuthenticate
+                }
+                (RedirectState::RedirectWithParams, Some(AuthenticationStep::PostAuthenticate)) => {
+                    AuthenticationStep::Authorize
+                }
+                _ => AuthenticationStep::Authorize,
+            }
+        } else {
+            AuthenticationStep::Authorize
+        }
+    }
 }
 
 macros::create_all_prerequisites!(
