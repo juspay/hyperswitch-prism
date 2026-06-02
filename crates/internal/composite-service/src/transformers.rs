@@ -36,6 +36,7 @@ impl ForeignFrom<(&CompositeAuthorizeRequest, &ConnectorEnum)>
             metadata: item.metadata.clone(),
             connector_feature_data: item.connector_feature_data.clone(),
             test_mode: item.test_mode,
+            payment_method: item.payment_method.clone(),
         }
     }
 }
@@ -87,6 +88,7 @@ impl ForeignFrom<&CompositeAuthorizeRequest> for CustomerServiceCreateRequest {
             metadata: item.metadata.clone(),
             connector_feature_data: item.connector_feature_data.clone(),
             test_mode: item.test_mode,
+            payment_method: item.payment_method.clone(),
         }
     }
 }
@@ -209,6 +211,7 @@ impl ForeignFrom<(&CompositeGetRequest, &ConnectorEnum)>
             metadata: item.metadata.clone(),
             connector_feature_data: item.connector_feature_data.clone(),
             test_mode: item.test_mode,
+            payment_method: item.payment_method.clone(),
         }
     }
 }
@@ -258,6 +261,7 @@ impl
             test_mode: item.test_mode,
             payment_experience: item.payment_experience,
             merchant_request_id: item.merchant_request_id.clone(),
+            payment_method: item.payment_method.clone(),
         }
     }
 }
@@ -272,6 +276,7 @@ impl ForeignFrom<(&CompositeRefundRequest, &ConnectorEnum)>
             metadata: item.metadata.clone(),
             connector_feature_data: item.connector_feature_data.clone(),
             test_mode: item.test_mode,
+            payment_method: item.payment_method.clone(),
         }
     }
 }
@@ -338,6 +343,7 @@ impl ForeignFrom<(&CompositeRefundGetRequest, &ConnectorEnum)>
             metadata: item.metadata.clone(),
             connector_feature_data: item.connector_feature_data.clone(),
             test_mode: item.test_mode,
+            payment_method: item.payment_method.clone(),
         }
     }
 }
@@ -400,6 +406,7 @@ impl ForeignFrom<(&CompositeVoidRequest, &ConnectorEnum)>
             metadata: item.metadata.clone(),
             connector_feature_data: item.connector_feature_data.clone(),
             test_mode: item.test_mode,
+            payment_method: item.payment_method.clone(),
         }
     }
 }
@@ -446,6 +453,7 @@ impl
             test_mode: item.test_mode,
             merchant_order_id: item.merchant_order_id.clone(),
             merchant_request_id: item.merchant_request_id.clone(),
+            payment_method: item.payment_method.clone(),
         }
     }
 }
@@ -561,6 +569,7 @@ impl ForeignFrom<(&CompositeCaptureRequest, &ConnectorEnum)>
             metadata: item.metadata.clone(),
             connector_feature_data: item.connector_feature_data.clone(),
             test_mode: item.test_mode,
+            payment_method: item.payment_method.clone(),
         }
     }
 }
@@ -607,6 +616,7 @@ impl
             test_mode: item.test_mode,
             merchant_order_id: item.merchant_order_id.clone(),
             merchant_request_id: item.merchant_request_id.clone(),
+            payment_method: item.payment_method.clone(),
         }
     }
 }
