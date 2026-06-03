@@ -139,6 +139,29 @@ macros::create_all_prerequisites!(
     }
 );
 
+/// Extract a query parameter value from either the explicit `query_params` field
+/// or by parsing the URI's query string.
+fn get_query_param(request: &RequestDetails, param_name: &str) -> Option<String> {
+    if let Some(ref qp) = request.query_params {
+        if let Some(val) = url::form_urlencoded::parse(qp.as_bytes())
+            .find(|(k, _)| k == param_name)
+            .map(|(_, v)| v.into_owned())
+        {
+            return Some(val);
+        }
+    }
+    request.uri.as_ref().and_then(|uri_str| {
+        uri_str
+            .split('?')
+            .nth(1)
+            .and_then(|query_str| {
+                url::form_urlencoded::parse(query_str.as_bytes())
+                    .find(|(k, _)| k == param_name)
+                    .map(|(_, v)| v.into_owned())
+            })
+    })
+}
+
 // ===== CONNECTOR SERVICE TRAIT IMPLEMENTATIONS =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Tamara<T>
@@ -174,13 +197,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .headers
             .get("authorization")
             .and_then(|h| h.strip_prefix("Bearer ").map(String::from))
-            .or_else(|| {
-                request.query_params.as_ref().and_then(|qp| {
-                    url::form_urlencoded::parse(qp.as_bytes())
-                        .find(|(k, _)| k == "tamaraToken")
-                        .map(|(_, v)| v.into_owned())
-                })
-            })
+            .or_else(|| get_query_param(&request, "tamaraToken"))
             .ok_or_else(|| {
                 error_stack::report!(errors::WebhookError::WebhookSignatureNotFound)
                     .attach_printable(
@@ -330,11 +347,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: &RequestDetails,
     ) -> CustomResult<RedirectDetailsResponse, IntegrationError> {
-        let order_id = request.query_params.as_deref().and_then(|qs| {
-            url::form_urlencoded::parse(qs.as_bytes())
-                .find(|(k, _)| k == "orderId")
-                .map(|(_, v)| v.into_owned())
-        });
+        let order_id = get_query_param(request, "orderId");
 
         Ok(RedirectDetailsResponse {
             resource_id: order_id.map(ResponseId::ConnectorTransactionId),
