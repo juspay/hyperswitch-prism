@@ -53,7 +53,6 @@ pub(crate) mod headers {
 
 static EASEBUZZ_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
     LazyLock::new(|| {
-
         let mut supported = SupportedPaymentMethods::new();
 
         // UPI Intent (UPI_PAY)

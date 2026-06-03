@@ -611,75 +611,77 @@ macros::macro_connector_implementation!(
     }
 );
 
-static NUVEI_SUPPORTED_PAYMENT_METHODS: std::sync::LazyLock<domain_types::types::SupportedPaymentMethods> =
-    std::sync::LazyLock::new(|| {
-
-        let mut m = domain_types::types::SupportedPaymentMethods::new();
-        let mut m = domain_types::build_supported_pms! {
-            Supported => [
-                (BankDebit, Ach),
-                (BankRedirect, Eps),
-                (BankRedirect, Giropay),
-                (BankRedirect, Ideal),
-                (BankRedirect, Sofort),
-                (BankTransfer, Ach),
-                (Card, Card),
-            ],
-            NotImplemented => [
-                (PayLater, Affirm),
-                (PayLater, AfterpayClearpay),
-                (PayLater, Klarna),
-                (Reward, ClassicReward),
-                (Upi, UpiCollect),
-                (Upi, UpiIntent),
-                (Upi, UpiQr),
-                (Voucher, Alfamart),
-                (Voucher, Boleto),
-                (Voucher, Efecty),
-                (Voucher, Evoucher),
-                (Voucher, FamilyMart),
-                (Voucher, Indomaret),
-                (Voucher, Lawson),
-                (Voucher, MiniStop),
-                (Voucher, Oxxo),
-                (Voucher, PagoEfectivo),
-                (Voucher, PayEasy),
-                (Voucher, RedCompra),
-                (Voucher, RedPagos),
-                (Voucher, Seicomart),
-                (Voucher, SevenEleven),
-                (Wallet, AliPay),
-                (Wallet, AmazonPay),
-                (Wallet, ApplePay),
-                (Wallet, Bluecode),
-                (Wallet, Cashapp),
-                (Wallet, Dana),
-                (Wallet, Gcash),
-                (Wallet, GoPay),
-                (Wallet, GooglePay),
-                (Wallet, KakaoPay),
-                (Wallet, MbWay),
-                (Wallet, Mifinity),
-                (Wallet, Momo),
-                (Wallet, Paypal),
-                (Wallet, RevolutPay),
-                (Wallet, SamsungPay),
-                (Wallet, Satispay),
-                (Wallet, Swish),
-                (Wallet, TouchNGo),
-                (Wallet, Twint),
-                (Wallet, Vipps),
-                (Wallet, WeChatPay),
-                (Wallet, Wero),
-            ],
-        };
-        m
-    });
+static NUVEI_SUPPORTED_PAYMENT_METHODS: std::sync::LazyLock<
+    domain_types::types::SupportedPaymentMethods,
+> = std::sync::LazyLock::new(|| {
+    let mut m = domain_types::types::SupportedPaymentMethods::new();
+    let mut m = domain_types::build_supported_pms! {
+        Supported => [
+            (BankDebit, Ach),
+            (BankRedirect, Eps),
+            (BankRedirect, Giropay),
+            (BankRedirect, Ideal),
+            (BankRedirect, Sofort),
+            (BankTransfer, Ach),
+            (Card, Card),
+        ],
+        NotImplemented => [
+            (PayLater, Affirm),
+            (PayLater, AfterpayClearpay),
+            (PayLater, Klarna),
+            (Reward, ClassicReward),
+            (Upi, UpiCollect),
+            (Upi, UpiIntent),
+            (Upi, UpiQr),
+            (Voucher, Alfamart),
+            (Voucher, Boleto),
+            (Voucher, Efecty),
+            (Voucher, Evoucher),
+            (Voucher, FamilyMart),
+            (Voucher, Indomaret),
+            (Voucher, Lawson),
+            (Voucher, MiniStop),
+            (Voucher, Oxxo),
+            (Voucher, PagoEfectivo),
+            (Voucher, PayEasy),
+            (Voucher, RedCompra),
+            (Voucher, RedPagos),
+            (Voucher, Seicomart),
+            (Voucher, SevenEleven),
+            (Wallet, AliPay),
+            (Wallet, AmazonPay),
+            (Wallet, ApplePay),
+            (Wallet, Bluecode),
+            (Wallet, Cashapp),
+            (Wallet, Dana),
+            (Wallet, Gcash),
+            (Wallet, GoPay),
+            (Wallet, GooglePay),
+            (Wallet, KakaoPay),
+            (Wallet, MbWay),
+            (Wallet, Mifinity),
+            (Wallet, Momo),
+            (Wallet, Paypal),
+            (Wallet, RevolutPay),
+            (Wallet, SamsungPay),
+            (Wallet, Satispay),
+            (Wallet, Swish),
+            (Wallet, TouchNGo),
+            (Wallet, Twint),
+            (Wallet, Vipps),
+            (Wallet, WeChatPay),
+            (Wallet, Wero),
+        ],
+    };
+    m
+});
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
     for Nuvei<T>
 {
-    fn get_supported_payment_methods(&self) -> &'static domain_types::types::SupportedPaymentMethods {
+    fn get_supported_payment_methods(
+        &self,
+    ) -> &'static domain_types::types::SupportedPaymentMethods {
         &NUVEI_SUPPORTED_PAYMENT_METHODS
     }
 }

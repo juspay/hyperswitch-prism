@@ -568,8 +568,10 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
     ],
 );
 
-static JUSPAY_SUPPORTED_PAYMENT_METHODS: std::sync::LazyLock<domain_types::types::SupportedPaymentMethods> =
-    std::sync::LazyLock::new(|| domain_types::build_supported_pms! {
+static JUSPAY_SUPPORTED_PAYMENT_METHODS: std::sync::LazyLock<
+    domain_types::types::SupportedPaymentMethods,
+> = std::sync::LazyLock::new(|| {
+    domain_types::build_supported_pms! {
         Supported => [
             // PaymentMethodData::Card explicit Ok arm at transformers.rs:421
             (Card, Card),
@@ -626,13 +628,21 @@ static JUSPAY_SUPPORTED_PAYMENT_METHODS: std::sync::LazyLock<domain_types::types
             (Wallet, Wero),
             (Wallet, Paze),
         ],
-    });
+    }
+});
 
-impl<T: domain_types::payment_method_data::PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
-    domain_types::connector_types::ConnectorSpecifications for Juspay<T>
+impl<
+        T: domain_types::payment_method_data::PaymentMethodDataTypes
+            + std::fmt::Debug
+            + Sync
+            + Send
+            + 'static
+            + serde::Serialize,
+    > domain_types::connector_types::ConnectorSpecifications for Juspay<T>
 {
-    fn get_supported_payment_methods(&self) -> &'static domain_types::types::SupportedPaymentMethods {
+    fn get_supported_payment_methods(
+        &self,
+    ) -> &'static domain_types::types::SupportedPaymentMethods {
         &JUSPAY_SUPPORTED_PAYMENT_METHODS
     }
 }
-

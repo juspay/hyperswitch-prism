@@ -528,23 +528,30 @@ macros::macro_connector_flow_status_impls!(
     ],
 );
 
+static SILVERFLOW_SUPPORTED_PAYMENT_METHODS: std::sync::LazyLock<
+    domain_types::types::SupportedPaymentMethods,
+> = std::sync::LazyLock::new(|| {
+    let mut m = domain_types::types::SupportedPaymentMethods::new();
+    let mut m = domain_types::build_supported_pms! {
+        Supported => [
+            (Card, Card),
+        ],
+    };
+    m
+});
 
-static SILVERFLOW_SUPPORTED_PAYMENT_METHODS: std::sync::LazyLock<domain_types::types::SupportedPaymentMethods> =
-    std::sync::LazyLock::new(|| {
-
-        let mut m = domain_types::types::SupportedPaymentMethods::new();
-        let mut m = domain_types::build_supported_pms! {
-            Supported => [
-                (Card, Card),
-            ],
-        };
-        m
-    });
-
-impl<T: domain_types::payment_method_data::PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
-    domain_types::connector_types::ConnectorSpecifications for Silverflow<T>
+impl<
+        T: domain_types::payment_method_data::PaymentMethodDataTypes
+            + std::fmt::Debug
+            + Sync
+            + Send
+            + 'static
+            + serde::Serialize,
+    > domain_types::connector_types::ConnectorSpecifications for Silverflow<T>
 {
-    fn get_supported_payment_methods(&self) -> &'static domain_types::types::SupportedPaymentMethods {
+    fn get_supported_payment_methods(
+        &self,
+    ) -> &'static domain_types::types::SupportedPaymentMethods {
         &SILVERFLOW_SUPPORTED_PAYMENT_METHODS
     }
 }

@@ -653,13 +653,13 @@ pub fn validate_pm_against_declaration(
                 }
                 .into())
             }
-            FeatureStatus::NotImplemented => Err(
-                domain_types::errors::IntegrationError::NotImplemented(
+            FeatureStatus::NotImplemented => {
+                Err(domain_types::errors::IntegrationError::NotImplemented(
                     format!("{payment_method} {pmt} via {connector}"),
                     Default::default(),
                 )
-                .into(),
-            ),
+                .into())
+            }
         },
     }
 }
@@ -780,56 +780,46 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
 /// Lives in `interfaces` so the `req_transformer!` macro can call it
 /// generically over `$request_data_type`.
 pub trait RequestHasPaymentMethod {
-    fn extract_pm_for_validation(
-        &self,
-    ) -> Option<(PaymentMethod, Option<PaymentMethodType>)> {
+    fn extract_pm_for_validation(&self) -> Option<(PaymentMethod, Option<PaymentMethodType>)> {
         None
     }
 }
 
 // ── PM-carrying request data types (real overrides) ─────────────────────────
-impl<T: domain_types::payment_method_data::PaymentMethodDataTypes>
-    RequestHasPaymentMethod for domain_types::connector_types::PaymentsAuthorizeData<T>
+impl<T: domain_types::payment_method_data::PaymentMethodDataTypes> RequestHasPaymentMethod
+    for domain_types::connector_types::PaymentsAuthorizeData<T>
 {
-    fn extract_pm_for_validation(
-        &self,
-    ) -> Option<(PaymentMethod, Option<PaymentMethodType>)> {
+    fn extract_pm_for_validation(&self) -> Option<(PaymentMethod, Option<PaymentMethodType>)> {
         self.payment_method_data
             .payment_method_family()
             .map(|pm| (pm, self.payment_method_type))
     }
 }
 
-impl<T: domain_types::payment_method_data::PaymentMethodDataTypes>
-    RequestHasPaymentMethod for domain_types::connector_types::SetupMandateRequestData<T>
+impl<T: domain_types::payment_method_data::PaymentMethodDataTypes> RequestHasPaymentMethod
+    for domain_types::connector_types::SetupMandateRequestData<T>
 {
-    fn extract_pm_for_validation(
-        &self,
-    ) -> Option<(PaymentMethod, Option<PaymentMethodType>)> {
+    fn extract_pm_for_validation(&self) -> Option<(PaymentMethod, Option<PaymentMethodType>)> {
         self.payment_method_data
             .payment_method_family()
             .map(|pm| (pm, self.payment_method_type))
     }
 }
 
-impl<T: domain_types::payment_method_data::PaymentMethodDataTypes>
-    RequestHasPaymentMethod for domain_types::connector_types::RepeatPaymentData<T>
+impl<T: domain_types::payment_method_data::PaymentMethodDataTypes> RequestHasPaymentMethod
+    for domain_types::connector_types::RepeatPaymentData<T>
 {
-    fn extract_pm_for_validation(
-        &self,
-    ) -> Option<(PaymentMethod, Option<PaymentMethodType>)> {
+    fn extract_pm_for_validation(&self) -> Option<(PaymentMethod, Option<PaymentMethodType>)> {
         self.payment_method_data
             .payment_method_family()
             .map(|pm| (pm, self.payment_method_type))
     }
 }
 
-impl<T: domain_types::payment_method_data::PaymentMethodDataTypes>
-    RequestHasPaymentMethod for domain_types::connector_types::PaymentMethodTokenizationData<T>
+impl<T: domain_types::payment_method_data::PaymentMethodDataTypes> RequestHasPaymentMethod
+    for domain_types::connector_types::PaymentMethodTokenizationData<T>
 {
-    fn extract_pm_for_validation(
-        &self,
-    ) -> Option<(PaymentMethod, Option<PaymentMethodType>)> {
+    fn extract_pm_for_validation(&self) -> Option<(PaymentMethod, Option<PaymentMethodType>)> {
         self.payment_method_data
             .payment_method_family()
             .map(|pm| (pm, None))

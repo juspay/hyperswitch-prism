@@ -864,25 +864,27 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-static PHONEPE_SUPPORTED_PAYMENT_METHODS: std::sync::LazyLock<domain_types::types::SupportedPaymentMethods> =
-    std::sync::LazyLock::new(|| {
-
-        let mut m = domain_types::types::SupportedPaymentMethods::new();
-        let mut m = domain_types::build_supported_pms! {
-            Supported => [
-                (Upi, UpiCollect),
-                (Upi, UpiIntent),
-                (Upi, UpiQr),
-            ],
-        };
-        m
-    });
+static PHONEPE_SUPPORTED_PAYMENT_METHODS: std::sync::LazyLock<
+    domain_types::types::SupportedPaymentMethods,
+> = std::sync::LazyLock::new(|| {
+    let mut m = domain_types::types::SupportedPaymentMethods::new();
+    let mut m = domain_types::build_supported_pms! {
+        Supported => [
+            (Upi, UpiCollect),
+            (Upi, UpiIntent),
+            (Upi, UpiQr),
+        ],
+    };
+    m
+});
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     ConnectorSpecifications for Phonepe<T>
 {
-    fn get_supported_payment_methods(&self) -> &'static domain_types::types::SupportedPaymentMethods {
-        &PHONEPE_SUPPORTED_PAYMENT_METHODS  // TODO: Add UPI payment methods support
+    fn get_supported_payment_methods(
+        &self,
+    ) -> &'static domain_types::types::SupportedPaymentMethods {
+        &PHONEPE_SUPPORTED_PAYMENT_METHODS // TODO: Add UPI payment methods support
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {

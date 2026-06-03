@@ -1032,48 +1032,50 @@ macros::macro_connector_implementation!(
     }
 );
 
-static TRUSTPAY_SUPPORTED_PAYMENT_METHODS: std::sync::LazyLock<domain_types::types::SupportedPaymentMethods> =
-    std::sync::LazyLock::new(|| {
-
-        let mut m = domain_types::types::SupportedPaymentMethods::new();
-        let mut m = domain_types::build_supported_pms! {
-            Supported => [
-                (BankRedirect, Blik),
-                (BankRedirect, Eps),
-                (BankRedirect, Giropay),
-                (BankRedirect, Ideal),
-                (BankRedirect, Sofort),
-                (BankTransfer, InstantBankTransfer),
-                (BankTransfer, InstantBankTransferFinland),
-                (BankTransfer, InstantBankTransferPoland),
-                (BankTransfer, SepaBankTransfer),
-                (Card, Card),
-            ],
-            NotImplemented => [
-                (BankRedirect, Bizum),
-                (BankRedirect, Eft),
-                (BankRedirect, Interac),
-                (BankRedirect, LocalBankRedirect),
-                (BankRedirect, OnlineBankingCzechRepublic),
-                (BankRedirect, OnlineBankingFinland),
-                (BankRedirect, OnlineBankingFpx),
-                (BankRedirect, OnlineBankingPoland),
-                (BankRedirect, OnlineBankingSlovakia),
-                (BankRedirect, OnlineBankingThailand),
-                (BankRedirect, Przelewy24),
-                (BankRedirect, Trustly),
-                (Card, BancontactCard),
-                (OpenBanking, OpenBanking),
-                (OpenBanking, OpenBankingUk),
-            ],
-        };
-        m
-    });
+static TRUSTPAY_SUPPORTED_PAYMENT_METHODS: std::sync::LazyLock<
+    domain_types::types::SupportedPaymentMethods,
+> = std::sync::LazyLock::new(|| {
+    let mut m = domain_types::types::SupportedPaymentMethods::new();
+    let mut m = domain_types::build_supported_pms! {
+        Supported => [
+            (BankRedirect, Blik),
+            (BankRedirect, Eps),
+            (BankRedirect, Giropay),
+            (BankRedirect, Ideal),
+            (BankRedirect, Sofort),
+            (BankTransfer, InstantBankTransfer),
+            (BankTransfer, InstantBankTransferFinland),
+            (BankTransfer, InstantBankTransferPoland),
+            (BankTransfer, SepaBankTransfer),
+            (Card, Card),
+        ],
+        NotImplemented => [
+            (BankRedirect, Bizum),
+            (BankRedirect, Eft),
+            (BankRedirect, Interac),
+            (BankRedirect, LocalBankRedirect),
+            (BankRedirect, OnlineBankingCzechRepublic),
+            (BankRedirect, OnlineBankingFinland),
+            (BankRedirect, OnlineBankingFpx),
+            (BankRedirect, OnlineBankingPoland),
+            (BankRedirect, OnlineBankingSlovakia),
+            (BankRedirect, OnlineBankingThailand),
+            (BankRedirect, Przelewy24),
+            (BankRedirect, Trustly),
+            (Card, BancontactCard),
+            (OpenBanking, OpenBanking),
+            (OpenBanking, OpenBankingUk),
+        ],
+    };
+    m
+});
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
     for Trustpay<T>
 {
-    fn get_supported_payment_methods(&self) -> &'static domain_types::types::SupportedPaymentMethods {
+    fn get_supported_payment_methods(
+        &self,
+    ) -> &'static domain_types::types::SupportedPaymentMethods {
         &TRUSTPAY_SUPPORTED_PAYMENT_METHODS
     }
 }

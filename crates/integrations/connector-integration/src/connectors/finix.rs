@@ -669,25 +669,32 @@ macros::macro_connector_flow_status_impls!(
     ],
 );
 
+static FINIX_SUPPORTED_PAYMENT_METHODS: std::sync::LazyLock<
+    domain_types::types::SupportedPaymentMethods,
+> = std::sync::LazyLock::new(|| {
+    let mut m = domain_types::types::SupportedPaymentMethods::new();
+    let mut m = domain_types::build_supported_pms! {
+        Supported => [
+            (Card, Card),
+            (BankDebit, Ach),
+            (Wallet, GooglePay),
+        ],
+    };
+    m
+});
 
-static FINIX_SUPPORTED_PAYMENT_METHODS: std::sync::LazyLock<domain_types::types::SupportedPaymentMethods> =
-    std::sync::LazyLock::new(|| {
-
-        let mut m = domain_types::types::SupportedPaymentMethods::new();
-        let mut m = domain_types::build_supported_pms! {
-            Supported => [
-                (Card, Card),
-                (BankDebit, Ach),
-                (Wallet, GooglePay),
-            ],
-        };
-        m
-    });
-
-impl<T: domain_types::payment_method_data::PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
-    domain_types::connector_types::ConnectorSpecifications for Finix<T>
+impl<
+        T: domain_types::payment_method_data::PaymentMethodDataTypes
+            + std::fmt::Debug
+            + Sync
+            + Send
+            + 'static
+            + serde::Serialize,
+    > domain_types::connector_types::ConnectorSpecifications for Finix<T>
 {
-    fn get_supported_payment_methods(&self) -> &'static domain_types::types::SupportedPaymentMethods {
+    fn get_supported_payment_methods(
+        &self,
+    ) -> &'static domain_types::types::SupportedPaymentMethods {
         &FINIX_SUPPORTED_PAYMENT_METHODS
     }
 }

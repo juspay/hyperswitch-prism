@@ -17,8 +17,7 @@ use std::collections::BTreeMap;
 use common_enums::EventClass;
 use connector_integration::types::ConnectorData;
 use domain_types::{
-    connector_types::ConnectorEnum,
-    payment_method_data::DefaultPCIHolder,
+    connector_types::ConnectorEnum, payment_method_data::DefaultPCIHolder,
     types::SupportedPaymentMethods,
 };
 use serde::Serialize;

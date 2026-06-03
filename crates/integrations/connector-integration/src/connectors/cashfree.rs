@@ -522,7 +522,6 @@ macros::macro_connector_implementation!(
 
 static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
     LazyLock::new(|| {
-
         let cashfree_supported_capture_methods =
             vec![CaptureMethod::Automatic, CaptureMethod::Manual];
 

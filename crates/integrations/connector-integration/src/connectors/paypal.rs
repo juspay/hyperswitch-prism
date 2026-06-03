@@ -1807,78 +1807,85 @@ macros::macro_connector_flow_status_impls!(
     ],
 );
 
+static PAYPAL_SUPPORTED_PAYMENT_METHODS: std::sync::LazyLock<
+    domain_types::types::SupportedPaymentMethods,
+> = std::sync::LazyLock::new(|| {
+    let mut m = domain_types::types::SupportedPaymentMethods::new();
+    let mut m = domain_types::build_supported_pms! {
+        Supported => [
+            (BankRedirect, Eps),
+            (BankRedirect, Giropay),
+            (BankRedirect, Ideal),
+            (BankRedirect, Sofort),
+            (Card, Card),
+            (Wallet, ApplePay),
+            (Wallet, GooglePay),
+            (Wallet, Paypal),
+        ],
+        NotImplemented => [
+            (BankRedirect, Bizum),
+            (BankRedirect, Blik),
+            (BankRedirect, Eft),
+            (BankRedirect, Interac),
+            (BankRedirect, LocalBankRedirect),
+            (BankRedirect, OnlineBankingCzechRepublic),
+            (BankRedirect, OnlineBankingFinland),
+            (BankRedirect, OnlineBankingFpx),
+            (BankRedirect, OnlineBankingPoland),
+            (BankRedirect, OnlineBankingSlovakia),
+            (BankRedirect, OnlineBankingThailand),
+            (BankRedirect, Przelewy24),
+            (BankRedirect, Trustly),
+            (BankTransfer, Ach),
+            (BankTransfer, Bacs),
+            (BankTransfer, BcaBankTransfer),
+            (BankTransfer, BniVa),
+            (BankTransfer, BriVa),
+            (BankTransfer, CimbVa),
+            (BankTransfer, DanamonVa),
+            (BankTransfer, IndonesianBankTransfer),
+            (BankTransfer, InstantBankTransfer),
+            (BankTransfer, InstantBankTransferFinland),
+            (BankTransfer, InstantBankTransferPoland),
+            (BankTransfer, LocalBankTransfer),
+            (BankTransfer, MandiriVa),
+            (BankTransfer, Multibanco),
+            (BankTransfer, PermataBankTransfer),
+            (BankTransfer, Pix),
+            (BankTransfer, SepaBankTransfer),
+            (OpenBanking, OpenBanking),
+            (OpenBanking, OpenBankingUk),
+            (Voucher, Alfamart),
+            (Voucher, Boleto),
+            (Voucher, Efecty),
+            (Voucher, FamilyMart),
+            (Voucher, Indomaret),
+            (Voucher, Lawson),
+            (Voucher, MiniStop),
+            (Voucher, Oxxo),
+            (Voucher, PagoEfectivo),
+            (Voucher, PayEasy),
+            (Voucher, RedCompra),
+            (Voucher, RedPagos),
+            (Voucher, Seicomart),
+            (Voucher, SevenEleven),
+        ],
+    };
+    m
+});
 
-static PAYPAL_SUPPORTED_PAYMENT_METHODS: std::sync::LazyLock<domain_types::types::SupportedPaymentMethods> =
-    std::sync::LazyLock::new(|| {
-
-        let mut m = domain_types::types::SupportedPaymentMethods::new();
-        let mut m = domain_types::build_supported_pms! {
-            Supported => [
-                (BankRedirect, Eps),
-                (BankRedirect, Giropay),
-                (BankRedirect, Ideal),
-                (BankRedirect, Sofort),
-                (Card, Card),
-                (Wallet, ApplePay),
-                (Wallet, GooglePay),
-                (Wallet, Paypal),
-            ],
-            NotImplemented => [
-                (BankRedirect, Bizum),
-                (BankRedirect, Blik),
-                (BankRedirect, Eft),
-                (BankRedirect, Interac),
-                (BankRedirect, LocalBankRedirect),
-                (BankRedirect, OnlineBankingCzechRepublic),
-                (BankRedirect, OnlineBankingFinland),
-                (BankRedirect, OnlineBankingFpx),
-                (BankRedirect, OnlineBankingPoland),
-                (BankRedirect, OnlineBankingSlovakia),
-                (BankRedirect, OnlineBankingThailand),
-                (BankRedirect, Przelewy24),
-                (BankRedirect, Trustly),
-                (BankTransfer, Ach),
-                (BankTransfer, Bacs),
-                (BankTransfer, BcaBankTransfer),
-                (BankTransfer, BniVa),
-                (BankTransfer, BriVa),
-                (BankTransfer, CimbVa),
-                (BankTransfer, DanamonVa),
-                (BankTransfer, IndonesianBankTransfer),
-                (BankTransfer, InstantBankTransfer),
-                (BankTransfer, InstantBankTransferFinland),
-                (BankTransfer, InstantBankTransferPoland),
-                (BankTransfer, LocalBankTransfer),
-                (BankTransfer, MandiriVa),
-                (BankTransfer, Multibanco),
-                (BankTransfer, PermataBankTransfer),
-                (BankTransfer, Pix),
-                (BankTransfer, SepaBankTransfer),
-                (OpenBanking, OpenBanking),
-                (OpenBanking, OpenBankingUk),
-                (Voucher, Alfamart),
-                (Voucher, Boleto),
-                (Voucher, Efecty),
-                (Voucher, FamilyMart),
-                (Voucher, Indomaret),
-                (Voucher, Lawson),
-                (Voucher, MiniStop),
-                (Voucher, Oxxo),
-                (Voucher, PagoEfectivo),
-                (Voucher, PayEasy),
-                (Voucher, RedCompra),
-                (Voucher, RedPagos),
-                (Voucher, Seicomart),
-                (Voucher, SevenEleven),
-            ],
-        };
-        m
-    });
-
-impl<T: domain_types::payment_method_data::PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
-    domain_types::connector_types::ConnectorSpecifications for Paypal<T>
+impl<
+        T: domain_types::payment_method_data::PaymentMethodDataTypes
+            + std::fmt::Debug
+            + Sync
+            + Send
+            + 'static
+            + serde::Serialize,
+    > domain_types::connector_types::ConnectorSpecifications for Paypal<T>
 {
-    fn get_supported_payment_methods(&self) -> &'static domain_types::types::SupportedPaymentMethods {
+    fn get_supported_payment_methods(
+        &self,
+    ) -> &'static domain_types::types::SupportedPaymentMethods {
         &PAYPAL_SUPPORTED_PAYMENT_METHODS
     }
 }

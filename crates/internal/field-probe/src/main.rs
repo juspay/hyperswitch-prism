@@ -260,10 +260,7 @@ fn run_static_introspect() {
         connectors.len()
     );
 
-    let reports: Vec<_> = connectors
-        .par_iter()
-        .map(introspect_connector)
-        .collect();
+    let reports: Vec<_> = connectors.par_iter().map(introspect_connector).collect();
 
     let output_dir = if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
         Path::new(&manifest_dir)
@@ -295,8 +292,8 @@ fn run_static_introspect() {
             populated += 1;
         }
 
-        let json = serde_json::to_string_pretty(report)
-            .expect("Failed to serialize capability report");
+        let json =
+            serde_json::to_string_pretty(report).expect("Failed to serialize capability report");
         let path = output_dir.join(format!("{}.json", report.connector));
         if let Err(e) = std::fs::write(&path, &json) {
             eprintln!("  Warning: Failed to write {path:?}: {e}");

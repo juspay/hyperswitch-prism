@@ -388,7 +388,6 @@ macros::macro_connector_implementation!(
 
 static HYPERPG_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = {
     LazyLock::new(|| {
-
         let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
 
         let supported_card_network = vec![

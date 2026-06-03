@@ -453,18 +453,17 @@ static PPRO_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 };
 
 static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
-
     let mut ppro_supported_payment_methods = SupportedPaymentMethods::new();
 
     let ppro_bridge_supported_capture_methods = vec![common_enums::CaptureMethod::Automatic];
-        let mut ppro_supported_payment_methods = domain_types::build_supported_pms! {
-            Supported => [
-                (Card, BancontactCard),
-                (Upi, UpiQr),
-            ],
-        };
+    let mut ppro_supported_payment_methods = domain_types::build_supported_pms! {
+        Supported => [
+            (Card, BancontactCard),
+            (Upi, UpiQr),
+        ],
+    };
 
-        ppro_supported_payment_methods.add(
+    ppro_supported_payment_methods.add(
         common_enums::PaymentMethod::Wallet,
         common_enums::PaymentMethodType::AliPay,
         PaymentMethodDetails {
@@ -474,9 +473,9 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
             specific_features: None,
         },
-        );
+    );
 
-        ppro_supported_payment_methods.add(
+    ppro_supported_payment_methods.add(
         common_enums::PaymentMethod::Wallet,
         common_enums::PaymentMethodType::WeChatPay,
         PaymentMethodDetails {
@@ -486,9 +485,9 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
             specific_features: None,
         },
-        );
+    );
 
-        ppro_supported_payment_methods.add(
+    ppro_supported_payment_methods.add(
         common_enums::PaymentMethod::Wallet,
         common_enums::PaymentMethodType::MbWay,
         PaymentMethodDetails {
@@ -498,9 +497,9 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
             specific_features: None,
         },
-        );
+    );
 
-        ppro_supported_payment_methods.add(
+    ppro_supported_payment_methods.add(
         common_enums::PaymentMethod::Wallet,
         common_enums::PaymentMethodType::Satispay,
         PaymentMethodDetails {
@@ -510,9 +509,9 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
             specific_features: None,
         },
-        );
+    );
 
-        ppro_supported_payment_methods.add(
+    ppro_supported_payment_methods.add(
         common_enums::PaymentMethod::Wallet,
         common_enums::PaymentMethodType::Wero,
         PaymentMethodDetails {
@@ -522,9 +521,9 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
             specific_features: None,
         },
-        );
+    );
 
-        ppro_supported_payment_methods.add(
+    ppro_supported_payment_methods.add(
         common_enums::PaymentMethod::Upi,
         common_enums::PaymentMethodType::UpiIntent,
         PaymentMethodDetails {
@@ -534,57 +533,61 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
             specific_features: None,
         },
+    );
+    ppro_supported_payment_methods
+        .entry(common_enums::enums::PaymentMethod::BankRedirect)
+        .or_default()
+        .insert(
+            common_enums::enums::PaymentMethodType::BancontactCard,
+            domain_types::types::PaymentMethodDetails {
+                status: domain_types::types::FeatureStatus::Supported,
+                mandates: domain_types::types::FeatureStatus::Supported,
+                refunds: domain_types::types::FeatureStatus::Supported,
+                supported_capture_methods: vec![common_enums::enums::CaptureMethod::Automatic],
+                specific_features: None,
+            },
         );
-        ppro_supported_payment_methods.entry(common_enums::enums::PaymentMethod::BankRedirect)
-            .or_default()
-            .insert(
-                common_enums::enums::PaymentMethodType::BancontactCard,
-                domain_types::types::PaymentMethodDetails {
-                    status: domain_types::types::FeatureStatus::Supported,
-                    mandates: domain_types::types::FeatureStatus::Supported,
-                    refunds: domain_types::types::FeatureStatus::Supported,
-                    supported_capture_methods: vec![common_enums::enums::CaptureMethod::Automatic],
-                    specific_features: None,
-                },
-            );
-        ppro_supported_payment_methods.entry(common_enums::enums::PaymentMethod::BankRedirect)
-            .or_default()
-            .insert(
-                common_enums::enums::PaymentMethodType::Blik,
-                domain_types::types::PaymentMethodDetails {
-                    status: domain_types::types::FeatureStatus::Supported,
-                    mandates: domain_types::types::FeatureStatus::Supported,
-                    refunds: domain_types::types::FeatureStatus::Supported,
-                    supported_capture_methods: vec![common_enums::enums::CaptureMethod::Automatic],
-                    specific_features: None,
-                },
-            );
-        ppro_supported_payment_methods.entry(common_enums::enums::PaymentMethod::BankRedirect)
-            .or_default()
-            .insert(
-                common_enums::enums::PaymentMethodType::Ideal,
-                domain_types::types::PaymentMethodDetails {
-                    status: domain_types::types::FeatureStatus::Supported,
-                    mandates: domain_types::types::FeatureStatus::Supported,
-                    refunds: domain_types::types::FeatureStatus::Supported,
-                    supported_capture_methods: vec![common_enums::enums::CaptureMethod::Automatic],
-                    specific_features: None,
-                },
-            );
-        ppro_supported_payment_methods.entry(common_enums::enums::PaymentMethod::BankRedirect)
-            .or_default()
-            .insert(
-                common_enums::enums::PaymentMethodType::Trustly,
-                domain_types::types::PaymentMethodDetails {
-                    status: domain_types::types::FeatureStatus::Supported,
-                    mandates: domain_types::types::FeatureStatus::Supported,
-                    refunds: domain_types::types::FeatureStatus::Supported,
-                    supported_capture_methods: vec![common_enums::enums::CaptureMethod::Automatic],
-                    specific_features: None,
-                },
-            );
-        ppro_supported_payment_methods
-    });
+    ppro_supported_payment_methods
+        .entry(common_enums::enums::PaymentMethod::BankRedirect)
+        .or_default()
+        .insert(
+            common_enums::enums::PaymentMethodType::Blik,
+            domain_types::types::PaymentMethodDetails {
+                status: domain_types::types::FeatureStatus::Supported,
+                mandates: domain_types::types::FeatureStatus::Supported,
+                refunds: domain_types::types::FeatureStatus::Supported,
+                supported_capture_methods: vec![common_enums::enums::CaptureMethod::Automatic],
+                specific_features: None,
+            },
+        );
+    ppro_supported_payment_methods
+        .entry(common_enums::enums::PaymentMethod::BankRedirect)
+        .or_default()
+        .insert(
+            common_enums::enums::PaymentMethodType::Ideal,
+            domain_types::types::PaymentMethodDetails {
+                status: domain_types::types::FeatureStatus::Supported,
+                mandates: domain_types::types::FeatureStatus::Supported,
+                refunds: domain_types::types::FeatureStatus::Supported,
+                supported_capture_methods: vec![common_enums::enums::CaptureMethod::Automatic],
+                specific_features: None,
+            },
+        );
+    ppro_supported_payment_methods
+        .entry(common_enums::enums::PaymentMethod::BankRedirect)
+        .or_default()
+        .insert(
+            common_enums::enums::PaymentMethodType::Trustly,
+            domain_types::types::PaymentMethodDetails {
+                status: domain_types::types::FeatureStatus::Supported,
+                mandates: domain_types::types::FeatureStatus::Supported,
+                refunds: domain_types::types::FeatureStatus::Supported,
+                supported_capture_methods: vec![common_enums::enums::CaptureMethod::Automatic],
+                specific_features: None,
+            },
+        );
+    ppro_supported_payment_methods
+});
 
 static PPRO_SUPPORTED_WEBHOOK_FLOWS: &[common_enums::EventClass] = &[
     common_enums::EventClass::Payments,

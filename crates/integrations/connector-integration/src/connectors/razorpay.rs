@@ -1084,7 +1084,6 @@ impl connector_types::ConnectorValidation for Razorpay<DefaultPCIHolder> {
 
 static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
     LazyLock::new(|| {
-
         let razorpay_supported_capture_methods = vec![
             CaptureMethod::Automatic,
             CaptureMethod::Manual,
@@ -1223,7 +1222,8 @@ static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 specific_features: None,
             },
         );
-        razorpay_supported_payment_methods.entry(common_enums::enums::PaymentMethod::Upi)
+        razorpay_supported_payment_methods
+            .entry(common_enums::enums::PaymentMethod::Upi)
             .or_default()
             .insert(
                 common_enums::enums::PaymentMethodType::UpiCollect,
@@ -1235,7 +1235,8 @@ static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                     specific_features: None,
                 },
             );
-        razorpay_supported_payment_methods.entry(common_enums::enums::PaymentMethod::Upi)
+        razorpay_supported_payment_methods
+            .entry(common_enums::enums::PaymentMethod::Upi)
             .or_default()
             .insert(
                 common_enums::enums::PaymentMethodType::UpiIntent,
@@ -1247,7 +1248,8 @@ static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                     specific_features: None,
                 },
             );
-        razorpay_supported_payment_methods.entry(common_enums::enums::PaymentMethod::Upi)
+        razorpay_supported_payment_methods
+            .entry(common_enums::enums::PaymentMethod::Upi)
             .or_default()
             .insert(
                 common_enums::enums::PaymentMethodType::UpiQr,
@@ -1259,7 +1261,8 @@ static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                     specific_features: None,
                 },
             );
-        razorpay_supported_payment_methods.entry(common_enums::enums::PaymentMethod::Wallet)
+        razorpay_supported_payment_methods
+            .entry(common_enums::enums::PaymentMethod::Wallet)
             .or_default()
             .insert(
                 common_enums::enums::PaymentMethodType::LazyPay,
@@ -1271,7 +1274,8 @@ static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                     specific_features: None,
                 },
             );
-        razorpay_supported_payment_methods.entry(common_enums::enums::PaymentMethod::Wallet)
+        razorpay_supported_payment_methods
+            .entry(common_enums::enums::PaymentMethod::Wallet)
             .or_default()
             .insert(
                 common_enums::enums::PaymentMethodType::PhonePe,
@@ -1283,7 +1287,8 @@ static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                     specific_features: None,
                 },
             );
-        razorpay_supported_payment_methods.entry(common_enums::enums::PaymentMethod::Wallet)
+        razorpay_supported_payment_methods
+            .entry(common_enums::enums::PaymentMethod::Wallet)
             .or_default()
             .insert(
                 common_enums::enums::PaymentMethodType::BillDesk,
@@ -1295,7 +1300,8 @@ static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                     specific_features: None,
                 },
             );
-        razorpay_supported_payment_methods.entry(common_enums::enums::PaymentMethod::Wallet)
+        razorpay_supported_payment_methods
+            .entry(common_enums::enums::PaymentMethod::Wallet)
             .or_default()
             .insert(
                 common_enums::enums::PaymentMethodType::Cashfree,
@@ -1307,7 +1313,8 @@ static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                     specific_features: None,
                 },
             );
-        razorpay_supported_payment_methods.entry(common_enums::enums::PaymentMethod::Wallet)
+        razorpay_supported_payment_methods
+            .entry(common_enums::enums::PaymentMethod::Wallet)
             .or_default()
             .insert(
                 common_enums::enums::PaymentMethodType::PayU,
@@ -1319,7 +1326,8 @@ static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                     specific_features: None,
                 },
             );
-        razorpay_supported_payment_methods.entry(common_enums::enums::PaymentMethod::Wallet)
+        razorpay_supported_payment_methods
+            .entry(common_enums::enums::PaymentMethod::Wallet)
             .or_default()
             .insert(
                 common_enums::enums::PaymentMethodType::EaseBuzz,
