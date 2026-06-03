@@ -1,0 +1,130 @@
+{
+  "connector": "ppro",
+  "supported_payment_methods": {
+    "BankRedirect": {
+      "BancontactCard": {
+        "status": "supported",
+        "mandates": "supported",
+        "refunds": "supported",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "Blik": {
+        "status": "supported",
+        "mandates": "supported",
+        "refunds": "supported",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "Ideal": {
+        "status": "supported",
+        "mandates": "supported",
+        "refunds": "supported",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "Trustly": {
+        "status": "supported",
+        "mandates": "supported",
+        "refunds": "supported",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      }
+    },
+    "Card": {
+      "BancontactCard": {
+        "status": "supported",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      }
+    },
+    "Upi": {
+      "UpiIntent": {
+        "status": "supported",
+        "mandates": "not_supported",
+        "refunds": "supported",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "UpiQr": {
+        "status": "supported",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      }
+    },
+    "Wallet": {
+      "AliPay": {
+        "status": "supported",
+        "mandates": "not_supported",
+        "refunds": "supported",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "MbWay": {
+        "status": "supported",
+        "mandates": "not_supported",
+        "refunds": "supported",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "Satispay": {
+        "status": "supported",
+        "mandates": "not_supported",
+        "refunds": "supported",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "WeChatPay": {
+        "status": "supported",
+        "mandates": "not_supported",
+        "refunds": "supported",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "Wero": {
+        "status": "supported",
+        "mandates": "not_supported",
+        "refunds": "supported",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      }
+    }
+  },
+  "supported_webhook_flows": [
+    "payments",
+    "refunds"
+  ],
+  "about": {
+    "display_name": "Ppro",
+    "description": "Ppro is a global provider of local payment infrastructure.",
+    "connector_type": "payment_gateway"
+  }
+}

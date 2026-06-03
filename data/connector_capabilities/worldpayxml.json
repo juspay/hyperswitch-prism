@@ -1,0 +1,16 @@
+{
+  "connector": "worldpayxml",
+  "supported_payment_methods": {
+    "Card": {
+      "Card": {
+        "status": "supported",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      }
+    }
+  }
+}

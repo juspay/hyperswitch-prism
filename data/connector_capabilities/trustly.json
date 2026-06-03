@@ -1,0 +1,16 @@
+{
+  "connector": "trustly",
+  "supported_payment_methods": {
+    "BankRedirect": {
+      "Trustly": {
+        "status": "supported",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      }
+    }
+  }
+}

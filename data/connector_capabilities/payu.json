@@ -1,0 +1,61 @@
+{
+  "connector": "payu",
+  "supported_payment_methods": {
+    "BankRedirect": {
+      "Netbanking": {
+        "status": "supported",
+        "mandates": "not_supported",
+        "refunds": "supported",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      }
+    },
+    "Upi": {
+      "UpiCollect": {
+        "status": "supported",
+        "mandates": "not_supported",
+        "refunds": "supported",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "UpiIntent": {
+        "status": "supported",
+        "mandates": "not_supported",
+        "refunds": "supported",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "UpiQr": {
+        "status": "supported",
+        "mandates": "not_supported",
+        "refunds": "supported",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      }
+    },
+    "Wallet": {
+      "PayU": {
+        "status": "supported",
+        "mandates": "not_supported",
+        "refunds": "supported",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      }
+    }
+  },
+  "about": {
+    "display_name": "PayU",
+    "description": "PayU is a leading payment gateway for India, supporting UPI, Wallets, Net Banking, and Cards.",
+    "connector_type": "payment_gateway"
+  }
+}

@@ -186,7 +186,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Giropay | x |
 | EPS | x |
 | Przelewy24 | x |
-| PSE | ⚠ |
+| PSE | x |
 | BLIK | x |
 | Interac | ✓ |
 | Bizum | x |

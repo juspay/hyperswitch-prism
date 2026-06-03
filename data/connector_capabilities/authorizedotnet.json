@@ -1,0 +1,27 @@
+{
+  "connector": "authorizedotnet",
+  "supported_payment_methods": {
+    "BankDebit": {
+      "Ach": {
+        "status": "supported",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      }
+    },
+    "Card": {
+      "Card": {
+        "status": "supported",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      }
+    }
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "connector": "juspay",
+  "supported_payment_methods": {}
+}

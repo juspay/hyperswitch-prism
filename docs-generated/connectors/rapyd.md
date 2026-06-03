@@ -194,34 +194,34 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Card | ✓ |
 | Bancontact | ⚠ |
 | Apple Pay | ✓ |
-| Apple Pay Dec | ? |
+| Apple Pay Dec | ✓ |
 | Apple Pay SDK | ✓ |
 | Google Pay | ✓ |
-| Google Pay Dec | ? |
+| Google Pay Dec | ✓ |
 | Google Pay SDK | ✓ |
-| PayPal SDK | ✓ |
-| Amazon Pay | ✓ |
-| Cash App | ✓ |
-| PayPal | ✓ |
-| WeChat Pay | ✓ |
-| Alipay | ✓ |
-| Revolut Pay | ✓ |
-| MiFinity | ✓ |
-| Bluecode | ✓ |
+| PayPal SDK | ⚠ |
+| Amazon Pay | ⚠ |
+| Cash App | ⚠ |
+| PayPal | ⚠ |
+| WeChat Pay | ⚠ |
+| Alipay | ⚠ |
+| Revolut Pay | ⚠ |
+| MiFinity | ⚠ |
+| Bluecode | ⚠ |
 | Paze | x |
-| Samsung Pay | ✓ |
-| MB Way | ✓ |
-| Satispay | ✓ |
-| Wero | ✓ |
-| GoPay | ✓ |
-| GCash | ✓ |
-| Momo | ✓ |
-| Dana | ✓ |
-| Kakao Pay | ✓ |
-| Touch 'n Go | ✓ |
-| Twint | ✓ |
-| Vipps | ✓ |
-| Swish | ✓ |
+| Samsung Pay | ⚠ |
+| MB Way | ⚠ |
+| Satispay | ⚠ |
+| Wero | ⚠ |
+| GoPay | ⚠ |
+| GCash | ⚠ |
+| Momo | ⚠ |
+| Dana | ⚠ |
+| Kakao Pay | ⚠ |
+| Touch 'n Go | ⚠ |
+| Twint | ⚠ |
+| Vipps | ⚠ |
+| Swish | ⚠ |
 | Affirm | ⚠ |
 | Afterpay | ⚠ |
 | Klarna | ⚠ |

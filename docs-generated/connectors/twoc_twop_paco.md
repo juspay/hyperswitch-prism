@@ -189,7 +189,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 | Payment Method | Supported |
 |----------------|:---------:|
-| Card | ✓ |
+| Card | x |
 
 **Payment method objects** — use these in the `payment_method` field of the Authorize request.
 
@@ -303,7 +303,7 @@ Execute 3DS challenge or frictionless verification. Authenticates customer via b
 
 | Payment Method | Supported |
 |----------------|:---------:|
-| Card | ✓ |
+| Card | x |
 
 **Examples:** [Python](../../examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](../../examples/twoc_twop_paco/twoc_twop_paco.ts) · [Kotlin](../../examples/twoc_twop_paco/twoc_twop_paco.kt) · [Rust](../../examples/twoc_twop_paco/twoc_twop_paco.rs)
 

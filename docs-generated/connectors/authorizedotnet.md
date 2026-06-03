@@ -254,7 +254,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Bizum | x |
 | EFT | x |
 | DuitNow | x |
-| ACH | x |
+| ACH | ✓ |
 | SEPA | x |
 | BACS | x |
 | Multibanco | x |

@@ -1,0 +1,2547 @@
+[
+  {
+    "connector": "axisbank",
+    "verdicts": [
+      {
+        "pm": "Ach",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "US bank transfer; Axis Bank is Indian UPI-only"
+      },
+      {
+        "pm": "AchBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "US bank transfer; not supported by Indian UPI bank"
+      },
+      {
+        "pm": "Affirm",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "US buy-now-pay-later; not in Axis Bank scope"
+      },
+      {
+        "pm": "Afterpay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "BNPL not supported by Axis UPI"
+      },
+      {
+        "pm": "Alfamart",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Indonesian voucher; not in scope"
+      },
+      {
+        "pm": "AliPayRedirect",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Chinese wallet; Axis Bank UPI-only"
+      },
+      {
+        "pm": "AmazonPayRedirect",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Global wallet; not in Axis scope"
+      },
+      {
+        "pm": "ApplePay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Mobile wallet; Axis UPI-only"
+      },
+      {
+        "pm": "ApplePayDecrypted",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Mobile wallet variant; not supported"
+      },
+      {
+        "pm": "ApplePayThirdPartySdk",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Mobile wallet variant; not supported"
+      },
+      {
+        "pm": "Bacs",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "UK bank debit; not in Axis scope"
+      },
+      {
+        "pm": "BacsBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "UK bank transfer; not supported"
+      },
+      {
+        "pm": "BancontactCard",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Belgian card; not in scope"
+      },
+      {
+        "pm": "BcaBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Indonesian bank transfer; not supported"
+      },
+      {
+        "pm": "Becs",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Australian bank debit; not in scope"
+      },
+      {
+        "pm": "Bizum",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Spanish bank redirect; not in scope"
+      },
+      {
+        "pm": "Blik",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Polish bank redirect; not in scope"
+      },
+      {
+        "pm": "Bluecode",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "European wallet; not in scope"
+      },
+      {
+        "pm": "BniVaBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Indonesian bank transfer; not supported"
+      },
+      {
+        "pm": "Boleto",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Brazilian voucher; not in scope"
+      },
+      {
+        "pm": "BriVaBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Indonesian bank transfer; not supported"
+      },
+      {
+        "pm": "Card",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Axis UPI-only, card payments not supported"
+      },
+      {
+        "pm": "CashappQr",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "US wallet; not in Axis scope"
+      },
+      {
+        "pm": "CimbVaBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Malaysian bank transfer; not supported"
+      },
+      {
+        "pm": "ClassicReward",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Reward points; not in scope"
+      },
+      {
+        "pm": "Dana",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Indonesian wallet; not in scope"
+      },
+      {
+        "pm": "DanamonVaBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Indonesian bank transfer; not supported"
+      },
+      {
+        "pm": "EVoucher",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Generic voucher; not in scope"
+      },
+      {
+        "pm": "Efecty",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Colombian voucher; not in scope"
+      },
+      {
+        "pm": "Eft",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Canadian bank redirect; not in scope"
+      },
+      {
+        "pm": "Eps",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Austrian bank redirect; not in scope"
+      },
+      {
+        "pm": "FamilyMart",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Japanese convenience store; not in scope"
+      },
+      {
+        "pm": "GCash",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Philippine wallet; not in scope"
+      },
+      {
+        "pm": "Giropay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "German bank redirect; not in scope"
+      },
+      {
+        "pm": "GoPay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Indonesian wallet; not in scope"
+      },
+      {
+        "pm": "GooglePay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Mobile wallet; Axis UPI-only"
+      },
+      {
+        "pm": "GooglePayDecrypted",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Mobile wallet variant; not supported"
+      },
+      {
+        "pm": "GooglePayThirdPartySdk",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Mobile wallet variant; not supported"
+      },
+      {
+        "pm": "Ideal",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Dutch bank redirect; not in scope"
+      },
+      {
+        "pm": "Indomaret",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Indonesian convenience store; not in scope"
+      },
+      {
+        "pm": "IndonesianBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Indonesian bank transfer; not supported"
+      },
+      {
+        "pm": "InstantBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Generic bank transfer; not in scope"
+      },
+      {
+        "pm": "InstantBankTransferFinland",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Finnish bank transfer; not in scope"
+      },
+      {
+        "pm": "InstantBankTransferPoland",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Polish bank transfer; not in scope"
+      },
+      {
+        "pm": "Interac",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Canadian bank redirect; not in scope"
+      },
+      {
+        "pm": "KakaoPay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Korean wallet; not in scope"
+      },
+      {
+        "pm": "Klarna",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "European BNPL; not in scope"
+      },
+      {
+        "pm": "Lawson",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Japanese convenience store; not in scope"
+      },
+      {
+        "pm": "LocalBankRedirect",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Generic bank redirect; not in scope"
+      },
+      {
+        "pm": "LocalBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Generic bank transfer; not in scope"
+      },
+      {
+        "pm": "MandiriVaBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Indonesian bank transfer; not supported"
+      },
+      {
+        "pm": "MbWay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Portuguese wallet; not in scope"
+      },
+      {
+        "pm": "Mifinity",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Global e-wallet; not in scope"
+      },
+      {
+        "pm": "MiniStop",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Japanese convenience store; not in scope"
+      },
+      {
+        "pm": "Momo",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Vietnamese wallet; not in scope"
+      },
+      {
+        "pm": "MultibancoBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Portuguese bank transfer; not in scope"
+      },
+      {
+        "pm": "OnlineBankingCzechRepublic",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Czech bank redirect; not in scope"
+      },
+      {
+        "pm": "OnlineBankingFinland",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Finnish bank redirect; not in scope"
+      },
+      {
+        "pm": "OnlineBankingFpx",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Malaysian bank redirect; not in scope"
+      },
+      {
+        "pm": "OnlineBankingPoland",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Polish bank redirect; not in scope"
+      },
+      {
+        "pm": "OnlineBankingSlovakia",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Slovak bank redirect; not in scope"
+      },
+      {
+        "pm": "OnlineBankingThailand",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Thai bank redirect; not in scope"
+      },
+      {
+        "pm": "OpenBanking",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Generic open banking; not in scope"
+      },
+      {
+        "pm": "OpenBankingUk",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "UK open banking; not in scope"
+      },
+      {
+        "pm": "Oxxo",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Mexican convenience store; not in scope"
+      },
+      {
+        "pm": "PagoEfectivo",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Peruvian voucher; not in scope"
+      },
+      {
+        "pm": "PayEasy",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Japanese convenience store; not in scope"
+      },
+      {
+        "pm": "PaypalRedirect",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Global wallet; not in Axis scope"
+      },
+      {
+        "pm": "PaypalSdk",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "PayPal SDK; not supported"
+      },
+      {
+        "pm": "PermataBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Malaysian bank transfer; not supported"
+      },
+      {
+        "pm": "Pix",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Brazilian bank transfer; not in scope"
+      },
+      {
+        "pm": "Przelewy24",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Polish bank redirect; not in scope"
+      },
+      {
+        "pm": "Pse",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Colombian bank redirect; not in scope"
+      },
+      {
+        "pm": "RedCompra",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Chilean voucher; not in scope"
+      },
+      {
+        "pm": "RedPagos",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Uruguayan voucher; not in scope"
+      },
+      {
+        "pm": "RevolutPay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "UK wallet; not in scope"
+      },
+      {
+        "pm": "SamsungPay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Mobile wallet; Axis UPI-only"
+      },
+      {
+        "pm": "Satispay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Italian wallet; not in scope"
+      },
+      {
+        "pm": "Seicomart",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Japanese convenience store; not in scope"
+      },
+      {
+        "pm": "Sepa",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "European bank debit; not in scope"
+      },
+      {
+        "pm": "SepaBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "European bank transfer; not in scope"
+      },
+      {
+        "pm": "SepaGuaranteedDebit",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "European bank debit; not in scope"
+      },
+      {
+        "pm": "SevenEleven",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Japanese convenience store; not in scope"
+      },
+      {
+        "pm": "Sofort",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "European bank redirect; not in scope"
+      },
+      {
+        "pm": "Swish",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Swedish wallet; not in scope"
+      },
+      {
+        "pm": "TouchNGo",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Malaysian wallet; not in scope"
+      },
+      {
+        "pm": "Trustly",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Nordic bank redirect; not in scope"
+      },
+      {
+        "pm": "Twint",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Swiss wallet; not in scope"
+      },
+      {
+        "pm": "UpiCollect",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Axis Bank UPI method; transformer exists but no PM matching"
+      },
+      {
+        "pm": "UpiIntent",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Axis Bank UPI method; transformer exists but no PM matching"
+      },
+      {
+        "pm": "UpiQr",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Axis Bank UPI method; transformer exists but no PM matching"
+      },
+      {
+        "pm": "Vipps",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Norwegian wallet; not in scope"
+      },
+      {
+        "pm": "WeChatPayQr",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Chinese wallet; not in scope"
+      },
+      {
+        "pm": "Wero",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "European wallet; not in scope"
+      }
+    ]
+  },
+  {
+    "connector": "paysafe",
+    "verdicts": [
+      {
+        "pm": "Ach",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "Explicit BankDebit(AchBankDebit) match arm in transformers"
+      },
+      {
+        "pm": "AchBankTransfer",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Paysafe supports ACH but variant name differs; listed as NotImplemented in SUPPORTED_PAYMENT_METHODS"
+      },
+      {
+        "pm": "Affirm",
+        "status": "NotImplemented",
+        "confidence": "medium",
+        "reason": "Listed in SUPPORTED_PAYMENT_METHODS as NotImplemented; Paysafe likely doesn't support BNPL"
+      },
+      {
+        "pm": "Afterpay",
+        "status": "NotImplemented",
+        "confidence": "medium",
+        "reason": "Listed as NotImplemented; Paysafe is card/bank-focused, not BNPL"
+      },
+      {
+        "pm": "Alfamart",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Indonesian voucher; Paysafe is NA/EU-focused, doesn't serve Indonesia"
+      },
+      {
+        "pm": "AliPayRedirect",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Chinese wallet; Paysafe is NA/EU-focused"
+      },
+      {
+        "pm": "AmazonPayRedirect",
+        "status": "NotImplemented",
+        "confidence": "medium",
+        "reason": "Paysafe could support Amazon Pay but no transformer code for it"
+      },
+      {
+        "pm": "ApplePay",
+        "status": "NotImplemented",
+        "confidence": "medium",
+        "reason": "No explicit code path; Paysafe likely supports it but not yet implemented"
+      },
+      {
+        "pm": "ApplePayDecrypted",
+        "status": "NotImplemented",
+        "confidence": "medium",
+        "reason": "Decrypted variant; similar to ApplePay, no code path"
+      },
+      {
+        "pm": "ApplePayThirdPartySdk",
+        "status": "NotImplemented",
+        "confidence": "medium",
+        "reason": "Third-party variant; no code path"
+      },
+      {
+        "pm": "Bacs",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Listed in SUPPORTED_PAYMENT_METHODS as NotImplemented; UK bank debit"
+      },
+      {
+        "pm": "BacsBankTransfer",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "UK bank transfer; listed as NotImplemented"
+      },
+      {
+        "pm": "BancontactCard",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Belgian card; listed as NotImplemented"
+      },
+      {
+        "pm": "BcaBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Indonesian bank; Paysafe doesn't serve Indonesia"
+      },
+      {
+        "pm": "Becs",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Listed in SUPPORTED_PAYMENT_METHODS as NotImplemented; Australian bank debit"
+      },
+      {
+        "pm": "Bizum",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Spanish bank redirect; listed as NotImplemented"
+      },
+      {
+        "pm": "Blik",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Polish bank redirect; listed as NotImplemented"
+      },
+      {
+        "pm": "Bluecode",
+        "status": "NotSupported",
+        "confidence": "medium",
+        "reason": "Austrian mobile payment; not in Paysafe SUPPORTED_PAYMENT_METHODS"
+      },
+      {
+        "pm": "BniVaBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Indonesian VA; Paysafe doesn't serve Indonesia"
+      },
+      {
+        "pm": "Boleto",
+        "status": "NotImplemented",
+        "confidence": "medium",
+        "reason": "Brazilian voucher; listed in SUPPORTED_PAYMENT_METHODS as NotImplemented"
+      },
+      {
+        "pm": "BriVaBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Indonesian VA; Paysafe doesn't serve Indonesia"
+      },
+      {
+        "pm": "Card",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "Explicit PaymentMethodData::Card match arm in transformers"
+      },
+      {
+        "pm": "CashappQr",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "US mobile payment; not in Paysafe supported methods"
+      },
+      {
+        "pm": "CimbVaBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Malaysian VA; Paysafe is NA/EU-focused"
+      },
+      {
+        "pm": "ClassicReward",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Listed in SUPPORTED_PAYMENT_METHODS as NotImplemented"
+      },
+      {
+        "pm": "Dana",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Indonesian wallet; Paysafe doesn't serve Indonesia"
+      },
+      {
+        "pm": "DanamonVaBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Indonesian bank; Paysafe doesn't serve Indonesia"
+      },
+      {
+        "pm": "EVoucher",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Listed in SUPPORTED_PAYMENT_METHODS as NotImplemented"
+      },
+      {
+        "pm": "Efecty",
+        "status": "NotImplemented",
+        "confidence": "medium",
+        "reason": "Colombian voucher; listed as NotImplemented"
+      },
+      {
+        "pm": "Eft",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "South African bank redirect; listed as NotImplemented"
+      },
+      {
+        "pm": "Eps",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Austrian bank redirect; listed as NotImplemented"
+      },
+      {
+        "pm": "FamilyMart",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Japanese voucher; listed in SUPPORTED_PAYMENT_METHODS as NotImplemented"
+      },
+      {
+        "pm": "GCash",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Philippine mobile wallet; not in Paysafe methods"
+      },
+      {
+        "pm": "Giropay",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "German bank redirect; listed as NotImplemented"
+      },
+      {
+        "pm": "GoPay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Indonesian wallet; Paysafe doesn't serve Indonesia"
+      },
+      {
+        "pm": "GooglePay",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "Explicit Wallet(GooglePay) match arm in transformers"
+      },
+      {
+        "pm": "GooglePayDecrypted",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "GooglePay decrypted; same implementation handles decrypted data"
+      },
+      {
+        "pm": "GooglePayThirdPartySdk",
+        "status": "NotImplemented",
+        "confidence": "medium",
+        "reason": "Third-party SDK variant; not explicitly handled"
+      },
+      {
+        "pm": "Ideal",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Dutch bank redirect; listed as NotImplemented"
+      },
+      {
+        "pm": "Indomaret",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Indonesian voucher; Paysafe doesn't serve Indonesia"
+      },
+      {
+        "pm": "IndonesianBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Indonesian; Paysafe doesn't serve Indonesia"
+      },
+      {
+        "pm": "InstantBankTransfer",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Listed in SUPPORTED_PAYMENT_METHODS as NotImplemented"
+      },
+      {
+        "pm": "InstantBankTransferFinland",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Finnish bank transfer; listed as NotImplemented"
+      },
+      {
+        "pm": "InstantBankTransferPoland",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Polish bank transfer; listed as NotImplemented"
+      },
+      {
+        "pm": "Interac",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Canadian bank redirect; listed as NotImplemented"
+      },
+      {
+        "pm": "KakaoPay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Korean wallet; Paysafe is NA/EU-focused"
+      },
+      {
+        "pm": "Klarna",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "BNPL; listed in SUPPORTED_PAYMENT_METHODS as NotImplemented"
+      },
+      {
+        "pm": "Lawson",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Japanese convenience store; Paysafe doesn't serve Japan"
+      },
+      {
+        "pm": "LocalBankRedirect",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Generic; listed in SUPPORTED_PAYMENT_METHODS as NotImplemented"
+      },
+      {
+        "pm": "LocalBankTransfer",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Generic; listed in SUPPORTED_PAYMENT_METHODS as NotImplemented"
+      },
+      {
+        "pm": "MandiriVaBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Indonesian VA; Paysafe doesn't serve Indonesia"
+      },
+      {
+        "pm": "MbWay",
+        "status": "NotSupported",
+        "confidence": "medium",
+        "reason": "Portuguese mobile payment; not in SUPPORTED_PAYMENT_METHODS"
+      },
+      {
+        "pm": "Mifinity",
+        "status": "NotSupported",
+        "confidence": "medium",
+        "reason": "E-wallet; not in SUPPORTED_PAYMENT_METHODS"
+      },
+      {
+        "pm": "MiniStop",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Japanese convenience store; Paysafe doesn't serve Japan"
+      },
+      {
+        "pm": "Momo",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Vietnamese wallet; Paysafe is NA/EU-focused"
+      },
+      {
+        "pm": "MultibancoBankTransfer",
+        "status": "NotImplemented",
+        "confidence": "medium",
+        "reason": "Portuguese; listed in SUPPORTED_PAYMENT_METHODS as NotImplemented"
+      },
+      {
+        "pm": "OnlineBankingCzechRepublic",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Czech bank redirect; listed as NotImplemented"
+      },
+      {
+        "pm": "OnlineBankingFinland",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Finnish bank redirect; listed as NotImplemented"
+      },
+      {
+        "pm": "OnlineBankingFpx",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Malaysian banking; Paysafe is NA/EU-focused"
+      },
+      {
+        "pm": "OnlineBankingPoland",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Polish bank redirect; listed as NotImplemented"
+      },
+      {
+        "pm": "OnlineBankingSlovakia",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Slovak bank redirect; listed as NotImplemented"
+      },
+      {
+        "pm": "OnlineBankingThailand",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Thai banking; Paysafe is NA/EU-focused"
+      },
+      {
+        "pm": "OpenBanking",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Generic; listed in SUPPORTED_PAYMENT_METHODS as NotImplemented"
+      },
+      {
+        "pm": "OpenBankingUk",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "UK open banking; listed in SUPPORTED_PAYMENT_METHODS as NotImplemented"
+      },
+      {
+        "pm": "Oxxo",
+        "status": "NotImplemented",
+        "confidence": "medium",
+        "reason": "Mexican voucher; not explicitly in code but could be supported"
+      },
+      {
+        "pm": "PagoEfectivo",
+        "status": "NotSupported",
+        "confidence": "medium",
+        "reason": "Peruvian voucher; not in SUPPORTED_PAYMENT_METHODS"
+      },
+      {
+        "pm": "PayEasy",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Japanese payment; Paysafe doesn't serve Japan"
+      },
+      {
+        "pm": "PaypalRedirect",
+        "status": "NotSupported",
+        "confidence": "medium",
+        "reason": "Not in SUPPORTED_PAYMENT_METHODS; Paysafe focuses on cards/bank"
+      },
+      {
+        "pm": "PaypalSdk",
+        "status": "NotSupported",
+        "confidence": "medium",
+        "reason": "Not in SUPPORTED_PAYMENT_METHODS"
+      },
+      {
+        "pm": "PermataBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Malaysian bank; Paysafe is NA/EU-focused"
+      },
+      {
+        "pm": "Pix",
+        "status": "NotImplemented",
+        "confidence": "medium",
+        "reason": "Brazilian instant transfer; listed in SUPPORTED_PAYMENT_METHODS as NotImplemented"
+      },
+      {
+        "pm": "Przelewy24",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Polish bank redirect; listed as NotImplemented"
+      },
+      {
+        "pm": "Pse",
+        "status": "NotImplemented",
+        "confidence": "medium",
+        "reason": "Colombian bank transfer; listed in SUPPORTED_PAYMENT_METHODS as NotImplemented"
+      },
+      {
+        "pm": "RedCompra",
+        "status": "NotSupported",
+        "confidence": "medium",
+        "reason": "Latin American; not in SUPPORTED_PAYMENT_METHODS"
+      },
+      {
+        "pm": "RedPagos",
+        "status": "NotSupported",
+        "confidence": "medium",
+        "reason": "Uruguayan; not in SUPPORTED_PAYMENT_METHODS"
+      },
+      {
+        "pm": "RevolutPay",
+        "status": "NotSupported",
+        "confidence": "medium",
+        "reason": "Fintech wallet; not in SUPPORTED_PAYMENT_METHODS"
+      },
+      {
+        "pm": "SamsungPay",
+        "status": "NotSupported",
+        "confidence": "medium",
+        "reason": "Not in SUPPORTED_PAYMENT_METHODS; Paysafe focuses on cards/bank"
+      },
+      {
+        "pm": "Satispay",
+        "status": "NotSupported",
+        "confidence": "medium",
+        "reason": "Italian mobile payment; not in SUPPORTED_PAYMENT_METHODS"
+      },
+      {
+        "pm": "Seicomart",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Japanese convenience store; Paysafe doesn't serve Japan"
+      },
+      {
+        "pm": "Sepa",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "European bank debit; listed in SUPPORTED_PAYMENT_METHODS as NotImplemented"
+      },
+      {
+        "pm": "SepaBankTransfer",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "European bank transfer; listed as NotImplemented"
+      },
+      {
+        "pm": "SepaGuaranteedDebit",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "SEPA variant; listed in SUPPORTED_PAYMENT_METHODS as NotImplemented"
+      },
+      {
+        "pm": "SevenEleven",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Japanese convenience store; Paysafe doesn't serve Japan"
+      },
+      {
+        "pm": "Sofort",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "European bank redirect; listed as NotImplemented"
+      },
+      {
+        "pm": "Swish",
+        "status": "NotSupported",
+        "confidence": "medium",
+        "reason": "Swedish mobile payment; not in SUPPORTED_PAYMENT_METHODS"
+      },
+      {
+        "pm": "TouchNGo",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Malaysian wallet; Paysafe is NA/EU-focused"
+      },
+      {
+        "pm": "Trustly",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "European bank redirect; listed as NotImplemented"
+      },
+      {
+        "pm": "Twint",
+        "status": "NotSupported",
+        "confidence": "medium",
+        "reason": "Swiss mobile payment; not in SUPPORTED_PAYMENT_METHODS"
+      },
+      {
+        "pm": "UpiCollect",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Indian UPI; listed in SUPPORTED_PAYMENT_METHODS as NotImplemented"
+      },
+      {
+        "pm": "UpiIntent",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Indian UPI; listed in SUPPORTED_PAYMENT_METHODS as NotImplemented"
+      },
+      {
+        "pm": "UpiQr",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Indian UPI; listed in SUPPORTED_PAYMENT_METHODS as NotImplemented"
+      },
+      {
+        "pm": "Vipps",
+        "status": "NotSupported",
+        "confidence": "medium",
+        "reason": "Norwegian mobile payment; not in SUPPORTED_PAYMENT_METHODS"
+      },
+      {
+        "pm": "WeChatPayQr",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Chinese wallet; Paysafe is NA/EU-focused"
+      },
+      {
+        "pm": "Wero",
+        "status": "NotSupported",
+        "confidence": "medium",
+        "reason": "Emerging European standard; not in SUPPORTED_PAYMENT_METHODS"
+      }
+    ]
+  },
+  {
+    "connector": "pinelabsonline",
+    "verdicts": [
+      {
+        "pm": "Ach",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection in transformer; US-only PM, Indian connector"
+      },
+      {
+        "pm": "AchBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; US-only PM, Indian connector"
+      },
+      {
+        "pm": "Affirm",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection in transformer"
+      },
+      {
+        "pm": "Afterpay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection in transformer"
+      },
+      {
+        "pm": "Alfamart",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Indonesian-only PM"
+      },
+      {
+        "pm": "AliPayRedirect",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Asian wallet, not in scope"
+      },
+      {
+        "pm": "AmazonPayRedirect",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection in transformer"
+      },
+      {
+        "pm": "ApplePay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection in transformer"
+      },
+      {
+        "pm": "ApplePayDecrypted",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection in transformer"
+      },
+      {
+        "pm": "ApplePayThirdPartySdk",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection in transformer"
+      },
+      {
+        "pm": "Bacs",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; UK bank debit, not in scope"
+      },
+      {
+        "pm": "BacsBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; UK bank transfer"
+      },
+      {
+        "pm": "BancontactCard",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Belgium-specific card"
+      },
+      {
+        "pm": "BcaBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Indonesian bank transfer"
+      },
+      {
+        "pm": "Becs",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Australian debit"
+      },
+      {
+        "pm": "Bizum",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Spain-only payment method"
+      },
+      {
+        "pm": "Blik",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Poland-only payment method"
+      },
+      {
+        "pm": "Bluecode",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection in transformer"
+      },
+      {
+        "pm": "BniVaBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Indonesian bank transfer"
+      },
+      {
+        "pm": "Boleto",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Brazil-only payment method"
+      },
+      {
+        "pm": "BriVaBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Indonesian bank transfer"
+      },
+      {
+        "pm": "Card",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "Full transformer implementation in build_payment_option(); line 662-672"
+      },
+      {
+        "pm": "CashappQr",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection in transformer"
+      },
+      {
+        "pm": "CimbVaBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Indonesian bank transfer"
+      },
+      {
+        "pm": "ClassicReward",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection in transformer"
+      },
+      {
+        "pm": "Dana",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Southeast Asian wallet"
+      },
+      {
+        "pm": "DanamonVaBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Indonesian bank transfer"
+      },
+      {
+        "pm": "EVoucher",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection in transformer"
+      },
+      {
+        "pm": "Efecty",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Colombia-only payment method"
+      },
+      {
+        "pm": "Eft",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; South African EFT"
+      },
+      {
+        "pm": "Eps",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Austria online banking"
+      },
+      {
+        "pm": "FamilyMart",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Japan-only convenience store payment"
+      },
+      {
+        "pm": "GCash",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Philippines-only wallet"
+      },
+      {
+        "pm": "Giropay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Germany-only bank redirect"
+      },
+      {
+        "pm": "GoPay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Indonesia/Southeast Asian wallet"
+      },
+      {
+        "pm": "GooglePay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection in transformer"
+      },
+      {
+        "pm": "GooglePayDecrypted",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection in transformer"
+      },
+      {
+        "pm": "GooglePayThirdPartySdk",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection in transformer"
+      },
+      {
+        "pm": "Ideal",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Netherlands-only bank redirect"
+      },
+      {
+        "pm": "Indomaret",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Indonesian convenience store"
+      },
+      {
+        "pm": "IndonesianBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; outside scope"
+      },
+      {
+        "pm": "InstantBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection in transformer"
+      },
+      {
+        "pm": "InstantBankTransferFinland",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Finland-specific"
+      },
+      {
+        "pm": "InstantBankTransferPoland",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Poland-specific"
+      },
+      {
+        "pm": "Interac",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Canada-only bank redirect"
+      },
+      {
+        "pm": "KakaoPay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; South Korea wallet"
+      },
+      {
+        "pm": "Klarna",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; BNPL provider"
+      },
+      {
+        "pm": "Lawson",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Japan-only convenience store"
+      },
+      {
+        "pm": "LocalBankRedirect",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection in transformer"
+      },
+      {
+        "pm": "LocalBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection in transformer"
+      },
+      {
+        "pm": "MandiriVaBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Indonesian bank transfer"
+      },
+      {
+        "pm": "MbWay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Portugal-only wallet"
+      },
+      {
+        "pm": "Mifinity",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection in transformer"
+      },
+      {
+        "pm": "MiniStop",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Philippines convenience store"
+      },
+      {
+        "pm": "Momo",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Vietnam wallet"
+      },
+      {
+        "pm": "MultibancoBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Portugal-only bank transfer"
+      },
+      {
+        "pm": "OnlineBankingCzechRepublic",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Czech-specific"
+      },
+      {
+        "pm": "OnlineBankingFinland",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Finland-specific"
+      },
+      {
+        "pm": "OnlineBankingFpx",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Malaysia-specific"
+      },
+      {
+        "pm": "OnlineBankingPoland",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Poland-specific"
+      },
+      {
+        "pm": "OnlineBankingSlovakia",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Slovakia-specific"
+      },
+      {
+        "pm": "OnlineBankingThailand",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Thailand-specific"
+      },
+      {
+        "pm": "OpenBanking",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection in transformer"
+      },
+      {
+        "pm": "OpenBankingUk",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; UK-specific"
+      },
+      {
+        "pm": "Oxxo",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Mexico-only convenience store"
+      },
+      {
+        "pm": "PagoEfectivo",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Peru-only payment method"
+      },
+      {
+        "pm": "PayEasy",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Japan convenience store"
+      },
+      {
+        "pm": "PaypalRedirect",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection in transformer"
+      },
+      {
+        "pm": "PaypalSdk",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection in transformer"
+      },
+      {
+        "pm": "PermataBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Indonesian bank transfer"
+      },
+      {
+        "pm": "Pix",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Brazil-only payment method"
+      },
+      {
+        "pm": "Przelewy24",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Poland-only bank redirect"
+      },
+      {
+        "pm": "Pse",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Colombia-only payment method"
+      },
+      {
+        "pm": "RedCompra",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Chile-only payment method"
+      },
+      {
+        "pm": "RedPagos",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Uruguay-only payment method"
+      },
+      {
+        "pm": "RevolutPay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection in transformer"
+      },
+      {
+        "pm": "SamsungPay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection in transformer"
+      },
+      {
+        "pm": "Satispay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Italy-only wallet"
+      },
+      {
+        "pm": "Seicomart",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Japan convenience store"
+      },
+      {
+        "pm": "Sepa",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Europe-only bank debit"
+      },
+      {
+        "pm": "SepaBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Europe-only bank transfer"
+      },
+      {
+        "pm": "SepaGuaranteedDebit",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Europe-only debit"
+      },
+      {
+        "pm": "SevenEleven",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Japan/Thailand convenience store"
+      },
+      {
+        "pm": "Sofort",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; European bank redirect"
+      },
+      {
+        "pm": "Swish",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Sweden-only payment method"
+      },
+      {
+        "pm": "TouchNGo",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Malaysia-only wallet"
+      },
+      {
+        "pm": "Trustly",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; European bank redirect"
+      },
+      {
+        "pm": "Twint",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Switzerland-only wallet"
+      },
+      {
+        "pm": "UpiCollect",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "Full transformer implementation in build_payment_option(); line 638-660"
+      },
+      {
+        "pm": "UpiIntent",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "Full transformer implementation in build_payment_option(); line 650"
+      },
+      {
+        "pm": "UpiQr",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "Full transformer implementation in build_payment_option(); line 650"
+      },
+      {
+        "pm": "Vipps",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; Norway-only wallet"
+      },
+      {
+        "pm": "WeChatPayQr",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; China wallet"
+      },
+      {
+        "pm": "Wero",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Explicit NotSupported rejection; European payment method"
+      }
+    ]
+  },
+  {
+    "connector": "twoctwoppaco",
+    "verdicts": [
+      {
+        "pm": "Ach",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "US-only bank transfer; PACO (Thailand-based) does not support ACH"
+      },
+      {
+        "pm": "AchBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "US-only bank transfer; PACO does not support ACH"
+      },
+      {
+        "pm": "Affirm",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "US BNPL; PACO does not support Affirm"
+      },
+      {
+        "pm": "Afterpay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "ANZ/UK BNPL; PACO does not support Afterpay"
+      },
+      {
+        "pm": "Alfamart",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Indonesia cash; PACO primarily serves Thailand/SEA, no Alfamart support documented"
+      },
+      {
+        "pm": "AliPayRedirect",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Chinese wallet; PACO does not support Alipay"
+      },
+      {
+        "pm": "AmazonPayRedirect",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Global wallet; PACO does not support Amazon Pay"
+      },
+      {
+        "pm": "ApplePay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Digital wallet; PACO does not support Apple Pay"
+      },
+      {
+        "pm": "ApplePayDecrypted",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Digital wallet decryption; PACO does not support Apple Pay"
+      },
+      {
+        "pm": "ApplePayThirdPartySdk",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Digital wallet SDK; PACO does not support Apple Pay"
+      },
+      {
+        "pm": "Bacs",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "UK bank transfer; PACO does not support BACS"
+      },
+      {
+        "pm": "BacsBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "UK bank transfer; PACO does not support BACS"
+      },
+      {
+        "pm": "BancontactCard",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Belgian payment; PACO does not support Bancontact"
+      },
+      {
+        "pm": "BcaBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Indonesia bank transfer; PACO does not support BCA"
+      },
+      {
+        "pm": "Becs",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Australian bank transfer; PACO does not support BECS"
+      },
+      {
+        "pm": "Bizum",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Spanish mobile payment; PACO does not support Bizum"
+      },
+      {
+        "pm": "Blik",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Polish payment; PACO does not support BLIK"
+      },
+      {
+        "pm": "Bluecode",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "European wallet; PACO does not support Bluecode"
+      },
+      {
+        "pm": "BniVaBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Indonesia bank transfer; PACO does not support BNI VA"
+      },
+      {
+        "pm": "Boleto",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Brazilian bank transfer; PACO does not support Boleto"
+      },
+      {
+        "pm": "BriVaBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Indonesia bank transfer; PACO does not support BRI VA"
+      },
+      {
+        "pm": "Card",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "Explicitly implemented in build_authorize_request for both credit and debit cards"
+      },
+      {
+        "pm": "CashappQr",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "US Cash App; PACO does not support Cash App"
+      },
+      {
+        "pm": "CimbVaBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Malaysia bank transfer; PACO does not support CIMB VA"
+      },
+      {
+        "pm": "ClassicReward",
+        "status": "NotImplemented",
+        "confidence": "medium",
+        "reason": "Card-adjacent reward program; not documented in PACO upstream API"
+      },
+      {
+        "pm": "Dana",
+        "status": "NotSupported",
+        "confidence": "medium",
+        "reason": "Indonesia digital wallet; PACO does not support DANA"
+      },
+      {
+        "pm": "DanamonVaBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Indonesia bank transfer; PACO does not support Danamon VA"
+      },
+      {
+        "pm": "EVoucher",
+        "status": "NotImplemented",
+        "confidence": "medium",
+        "reason": "Voucher format; not documented in PACO upstream API"
+      },
+      {
+        "pm": "Efecty",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Colombian cash; PACO does not support Efecty"
+      },
+      {
+        "pm": "Eft",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "South African bank transfer; PACO does not support EFT"
+      },
+      {
+        "pm": "Eps",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Austrian bank transfer; PACO does not support eps"
+      },
+      {
+        "pm": "FamilyMart",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Japan cash; PACO does not support FamilyMart"
+      },
+      {
+        "pm": "GCash",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "Explicitly implemented as WalletData::GcashRedirect in build_authorize_request"
+      },
+      {
+        "pm": "Giropay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "German bank transfer; PACO does not support Giropay"
+      },
+      {
+        "pm": "GoPay",
+        "status": "NotSupported",
+        "confidence": "medium",
+        "reason": "Indonesia digital wallet; PACO does not support GoPay"
+      },
+      {
+        "pm": "GooglePay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Digital wallet; PACO does not support Google Pay"
+      },
+      {
+        "pm": "GooglePayDecrypted",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Digital wallet decryption; PACO does not support Google Pay"
+      },
+      {
+        "pm": "GooglePayThirdPartySdk",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Digital wallet SDK; PACO does not support Google Pay"
+      },
+      {
+        "pm": "Ideal",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Dutch bank transfer; PACO does not support iDEAL"
+      },
+      {
+        "pm": "Indomaret",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Indonesia cash; PACO does not support Indomaret"
+      },
+      {
+        "pm": "IndonesianBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Indonesia VA; PACO does not support Indonesian bank transfers"
+      },
+      {
+        "pm": "InstantBankTransfer",
+        "status": "NotImplemented",
+        "confidence": "medium",
+        "reason": "Generic instant bank transfer; not explicitly documented for PACO"
+      },
+      {
+        "pm": "InstantBankTransferFinland",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Finland bank transfer; PACO does not support Finland instant transfers"
+      },
+      {
+        "pm": "InstantBankTransferPoland",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Poland bank transfer; PACO does not support Poland instant transfers"
+      },
+      {
+        "pm": "Interac",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Canadian bank transfer; PACO does not support Interac"
+      },
+      {
+        "pm": "KakaoPay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Korean wallet; PACO does not support Kakao Pay"
+      },
+      {
+        "pm": "Klarna",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "European BNPL; PACO does not support Klarna"
+      },
+      {
+        "pm": "Lawson",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Japan cash; PACO does not support Lawson"
+      },
+      {
+        "pm": "LocalBankRedirect",
+        "status": "NotImplemented",
+        "confidence": "medium",
+        "reason": "Generic local bank redirect; not explicitly supported in PACO transformer"
+      },
+      {
+        "pm": "LocalBankTransfer",
+        "status": "NotImplemented",
+        "confidence": "medium",
+        "reason": "Generic local bank transfer; not explicitly supported in PACO transformer"
+      },
+      {
+        "pm": "MandiriVaBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Indonesia bank transfer; PACO does not support Mandiri VA"
+      },
+      {
+        "pm": "MbWay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Portuguese mobile payment; PACO does not support MB Way"
+      },
+      {
+        "pm": "Mifinity",
+        "status": "NotImplemented",
+        "confidence": "medium",
+        "reason": "E-wallet; not documented in PACO upstream API"
+      },
+      {
+        "pm": "MiniStop",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Japan cash; PACO does not support MiniStop"
+      },
+      {
+        "pm": "Momo",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Vietnam wallet; PACO does not support Momo"
+      },
+      {
+        "pm": "MultibancoBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Portugal bank transfer; PACO does not support Multibanco"
+      },
+      {
+        "pm": "OnlineBankingCzechRepublic",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Czech bank transfer; PACO does not support Czech online banking"
+      },
+      {
+        "pm": "OnlineBankingFinland",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Finland bank transfer; PACO does not support Finland online banking"
+      },
+      {
+        "pm": "OnlineBankingFpx",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Malaysia FPX; PACO does not support FPX"
+      },
+      {
+        "pm": "OnlineBankingPoland",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Poland bank transfer; PACO does not support Poland online banking"
+      },
+      {
+        "pm": "OnlineBankingSlovakia",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Slovakia bank transfer; PACO does not support Slovakia online banking"
+      },
+      {
+        "pm": "OnlineBankingThailand",
+        "status": "NotImplemented",
+        "confidence": "medium",
+        "reason": "Thailand bank transfer; geographically relevant to PACO but not explicitly implemented"
+      },
+      {
+        "pm": "OpenBanking",
+        "status": "NotImplemented",
+        "confidence": "medium",
+        "reason": "Generic open banking; not explicitly documented for PACO"
+      },
+      {
+        "pm": "OpenBankingUk",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "UK open banking; PACO does not support UK banking"
+      },
+      {
+        "pm": "Oxxo",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Mexico cash; PACO does not support OXXO"
+      },
+      {
+        "pm": "PagoEfectivo",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Peru cash; PACO does not support PagoEfectivo"
+      },
+      {
+        "pm": "PayEasy",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Japan cash; PACO does not support PayEasy"
+      },
+      {
+        "pm": "PaypalRedirect",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Global wallet; PACO does not support PayPal"
+      },
+      {
+        "pm": "PaypalSdk",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Global wallet SDK; PACO does not support PayPal"
+      },
+      {
+        "pm": "PermataBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Malaysia bank transfer; PACO does not support Permata"
+      },
+      {
+        "pm": "Pix",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Brazil instant transfer; PACO does not support PIX"
+      },
+      {
+        "pm": "Przelewy24",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Polish bank transfer; PACO does not support Przelewy24"
+      },
+      {
+        "pm": "Pse",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Colombia bank transfer; PACO does not support PSE"
+      },
+      {
+        "pm": "RedCompra",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Chile cash; PACO does not support RedCompra"
+      },
+      {
+        "pm": "RedPagos",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Uruguay cash; PACO does not support RedPagos"
+      },
+      {
+        "pm": "RevolutPay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "European fintech wallet; PACO does not support Revolut Pay"
+      },
+      {
+        "pm": "SamsungPay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Digital wallet; PACO does not support Samsung Pay"
+      },
+      {
+        "pm": "Satispay",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Italian mobile payment; PACO does not support Satispay"
+      },
+      {
+        "pm": "Seicomart",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Japan cash; PACO does not support Seicomart"
+      },
+      {
+        "pm": "Sepa",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "European bank transfer; PACO does not support SEPA"
+      },
+      {
+        "pm": "SepaBankTransfer",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "European bank transfer; PACO does not support SEPA"
+      },
+      {
+        "pm": "SepaGuaranteedDebit",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "European bank transfer; PACO does not support SEPA Guaranteed Debit"
+      },
+      {
+        "pm": "SevenEleven",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Japan cash; PACO does not support 7-Eleven"
+      },
+      {
+        "pm": "Sofort",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "European bank transfer; PACO does not support Sofort"
+      },
+      {
+        "pm": "Swish",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Swedish mobile payment; PACO does not support Swish"
+      },
+      {
+        "pm": "TouchNGo",
+        "status": "NotImplemented",
+        "confidence": "medium",
+        "reason": "Malaysia wallet; geographically relevant to SEA but not explicitly implemented in PACO"
+      },
+      {
+        "pm": "Trustly",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "European bank transfer; PACO does not support Trustly"
+      },
+      {
+        "pm": "Twint",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Swiss mobile payment; PACO does not support TWINT"
+      },
+      {
+        "pm": "UpiCollect",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "India UPI; PACO does not support UPI"
+      },
+      {
+        "pm": "UpiIntent",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "India UPI; PACO does not support UPI"
+      },
+      {
+        "pm": "UpiQr",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "India UPI; PACO does not support UPI"
+      },
+      {
+        "pm": "Vipps",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Norwegian mobile payment; PACO does not support Vipps"
+      },
+      {
+        "pm": "WeChatPayQr",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Chinese wallet; PACO does not support WeChat Pay"
+      },
+      {
+        "pm": "Wero",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "European mobile payment; PACO does not support Wero"
+      }
+    ]
+  },
+  {
+    "connector": "stax",
+    "verdicts": [
+      {
+        "pm": "Ach",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "Explicit BankDebit/AchBankDebit match arm in transformer with tokenization logic"
+      },
+      {
+        "pm": "Bacs",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "UK debit; Stax is US-only processor; falls to NotImplemented error path"
+      },
+      {
+        "pm": "Becs",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "Australian debit; outside Stax geographic scope"
+      },
+      {
+        "pm": "Card",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "Explicit PaymentMethodData::Card match arm in Authorize transformer"
+      },
+      {
+        "pm": "Sepa",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "European debit; Stax is US-focused processor; not in scope"
+      },
+      {
+        "pm": "SepaGuaranteedDebit",
+        "status": "NotSupported",
+        "confidence": "high",
+        "reason": "European debit variant; outside US-only Stax scope"
+      }
+    ]
+  },
+  {
+    "connector": "noon",
+    "verdicts": [
+      {
+        "pm": "ApplePay",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "Explicit Ok transformer arm with full NoonApplePayTokenData encoding at line 301-325"
+      },
+      {
+        "pm": "ApplePayDecrypted",
+        "status": "NotImplemented",
+        "confidence": "medium",
+        "reason": "No explicit transformer arm; falls into catch-all error pattern. Noon supports ApplePay, so decrypted variant likely accepted upstream but needs TODO implementation"
+      }
+    ]
+  },
+  {
+    "connector": "novalnet",
+    "verdicts": [
+      {
+        "pm": "ApplePayDecrypted",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Transformer only handles encrypted ApplePay; decrypted variant not coded"
+      },
+      {
+        "pm": "GooglePayDecrypted",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Transformer only handles encrypted GooglePay; decrypted variant not coded"
+      }
+    ]
+  },
+  {
+    "connector": "rapyd",
+    "verdicts": [
+      {
+        "pm": "ApplePayDecrypted",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "Explicit code path in transformers.rs lines 419-430 handles WalletData::ApplePay with encrypted payment data extraction"
+      },
+      {
+        "pm": "GooglePayDecrypted",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "Explicit code path in transformers.rs lines 407-418 handles WalletData::GooglePay with encrypted token extraction"
+      }
+    ]
+  },
+  {
+    "connector": "trustpayments",
+    "verdicts": [
+      {
+        "pm": "ApplePay",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "Explicit working transformer arm for PaymentMethodData::Wallet(WalletData::ApplePay) with full decrypted token handling, PAN extraction, ECI/TAVV mapping, and walletsource=APPLEPAY"
+      },
+      {
+        "pm": "GooglePay",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "Explicit working transformer arm for PaymentMethodData::Wallet(WalletData::GooglePay) with cryptogram support, ECI defaults, tokenization type mapping, and walletsource=GOOGLEPAY"
+      }
+    ]
+  },
+  {
+    "connector": "worldpay",
+    "verdicts": [
+      {
+        "pm": "ApplePayDecrypted",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "explicit Ok arm in fetch_payment_instrument handles ApplePayWalletData with get_applepay_decoded_payment_data()"
+      },
+      {
+        "pm": "GooglePayDecrypted",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "explicit Ok arm in fetch_payment_instrument handles GooglePayWalletData with get_encrypted_google_pay_token()"
+      }
+    ]
+  },
+  {
+    "connector": "braintree",
+    "verdicts": [
+      {
+        "pm": "Card",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "Full working code path exists in CardPaymentRequest transformer with 3DS and non-3DS branches; tokenization and mandate flows implemented."
+      }
+    ]
+  },
+  {
+    "connector": "checkout",
+    "verdicts": [
+      {
+        "pm": "GooglePay",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "Explicit Ok arm in PaymentMethodData match; GooglePayPredecrypt fully implemented with network_token and cryptogram handling"
+      }
+    ]
+  },
+  {
+    "connector": "fiservcommercehub",
+    "verdicts": [
+      {
+        "pm": "Card",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "Explicit Card case at transformers.rs:287 with full Ok implementation in Authorize flow"
+      }
+    ]
+  },
+  {
+    "connector": "fiuu",
+    "verdicts": [
+      {
+        "pm": "GooglePayDecrypted",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Code requires encrypted GooglePay token; decrypted variant returns InvalidValue error at get_encrypted_google_pay_payment_data_mandatory()"
+      }
+    ]
+  },
+  {
+    "connector": "jpmorgan",
+    "verdicts": [
+      {
+        "pm": "GooglePay",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "Transformer contains complete working implementation for encrypted Google Pay tokenization (lines 506-615 of transformers.rs)"
+      }
+    ]
+  },
+  {
+    "connector": "nexinets",
+    "verdicts": [
+      {
+        "pm": "ApplePayDecrypted",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "Explicit Ok arm at transformers.rs:846 for WalletData::ApplePay with get_applepay_details handler accepting all ApplePayPaymentData variants"
+      }
+    ]
+  },
+  {
+    "connector": "nexixpay",
+    "verdicts": [
+      {
+        "pm": "Card",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "Explicit Ok match arm in Authorize/PreAuthenticate flows with complete card data processing"
+      }
+    ]
+  },
+  {
+    "connector": "nuvei",
+    "verdicts": [
+      {
+        "pm": "AchBankTransfer",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "Transformer has explicit working arm extracting account_number/routing_number from metadata and constructing NuveiAlternativePaymentMethod::Ach; supported_payment_methods declaration is outdated"
+      }
+    ]
+  },
+  {
+    "connector": "paypal",
+    "verdicts": [
+      {
+        "pm": "ApplePay",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "Explicit Ok arm with full build_paypal_apple_pay_source implementation in both OrderAuthorize and PaypalPaymentsRequest transformers"
+      }
+    ]
+  },
+  {
+    "connector": "redsys",
+    "verdicts": [
+      {
+        "pm": "Card",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "Transformer has explicit Ok arm extracting card_number, cvv, expiry_date; Authorize flow uses card_data directly; Redsys upstream API supports card payments"
+      }
+    ]
+  },
+  {
+    "connector": "stripe",
+    "verdicts": [
+      {
+        "pm": "GooglePayDecrypted",
+        "status": "NotImplemented",
+        "confidence": "high",
+        "reason": "Transformer expects encrypted token only; decrypted variant not handled"
+      }
+    ]
+  },
+  {
+    "connector": "truelayer",
+    "verdicts": [
+      {
+        "pm": "OpenBanking",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "Explicit Ok code path in Authorize transformer (BankRedirect::OpenBanking match arm)"
+      }
+    ]
+  },
+  {
+    "connector": "trustly",
+    "verdicts": [
+      {
+        "pm": "Trustly",
+        "status": "Supported",
+        "confidence": "high",
+        "reason": "Explicit Ok arm in BankRedirect(Trustly) transformer at line 274 of transformers.rs"
+      }
+    ]
+  }
+]

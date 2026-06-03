@@ -201,13 +201,13 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Payment Method | Supported |
 |----------------|:---------:|
 | Card | ✓ |
-| Bancontact | ⚠ |
-| Apple Pay | ? |
+| Bancontact | x |
+| Apple Pay | ✓ |
 | Apple Pay Dec | ✓ |
-| Apple Pay SDK | x |
-| Google Pay | ⚠ |
+| Apple Pay SDK | ✓ |
+| Google Pay | ✓ |
 | Google Pay Dec | ✓ |
-| Google Pay SDK | x |
+| Google Pay SDK | ✓ |
 | PayPal SDK | ✓ |
 | Amazon Pay | x |
 | Cash App | x |
@@ -253,7 +253,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Giropay | ✓ |
 | EPS | ✓ |
 | Przelewy24 | ⚠ |
-| PSE | ⚠ |
+| PSE | x |
 | BLIK | ⚠ |
 | Interac | ⚠ |
 | Bizum | ⚠ |
@@ -276,9 +276,9 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Mandiri VA | ⚠ |
 | Local | ⚠ |
 | Indonesian | ⚠ |
-| ACH | x |
+| ACH | ⚠ |
 | SEPA | x |
-| BACS | x |
+| BACS | ⚠ |
 | BECS | x |
 | SEPA Guaranteed | x |
 | Crypto | x |

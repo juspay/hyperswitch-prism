@@ -199,7 +199,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Apple Pay SDK | ⚠ |
 | Google Pay | ✓ |
 | Google Pay Dec | ✓ |
-| Google Pay SDK | ⚠ |
+| Google Pay SDK | ✓ |
 | PayPal SDK | ⚠ |
 | Amazon Pay | ⚠ |
 | Cash App | ⚠ |
@@ -251,7 +251,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Bizum | ⚠ |
 | EFT | ⚠ |
 | DuitNow | x |
-| ACH | ⚠ |
+| ACH | ✓ |
 | SEPA | ⚠ |
 | BACS | ⚠ |
 | Multibanco | ⚠ |
@@ -270,7 +270,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Indonesian | ⚠ |
 | ACH | ✓ |
 | SEPA | x |
-| BACS | x |
+| BACS | ⚠ |
 | BECS | x |
 | SEPA Guaranteed | x |
 | Crypto | x |

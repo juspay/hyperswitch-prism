@@ -199,13 +199,13 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 |----------------|:---------:|
 | Card | ✓ |
 | Bancontact | x |
-| Apple Pay | ? |
-| Apple Pay Dec | ? |
-| Apple Pay SDK | x |
+| Apple Pay | ✓ |
+| Apple Pay Dec | ✓ |
+| Apple Pay SDK | ✓ |
 | Google Pay | ✓ |
 | Google Pay Dec | ✓ |
-| Google Pay SDK | x |
-| PayPal SDK | x |
+| Google Pay SDK | ✓ |
+| PayPal SDK | ✓ |
 | Amazon Pay | x |
 | Cash App | x |
 | PayPal | ✓ |

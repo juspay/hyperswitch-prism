@@ -190,7 +190,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Local | x |
 | iDEAL | ✓ |
 | Sofort | x |
-| Trustly | ? |
+| Trustly | ✓ |
 | Giropay | x |
 | EPS | x |
 | Przelewy24 | x |

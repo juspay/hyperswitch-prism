@@ -185,18 +185,18 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 | Payment Method | Supported |
 |----------------|:---------:|
-| Card | ? |
+| Card | ✓ |
 | Bancontact | x |
-| Apple Pay | x |
-| Apple Pay Dec | x |
+| Apple Pay | ✓ |
+| Apple Pay Dec | ✓ |
 | Apple Pay SDK | ✓ |
-| Google Pay | x |
-| Google Pay Dec | x |
+| Google Pay | ✓ |
+| Google Pay Dec | ✓ |
 | Google Pay SDK | ✓ |
 | PayPal SDK | ✓ |
 | Amazon Pay | x |
 | Cash App | x |
-| PayPal | x |
+| PayPal | ✓ |
 | WeChat Pay | x |
 | Alipay | x |
 | Revolut Pay | x |

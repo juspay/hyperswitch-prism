@@ -271,9 +271,9 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Mandiri VA | ⚠ |
 | Local | ⚠ |
 | Indonesian | ⚠ |
-| ACH | x |
+| ACH | ⚠ |
 | SEPA | x |
-| BACS | x |
+| BACS | ⚠ |
 | BECS | x |
 | SEPA Guaranteed | x |
 | Crypto | x |

@@ -209,22 +209,22 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Bancontact | ✓ |
 | Apple Pay | ✓ |
 | Apple Pay Dec | ✓ |
-| Apple Pay SDK | ⚠ |
+| Apple Pay SDK | ✓ |
 | Google Pay | ✓ |
 | Google Pay Dec | ✓ |
-| Google Pay SDK | ⚠ |
-| PayPal SDK | ⚠ |
+| Google Pay SDK | ✓ |
+| PayPal SDK | ✓ |
 | Amazon Pay | ⚠ |
 | Cash App | ⚠ |
 | PayPal | ✓ |
-| WeChat Pay | ⚠ |
+| WeChat Pay | ✓ |
 | Alipay | ✓ |
 | Revolut Pay | ⚠ |
 | MiFinity | ⚠ |
 | Bluecode | ⚠ |
 | Paze | x |
 | Samsung Pay | ⚠ |
-| MB Way | ⚠ |
+| MB Way | ✓ |
 | Satispay | ⚠ |
 | Wero | ⚠ |
 | GoPay | ✓ |
@@ -264,9 +264,9 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Bizum | ✓ |
 | EFT | ⚠ |
 | DuitNow | x |
-| ACH | ⚠ |
+| ACH | ✓ |
 | SEPA | ⚠ |
-| BACS | ⚠ |
+| BACS | ✓ |
 | Multibanco | ⚠ |
 | Instant | ⚠ |
 | Instant FI | ⚠ |
