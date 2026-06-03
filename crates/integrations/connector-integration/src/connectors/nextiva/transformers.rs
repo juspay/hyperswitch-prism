@@ -85,6 +85,19 @@ pub enum TsapiAction {
     GetTransactionStatus,
 }
 
+/// PayConex QSAPI `payment_type` — the source/nature of the transaction.
+#[derive(Debug, Clone, Serialize)]
+pub enum PaymentType {
+    #[serde(rename = "ECOMMERCE")]
+    Ecommerce,
+    #[serde(rename = "INSTALLMENT")]
+    Installment,
+    #[serde(rename = "RECURRING")]
+    Recurring,
+    #[serde(rename = "MOTO")]
+    Moto,
+}
+
 // =============================================================================
 // FLEXIBLE BOOLEAN — PayConex returns "1"/"0"/true/false/null for booleans
 // =============================================================================
@@ -121,6 +134,7 @@ pub struct NextivaPaymentsRequest<T: PaymentMethodDataTypes + Serialize + Debug>
     pub api_accesskey: Secret<String>,
     pub tender_type: TenderType,
     pub transaction_type: TransactionType,
+    pub payment_type: PaymentType,
     pub transaction_amount: StringMajorUnit,
     pub card_number: RawCardNumber<T>,
     pub card_expiration: Secret<String>,
@@ -177,6 +191,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             TransactionType::Authorization
         };
 
+        // Off-session (merchant-initiated) card payments are recurring; everything
+        // else is a customer-present e-commerce transaction. MOTO / INSTALLMENT
+        // have no corresponding UCS signal, so they are not inferred here.
+        let payment_type = if request.off_session.unwrap_or(false) {
+            PaymentType::Recurring
+        } else {
+            PaymentType::Ecommerce
+        };
+
         let transaction_amount = item
             .connector
             .amount_converter
@@ -191,6 +214,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 api_accesskey: auth.api_accesskey,
                 tender_type: TenderType::Card,
                 transaction_type,
+                payment_type,
                 transaction_amount,
                 card_number: card.card_number.clone(),
                 card_expiration: card
