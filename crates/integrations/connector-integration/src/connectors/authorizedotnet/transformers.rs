@@ -3628,7 +3628,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetSdkSessionTokenResponse {
-    pub public_client_key: Option<String>,
+    pub public_client_key: Option<Secret<String>>,
     pub merchant_name: Option<String>,
     pub gateway_id: Option<String>,
     pub messages: ResponseMessages,
@@ -3679,16 +3679,17 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetSdkSessionTokenResponse, Self>>
             });
         }
 
-        let session_token = response.public_client_key.clone().ok_or_else(|| {
+        let session_token = response.public_client_key.clone().expose_option().ok_or_else(|| {
             ResponseError::from(ConnectorError::response_handling_failed_with_context(
                 item.http_code,
                 Some("publicClientKey missing in Authorize.Net response".to_string()),
             ))
         })?;
 
+        // This flow only issues a session token; no payment has been authorized yet, so the
+        // attempt status is left unchanged (it is not Pending).
         Ok(Self {
             resource_common_data: PaymentFlowData {
-                status: AttemptStatus::Pending,
                 session_token: Some(session_token.clone()),
                 ..router_data.resource_common_data.clone()
             },
