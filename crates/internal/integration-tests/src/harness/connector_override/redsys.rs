@@ -67,6 +67,7 @@ fn redsys_short_reference_id() -> String {
 }
 
 #[cfg(test)]
+#[allow(clippy::indexing_slicing)]
 mod tests {
     use super::*;
     use serde_json::json;
