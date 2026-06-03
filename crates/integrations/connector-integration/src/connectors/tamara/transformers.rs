@@ -110,10 +110,10 @@ impl From<TamaraRefundStatus> for RefundStatus {
             TamaraRefundStatus::FullyRefunded | TamaraRefundStatus::PartiallyRefunded => {
                 Self::Success
             }
-            TamaraRefundStatus::PartiallyCaptured | TamaraRefundStatus::FullyCaptured => {
-                Self::Pending
-            }
-            TamaraRefundStatus::Approved | TamaraRefundStatus::Authorised => Self::Pending,
+            TamaraRefundStatus::PartiallyCaptured
+            | TamaraRefundStatus::FullyCaptured
+            | TamaraRefundStatus::Approved
+            | TamaraRefundStatus::Authorised => Self::Pending,
             TamaraRefundStatus::Declined
             | TamaraRefundStatus::Expired
             | TamaraRefundStatus::Canceled
@@ -715,11 +715,9 @@ impl From<TamaraWebhookEvent> for AttemptStatus {
             TamaraWebhookEvent::OrderApproved | TamaraWebhookEvent::OrderAuthorised => {
                 Self::Authorized
             }
-            TamaraWebhookEvent::OrderCaptured => Self::Charged,
+            TamaraWebhookEvent::OrderCaptured | TamaraWebhookEvent::OrderRefunded => Self::Charged,
             TamaraWebhookEvent::OrderCanceled => Self::Voided,
-            TamaraWebhookEvent::OrderUpdated
-            | TamaraWebhookEvent::OrderRefunded
-            | TamaraWebhookEvent::Unknown => Self::Pending,
+            TamaraWebhookEvent::OrderUpdated | TamaraWebhookEvent::Unknown => Self::Pending,
         }
     }
 }
@@ -753,5 +751,5 @@ pub struct TamaraWebhookResourceObject {
     pub order_id: String,
     pub order_reference_id: Option<String>,
     pub order_number: Option<String>,
-    pub event_type: String,
+    pub event_type: TamaraWebhookEvent,
 }
