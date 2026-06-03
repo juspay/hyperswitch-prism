@@ -499,7 +499,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             payer: Payer {
                 name,
                 email,
-                document: router_data.request.get_customer_document_details()?.document_number,
+                document: router_data
+                    .request
+                    .get_customer_document_details()?
+                    .document_number,
             },
             card: DlocalRepeatPaymentCard {
                 card_id: Secret::new(card_id),
@@ -612,7 +615,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 payer: Payer {
                     name,
                     email,
-                    document: router_data.request.get_customer_document_details()?.document_number,
+                    document: router_data
+                        .request
+                        .get_customer_document_details()?
+                        .document_number,
                 },
                 card: Card {
                     holder_name: ccard.card_holder_name.clone(),
