@@ -1237,7 +1237,8 @@ impl
     ) -> Result<Self, Self::Error> {
         let request_data = &item.router_data.request;
 
-        // Razorpay receipt is capped at 40 characters.
+        // Razorpay rejects orders whose `receipt` exceeds 40 characters, so the
+        // connector request reference id is truncated to stay within that limit.
         let receipt = {
             let reference = item
                 .router_data
@@ -1255,22 +1256,15 @@ impl
             amount: item.amount,
             currency: request_data.currency.to_string(),
             receipt,
+            // 1 = auto-capture; Razorpay captures the payment automatically once authorized
+            // (required for the standard checkout / SDK session flow).
             payment_capture: Some(1),
         })
     }
 }
 
 impl
-    ForeignTryFrom<(
-        RazorpayOrderResponse,
-        RouterDataV2<
-            ServerSessionAuthenticationToken,
-            PaymentFlowData,
-            ServerSessionAuthenticationTokenRequestData,
-            ServerSessionAuthenticationTokenResponseData,
-        >,
-        u16,
-    )>
+    ForeignTryFrom<(RazorpayOrderResponse, Self, u16)>
     for RouterDataV2<
         ServerSessionAuthenticationToken,
         PaymentFlowData,
@@ -1281,16 +1275,7 @@ impl
     type Error = IntegrationError;
 
     fn foreign_try_from(
-        (response, data, _status_code): (
-            RazorpayOrderResponse,
-            RouterDataV2<
-                ServerSessionAuthenticationToken,
-                PaymentFlowData,
-                ServerSessionAuthenticationTokenRequestData,
-                ServerSessionAuthenticationTokenResponseData,
-            >,
-            u16,
-        ),
+        (response, data, _status_code): (RazorpayOrderResponse, Self, u16),
     ) -> Result<Self, Self::Error> {
         // The order_id returned by Razorpay is the SDK session token.
         let session_token = response.id.clone();
