@@ -288,6 +288,48 @@ pub enum PaymentMethodData<T: PaymentMethodDataTypes> {
 }
 
 impl<T: PaymentMethodDataTypes> PaymentMethodData<T> {
+    /// Coarse `PaymentMethod` family for this payment method data.
+    ///
+    /// Used by the connector-side capability gate
+    /// (`ConnectorValidation::validate_pm_against_declaration`) so the
+    /// validator can look up `SupportedPaymentMethods[PaymentMethod]`
+    /// without re-deriving the family at each call site.
+    ///
+    /// `MandatePayment`, `PaymentMethodToken`, `NetworkToken`, and the
+    /// network-transaction-id variants are stand-ins for an already-chosen
+    /// underlying PM — they don't map to a single family on their own, so
+    /// we return `None` and let the validator skip the check for those
+    /// flows.
+    pub fn payment_method_family(&self) -> Option<common_enums::PaymentMethod> {
+        use common_enums::PaymentMethod::{
+            BankDebit, BankRedirect, BankTransfer, Card, CardRedirect, Crypto, GiftCard,
+            MobilePayment, OpenBanking, PayLater, RealTimePayment, Reward, Upi, Voucher, Wallet,
+        };
+        match self {
+            Self::Card(_) | Self::CardDetailsForNetworkTransactionId(_) => Some(Card),
+            Self::CardRedirect(_) => Some(CardRedirect),
+            Self::Wallet(_) => Some(Wallet),
+            Self::PayLater(_) => Some(PayLater),
+            Self::BankRedirect(_) => Some(BankRedirect),
+            Self::BankDebit(_) => Some(BankDebit),
+            Self::BankTransfer(_) => Some(BankTransfer),
+            Self::Crypto(_) => Some(Crypto),
+            Self::RealTimePayment(_) => Some(RealTimePayment),
+            Self::Upi(_) => Some(Upi),
+            Self::Voucher(_) => Some(Voucher),
+            Self::GiftCard(_) => Some(GiftCard),
+            Self::OpenBanking(_) => Some(OpenBanking),
+            Self::MobilePayment(_) => Some(MobilePayment),
+            Self::Reward => Some(Reward),
+            // The remaining variants identify a previously-tokenised PM,
+            // not a fresh family. Skip the gate.
+            Self::MandatePayment
+            | Self::PaymentMethodToken(_)
+            | Self::NetworkToken(_)
+            | Self::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => None,
+        }
+    }
+
     /// Extracts the UpiSource from UPI payment method data
     /// Returns None if the payment method is not UPI or if upi_source is not set
     pub fn get_upi_source(&self) -> Option<&UpiSource> {

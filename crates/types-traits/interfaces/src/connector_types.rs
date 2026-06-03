@@ -40,7 +40,7 @@ use domain_types::{
         SurchargePaymentSucceededRequest, SurchargePaymentSucceededResponse,
         SurchargeRefundSucceededRequest, SurchargeRefundSucceededResponse,
     },
-    types::{PaymentMethodDataType, PaymentMethodDetails, SupportedPaymentMethods},
+    types::{FeatureStatus, PaymentMethodDataType, PaymentMethodDetails, SupportedPaymentMethods},
 };
 use error_stack::ResultExt;
 use serde_json::Value;
@@ -82,6 +82,11 @@ pub enum RedirectState {
 
 pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     ConnectorCommon
+    // Mandatory: every connector must declare its payment-method support
+    // (returning EMPTY_SUPPORTED_PAYMENT_METHODS is permitted but explicit).
+    // This is what makes `docs-generated/all_connector.md` truthful by
+    // construction — the `?` icon is no longer reachable.
+    + ConnectorSpecifications
     + ValidationTrait
     + PaymentAuthorizeV2<T>
     + PaymentSyncV2
@@ -579,6 +584,86 @@ pub trait VerifyRedirectResponse: SourceVerification + BodyDecoding {
     }
 }
 
+/// Gate an incoming payment-method against a connector's static
+/// `SupportedPaymentMethods` declaration.
+///
+/// **Free function** (not a trait method) so the FFI request macro can
+/// call it generically against any `dyn ConnectorServiceTrait<T>` without
+/// requiring the connector to also implement `ConnectorValidation`. The
+/// macro fishes out the map via `ConnectorSpecifications` (a supertrait
+/// of `ConnectorServiceTrait`) and the id via `ConnectorCommon`.
+///
+/// Returns:
+///   - `Ok(())`                                — declared `Supported`, or
+///                                                empty-map rollout fallback.
+///   - `Err(NotSupported{pm/pmt, connector})`  — PM family absent, PMType
+///                                                absent, or declared
+///                                                `NotSupported`. Caller
+///                                                sees the familiar
+///                                                "{x} is not supported by {connector}"
+///                                                message — same shape as
+///                                                upstream Hyperswitch.
+///   - `Err(NotImplemented(…))`                — declared `NotImplemented`
+///                                                (third-state distinction
+///                                                the parent Hyperswitch
+///                                                cannot express).
+///
+/// **Do not duplicate this logic inside individual transformers.**
+pub fn validate_pm_against_declaration(
+    supported: &SupportedPaymentMethods,
+    connector: &'static str,
+    payment_method: PaymentMethod,
+    payment_method_type: Option<PaymentMethodType>,
+) -> CustomResult<(), domain_types::errors::IntegrationError> {
+    if supported.is_empty() {
+        // Stub connector: keep it permissive during the backfill rollout.
+        // Once every connector's map is populated, flip this to a hard
+        // reject (and grep for connectors still returning
+        // EMPTY_SUPPORTED_PAYMENT_METHODS).
+        return Ok(());
+    }
+
+    let pmt_map = supported.get(&payment_method).ok_or_else(|| {
+        domain_types::errors::IntegrationError::NotSupported {
+            message: payment_method.to_string(),
+            connector,
+            context: Default::default(),
+        }
+    })?;
+
+    let Some(pmt) = payment_method_type else {
+        // PM family declared and caller didn't narrow to a PMType — let it through.
+        return Ok(());
+    };
+
+    match pmt_map.get(&pmt) {
+        None => Err(domain_types::errors::IntegrationError::NotSupported {
+            message: format!("{payment_method} {pmt}"),
+            connector,
+            context: Default::default(),
+        }
+        .into()),
+        Some(details) => match details.status {
+            FeatureStatus::Supported => Ok(()),
+            FeatureStatus::NotSupported => {
+                Err(domain_types::errors::IntegrationError::NotSupported {
+                    message: format!("{payment_method} {pmt}"),
+                    connector,
+                    context: Default::default(),
+                }
+                .into())
+            }
+            FeatureStatus::NotImplemented => Err(
+                domain_types::errors::IntegrationError::NotImplemented(
+                    format!("{payment_method} {pmt} via {connector}"),
+                    Default::default(),
+                )
+                .into(),
+            ),
+        },
+    }
+}
+
 /// trait ConnectorValidation
 pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
     /// Validate, the payment request against the connector supported features
@@ -588,26 +673,38 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
         payment_method: PaymentMethod,
         pmt: Option<PaymentMethodType>,
     ) -> CustomResult<(), domain_types::errors::IntegrationError> {
+        // First gate on PM-presence + status. This is the strict check; if
+        // the PM isn't declared we never reach the capture-method test.
+        validate_pm_against_declaration(
+            self.get_supported_payment_methods(),
+            self.id(),
+            payment_method,
+            pmt,
+        )?;
+
         let capture_method = capture_method.unwrap_or_default();
         let is_default_capture_method = [CaptureMethod::Automatic].contains(&capture_method);
-        let is_feature_supported = match self.get_supported_payment_methods() {
-            Some(supported_payment_methods) => {
-                let connector_payment_method_type_info = get_connector_payment_method_type_info(
-                    supported_payment_methods,
-                    payment_method,
-                    pmt,
-                    self.id(),
-                )?;
+        let supported_payment_methods = self.get_supported_payment_methods();
+        let is_feature_supported = if supported_payment_methods.is_empty() {
+            // Empty declaration ≡ pre-Change-2 `None`: fall back to the
+            // historical "Automatic is always fine" default so newly-stubbed
+            // connectors don't start rejecting requests they used to accept.
+            is_default_capture_method
+        } else {
+            let connector_payment_method_type_info = get_connector_payment_method_type_info(
+                supported_payment_methods,
+                payment_method,
+                pmt,
+                self.id(),
+            )?;
 
-                connector_payment_method_type_info
-                    .map(|payment_method_type_info| {
-                        payment_method_type_info
-                            .supported_capture_methods
-                            .contains(&capture_method)
-                    })
-                    .unwrap_or(true)
-            }
-            None => is_default_capture_method,
+            connector_payment_method_type_info
+                .map(|payment_method_type_info| {
+                    payment_method_type_info
+                        .supported_capture_methods
+                        .contains(&capture_method)
+                })
+                .unwrap_or(true)
         };
 
         if is_feature_supported {
@@ -668,6 +765,122 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
         false
     }
 }
+
+/// Bridge between a flow's request-data type and the
+/// `ConnectorValidation::validate_pm_against_declaration` gate.
+///
+/// Implementors return `Some((pm, Some(pmt)))` when the flow carries a
+/// fresh payment-method choice (Authorize, SetupMandate, RepeatPayment,
+/// Tokenize, …) and `None` for flows that operate against an
+/// already-authorized payment (Capture, Void, PSync, Refund-sync,
+/// dispute flows). The default method body returns `None` — most
+/// implementors only need the empty `impl RequestHasPaymentMethod for X {}`
+/// to opt in; the four PM-carrying types override the method below.
+///
+/// Lives in `interfaces` so the `req_transformer!` macro can call it
+/// generically over `$request_data_type`.
+pub trait RequestHasPaymentMethod {
+    fn extract_pm_for_validation(
+        &self,
+    ) -> Option<(PaymentMethod, Option<PaymentMethodType>)> {
+        None
+    }
+}
+
+// ── PM-carrying request data types (real overrides) ─────────────────────────
+impl<T: domain_types::payment_method_data::PaymentMethodDataTypes>
+    RequestHasPaymentMethod for domain_types::connector_types::PaymentsAuthorizeData<T>
+{
+    fn extract_pm_for_validation(
+        &self,
+    ) -> Option<(PaymentMethod, Option<PaymentMethodType>)> {
+        self.payment_method_data
+            .payment_method_family()
+            .map(|pm| (pm, self.payment_method_type))
+    }
+}
+
+impl<T: domain_types::payment_method_data::PaymentMethodDataTypes>
+    RequestHasPaymentMethod for domain_types::connector_types::SetupMandateRequestData<T>
+{
+    fn extract_pm_for_validation(
+        &self,
+    ) -> Option<(PaymentMethod, Option<PaymentMethodType>)> {
+        self.payment_method_data
+            .payment_method_family()
+            .map(|pm| (pm, self.payment_method_type))
+    }
+}
+
+impl<T: domain_types::payment_method_data::PaymentMethodDataTypes>
+    RequestHasPaymentMethod for domain_types::connector_types::RepeatPaymentData<T>
+{
+    fn extract_pm_for_validation(
+        &self,
+    ) -> Option<(PaymentMethod, Option<PaymentMethodType>)> {
+        self.payment_method_data
+            .payment_method_family()
+            .map(|pm| (pm, self.payment_method_type))
+    }
+}
+
+impl<T: domain_types::payment_method_data::PaymentMethodDataTypes>
+    RequestHasPaymentMethod for domain_types::connector_types::PaymentMethodTokenizationData<T>
+{
+    fn extract_pm_for_validation(
+        &self,
+    ) -> Option<(PaymentMethod, Option<PaymentMethodType>)> {
+        self.payment_method_data
+            .payment_method_family()
+            .map(|pm| (pm, None))
+    }
+}
+
+// ── Other request data types (default no-op) ────────────────────────────────
+// Every type that the `req_transformer!` macro is parameterized over must
+// satisfy `RequestHasPaymentMethod`. For the dozen types that don't carry
+// a fresh PM choice, the default `None` body is correct — these impls just
+// register the trait.
+impl RequestHasPaymentMethod for domain_types::connector_types::AcceptDisputeData {}
+impl RequestHasPaymentMethod
+    for domain_types::connector_types::ClientAuthenticationTokenRequestData
+{
+}
+impl RequestHasPaymentMethod for domain_types::connector_types::ConnectorCustomerData {}
+impl RequestHasPaymentMethod for domain_types::connector_types::DisputeDefendData {}
+impl RequestHasPaymentMethod for domain_types::connector_types::MandateRevokeRequestData {}
+impl RequestHasPaymentMethod for domain_types::connector_types::PaymentCreateOrderData {}
+impl RequestHasPaymentMethod for domain_types::connector_types::PaymentVoidData {}
+impl<T: domain_types::payment_method_data::PaymentMethodDataTypes> RequestHasPaymentMethod
+    for domain_types::connector_types::PaymentsAuthenticateData<T>
+{
+}
+impl RequestHasPaymentMethod for domain_types::connector_types::PaymentsCancelPostCaptureData {}
+impl RequestHasPaymentMethod for domain_types::connector_types::PaymentsCaptureData {}
+impl RequestHasPaymentMethod
+    for domain_types::connector_types::PaymentsIncrementalAuthorizationData
+{
+}
+impl<T: domain_types::payment_method_data::PaymentMethodDataTypes> RequestHasPaymentMethod
+    for domain_types::connector_types::PaymentsPostAuthenticateData<T>
+{
+}
+impl<T: domain_types::payment_method_data::PaymentMethodDataTypes> RequestHasPaymentMethod
+    for domain_types::connector_types::PaymentsPreAuthenticateData<T>
+{
+}
+impl RequestHasPaymentMethod for domain_types::connector_types::PaymentsSyncData {}
+impl RequestHasPaymentMethod for domain_types::connector_types::RefundSyncData {}
+impl RequestHasPaymentMethod for domain_types::connector_types::RefundsData {}
+impl RequestHasPaymentMethod
+    for domain_types::connector_types::ServerAuthenticationTokenRequestData
+{
+}
+impl RequestHasPaymentMethod
+    for domain_types::connector_types::ServerSessionAuthenticationTokenRequestData
+{
+}
+impl RequestHasPaymentMethod for domain_types::connector_types::SubmitEvidenceData {}
 
 fn get_connector_payment_method_type_info(
     supported_payment_method: &SupportedPaymentMethods,

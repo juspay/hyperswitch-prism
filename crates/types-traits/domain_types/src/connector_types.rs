@@ -3153,19 +3153,32 @@ pub struct SubmitEvidenceData {
     pub uncategorized_text: Option<String>,
 }
 
-/// The trait that provides specifications about the connector
+/// The trait that provides specifications about the connector.
+///
+/// This trait is **mandatory** for every connector — it is a supertrait of
+/// `ConnectorServiceTrait`, so the compiler will refuse to build a connector
+/// that hasn't declared its payment-method support. That guarantee is what
+/// makes the coverage matrix in `docs-generated/all_connector.md` correct by
+/// construction: every cell maps to a definite status, the `?` icon is no
+/// longer possible.
+///
+/// For connectors with nothing to declare yet, return
+/// [`EMPTY_SUPPORTED_PAYMENT_METHODS`] from `get_supported_payment_methods` —
+/// the matrix renders that connector's row as all `x` (NotSupported by
+/// absence), which is honest.
 pub trait ConnectorSpecifications {
-    /// Details related to payment method supported by the connector
-    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        None
-    }
+    /// Required. Returns the connector's declared payment-method support map.
+    /// Each `PaymentMethodDetails` in the map carries an explicit
+    /// `FeatureStatus` for `(PM, PMType)` — Supported / NotImplemented /
+    /// NotSupported. PMs absent from the map are treated as NotSupported.
+    fn get_supported_payment_methods(&self) -> &'static SupportedPaymentMethods;
 
-    /// Supported webhooks flows
+    /// Supported webhooks flows. Optional — informational only.
     fn get_supported_webhook_flows(&self) -> Option<&'static [EventClass]> {
         None
     }
 
-    /// About the connector
+    /// About the connector. Optional — informational only.
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         None
     }
@@ -3204,6 +3217,76 @@ macro_rules! payment_method_not_supported {
         }
         .into())
     };
+}
+
+/// Build a [`SupportedPaymentMethods`] map from a compact list of
+/// `(PaymentMethod, PaymentMethodType)` pairs grouped by status.
+///
+/// Crushes the verbose `.entry(...).or_default().insert(...)` boilerplate
+/// (10 lines per entry) down to a single line. Each entry uses
+/// conservative defaults: `mandates = NotImplemented`,
+/// `refunds = NotImplemented`, `supported_capture_methods = [Automatic]`,
+/// `specific_features = None`.
+///
+/// For entries that need non-default fields (richer
+/// `CardSpecificFeatures`, additional capture methods, supported
+/// mandates/refunds), the connector source can override after the macro
+/// call by doing an explicit `m.entry(...).or_default().insert(...)`
+/// — the bulk shape from this macro plus per-entry overrides composes
+/// cleanly.
+///
+/// # Example
+///
+/// ```ignore
+/// static STRIPE_SUPPORTED_PAYMENT_METHODS:
+///     std::sync::LazyLock<domain_types::types::SupportedPaymentMethods>
+///         = std::sync::LazyLock::new(|| domain_types::build_supported_pms! {
+///     Supported => [
+///         (Card, Card),
+///         (Wallet, ApplePay),
+///         (BankDebit, Ach),
+///     ],
+///     NotImplemented => [
+///         (Wallet, AliPay),
+///         (PayLater, Klarna),
+///     ],
+/// });
+/// ```
+///
+/// The macro emits fully-qualified paths so connector source files don't
+/// need extra `use` imports. The `(PM, PMType)` identifiers are pasted
+/// directly into `PaymentMethod::$pm` / `PaymentMethodType::$pmt`, so
+/// typos produce normal compile errors.
+#[macro_export]
+macro_rules! build_supported_pms {
+    (
+        $(
+            $status:ident => [
+                $( ( $pm:ident, $pmt:ident ) ),* $(,)?
+            ]
+        ),* $(,)?
+    ) => {{
+        let mut m = $crate::types::SupportedPaymentMethods::new();
+        $(
+            $(
+                m.entry(common_enums::enums::PaymentMethod::$pm)
+                    .or_default()
+                    .insert(
+                        common_enums::enums::PaymentMethodType::$pmt,
+                        $crate::types::PaymentMethodDetails {
+                            status: $crate::types::FeatureStatus::$status,
+                            mandates: $crate::types::FeatureStatus::NotImplemented,
+                            refunds: $crate::types::FeatureStatus::NotImplemented,
+                            supported_capture_methods: vec![
+                                common_enums::enums::CaptureMethod::Automatic,
+                            ],
+                            specific_features: None,
+                        },
+                    );
+            )*
+        )*
+        m
+    }};
 }
 
 impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodDataType {

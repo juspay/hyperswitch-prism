@@ -99,6 +99,34 @@ macro_rules! req_transformer {
                     common_utils::errors::ErrorSwitch::switch(e.current_context())
                 })?;
 
+            // Capability gate: if this request type carries a fresh
+            // payment-method choice (Authorize / SetupMandate / RepeatPayment
+            // / Tokenize), make sure the connector's static
+            // `SupportedPaymentMethods` declaration covers it before we let
+            // the transformer touch it. Other flows opt out via
+            // RequestHasPaymentMethod's default `None`, so the call is a
+            // no-op for Capture / Void / PSync / etc.
+            //
+            // Probe bypass: `field-probe` sets `UCS_BYPASS_CAPABILITY_GATE`
+            // at startup so it can drive each PM through the transformer
+            // and discover real behaviour (drift signal). Production gRPC
+            // servers and SDK callers never set this var — the gate stays
+            // armed everywhere it should be. See `field-probe/src/main.rs`.
+            if std::env::var_os("UCS_BYPASS_CAPABILITY_GATE").is_none() {
+                use interfaces::connector_types::RequestHasPaymentMethod as _;
+                if let Some((pm, pmt)) = payment_request_data.extract_pm_for_validation() {
+                    interfaces::connector_types::validate_pm_against_declaration(
+                        connector_data.connector.get_supported_payment_methods(),
+                        connector_data.connector.id(),
+                        pm,
+                        pmt,
+                    )
+                    .map_err(|e: error_stack::Report<domain_types::errors::IntegrationError>| {
+                        common_utils::errors::ErrorSwitch::switch(e.current_context())
+                    })?;
+                }
+            }
+
             let router_data = domain_types::router_data_v2::RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: flow_data,

@@ -10087,8 +10087,16 @@ pub enum PaymentMethodSpecificFeatures {
     Card(CardSpecificFeatures),
 }
 /// Represents details of a payment method.
-#[derive(Debug, Clone)]
+///
+/// The `status` field is the load-bearing one for the connector coverage
+/// matrix (`docs-generated/all_connector.md`): it directly drives the
+/// per-cell icon. The other fields enrich a `Supported` entry with
+/// mandate / refund / capture metadata.
+#[derive(Debug, Clone, Serialize)]
 pub struct PaymentMethodDetails {
+    /// Overall implementation state for this `(PaymentMethod, PaymentMethodType)`
+    /// on this connector. See [`FeatureStatus`] for the semantics.
+    pub status: FeatureStatus,
     /// Indicates whether mandates are supported by this payment method.
     pub mandates: FeatureStatus,
     /// Indicates whether refund is supported by this payment method.
@@ -10098,7 +10106,21 @@ pub struct PaymentMethodDetails {
     /// Payment method specific features
     pub specific_features: Option<PaymentMethodSpecificFeatures>,
 }
-/// The status of the feature
+/// The status of the feature.
+///
+/// Three-state model used by `PaymentMethodDetails::status` and the
+/// per-feature flags below:
+///
+/// - `Supported`      — working code path / connector accepts the feature.
+/// - `NotImplemented` — connector's upstream API accepts it, but UCS has not
+///                      yet written the transformer arm. Surfaces as `⚠` in
+///                      the coverage matrix; the explicit TODO bucket.
+/// - `NotSupported`   — connector's upstream API does not accept it. Permanent.
+///                      For PMs entirely outside a connector's support, prefer
+///                      omitting the entry from `SupportedPaymentMethods` (the
+///                      matrix renders absence as `x`); use this variant only
+///                      when an explicit "considered and rejected" record is
+///                      useful.
 #[derive(
     Clone,
     Copy,
@@ -10114,12 +10136,21 @@ pub struct PaymentMethodDetails {
 #[serde(rename_all = "snake_case")]
 pub enum FeatureStatus {
     NotSupported,
+    NotImplemented,
     Supported,
 }
 pub type PaymentMethodTypeMetadata = HashMap<PaymentMethodType, PaymentMethodDetails>;
 pub type SupportedPaymentMethods = HashMap<PaymentMethod, PaymentMethodTypeMetadata>;
 
-#[derive(Debug, Clone)]
+/// Shared empty `SupportedPaymentMethods` for connectors that have not yet
+/// declared any PMs. Returning a reference to this static keeps the
+/// `ConnectorSpecifications::get_supported_payment_methods` signature
+/// `Option`-free while still letting brand-new connectors compile before
+/// real declarations land.
+pub static EMPTY_SUPPORTED_PAYMENT_METHODS: std::sync::LazyLock<SupportedPaymentMethods> =
+    std::sync::LazyLock::new(SupportedPaymentMethods::new);
+
+#[derive(Debug, Clone, Serialize)]
 pub struct ConnectorInfo {
     /// Display name of the Connector
     pub display_name: &'static str,
