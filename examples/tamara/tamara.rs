@@ -58,12 +58,12 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
 
 pub fn build_handle_event_request() -> EventServiceHandleRequest {
     EventServiceHandleRequest {
-        merchant_event_id: Some("probe_event_001".to_string()),  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        merchant_event_id: Some("probe_event_001".to_string()), // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
         request_details: Some(RequestDetails {
-            method: HttpMethod::HttpMethodPost.into(),  // HTTP method of the request (e.g., GET, POST).
-            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
-            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
-            body: "{\"order_id\":\"4fdb781f-5e13-4ae2-9dc6-3ee49e3878a3\",\"order_reference_id\":\"4464602579098\",\"order_number\":\"90001860\",\"event_type\":\"order_approved\",\"data\":[]}".to_string(),  // Body of the HTTP request.
+            method: HttpMethod::HttpMethodPost.into(), // HTTP method of the request (e.g., GET, POST).
+            uri: Some("https://example.com/webhook".to_string()), // URI of the request.
+            headers: [].into_iter().collect::<HashMap<_, _>>(), // Headers of the HTTP request.
+            body: "{}".to_string(),                    // Body of the HTTP request.
             ..Default::default()
         }),
         ..Default::default()
@@ -73,10 +73,10 @@ pub fn build_handle_event_request() -> EventServiceHandleRequest {
 pub fn build_parse_event_request() -> EventServiceParseRequest {
     EventServiceParseRequest {
         request_details: Some(RequestDetails {
-            method: HttpMethod::HttpMethodPost.into(),  // HTTP method of the request (e.g., GET, POST).
-            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
-            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
-            body: "{\"order_id\":\"4fdb781f-5e13-4ae2-9dc6-3ee49e3878a3\",\"order_reference_id\":\"4464602579098\",\"order_number\":\"90001860\",\"event_type\":\"order_approved\",\"data\":[]}".to_string(),  // Body of the HTTP request.
+            method: HttpMethod::HttpMethodPost.into(), // HTTP method of the request (e.g., GET, POST).
+            uri: Some("https://example.com/webhook".to_string()), // URI of the request.
+            headers: [].into_iter().collect::<HashMap<_, _>>(), // Headers of the HTTP request.
+            body: "{}".to_string(),                    // Body of the HTTP request.
             ..Default::default()
         }),
     }

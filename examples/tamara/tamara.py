@@ -53,7 +53,7 @@ def _build_parse_event_request():
             method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
             uri="https://example.com/webhook",  # URI of the request.
             headers=payment_pb2.HeadersEntry(),  # Headers of the HTTP request.
-            body="{\"order_id\":\"4fdb781f-5e13-4ae2-9dc6-3ee49e3878a3\",\"order_reference_id\":\"4464602579098\",\"order_number\":\"90001860\",\"event_type\":\"order_approved\",\"data\":[]}",  # Body of the HTTP request.
+            body="{}",  # Body of the HTTP request.
         ),
     )
 
