@@ -170,6 +170,9 @@ pub use self::nexixpay::Nexixpay;
 pub mod mollie;
 pub use self::mollie::Mollie;
 
+pub mod przelewy24;
+pub use self::przelewy24::Przelewy24;
+
 pub mod airwallex;
 pub use self::airwallex::Airwallex;
 

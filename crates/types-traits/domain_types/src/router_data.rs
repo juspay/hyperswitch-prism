@@ -765,6 +765,12 @@ pub enum ConnectorSpecificConfig {
         merchant_id: Secret<String>,
         base_url: Option<String>,
     },
+    Przelewy24 {
+        api_key: Secret<String>,
+        merchant_id: Secret<String>,
+        crc: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -1088,6 +1094,11 @@ impl ConnectorSpecificConfig {
                 access_token,
                 office_id,
                 paco_kid
+            },
+            Przelewy24 {
+                api_key,
+                merchant_id,
+                crc
             },
         )
     }
@@ -1504,6 +1515,11 @@ impl ConnectorSpecificConfig {
                     access_token,
                     office_id,
                     paco_kid
+                },
+                Przelewy24 {
+                    api_key,
+                    merchant_id,
+                    crc
                 },
             ),
             serde_json::Value::Object(connector_patch),
@@ -3164,6 +3180,19 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
                 ConnectorEnum::TwocTwopPaco => Err(err().into()),
+                ConnectorEnum::Przelewy24 => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Przelewy24 {
+                        api_key: api_key.clone(),
+                        merchant_id: key1.clone(),
+                        crc: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
             },
             connector_types::ConnectorVariant::Surcharge(connector_enum) => match connector_enum {
                 SurchargeConnectorEnum::Interpayments => match auth {

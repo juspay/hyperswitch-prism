@@ -681,5 +681,11 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             merchant_id: m(),
             base_url: None,
         },
+        ConnectorEnum::Przelewy24 => ConnectorSpecificConfig::Przelewy24 {
+            api_key: k(),
+            merchant_id: m(),
+            crc: s(),
+            base_url: None,
+        },
     }
 }

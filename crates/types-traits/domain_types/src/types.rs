@@ -396,6 +396,7 @@ pub struct Connectors {
     pub twoc_twop_paco: ConnectorParams,
     pub interpayments: ConnectorParams,
     pub juspay: ConnectorParams,
+    pub przelewy24: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -697,6 +698,9 @@ impl Connectors {
             }
             ConnectorEnum::TwocTwopPaco => {
                 patched.twoc_twop_paco.apply(params_patch);
+            }
+            ConnectorEnum::Przelewy24 => {
+                patched.przelewy24.apply(params_patch);
             }
             _ => {
                 // Connector not supported for URL patching - return error
@@ -11634,6 +11638,17 @@ ConnectorSpecificClientAuthenticationResponse::Cybersource(cybersource_data) => 
                         grpc_api_types::payments::RevolutClientAuthenticationResponse {
                             order_id: revolut_data.order_id,
                             token: Some(revolut_data.token),
+                        },
+                    ),
+                ),
+            }
+        }
+                ConnectorSpecificClientAuthenticationResponse::Przelewy24(przelewy24_data) => {
+            grpc_api_types::payments::ConnectorSpecificClientAuthenticationResponse {
+                connector: Some(
+                    grpc_api_types::payments::connector_specific_client_authentication_response::Connector::Przelewy24(
+                        grpc_api_types::payments::Przelewy24ClientAuthenticationResponse {
+                            token: Some(przelewy24_data.token),
                         },
                     ),
                 ),

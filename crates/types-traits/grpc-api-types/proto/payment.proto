@@ -764,6 +764,8 @@ enum Connector {
   EASEBUZZ = 120;
   TWOC_TWOP_PACO = 121;
   JUSPAY = 122;
+  // Suffixed to avoid a C++-scope name clash with PaymentMethodType.PRZELEWY24.
+  PRZELEWY24_CONNECTOR = 123;
 }
 
 // Payment method types
@@ -1633,6 +1635,7 @@ message ConnectorSpecificClientAuthenticationResponse {
     NexinetsClientAuthenticationResponse nexinets = 24;
     NexixpayClientAuthenticationResponse nexixpay = 25;
     RevolutClientAuthenticationResponse revolut = 26;
+    Przelewy24ClientAuthenticationResponse przelewy24 = 27;
   }
 }
 
@@ -1774,6 +1777,12 @@ message RevolutClientAuthenticationResponse {
   string order_id = 1;
   // The client authentication token for SDK initialization
   SecretString token = 2;
+}
+
+// Przelewy24 SDK initialization data — registration token for client-side redirect to the P24 hosted page
+message Przelewy24ClientAuthenticationResponse {
+  // The P24 transaction registration token used to build the trnRequest redirect / SDK init
+  SecretString token = 1;
 }
 
 // Stripe SDK initialization data — client_secret for stripe.confirmPayment()

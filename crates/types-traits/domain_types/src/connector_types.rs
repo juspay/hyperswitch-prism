@@ -145,6 +145,7 @@ pub enum ConnectorEnum {
     Axisbank,
     TwocTwopPaco,
     Juspay,
+    Przelewy24,
 }
 
 // snake case for enum variants
@@ -380,6 +381,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Axisbank => Ok(Self::Axisbank),
             grpc_api_types::payments::Connector::TwocTwopPaco => Ok(Self::TwocTwopPaco),
             grpc_api_types::payments::Connector::Juspay => Ok(Self::Juspay),
+            grpc_api_types::payments::Connector::Przelewy24Connector => Ok(Self::Przelewy24),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -3850,6 +3852,8 @@ pub enum ConnectorSpecificClientAuthenticationResponse {
     Nexixpay(NexixpayClientAuthenticationResponse),
     /// Revolut SDK initialization data — order_id and token for Revolut Pay widget initialization
     Revolut(RevolutClientAuthenticationResponse),
+    /// Przelewy24 SDK initialization data — registration token for client-side redirect to the P24 hosted page
+    Przelewy24(Przelewy24ClientAuthenticationResponse),
 }
 
 /// Stripe's client_secret for browser-side stripe.confirmPayment()
@@ -4056,6 +4060,13 @@ pub struct RevolutClientAuthenticationResponse {
     /// The order ID created on Revolut
     pub order_id: String,
     /// The client authentication token for SDK initialization
+    pub token: Secret<String>,
+}
+
+/// Przelewy24's transaction registration token for client-side redirect / SDK initialization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Przelewy24ClientAuthenticationResponse {
+    /// The P24 registration token used to build the trnRequest redirect / SDK init
     pub token: Secret<String>,
 }
 

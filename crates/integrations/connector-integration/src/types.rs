@@ -121,6 +121,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Axisbank => Box::new(connectors::Axisbank::new()),
             ConnectorEnum::TwocTwopPaco => Box::new(connectors::TwocTwopPaco::new()),
             ConnectorEnum::Juspay => Box::new(connectors::Juspay::<T>::new()),
+            ConnectorEnum::Przelewy24 => Box::new(connectors::Przelewy24::new()),
         }
     }
 }
