@@ -7,6 +7,10 @@
     "PaymentService/Refund",
     "RefundService/Get",
     "MerchantAuthenticationService/CreateServerAuthenticationToken",
-    "PaymentService/Void"
+    "PaymentService/Void",
+    "PaymentMethodAuthenticationService/PreAuthenticate",
+    "PaymentMethodAuthenticationService/Authenticate",
+    "PaymentMethodAuthenticationService/PostAuthenticate",
+    "PaymentMethodService/Tokenize"
   ]
 }
