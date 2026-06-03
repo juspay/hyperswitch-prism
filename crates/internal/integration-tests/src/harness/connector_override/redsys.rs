@@ -53,7 +53,10 @@ impl ConnectorOverride for RedsysConnectorOverride {
             return;
         };
 
-        obj.insert(field.to_string(), Value::String(redsys_short_reference_id()));
+        obj.insert(
+            field.to_string(),
+            Value::String(redsys_short_reference_id()),
+        );
     }
 }
 
