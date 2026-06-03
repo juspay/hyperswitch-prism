@@ -1,5 +1,3 @@
-mod requests;
-mod responses;
 pub mod transformers;
 
 use std::fmt::Debug;
@@ -33,17 +31,14 @@ use interfaces::{
     decode::BodyDecoding, verification::SourceVerification,
 };
 use serde::Serialize;
-use transformers::{self as tsys_xml};
-
-use requests::{
-    TsysXmlAddCustomerRequest, TsysXmlAuthorizeRequest, TsysXmlCaptureRequest,
-    TsysXmlCardAuthenticationRequest, TsysXmlRSyncRequest, TsysXmlRepeatPaymentRequest,
-    TsysXmlReturnRequest, TsysXmlTransactionInquiryRequest, TsysXmlVoidRequest,
-};
-use responses::{
-    TsysXmlAddCustomerResponse, TsysXmlAuthorizeResponse, TsysXmlCaptureResponse,
-    TsysXmlCardAuthenticationResponse, TsysXmlRSyncResponse, TsysXmlRepeatPaymentResponse,
-    TsysXmlReturnResponse, TsysXmlTransactionInquiryResponse, TsysXmlVoidResponse,
+use transformers::{
+    self as tsys_xml, TsysXmlAddCustomerRequest, TsysXmlAddCustomerResponse,
+    TsysXmlAuthorizeRequest, TsysXmlAuthorizeResponse, TsysXmlCaptureRequest,
+    TsysXmlCaptureResponse, TsysXmlCardAuthenticationRequest, TsysXmlCardAuthenticationResponse,
+    TsysXmlRSyncRequest, TsysXmlRSyncResponse, TsysXmlRepeatPaymentRequest,
+    TsysXmlRepeatPaymentResponse, TsysXmlReturnRequest, TsysXmlReturnResponse,
+    TsysXmlTransactionInquiryRequest, TsysXmlTransactionInquiryResponse, TsysXmlVoidRequest,
+    TsysXmlVoidResponse,
 };
 
 use super::macros::{self, GetSoapXml};

@@ -260,21 +260,6 @@ where
 
                     if all_keys_required.unwrap_or(true) && return_raw {
                         let raw_response_string = strip_bom_and_convert_to_string(&body.response);
-                        if event_params
-                            .as_ref()
-                            .is_some_and(|params| params.connector_name == "tsys_xml")
-                        {
-                            tracing::Span::current().record(
-                                "raw_response",
-                                tracing::field::display(
-                                    raw_response_string.as_deref().unwrap_or_default(),
-                                ),
-                            );
-                            tracing::info!(
-                                raw_response = raw_response_string.as_deref().unwrap_or_default(),
-                                "tsys_xml raw connector response"
-                            );
-                        }
                         updated_router_data
                             .resource_common_data
                             .set_raw_connector_response(raw_response_string.map(Into::into));
@@ -322,21 +307,6 @@ where
 
                     if all_keys_required.unwrap_or(true) && return_raw {
                         let raw_response_string = strip_bom_and_convert_to_string(&body.response);
-                        if event_params
-                            .as_ref()
-                            .is_some_and(|params| params.connector_name == "tsys_xml")
-                        {
-                            tracing::Span::current().record(
-                                "raw_response",
-                                tracing::field::display(
-                                    raw_response_string.as_deref().unwrap_or_default(),
-                                ),
-                            );
-                            tracing::info!(
-                                raw_response = raw_response_string.as_deref().unwrap_or_default(),
-                                "tsys_xml raw connector response"
-                            );
-                        }
                         updated_router_data
                             .resource_common_data
                             .set_raw_connector_response(raw_response_string.map(Into::into));
