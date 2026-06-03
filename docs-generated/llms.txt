@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 89
+# Connectors: 90
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 89
+  total_connectors: 90
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -540,6 +540,14 @@ doc: docs/connectors/ppro.md
 scenarios: none
 payment_methods: AliPayRedirect, BancontactCard, Blik, Ideal, MbWay, Satispay, UpiIntent, UpiQr, WeChatPayQr, Wero
 flows: authorize, capture, get, handle_event, parse_event, recurring_charge, refund, refund_get, verify_redirect, void
+examples_python: none
+
+## Przelewy24
+connector_id: przelewy24
+doc: docs/connectors/przelewy24.md
+scenarios: none
+payment_methods: none
+flows: 
 examples_python: none
 
 ## Rapyd
