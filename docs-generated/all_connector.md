@@ -146,7 +146,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [dLocal](connectors/dlocal.md) | ✓ | ✓ | x | ✓ | x | ✓ | x | ⚠ | ✓ | ⚠ | x | ✓ | ✓ | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | ⚠ | x | x | x | ⚠ | ⚠ | ⚠ | x | ⚠ | ⚠ | x |
 | [Easebuzz](connectors/easebuzz.md) | ✓ | ⚠ | ⚠ | ✓ | ✓ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [Elavon](connectors/elavon.md) | ✓ | ⚠ | ⚠ | ✓ | x | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
-| [Finix](connectors/finix.md) | ✓ | ✓ | ⚠ | ✓ | x | ✓ | x | ⚠ | ? | ✓ | ? | x | ? | ✓ | x | ✓ | ✓ | ✓ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
+| [Finix](connectors/finix.md) | ✓ | ✓ | ⚠ | ✓ | x | ✓ | x | ⚠ | ? | ✓ | ? | x | ? | ✓ | x | ✓ | ✓ | ? | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [Fiserv](connectors/fiserv.md) | ✓ | ✓ | x | ✓ | x | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | x | ✓ | x | x | ⚠ | x | x | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Fiservcommercehub](connectors/fiservcommercehub.md) | ✓ | ✓ | x | ⚠ | x | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ? | ⚠ | ⚠ | x | ✓ | x | x | ⚠ | ✓ | x | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Fiservemea](connectors/fiservemea.md) | ✓ | ✓ | ✓ | ✓ | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
@@ -194,7 +194,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Revolv3](connectors/revolv3.md) | x | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ✓ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [Shift4](connectors/shift4.md) | ✓ | x | x | ✓ | ⚠ | ✓ | ✓ | ⚠ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ⚠ | ✓ | ✓ | ⚠ | ⚠ | x | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [Silverflow](connectors/silverflow.md) | ✓ | ✓ | x | ✓ | x | ✓ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | ⚠ | ⚠ | x | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
-| [Stax](connectors/stax.md) | ✓ | ✓ | x | ✓ | x | ✓ | x | ⚠ | ? | ✓ | ✓ | ? | ? | ✓ | x | ✓ | ✓ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
+| [Stax](connectors/stax.md) | ✓ | ✓ | x | ✓ | x | ✓ | x | ⚠ | ? | ✓ | ✓ | ? | ? | ✓ | x | ✓ | ✓ | ? | ⚠ | ⚠ | ⚠ | ⚠ | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Stripe](connectors/stripe.md) | ✓ | ✓ | x | ✓ | x | ✓ | ✓ | ⚠ | ✓ | ✓ | ⚠ | ✓ | ✓ | ✓ | x | ✓ | ✓ | ✓ | ⚠ | x | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [Truelayer](connectors/truelayer.md) | ✓ | ⚠ | x | x | x | ? | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | x | x | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ✓ | ✓ | x |
 | [Trustly](connectors/trustly.md) | ⚠ | ⚠ | x | ⚠ | x | ? | x | ⚠ | ⚠ | x | ⚠ | x | ⚠ | ⚠ | x | ⚠ | x | ⚠ | ⚠ | x | ⚠ | ⚠ | ⚠ | ⚠ | x | x | ⚠ | x | x | ✓ | ✓ | x |
