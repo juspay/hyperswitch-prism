@@ -203,18 +203,95 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 };
                 Ok(payment_request)
             }
+            // Redirect-flow APM wallets (e.g. GCash, DANA). Same request shape as
+            // the BankDebit arm above: REDIRECT flow, no card, payer document via
+            // get_doc_from_currency, callback + notification (webhook) URLs.
+            PaymentMethodData::Wallet(ref wallet_data) => {
+                let payment_method_id = get_wallet_payment_method_id(wallet_data)?;
+                let webhook_url = item.router_data.request.webhook_url.clone();
+                let payment_request = Self {
+                    amount,
+                    currency: item.router_data.request.currency,
+                    payment_method_id,
+                    payment_method_flow: PaymentMethodFlow::Redirect,
+                    country,
+                    payer: Payer {
+                        name,
+                        email,
+                        // Same placeholder rationale as the card Authorize branch above —
+                        // UCS has not yet plumbed the real customer document through.
+                        document: get_doc_from_currency(country.to_string()),
+                    },
+                    card: None,
+                    order_id,
+                    three_dsecure: None,
+                    callback_url,
+                    description,
+                    notification_url: webhook_url,
+                };
+                Ok(payment_request)
+            }
+            // Redirect-flow cash vouchers (e.g. OXXO, Boleto, Efecty, PagoEfectivo,
+            // RedPagos, Indomaret).
+            PaymentMethodData::Voucher(ref voucher_data) => {
+                let payment_method_id = get_voucher_payment_method_id(voucher_data)?;
+                let webhook_url = item.router_data.request.webhook_url.clone();
+                let payment_request = Self {
+                    amount,
+                    currency: item.router_data.request.currency,
+                    payment_method_id,
+                    payment_method_flow: PaymentMethodFlow::Redirect,
+                    country,
+                    payer: Payer {
+                        name,
+                        email,
+                        // Same placeholder rationale as the card Authorize branch above.
+                        document: get_doc_from_currency(country.to_string()),
+                    },
+                    card: None,
+                    order_id,
+                    three_dsecure: None,
+                    callback_url,
+                    description,
+                    notification_url: webhook_url,
+                };
+                Ok(payment_request)
+            }
+            // Redirect-flow bank-transfer / real-time APMs (e.g. PSE, PIX).
+            PaymentMethodData::BankTransfer(ref bank_transfer_data) => {
+                let payment_method_id =
+                    get_bank_transfer_redirect_payment_method_id(bank_transfer_data)?;
+                let webhook_url = item.router_data.request.webhook_url.clone();
+                let payment_request = Self {
+                    amount,
+                    currency: item.router_data.request.currency,
+                    payment_method_id,
+                    payment_method_flow: PaymentMethodFlow::Redirect,
+                    country,
+                    payer: Payer {
+                        name,
+                        email,
+                        // Same placeholder rationale as the card Authorize branch above.
+                        document: get_doc_from_currency(country.to_string()),
+                    },
+                    card: None,
+                    order_id,
+                    three_dsecure: None,
+                    callback_url,
+                    description,
+                    notification_url: webhook_url,
+                };
+                Ok(payment_request)
+            }
             PaymentMethodData::CardRedirect(_)
-            | PaymentMethodData::Wallet(_)
             | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankRedirect(_)
-            | PaymentMethodData::BankTransfer(_)
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
-            | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::PaymentMethodToken(_)
@@ -1035,6 +1112,84 @@ fn get_bank_debit_payment_method_id(
                 context: Default::default(),
             }))?
         }
+    }
+}
+
+/// Maps a redirect-flow `WalletData` variant to the dLocal APM `payment_method_id`.
+///
+/// dLocal hosts the wallet UX; the orchestrator only needs to send the correct
+/// `payment_method_id` (plus `payment_method_flow = REDIRECT`). Country/currency
+/// come from the request, so they are not encoded here.
+///   - GcashRedirect -> "GC" (GCash, PH)
+///   - DanaRedirect   -> "DN" (DANA, ID)
+fn get_wallet_payment_method_id(
+    wallet_data: &payment_method_data::WalletData,
+) -> Result<PaymentMethodId, error_stack::Report<IntegrationError>> {
+    match wallet_data {
+        payment_method_data::WalletData::GcashRedirect(_) => {
+            Ok(PaymentMethodId::Other("GC".to_string()))
+        }
+        payment_method_data::WalletData::DanaRedirect {} => {
+            Ok(PaymentMethodId::Other("DN".to_string()))
+        }
+        _ => Err(IntegrationError::NotImplemented(
+            crate::utils::get_unimplemented_payment_method_error_message("Dlocal"),
+            Default::default(),
+        ))?,
+    }
+}
+
+/// Maps a redirect-flow `VoucherData` variant to the dLocal cash-voucher
+/// `payment_method_id`.
+///   - Oxxo        -> "OX" (MX)
+///   - Boleto      -> "BL" (BR)
+///   - Efecty      -> "EY" (CO)
+///   - PagoEfectivo-> "EF" (PE)
+///   - RedPagos    -> "RE" (UY)
+///   - Indomaret   -> "IM" (ID)
+fn get_voucher_payment_method_id(
+    voucher_data: &payment_method_data::VoucherData,
+) -> Result<PaymentMethodId, error_stack::Report<IntegrationError>> {
+    match voucher_data {
+        payment_method_data::VoucherData::Oxxo => Ok(PaymentMethodId::Other("OX".to_string())),
+        payment_method_data::VoucherData::Boleto(_) => {
+            Ok(PaymentMethodId::Other("BL".to_string()))
+        }
+        payment_method_data::VoucherData::Efecty => Ok(PaymentMethodId::Other("EY".to_string())),
+        payment_method_data::VoucherData::PagoEfectivo => {
+            Ok(PaymentMethodId::Other("EF".to_string()))
+        }
+        payment_method_data::VoucherData::RedPagos => {
+            Ok(PaymentMethodId::Other("RE".to_string()))
+        }
+        payment_method_data::VoucherData::Indomaret(_) => {
+            Ok(PaymentMethodId::Other("IM".to_string()))
+        }
+        _ => Err(IntegrationError::NotImplemented(
+            crate::utils::get_unimplemented_payment_method_error_message("Dlocal"),
+            Default::default(),
+        ))?,
+    }
+}
+
+/// Maps a redirect-flow `BankTransferData` variant to the dLocal bank-redirect /
+/// real-time `payment_method_id`.
+///   - Pse -> "PC" (PSE, CO)
+///   - Pix -> "PQ" (PIX redirect, BR)
+fn get_bank_transfer_redirect_payment_method_id(
+    bank_transfer_data: &payment_method_data::BankTransferData,
+) -> Result<PaymentMethodId, error_stack::Report<IntegrationError>> {
+    match bank_transfer_data {
+        payment_method_data::BankTransferData::Pse {} => {
+            Ok(PaymentMethodId::Other("PC".to_string()))
+        }
+        payment_method_data::BankTransferData::Pix { .. } => {
+            Ok(PaymentMethodId::Other("PQ".to_string()))
+        }
+        _ => Err(IntegrationError::NotImplemented(
+            crate::utils::get_unimplemented_payment_method_error_message("Dlocal"),
+            Default::default(),
+        ))?,
     }
 }
 
