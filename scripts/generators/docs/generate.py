@@ -604,6 +604,87 @@ def load_probe_data(probe_path: Optional[Path]) -> dict[str, dict]:
     return _PROBE_DATA
 
 
+# Capability declarations live alongside runtime probe output. The PM-aware
+# `Authorize` matrix reads from here; everything else (Other Flows table) still
+# reads from `_PROBE_DATA` to retain coverage of capture/refund/etc. until those
+# flows gain declarative equivalents.
+_CAPABILITY_DATA: dict[str, dict] = {}
+
+
+def load_capability_data(cap_path: Optional[Path] = None) -> dict[str, dict]:
+    """Load the per-connector static `SupportedPaymentMethods` declarations.
+
+    Defaults to `data/connector_capabilities/`. Each JSON in there is
+    produced by `cargo run -p field-probe` (default static mode) and has
+    the shape:
+        { "connector": "...",
+          "supported_payment_methods": { PM: { PMType: { status, ... } } },
+          ... }
+    """
+    global _CAPABILITY_DATA
+    if _CAPABILITY_DATA:
+        return _CAPABILITY_DATA
+    if cap_path is None:
+        cap_path = REPO_ROOT / "data" / "connector_capabilities"
+    if not cap_path.is_dir():
+        print(f"Warning: capability dir not found at {cap_path}", file=sys.stderr)
+        return {}
+    _CAPABILITY_DATA = {}
+    for f in sorted(cap_path.glob("*.json")):
+        try:
+            _CAPABILITY_DATA[f.stem] = json.loads(f.read_text(encoding="utf-8"))
+        except Exception as exc:
+            print(f"Warning: failed to load {f}: {exc}", file=sys.stderr)
+    return _CAPABILITY_DATA
+
+
+# Multiple probe-PM keys can map to the same `PaymentMethodType` enum variant
+# (the runtime probe distinguishes ApplePay/Decrypted/SDK; the Rust enum doesn't).
+# When looking up a probe key in the declaration map, also accept entries
+# under the canonical name. Keys NOT in this dict are looked up verbatim.
+_PROBE_KEY_TO_DECL: dict[str, str] = {
+    "ApplePayDecrypted": "ApplePay",
+    "ApplePayThirdPartySdk": "ApplePay",
+    "GooglePayDecrypted": "GooglePay",
+    "GooglePayThirdPartySdk": "GooglePay",
+    "PaypalSdk": "Paypal",
+    "PaypalRedirect": "Paypal",
+    "AmazonPayRedirect": "AmazonPay",
+    "CashappQr": "Cashapp",
+    "WeChatPayQr": "WeChatPay",
+    "AliPayRedirect": "AliPay",
+    "Afterpay": "AfterpayClearpay",
+    "Crypto": "CryptoCurrency",
+    "EVoucher": "Evoucher",
+    "OpenBankingPis": "OpenBankingPIS",
+    "GCash": "Gcash",
+    "AchBankTransfer": "Ach",
+    "BacsBankTransfer": "Bacs",
+    "MultibancoBankTransfer": "Multibanco",
+    "BniVaBankTransfer": "BniVa",
+    "BriVaBankTransfer": "BriVa",
+    "CimbVaBankTransfer": "CimbVa",
+    "DanamonVaBankTransfer": "DanamonVa",
+    "MandiriVaBankTransfer": "MandiriVa",
+}
+
+
+def _capability_status(cap_connector: dict, pm_probe_key: str) -> str:
+    """Return the declared FeatureStatus for a probe PM key.
+
+    Looks up the probe key (or its canonical alias) in any PM-family map
+    inside the declaration. Absent ⇒ "not_supported" (renders as `x`).
+    """
+    candidates = {pm_probe_key, _PROBE_KEY_TO_DECL.get(pm_probe_key, pm_probe_key)}
+    decl = cap_connector.get("supported_payment_methods", {}) or {}
+    for pmt_map in decl.values():
+        for c in candidates:
+            entry = pmt_map.get(c)
+            if entry is not None:
+                return entry.get("status", "not_supported")
+    return "not_supported"
+
+
 def _probe_pm_support(probe_connector: dict, flow_key: str) -> Optional[dict[str, bool]]:
     """
     Return {pm_key: supported} for a flow that has PM-specific probe results.
@@ -672,10 +753,29 @@ def display_name(connector_name: str) -> str:
 # ─── Markdown Generation ──────────────────────────────────────────────────────
 
 def get_flows_from_probe(probe_connector: dict) -> list[str]:
-    """Extract list of flow keys that have at least one supported entry in probe data."""
+    """Extract flow keys that should appear in this connector's per-flow doc.
+
+    Includes a flow when EITHER:
+      - The runtime probe found ≥1 supported entry under that flow, OR
+      - For `authorize`, the static declaration
+        (`data/connector_capabilities/<conn>.json`) has any
+        `(PaymentMethod, PaymentMethodType)` entry at all (Supported or
+        NotImplemented). This is necessary for connectors like Cashfree
+        whose probe gets stuck on a request-level field (e.g.
+        `payment_session_id`) and reports 0 supported authorize entries,
+        even though the declaration has many Supported/NotImplemented PMs.
+        Without this branch the entire Authorize section gets hidden.
+    """
     result = []
+    cap_data = load_capability_data()
+    connector_name = probe_connector.get("connector", "")
+    decl = cap_data.get(connector_name, {}).get("supported_payment_methods") or {}
+    has_authorize_decl = any(types for types in decl.values())
+
     for flow_key, flow_data in probe_connector.get("flows", {}).items():
         if any(entry.get("status") == "supported" for entry in flow_data.values()):
+            result.append(flow_key)
+        elif flow_key == "authorize" and has_authorize_decl:
             result.append(flow_key)
     return result
 
@@ -1083,16 +1183,24 @@ def generate_connector_doc(
                 a(f"| **Response** | `{meta.get('grpc_response', '—')}` |")
                 a("")
 
-            # Payment method type support (from field-probe)
+            # Payment method type support — read from the static declaration
+            # (data/connector_capabilities/<connector>.json), the same source the
+            # main matrix uses. Before Change 9b, this read from data/field_probe/
+            # which showed Braintree's Card as `x` because the probe got stuck on
+            # `payment_method_token`, even though Braintree's declaration says
+            # `(Card, Card)` is Supported and the main matrix correctly shows ✓.
+            # Using the declaration keeps per-connector pages consistent with the
+            # main matrix and surfaces NotImplemented (⚠) markers correctly.
             pm_support = _probe_pm_support(probe_connector, f)
             if pm_support:
+                cap_connector = load_capability_data().get(connector_name, {})
                 a("**Supported payment method types:**")
                 a("")
                 a("| Payment Method | Supported |")
                 a("|----------------|:---------:|")
                 for pm_key, pm_label in _PROBE_PM_DISPLAY.items():
                     if pm_key in pm_support:
-                        pm_status = probe_connector.get("flows", {}).get("authorize", {}).get(pm_key, {}).get("status", "unknown")
+                        pm_status = _capability_status(cap_connector, pm_key)
                         mark = _status_to_mark(pm_status)
                         a(f"| {pm_label} | {mark} |")
                 a("")
@@ -1501,15 +1609,24 @@ def cmd_generate(connectors: list[str], output_dir: Path, probe_path: Optional[P
 # ─── All Connectors Coverage Document ─────────────────────────────────────────
 
 def _status_to_mark(status: str) -> str:
-    """Map a probe status string to a display icon."""
+    """Map a declared FeatureStatus to a display icon.
+
+    Three states only — the `?` icon is intentionally gone. Since
+    `ConnectorSpecifications` is now a mandatory supertrait on every
+    connector, every cell maps to one of:
+
+    - "supported"       → ✓  declared as Supported
+    - "not_implemented" → ⚠  declared as NotImplemented (TODO)
+    - anything else / absent → x  treated as NotSupported
+
+    Absence from the declaration map is the implicit `NotSupported` —
+    so undeclared cells render as `x`, not `?`.
+    """
     if status == "supported":
         return "✓"
-    elif status == "not_supported":
-        return "x"
-    elif status == "not_implemented":
+    if status == "not_implemented":
         return "⚠"
-    else:
-        return "?"
+    return "x"
 
 
 def _get_flow_status(flows: dict, flow_key: str) -> tuple[str, str]:
@@ -1690,23 +1807,27 @@ def generate_all_connector_doc(probe_data: dict[str, dict], output_dir: Path) ->
                 }.get(category, category[:4].upper())
                 pm_display_with_category.append(f"{short_cat} / {pm_name}")
         
-        # Legend at top for clarity
-        a("**Legend:** ✓ Supported | x Not Supported | ⚠ Not Implemented | ? Error / Missing required fields")
+        # Legend at top for clarity. The `?` icon no longer appears: every
+        # connector declares its support via the mandatory
+        # ConnectorSpecifications trait, so every cell maps to a definite
+        # FeatureStatus.
+        a("**Legend:** ✓ Supported | ⚠ Not Implemented | x Not Supported")
         a("")
-        
+
         a("| Connector | " + " | ".join(pm_display_with_category) + " |")
         a("|-----------|" + "|".join([":---:" for _ in pm_display_with_category]) + "|")
-        
+
+        # Authorize uses the static capability declarations (data/connector_capabilities/).
+        # Other flows still read runtime probe data below.
+        cap_data = load_capability_data()
         for conn_name in connectors_with_probe:
-            conn_data = probe_data[conn_name]
-            flow_data = conn_data.get("flows", {}).get(flow_key, {})
-            
+            cap_connector = cap_data.get(conn_name, {})
+
             display = _DISPLAY_NAMES.get(conn_name, conn_name.replace("_", " ").title())
             row = [f"[{display}](connectors/{conn_name}.md)"]
-            
+
             for pm_key in pm_keys_ordered:
-                pm_data = flow_data.get(pm_key, {})
-                status = pm_data.get("status", "unknown")
+                status = _capability_status(cap_connector, pm_key)
                 row.append(_status_to_mark(status))
             
             a("| " + " | ".join(row) + " |")
@@ -1726,10 +1847,13 @@ def generate_all_connector_doc(probe_data: dict[str, dict], output_dir: Path) ->
             short_service = service_name.replace("Service", "").replace("Payment", "Pay").replace("Recurring", "Rec")
             flow_headers.append(f"{short_service}.{rpc_name}")
         
-        # Legend at top for clarity
-        a("**Legend:** ✓ Supported | x Not Supported | ⚠ Not Implemented | ? Error / Missing required fields")
+        # Legend at top for clarity. "Other Flows" still reads runtime probe
+        # output (capture/refund/etc. are not yet covered by static
+        # declarations), so it can show `?` for probe failures until those
+        # flows gain their own declarative path.
+        a("**Legend:** ✓ Supported | ⚠ Not Implemented | x Not Supported | ? Probe error")
         a("")
-        
+
         a("| Connector | " + " | ".join(flow_headers) + " |")
         a("|-----------|" + "|".join([":---:" for _ in simple_flows_data]) + "|")
         
