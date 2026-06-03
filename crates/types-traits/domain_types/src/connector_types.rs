@@ -21,7 +21,9 @@ use crate::{
     errors::{IntegrationError, IntegrationErrorContext, WebhookError},
     mandates::{CustomerAcceptance, MandateData},
     payment_address::{self, Address, AddressDetails, PhoneDetails},
-    payment_method_data::{self, Card, PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::{
+        self, Card, CustomerDocumentDetails, PaymentMethodData, PaymentMethodDataTypes,
+    },
     router_data::{self, ConnectorResponseData},
     router_request_types::{
         self, AcceptDisputeIntegrityObject, AuthoriseIntegrityObject, BrowserInformation,
@@ -1304,6 +1306,7 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub amount: MinorUnit,
     pub order_tax_amount: Option<MinorUnit>,
     pub email: Option<Email>,
+    pub customer_document_details: Option<CustomerDocumentDetails>,
     pub customer_name: Option<String>,
     pub currency: Currency,
     pub confirm: bool,
@@ -1377,6 +1380,14 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
     }
     pub fn get_optional_email(&self) -> Option<Email> {
         self.email.clone()
+    }
+    pub fn get_optional_customer_document_details(&self) -> Option<CustomerDocumentDetails> {
+        self.customer_document_details.clone()
+    }
+    pub fn get_customer_document_details(&self) -> Result<CustomerDocumentDetails, Error> {
+        self.customer_document_details
+            .clone()
+            .ok_or_else(missing_field_err("customer_document_details"))
     }
     pub fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
         self.browser_info
@@ -2824,6 +2835,7 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub webhook_url: Option<String>,
     pub browser_info: Option<BrowserInformation>,
     pub email: Option<Email>,
+    pub customer_document_details: Option<CustomerDocumentDetails>,
     pub customer_name: Option<String>,
     pub return_url: Option<String>,
     pub payment_method_type: Option<PaymentMethodType>,
@@ -2854,6 +2866,14 @@ impl<T: PaymentMethodDataTypes> SetupMandateRequestData<T> {
     }
     pub fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+    pub fn get_optional_customer_document_details(&self) -> Option<CustomerDocumentDetails> {
+        self.customer_document_details.clone()
+    }
+    pub fn get_customer_document_details(&self) -> Result<CustomerDocumentDetails, Error> {
+        self.customer_document_details
+            .clone()
+            .ok_or_else(missing_field_err("customer_document_details"))
     }
     pub fn is_card(&self) -> bool {
         matches!(self.payment_method_data, PaymentMethodData::Card(_))
@@ -2900,6 +2920,7 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub browser_info: Option<BrowserInformation>,
     pub email: Option<Email>,
+    pub customer_document_details: Option<CustomerDocumentDetails>,
     pub payment_method_type: Option<PaymentMethodType>,
     pub connector_feature_data: Option<SecretSerdeValue>,
     pub off_session: Option<bool>,
@@ -2959,6 +2980,14 @@ impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
     }
     pub fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+    pub fn get_optional_customer_document_details(&self) -> Option<CustomerDocumentDetails> {
+        self.customer_document_details.clone()
+    }
+    pub fn get_customer_document_details(&self) -> Result<CustomerDocumentDetails, Error> {
+        self.customer_document_details
+            .clone()
+            .ok_or_else(missing_field_err("customer_document_details"))
     }
     pub fn get_recurring_mandate_payment_data(
         &self,

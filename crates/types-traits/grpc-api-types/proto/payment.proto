@@ -132,6 +132,21 @@ message Customer {
       4;                                  // Customer ID in the connector system
   optional string phone_number = 5;       // Customer's phone number
   optional string phone_country_code = 6; // Customer's phone country code
+  optional CustomerDocumentDetails customer_document_details =
+      7; // Customer identification document
+}
+
+// Type of customer identification document.
+enum DocumentKind {
+  DOCUMENT_KIND_UNSPECIFIED = 0; // Default, unspecified document type.
+  CPF = 1; // Cadastro de Pessoas Físicas - Brazilian individual taxpayer ID.
+  CNPJ = 2; // Cadastro Nacional da Pessoa Jurídica - Brazilian business ID.
+}
+
+// Customer's country-specific identification document.
+message CustomerDocumentDetails {
+  DocumentKind document_type = 1;   // The customer's document type
+  SecretString document_number = 2; // The customer's document number
 }
 
 // ============================================================================
@@ -2893,6 +2908,9 @@ message RecurringPaymentServiceChargeRequest {
 
   // Level 2 / Level 3 data for enhanced payment processing
   optional L2L3Data l2_l3_data = 31;
+
+  optional CustomerDocumentDetails customer_document_details =
+      32; // Customer identification document
 }
 
 // Response message for repeat payment operation

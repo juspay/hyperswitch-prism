@@ -46,6 +46,7 @@ fn full_customer() -> grpc_api_types::payments::Customer {
         connector_customer_id: Some("cust_probe_123".to_string()),
         phone_number: Some("4155552671".to_string()),
         phone_country_code: Some("+1".to_string()),
+        customer_document_details: None,
     }
 }
 

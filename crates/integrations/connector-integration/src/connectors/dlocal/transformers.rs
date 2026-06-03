@@ -117,6 +117,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .get_billing_address()?;
         let country = *address.get_country()?;
         let name = address.get_full_name()?;
+        // dLocal requires the payer document (national/tax ID). Take it from the real
+        // customer document plumbed through the request — required, mirroring hyperswitch
+        // dlocal (no hardcoded placeholder).
+        let document = item
+            .router_data
+            .request
+            .get_customer_document_details()?
+            .document_number;
         let amount = utils::convert_amount(
             item.connector.amount_converter,
             item.router_data.request.minor_amount,
@@ -146,12 +154,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     payer: Payer {
                         name,
                         email,
-                        // dLocal requires a payer document (tax ID) for Latin American markets.
-                        // The hyperswitch reference uses `get_customer_document_details()` to pull
-                        // the real customer document; UCS does not yet surface this PII on the
-                        // Authorize request, so a country-specific sandbox-valid placeholder is
-                        // used here. Production flows should pass the real customer document.
-                        document: get_doc_from_currency(country.to_string()),
+                        document: document.clone(),
                     },
                     card: Some(Card {
                         holder_name: ccard.card_holder_name.clone(),
@@ -190,9 +193,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     payer: Payer {
                         name,
                         email,
-                        // Same placeholder rationale as the card Authorize branch above —
-                        // UCS has not yet plumbed the real customer document through.
-                        document: get_doc_from_currency(country.to_string()),
+                        document: document.clone(),
                     },
                     card: None,
                     order_id,
@@ -204,8 +205,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 Ok(payment_request)
             }
             // Redirect-flow APM wallets (e.g. GCash, DANA). Same request shape as
-            // the BankDebit arm above: REDIRECT flow, no card, payer document via
-            // get_doc_from_currency, callback + notification (webhook) URLs.
+            // the BankDebit arm above: REDIRECT flow, no card, required payer
+            // document, callback + notification (webhook) URLs.
             PaymentMethodData::Wallet(ref wallet_data) => {
                 let payment_method_id = get_wallet_payment_method_id(wallet_data)?;
                 let webhook_url = item.router_data.request.webhook_url.clone();
@@ -218,9 +219,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     payer: Payer {
                         name,
                         email,
-                        // Same placeholder rationale as the card Authorize branch above —
-                        // UCS has not yet plumbed the real customer document through.
-                        document: get_doc_from_currency(country.to_string()),
+                        document: document.clone(),
                     },
                     card: None,
                     order_id,
@@ -245,8 +244,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     payer: Payer {
                         name,
                         email,
-                        // Same placeholder rationale as the card Authorize branch above.
-                        document: get_doc_from_currency(country.to_string()),
+                        document: document.clone(),
                     },
                     card: None,
                     order_id,
@@ -271,8 +269,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     payer: Payer {
                         name,
                         email,
-                        // Same placeholder rationale as the card Authorize branch above.
-                        document: get_doc_from_currency(country.to_string()),
+                        document: document.clone(),
                     },
                     card: None,
                     order_id,
@@ -502,7 +499,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             payer: Payer {
                 name,
                 email,
-                document: get_doc_from_currency(country.to_string()),
+                document: router_data.request.get_customer_document_details()?.document_number,
             },
             card: DlocalRepeatPaymentCard {
                 card_id: Secret::new(card_id),
@@ -615,12 +612,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 payer: Payer {
                     name,
                     email,
-                    // dLocal requires a payer document (tax ID) for Latin American markets.
-                    // The hyperswitch reference uses `get_customer_document_details()` to pull
-                    // the real customer document; UCS does not yet surface this PII on the
-                    // SetupMandate request, so a country-specific sandbox-valid placeholder is
-                    // used here. Production flows should pass the real customer document.
-                    document: get_doc_from_currency(country.to_string()),
+                    document: router_data.request.get_customer_document_details()?.document_number,
                 },
                 card: Card {
                     holder_name: ccard.card_holder_name.clone(),
@@ -1207,41 +1199,4 @@ fn get_bank_transfer_method_id_for_country(
         }
         .into()),
     }
-}
-
-/// Returns a placeholder payer document (tax ID) for the given country.
-///
-/// dLocal requires a payer document for Latin American markets. These hardcoded
-/// values are test/placeholder documents used when the actual customer document
-/// is not provided in the request. In production, merchants should pass the real
-/// customer document via the billing address or payer information.
-///
-/// The format varies by country:
-/// - BR: CPF (11 digits) — Brazilian individual tax ID
-/// - MX: CURP (18 chars) — Mexican unique population registry code
-/// - AR: DNI (7-9 digits) — Argentine national identity document
-/// - etc.
-fn get_doc_from_currency(country: String) -> Secret<String> {
-    let doc = match country.as_str() {
-        "BR" => "91483309223",        // CPF (11 digits)
-        "MX" => "BADD110313HCMLNS09", // CURP (18 chars)
-        "AR" => "30682389",           // DNI (7-9 digits)
-        "CL" => "12345678",           // CI/RUT (8-9 chars)
-        "CO" => "1234567890",         // CC (6-11 digits)
-        "PE" => "12345678",           // DNI (8 digits)
-        "UY" => "12345678",           // CI (6-8 digits)
-        "ZA" => "2001014800086",
-        "BD" | "GT" | "HN" | "PK" | "SN" | "TH" => "1234567890001",
-        "CR" | "SV" | "VN" => "123456789",
-        "DO" | "NG" => "12345678901",
-        "EG" => "12345678901112",
-        "GH" | "ID" | "RW" | "UG" => "1234567890111123",
-        "IN" => "NHSTP6374G",
-        "CI" => "CA124356789",
-        "JP" | "MY" | "PH" => "123456789012",
-        "NI" => "1234567890111A",
-        "TZ" => "12345678912345678900",
-        _ => "12345678",
-    };
-    Secret::new(doc.to_string())
 }

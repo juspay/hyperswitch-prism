@@ -1729,6 +1729,26 @@ pub struct ReceiverDetails {
     amount_remaining: Option<i64>,
 }
 
+/// Customer identification document type (mirrors hyperswitch common_types::customers::DocumentKind)
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DocumentKind {
+    /// Cadastro de Pessoas Físicas - the Brazilian individual taxpayer identifier.
+    Cpf,
+    /// Cadastro Nacional da Pessoa Jurídica - the Brazilian business identifier.
+    Cnpj,
+}
+
+/// Customer's country-specific identification document
+/// (mirrors hyperswitch api_models::customers::CustomerDocumentDetails).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CustomerDocumentDetails {
+    /// The customer's document type
+    pub document_type: DocumentKind,
+    /// The customer's document number
+    pub document_number: Secret<String>,
+}
+
 /// Customer Information Details
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct CustomerInfoDetails {
