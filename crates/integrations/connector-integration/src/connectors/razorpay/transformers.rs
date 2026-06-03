@@ -1263,8 +1263,7 @@ impl
     }
 }
 
-impl
-    ForeignTryFrom<(RazorpayOrderResponse, Self, u16)>
+impl ForeignTryFrom<(RazorpayOrderResponse, Self, u16)>
     for RouterDataV2<
         ServerSessionAuthenticationToken,
         PaymentFlowData,
