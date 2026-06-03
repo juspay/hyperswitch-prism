@@ -1,4 +1,411 @@
 {
   "connector": "juspay",
-  "supported_payment_methods": {}
+  "supported_payment_methods": {
+    "BankRedirect": {
+      "Netbanking": {
+        "status": "supported",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      }
+    },
+    "Card": {
+      "Card": {
+        "status": "supported",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      }
+    },
+    "PayLater": {
+      "Affirm": {
+        "status": "not_implemented",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "AfterpayClearpay": {
+        "status": "not_implemented",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "Alma": {
+        "status": "not_implemented",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "Atome": {
+        "status": "supported",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "PayBright": {
+        "status": "not_implemented",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "Walley": {
+        "status": "not_implemented",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      }
+    },
+    "Upi": {
+      "UpiCollect": {
+        "status": "supported",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "UpiIntent": {
+        "status": "supported",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "UpiQr": {
+        "status": "supported",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      }
+    },
+    "Wallet": {
+      "AliPay": {
+        "status": "supported",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "AliPayHk": {
+        "status": "supported",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "AmazonPay": {
+        "status": "supported",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "ApplePay": {
+        "status": "supported",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "BillDesk": {
+        "status": "not_implemented",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "Cashapp": {
+        "status": "not_implemented",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "Cashfree": {
+        "status": "not_implemented",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "EaseBuzz": {
+        "status": "not_implemented",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "Gcash": {
+        "status": "supported",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "GoPay": {
+        "status": "supported",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "GooglePay": {
+        "status": "supported",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "KakaoPay": {
+        "status": "supported",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "LazyPay": {
+        "status": "supported",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "MobilePay": {
+        "status": "not_implemented",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "Momo": {
+        "status": "supported",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "PayU": {
+        "status": "not_implemented",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "Paypal": {
+        "status": "supported",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "Paze": {
+        "status": "not_implemented",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "PhonePe": {
+        "status": "supported",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "SamsungPay": {
+        "status": "supported",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "TouchNGo": {
+        "status": "supported",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "WeChatPay": {
+        "status": "supported",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      },
+      "Wero": {
+        "status": "not_implemented",
+        "mandates": "not_implemented",
+        "refunds": "not_implemented",
+        "supported_capture_methods": [
+          "automatic"
+        ],
+        "specific_features": null
+      }
+    }
+  }
 }

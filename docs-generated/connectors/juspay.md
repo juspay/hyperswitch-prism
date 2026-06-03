@@ -175,43 +175,43 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 | Payment Method | Supported |
 |----------------|:---------:|
-| Card | x |
+| Card | ✓ |
 | Bancontact | x |
-| Apple Pay | x |
-| Apple Pay Dec | x |
-| Apple Pay SDK | x |
-| Google Pay | x |
-| Google Pay Dec | x |
-| Google Pay SDK | x |
-| PayPal SDK | x |
-| Amazon Pay | x |
-| Cash App | x |
-| PayPal | x |
-| WeChat Pay | x |
-| Alipay | x |
-| Revolut Pay | x |
-| MiFinity | x |
-| Bluecode | x |
-| Paze | x |
-| Samsung Pay | x |
-| MB Way | x |
-| Satispay | x |
-| Wero | x |
-| GoPay | x |
-| GCash | x |
-| Momo | x |
-| Dana | x |
-| Kakao Pay | x |
-| Touch 'n Go | x |
-| Twint | x |
-| Vipps | x |
-| Swish | x |
-| Affirm | x |
-| Afterpay | x |
-| Klarna | x |
-| UPI Collect | x |
-| UPI Intent | x |
-| UPI QR | x |
+| Apple Pay | ✓ |
+| Apple Pay Dec | ✓ |
+| Apple Pay SDK | ✓ |
+| Google Pay | ✓ |
+| Google Pay Dec | ✓ |
+| Google Pay SDK | ✓ |
+| PayPal SDK | ✓ |
+| Amazon Pay | ✓ |
+| Cash App | ⚠ |
+| PayPal | ✓ |
+| WeChat Pay | ✓ |
+| Alipay | ✓ |
+| Revolut Pay | ⚠ |
+| MiFinity | ⚠ |
+| Bluecode | ⚠ |
+| Paze | ⚠ |
+| Samsung Pay | ✓ |
+| MB Way | ⚠ |
+| Satispay | ⚠ |
+| Wero | ⚠ |
+| GoPay | ✓ |
+| GCash | ✓ |
+| Momo | ✓ |
+| Dana | ⚠ |
+| Kakao Pay | ✓ |
+| Touch 'n Go | ✓ |
+| Twint | ⚠ |
+| Vipps | ⚠ |
+| Swish | ⚠ |
+| Affirm | ⚠ |
+| Afterpay | ⚠ |
+| Klarna | ⚠ |
+| UPI Collect | ✓ |
+| UPI Intent | ✓ |
+| UPI QR | ✓ |
 | Thailand | x |
 | Czech | x |
 | Finland | x |

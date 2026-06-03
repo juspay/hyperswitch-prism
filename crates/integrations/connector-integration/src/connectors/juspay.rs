@@ -568,11 +568,71 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
     ],
 );
 
+static JUSPAY_SUPPORTED_PAYMENT_METHODS: std::sync::LazyLock<domain_types::types::SupportedPaymentMethods> =
+    std::sync::LazyLock::new(|| domain_types::build_supported_pms! {
+        Supported => [
+            // PaymentMethodData::Card explicit Ok arm at transformers.rs:421
+            (Card, Card),
+            // PaymentMethodData::Upi explicit Ok arms (UpiCollect / UpiIntent / UpiQr)
+            (Upi, UpiCollect),
+            (Upi, UpiIntent),
+            (Upi, UpiQr),
+            // PaymentMethodData::BankRedirect — only Netbanking has an Ok arm
+            (BankRedirect, Netbanking),
+            // PaymentMethodData::PayLater — only Atome has an Ok arm
+            (PayLater, Atome),
+            // PaymentMethodData::Wallet — explicit Ok arms per transformers.rs:637-657
+            (Wallet, Paypal),
+            (Wallet, AliPay),
+            (Wallet, AliPayHk),
+            (Wallet, ApplePay),
+            (Wallet, GooglePay),
+            (Wallet, AmazonPay),
+            (Wallet, Momo),
+            (Wallet, KakaoPay),
+            (Wallet, WeChatPay),
+            (Wallet, GoPay),
+            (Wallet, Gcash),
+            (Wallet, TouchNGo),
+            (Wallet, SamsungPay),
+            (Wallet, PhonePe),
+            (Wallet, LazyPay),
+        ],
+        NotImplemented => [
+            // PayLater — explicit Err(NotImplemented) arms at transformers.rs:757-765
+            (PayLater, Klarna),
+            (PayLater, Affirm),
+            (PayLater, AfterpayClearpay),
+            (PayLater, PayBright),
+            (PayLater, Walley),
+            (PayLater, Alma),
+            // Wallet aggregator variants — explicit Err(NotImplemented) at 658-666
+            (Wallet, BillDesk),
+            (Wallet, Cashfree),
+            (Wallet, PayU),
+            (Wallet, EaseBuzz),
+            // Wallet other variants — explicit Err(NotImplemented) at 667-682
+            (Wallet, Bluecode),
+            (Wallet, Dana),
+            (Wallet, MbWay),
+            (Wallet, MobilePay),
+            (Wallet, Twint),
+            (Wallet, Vipps),
+            (Wallet, Cashapp),
+            (Wallet, Swish),
+            (Wallet, Mifinity),
+            (Wallet, RevolutPay),
+            (Wallet, Satispay),
+            (Wallet, Wero),
+            (Wallet, Paze),
+        ],
+    });
+
 impl<T: domain_types::payment_method_data::PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
     domain_types::connector_types::ConnectorSpecifications for Juspay<T>
 {
     fn get_supported_payment_methods(&self) -> &'static domain_types::types::SupportedPaymentMethods {
-        &domain_types::types::EMPTY_SUPPORTED_PAYMENT_METHODS
+        &JUSPAY_SUPPORTED_PAYMENT_METHODS
     }
 }
 
