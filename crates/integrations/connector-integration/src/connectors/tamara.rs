@@ -151,14 +151,11 @@ fn get_query_param(request: &RequestDetails, param_name: &str) -> Option<String>
         }
     }
     request.uri.as_ref().and_then(|uri_str| {
-        uri_str
-            .split('?')
-            .nth(1)
-            .and_then(|query_str| {
-                url::form_urlencoded::parse(query_str.as_bytes())
-                    .find(|(k, _)| k == param_name)
-                    .map(|(_, v)| v.into_owned())
-            })
+        uri_str.split('?').nth(1).and_then(|query_str| {
+            url::form_urlencoded::parse(query_str.as_bytes())
+                .find(|(k, _)| k == param_name)
+                .map(|(_, v)| v.into_owned())
+        })
     })
 }
 
