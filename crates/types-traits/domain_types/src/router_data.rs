@@ -765,6 +765,11 @@ pub enum ConnectorSpecificConfig {
         merchant_id: Secret<String>,
         base_url: Option<String>,
     },
+    Nextiva {
+        api_key: Secret<String>,
+        account_id: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -1082,6 +1087,7 @@ impl ConnectorSpecificConfig {
                 api_key,
                 merchant_id
             },
+            Nextiva { api_key, account_id },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             TwocTwopPaco {
@@ -1498,7 +1504,8 @@ impl ConnectorSpecificConfig {
                     api_key,
                     merchant_id
                 },
-                Imerchantsolutions { api_key },
+                Nextiva { api_key, account_id },
+            Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 TwocTwopPaco {
                     access_token,
@@ -2042,6 +2049,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: juspay.api_key.ok_or_else(err)?,
                 merchant_id: juspay.merchant_id.ok_or_else(err)?,
                 base_url: juspay.base_url,
+            }),
+            AuthType::Nextiva(nextiva) => Ok(Self::Nextiva {
+                api_key: nextiva.api_key.ok_or_else(err)?,
+                account_id: nextiva.account_id.ok_or_else(err)?,
+                base_url: nextiva.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -3132,7 +3144,15 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
-                ConnectorEnum::PinelabsOnline => match auth {
+                ConnectorEnum::Nextiva => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Nextiva {
+                    api_key: api_key.clone(),
+                    account_id: key1.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err().into()),
+            },
+            ConnectorEnum::PinelabsOnline => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::PinelabsOnline {
                         client_id: api_key.clone(),
                         client_secret: key1.clone(),
