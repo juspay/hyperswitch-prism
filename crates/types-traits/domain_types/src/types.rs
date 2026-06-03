@@ -12199,7 +12199,7 @@ impl ForeignTryFrom<grpc_api_types::payments::BankNames> for common_enums::BankN
             grpc_api_types::payments::BankNames::HbzBank => Ok(Self::HbzBank),
             grpc_api_types::payments::BankNames::Investec => Ok(Self::Investec),
             grpc_api_types::payments::BankNames::JpMorganChase => Ok(Self::JpMorganChase),
-            grpc_api_types::payments::BankNames::Mtn => Ok(Self::Mtn),
+            grpc_api_types::payments::BankNames::MtnBanking => Ok(Self::MtnBanking),
             grpc_api_types::payments::BankNames::Olympus => Ok(Self::Olympus),
             grpc_api_types::payments::BankNames::OldMutual => Ok(Self::OldMutual),
             grpc_api_types::payments::BankNames::PermanentBank => Ok(Self::PermanentBank),

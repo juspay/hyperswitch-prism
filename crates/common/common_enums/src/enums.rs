@@ -437,7 +437,7 @@ pub enum BankNames {
     HbzBank,
     Investec,
     JpMorganChase,
-    Mtn,
+    MtnBanking,
     Olympus,
     OldMutual,
     PermanentBank,

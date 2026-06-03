@@ -1481,7 +1481,7 @@ enum BankNames {
   HbzBank = 171;
   Investec = 172;
   JpMorganChase = 173;
-  Mtn = 174;
+  MtnBanking = 174;
   Olympus = 175;
   OldMutual = 176;
   PermanentBank = 177;
