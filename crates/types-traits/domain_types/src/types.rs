@@ -1573,9 +1573,15 @@ impl<
                             .and_then(|c| CountryAlpha2::from_str(&c).ok()),
                     },
                 )),
-                grpc_api_types::payments::payment_method::PaymentMethod::OpenBanking(_) => {
+                grpc_api_types::payments::payment_method::PaymentMethod::OpenBanking(open_banking) => {
                     Ok(PaymentMethodData::BankRedirect(
-                        payment_method_data::BankRedirectData::OpenBanking {},
+                        payment_method_data::BankRedirectData::OpenBanking {
+                            account_number: open_banking.account_number,
+                            sort_code: open_banking.sort_code,
+                            iban: open_banking.iban,
+                            account_holder_name: open_banking.account_holder_name,
+                            additional_payment_details: open_banking.additional_details.and_then(|details| serde_json::from_str(&details).ok()),
+                        },
                     ))
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::LocalBankRedirect(_) => {
@@ -6357,7 +6363,7 @@ pub fn generate_payment_sync_response(
             PaymentsResponseData::TransactionResponse {
                 resource_id,
                 redirection_data,
-                connector_metadata: _,
+                connector_metadata,
                 network_txn_id,
                 connector_response_reference_id,
                 incremental_authorization_allowed,
@@ -6422,7 +6428,7 @@ pub fn generate_payment_sync_response(
                         .connector_customer
                         .clone(),
                     merchant_order_id: None,
-                    metadata: None,
+                    metadata: convert_connector_metadata_to_secret_string(connector_metadata),
                     status_code: status_code as u32,
                     raw_connector_response,
                     response_headers: router_data_v2

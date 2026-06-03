@@ -606,7 +606,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | BankRedirectData::Trustly { .. }
                 | BankRedirectData::OnlineBankingThailand { .. }
                 | BankRedirectData::LocalBankRedirect {}
-                | BankRedirectData::OpenBanking {}
+                | BankRedirectData::OpenBanking { .. }
                 | BankRedirectData::Netbanking { .. } => {
                     Err(error_stack::report!(IntegrationError::NotSupported {
                         message: utils::get_unimplemented_payment_method_error_message("fiuu"),

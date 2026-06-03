@@ -20,7 +20,7 @@ use domain_types::{
     utils::is_payment_failure,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{ExposeInterface, Secret};
 use openssl::{
     bn::{BigNum, BigNumContext},
     ec::{EcGroup, EcKey, EcPoint},
@@ -30,6 +30,7 @@ use openssl::{
     pkey::Public,
 };
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 use std::collections::HashMap;
 
 use crate::{connectors::truelayer::TruelayerRouterData, types::ResponseRouterData, utils};
@@ -40,6 +41,9 @@ const SCOPE: &str = "payments";
 const SIG_BYTES_EXPECTED_LENGTH: usize = 132;
 const P521_COORDINATE_BYTE_LEN: usize = 66;
 const PREFIX: &str = "/api";
+const SCHEME_SELECTION_TYPE: &str = "instant_preferred";
+const PAYMENT_METHOD_TYPE: &str = "bank_transfer";
+const BENEFICIARY_TYPE: &str = "merchant_account";
 
 pub struct TruelayerAuthType {
     pub(super) client_id: Secret<String>,
@@ -240,12 +244,47 @@ struct PaymentMethod {
     beneficiary: Beneficiary,
 }
 
+#[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, PartialEq)]
 struct ProviderSelection {
+    #[serde(rename = "type")]
+    _type: ProviderSelectionType,
+    provider_id: Option<String>,
+    remitter: Option<Remitter>,
+    scheme_selection: Option<SchemeSelection>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+struct SchemeSelection {
     #[serde(rename = "type")]
     _type: String,
 }
 
+#[skip_serializing_none]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+struct Remitter {
+    account_identifier: TruelayerAccountIdentifier,
+    account_holder_name: Option<Secret<String>>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TruelayerAccountIdentifier {
+    #[serde(rename = "type")]
+    identifier_type: TruelayerAccountIdentifierType,
+    sort_code: Option<Secret<String>>,
+    account_number: Option<Secret<String>>,
+    iban: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+enum ProviderSelectionType {
+    UserSelected,
+    Preselected,
+}
+
+#[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, PartialEq)]
 struct Beneficiary {
     #[serde(rename = "type")]
@@ -341,7 +380,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         match &item.router_data.request.payment_method_data {
-            PaymentMethodData::BankRedirect(BankRedirectData::OpenBanking { .. }) => {
+            PaymentMethodData::BankRedirect(BankRedirectData::OpenBanking {
+                account_number,
+                sort_code,
+                iban,
+                account_holder_name,
+                additional_payment_details,
+            }) => {
                 let currency = item.router_data.request.currency;
                 let amount_in_minor = item.router_data.request.amount;
 
@@ -356,13 +401,54 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                 let metadata = TruelayerMetadata::try_from(&item.router_data.connector_config)?;
 
+                let provider_selection = if additional_payment_details.is_some()
+                    && account_holder_name.is_some()
+                    && ((account_number.is_some() && sort_code.is_some()) || iban.is_some())
+                {
+                    ProviderSelection {
+                        _type: ProviderSelectionType::Preselected,
+                        provider_id: additional_payment_details
+                            .as_ref()
+                            .and_then(|details| details.get("provider_id"))
+                            .and_then(|pid| pid.as_str())
+                            .map(|s| s.to_string()),
+                        remitter: Some(Remitter {
+                            account_holder_name: account_holder_name.clone(),
+                            account_identifier: if account_number.is_some() && sort_code.is_some() {
+                                TruelayerAccountIdentifier {
+                                    identifier_type:
+                                        TruelayerAccountIdentifierType::SortCodeAccountNumber,
+                                    sort_code: sort_code.clone(),
+                                    account_number: account_number.clone(),
+                                    iban: None,
+                                }
+                            } else {
+                                TruelayerAccountIdentifier {
+                                    identifier_type: TruelayerAccountIdentifierType::Iban,
+                                    sort_code: None,
+                                    account_number: None,
+                                    iban: iban.clone(),
+                                }
+                            },
+                        }),
+                        scheme_selection: Some(SchemeSelection {
+                            _type: SCHEME_SELECTION_TYPE.to_string(),
+                        }),
+                    }
+                } else {
+                    ProviderSelection {
+                        _type: ProviderSelectionType::UserSelected,
+                        provider_id: None,
+                        remitter: None,
+                        scheme_selection: None,
+                    }
+                };
+
                 let payment_method = PaymentMethod {
-                    _type: "bank_transfer".to_string(),
-                    provider_selection: ProviderSelection {
-                        _type: "user_selected".to_string(),
-                    },
+                    _type: PAYMENT_METHOD_TYPE.to_string(),
+                    provider_selection,
                     beneficiary: Beneficiary {
-                        _type: "merchant_account".to_string(),
+                        _type: BENEFICIARY_TYPE.to_string(),
                         merchant_account_id: metadata.merchant_account_id.clone(),
                         account_holder_name: metadata.account_holder_name.clone(),
                         reference: normalize_connector_request_reference_id(
@@ -544,6 +630,17 @@ pub struct TruelayerPSyncResponse {
     failure_reason: Option<String>,
     failure_stage: Option<String>,
     payment_source: Option<TruelayerPaymentSource>,
+    payment_method: Option<TruelayerPaymentMethod>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TruelayerPaymentMethod {
+    provider_selection: Option<TruelayerProviderSelection>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TruelayerProviderSelection {
+    provider_id: Option<String>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
@@ -605,6 +702,51 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
                         ..item.router_data
                     })
                 } else {
+                    let account_holder_name = response
+                        .payment_source
+                        .as_ref()
+                        .and_then(|s| s.account_holder_name.clone().map(|name| name.expose()));
+
+                    let mut sort_code: Option<String> = None;
+                    let mut account_number: Option<String> = None;
+                    let mut iban: Option<String> = None;
+
+                    if let Some(source) = response.payment_source.as_ref() {
+                        for identifier in source.account_identifiers.iter().flatten() {
+                            match identifier.identifier_type {
+                                TruelayerAccountIdentifierType::SortCodeAccountNumber => {
+                                    sort_code =
+                                        identifier.sort_code.clone().map(|code| code.expose());
+                                    account_number = identifier
+                                        .account_number
+                                        .clone()
+                                        .map(|account_number| account_number.expose());
+                                }
+                                TruelayerAccountIdentifierType::Iban => {
+                                    iban = identifier.iban.clone().map(|iban| iban.expose());
+                                }
+                                TruelayerAccountIdentifierType::Unknown => {}
+                            }
+                        }
+                    }
+
+                    let provider_id = response
+                        .payment_method
+                        .as_ref()
+                        .and_then(|pm| pm.provider_selection.as_ref())
+                        .and_then(|ps| ps.provider_id.clone());
+
+                    let connector_payment_method_details =
+                        provider_id.map(|pid| serde_json::json!({ "provider_id": pid }));
+
+                    let connector_metadata = Some(serde_json::json!({
+                        "account_holder_name": account_holder_name,
+                        "account_number": account_number,
+                        "sort_code": sort_code,
+                        "iban": iban,
+                        "connector_payment_method_details": connector_payment_method_details,
+                    }));
+
                     Ok(Self {
                         resource_common_data: PaymentFlowData {
                             status,
@@ -617,7 +759,7 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
                             resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
                             redirection_data: None,
                             mandate_reference: None,
-                            connector_metadata: None,
+                            connector_metadata,
                             network_txn_id: None,
                             connector_response_reference_id: Some(response.id),
                             incremental_authorization_allowed: None,
@@ -1002,9 +1144,21 @@ pub struct TruelayerWebhookBody {
     pub payment_source: Option<TruelayerPaymentSource>,
 }
 
+/// Discriminator for the type of account identifier provided in a payment source.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum TruelayerAccountIdentifierType {
+    SortCodeAccountNumber,
+    Iban,
+    #[serde(other)]
+    Unknown,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TruelayerPaymentSource {
     pub id: Option<String>,
+    pub account_holder_name: Option<Secret<String>>,
+    pub account_identifiers: Option<Vec<TruelayerAccountIdentifier>>,
 }
 
 pub fn get_webhook_event(

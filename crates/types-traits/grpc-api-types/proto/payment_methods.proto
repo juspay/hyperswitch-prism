@@ -940,7 +940,16 @@ message OpenBankingUK {
 
 // Open Banking - Open Banking implementation
 message OpenBanking {
-  // Fields will be added as needed for Open Banking integration
+  // International Bank Account Number
+  optional SecretString iban = 1;
+  // Bank account number
+  optional SecretString account_number = 2;
+  // Sort code for the bank account
+  optional SecretString sort_code = 3;
+  // Name of the account holder
+  optional SecretString account_holder_name = 4;
+  // Additional payment details as a JSON string
+  optional string additional_details = 5;
 }
 
 // Open Banking Payment Initiation Service

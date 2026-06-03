@@ -189,7 +189,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         Some(OpenBankingUk { transaction_type }),
                         None,
                     )),
-                    BankRedirectData::OpenBanking {} => {
+                    BankRedirectData::OpenBanking { .. } => {
                         if matches!(currency, common_enums::Currency::GBP) {
                             Ok((
                                 PaymentSystem::OpenBankingUk,
