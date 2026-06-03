@@ -1087,7 +1087,10 @@ impl ConnectorSpecificConfig {
                 api_key,
                 merchant_id
             },
-            Nextiva { api_key, account_id },
+            Nextiva {
+                api_key,
+                account_id
+            },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             TwocTwopPaco {
@@ -1504,8 +1507,11 @@ impl ConnectorSpecificConfig {
                     api_key,
                     merchant_id
                 },
-                Nextiva { api_key, account_id },
-            Imerchantsolutions { api_key },
+                Nextiva {
+                    api_key,
+                    account_id
+                },
+                Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 TwocTwopPaco {
                     access_token,
@@ -3145,14 +3151,14 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
                 ConnectorEnum::Nextiva => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Nextiva {
-                    api_key: api_key.clone(),
-                    account_id: key1.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::PinelabsOnline => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Nextiva {
+                        api_key: api_key.clone(),
+                        account_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::PinelabsOnline => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::PinelabsOnline {
                         client_id: api_key.clone(),
                         client_secret: key1.clone(),
