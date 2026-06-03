@@ -96,6 +96,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     ServerSessionAuthentication for Authorizedotnet<T>
 {
+    // Default trait methods are sufficient for the SDKSessionToken
+    // (ServerSessionAuthenticationToken) flow; no custom logic required.
 }
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     IncomingWebhook for Authorizedotnet<T>
