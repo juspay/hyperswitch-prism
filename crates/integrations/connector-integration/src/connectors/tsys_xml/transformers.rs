@@ -85,33 +85,12 @@ struct TsysXmlAcceptorMetadata {
     url: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "snake_case")]
-enum TsysXmlCommercialCardLevelMetadata {
-    Level2,
-    Level3,
-}
-
 #[derive(Debug, Default, Clone, Deserialize)]
 struct TsysXmlCommercialCardMetadata {
-    level: Option<TsysXmlCommercialCardLevelMetadata>,
-    purchase_order: Option<String>,
-    charge_descriptor: Option<String>,
     charge_descriptor_2: Option<String>,
     charge_descriptor_3: Option<String>,
     charge_descriptor_4: Option<String>,
-    customer_ref_id: Option<String>,
-    supplier_reference_number: Option<String>,
-    customer_vat_number: Option<String>,
-    order_date: Option<String>,
-    summary_commodity_code: Option<String>,
     vat_invoice: Option<String>,
-    ship_from_zip: Option<String>,
-    ship_to_zip: Option<String>,
-    destination_country_code: Option<String>,
-    tax_type: Option<String>,
-    tax_category: Option<String>,
-    tax_rate: Option<String>,
 }
 
 /// Mandate-level metadata carried via `RecurringMandatePaymentData.mandate_metadata`.
@@ -458,18 +437,14 @@ fn sanitize_optional_alphanumeric_space(value: Option<String>, max_len: usize) -
         .filter(|value| !value.is_empty())
 }
 
-fn normalize_tsys_order_date(value: Option<String>) -> Option<String> {
-    value.map(|date| {
-        let mut parts = date.split('-');
-        match (parts.next(), parts.next(), parts.next(), parts.next()) {
-            (Some(year), Some(month), Some(day), None)
-                if year.len() == 4 && month.len() == 2 && day.len() == 2 =>
-            {
-                format!("{month}/{day}/{year}")
-            }
-            _ => date,
-        }
-    })
+fn format_tsys_order_date(value: time::PrimitiveDateTime) -> String {
+    let date = value.date();
+    format!(
+        "{:02}/{:02}/{:04}",
+        u8::from(date.month()),
+        date.day(),
+        date.year()
+    )
 }
 
 fn normalize_tsys_country_code(value: Option<String>) -> Option<String> {
@@ -495,20 +470,46 @@ fn compute_commercial_card_context<
     commercial_meta: Option<&TsysXmlCommercialCardMetadata>,
     card_network: Option<&CardNetwork>,
 ) -> Result<CommercialCardContext, Report<IntegrationError>> {
-    let Some(commercial_meta) = commercial_meta else {
-        return Ok(CommercialCardContext::default());
-    };
+    let empty_commercial_meta = TsysXmlCommercialCardMetadata::default();
+    let commercial_meta = commercial_meta.unwrap_or(&empty_commercial_meta);
 
-    let commercial_card_level = match commercial_meta.level {
-        Some(TsysXmlCommercialCardLevelMetadata::Level2) => TsysXmlCommercialCardLevel::Level2,
-        Some(TsysXmlCommercialCardLevelMetadata::Level3) => TsysXmlCommercialCardLevel::Level3,
-        None => {
-            return Err(IntegrationError::MissingRequiredField {
-                field_name: "metadata.tsys_xml.commercial_card.level",
-                context: Default::default(),
-            }
-            .into())
-        }
+    let l2_l3_data = router_data.resource_common_data.l2_l3_data.as_deref();
+    let shipping_address = router_data.resource_common_data.get_shipping_address().ok();
+    let billing_address = router_data.resource_common_data.get_billing_address().ok();
+    let billing_descriptor = router_data.request.billing_descriptor.as_ref();
+    let connector_request_reference_id = router_data
+        .resource_common_data
+        .connector_request_reference_id
+        .clone();
+    let order_details = l2_l3_data
+        .and_then(|data| data.get_order_details())
+        .or_else(|| router_data.resource_common_data.order_details.clone())
+        .unwrap_or_default();
+    let order_tax_amount = l2_l3_data
+        .and_then(|data| data.get_order_tax_amount())
+        .or(router_data.request.order_tax_amount);
+    let order_reference = l2_l3_data
+        .and_then(|data| data.get_merchant_order_reference_id())
+        .or_else(|| router_data.request.merchant_order_id.clone());
+
+    let shipping_charges = l2_l3_data
+        .and_then(|data| data.get_shipping_cost())
+        .or(router_data.request.shipping_cost)
+        .map(|amount| super::TsysXmlAmountConvertor::convert(amount, router_data.request.currency))
+        .transpose()?;
+    let duty_charges = l2_l3_data
+        .and_then(|data| data.get_duty_amount())
+        .map(|amount| super::TsysXmlAmountConvertor::convert(amount, router_data.request.currency))
+        .transpose()?;
+
+    if order_details.is_empty() && order_tax_amount.is_none() && shipping_charges.is_none() && duty_charges.is_none() {
+        return Ok(CommercialCardContext::default());
+    }
+
+    let commercial_card_level = if order_details.is_empty() {
+        TsysXmlCommercialCardLevel::Level2
+    } else {
+        TsysXmlCommercialCardLevel::Level3
     };
     let is_level3 = matches!(commercial_card_level, TsysXmlCommercialCardLevel::Level3);
     let is_visa_or_mastercard = matches!(
@@ -522,47 +523,13 @@ fn compute_commercial_card_context<
         router_data.request.currency,
     )?;
 
-    let l2_l3_data = router_data.resource_common_data.l2_l3_data.as_deref();
-    let _billing_descriptor = router_data.request.billing_descriptor.as_ref();
-    let shipping_address = router_data.resource_common_data.get_shipping_address().ok();
-    let billing_address = router_data.resource_common_data.get_billing_address().ok();
-    let connector_request_reference_id = router_data
-        .resource_common_data
-        .connector_request_reference_id
-        .clone();
-
-    let order_details = l2_l3_data
-        .and_then(|data| data.get_order_details())
-        .or_else(|| router_data.resource_common_data.order_details.clone())
-        .unwrap_or_default();
-    let order_tax_amount = l2_l3_data
-        .and_then(|data| data.get_order_tax_amount())
-        .or(router_data.request.order_tax_amount);
-    let order_reference = l2_l3_data
-        .and_then(|data| data.get_merchant_order_reference_id())
-        .or_else(|| router_data.request.merchant_order_id.clone());
-
     let sales_tax = order_tax_amount
         .map(|amount| super::TsysXmlAmountConvertor::convert(amount, router_data.request.currency))
         .transpose()?;
-    let shipping_charges = l2_l3_data
-        .and_then(|data| data.get_shipping_cost())
-        .or(router_data.request.shipping_cost)
-        .map(|amount| super::TsysXmlAmountConvertor::convert(amount, router_data.request.currency))
-        .transpose()?;
-    let duty_charges = l2_l3_data
-        .and_then(|data| data.get_duty_amount())
-        .map(|amount| super::TsysXmlAmountConvertor::convert(amount, router_data.request.currency))
-        .transpose()?;
 
-    let derived_tax_rate = commercial_meta
-        .tax_rate
-        .clone()
-        .or_else(|| {
-            order_details
-                .iter()
-                .find_map(|detail| detail.tax_rate.map(format_decimal))
-        })
+    let derived_tax_rate = order_details
+        .iter()
+        .find_map(|detail| detail.tax_rate.map(format_decimal))
         .or_else(|| {
             let transaction_amount = router_data.request.minor_amount.get_amount_as_i64();
             let sales_tax_amount = order_tax_amount.map(|amount| amount.get_amount_as_i64())?;
@@ -575,6 +542,10 @@ fn compute_commercial_card_context<
             }
         })
         .or_else(|| is_level3.then_some("0".to_string()));
+    let derived_tax_type = order_details
+        .iter()
+        .find_map(|detail| detail.product_tax_code.clone())
+        .filter(|value| !value.is_empty());
 
     let additional_tax_details = if is_level3 && is_visa_or_mastercard {
         let tax_amount =
@@ -582,23 +553,22 @@ fn compute_commercial_card_context<
                 .clone()
                 .ok_or_else(|| IntegrationError::MissingRequiredField {
                     field_name:
-                        "salesTax required for metadata.tsys_xml.commercial_card.level=level3",
+                        "salesTax required for commercial_card_level LEVEL3",
                     context: Default::default(),
                 })?;
+        let tax_type = derived_tax_type.clone().ok_or_else(|| {
+            IntegrationError::MissingRequiredField {
+                field_name:
+                    "taxType required for additionalTaxDetails (order_details[0].product_tax_code missing)",
+                context: Default::default(),
+            }
+        })?;
 
         vec![TsysXmlAdditionalTaxDetails {
-            tax_type: commercial_meta
-                .tax_type
-                .clone()
-                .unwrap_or_else(|| "VAT".to_string()),
+            tax_type: tax_type.clone(),
             tax_amount,
             tax_rate: Some(derived_tax_rate.clone().unwrap_or_else(|| "0".to_string())),
-            tax_category: Some(
-                commercial_meta
-                    .tax_category
-                    .clone()
-                    .unwrap_or_else(|| "VAT".to_string()),
-            ),
+            tax_category: Some(tax_type),
         }]
     } else {
         Vec::new()
@@ -606,12 +576,12 @@ fn compute_commercial_card_context<
 
     let product_details = if is_level3 && is_visa_or_mastercard {
         if order_details.is_empty() {
-            return Err(IntegrationError::MissingRequiredField {
-                field_name:
-                    "order_details required for metadata.tsys_xml.commercial_card.level=level3",
-                context: Default::default(),
-            }
-            .into());
+                    return Err(IntegrationError::MissingRequiredField {
+                    field_name:
+                        "order_details required for commercial_card_level LEVEL3",
+                    context: Default::default(),
+                }
+                .into());
         }
 
         order_details
@@ -650,7 +620,6 @@ fn compute_commercial_card_context<
                 let product_commodity_code = detail
                     .commodity_code
                     .clone()
-                    .or_else(|| commercial_meta.summary_commodity_code.clone())
                     .or_else(|| detail.upc.clone())
                     .or_else(|| detail.product_id.clone())
                     .or_else(|| detail.sku.clone())
@@ -705,11 +674,10 @@ fn compute_commercial_card_context<
                                 .or_else(|| derived_tax_rate.clone())
                                 .unwrap_or_else(|| "0".to_string()),
                         ),
-                        product_tax_type: detail
-                            .product_tax_code
-                            .clone()
-                            .map(|tax_code| truncate_chars(&tax_code, 4))
-                            .or_else(|| commercial_meta.tax_type.clone()),
+                    product_tax_type: detail
+                        .product_tax_code
+                        .clone()
+                        .map(|tax_code| truncate_chars(&tax_code, 4)),
                     }),
                     product_variation: detail
                         .sub_category
@@ -780,7 +748,6 @@ fn compute_commercial_card_context<
                 let product_commodity_code = detail
                     .commodity_code
                     .clone()
-                    .or_else(|| commercial_meta.summary_commodity_code.clone())
                     .or_else(|| detail.upc.clone())
                     .or_else(|| detail.product_id.clone())
                     .or_else(|| detail.sku.clone())
@@ -827,11 +794,10 @@ fn compute_commercial_card_context<
                                 .or_else(|| derived_tax_rate.clone())
                                 .unwrap_or_else(|| "0".to_string()),
                         ),
-                        product_tax_type: detail
-                            .product_tax_code
-                            .clone()
-                            .map(|tax_code| truncate_chars(&tax_code, 4))
-                            .or_else(|| commercial_meta.tax_type.clone()),
+                    product_tax_type: detail
+                        .product_tax_code
+                        .clone()
+                        .map(|tax_code| truncate_chars(&tax_code, 4)),
                     }),
                     product_variation: detail
                         .sub_category
@@ -868,78 +834,90 @@ fn compute_commercial_card_context<
     };
 
     let purchase_order = sanitize_optional_alphanumeric_space(
-        commercial_meta
-            .purchase_order
+        order_reference
             .clone()
-            .or_else(|| order_reference.clone())
             .or_else(|| Some(connector_request_reference_id.clone())),
         25,
     );
-    let charge_descriptor = commercial_meta.charge_descriptor.clone();
+    let charge_descriptor = billing_descriptor
+        .and_then(|descriptor| {
+            sanitize_optional_alphanumeric_space(
+                descriptor
+                    .statement_descriptor
+                    .clone()
+                    .or_else(|| descriptor.reference.clone())
+                    .or_else(|| descriptor.name.as_ref().map(|name| name.clone().expose())),
+                25,
+            )
+        });
     let supplier_reference_number = (!is_level3 || is_amex)
         .then(|| {
             sanitize_optional_alphanumeric_space(
-                commercial_meta
-                    .supplier_reference_number
+                order_reference
                     .clone()
-                    .or_else(|| order_reference.clone())
                     .or_else(|| Some(connector_request_reference_id.clone())),
                 9,
             )
         })
         .flatten();
-    let customer_vat_number =
-        sanitize_optional_alphanumeric_space(commercial_meta.customer_vat_number.clone(), 13);
+    let customer_vat_number = l2_l3_data
+        .and_then(|data| data.get_customer_tax_registration_id())
+        .map(|tax_id| tax_id.expose())
+        .and_then(|tax_id| sanitize_optional_alphanumeric_space(Some(tax_id), 13));
     let customer_ref_id = (!is_level3 || is_amex)
         .then(|| {
             sanitize_optional_alphanumeric_space(
-                commercial_meta
-                    .customer_ref_id
+                order_reference
                     .clone()
-                    .or_else(|| order_reference.clone())
                     .or_else(|| Some(connector_request_reference_id.clone())),
                 17,
             )
         })
         .flatten();
-    let order_date = normalize_tsys_order_date(commercial_meta.order_date.clone());
-    let summary_commodity_code =
-        sanitize_optional_alphanumeric_space(commercial_meta.summary_commodity_code.clone(), 4);
+    let order_date = l2_l3_data.and_then(|data| data.get_order_date()).map(format_tsys_order_date);
+    let summary_commodity_code = order_details
+        .iter()
+        .find_map(|detail| {
+            detail
+                .commodity_code
+                .clone()
+                .or_else(|| detail.upc.clone())
+                .or_else(|| detail.product_id.clone())
+                .or_else(|| detail.sku.clone())
+        })
+        .and_then(|code| sanitize_optional_alphanumeric_space(Some(code), 4));
     let vat_invoice = sanitize_optional_alphanumeric_space(commercial_meta.vat_invoice.clone(), 15);
-    let ship_from_zip = commercial_meta.ship_from_zip.clone();
-    let ship_to_zip = commercial_meta.ship_to_zip.clone().or_else(|| {
+    let ship_from_zip = l2_l3_data
+        .and_then(|data| data.get_shipping_origin_zip())
+        .map(|zip| zip.expose());
+    let ship_to_zip = l2_l3_data
+        .and_then(|data| data.get_shipping_zip())
+        .map(|zip| zip.expose())
+        .or_else(|| {
+            shipping_address
+                .and_then(|address| address.zip.clone())
+                .map(|zip| zip.expose())
+        })
+        .or_else(|| {
+            billing_address
+                .and_then(|address| address.zip.clone())
+                .map(|zip| zip.expose())
+        });
+    let destination_country_code = normalize_tsys_country_code(
         l2_l3_data
-            .and_then(|data| data.get_shipping_zip())
-            .map(|zip| zip.expose())
+            .and_then(|data| data.get_shipping_country())
+            .map(format_country_alpha3)
             .or_else(|| {
                 shipping_address
-                    .and_then(|address| address.zip.clone())
-                    .map(|zip| zip.expose())
+                    .and_then(|address| address.country)
+                    .map(format_country_alpha3)
             })
             .or_else(|| {
                 billing_address
-                    .and_then(|address| address.zip.clone())
-                    .map(|zip| zip.expose())
-            })
-    });
-    let destination_country_code =
-        normalize_tsys_country_code(commercial_meta.destination_country_code.clone().or_else(
-            || {
-                l2_l3_data
-                    .and_then(|data| data.get_shipping_country())
+                    .and_then(|address| address.country)
                     .map(format_country_alpha3)
-                    .or_else(|| {
-                        shipping_address
-                            .and_then(|address| address.country)
-                            .map(format_country_alpha3)
-                    })
-                    .or_else(|| {
-                        billing_address
-                            .and_then(|address| address.country)
-                            .map(format_country_alpha3)
-                    })
-            },
-        ));
+            }),
+    );
 
     if is_level3 && is_visa_or_mastercard {
         if sales_tax.is_none() {

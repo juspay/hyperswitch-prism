@@ -1436,4 +1436,101 @@ mod tests {
             "{xml}"
         );
     }
+
+    #[test]
+    fn authorize_ntid_replay_uses_card_on_file_transaction_identifier_only() {
+        let mut body = sample_level3_sale_body();
+        body.commercial_card_level = None;
+        body.sales_tax = None;
+        body.additional_tax_details = Vec::new();
+        body.shipping_charges = None;
+        body.duty_charges = None;
+        body.product_details = Vec::new();
+        body.purchase_order = None;
+        body.customer_vat_number = None;
+        body.customer_ref_id = None;
+        body.supplier_reference_number = None;
+        body.order_date = None;
+        body.summary_commodity_code = None;
+        body.vat_invoice = None;
+        body.ship_from_zip = None;
+        body.ship_to_zip = None;
+        body.destination_country_code = None;
+        body.card_on_file = Some(TsysXmlCardOnFile::Y);
+        body.card_on_file_transaction_identifier = Some("000000000813109".to_string());
+        body.previous_network_transaction_id = None;
+        body.mit = None;
+
+        let xml = TsysXmlAuthorizeRequest::Sale(body).to_soap_xml();
+
+        assert!(xml.contains("<cardOnFile>Y</cardOnFile>"), "{xml}");
+        assert!(
+            xml.contains(
+                "<cardOnFileTransactionIdentifier>000000000813109</cardOnFileTransactionIdentifier>"
+            ),
+            "{xml}"
+        );
+        assert!(
+            !xml.contains("previousNetworkTransactionID"),
+            "previousNetworkTransactionID is rejected in this Sale position: {xml}"
+        );
+        assert!(
+            !xml.contains("<mit>"),
+            "unexpected MIT node in direct NTID replay: {xml}"
+        );
+    }
+
+    #[test]
+    fn void_serializes_amount_before_transaction_id_and_reason_last() {
+        let xml = TsysXmlVoidRequest {
+            device_id: Secret::new("device_123".to_string()),
+            transaction_key: Secret::new("txn_key_123".to_string()),
+            transaction_amount: Some(major("5.00")),
+            transaction_id: "80998617".to_string(),
+            developer_id: Secret::new("developer_123".to_string()),
+            void_reason: "POST_AUTH_USER_DECLINE".to_string(),
+        }
+        .to_soap_xml();
+
+        let amount_idx = xml
+            .find("<transactionAmount>5.00</transactionAmount>")
+            .expect("transaction amount tag");
+        let transaction_id_idx = xml
+            .find("<transactionID>80998617</transactionID>")
+            .expect("transaction id tag");
+        let developer_id_idx = xml
+            .find("<developerID>developer_123</developerID>")
+            .expect("developer id tag");
+        let void_reason_idx = xml
+            .find("<voidReason>POST_AUTH_USER_DECLINE</voidReason>")
+            .expect("void reason tag");
+
+        assert!(
+            amount_idx < transaction_id_idx
+                && transaction_id_idx < developer_id_idx
+                && developer_id_idx < void_reason_idx,
+            "{xml}"
+        );
+    }
+
+    #[test]
+    fn masks_sensitive_xml_values_for_logs() {
+        let xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Sale><deviceID>device_123</deviceID><transactionKey>txn_key_123</transactionKey><developerID>developer_123</developerID><cardNumber>4111111111111111</cardNumber><expirationDate>12/30</expirationDate><cvv2>123</cvv2><customerCode>cust_123</customerCode><walletID>wallet_123</walletID></Sale>";
+
+        let masked = mask_tsys_xml_for_logs(xml);
+
+        assert!(masked.contains("<deviceID>device_123</deviceID>"));
+        assert!(masked.contains("<transactionKey>***</transactionKey>"));
+        assert!(masked.contains("<developerID>***</developerID>"));
+        assert!(masked.contains("<cardNumber>************1111</cardNumber>"));
+        assert!(masked.contains("<expirationDate>***</expirationDate>"));
+        assert!(masked.contains("<cvv2>***</cvv2>"));
+        assert!(masked.contains("<customerCode>***</customerCode>"));
+        assert!(masked.contains("<walletID>***</walletID>"));
+        assert!(!masked.contains("txn_key_123"));
+        assert!(!masked.contains("developer_123"));
+        assert!(!masked.contains("4111111111111111"));
+        assert!(!masked.contains(">12/30<"));
+        assert!(!masked.contains(">123<"));
+    }
 }
