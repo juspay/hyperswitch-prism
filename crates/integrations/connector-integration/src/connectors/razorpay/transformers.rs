@@ -1203,12 +1203,15 @@ impl ForeignTryFrom<(RazorpayOrderResponse, Self, u16, bool)>
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize)]
 pub struct RazorpaySessionTokenRequest {
+    // `amount` and `currency` are mandatory because Razorpay's session-token flow creates
+    // an Order server-side (POST /v1/orders); order creation requires both fields.
     pub amount: MinorUnit,
-    pub currency: String,
+    pub currency: common_enums::Currency,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub receipt: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub payment_capture: Option<i8>,
+    // Always auto-capture for the standard checkout / SDK session flow, so this is not
+    // optional (Razorpay's `payment_capture` serializes as `1`).
+    pub payment_capture: i8,
 }
 
 impl
@@ -1254,15 +1257,17 @@ impl
 
         Ok(Self {
             amount: item.amount,
-            currency: request_data.currency.to_string(),
+            currency: request_data.currency,
             receipt,
-            // 1 = auto-capture; Razorpay captures the payment automatically once authorized
-            // (required for the standard checkout / SDK session flow).
-            payment_capture: Some(1),
+            // 1 = auto-capture; Razorpay captures the payment automatically once authorized.
+            payment_capture: 1,
         })
     }
 }
 
+// `RazorpayOrderResponse` is reused intentionally: the session-token endpoint IS
+// `POST /v1/orders`, so the response payload is an order response and its `id` is the
+// order id surfaced to the SDK as the session token.
 impl ForeignTryFrom<(RazorpayOrderResponse, Self, u16)>
     for RouterDataV2<
         ServerSessionAuthenticationToken,
