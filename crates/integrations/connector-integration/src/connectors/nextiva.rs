@@ -153,9 +153,21 @@ macros::create_all_prerequisites!(
             bytes: bytes::Bytes,
             status_code: u16,
         ) -> CustomResult<bytes::Bytes, ConnectorError> {
-            // PayConex (QSAPI/TSAPI) returns application/x-www-form-urlencoded
-            // bodies even when response_format=JSON is requested. Convert the
-            // url-encoded payload into JSON so the typed response structs parse.
+            // PayConex (QSAPI/TSAPI) returns JSON when response_format=JSON is
+            // honored, but can fall back to application/x-www-form-urlencoded.
+            // Detect the actual shape and only normalize url-encoded payloads
+            // to JSON, so the typed response structs parse in both cases.
+            let is_json = bytes
+                .iter()
+                .copied()
+                .find(|b| !b.is_ascii_whitespace())
+                .map(|b| b == b'{' || b == b'[')
+                .unwrap_or(false);
+
+            if is_json {
+                return Ok(bytes);
+            }
+
             let url_encoded_response: serde_json::Value = serde_urlencoded::from_bytes(&bytes)
                 .change_context(crate::utils::response_deserialization_fail(
                     status_code,
