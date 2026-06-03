@@ -47,15 +47,48 @@ mod probe_engine;
 mod registry;
 mod requests;
 mod sample_data;
+mod static_introspect;
 mod status;
 mod types;
 
 use config::get_config;
 use orchestrator::probe_connector;
 use registry::all_connectors;
+use static_introspect::introspect_connector;
 use types::{CompactConnectorResult, CompactFlowResult, ErrorStats};
 
+/// `field-probe` produces the data that feeds `docs-generated/all_connector.md`.
+///
+/// Default mode is **static**: each connector's declared
+/// `SupportedPaymentMethods` is read via the (now-mandatory)
+/// `ConnectorSpecifications` trait and written to
+/// `data/connector_capabilities/<connector>.json`. No transformers are
+/// executed; the run takes seconds.
+///
+/// Pass `--runtime` to invoke the legacy probe — it executes each connector's
+/// transformer with synthetic data and writes to `data/field_probe/`. Useful
+/// as a cross-check ("does the declared support match what the transformer
+/// actually accepts?") but no longer the source of truth for the matrix.
 fn main() {
+    // Probe-mode bypass: this binary's job is to discover real transformer
+    // behaviour (runtime mode) or read declarations (static mode). The
+    // capability gate in `crates/ffi/ffi/src/macros.rs::req_transformer!`
+    // would otherwise intercept every runtime call BEFORE the transformer
+    // runs and just echo the declaration back — defeating the probe's
+    // purpose. Setting this env var disables the gate for this process.
+    // Production gRPC servers and SDK callers never set it, so the gate
+    // stays armed in user-facing code paths.
+    std::env::set_var("UCS_BYPASS_CAPABILITY_GATE", "1");
+
+    let runtime_mode = std::env::args().any(|a| a == "--runtime");
+    if runtime_mode {
+        run_runtime_probe();
+    } else {
+        run_static_introspect();
+    }
+}
+
+fn run_runtime_probe() {
     // Load config first (initializes PROBE_CONFIG)
     let config = get_config();
     let skip_set: HashSet<String> = config
@@ -211,4 +244,70 @@ fn main() {
             eprintln!("  {connector} / {flow} / {pm}: {error}");
         }
     }
+}
+
+/// Static-mode entry point.
+///
+/// Walks every connector via the existing registry, calls
+/// `ConnectorSpecifications::get_supported_payment_methods()` (guaranteed
+/// to exist by the supertrait bound on `ConnectorServiceTrait`), and writes
+/// one JSON file per connector to `data/connector_capabilities/`. No
+/// transformer execution; no synthetic requests; no patcher.
+fn run_static_introspect() {
+    let connectors = all_connectors();
+    eprintln!(
+        "Introspecting {} connectors (static mode)...",
+        connectors.len()
+    );
+
+    let reports: Vec<_> = connectors
+        .par_iter()
+        .map(introspect_connector)
+        .collect();
+
+    let output_dir = if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
+        Path::new(&manifest_dir)
+            .parent()
+            .and_then(|p| p.parent())
+            .and_then(|p| p.parent())
+            .map(|p| p.join("data/connector_capabilities"))
+            .unwrap_or_else(|| Path::new("data/connector_capabilities").to_path_buf())
+    } else {
+        Path::new("data/connector_capabilities").to_path_buf()
+    };
+
+    if let Err(e) = std::fs::create_dir_all(&output_dir) {
+        eprintln!("Error: Failed to create output directory {output_dir:?}: {e}");
+        std::process::exit(1);
+    }
+
+    let mut empty = 0usize;
+    let mut populated = 0usize;
+    for report in &reports {
+        let pm_count: usize = report
+            .supported_payment_methods
+            .values()
+            .map(BTreeMap::len)
+            .sum();
+        if pm_count == 0 {
+            empty += 1;
+        } else {
+            populated += 1;
+        }
+
+        let json = serde_json::to_string_pretty(report)
+            .expect("Failed to serialize capability report");
+        let path = output_dir.join(format!("{}.json", report.connector));
+        if let Err(e) = std::fs::write(&path, &json) {
+            eprintln!("  Warning: Failed to write {path:?}: {e}");
+        }
+    }
+
+    eprintln!(
+        "\nSummary: {} connectors total, {} with PM declarations, {} empty (returning EMPTY_SUPPORTED_PAYMENT_METHODS).",
+        reports.len(),
+        populated,
+        empty,
+    );
+    eprintln!("Output: {}", output_dir.display());
 }
