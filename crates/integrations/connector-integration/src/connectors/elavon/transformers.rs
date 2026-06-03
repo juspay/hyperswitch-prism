@@ -758,7 +758,7 @@ pub fn get_elavon_attempt_status(
                     .clone()
                     .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
                 message: error_resp.error_message.clone(),
-                reason: error_resp.error_name.clone(),
+                reason: Some(error_resp.error_message.clone()),
                 attempt_status: Some(HyperswitchAttemptStatus::Failure),
                 connector_transaction_id: error_resp.ssl_txn_id.clone(),
                 network_decline_code: None,
