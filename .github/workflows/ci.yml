@@ -77,14 +77,14 @@ jobs:
               - 'crates/internal/composite-service/**'
               - 'crates/internal/field-probe/**'
               - 'crates/internal/uniffi-bindgen/**'
-              - 'crates/internal/integration-tests/src/harness/**'
-              - 'crates/internal/integration-tests/src/global_suites/**'
-              - 'crates/internal/integration-tests/src/lib.rs'
+              - 'testing/integration-tests/src/harness/**'
+              - 'testing/integration-tests/src/global_suites/**'
+              - 'testing/integration-tests/src/lib.rs'
               - 'Cargo.toml'
               - 'Cargo.lock'
             connector:
               - 'crates/integrations/**'
-              - 'crates/internal/integration-tests/src/connector_specs/**'
+              - 'testing/integration-tests/src/connector_specs/**'
             any-rust:
               - 'crates/**'
               - 'Cargo.toml'

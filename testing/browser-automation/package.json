@@ -1,5 +1,5 @@
 {
-  "name": "browser-automation-engine",
+  "name": "browser-automation",
   "version": "0.1.0",
   "private": true,
   "description": "JSON-DSL browser automation runtime on top of Playwright",

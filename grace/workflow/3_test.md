@@ -168,7 +168,7 @@ git checkout -b fix/test-{connector}-{issue}
 
 **Fix the test files (ONLY positive overrides):**
 
-- Location: `crates/internal/integration-tests/src/connector_specs/{CONNECTOR}/`
+- Location: `testing/integration-tests/src/connector_specs/{CONNECTOR}/`
 - Allowed to edit:
   - `override.json` — test data overrides
   - `specs.json` — connector-specific specs

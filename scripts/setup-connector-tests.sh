@@ -5,7 +5,7 @@
 #
 # What it does:
 #   1. Checks that Node ≥18 and npm are available
-#   2. Runs `npm install` inside browser-automation-engine/ (skipped if up-to-date)
+#   2. Runs `npm install` inside testing/browser-automation/ (skipped if up-to-date)
 #   3. Installs Playwright browser binaries (chromium + webkit) if not present
 #   4. Checks/installs grpcurl for gRPC backend testing
 #   5. Auto-installs Netlify CLI locally if not already available (optional)
@@ -27,7 +27,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-BAE_DIR="${REPO_ROOT}/browser-automation-engine"
+BAE_DIR="${REPO_ROOT}/testing/browser-automation"
 ENV_FILE="${REPO_ROOT}/.env.connector-tests"
 DEFAULT_CREDS="${REPO_ROOT}/creds.json"
 UCS_CONFIG_DIR="${HOME}/.config/integration-tests"
@@ -68,7 +68,7 @@ fi
 success "npm $(npm --version) OK"
 
 # ── Step 2: npm install ────────────────────────────────────────────────────────
-info "Installing browser-automation-engine dependencies..."
+info "Installing testing/browser-automation dependencies..."
 
 LOCK_FILE="${BAE_DIR}/package-lock.json"
 NODE_MODULES="${BAE_DIR}/node_modules"
@@ -200,11 +200,11 @@ if [[ "${NETLIFY_AVAILABLE}" == "false" && "${SKIP_NETLIFY_DEPLOY:-0}" != "1" ]]
   echo ""
 
   # Auto-install locally in the project for convenience
-  info "Installing Netlify CLI locally in browser-automation-engine..."
+  info "Installing Netlify CLI locally in testing/browser-automation..."
   if (cd "${BAE_DIR}" && npm install --save-dev netlify-cli 2>&1); then
     success "Netlify CLI installed locally"
     # Add to package.json scripts for easy access
-    info "You can now use: cd browser-automation-engine && npx netlify"
+    info "You can now use: cd testing/browser-automation && npx netlify"
   else
     warn "Failed to install Netlify CLI locally"
     warn "Google Pay tests will be skipped unless you install manually:"
@@ -407,7 +407,7 @@ if [[ "${SKIP_NETLIFY}" != "1" && -n "${NETLIFY_CMD}" ]]; then
         2>&1) || {
       warn "Could not create Netlify site automatically."
       warn "Create one manually at https://app.netlify.com and then link it:"
-      warn "  cd browser-automation-engine && netlify link"
+      warn "  cd testing/browser-automation && netlify link"
       warn ""
       warn "Skipping Netlify deploy — Google Pay tests will be skipped at runtime."
       SKIP_NETLIFY=1
@@ -432,7 +432,7 @@ fi
 
 if [[ "${SKIP_NETLIFY}" != "1" && -n "${NETLIFY_CMD}" ]]; then
 
-  info "Running: netlify deploy --prod (in browser-automation-engine/)"
+  info "Running: netlify deploy --prod (in testing/browser-automation/)"
   DEPLOY_OUTPUT=$(cd "${BAE_DIR}" && NETLIFY_AUTH_TOKEN="${NETLIFY_AUTH_TOKEN}" \
     ${NETLIFY_CMD} deploy --prod --auth "${NETLIFY_AUTH_TOKEN}" 2>&1) || {
     warn "Netlify deploy failed. Google Pay tests will be skipped at runtime."
@@ -558,18 +558,18 @@ else
       info "Launching Google sign-in browser..."
       (cd "${BAE_DIR}" && npm run gpay:login 2>&1) || {
         warn "Google sign-in failed or was cancelled."
-        warn "You can run it later:  cd browser-automation-engine && npm run gpay:login"
+        warn "You can run it later:  cd testing/browser-automation && npm run gpay:login"
       }
       if [[ -f "${GPAY_STORAGE_STATE}" ]]; then
         success "Google Pay session saved successfully."
       fi
     else
       warn "Skipped Google sign-in."
-      warn "Run later:  cd browser-automation-engine && npm run gpay:login"
+      warn "Run later:  cd testing/browser-automation && npm run gpay:login"
     fi
   else
     warn "Non-interactive terminal — skipping Google sign-in."
-    warn "Run manually:  cd browser-automation-engine && npm run gpay:login"
+    warn "Run manually:  cd testing/browser-automation && npm run gpay:login"
   fi
 fi
 
@@ -599,6 +599,6 @@ fi
 if [[ -f "${GPAY_STORAGE_STATE}" ]]; then
   echo "  Google Pay session:    SAVED (${GPAY_STORAGE_STATE})"
 else
-  echo "  Google Pay session:    NOT SET — run: cd browser-automation-engine && npm run gpay:login"
+  echo "  Google Pay session:    NOT SET — run: cd testing/browser-automation && npm run gpay:login"
 fi
 echo ""

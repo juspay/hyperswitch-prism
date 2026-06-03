@@ -385,7 +385,7 @@ SKIP_NETLIFY_DEPLOY=1 make setup-connector-tests
 ```
 
 > For full details on the Google Pay flow, see
-> [`browser-automation-engine/gpay/README.md`](browser-automation-engine/gpay/README.md).
+> [`testing/browser-automation/gpay/README.md`](testing/browser-automation/gpay/README.md).
 
 ### Running tests
 

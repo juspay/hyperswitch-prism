@@ -164,7 +164,7 @@ Per-connector results:
 
 ### RULES
 
-1. **Working directory**: `connector_service_ucs` repo root (where `crates/internal/integration-tests/` exists)
+1. **Working directory**: `connector_service_ucs` repo root (where `testing/integration-tests/` exists)
 2. **STRICTLY SEQUENTIAL**: Process ONE connector at a time. Never parallelize. Do not go by flows.
 3. **Run tests FIRST**: Always run tests to identify failures. Only create fix branches when tests fail.
 4. **Fix ONLY tests**: If test fails due to test bug → create fix branch, fix test. If fails due to real connector bug → report FAILED (don't fix connector code).
@@ -178,7 +178,7 @@ Per-connector results:
 Find all connectors in the test suite:
 
 ```bash
-ls crates/internal/integration-tests/src/connector_specs/
+ls testing/integration-tests/src/connector_specs/
 ```
 
 **Identify targets**: Connectors with "Integrated" (blue badge) but WITHOUT "Tested" (green badge) in `docs-generated/connectors/README.md`.
@@ -201,7 +201,7 @@ test-prism --help && echo "SKIP_SETUP" || make setup-connector-tests
 **THEN: Verify environment:**
 
 ```bash
-pwd && ls crates/internal/integration-tests/README.md
+pwd && ls testing/integration-tests/README.md
 # Build test-prism if not available
 cargo build -p integration-tests
 # Check credentials exist
