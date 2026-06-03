@@ -97,6 +97,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ServerSessionAuthentication for Payu<T>
 {
+    // Trait requirements satisfied by the macro-generated impl;
+    // no custom logic needed for the SDKSessionToken (ServerSessionAuthenticationToken) flow.
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Payu<T>

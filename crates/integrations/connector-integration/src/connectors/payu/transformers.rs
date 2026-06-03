@@ -2034,6 +2034,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
+        // This SDKSessionToken flow uses OAuth2 `client_credentials` (PayU Europe;
+        // PayU India instead uses hash-based auth). The credentials are carried by the
+        // `ConnectorSpecificConfig::Payu` variant via `PayuAuthType` (api_key / api_secret).
         let auth = PayuAuthType::try_from(&router_data.connector_config)?;
 
         // PayU BodyKey maps api_key -> client_secret and api_secret (key1) -> client_id (POS id).
@@ -2087,6 +2090,9 @@ impl TryFrom<ResponseRouterData<PayuSessionTokenResponse, Self>>
             });
         }
 
+        // A fresh OAuth token is acquired on every SDKSessionToken request (this connector
+        // layer performs no caching), so the token's `expires_in` TTL is not relevant here
+        // and there is no stale-cache concern.
         let session_token = response.access_token.ok_or_else(|| {
             report!(ConnectorError::response_handling_failed_with_context(
                 item.http_code,
