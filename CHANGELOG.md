@@ -19,6 +19,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.03.0
+
+### Features
+
+- **connector:**
+  - Juspay (EC API) with 6 core flows + multi-PM Authorize ([#1366](https://github.com/juspay/connector-service/pull/1366)) ([`09b03bc`](https://github.com/juspay/connector-service/commit/09b03bce14c11cf94bcbbe5948e40aea1c99afd0))
+  - Nexixpay SetupRecurring + RepeatPayment (MIT) ([#1401](https://github.com/juspay/connector-service/pull/1401)) ([`b3c86a5`](https://github.com/juspay/connector-service/commit/b3c86a59a531244e4f24a6a4dda6f1ccc5028edb))
+- **globalgetnet:** Boleto + Pix QR + full UCS 3DS + Cofre PaymentMethodToken (LATAM) ([#1373](https://github.com/juspay/connector-service/pull/1373)) ([`96eb340`](https://github.com/juspay/connector-service/commit/96eb3409a153aabd7f4b43ce2907dccfa5b84d1a))
+- **wallets:** Consolidate successful Adyen (WeChatPay, MobilePay, MbWay) & Stripe (Alma) wallet/paylater PMs ([#1418](https://github.com/juspay/connector-service/pull/1418)) ([`25fe886`](https://github.com/juspay/connector-service/commit/25fe8864af49f568c00ae5ea340fdd6941c092de))
+
+### Documentation
+
+- Add payout engineering blog — Hyperswitch Prism ([#1246](https://github.com/juspay/connector-service/pull/1246)) ([`5269996`](https://github.com/juspay/connector-service/commit/52699962a0ccd5b83e162bd97e1e010b02a7e4db))
+
+**Full Changelog:** [`2026.06.02.0...2026.06.03.0`](https://github.com/juspay/connector-service/compare/2026.06.02.0...2026.06.03.0)
+
+- - -
+
 ## 2026.06.02.0
 
 ### Features
