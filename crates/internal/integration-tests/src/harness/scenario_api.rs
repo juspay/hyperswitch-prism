@@ -193,17 +193,12 @@ fn connector_request_reference_id_for(
     connector: &str,
     suite: &str,
     scenario: &str,
-    grpc_req: &mut Value,
+    grpc_req: &Value,
 ) -> String {
     // Load connector spec to check for custom reference ID configuration.
     // Silently ignore errors — an absent spec means default behaviour.
     if let Some(spec) = load_connector_spec(connector) {
-        let source_field_owned: Option<String> = spec
-            .request_id_source_field_per_suite
-            .get(suite)
-            .cloned()
-            .or_else(|| spec.request_id_source_field.clone());
-        if let Some(source_field) = source_field_owned.as_deref() {
+        if let Some(source_field) = spec.request_id_source_field.as_deref() {
             if let Some(value) =
                 lookup_json_path_with_case_fallback(grpc_req, source_field).and_then(Value::as_str)
             {
@@ -215,35 +210,10 @@ fn connector_request_reference_id_for(
             // Source field absent or empty — generate with optional prefix/length.
             let prefix = spec.request_id_prefix.as_deref().unwrap_or("");
             let uuid_part = format!("{}{}", prefix, Uuid::new_v4().simple());
-            let generated: String = match spec.request_id_length {
+            return match spec.request_id_length {
                 Some(len) => uuid_part.chars().take(len).collect(),
                 None => uuid_part,
             };
-            // Write the generated value back into the body when the source_field
-            // is part of this suite's request schema — otherwise grpcurl rejects
-            // unknown fields. We check the original `scenario.json` for this
-            // suite (before pruning), since the pruned grpc_req won't contain
-            // sentinel fields like "auto_generate".
-            let source_in_schema = load_scenario(suite, scenario)
-                .ok()
-                .and_then(|s| {
-                    lookup_json_path_with_case_fallback(&s.grpc_req, source_field).map(|_| ())
-                })
-                .is_some();
-            if source_in_schema {
-                if !source_field.contains('.') {
-                    if let Some(map) = grpc_req.as_object_mut() {
-                        map.insert(source_field.to_string(), Value::String(generated.clone()));
-                    }
-                } else {
-                    let _ = set_json_path_value(
-                        grpc_req,
-                        source_field,
-                        Value::String(generated.clone()),
-                    );
-                }
-            }
-            return generated;
         }
     }
 
@@ -375,6 +345,11 @@ fn prune_all_default_top_level_keys(root: &mut Value) {
             // Only prune if: (a) the value has at least one primitive leaf,
             // AND (b) all leaves are defaults.  Subtrees with no primitive
             // leaves (e.g. oneof selectors like `{ "ideal": {} }`) are kept.
+            // Scalar "auto_generate" sentinels are exempt: resolve_auto_generate
+            // runs after this and needs the field present to substitute a value.
+            if matches!(val, Value::String(s) if s == "auto_generate") {
+                return false;
+            }
             contains_primitive_leaf(val) && has_only_default_leaves(val)
         })
         .map(|(key, _)| key.clone())
@@ -1767,6 +1742,9 @@ pub fn build_grpcurl_request_from_payload(
     let merchant_id = merchant_id.unwrap_or(DEFAULT_MERCHANT_ID);
     let tenant_id = tenant_id.unwrap_or(DEFAULT_TENANT_ID);
 
+    let payload = serde_json::to_string_pretty(grpc_req)
+        .map_err(|source| ScenarioError::JsonSerialize { source })?;
+
     let config = load_connector_config(connector).map_or_else(
         |error| {
             if require_auth {
@@ -1781,15 +1759,9 @@ pub fn build_grpcurl_request_from_payload(
         |config| Ok(Some(config)),
     )?;
 
-    // Resolve the reference id first; the helper writes the generated value
-    // back into the body's `request_id_source_field` so the payload contains
-    // the same id we attach to the header.
-    let mut grpc_req_eff = grpc_req.clone();
     let request_id = format!("{suite}_{scenario}_req");
     let connector_request_reference_id =
-        connector_request_reference_id_for(connector, suite, scenario, &mut grpc_req_eff);
-    let payload = serde_json::to_string_pretty(&grpc_req_eff)
-        .map_err(|source| ScenarioError::JsonSerialize { source })?;
+        connector_request_reference_id_for(connector, suite, scenario, grpc_req);
     let suite_spec = load_suite_spec(suite).ok();
     let method = grpc_method_for_suite(suite, suite_spec.as_ref())?;
 
@@ -2177,9 +2149,9 @@ pub fn execute_tonic_request_from_payload(
         })?;
 
     let request_id = format!("{suite}_{scenario}_req");
-    let mut grpc_req = grpc_req.clone();
     let connector_request_reference_id =
-        connector_request_reference_id_for(&connector, suite, scenario, &mut grpc_req);
+        connector_request_reference_id_for(&connector, suite, scenario, grpc_req);
+    let grpc_req = grpc_req.clone();
 
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
