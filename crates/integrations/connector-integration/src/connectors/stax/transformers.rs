@@ -345,6 +345,7 @@ pub struct StaxPaymentResponse {
     /// mandate reference through SetupMandate so that subsequent RepeatPayment
     /// calls can reuse the same tokenized instrument.
     pub payment_method_id: Option<String>,
+    pub idempotency_id: Option<String>,
 }
 
 // Type aliases for each flow to avoid macro conflicts
@@ -410,7 +411,12 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxPaymentResponse, 
                 mandate_reference: None,
                 connector_metadata,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(
+                    response
+                        .idempotency_id
+                        .clone()
+                        .unwrap_or_else(|| response.id.clone()),
+                ),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
             }),
@@ -454,7 +460,12 @@ impl TryFrom<ResponseRouterData<StaxPaymentResponse, Self>>
                 mandate_reference: None,
                 connector_metadata,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(
+                    response
+                        .idempotency_id
+                        .clone()
+                        .unwrap_or_else(|| response.id.clone()),
+                ),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
             }),
