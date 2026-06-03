@@ -624,7 +624,14 @@ impl TryFrom<ResponseRouterData<NextivaSyncResponse, Self>>
         let status = if !item.response.found {
             common_enums::AttemptStatus::Pending
         } else if item.response.transaction_approved {
-            common_enums::AttemptStatus::Charged
+            // PayConex GET_TRANSACTION_STATUS does not expose whether a manual
+            // authorization has been captured, so mirror the Authorize intent:
+            // auto-capture -> Charged, manual-capture -> Authorized.
+            if item.router_data.request.is_auto_capture() {
+                common_enums::AttemptStatus::Charged
+            } else {
+                common_enums::AttemptStatus::Authorized
+            }
         } else {
             common_enums::AttemptStatus::Failure
         };
