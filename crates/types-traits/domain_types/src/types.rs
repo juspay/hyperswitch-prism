@@ -10734,7 +10734,7 @@ impl
                         doc_url: None,
                     },
                 })?,
-            connector_customer: value.customer.and_then(|c| c.id),
+            connector_customer: value.customer.and_then(|c| c.connector_customer_id),
             description: None,
             return_url: value.return_url,
             connector_feature_data: None,
