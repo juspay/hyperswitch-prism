@@ -20,7 +20,7 @@ use domain_types::{
     router_response_types::RedirectForm,
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_masking::{PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::types::ResponseRouterData;
@@ -1997,7 +1997,10 @@ pub struct PayuSessionTokenRequest {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PayuSessionTokenResponse {
-    pub access_token: Option<String>,
+    // Optional because PayU's OAuth endpoint omits `access_token` on failure and instead
+    // populates `error` / `error_description` (handled in the error branch below).
+    // Wrapped in `Secret` so the bearer token is not leaked via Debug.
+    pub access_token: Option<Secret<String>>,
     pub token_type: Option<String>,
     pub expires_in: Option<i64>,
     pub grant_type: Option<String>,
@@ -2093,19 +2096,23 @@ impl TryFrom<ResponseRouterData<PayuSessionTokenResponse, Self>>
         // A fresh OAuth token is acquired on every SDKSessionToken request (this connector
         // layer performs no caching), so the token's `expires_in` TTL is not relevant here
         // and there is no stale-cache concern.
-        let session_token = response.access_token.ok_or_else(|| {
-            report!(ConnectorError::response_handling_failed_with_context(
-                item.http_code,
-                Some("access_token missing in PayU OAuth response".to_string()),
-            ))
-        })?;
+        let session_token = response
+            .access_token
+            .ok_or_else(|| {
+                report!(ConnectorError::response_handling_failed_with_context(
+                    item.http_code,
+                    Some("access_token missing in PayU OAuth response".to_string()),
+                ))
+            })?
+            .expose();
 
+        // This flow only issues a session token; no payment has been authorized yet, so the
+        // attempt status is left unchanged (it is not Pending).
         Ok(Self {
             response: Ok(ServerSessionAuthenticationTokenResponseData {
                 session_token: session_token.clone(),
             }),
             resource_common_data: PaymentFlowData {
-                status: AttemptStatus::Pending,
                 session_token: Some(session_token),
                 ..item.router_data.resource_common_data
             },
