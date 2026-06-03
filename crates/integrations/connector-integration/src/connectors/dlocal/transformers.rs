@@ -1152,16 +1152,12 @@ fn get_voucher_payment_method_id(
 ) -> Result<PaymentMethodId, error_stack::Report<IntegrationError>> {
     match voucher_data {
         payment_method_data::VoucherData::Oxxo => Ok(PaymentMethodId::Other("OX".to_string())),
-        payment_method_data::VoucherData::Boleto(_) => {
-            Ok(PaymentMethodId::Other("BL".to_string()))
-        }
+        payment_method_data::VoucherData::Boleto(_) => Ok(PaymentMethodId::Other("BL".to_string())),
         payment_method_data::VoucherData::Efecty => Ok(PaymentMethodId::Other("EY".to_string())),
         payment_method_data::VoucherData::PagoEfectivo => {
             Ok(PaymentMethodId::Other("EF".to_string()))
         }
-        payment_method_data::VoucherData::RedPagos => {
-            Ok(PaymentMethodId::Other("RE".to_string()))
-        }
+        payment_method_data::VoucherData::RedPagos => Ok(PaymentMethodId::Other("RE".to_string())),
         payment_method_data::VoucherData::Indomaret(_) => {
             Ok(PaymentMethodId::Other("IM".to_string()))
         }

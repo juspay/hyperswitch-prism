@@ -89,8 +89,43 @@
         "error": "This feature is not implemented: Selected payment method through Dlocal"
       },
       "Boleto": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "boleto": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.dlocal.com/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "V2-HMAC-SHA256, Signature: a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-date": "2020-01-01T00:00:00+00:00",
+            "x-login": "probe_user",
+            "x-trans-key": "probe_key",
+            "x-version": "2.1"
+          },
+          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"country\":\"US\",\"payment_method_id\":\"BL\",\"payment_method_flow\":\"REDIRECT\",\"payer\":{\"name\":\"John\",\"email\":\"test@example.com\",\"document\":\"12345678\"},\"order_id\":\"probe_txn_001\",\"callback_url\":\"https://example.com/return\"}"
+        }
       },
       "BriVaBankTransfer": {
         "status": "not_implemented",
@@ -162,8 +197,43 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Dana": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "dana_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.dlocal.com/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "V2-HMAC-SHA256, Signature: a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-date": "2020-01-01T00:00:00+00:00",
+            "x-login": "probe_user",
+            "x-trans-key": "probe_key",
+            "x-version": "2.1"
+          },
+          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"country\":\"US\",\"payment_method_id\":\"DN\",\"payment_method_flow\":\"REDIRECT\",\"payer\":{\"name\":\"John\",\"email\":\"test@example.com\",\"document\":\"12345678\"},\"order_id\":\"probe_txn_001\",\"callback_url\":\"https://example.com/return\"}"
+        }
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
@@ -182,8 +252,43 @@
         "error": "This feature is not implemented: Selected payment method through Dlocal"
       },
       "Efecty": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "efecty": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.dlocal.com/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "V2-HMAC-SHA256, Signature: a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-date": "2020-01-01T00:00:00+00:00",
+            "x-login": "probe_user",
+            "x-trans-key": "probe_key",
+            "x-version": "2.1"
+          },
+          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"country\":\"US\",\"payment_method_id\":\"EY\",\"payment_method_flow\":\"REDIRECT\",\"payer\":{\"name\":\"John\",\"email\":\"test@example.com\",\"document\":\"12345678\"},\"order_id\":\"probe_txn_001\",\"callback_url\":\"https://example.com/return\"}"
+        }
       },
       "Eft": {
         "status": "not_implemented",
@@ -198,8 +303,43 @@
         "error": "This feature is not implemented: Selected payment method through Dlocal"
       },
       "GCash": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "gcash_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.dlocal.com/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "V2-HMAC-SHA256, Signature: a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-date": "2020-01-01T00:00:00+00:00",
+            "x-login": "probe_user",
+            "x-trans-key": "probe_key",
+            "x-version": "2.1"
+          },
+          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"country\":\"US\",\"payment_method_id\":\"GC\",\"payment_method_flow\":\"REDIRECT\",\"payer\":{\"name\":\"John\",\"email\":\"test@example.com\",\"document\":\"12345678\"},\"order_id\":\"probe_txn_001\",\"callback_url\":\"https://example.com/return\"}"
+        }
       },
       "Giropay": {
         "status": "not_implemented",
@@ -230,8 +370,43 @@
         "error": "This feature is not implemented: Selected payment method through Dlocal"
       },
       "Indomaret": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "indomaret": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.dlocal.com/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "V2-HMAC-SHA256, Signature: a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-date": "2020-01-01T00:00:00+00:00",
+            "x-login": "probe_user",
+            "x-trans-key": "probe_key",
+            "x-version": "2.1"
+          },
+          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"country\":\"US\",\"payment_method_id\":\"IM\",\"payment_method_flow\":\"REDIRECT\",\"payer\":{\"name\":\"John\",\"email\":\"test@example.com\",\"document\":\"12345678\"},\"order_id\":\"probe_txn_001\",\"callback_url\":\"https://example.com/return\"}"
+        }
       },
       "IndonesianBankTransfer": {
         "status": "not_implemented",
@@ -346,12 +521,82 @@
         "error": "This feature is not implemented: Selected payment method through Dlocal"
       },
       "Oxxo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "oxxo": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.dlocal.com/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "V2-HMAC-SHA256, Signature: a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-date": "2020-01-01T00:00:00+00:00",
+            "x-login": "probe_user",
+            "x-trans-key": "probe_key",
+            "x-version": "2.1"
+          },
+          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"country\":\"US\",\"payment_method_id\":\"OX\",\"payment_method_flow\":\"REDIRECT\",\"payer\":{\"name\":\"John\",\"email\":\"test@example.com\",\"document\":\"12345678\"},\"order_id\":\"probe_txn_001\",\"callback_url\":\"https://example.com/return\"}"
+        }
       },
       "PagoEfectivo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "pago_efectivo": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.dlocal.com/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "V2-HMAC-SHA256, Signature: a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-date": "2020-01-01T00:00:00+00:00",
+            "x-login": "probe_user",
+            "x-trans-key": "probe_key",
+            "x-version": "2.1"
+          },
+          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"country\":\"US\",\"payment_method_id\":\"EF\",\"payment_method_flow\":\"REDIRECT\",\"payer\":{\"name\":\"John\",\"email\":\"test@example.com\",\"document\":\"12345678\"},\"order_id\":\"probe_txn_001\",\"callback_url\":\"https://example.com/return\"}"
+        }
       },
       "PayEasy": {
         "status": "not_implemented",
@@ -390,24 +635,129 @@
         "error": "This feature is not implemented: Selected payment method through Dlocal"
       },
       "Pix": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "pix": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.dlocal.com/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "V2-HMAC-SHA256, Signature: a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-date": "2020-01-01T00:00:00+00:00",
+            "x-login": "probe_user",
+            "x-trans-key": "probe_key",
+            "x-version": "2.1"
+          },
+          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"country\":\"US\",\"payment_method_id\":\"PQ\",\"payment_method_flow\":\"REDIRECT\",\"payer\":{\"name\":\"John\",\"email\":\"test@example.com\",\"document\":\"12345678\"},\"order_id\":\"probe_txn_001\",\"callback_url\":\"https://example.com/return\"}"
+        }
       },
       "Przelewy24": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Dlocal"
       },
       "Pse": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "pse": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.dlocal.com/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "V2-HMAC-SHA256, Signature: a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-date": "2020-01-01T00:00:00+00:00",
+            "x-login": "probe_user",
+            "x-trans-key": "probe_key",
+            "x-version": "2.1"
+          },
+          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"country\":\"US\",\"payment_method_id\":\"PC\",\"payment_method_flow\":\"REDIRECT\",\"payer\":{\"name\":\"John\",\"email\":\"test@example.com\",\"document\":\"12345678\"},\"order_id\":\"probe_txn_001\",\"callback_url\":\"https://example.com/return\"}"
+        }
       },
       "RedCompra": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Dlocal"
       },
       "RedPagos": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "red_pagos": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.dlocal.com/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "V2-HMAC-SHA256, Signature: a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-date": "2020-01-01T00:00:00+00:00",
+            "x-login": "probe_user",
+            "x-trans-key": "probe_key",
+            "x-version": "2.1"
+          },
+          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"country\":\"US\",\"payment_method_id\":\"RE\",\"payment_method_flow\":\"REDIRECT\",\"payer\":{\"name\":\"John\",\"email\":\"test@example.com\",\"document\":\"12345678\"},\"order_id\":\"probe_txn_001\",\"callback_url\":\"https://example.com/return\"}"
+        }
       },
       "RevolutPay": {
         "status": "not_implemented",

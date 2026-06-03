@@ -255,7 +255,7 @@
       },
       "Boleto": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant Voucher(Boleto(BoletoVoucherData { social_security_number: None })); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant Voucher(Boleto(BoletoVoucherData { social_security_number: None, expiration_date: None })); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
       },
       "BriVaBankTransfer": {
         "status": "not_implemented",

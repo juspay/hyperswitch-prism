@@ -218,9 +218,9 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Satispay | ⚠ |
 | Wero | ⚠ |
 | GoPay | ⚠ |
-| GCash | ⚠ |
+| GCash | ✓ |
 | Momo | ⚠ |
-| Dana | ⚠ |
+| Dana | ✓ |
 | Kakao Pay | ⚠ |
 | Touch 'n Go | ⚠ |
 | Twint | ⚠ |
@@ -248,7 +248,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Giropay | ⚠ |
 | EPS | ⚠ |
 | Przelewy24 | ⚠ |
-| PSE | ⚠ |
+| PSE | ✓ |
 | BLIK | ⚠ |
 | Interac | ⚠ |
 | Bizum | ⚠ |
@@ -261,7 +261,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Instant | ⚠ |
 | Instant FI | ⚠ |
 | Instant PL | ⚠ |
-| Pix | ⚠ |
+| Pix | ✓ |
 | Permata | ⚠ |
 | BCA | ⚠ |
 | BNI VA | ⚠ |
@@ -281,14 +281,14 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Givex | x |
 | PaySafeCard | x |
 | E-Voucher | ⚠ |
-| Boleto | ⚠ |
-| Efecty | ⚠ |
-| Pago Efectivo | ⚠ |
+| Boleto | ✓ |
+| Efecty | ✓ |
+| Pago Efectivo | ✓ |
 | Red Compra | ⚠ |
-| Red Pagos | ⚠ |
+| Red Pagos | ✓ |
 | Alfamart | ⚠ |
-| Indomaret | ⚠ |
-| Oxxo | ⚠ |
+| Indomaret | ✓ |
+| Oxxo | ✓ |
 | 7-Eleven | ⚠ |
 | Lawson | ⚠ |
 | Mini Stop | ⚠ |
