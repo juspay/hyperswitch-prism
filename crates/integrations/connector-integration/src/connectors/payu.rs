@@ -701,6 +701,7 @@ static PAYU_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
         PaymentMethod::Upi,
         PaymentMethodType::UpiIntent,
         PaymentMethodDetails {
+            status: FeatureStatus::Supported,
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: payu_supported_capture_methods.clone(),
@@ -713,6 +714,7 @@ static PAYU_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
         PaymentMethod::Upi,
         PaymentMethodType::UpiQr,
         PaymentMethodDetails {
+            status: FeatureStatus::Supported,
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: payu_supported_capture_methods.clone(),
@@ -725,6 +727,7 @@ static PAYU_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
         PaymentMethod::Upi,
         PaymentMethodType::UpiCollect,
         PaymentMethodDetails {
+            status: FeatureStatus::Supported,
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: payu_supported_capture_methods.clone(),
@@ -737,6 +740,7 @@ static PAYU_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
         PaymentMethod::Wallet,
         PaymentMethodType::PayU,
         PaymentMethodDetails {
+            status: FeatureStatus::Supported,
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: payu_supported_capture_methods.clone(),
@@ -749,6 +753,7 @@ static PAYU_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
         PaymentMethod::BankRedirect,
         PaymentMethodType::Netbanking,
         PaymentMethodDetails {
+            status: FeatureStatus::Supported,
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: payu_supported_capture_methods.clone(),
@@ -772,8 +777,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         Some(&PAYU_CONNECTOR_INFO)
     }
 
-    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        Some(&PAYU_SUPPORTED_PAYMENT_METHODS)
+    fn get_supported_payment_methods(&self) -> &'static SupportedPaymentMethods {
+        &PAYU_SUPPORTED_PAYMENT_METHODS
     }
 }
 

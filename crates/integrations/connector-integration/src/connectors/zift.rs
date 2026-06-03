@@ -277,6 +277,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 }
 
 static ZIFT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+
     let zift_supported_capture_methods = vec![
         CaptureMethod::Automatic,
         CaptureMethod::Manual,
@@ -293,11 +294,104 @@ static ZIFT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
     ];
 
     let mut zift_supported_payment_methods = SupportedPaymentMethods::new();
+        let mut zift_supported_payment_methods = domain_types::build_supported_pms! {
+            NotImplemented => [
+                (BankDebit, Ach),
+                (BankDebit, Bacs),
+                (BankDebit, Becs),
+                (BankDebit, Sepa),
+                (BankDebit, SepaGuaranteedDebit),
+                (BankRedirect, Bizum),
+                (BankRedirect, Blik),
+                (BankRedirect, Eft),
+                (BankRedirect, Eps),
+                (BankRedirect, Giropay),
+                (BankRedirect, Ideal),
+                (BankRedirect, Interac),
+                (BankRedirect, LocalBankRedirect),
+                (BankRedirect, OnlineBankingCzechRepublic),
+                (BankRedirect, OnlineBankingFinland),
+                (BankRedirect, OnlineBankingFpx),
+                (BankRedirect, OnlineBankingPoland),
+                (BankRedirect, OnlineBankingSlovakia),
+                (BankRedirect, OnlineBankingThailand),
+                (BankRedirect, Przelewy24),
+                (BankRedirect, Pse),
+                (BankRedirect, Sofort),
+                (BankRedirect, Trustly),
+                (BankTransfer, Ach),
+                (BankTransfer, Bacs),
+                (BankTransfer, BcaBankTransfer),
+                (BankTransfer, BniVa),
+                (BankTransfer, BriVa),
+                (BankTransfer, CimbVa),
+                (BankTransfer, DanamonVa),
+                (BankTransfer, IndonesianBankTransfer),
+                (BankTransfer, InstantBankTransfer),
+                (BankTransfer, InstantBankTransferFinland),
+                (BankTransfer, InstantBankTransferPoland),
+                (BankTransfer, LocalBankTransfer),
+                (BankTransfer, MandiriVa),
+                (BankTransfer, Multibanco),
+                (BankTransfer, PermataBankTransfer),
+                (BankTransfer, Pix),
+                (BankTransfer, SepaBankTransfer),
+                (Card, BancontactCard),
+                (OpenBanking, OpenBanking),
+                (OpenBanking, OpenBankingUk),
+                (PayLater, Affirm),
+                (PayLater, AfterpayClearpay),
+                (PayLater, Klarna),
+                (Reward, ClassicReward),
+                (Upi, UpiCollect),
+                (Upi, UpiIntent),
+                (Upi, UpiQr),
+                (Voucher, Alfamart),
+                (Voucher, Boleto),
+                (Voucher, Efecty),
+                (Voucher, Evoucher),
+                (Voucher, FamilyMart),
+                (Voucher, Indomaret),
+                (Voucher, Lawson),
+                (Voucher, MiniStop),
+                (Voucher, Oxxo),
+                (Voucher, PagoEfectivo),
+                (Voucher, PayEasy),
+                (Voucher, RedCompra),
+                (Voucher, RedPagos),
+                (Voucher, Seicomart),
+                (Voucher, SevenEleven),
+                (Wallet, AliPay),
+                (Wallet, AmazonPay),
+                (Wallet, ApplePay),
+                (Wallet, Bluecode),
+                (Wallet, Cashapp),
+                (Wallet, Dana),
+                (Wallet, Gcash),
+                (Wallet, GoPay),
+                (Wallet, GooglePay),
+                (Wallet, KakaoPay),
+                (Wallet, MbWay),
+                (Wallet, Mifinity),
+                (Wallet, Momo),
+                (Wallet, Paypal),
+                (Wallet, RevolutPay),
+                (Wallet, SamsungPay),
+                (Wallet, Satispay),
+                (Wallet, Swish),
+                (Wallet, TouchNGo),
+                (Wallet, Twint),
+                (Wallet, Vipps),
+                (Wallet, WeChatPay),
+                (Wallet, Wero),
+            ],
+        };
 
-    zift_supported_payment_methods.add(
+        zift_supported_payment_methods.add(
         PaymentMethod::Card,
         PaymentMethodType::Card,
         PaymentMethodDetails {
+            status: FeatureStatus::Supported,
             mandates: FeatureStatus::Supported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: zift_supported_capture_methods.clone(),
@@ -309,10 +403,9 @@ static ZIFT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
                 }
             })),
         },
-    );
-
-    zift_supported_payment_methods
-});
+        );
+        zift_supported_payment_methods
+    });
 
 static ZIFT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Zift",
@@ -322,13 +415,15 @@ static ZIFT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 
 static ZIFT_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];
 
-impl ConnectorSpecifications for Zift<DefaultPCIHolder> {
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    ConnectorSpecifications for Zift<T>
+{
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&ZIFT_CONNECTOR_INFO)
     }
 
-    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        Some(&*ZIFT_SUPPORTED_PAYMENT_METHODS)
+    fn get_supported_payment_methods(&self) -> &'static SupportedPaymentMethods {
+        &*ZIFT_SUPPORTED_PAYMENT_METHODS
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventClass]> {

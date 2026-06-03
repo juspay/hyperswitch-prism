@@ -744,3 +744,49 @@ macros::macro_connector_flow_status_impls!(
         Accept,
     ],
 );
+
+
+static WELLSFARGO_SUPPORTED_PAYMENT_METHODS: std::sync::LazyLock<domain_types::types::SupportedPaymentMethods> =
+    std::sync::LazyLock::new(|| {
+
+        let mut m = domain_types::types::SupportedPaymentMethods::new();
+        let mut m = domain_types::build_supported_pms! {
+            Supported => [
+                (Card, Card),
+            ],
+            NotImplemented => [
+                (Wallet, AliPay),
+                (Wallet, AmazonPay),
+                (Wallet, ApplePay),
+                (Wallet, Bluecode),
+                (Wallet, Cashapp),
+                (Wallet, Dana),
+                (Wallet, Gcash),
+                (Wallet, GoPay),
+                (Wallet, GooglePay),
+                (Wallet, KakaoPay),
+                (Wallet, MbWay),
+                (Wallet, Mifinity),
+                (Wallet, Momo),
+                (Wallet, Paypal),
+                (Wallet, RevolutPay),
+                (Wallet, SamsungPay),
+                (Wallet, Satispay),
+                (Wallet, Swish),
+                (Wallet, TouchNGo),
+                (Wallet, Twint),
+                (Wallet, Vipps),
+                (Wallet, WeChatPay),
+                (Wallet, Wero),
+            ],
+        };
+        m
+    });
+
+impl<T: domain_types::payment_method_data::PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
+    domain_types::connector_types::ConnectorSpecifications for Wellsfargo<T>
+{
+    fn get_supported_payment_methods(&self) -> &'static domain_types::types::SupportedPaymentMethods {
+        &WELLSFARGO_SUPPORTED_PAYMENT_METHODS
+    }
+}

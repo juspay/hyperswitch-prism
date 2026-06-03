@@ -777,9 +777,27 @@ macros::macro_connector_implementation!(
     }
 );
 
+static NOON_SUPPORTED_PAYMENT_METHODS: std::sync::LazyLock<domain_types::types::SupportedPaymentMethods> =
+    std::sync::LazyLock::new(|| {
+
+        let mut m = domain_types::types::SupportedPaymentMethods::new();
+        let mut m = domain_types::build_supported_pms! {
+            Supported => [
+                (Card, Card),
+                (Wallet, ApplePay),
+                (Wallet, GooglePay),
+                (Wallet, Paypal),
+            ],
+        };
+        m
+    });
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
     for Noon<T>
 {
+    fn get_supported_payment_methods(&self) -> &'static domain_types::types::SupportedPaymentMethods {
+        &NOON_SUPPORTED_PAYMENT_METHODS
+    }
 }
 
 // We already have an implementation for ValidationTrait above

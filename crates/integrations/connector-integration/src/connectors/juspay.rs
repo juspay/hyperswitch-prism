@@ -567,3 +567,12 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
         VoidPC
     ],
 );
+
+impl<T: domain_types::payment_method_data::PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
+    domain_types::connector_types::ConnectorSpecifications for Juspay<T>
+{
+    fn get_supported_payment_methods(&self) -> &'static domain_types::types::SupportedPaymentMethods {
+        &domain_types::types::EMPTY_SUPPORTED_PAYMENT_METHODS
+    }
+}
+

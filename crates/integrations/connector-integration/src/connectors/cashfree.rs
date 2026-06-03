@@ -522,16 +522,66 @@ macros::macro_connector_implementation!(
 
 static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
     LazyLock::new(|| {
+
         let cashfree_supported_capture_methods =
             vec![CaptureMethod::Automatic, CaptureMethod::Manual];
 
         let mut cashfree_supported_payment_methods = SupportedPaymentMethods::new();
 
         // UPI - UpiIntent (UPI_PAY)
+        let mut cashfree_supported_payment_methods = domain_types::build_supported_pms! {
+            NotImplemented => [
+                (BankTransfer, Ach),
+                (BankTransfer, Bacs),
+                (BankTransfer, BcaBankTransfer),
+                (BankTransfer, BniVa),
+                (BankTransfer, BriVa),
+                (BankTransfer, CimbVa),
+                (BankTransfer, DanamonVa),
+                (BankTransfer, IndonesianBankTransfer),
+                (BankTransfer, InstantBankTransfer),
+                (BankTransfer, InstantBankTransferFinland),
+                (BankTransfer, InstantBankTransferPoland),
+                (BankTransfer, LocalBankTransfer),
+                (BankTransfer, MandiriVa),
+                (BankTransfer, Multibanco),
+                (BankTransfer, PermataBankTransfer),
+                (BankTransfer, Pix),
+                (BankTransfer, SepaBankTransfer),
+                (Card, BancontactCard),
+                (Card, Card),
+                (PayLater, Affirm),
+                (PayLater, AfterpayClearpay),
+                (PayLater, Klarna),
+                (Wallet, AliPay),
+                (Wallet, ApplePay),
+                (Wallet, Bluecode),
+                (Wallet, Cashapp),
+                (Wallet, Dana),
+                (Wallet, Gcash),
+                (Wallet, GoPay),
+                (Wallet, KakaoPay),
+                (Wallet, MbWay),
+                (Wallet, Mifinity),
+                (Wallet, Momo),
+                (Wallet, Paypal),
+                (Wallet, RevolutPay),
+                (Wallet, SamsungPay),
+                (Wallet, Satispay),
+                (Wallet, Swish),
+                (Wallet, TouchNGo),
+                (Wallet, Twint),
+                (Wallet, Vipps),
+                (Wallet, WeChatPay),
+                (Wallet, Wero),
+            ],
+        };
+
         cashfree_supported_payment_methods.add(
             PaymentMethod::Upi,
             PaymentMethodType::UpiIntent,
             PaymentMethodDetails {
+                status: FeatureStatus::Supported,
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: cashfree_supported_capture_methods.clone(),
@@ -539,11 +589,11 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             },
         );
 
-        // UPI - UpiCollect (UPI_COLLECT)
         cashfree_supported_payment_methods.add(
             PaymentMethod::Upi,
             PaymentMethodType::UpiCollect,
             PaymentMethodDetails {
+                status: FeatureStatus::Supported,
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: cashfree_supported_capture_methods.clone(),
@@ -551,11 +601,11 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             },
         );
 
-        // UPI - UpiQr (UPI_QR)
         cashfree_supported_payment_methods.add(
             PaymentMethod::Upi,
             PaymentMethodType::UpiQr,
             PaymentMethodDetails {
+                status: FeatureStatus::Supported,
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: cashfree_supported_capture_methods.clone(),
@@ -563,11 +613,11 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             },
         );
 
-        // Wallet - AmazonPay (REDIRECT_WALLET_DEBIT)
         cashfree_supported_payment_methods.add(
             PaymentMethod::Wallet,
             PaymentMethodType::AmazonPay,
             PaymentMethodDetails {
+                status: FeatureStatus::Supported,
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: cashfree_supported_capture_methods.clone(),
@@ -575,11 +625,11 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             },
         );
 
-        // Wallet - GooglePay (REDIRECT_WALLET_DEBIT)
         cashfree_supported_payment_methods.add(
             PaymentMethod::Wallet,
             PaymentMethodType::GooglePay,
             PaymentMethodDetails {
+                status: FeatureStatus::Supported,
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: cashfree_supported_capture_methods.clone(),
@@ -587,11 +637,11 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             },
         );
 
-        // Wallet - PhonePe (REDIRECT_WALLET_DEBIT)
         cashfree_supported_payment_methods.add(
             PaymentMethod::Wallet,
             PaymentMethodType::PhonePe,
             PaymentMethodDetails {
+                status: FeatureStatus::Supported,
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: cashfree_supported_capture_methods.clone(),
@@ -599,11 +649,11 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             },
         );
 
-        // Wallet - LazyPay (REDIRECT_WALLET_DEBIT)
         cashfree_supported_payment_methods.add(
             PaymentMethod::Wallet,
             PaymentMethodType::LazyPay,
             PaymentMethodDetails {
+                status: FeatureStatus::Supported,
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: cashfree_supported_capture_methods.clone(),
@@ -611,11 +661,11 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             },
         );
 
-        // Wallet - BillDesk (REDIRECT_WALLET_DEBIT)
         cashfree_supported_payment_methods.add(
             PaymentMethod::Wallet,
             PaymentMethodType::BillDesk,
             PaymentMethodDetails {
+                status: FeatureStatus::Supported,
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: cashfree_supported_capture_methods.clone(),
@@ -623,11 +673,11 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             },
         );
 
-        // Wallet - Cashfree (REDIRECT_WALLET_DEBIT)
         cashfree_supported_payment_methods.add(
             PaymentMethod::Wallet,
             PaymentMethodType::Cashfree,
             PaymentMethodDetails {
+                status: FeatureStatus::Supported,
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: cashfree_supported_capture_methods.clone(),
@@ -635,11 +685,11 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             },
         );
 
-        // Wallet - PayU (REDIRECT_WALLET_DEBIT)
         cashfree_supported_payment_methods.add(
             PaymentMethod::Wallet,
             PaymentMethodType::PayU,
             PaymentMethodDetails {
+                status: FeatureStatus::Supported,
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: cashfree_supported_capture_methods.clone(),
@@ -647,11 +697,11 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             },
         );
 
-        // Wallet - EaseBuzz (REDIRECT_WALLET_DEBIT)
         cashfree_supported_payment_methods.add(
             PaymentMethod::Wallet,
             PaymentMethodType::EaseBuzz,
             PaymentMethodDetails {
+                status: FeatureStatus::Supported,
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: cashfree_supported_capture_methods.clone(),
@@ -659,18 +709,17 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             },
         );
 
-        // Netbanking
         cashfree_supported_payment_methods.add(
             PaymentMethod::BankRedirect,
             PaymentMethodType::Netbanking,
             PaymentMethodDetails {
+                status: FeatureStatus::Supported,
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: cashfree_supported_capture_methods.clone(),
                 specific_features: None,
             },
         );
-
         cashfree_supported_payment_methods
     });
 
@@ -687,8 +736,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         Some(&CASHFREE_CONNECTOR_INFO)
     }
 
-    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        Some(&CASHFREE_SUPPORTED_PAYMENT_METHODS)
+    fn get_supported_payment_methods(&self) -> &'static SupportedPaymentMethods {
+        &CASHFREE_SUPPORTED_PAYMENT_METHODS
     }
 }
 

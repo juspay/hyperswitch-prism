@@ -695,3 +695,96 @@ macros::macro_connector_flow_status_impls!(
         VoidPC,
     ],
 );
+
+
+static SHIFT4_SUPPORTED_PAYMENT_METHODS: std::sync::LazyLock<domain_types::types::SupportedPaymentMethods> =
+    std::sync::LazyLock::new(|| {
+
+        let mut m = domain_types::types::SupportedPaymentMethods::new();
+        let mut m = domain_types::build_supported_pms! {
+            Supported => [
+                (BankRedirect, Eps),
+                (BankRedirect, Ideal),
+                (Card, Card),
+            ],
+            NotImplemented => [
+                (BankDebit, Ach),
+                (BankDebit, Bacs),
+                (BankDebit, Becs),
+                (BankDebit, Sepa),
+                (BankDebit, SepaGuaranteedDebit),
+                (BankRedirect, Pse),
+                (BankTransfer, Ach),
+                (BankTransfer, Bacs),
+                (BankTransfer, BcaBankTransfer),
+                (BankTransfer, BniVa),
+                (BankTransfer, BriVa),
+                (BankTransfer, CimbVa),
+                (BankTransfer, DanamonVa),
+                (BankTransfer, IndonesianBankTransfer),
+                (BankTransfer, InstantBankTransfer),
+                (BankTransfer, InstantBankTransferFinland),
+                (BankTransfer, InstantBankTransferPoland),
+                (BankTransfer, LocalBankTransfer),
+                (BankTransfer, MandiriVa),
+                (BankTransfer, Multibanco),
+                (BankTransfer, PermataBankTransfer),
+                (BankTransfer, Pix),
+                (BankTransfer, SepaBankTransfer),
+                (PayLater, Affirm),
+                (PayLater, AfterpayClearpay),
+                (PayLater, Klarna),
+                (Reward, ClassicReward),
+                (Upi, UpiCollect),
+                (Upi, UpiIntent),
+                (Upi, UpiQr),
+                (Voucher, Alfamart),
+                (Voucher, Boleto),
+                (Voucher, Efecty),
+                (Voucher, Evoucher),
+                (Voucher, FamilyMart),
+                (Voucher, Indomaret),
+                (Voucher, Lawson),
+                (Voucher, MiniStop),
+                (Voucher, Oxxo),
+                (Voucher, PagoEfectivo),
+                (Voucher, PayEasy),
+                (Voucher, RedCompra),
+                (Voucher, RedPagos),
+                (Voucher, Seicomart),
+                (Voucher, SevenEleven),
+                (Wallet, AliPay),
+                (Wallet, AmazonPay),
+                (Wallet, ApplePay),
+                (Wallet, Bluecode),
+                (Wallet, Cashapp),
+                (Wallet, Dana),
+                (Wallet, Gcash),
+                (Wallet, GoPay),
+                (Wallet, GooglePay),
+                (Wallet, KakaoPay),
+                (Wallet, MbWay),
+                (Wallet, Mifinity),
+                (Wallet, Momo),
+                (Wallet, Paypal),
+                (Wallet, RevolutPay),
+                (Wallet, SamsungPay),
+                (Wallet, Satispay),
+                (Wallet, Swish),
+                (Wallet, TouchNGo),
+                (Wallet, Twint),
+                (Wallet, Vipps),
+                (Wallet, WeChatPay),
+                (Wallet, Wero),
+            ],
+        };
+        m
+    });
+
+impl<T: domain_types::payment_method_data::PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
+    domain_types::connector_types::ConnectorSpecifications for Shift4<T>
+{
+    fn get_supported_payment_methods(&self) -> &'static domain_types::types::SupportedPaymentMethods {
+        &SHIFT4_SUPPORTED_PAYMENT_METHODS
+    }
+}

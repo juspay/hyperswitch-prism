@@ -1236,6 +1236,7 @@ macros::macro_connector_implementation!(
 );
 
 static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+
     let adyen_supported_capture_methods = vec![
         CaptureMethod::Automatic,
         CaptureMethod::Manual,
@@ -1257,11 +1258,103 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
     ];
 
     let mut adyen_supported_payment_methods = SupportedPaymentMethods::new();
+        let mut adyen_supported_payment_methods = domain_types::build_supported_pms! {
+            Supported => [
+                (BankRedirect, Bizum),
+                (BankRedirect, Blik),
+                (BankRedirect, Eps),
+                (BankRedirect, Ideal),
+                (BankRedirect, OnlineBankingCzechRepublic),
+                (BankRedirect, OnlineBankingFinland),
+                (BankRedirect, OnlineBankingFpx),
+                (BankRedirect, OnlineBankingSlovakia),
+                (BankRedirect, OnlineBankingThailand),
+                (BankRedirect, Trustly),
+                (BankTransfer, BcaBankTransfer),
+                (BankTransfer, BniVa),
+                (BankTransfer, BriVa),
+                (BankTransfer, CimbVa),
+                (BankTransfer, DanamonVa),
+                (BankTransfer, MandiriVa),
+                (BankTransfer, PermataBankTransfer),
+                (BankTransfer, Pix),
+                (Card, BancontactCard),
+                (OpenBanking, OpenBankingUk),
+                (PayLater, Affirm),
+                (PayLater, AfterpayClearpay),
+                (PayLater, Klarna),
+                (Voucher, Alfamart),
+                (Voucher, Boleto),
+                (Voucher, FamilyMart),
+                (Voucher, Indomaret),
+                (Voucher, Lawson),
+                (Voucher, MiniStop),
+                (Voucher, Oxxo),
+                (Voucher, PayEasy),
+                (Voucher, Seicomart),
+                (Voucher, SevenEleven),
+                (Wallet, AliPay),
+                (Wallet, ApplePay),
+                (Wallet, Dana),
+                (Wallet, Gcash),
+                (Wallet, GoPay),
+                (Wallet, GooglePay),
+                (Wallet, KakaoPay),
+                (Wallet, Momo),
+                (Wallet, Paypal),
+                (Wallet, Swish),
+                (Wallet, TouchNGo),
+                (Wallet, Twint),
+                (Wallet, Vipps),
+            ],
+            NotImplemented => [
+                (BankDebit, Becs),
+                (BankDebit, SepaGuaranteedDebit),
+                (BankRedirect, Eft),
+                (BankRedirect, Giropay),
+                (BankRedirect, Interac),
+                (BankRedirect, LocalBankRedirect),
+                (BankRedirect, OnlineBankingPoland),
+                (BankRedirect, Przelewy24),
+                (BankRedirect, Pse),
+                (BankRedirect, Sofort),
+                (BankTransfer, Ach),
+                (BankTransfer, Bacs),
+                (BankTransfer, IndonesianBankTransfer),
+                (BankTransfer, InstantBankTransfer),
+                (BankTransfer, InstantBankTransferFinland),
+                (BankTransfer, InstantBankTransferPoland),
+                (BankTransfer, LocalBankTransfer),
+                (BankTransfer, Multibanco),
+                (BankTransfer, SepaBankTransfer),
+                (OpenBanking, OpenBanking),
+                (Reward, ClassicReward),
+                (Upi, UpiCollect),
+                (Upi, UpiIntent),
+                (Upi, UpiQr),
+                (Voucher, Efecty),
+                (Voucher, Evoucher),
+                (Voucher, PagoEfectivo),
+                (Voucher, RedCompra),
+                (Voucher, RedPagos),
+                (Wallet, AmazonPay),
+                (Wallet, Bluecode),
+                (Wallet, Cashapp),
+                (Wallet, MbWay),
+                (Wallet, Mifinity),
+                (Wallet, RevolutPay),
+                (Wallet, SamsungPay),
+                (Wallet, Satispay),
+                (Wallet, WeChatPay),
+                (Wallet, Wero),
+            ],
+        };
 
-    adyen_supported_payment_methods.add(
+        adyen_supported_payment_methods.add(
         PaymentMethod::Card,
         PaymentMethodType::Card,
         PaymentMethodDetails {
+            status: FeatureStatus::Supported,
             mandates: FeatureStatus::Supported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: adyen_supported_capture_methods.clone(),
@@ -1271,37 +1364,37 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
                 supported_card_networks: adyen_supported_card_network.clone(),
             })),
         },
-    );
+        );
 
-    // Bank Debit - ACH
-    adyen_supported_payment_methods.add(
+        adyen_supported_payment_methods.add(
         PaymentMethod::BankDebit,
         PaymentMethodType::Ach,
         PaymentMethodDetails {
+            status: FeatureStatus::Supported,
             mandates: FeatureStatus::Supported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: adyen_supported_capture_methods.clone(),
             specific_features: None,
         },
-    );
+        );
 
-    // Bank Debit - SEPA
-    adyen_supported_payment_methods.add(
+        adyen_supported_payment_methods.add(
         PaymentMethod::BankDebit,
         PaymentMethodType::Sepa,
         PaymentMethodDetails {
+            status: FeatureStatus::Supported,
             mandates: FeatureStatus::Supported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: adyen_supported_capture_methods.clone(),
             specific_features: None,
         },
-    );
+        );
 
-    // Bank Debit - BACS
-    adyen_supported_payment_methods.add(
+        adyen_supported_payment_methods.add(
         PaymentMethod::BankDebit,
         PaymentMethodType::Bacs,
         PaymentMethodDetails {
+            status: FeatureStatus::Supported,
             mandates: FeatureStatus::Supported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: adyen_supported_capture_methods.clone(),
@@ -1314,6 +1407,7 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
         PaymentMethod::Wallet,
         PaymentMethodType::AliPayHk,
         PaymentMethodDetails {
+            status: FeatureStatus::Supported,
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: adyen_supported_capture_methods.clone(),
@@ -1326,6 +1420,7 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
         PaymentMethod::Wallet,
         PaymentMethodType::WeChatPay,
         PaymentMethodDetails {
+            status: FeatureStatus::Supported,
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: adyen_supported_capture_methods.clone(),
@@ -1338,6 +1433,7 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
         PaymentMethod::Wallet,
         PaymentMethodType::MobilePay,
         PaymentMethodDetails {
+            status: FeatureStatus::Supported,
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: adyen_supported_capture_methods.clone(),
@@ -1350,6 +1446,7 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
         PaymentMethod::Wallet,
         PaymentMethodType::MbWay,
         PaymentMethodDetails {
+            status: FeatureStatus::Supported,
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: adyen_supported_capture_methods.clone(),
@@ -1368,13 +1465,15 @@ static ADYEN_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 
 static ADYEN_SUPPORTED_WEBHOOK_FLOWS: &[EventClass] = &[EventClass::Payments, EventClass::Refunds];
 
-impl ConnectorSpecifications for Adyen<DefaultPCIHolder> {
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    ConnectorSpecifications for Adyen<T>
+{
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&ADYEN_CONNECTOR_INFO)
     }
 
-    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        Some(&ADYEN_SUPPORTED_PAYMENT_METHODS)
+    fn get_supported_payment_methods(&self) -> &'static SupportedPaymentMethods {
+        &ADYEN_SUPPORTED_PAYMENT_METHODS
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [EventClass]> {

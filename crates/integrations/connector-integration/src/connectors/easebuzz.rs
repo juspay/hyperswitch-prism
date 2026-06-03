@@ -53,13 +53,106 @@ pub(crate) mod headers {
 
 static EASEBUZZ_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
     LazyLock::new(|| {
+
         let mut supported = SupportedPaymentMethods::new();
 
         // UPI Intent (UPI_PAY)
+        let mut supported = domain_types::build_supported_pms! {
+            NotImplemented => [
+                (BankDebit, Ach),
+                (BankDebit, Bacs),
+                (BankDebit, Becs),
+                (BankDebit, Sepa),
+                (BankDebit, SepaGuaranteedDebit),
+                (BankRedirect, Bizum),
+                (BankRedirect, Blik),
+                (BankRedirect, Eft),
+                (BankRedirect, Eps),
+                (BankRedirect, Giropay),
+                (BankRedirect, Ideal),
+                (BankRedirect, Interac),
+                (BankRedirect, LocalBankRedirect),
+                (BankRedirect, OnlineBankingCzechRepublic),
+                (BankRedirect, OnlineBankingFinland),
+                (BankRedirect, OnlineBankingFpx),
+                (BankRedirect, OnlineBankingPoland),
+                (BankRedirect, OnlineBankingSlovakia),
+                (BankRedirect, OnlineBankingThailand),
+                (BankRedirect, Przelewy24),
+                (BankRedirect, Pse),
+                (BankRedirect, Sofort),
+                (BankRedirect, Trustly),
+                (BankTransfer, Ach),
+                (BankTransfer, Bacs),
+                (BankTransfer, BcaBankTransfer),
+                (BankTransfer, BniVa),
+                (BankTransfer, BriVa),
+                (BankTransfer, CimbVa),
+                (BankTransfer, DanamonVa),
+                (BankTransfer, IndonesianBankTransfer),
+                (BankTransfer, InstantBankTransfer),
+                (BankTransfer, InstantBankTransferFinland),
+                (BankTransfer, InstantBankTransferPoland),
+                (BankTransfer, LocalBankTransfer),
+                (BankTransfer, MandiriVa),
+                (BankTransfer, Multibanco),
+                (BankTransfer, PermataBankTransfer),
+                (BankTransfer, Pix),
+                (BankTransfer, SepaBankTransfer),
+                (Card, BancontactCard),
+                (Card, Card),
+                (OpenBanking, OpenBanking),
+                (OpenBanking, OpenBankingUk),
+                (PayLater, Affirm),
+                (PayLater, AfterpayClearpay),
+                (PayLater, Klarna),
+                (Reward, ClassicReward),
+                (Voucher, Alfamart),
+                (Voucher, Boleto),
+                (Voucher, Efecty),
+                (Voucher, Evoucher),
+                (Voucher, FamilyMart),
+                (Voucher, Indomaret),
+                (Voucher, Lawson),
+                (Voucher, MiniStop),
+                (Voucher, Oxxo),
+                (Voucher, PagoEfectivo),
+                (Voucher, PayEasy),
+                (Voucher, RedCompra),
+                (Voucher, RedPagos),
+                (Voucher, Seicomart),
+                (Voucher, SevenEleven),
+                (Wallet, AliPay),
+                (Wallet, AmazonPay),
+                (Wallet, ApplePay),
+                (Wallet, Bluecode),
+                (Wallet, Cashapp),
+                (Wallet, Dana),
+                (Wallet, Gcash),
+                (Wallet, GoPay),
+                (Wallet, GooglePay),
+                (Wallet, KakaoPay),
+                (Wallet, MbWay),
+                (Wallet, Mifinity),
+                (Wallet, Momo),
+                (Wallet, Paypal),
+                (Wallet, RevolutPay),
+                (Wallet, SamsungPay),
+                (Wallet, Satispay),
+                (Wallet, Swish),
+                (Wallet, TouchNGo),
+                (Wallet, Twint),
+                (Wallet, Vipps),
+                (Wallet, WeChatPay),
+                (Wallet, Wero),
+            ],
+        };
+
         supported.add(
             enums::PaymentMethod::Upi,
             enums::PaymentMethodType::UpiIntent,
             PaymentMethodDetails {
+                status: FeatureStatus::Supported,
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: vec![enums::CaptureMethod::Automatic],
@@ -67,11 +160,11 @@ static EASEBUZZ_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             },
         );
 
-        // UPI Collect (UPI_COLLECT)
         supported.add(
             enums::PaymentMethod::Upi,
             enums::PaymentMethodType::UpiCollect,
             PaymentMethodDetails {
+                status: FeatureStatus::Supported,
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: vec![enums::CaptureMethod::Automatic],
@@ -79,11 +172,11 @@ static EASEBUZZ_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             },
         );
 
-        // UPI QR (UPI_QR)
         supported.add(
             enums::PaymentMethod::Upi,
             enums::PaymentMethodType::UpiQr,
             PaymentMethodDetails {
+                status: FeatureStatus::Supported,
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: vec![enums::CaptureMethod::Automatic],
@@ -91,11 +184,11 @@ static EASEBUZZ_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             },
         );
 
-        // Wallet (EaseBuzz Redirect)
         supported.add(
             enums::PaymentMethod::Wallet,
             enums::PaymentMethodType::EaseBuzz,
             PaymentMethodDetails {
+                status: FeatureStatus::Supported,
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: vec![enums::CaptureMethod::Automatic],
@@ -103,18 +196,17 @@ static EASEBUZZ_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             },
         );
 
-        // Net Banking
         supported.add(
             enums::PaymentMethod::BankRedirect,
             enums::PaymentMethodType::Netbanking,
             PaymentMethodDetails {
+                status: FeatureStatus::Supported,
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: vec![enums::CaptureMethod::Automatic],
                 specific_features: None,
             },
         );
-
         supported
     });
 
@@ -354,8 +446,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
     for Easebuzz<T>
 {
-    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        Some(&EASEBUZZ_SUPPORTED_PAYMENT_METHODS)
+    fn get_supported_payment_methods(&self) -> &'static SupportedPaymentMethods {
+        &EASEBUZZ_SUPPORTED_PAYMENT_METHODS
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {

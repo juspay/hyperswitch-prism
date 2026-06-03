@@ -817,9 +817,25 @@ macros::macro_connector_implementation!(
     }
 );
 
+static AUTHORIZEDOTNET_SUPPORTED_PAYMENT_METHODS: std::sync::LazyLock<domain_types::types::SupportedPaymentMethods> =
+    std::sync::LazyLock::new(|| {
+
+        let mut m = domain_types::types::SupportedPaymentMethods::new();
+        let mut m = domain_types::build_supported_pms! {
+            Supported => [
+                (BankDebit, Ach),
+                (Card, Card),
+            ],
+        };
+        m
+    });
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     ConnectorSpecifications for Authorizedotnet<T>
 {
+    fn get_supported_payment_methods(&self) -> &'static domain_types::types::SupportedPaymentMethods {
+        &AUTHORIZEDOTNET_SUPPORTED_PAYMENT_METHODS
+    }
 }
 
 macros::macro_connector_flow_status_impls!(

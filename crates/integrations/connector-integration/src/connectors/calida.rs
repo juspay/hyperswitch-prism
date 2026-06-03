@@ -386,23 +386,116 @@ macros::macro_connector_implementation!(
 );
 
 static CALIDA_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+
     let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
 
     let mut santander_supported_payment_methods = SupportedPaymentMethods::new();
+        let mut santander_supported_payment_methods = domain_types::build_supported_pms! {
+            NotImplemented => [
+                (BankDebit, Ach),
+                (BankDebit, Bacs),
+                (BankDebit, Becs),
+                (BankDebit, Sepa),
+                (BankDebit, SepaGuaranteedDebit),
+                (BankRedirect, Bizum),
+                (BankRedirect, Blik),
+                (BankRedirect, Eft),
+                (BankRedirect, Eps),
+                (BankRedirect, Giropay),
+                (BankRedirect, Ideal),
+                (BankRedirect, Interac),
+                (BankRedirect, LocalBankRedirect),
+                (BankRedirect, OnlineBankingCzechRepublic),
+                (BankRedirect, OnlineBankingFinland),
+                (BankRedirect, OnlineBankingFpx),
+                (BankRedirect, OnlineBankingPoland),
+                (BankRedirect, OnlineBankingSlovakia),
+                (BankRedirect, OnlineBankingThailand),
+                (BankRedirect, Przelewy24),
+                (BankRedirect, Pse),
+                (BankRedirect, Sofort),
+                (BankRedirect, Trustly),
+                (BankTransfer, Ach),
+                (BankTransfer, Bacs),
+                (BankTransfer, BcaBankTransfer),
+                (BankTransfer, BniVa),
+                (BankTransfer, BriVa),
+                (BankTransfer, CimbVa),
+                (BankTransfer, DanamonVa),
+                (BankTransfer, IndonesianBankTransfer),
+                (BankTransfer, InstantBankTransfer),
+                (BankTransfer, InstantBankTransferFinland),
+                (BankTransfer, InstantBankTransferPoland),
+                (BankTransfer, LocalBankTransfer),
+                (BankTransfer, MandiriVa),
+                (BankTransfer, Multibanco),
+                (BankTransfer, PermataBankTransfer),
+                (BankTransfer, Pix),
+                (BankTransfer, SepaBankTransfer),
+                (Card, BancontactCard),
+                (Card, Card),
+                (OpenBanking, OpenBanking),
+                (OpenBanking, OpenBankingUk),
+                (PayLater, Affirm),
+                (PayLater, AfterpayClearpay),
+                (PayLater, Klarna),
+                (Reward, ClassicReward),
+                (Upi, UpiCollect),
+                (Upi, UpiIntent),
+                (Upi, UpiQr),
+                (Voucher, Alfamart),
+                (Voucher, Boleto),
+                (Voucher, Efecty),
+                (Voucher, Evoucher),
+                (Voucher, FamilyMart),
+                (Voucher, Indomaret),
+                (Voucher, Lawson),
+                (Voucher, MiniStop),
+                (Voucher, Oxxo),
+                (Voucher, PagoEfectivo),
+                (Voucher, PayEasy),
+                (Voucher, RedCompra),
+                (Voucher, RedPagos),
+                (Voucher, Seicomart),
+                (Voucher, SevenEleven),
+                (Wallet, AliPay),
+                (Wallet, AmazonPay),
+                (Wallet, ApplePay),
+                (Wallet, Cashapp),
+                (Wallet, Dana),
+                (Wallet, Gcash),
+                (Wallet, GoPay),
+                (Wallet, GooglePay),
+                (Wallet, KakaoPay),
+                (Wallet, MbWay),
+                (Wallet, Mifinity),
+                (Wallet, Momo),
+                (Wallet, Paypal),
+                (Wallet, RevolutPay),
+                (Wallet, SamsungPay),
+                (Wallet, Satispay),
+                (Wallet, Swish),
+                (Wallet, TouchNGo),
+                (Wallet, Twint),
+                (Wallet, Vipps),
+                (Wallet, WeChatPay),
+                (Wallet, Wero),
+            ],
+        };
 
-    santander_supported_payment_methods.add(
+        santander_supported_payment_methods.add(
         enums::PaymentMethod::Wallet,
         PaymentMethodType::Bluecode,
         PaymentMethodDetails {
+            status: FeatureStatus::Supported,
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::NotSupported,
             supported_capture_methods,
             specific_features: None,
         },
-    );
-
-    santander_supported_payment_methods
-});
+        );
+        santander_supported_payment_methods
+    });
 
 static CALIDA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Calida",
@@ -412,13 +505,15 @@ static CALIDA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 
 static CALIDA_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
 
-impl ConnectorSpecifications for Calida<DefaultPCIHolder> {
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    ConnectorSpecifications for Calida<T>
+{
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&CALIDA_CONNECTOR_INFO)
     }
 
-    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        Some(&*CALIDA_SUPPORTED_PAYMENT_METHODS)
+    fn get_supported_payment_methods(&self) -> &'static SupportedPaymentMethods {
+        &*CALIDA_SUPPORTED_PAYMENT_METHODS
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {

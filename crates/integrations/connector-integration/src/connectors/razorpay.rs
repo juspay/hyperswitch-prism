@@ -1084,6 +1084,7 @@ impl connector_types::ConnectorValidation for Razorpay<DefaultPCIHolder> {
 
 static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
     LazyLock::new(|| {
+
         let razorpay_supported_capture_methods = vec![
             CaptureMethod::Automatic,
             CaptureMethod::Manual,
@@ -1103,11 +1104,101 @@ static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
         ];
 
         let mut razorpay_supported_payment_methods = SupportedPaymentMethods::new();
+        let mut razorpay_supported_payment_methods = domain_types::build_supported_pms! {
+            NotImplemented => [
+                (BankDebit, Ach),
+                (BankDebit, Bacs),
+                (BankDebit, Becs),
+                (BankDebit, Sepa),
+                (BankDebit, SepaGuaranteedDebit),
+                (BankRedirect, Bizum),
+                (BankRedirect, Blik),
+                (BankRedirect, Eft),
+                (BankRedirect, Eps),
+                (BankRedirect, Giropay),
+                (BankRedirect, Ideal),
+                (BankRedirect, Interac),
+                (BankRedirect, LocalBankRedirect),
+                (BankRedirect, OnlineBankingCzechRepublic),
+                (BankRedirect, OnlineBankingFinland),
+                (BankRedirect, OnlineBankingFpx),
+                (BankRedirect, OnlineBankingPoland),
+                (BankRedirect, OnlineBankingSlovakia),
+                (BankRedirect, OnlineBankingThailand),
+                (BankRedirect, Przelewy24),
+                (BankRedirect, Pse),
+                (BankRedirect, Sofort),
+                (BankRedirect, Trustly),
+                (BankTransfer, Ach),
+                (BankTransfer, Bacs),
+                (BankTransfer, BcaBankTransfer),
+                (BankTransfer, BniVa),
+                (BankTransfer, BriVa),
+                (BankTransfer, CimbVa),
+                (BankTransfer, DanamonVa),
+                (BankTransfer, IndonesianBankTransfer),
+                (BankTransfer, InstantBankTransfer),
+                (BankTransfer, InstantBankTransferFinland),
+                (BankTransfer, InstantBankTransferPoland),
+                (BankTransfer, LocalBankTransfer),
+                (BankTransfer, MandiriVa),
+                (BankTransfer, Multibanco),
+                (BankTransfer, PermataBankTransfer),
+                (BankTransfer, Pix),
+                (BankTransfer, SepaBankTransfer),
+                (Card, BancontactCard),
+                (OpenBanking, OpenBanking),
+                (OpenBanking, OpenBankingUk),
+                (PayLater, Affirm),
+                (PayLater, AfterpayClearpay),
+                (PayLater, Klarna),
+                (Reward, ClassicReward),
+                (Voucher, Alfamart),
+                (Voucher, Boleto),
+                (Voucher, Efecty),
+                (Voucher, Evoucher),
+                (Voucher, FamilyMart),
+                (Voucher, Indomaret),
+                (Voucher, Lawson),
+                (Voucher, MiniStop),
+                (Voucher, Oxxo),
+                (Voucher, PagoEfectivo),
+                (Voucher, PayEasy),
+                (Voucher, RedCompra),
+                (Voucher, RedPagos),
+                (Voucher, Seicomart),
+                (Voucher, SevenEleven),
+                (Wallet, AliPay),
+                (Wallet, AmazonPay),
+                (Wallet, ApplePay),
+                (Wallet, Bluecode),
+                (Wallet, Cashapp),
+                (Wallet, Dana),
+                (Wallet, Gcash),
+                (Wallet, GoPay),
+                (Wallet, GooglePay),
+                (Wallet, KakaoPay),
+                (Wallet, MbWay),
+                (Wallet, Mifinity),
+                (Wallet, Momo),
+                (Wallet, Paypal),
+                (Wallet, RevolutPay),
+                (Wallet, SamsungPay),
+                (Wallet, Satispay),
+                (Wallet, Swish),
+                (Wallet, TouchNGo),
+                (Wallet, Twint),
+                (Wallet, Vipps),
+                (Wallet, WeChatPay),
+                (Wallet, Wero),
+            ],
+        };
 
         razorpay_supported_payment_methods.add(
             PaymentMethod::Card,
             PaymentMethodType::Card,
             PaymentMethodDetails {
+                status: FeatureStatus::Supported,
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: razorpay_supported_capture_methods.clone(),
@@ -1121,54 +1212,125 @@ static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             },
         );
 
-        for wallet_type in [
-            PaymentMethodType::LazyPay,
-            PaymentMethodType::PhonePe,
-            PaymentMethodType::BillDesk,
-            PaymentMethodType::Cashfree,
-            PaymentMethodType::PayU,
-            PaymentMethodType::EaseBuzz,
-        ] {
-            razorpay_supported_payment_methods.add(
-                PaymentMethod::Wallet,
-                wallet_type,
-                PaymentMethodDetails {
-                    mandates: FeatureStatus::NotSupported,
-                    refunds: FeatureStatus::Supported,
-                    supported_capture_methods: vec![CaptureMethod::Automatic],
-                    specific_features: None,
-                },
-            );
-        }
-
-        for upi_type in [
-            PaymentMethodType::UpiCollect,
-            PaymentMethodType::UpiIntent,
-            PaymentMethodType::UpiQr,
-        ] {
-            razorpay_supported_payment_methods.add(
-                PaymentMethod::Upi,
-                upi_type,
-                PaymentMethodDetails {
-                    mandates: FeatureStatus::NotSupported,
-                    refunds: FeatureStatus::NotSupported,
-                    supported_capture_methods: vec![CaptureMethod::Automatic],
-                    specific_features: None,
-                },
-            );
-        }
-
         razorpay_supported_payment_methods.add(
             PaymentMethod::BankRedirect,
             PaymentMethodType::Netbanking,
             PaymentMethodDetails {
+                status: FeatureStatus::Supported,
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: vec![CaptureMethod::Automatic],
                 specific_features: None,
             },
         );
-
+        razorpay_supported_payment_methods.entry(common_enums::enums::PaymentMethod::Upi)
+            .or_default()
+            .insert(
+                common_enums::enums::PaymentMethodType::UpiCollect,
+                domain_types::types::PaymentMethodDetails {
+                    status: domain_types::types::FeatureStatus::Supported,
+                    mandates: domain_types::types::FeatureStatus::NotSupported,
+                    refunds: domain_types::types::FeatureStatus::NotSupported,
+                    supported_capture_methods: vec![common_enums::enums::CaptureMethod::Automatic],
+                    specific_features: None,
+                },
+            );
+        razorpay_supported_payment_methods.entry(common_enums::enums::PaymentMethod::Upi)
+            .or_default()
+            .insert(
+                common_enums::enums::PaymentMethodType::UpiIntent,
+                domain_types::types::PaymentMethodDetails {
+                    status: domain_types::types::FeatureStatus::Supported,
+                    mandates: domain_types::types::FeatureStatus::NotSupported,
+                    refunds: domain_types::types::FeatureStatus::NotSupported,
+                    supported_capture_methods: vec![common_enums::enums::CaptureMethod::Automatic],
+                    specific_features: None,
+                },
+            );
+        razorpay_supported_payment_methods.entry(common_enums::enums::PaymentMethod::Upi)
+            .or_default()
+            .insert(
+                common_enums::enums::PaymentMethodType::UpiQr,
+                domain_types::types::PaymentMethodDetails {
+                    status: domain_types::types::FeatureStatus::Supported,
+                    mandates: domain_types::types::FeatureStatus::NotSupported,
+                    refunds: domain_types::types::FeatureStatus::NotSupported,
+                    supported_capture_methods: vec![common_enums::enums::CaptureMethod::Automatic],
+                    specific_features: None,
+                },
+            );
+        razorpay_supported_payment_methods.entry(common_enums::enums::PaymentMethod::Wallet)
+            .or_default()
+            .insert(
+                common_enums::enums::PaymentMethodType::LazyPay,
+                domain_types::types::PaymentMethodDetails {
+                    status: domain_types::types::FeatureStatus::Supported,
+                    mandates: domain_types::types::FeatureStatus::NotSupported,
+                    refunds: domain_types::types::FeatureStatus::Supported,
+                    supported_capture_methods: vec![common_enums::enums::CaptureMethod::Automatic],
+                    specific_features: None,
+                },
+            );
+        razorpay_supported_payment_methods.entry(common_enums::enums::PaymentMethod::Wallet)
+            .or_default()
+            .insert(
+                common_enums::enums::PaymentMethodType::PhonePe,
+                domain_types::types::PaymentMethodDetails {
+                    status: domain_types::types::FeatureStatus::Supported,
+                    mandates: domain_types::types::FeatureStatus::NotSupported,
+                    refunds: domain_types::types::FeatureStatus::Supported,
+                    supported_capture_methods: vec![common_enums::enums::CaptureMethod::Automatic],
+                    specific_features: None,
+                },
+            );
+        razorpay_supported_payment_methods.entry(common_enums::enums::PaymentMethod::Wallet)
+            .or_default()
+            .insert(
+                common_enums::enums::PaymentMethodType::BillDesk,
+                domain_types::types::PaymentMethodDetails {
+                    status: domain_types::types::FeatureStatus::Supported,
+                    mandates: domain_types::types::FeatureStatus::NotSupported,
+                    refunds: domain_types::types::FeatureStatus::Supported,
+                    supported_capture_methods: vec![common_enums::enums::CaptureMethod::Automatic],
+                    specific_features: None,
+                },
+            );
+        razorpay_supported_payment_methods.entry(common_enums::enums::PaymentMethod::Wallet)
+            .or_default()
+            .insert(
+                common_enums::enums::PaymentMethodType::Cashfree,
+                domain_types::types::PaymentMethodDetails {
+                    status: domain_types::types::FeatureStatus::Supported,
+                    mandates: domain_types::types::FeatureStatus::NotSupported,
+                    refunds: domain_types::types::FeatureStatus::Supported,
+                    supported_capture_methods: vec![common_enums::enums::CaptureMethod::Automatic],
+                    specific_features: None,
+                },
+            );
+        razorpay_supported_payment_methods.entry(common_enums::enums::PaymentMethod::Wallet)
+            .or_default()
+            .insert(
+                common_enums::enums::PaymentMethodType::PayU,
+                domain_types::types::PaymentMethodDetails {
+                    status: domain_types::types::FeatureStatus::Supported,
+                    mandates: domain_types::types::FeatureStatus::NotSupported,
+                    refunds: domain_types::types::FeatureStatus::Supported,
+                    supported_capture_methods: vec![common_enums::enums::CaptureMethod::Automatic],
+                    specific_features: None,
+                },
+            );
+        razorpay_supported_payment_methods.entry(common_enums::enums::PaymentMethod::Wallet)
+            .or_default()
+            .insert(
+                common_enums::enums::PaymentMethodType::EaseBuzz,
+                domain_types::types::PaymentMethodDetails {
+                    status: domain_types::types::FeatureStatus::Supported,
+                    mandates: domain_types::types::FeatureStatus::NotSupported,
+                    refunds: domain_types::types::FeatureStatus::Supported,
+                    supported_capture_methods: vec![common_enums::enums::CaptureMethod::Automatic],
+                    specific_features: None,
+                },
+            );
         razorpay_supported_payment_methods
     });
 
@@ -1192,8 +1354,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Some(RAZORPAY_SUPPORTED_WEBHOOK_FLOWS)
     }
 
-    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        Some(&RAZORPAY_SUPPORTED_PAYMENT_METHODS)
+    fn get_supported_payment_methods(&self) -> &'static SupportedPaymentMethods {
+        &RAZORPAY_SUPPORTED_PAYMENT_METHODS
     }
 }
 
