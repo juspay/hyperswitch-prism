@@ -3679,12 +3679,16 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetSdkSessionTokenResponse, Self>>
             });
         }
 
-        let session_token = response.public_client_key.clone().expose_option().ok_or_else(|| {
-            ResponseError::from(ConnectorError::response_handling_failed_with_context(
-                item.http_code,
-                Some("publicClientKey missing in Authorize.Net response".to_string()),
-            ))
-        })?;
+        let session_token = response
+            .public_client_key
+            .clone()
+            .expose_option()
+            .ok_or_else(|| {
+                ResponseError::from(ConnectorError::response_handling_failed_with_context(
+                    item.http_code,
+                    Some("publicClientKey missing in Authorize.Net response".to_string()),
+                ))
+            })?;
 
         // This flow only issues a session token; no payment has been authorized yet, so the
         // attempt status is left unchanged (it is not Pending).
