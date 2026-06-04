@@ -325,6 +325,7 @@ fn transform_payment_response<F, Req>(
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(
                         info_response
                             .client_reference_information
@@ -800,6 +801,7 @@ impl TryFrom<ResponseRouterData<responses::BarclaycardTransactionResponse, Self>
                             mandate_reference: None,
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: item
                                 .response
                                 .client_reference_information
@@ -823,6 +825,7 @@ impl TryFrom<ResponseRouterData<responses::BarclaycardTransactionResponse, Self>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
@@ -1130,6 +1133,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                     .map(|ntid| ntid.clone().expose())
                             },
                         ),
+                        network_txn_link_id: None,
                         connector_response_reference_id: Some(
                             info_response
                                 .client_reference_information
@@ -1433,6 +1437,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: Some(
                             info_response
                                 .client_reference_information

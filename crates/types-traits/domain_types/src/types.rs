@@ -5198,6 +5198,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                 redirection_data,
                 connector_metadata,
                 network_txn_id,
+                network_txn_link_id: _,
                 connector_response_reference_id,
                 incremental_authorization_allowed,
                 mandate_reference,
@@ -5805,6 +5806,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceGetRequest> for Paym
         value: grpc_api_types::payments::PaymentServiceGetRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let capture_method = Some(CaptureMethod::foreign_try_from(value.capture_method())?);
+        // Read before any field of `value` is moved out below.
+        let payment_method_type =
+            <Option<PaymentMethodType>>::foreign_try_from(value.payment_method_type())?;
         let amount = value.amount.ok_or(IntegrationError::MissingRequiredField {
             field_name: "amount",
             context: IntegrationErrorContext::default(),
@@ -5848,7 +5852,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceGetRequest> for Paym
             connector_feature_data,
             sync_type,
             mandate_id: None,
-            payment_method_type: None,
+            payment_method_type,
             currency,
             payment_experience,
             amount: common_utils::types::MinorUnit::new(amount.minor_amount),
@@ -6028,6 +6032,7 @@ pub fn generate_payment_void_response(
                 redirection_data: _,
                 connector_metadata,
                 network_txn_id: _,
+                network_txn_link_id: _,
                 connector_response_reference_id,
                 incremental_authorization_allowed,
                 mandate_reference,
@@ -6152,6 +6157,7 @@ pub fn generate_payment_void_post_capture_response(
                 redirection_data: _,
                 connector_metadata: _,
                 network_txn_id: _,
+                network_txn_link_id: _,
                 connector_response_reference_id,
                 incremental_authorization_allowed: _,
                 mandate_reference: _,
@@ -6397,6 +6403,7 @@ pub fn generate_payment_sync_response(
                 redirection_data,
                 connector_metadata: _,
                 network_txn_id,
+                network_txn_link_id,
                 connector_response_reference_id,
                 incremental_authorization_allowed,
                 mandate_reference,
@@ -6444,6 +6451,7 @@ pub fn generate_payment_sync_response(
                     mandate_reference: mandate_reference_grpc,
                     error: None,
                     network_transaction_id: network_txn_id,
+                    network_txn_link_id,
                     amount,
                     captured_amount: router_data_v2.resource_common_data.amount_captured,
                     payment_method_type: None,
@@ -6542,6 +6550,7 @@ pub fn generate_payment_sync_response(
                     mandate_reference: None,
                     error: None,
                     network_transaction_id: None,
+                    network_txn_link_id: None,
                     amount,
                     captured_amount: router_data_v2.resource_common_data.amount_captured,
                     payment_method_type: None,
@@ -6635,6 +6644,7 @@ pub fn generate_payment_sync_response(
                     }),
                 }),
                 network_transaction_id: None,
+                network_txn_link_id: None,
                 amount,
                 captured_amount: None,
                 payment_method_type: None,
@@ -7450,6 +7460,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
                 issuer_details: None,
             }),
             network_transaction_id: value.network_txn_id,
+            network_txn_link_id: None,
             amount: None,
             captured_amount: value
                 .minor_amount_captured
@@ -8605,6 +8616,7 @@ pub fn generate_payment_capture_response(
                 redirection_data: _,
                 connector_metadata,
                 network_txn_id: _,
+                network_txn_link_id: _,
                 connector_response_reference_id,
                 incremental_authorization_allowed,
                 mandate_reference,
@@ -9630,6 +9642,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                 redirection_data,
                 connector_metadata,
                 network_txn_id,
+                network_txn_link_id: _,
                 connector_response_reference_id,
                 incremental_authorization_allowed,
                 mandate_reference,
@@ -11215,6 +11228,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
             PaymentsResponseData::TransactionResponse {
                 resource_id,
                 network_txn_id,
+                network_txn_link_id: _,
                 connector_response_reference_id,
                 connector_metadata,
                 mandate_reference,

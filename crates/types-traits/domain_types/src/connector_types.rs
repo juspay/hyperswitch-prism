@@ -1692,6 +1692,9 @@ pub enum PaymentsResponseData {
         connector_metadata: Option<serde_json::Value>,
         mandate_reference: Option<Box<MandateReference>>,
         network_txn_id: Option<String>,
+        /// Network-issued link/reference id (Adyen `transactionLinkId`, etc.) that
+        /// chains related network transactions. Distinct from `network_txn_id`.
+        network_txn_link_id: Option<String>,
         connector_response_reference_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
         status_code: u16,

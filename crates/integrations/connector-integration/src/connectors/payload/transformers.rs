@@ -683,6 +683,7 @@ fn handle_payment_response<F, T>(
                     mandate_reference: mandate_reference.map(Box::new),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: card_response.ref_number,
                     incremental_authorization_allowed: None,
                     status_code: http_code,

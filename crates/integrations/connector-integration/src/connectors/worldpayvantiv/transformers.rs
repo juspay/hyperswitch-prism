@@ -1387,6 +1387,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             .network_transaction_id
                             .clone()
                             .map(|id| id.expose()),
+                        network_txn_link_id: None,
                         connector_response_reference_id: Some(sale_response.order_id.clone()),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
@@ -1439,6 +1440,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             .network_transaction_id
                             .clone()
                             .map(|id| id.expose()),
+                        network_txn_link_id: None,
                         connector_response_reference_id: Some(auth_response.order_id.clone()),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
@@ -1778,6 +1780,7 @@ impl TryFrom<ResponseRouterData<VantivSyncResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: item
                 .response
                 .payment_detail
@@ -2253,6 +2256,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(capture_response.id.clone()),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
@@ -2389,6 +2393,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(auth_reversal_response.id.clone()),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
@@ -2438,6 +2443,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(void_response.id.clone()),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
