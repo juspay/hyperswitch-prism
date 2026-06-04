@@ -3669,7 +3669,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetSdkSessionTokenResponse, Self>>
                     message: message.clone(),
                     reason: Some(message),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,

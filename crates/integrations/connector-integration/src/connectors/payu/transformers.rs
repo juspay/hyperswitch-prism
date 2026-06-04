@@ -2079,7 +2079,7 @@ impl TryFrom<ResponseRouterData<PayuSessionTokenResponse, Self>>
                     code: error_code,
                     message: error_message.clone(),
                     reason: Some(error_message),
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_error_message: None,
                     network_advice_code: None,

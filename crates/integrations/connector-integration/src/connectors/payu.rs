@@ -661,7 +661,7 @@ macros::macro_connector_implementation!(
                     .error_description
                     .unwrap_or_else(|| "PayU session token error".to_string()),
                 reason: None,
-                attempt_status: Some(enums::AttemptStatus::Failure),
+                attempt_status: Some(FlowStatus::Payment(enums::AttemptStatus::Failure)),
                 connector_transaction_id: None,
                 network_error_message: None,
                 network_advice_code: None,
