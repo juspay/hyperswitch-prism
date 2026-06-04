@@ -6,6 +6,7 @@ use axum::{
 use grpc_api_types::payments::{
     event_service_server::EventService, refund_service_server::RefundService,
     EventServiceHandleRequest, EventServiceHandleResponse, RefundResponse, RefundServiceGetRequest,
+    RefundServiceReverseRequest,
 };
 use std::sync::Arc;
 
@@ -21,6 +22,14 @@ http_handler!(
     RefundServiceGetRequest,
     RefundResponse,
     get,
+    refunds_service
+);
+
+http_handler!(
+    reverse_refund,
+    RefundServiceReverseRequest,
+    RefundResponse,
+    reverse,
     refunds_service
 );
 
