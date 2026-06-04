@@ -32,6 +32,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "#[serde(rename_all = \"snake_case\")]",
     );
 
+    // The X-Connector-Config header sent by callers only carries the fields they
+    // configure. proto3 `repeated`/`optional` fields that are absent must default
+    // (empty / None) instead of failing deserialization. BraintreeConfig has several
+    // apple_pay/gpay `repeated` fields the caller does not send, which previously made
+    // the whole header fail to parse (juspay/hyperswitch-cloud#16535).
+    config.type_attribute(".types.BraintreeConfig", "#[serde(default)]");
+
     // Use compile_protos_with_config which handles everything internally
     // including string enum support, serde derives, and descriptor set writing
     bridge_generator.compile_protos_with_config(

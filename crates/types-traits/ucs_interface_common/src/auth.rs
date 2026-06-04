@@ -422,4 +422,42 @@ mod tests {
             _ => panic!("expected stripe config"),
         }
     }
+
+    /// Confirm-first regression for juspay/hyperswitch-cloud#16535:
+    /// the braintree `X-Connector-Config` produced by hyperswitch
+    /// (connector_config.rs: SignatureKey api_key→public_key, api_secret→private_key,
+    /// key1/metadata→merchant_account_id, wrapped under "config", PascalCase variant,
+    /// bare-string secrets) must deserialize into the proto ConnectorSpecificConfig
+    /// and resolve to a Braintree config. The original issue was the header lacking the
+    /// `{"config":{...}}` wrapper.
+    #[test]
+    fn braintree_typed_config_header_parses() {
+        let json = r#"{"config":{"Braintree":{"public_key":"pk","private_key":"sk","merchant_account_id":"juspay","merchant_config_currency":"USD"}}}"#;
+        let mut metadata = MetadataMap::new();
+        metadata.insert(
+            consts::X_CONNECTOR_CONFIG,
+            json.parse().expect("valid x-connector-config header"),
+        );
+
+        let (connector, config) = connector_and_config_from_metadata(&metadata)
+            .expect("braintree typed config should resolve");
+
+        assert_eq!(
+            connector,
+            connector_types::ConnectorVariant::Payment(
+                connector_types::ConnectorEnum::Braintree
+            )
+        );
+        match config {
+            ConnectorSpecificConfig::Braintree {
+                public_key,
+                private_key,
+                ..
+            } => {
+                assert_eq!(public_key.expose(), "pk");
+                assert_eq!(private_key.expose(), "sk");
+            }
+            _ => panic!("expected braintree config"),
+        }
+    }
 }
