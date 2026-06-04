@@ -461,7 +461,7 @@
           }
         },
         "sample": {
-          "url": "https://test.payu.in//merchant/postservice.php?form=2",
+          "url": "https://secure.snd.payu.com//merchant/postservice.php?form=2",
           "method": "Post",
           "headers": {
             "accept": "application/json",
@@ -510,7 +510,7 @@
           }
         },
         "sample": {
-          "url": "https://test.payu.in/pl/standard/user/oauth/authorize",
+          "url": "https://secure.snd.payu.com/pl/standard/user/oauth/authorize",
           "method": "Post",
           "headers": {
             "accept": "application/json",
@@ -561,7 +561,7 @@
           }
         },
         "sample": {
-          "url": "https://test.payu.in//merchant/postservice.php?form=2",
+          "url": "https://secure.snd.payu.com//merchant/postservice.php?form=2",
           "method": "Post",
           "headers": {
             "accept": "application/json",
@@ -638,7 +638,7 @@
           "reason": "customer_request"
         },
         "sample": {
-          "url": "https://test.payu.in//merchant/postservice.php?form=2",
+          "url": "https://secure.snd.payu.com//merchant/postservice.php?form=2",
           "method": "Post",
           "headers": {
             "accept": "application/json",
@@ -658,7 +658,7 @@
           "refund_id": "probe_refund_id_001"
         },
         "sample": {
-          "url": "https://test.payu.in//merchant/postservice.php?form=2",
+          "url": "https://secure.snd.payu.com//merchant/postservice.php?form=2",
           "method": "Post",
           "headers": {
             "accept": "application/json",
@@ -712,7 +712,7 @@
           "connector_transaction_id": "probe_connector_txn_001"
         },
         "sample": {
-          "url": "https://test.payu.in//merchant/postservice.php?form=2",
+          "url": "https://secure.snd.payu.com//merchant/postservice.php?form=2",
           "method": "Post",
           "headers": {
             "accept": "application/json",
