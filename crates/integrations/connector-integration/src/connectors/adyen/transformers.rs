@@ -309,6 +309,8 @@ pub enum AdyenPaymentMethod<
     Kakaopay(Box<KakaoPayData>),
     #[serde(rename = "mbway")]
     Mbway(Box<MbwayData>),
+    #[serde(rename = "mobilepay")]
+    MobilePay,
     #[serde(rename = "momo_wallet")]
     Momo(Box<MomoData>),
     #[serde(rename = "touchngo")]
@@ -1559,6 +1561,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             WalletData::MbWayRedirect(_) => Ok(Self::Mbway(Box::new(MbwayData {
                 telephone_number: item.resource_common_data.get_billing_phone_number()?,
             }))),
+            WalletData::MobilePayRedirect(_) => Ok(Self::MobilePay),
             WalletData::MomoRedirect(_) => Ok(Self::Momo(Box::new(MomoData {}))),
             WalletData::TouchNGoRedirect(_) => Ok(Self::TouchNGo(Box::new(TouchNGoData {}))),
             WalletData::WeChatPayRedirect(_) => Ok(Self::WeChatPayWeb),
@@ -1569,7 +1572,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             WalletData::AmazonPayRedirect(_)
             | WalletData::Paze(_)
             | WalletData::RevolutPay(_)
-            | WalletData::MobilePayRedirect(_)
             | WalletData::SamsungPay(_)
             | WalletData::AliPayQr(_)
             | WalletData::ApplePayRedirect(_)

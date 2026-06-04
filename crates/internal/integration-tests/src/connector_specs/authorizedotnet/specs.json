@@ -3,6 +3,7 @@
   "supported_suites": [
     "CustomerService/Create",
     "PaymentService/Authorize",
+    "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
     "PaymentService/Capture",
     "PaymentService/Void",
     "PaymentService/Reverse",
