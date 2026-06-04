@@ -5,9 +5,9 @@
 // Razorpay — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx razorpay.ts checkout_autocapture
 
-import { PaymentClient, EventClient, RefundClient, types } from 'hyperswitch-prism';
+import { PaymentClient, MerchantAuthenticationClient, EventClient, RefundClient, types } from 'hyperswitch-prism';
 const { Environment, Currency, HttpMethod } = types;
-export const SUPPORTED_FLOWS = ["capture", "create_order", "get", "parse_event", "refund", "refund_get"];
+export const SUPPORTED_FLOWS = ["capture", "create_order", "create_server_session_authentication_token", "get", "parse_event", "refund", "refund_get"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -34,6 +34,17 @@ function _buildCreateOrderRequest(): types.IPaymentServiceCreateOrderRequest {
         "amount": {  // Amount Information.
             "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+    };
+}
+
+function _buildCreateServerSessionAuthenticationTokenRequest(): types.IMerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest {
+    return {
+        "payment": {  // PayoutSessionContext payout = 6; // future FrmSessionContext frm = 7; // future.
+            "amount": {
+                "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+                "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            }
         }
     };
 }
@@ -115,6 +126,15 @@ async function createOrder(merchantTransactionId: string, config: types.IConnect
     return createResponse;
 }
 
+// Flow: MerchantAuthenticationService.CreateServerSessionAuthenticationToken
+async function createServerSessionAuthenticationToken(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const merchantAuthenticationClient = new MerchantAuthenticationClient(config);
+
+    const createResponse = await merchantAuthenticationClient.createServerSessionAuthenticationToken(_buildCreateServerSessionAuthenticationTokenRequest());
+
+    return createResponse;
+}
+
 // Flow: PaymentService.Get
 async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -163,7 +183,7 @@ async function refundGet(merchantTransactionId: string, config: types.IConnector
 
 // Export all process* functions for the smoke test
 export {
-    capture, createOrder, get, handleEvent, parseEvent, refund, refundGet, _buildCaptureRequest, _buildCreateOrderRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildRefundRequest, _buildRefundGetRequest
+    capture, createOrder, createServerSessionAuthenticationToken, get, handleEvent, parseEvent, refund, refundGet, _buildCaptureRequest, _buildCreateOrderRequest, _buildCreateServerSessionAuthenticationTokenRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildRefundRequest, _buildRefundGetRequest
 };
 
 // CLI runner

@@ -126,7 +126,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Adyen](connectors/adyen.md) | ⚠ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ⚠ | ✓ | ✓ | ⚠ | ✓ | ✓ | ✓ | ⚠ | ⚠ | x | ⚠ | ⚠ | x | x | ✓ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ✓ | ✓ | ✓ | ✓ | x |
 | [Airwallex](connectors/airwallex.md) | ✓ | ✓ | x | ✓ | ✓ | ✓ | ⚠ | ⚠ | ? | ⚠ | ? | ✓ | ? | ? | ⚠ | ✓ | ? | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [Authipay](connectors/authipay.md) | ✓ | ✓ | ✓ | ✓ | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
-| [Authorize.net](connectors/authorizedotnet.md) | ✓ | ✓ | ✓ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | x | ⚠ | ✓ | ✓ | ✓ | ⚠ | ✓ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | x | x | x | ⚠ | x | x | ✓ | ✓ | x |
+| [Authorize.net](connectors/authorizedotnet.md) | ✓ | ✓ | ✓ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | x | ⚠ | ✓ | ✓ | ✓ | ⚠ | ✓ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | x | x | x | x | ⚠ | x | x | ✓ | ✓ | x |
 | [Axisbank](connectors/axisbank.md) | ? | ⚠ | ⚠ | ⚠ | ⚠ | ? | ⚠ | ⚠ | ⚠ | ? | ⚠ | ? | ⚠ | ⚠ | ⚠ | ? | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [Bambora](connectors/bambora.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | x | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Bamboraapac](connectors/bamboraapac.md) | ✓ | ⚠ | ⚠ | ✓ | ⚠ | ✓ | x | ⚠ | ✓ | x | x | ✓ | ✓ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
@@ -179,7 +179,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Paypal](connectors/paypal.md) | ✓ | ✓ | x | ✓ | ✓ | ✓ | ⚠ | ⚠ | ✓ | x | x | ✓ | ✓ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ✓ | ⚠ | ⚠ | ? | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ✓ | x |
 | [Paysafe](connectors/paysafe.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ? | ⚠ | ? | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Paytm](connectors/paytm.md) | ✓ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | ⚠ | ⚠ | ? | ⚠ | ? | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ✓ | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
-| [PayU](connectors/payu.md) | ✓ | ✓ | x | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | x | ⚠ | x | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
+| [PayU](connectors/payu.md) | ✓ | ✓ | x | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | x | ⚠ | x | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Peachpayments](connectors/peachpayments.md) | ✓ | ✓ | x | ✓ | x | ✓ | x | ⚠ | ✓ | x | x | ✓ | ✓ | x | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ✓ | ✓ | x |
 | [PhonePe](connectors/phonepe.md) | ✓ | ✓ | x | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | x | ⚠ | x | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | x | x | ✓ | ✓ | x |
 | [Pinelabsonline](connectors/pinelabsonline.md) | ? | ? | x | ? | ? | ? | x | ⚠ | ⚠ | ? | ⚠ | ? | ⚠ | ⚠ | ⚠ | ? | x | ⚠ | ⚠ | ✓ | x | x | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
@@ -187,7 +187,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Powertranz](connectors/powertranz.md) | ✓ | ✓ | ⚠ | ✓ | x | ✓ | x | ⚠ | ✓ | x | x | ✓ | ✓ | x | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [Ppro](connectors/ppro.md) | ✓ | ✓ | x | ✓ | ⚠ | ✓ | x | ✓ | x | ? | ? | x | x | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ✓ | x |
 | [Rapyd](connectors/rapyd.md) | ✓ | ✓ | x | ✓ | ? | ✓ | ⚠ | ⚠ | ? | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | x | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
-| [Razorpay](connectors/razorpay.md) | ✓ | x | x | ✓ | ✓ | ✓ | x | ⚠ | ⚠ | ? | ⚠ | ? | ⚠ | ⚠ | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ✓ | x |
+| [Razorpay](connectors/razorpay.md) | ✓ | x | x | ✓ | ✓ | ✓ | x | ⚠ | ⚠ | ? | ⚠ | ? | ⚠ | ⚠ | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ✓ | x |
 | [Razorpay V2](connectors/razorpayv2.md) | ✓ | x | x | ⚠ | ✓ | ✓ | x | ⚠ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [Redsys](connectors/redsys.md) | ✓ | ✓ | ⚠ | ✓ | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ? | ⚠ | ⚠ | x | ✓ | x | ⚠ | ⚠ | x | x | x | ✓ | ✓ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Revolut](connectors/revolut.md) | ✓ | ⚠ | x | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | x | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ✓ | x |
