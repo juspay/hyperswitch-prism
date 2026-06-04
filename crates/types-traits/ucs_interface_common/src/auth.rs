@@ -444,9 +444,7 @@ mod tests {
 
         assert_eq!(
             connector,
-            connector_types::ConnectorVariant::Payment(
-                connector_types::ConnectorEnum::Braintree
-            )
+            connector_types::ConnectorVariant::Payment(connector_types::ConnectorEnum::Braintree)
         );
         match config {
             ConnectorSpecificConfig::Braintree {
