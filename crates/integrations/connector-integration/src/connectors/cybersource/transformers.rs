@@ -5780,20 +5780,14 @@ impl TryFrom<ResponseRouterData<CybersourceClientAuthResponse, Self>>
 mod tests {
     use super::*;
 
-    #[derive(serde::Deserialize)]
-    struct ParityFixture {
-        card_number: String,
-        expected_card_type: String,
-    }
-
+    // Regression: when card_network is absent, the fallback path must pass the
+    // raw card number to get_card_issuer. Previously the code used
+    // format!("{:?}", card_number) which triggered Debug masking
+    // ("424242**********") and broke the BIN regex match, producing card.type = null.
     #[test]
-    fn test_parity_16020_card_type_fallback() {
-        let raw = include_str!("tests/parity_fixtures/16020.json");
-        let fixture: ParityFixture = serde_json::from_str(raw).unwrap();
-
-        let card_issuer =
-            domain_types::utils::get_card_issuer(&fixture.card_number).expect("card issuer lookup");
-        let card_type = card_issuer_to_string(card_issuer);
-        assert_eq!(card_type, fixture.expected_card_type);
+    fn card_type_fallback_returns_visa_001_for_test_card() {
+        let issuer = domain_types::utils::get_card_issuer("4242424242424242")
+            .expect("Visa BIN should be recognized");
+        assert_eq!(card_issuer_to_string(issuer), "001");
     }
 }
