@@ -2353,7 +2353,7 @@ impl MerchantAuthentication {
         let connector_integration: BoxedConnectorIntegrationV2<
             '_,
             ServerAuthenticationToken,
-            PaymentFlowData,
+            MerchantAuthenticationFlowData,
             ServerAuthenticationTokenRequestData,
             ServerAuthenticationTokenResponseData,
         > = connector_data.connector.get_connector_integration_v2();
@@ -2367,7 +2367,7 @@ impl MerchantAuthentication {
         // Create router data for access token flow
         let access_token_router_data = RouterDataV2::<
             ServerAuthenticationToken,
-            PaymentFlowData,
+            MerchantAuthenticationFlowData,
             ServerAuthenticationTokenRequestData,
             ServerAuthenticationTokenResponseData,
         > {
@@ -2434,11 +2434,11 @@ impl MerchantAuthenticationOperational for MerchantAuthentication {
         request_type: MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
         response_type: MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
         flow_marker: ClientAuthenticationToken,
-        resource_common_data_type: PaymentFlowData,
+        resource_common_data_type: MerchantAuthenticationFlowData,
         request_data_type: ClientAuthenticationTokenRequestData,
         response_data_type: PaymentsResponseData,
         request_data_constructor: ClientAuthenticationTokenRequestData::foreign_try_from,
-        common_flow_data_constructor: PaymentFlowData::foreign_try_from,
+        common_flow_data_constructor: MerchantAuthenticationFlowData::foreign_try_from,
         generate_response_fn: generate_payment_sdk_session_token_response,
         connector_data_type: ConnectorData<DefaultPCIHolder>,
         all_keys_required: None
@@ -2675,7 +2675,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                     .into_grpc_status()?;
 
                     // Create minimal payment flow data for access token generation
-                    let payment_flow_data = PaymentFlowData::foreign_try_from((
+                    let payment_flow_data = MerchantAuthenticationFlowData::foreign_try_from((
                         access_token_create_request,
                         connectors,
                         &request_data.masked_metadata,

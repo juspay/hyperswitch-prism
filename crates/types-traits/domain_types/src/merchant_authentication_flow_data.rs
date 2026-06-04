@@ -1,0 +1,92 @@
+use common_utils::pii::SecretSerdeValue;
+use hyperswitch_masking::Secret;
+
+use crate::{
+    connector_types::{ConnectorResponseHeaders, RawConnectorRequestResponse},
+    types::Connectors,
+};
+
+/// Resource-common data for all MerchantAuthenticationService flows.
+///
+/// Shared by:
+/// - `ServerAuthenticationToken`
+/// - `ServerSessionAuthenticationToken`
+/// - `ClientAuthenticationToken`
+///
+/// This type deliberately omits payment-specific fields (`payment_id`,
+/// `attempt_id`, `status`, `payment_method`, `address`, `amount`, etc.)
+/// because merchant-authentication flows have no payment identity.
+#[derive(Debug, Clone)]
+pub struct MerchantAuthenticationFlowData {
+    /// Merchant identity — always required for auth, logging, routing.
+    pub merchant_id: common_utils::id_type::MerchantId,
+
+    /// Resolved connector base URLs — required by every connector impl
+    /// to build the target endpoint (e.g. `connectors.paypal.base_url`).
+    pub connectors: Connectors,
+
+    /// Idempotency / tracing key forwarded to the connector in the request.
+    pub connector_request_reference_id: String,
+
+    /// Sandbox vs production flag.
+    pub test_mode: Option<bool>,
+
+    /// Return URL for redirect flows.
+    pub return_url: Option<String>,
+
+    /// Connector-specific opaque config blob (same semantics as in other
+    /// FlowData types — passed through from the proto `connector_feature_data`
+    /// field when present).
+    pub connector_feature_data: Option<SecretSerdeValue>,
+
+    /// Pre-fetched OAuth access token. Required by connectors where the
+    /// flow itself depends on a previously obtained token
+    /// (e.g. PayPal `ClientAuthenticationToken` reads this field).
+    pub access_token: Option<crate::connector_types::ServerAuthenticationTokenResponseData>,
+
+    /// Order details (if available from upstream — optional for all auth flows).
+    pub order_details: Option<Vec<crate::payment_address::OrderDetailsWithAmount>>,
+
+    // ── Observability ──────────────────────────────────────────────────────
+    pub raw_connector_response: Option<Secret<String>>,
+    pub raw_connector_request: Option<Secret<String>>,
+    pub connector_response_headers: Option<http::HeaderMap>,
+}
+
+impl MerchantAuthenticationFlowData {
+    pub fn get_return_url(&self) -> Option<String> {
+        self.return_url.clone()
+    }
+}
+
+// ── Required trait impls (identical pattern to every other FlowData) ───────
+
+impl RawConnectorRequestResponse for MerchantAuthenticationFlowData {
+    fn set_raw_connector_response(&mut self, r: Option<Secret<String>>) {
+        self.raw_connector_response = r;
+    }
+    fn get_raw_connector_response(&self) -> Option<Secret<String>> {
+        self.raw_connector_response.clone()
+    }
+    fn set_raw_connector_request(&mut self, r: Option<Secret<String>>) {
+        self.raw_connector_request = r;
+    }
+    fn get_raw_connector_request(&self) -> Option<Secret<String>> {
+        self.raw_connector_request.clone()
+    }
+}
+
+impl ConnectorResponseHeaders for MerchantAuthenticationFlowData {
+    fn set_connector_response_headers(&mut self, h: Option<http::HeaderMap>) {
+        self.connector_response_headers = h;
+    }
+    fn get_connector_response_headers(&self) -> Option<&http::HeaderMap> {
+        self.connector_response_headers.as_ref()
+    }
+}
+
+impl crate::types::HasConnectors for MerchantAuthenticationFlowData {
+    fn connectors(&self) -> &crate::types::Connectors {
+        &self.connectors
+    }
+}

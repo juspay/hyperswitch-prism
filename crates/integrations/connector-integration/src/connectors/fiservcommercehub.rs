@@ -14,6 +14,7 @@ use domain_types::{
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
     errors,
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -63,7 +64,7 @@ macros::create_all_prerequisites!(
             flow: ServerAuthenticationToken,
             request_body: FiservcommercehubAccessTokenRequest,
             response_body: FiservcommercehubAccessTokenResponse,
-            router_data: RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            router_data: RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ),
         (
             flow: Authorize,
@@ -104,15 +105,13 @@ macros::create_all_prerequisites!(
             &self,
             req: &RouterDataV2<
                 ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError>
         where
-            Self: ConnectorIntegrationV2<
-                ServerAuthenticationToken,
-                PaymentFlowData,
+            Self: ConnectorIntegrationV2<ServerAuthenticationToken, MerchantAuthenticationFlowData,
                 ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
@@ -218,6 +217,17 @@ macros::create_all_prerequisites!(
         pub fn connector_base_url<F, Req, Res>(
             &self,
             req: &RouterDataV2<F, PaymentFlowData, Req, Res>,
+        ) -> String {
+            req.resource_common_data
+                .connectors
+                .fiservcommercehub
+                .base_url
+                .clone()
+        }
+
+        pub fn connector_base_url_merchant_auth<F, Req, Res>(
+            &self,
+            req: &RouterDataV2<F, MerchantAuthenticationFlowData, Req, Res>,
         ) -> String {
             req.resource_common_data
                 .connectors
@@ -581,7 +591,7 @@ macros::macro_connector_implementation!(
     curl_request: Json(FiservcommercehubAccessTokenRequest),
     curl_response: FiservcommercehubAccessTokenResponse,
     flow_name: ServerAuthenticationToken,
-    resource_common_data: PaymentFlowData,
+    resource_common_data: MerchantAuthenticationFlowData,
     flow_request: ServerAuthenticationTokenRequestData,
     flow_response: ServerAuthenticationTokenResponseData,
     http_method: Post,
@@ -592,7 +602,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<
                 ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
@@ -604,12 +614,12 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<
                 ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
         ) -> CustomResult<String, errors::IntegrationError> {
-            let base_url = self.connector_base_url(req);
+            let base_url = self.connector_base_url_merchant_auth(req);
             Ok(format!("{base_url}security/v1/keys/generate"))
         }
     }

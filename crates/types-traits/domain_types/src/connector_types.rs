@@ -1824,6 +1824,7 @@ pub struct ClientAuthenticationTokenRequestData {
     pub order_details: Option<Vec<payment_address::OrderDetailsWithAmount>>,
     pub email: Option<Email>,
     pub customer_name: Option<Secret<String>>,
+    pub customer_id: Option<CustomerId>,
     pub order_tax_amount: Option<MinorUnit>,
     pub shipping_cost: Option<MinorUnit>,
     /// The specific payment method type for which the session token is being generated
@@ -1918,6 +1919,7 @@ impl ServerSessionAuthenticationTokenRequestData {
 #[derive(Debug, Clone)]
 pub struct ServerSessionAuthenticationTokenResponseData {
     pub session_token: String,
+    pub status: Option<common_enums::AttemptStatus>,
 }
 
 #[derive(Debug, Clone)]

@@ -13,6 +13,7 @@ use domain_types::{
         PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -332,7 +333,7 @@ macros::create_all_prerequisites!(
             flow: ClientAuthenticationToken,
             request_body: BluesnapClientAuthRequest,
             response_body: BluesnapClientAuthResponse,
-            router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+            router_data: RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -363,6 +364,13 @@ macros::create_all_prerequisites!(
         pub fn connector_base_url_refunds<'a, F, Req, Res>(
             &self,
             req: &'a RouterDataV2<F, RefundFlowData, Req, Res>,
+        ) -> &'a str {
+            &req.resource_common_data.connectors.bluesnap.base_url
+        }
+
+        pub fn connector_base_url_merchant_auth<'a, F, Req, Res>(
+            &self,
+            req: &'a RouterDataV2<F, MerchantAuthenticationFlowData, Req, Res>,
         ) -> &'a str {
             &req.resource_common_data.connectors.bluesnap.base_url
         }
@@ -583,7 +591,7 @@ macros::macro_connector_implementation!(
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
         ClientAuthenticationToken,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         ClientAuthenticationTokenRequestData,
         PaymentsResponseData,
     > for Bluesnap<T>
@@ -600,7 +608,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         req: &RouterDataV2<
             ClientAuthenticationToken,
-            PaymentFlowData,
+            MerchantAuthenticationFlowData,
             ClientAuthenticationTokenRequestData,
             PaymentsResponseData,
         >,
@@ -612,12 +620,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         req: &RouterDataV2<
             ClientAuthenticationToken,
-            PaymentFlowData,
+            MerchantAuthenticationFlowData,
             ClientAuthenticationTokenRequestData,
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        let base_url = self.connector_base_url_payments(req);
+        let base_url = self.connector_base_url_merchant_auth(req);
         Ok(format!("{}/services/2/payment-fields-tokens", base_url))
     }
 
@@ -625,7 +633,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         data: &RouterDataV2<
             ClientAuthenticationToken,
-            PaymentFlowData,
+            MerchantAuthenticationFlowData,
             ClientAuthenticationTokenRequestData,
             PaymentsResponseData,
         >,
@@ -634,7 +642,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> CustomResult<
         RouterDataV2<
             ClientAuthenticationToken,
-            PaymentFlowData,
+            MerchantAuthenticationFlowData,
             ClientAuthenticationTokenRequestData,
             PaymentsResponseData,
         >,
@@ -684,7 +692,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         RouterDataV2::<
             ClientAuthenticationToken,
-            PaymentFlowData,
+            MerchantAuthenticationFlowData,
             ClientAuthenticationTokenRequestData,
             PaymentsResponseData,
         >::try_from(response_router_data)
