@@ -30,6 +30,7 @@ use domain_types::{
         ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{DefaultPCIHolder, PaymentMethodDataTypes, VaultTokenHolder},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -2226,7 +2227,7 @@ impl MerchantAuthentication {
         &self,
         config: &Arc<Config>,
         connector_data: ConnectorData<T>,
-        payment_flow_data: &PaymentFlowData,
+        merchant_auth_flow_data: &MerchantAuthenticationFlowData,
         connector_config: ConnectorSpecificConfig,
         payload: &P,
         connector_name: &str,
@@ -2240,7 +2241,7 @@ impl MerchantAuthentication {
         let connector_integration: BoxedConnectorIntegrationV2<
             '_,
             ServerSessionAuthenticationToken,
-            PaymentFlowData,
+            MerchantAuthenticationFlowData,
             ServerSessionAuthenticationTokenRequestData,
             ServerSessionAuthenticationTokenResponseData,
         > = connector_data.connector.get_connector_integration_v2();
@@ -2252,12 +2253,12 @@ impl MerchantAuthentication {
 
         let session_token_router_data = RouterDataV2::<
             ServerSessionAuthenticationToken,
-            PaymentFlowData,
+            MerchantAuthenticationFlowData,
             ServerSessionAuthenticationTokenRequestData,
             ServerSessionAuthenticationTokenResponseData,
         > {
             flow: std::marker::PhantomData,
-            resource_common_data: payment_flow_data.clone(),
+            resource_common_data: merchant_auth_flow_data.clone(),
             connector_config,
             request: session_token_request_data,
             response: Err(ErrorResponse::default()),
@@ -2339,7 +2340,7 @@ impl MerchantAuthentication {
         &self,
         config: &Arc<Config>,
         connector_data: ConnectorData<T>,
-        payment_flow_data: &PaymentFlowData,
+        merchant_auth_flow_data: &MerchantAuthenticationFlowData,
         connector_config: ConnectorSpecificConfig,
         connector_name: &str,
         service_name: &str,
@@ -2372,7 +2373,7 @@ impl MerchantAuthentication {
             ServerAuthenticationTokenResponseData,
         > {
             flow: std::marker::PhantomData,
-            resource_common_data: payment_flow_data.clone(),
+            resource_common_data: merchant_auth_flow_data.clone(),
             connector_config,
             request: access_token_request_data,
             response: Err(ErrorResponse::default()),
@@ -2558,8 +2559,8 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                     )
                     .into_grpc_status()?;
 
-                    // Create common request data
-                    let payment_flow_data = PaymentFlowData::foreign_try_from((
+                    // Create merchant authentication flow data
+                    let merchant_auth_flow_data = MerchantAuthenticationFlowData::foreign_try_from((
                         payload.clone(),
                         connectors,
                         &request_data.masked_metadata,
@@ -2583,7 +2584,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                     let session_response = Box::pin(self.handle_session_token(
                         &config,
                         connector_data.clone(),
-                        &payment_flow_data,
+                        &merchant_auth_flow_data,
                         connector_config.clone(),
                         &payload,
                         &connector.get_connector_name(),
@@ -2674,13 +2675,14 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                     )
                     .into_grpc_status()?;
 
-                    // Create minimal payment flow data for access token generation
-                    let payment_flow_data = MerchantAuthenticationFlowData::foreign_try_from((
-                        access_token_create_request,
-                        connectors,
-                        &request_data.masked_metadata,
-                    ))
-                    .map_err(|e| e.into_grpc_status())?;
+                    // Create minimal merchant auth flow data for access token generation
+                    let merchant_auth_flow_data =
+                        MerchantAuthenticationFlowData::foreign_try_from((
+                            access_token_create_request,
+                            connectors,
+                            &request_data.masked_metadata,
+                        ))
+                        .map_err(|e| e.into_grpc_status())?;
 
                     // Create event params for the handle_access_token function
                     let event_params = EventParams {
@@ -2701,7 +2703,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                     let server_auth_token_response = Box::pin(self.handle_access_token(
                         &config,
                         connector_data,
-                        &payment_flow_data,
+                        &merchant_auth_flow_data,
                         connector_config.clone(),
                         &metadata_payload.connector.get_connector_name(),
                         &service_name,

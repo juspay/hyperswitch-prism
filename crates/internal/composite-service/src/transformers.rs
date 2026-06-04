@@ -58,6 +58,8 @@ impl ForeignFrom<(&CompositeAuthorizeRequest, &ConnectorEnum)>
                 amount: item.amount,
                 metadata: item.metadata.clone(),
                 browser_info: item.browser_info.clone(),
+                customer: item.customer.clone(),
+                address: item.address.clone(),
             })),
         }
     }

@@ -205,25 +205,13 @@ impl<
         let user_info = PaytmUserInfo {
             cust_id: item
                 .router_data
-                .resource_common_data
+                .request
                 .get_customer_id()
                 .unwrap_or_default(),
-            mobile: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_phone_number(),
-            email: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_email(),
-            first_name: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_first_name(),
-            last_name: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_last_name(),
+            mobile: item.router_data.request.get_optional_billing_phone_number(),
+            email: item.router_data.request.get_optional_billing_email(),
+            first_name: item.router_data.request.get_optional_billing_first_name(),
+            last_name: item.router_data.request.get_optional_billing_last_name(),
         };
         let return_url = item.router_data.resource_common_data.get_return_url();
 
@@ -270,46 +258,19 @@ impl<
             ),
             carrier: None,
             charge_amount: Some(paytm_amount.clone()),
-            country_name: item
-                .router_data
-                .resource_common_data
-                .get_optional_shipping_country(),
-            state_name: item
-                .router_data
-                .resource_common_data
-                .get_optional_shipping_state(),
-            city_name: item
-                .router_data
-                .resource_common_data
-                .get_optional_shipping_city(),
-            address1: item
-                .router_data
-                .resource_common_data
-                .get_optional_shipping_line1(),
-            address2: item
-                .router_data
-                .resource_common_data
-                .get_optional_shipping_line2(),
-            first_name: item
-                .router_data
-                .resource_common_data
-                .get_optional_shipping_first_name(),
-            last_name: item
-                .router_data
-                .resource_common_data
-                .get_optional_shipping_last_name(),
+            country_name: item.router_data.request.get_optional_shipping_country(),
+            state_name: item.router_data.request.get_optional_shipping_state(),
+            city_name: item.router_data.request.get_optional_shipping_city(),
+            address1: item.router_data.request.get_optional_shipping_line1(),
+            address2: item.router_data.request.get_optional_shipping_line2(),
+            first_name: item.router_data.request.get_optional_shipping_first_name(),
+            last_name: item.router_data.request.get_optional_shipping_last_name(),
             mobile_no: item
                 .router_data
-                .resource_common_data
+                .request
                 .get_optional_shipping_phone_number(),
-            zip_code: item
-                .router_data
-                .resource_common_data
-                .get_optional_shipping_zip(),
-            email: item
-                .router_data
-                .resource_common_data
-                .get_optional_shipping_email(),
+            zip_code: item.router_data.request.get_optional_shipping_zip(),
+            email: item.router_data.request.get_optional_shipping_email(),
         };
 
         let body = PaytmInitiateReqBody {
@@ -381,6 +342,7 @@ impl TryFrom<ResponseRouterData<PaytmInitiateTxnResponse, Self>>
                 } else {
                     Ok(ServerSessionAuthenticationTokenResponseData {
                         session_token: success_body.txn_token.clone().expose(),
+                        status: None,
                     })
                 }
             }

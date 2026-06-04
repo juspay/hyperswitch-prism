@@ -2372,6 +2372,8 @@ message PaymentSessionContext {
   Money amount = 1;
   optional SecretString metadata = 2;
   optional BrowserInformation browser_info = 3;
+  optional Customer customer = 4;
+  optional PaymentAddress address = 5;
 }
 
 // Response message for creating a connector session

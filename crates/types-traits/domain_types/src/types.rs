@@ -10284,6 +10284,25 @@ impl ForeignTryFrom<PaymentServiceAuthorizeRequest>
             amount: common_utils::types::MinorUnit::new(amount.minor_amount),
             currency: common_enums::Currency::foreign_try_from(amount.currency())?,
         };
+        let customer_id = value
+            .customer
+            .as_ref()
+            .and_then(|customer| customer.id.clone())
+            .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
+            .transpose()
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "customer.id",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Invalid customer id".to_string()),
+                    ..Default::default()
+                },
+            })?;
+
+        let address = value
+            .address
+            .map(PaymentAddress::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             amount: amount.amount,
             currency: amount.currency,
@@ -10291,6 +10310,8 @@ impl ForeignTryFrom<PaymentServiceAuthorizeRequest>
                 .browser_info
                 .map(BrowserInformation::foreign_try_from)
                 .transpose()?,
+            customer_id,
+            address,
         })
     }
 }
@@ -10433,6 +10454,25 @@ impl
             })),
         }?;
 
+        let customer_id = payment_ctx
+            .customer
+            .as_ref()
+            .and_then(|customer| customer.id.clone())
+            .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
+            .transpose()
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "customer.id",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Invalid customer id".to_string()),
+                    ..Default::default()
+                },
+            })?;
+
+        let address = payment_ctx
+            .address
+            .map(PaymentAddress::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             amount: amount.amount,
             currency: amount.currency,
@@ -10440,6 +10480,8 @@ impl
                 .browser_info
                 .map(BrowserInformation::foreign_try_from)
                 .transpose()?,
+            customer_id,
+            address,
         })
     }
 }
