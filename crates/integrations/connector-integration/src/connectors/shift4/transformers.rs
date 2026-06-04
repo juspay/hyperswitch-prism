@@ -124,6 +124,7 @@ impl<F, T> TryFrom<ResponseRouterData<Shift4CreateCustomerResponse, Self>>
         Ok(Self {
             response: Ok(ConnectorCustomerResponse {
                 connector_customer_id: item.response.id,
+                status_code: item.http_code,
             }),
             ..item.router_data
         })

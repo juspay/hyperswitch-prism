@@ -10734,7 +10734,7 @@ impl
                         doc_url: None,
                     },
                 })?,
-            connector_customer: value.customer.and_then(|c| c.id),
+            connector_customer: value.customer.and_then(|c| c.connector_customer_id),
             description: None,
             return_url: value.return_url,
             connector_feature_data: None,
@@ -10933,7 +10933,7 @@ pub fn generate_create_connector_customer_response(
         Ok(response) => Ok(grpc_payment_types::CustomerServiceCreateResponse {
             connector_customer_id: response.connector_customer_id.clone(),
             error: None,
-            status_code: 200,
+            status_code: response.status_code as u32,
             response_headers: router_data_v2
                 .resource_common_data
                 .get_connector_response_headers_as_map(),
