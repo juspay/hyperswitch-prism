@@ -764,6 +764,7 @@ enum Connector {
   EASEBUZZ = 120;
   TWOC_TWOP_PACO = 121;
   JUSPAY = 122;
+  TAMARA = 123;
 }
 
 // Payment method types
@@ -4359,6 +4360,11 @@ message TwocTwopPacoConfig {
   optional string base_url = 50;
 }
 
+message TamaraConfig {
+  SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
 // Single field auth types
 message InterpaymentsConfig {
   SecretString api_key = 1;
@@ -4648,6 +4654,9 @@ message ConnectorSpecificConfig {
 
     // JUSPAY = 122
     JuspayConfig juspay = 127;
+
+    // TAMARA = 123
+    TamaraConfig tamara = 128;
   }
 }
 
