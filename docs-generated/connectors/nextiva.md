@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/nextiva/nextiva.py#L115) · [JavaScript](../../examples/nextiva/nextiva.js) · [Kotlin](../../examples/nextiva/nextiva.kt#L105) · [Rust](../../examples/nextiva/nextiva.rs#L149)
+**Examples:** [Python](../../examples/nextiva/nextiva.py#L121) · [JavaScript](../../examples/nextiva/nextiva.js) · [Kotlin](../../examples/nextiva/nextiva.kt#L112) · [Rust](../../examples/nextiva/nextiva.rs#L157)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,19 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/nextiva/nextiva.py#L134) · [JavaScript](../../examples/nextiva/nextiva.js) · [Kotlin](../../examples/nextiva/nextiva.kt#L121) · [Rust](../../examples/nextiva/nextiva.rs#L165)
+**Examples:** [Python](../../examples/nextiva/nextiva.py#L140) · [JavaScript](../../examples/nextiva/nextiva.js) · [Kotlin](../../examples/nextiva/nextiva.kt#L128) · [Rust](../../examples/nextiva/nextiva.rs#L173)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/nextiva/nextiva.py#L159) · [JavaScript](../../examples/nextiva/nextiva.js) · [Kotlin](../../examples/nextiva/nextiva.kt#L143) · [Rust](../../examples/nextiva/nextiva.rs#L188)
+**Examples:** [Python](../../examples/nextiva/nextiva.py#L165) · [JavaScript](../../examples/nextiva/nextiva.js) · [Kotlin](../../examples/nextiva/nextiva.kt#L150) · [Rust](../../examples/nextiva/nextiva.rs#L196)
+
+### Void Payment
+
+Cancel an authorized but not-yet-captured payment.
+
+**Examples:** [Python](../../examples/nextiva/nextiva.py#L190) · [JavaScript](../../examples/nextiva/nextiva.js) · [Kotlin](../../examples/nextiva/nextiva.kt#L172) · [Rust](../../examples/nextiva/nextiva.rs#L219)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/nextiva/nextiva.py#L184) · [JavaScript](../../examples/nextiva/nextiva.js) · [Kotlin](../../examples/nextiva/nextiva.kt#L165) · [Rust](../../examples/nextiva/nextiva.rs#L211)
+**Examples:** [Python](../../examples/nextiva/nextiva.py#L212) · [JavaScript](../../examples/nextiva/nextiva.js) · [Kotlin](../../examples/nextiva/nextiva.kt#L191) · [Rust](../../examples/nextiva/nextiva.rs#L238)
 
 ## API Reference
 
@@ -165,6 +171,7 @@ Retrieve current payment status from the connector.
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
+| [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
 
 ### Payments
 
@@ -298,7 +305,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/nextiva/nextiva.py) · [TypeScript](../../examples/nextiva/nextiva.ts#L216) · [Kotlin](../../examples/nextiva/nextiva.kt#L183) · [Rust](../../examples/nextiva/nextiva.rs)
+**Examples:** [Python](../../examples/nextiva/nextiva.py) · [TypeScript](../../examples/nextiva/nextiva.ts#L245) · [Kotlin](../../examples/nextiva/nextiva.kt#L209) · [Rust](../../examples/nextiva/nextiva.rs)
 
 #### PaymentService.Capture
 
@@ -309,7 +316,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/nextiva/nextiva.py) · [TypeScript](../../examples/nextiva/nextiva.ts#L225) · [Kotlin](../../examples/nextiva/nextiva.kt#L195) · [Rust](../../examples/nextiva/nextiva.rs)
+**Examples:** [Python](../../examples/nextiva/nextiva.py) · [TypeScript](../../examples/nextiva/nextiva.ts#L254) · [Kotlin](../../examples/nextiva/nextiva.kt#L221) · [Rust](../../examples/nextiva/nextiva.rs)
 
 #### PaymentService.Get
 
@@ -320,7 +327,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/nextiva/nextiva.py) · [TypeScript](../../examples/nextiva/nextiva.ts#L234) · [Kotlin](../../examples/nextiva/nextiva.kt#L205) · [Rust](../../examples/nextiva/nextiva.rs)
+**Examples:** [Python](../../examples/nextiva/nextiva.py) · [TypeScript](../../examples/nextiva/nextiva.ts#L263) · [Kotlin](../../examples/nextiva/nextiva.kt#L231) · [Rust](../../examples/nextiva/nextiva.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -331,7 +338,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/nextiva/nextiva.py) · [TypeScript](../../examples/nextiva/nextiva.ts#L243) · [Kotlin](../../examples/nextiva/nextiva.kt#L213) · [Rust](../../examples/nextiva/nextiva.rs)
+**Examples:** [Python](../../examples/nextiva/nextiva.py) · [TypeScript](../../examples/nextiva/nextiva.ts#L272) · [Kotlin](../../examples/nextiva/nextiva.kt#L239) · [Rust](../../examples/nextiva/nextiva.rs)
 
 #### PaymentService.Refund
 
@@ -342,7 +349,18 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/nextiva/nextiva.py) · [TypeScript](../../examples/nextiva/nextiva.ts#L252) · [Kotlin](../../examples/nextiva/nextiva.kt#L242) · [Rust](../../examples/nextiva/nextiva.rs)
+**Examples:** [Python](../../examples/nextiva/nextiva.py) · [TypeScript](../../examples/nextiva/nextiva.ts#L281) · [Kotlin](../../examples/nextiva/nextiva.kt#L268) · [Rust](../../examples/nextiva/nextiva.rs)
+
+#### PaymentService.Void
+
+Cancel an authorized payment that has not been captured. Releases held funds back to the customer's payment method when a transaction cannot be completed.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceVoidRequest` |
+| **Response** | `PaymentServiceVoidResponse` |
+
+**Examples:** [Python](../../examples/nextiva/nextiva.py) · [TypeScript](../../examples/nextiva/nextiva.ts) · [Kotlin](../../examples/nextiva/nextiva.kt#L290) · [Rust](../../examples/nextiva/nextiva.rs)
 
 ### Refunds
 
@@ -355,4 +373,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/nextiva/nextiva.py) · [TypeScript](../../examples/nextiva/nextiva.ts#L261) · [Kotlin](../../examples/nextiva/nextiva.kt#L252) · [Rust](../../examples/nextiva/nextiva.rs)
+**Examples:** [Python](../../examples/nextiva/nextiva.py) · [TypeScript](../../examples/nextiva/nextiva.ts#L290) · [Kotlin](../../examples/nextiva/nextiva.kt#L278) · [Rust](../../examples/nextiva/nextiva.rs)

@@ -22,7 +22,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.NextivaConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "proxy_authorize", "refund", "refund_get")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "proxy_authorize", "refund", "refund_get", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -100,6 +100,13 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
     }.build()
 }
 
+private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceVoidRequest {
+    return PaymentServiceVoidRequest.newBuilder().apply {
+        merchantVoidId = "probe_void_001"  // Identification.
+        connectorTransactionId = connectorTransactionIdStr
+    }.build()
+}
+
 // Scenario: One-step Payment (Authorize + Capture)
 // Simple payment that authorizes and captures in one call. Use for immediate charges.
 fun processCheckoutAutocapture(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
@@ -158,6 +165,25 @@ fun processRefund(txnId: String, config: ConnectorConfig = _defaultConfig): Map<
         throw RuntimeException("Refund failed: ${refundResponse.error.unifiedDetails.message}")
 
     return mapOf("status" to refundResponse.status.name, "error" to refundResponse.error)
+}
+
+// Scenario: Void Payment
+// Cancel an authorized but not-yet-captured payment.
+fun processVoidPayment(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
+    val paymentClient = PaymentClient(config)
+
+    // Step 1: Authorize — reserve funds on the payment method
+    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("MANUAL"))
+
+    when (authorizeResponse.status.name) {
+        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
+        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
+    }
+
+    // Step 2: Void — release reserved funds (cancel authorization)
+    val voidResponse = paymentClient.void(buildVoidRequest(authorizeResponse.connectorTransactionId ?: ""))
+
+    return mapOf("status" to voidResponse.status.name, "transactionId" to authorizeResponse.connectorTransactionId, "error" to voidResponse.error)
 }
 
 // Scenario: Get Payment Status
@@ -260,6 +286,16 @@ fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: PaymentService.Void
+fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = buildVoidRequest("probe_connector_txn_001")
+    val response = client.void(request)
+    if (response.status.name == "FAILED")
+        throw RuntimeException("Void failed: ${response.error.unifiedDetails.message}")
+    println("Done: ${response.status.name}")
+}
+
 
 fun main(args: Array<String>) {
     val txnId = "order_001"
@@ -268,6 +304,7 @@ fun main(args: Array<String>) {
         "processCheckoutAutocapture" -> processCheckoutAutocapture(txnId)
         "processCheckoutCard" -> processCheckoutCard(txnId)
         "processRefund" -> processRefund(txnId)
+        "processVoidPayment" -> processVoidPayment(txnId)
         "processGetPayment" -> processGetPayment(txnId)
         "authorize" -> authorize(txnId)
         "capture" -> capture(txnId)
@@ -275,6 +312,7 @@ fun main(args: Array<String>) {
         "proxyAuthorize" -> proxyAuthorize(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processGetPayment, authorize, capture, get, proxyAuthorize, refund, refundGet")
+        "void" -> void(txnId)
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, proxyAuthorize, refund, refundGet, void")
     }
 }

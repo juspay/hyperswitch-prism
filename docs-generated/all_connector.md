@@ -171,7 +171,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Multisafepay](connectors/multisafepay.md) | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [Nexinets](connectors/nexinets.md) | ✓ | ? | x | ? | ⚠ | ✓ | ⚠ | ⚠ | x | ⚠ | x | ✓ | x | ✓ | ⚠ | ? | ⚠ | ⚠ | ⚠ | x | x | ✓ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Nexixpay](connectors/nexixpay.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ? | ? | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ? | ✓ | ⚠ | ? | x | ⚠ | x | x | ⚠ | ⚠ | x |
-| [Nextiva](connectors/nextiva.md) | ✓ | ⚠ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
+| [Nextiva](connectors/nextiva.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [Nmi](connectors/nmi.md) | ✓ | ✓ | x | ✓ | x | ✓ | x | ⚠ | ✓ | ⚠ | x | ✓ | ✓ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | x | x | x | ✓ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Noon](connectors/noon.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | x | ⚠ | ? | x | x | ✓ | ✓ | ✓ | ✓ | ✓ | x | ⚠ | ⚠ | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ✓ | ✓ | x |
 | [Novalnet](connectors/novalnet.md) | ✓ | ✓ | x | ✓ | x | ✓ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ✓ | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | x | x | ✓ | ✓ | x |

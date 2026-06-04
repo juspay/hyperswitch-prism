@@ -742,8 +742,20 @@
     },
     "void": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: void flow for nextiva"
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://cert.payconex.net/api/qsapi/3.8",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "account_id=probe_merchant&api_accesskey=probe_key&transaction_type=REVERSAL&token_id=probe_connector_txn_001&response_format=JSON"
+        }
       }
     }
   }
