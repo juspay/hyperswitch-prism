@@ -14,8 +14,8 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{
-        BankDebitData, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes,
-        RawCardNumber, WalletData,
+        ApplePayPaymentData, BankDebitData, GpayTokenizationData, PaymentMethodData,
+        PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -142,14 +142,37 @@ pub enum NmiPaymentMethod<T: PaymentMethodDataTypes> {
     GooglePay(Box<GooglePayData>),
     GooglePayDecrypt(Box<GooglePayDecryptedData>),
     ApplePay(Box<ApplePayData>),
+    ApplePayDecrypt(Box<ApplePayDecryptedData>),
 }
 
 // ===== APPLE PAY DATA =====
 
+/// Flow B — Gateway decrypts (connector decrypts)
+/// HS passes the raw encrypted blob; NMI decrypts using their registered Apple Pay certificate.
+/// MCA metadata: `payment_processing_details_at: "connector"`
 #[derive(Debug, Serialize)]
 pub struct ApplePayData {
-    /// Hex-encoded binary Apple Pay payment token from PassKit
+    /// Hex-encoded binary Apple Pay payment token from PassKit (payment.token.paymentData)
     applepay_payment_data: Secret<String>,
+}
+
+/// Flow A — Merchant decrypts (HS decrypts)
+/// HS decrypts the token using the Payment Processing Certificate and passes card-level fields.
+/// MCA metadata: `payment_processing_details_at: "hyperswitch"`
+/// NMI docs: https://secure.nmi.com/merchants/resources/integration/integration_portal.php#applepay_variables
+#[derive(Debug, Serialize)]
+pub struct ApplePayDecryptedData {
+    /// Signals to NMI that ccnumber/ccexp/cavv contain decrypted Apple Pay data. Must be "1".
+    decrypted_applepay_data: DecryptedDataIndicator,
+    /// The dPAN (device PAN) extracted from the decrypted Apple Pay token
+    ccnumber: Secret<String>,
+    /// Expiration date of the dPAN in MMYY format
+    ccexp: Secret<String>,
+    /// The online payment cryptogram (CAVV) from the decrypted Apple Pay token
+    cavv: Secret<String>,
+    /// The eCommerce Indicator from the decrypted Apple Pay token, when available
+    #[serde(skip_serializing_if = "Option::is_none")]
+    eci: Option<String>,
 }
 
 // ===== GOOGLE PAY DATA =====
@@ -466,30 +489,65 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     )
                 }
                 PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay_data)) => {
-                    let base64_token = apple_pay_data
-                        .payment_data
-                        .get_encrypted_apple_pay_payment_data_mandatory()
-                        .change_context(IntegrationError::MissingRequiredField {
-                            field_name: "apple_pay.payment_data",
-                            context: Default::default(),
-                        })?;
-                    let binary_token = base64::engine::general_purpose::STANDARD
-                        .decode(base64_token)
-                        .change_context(IntegrationError::InvalidWalletToken {
-                            wallet_name: "Apple Pay".to_string(),
-                            context: Default::default(),
-                        })?;
-                    let hex_token = hex::encode(&binary_token);
-                    (
-                        NmiPaymentMethod::ApplePay(Box::new(ApplePayData {
-                            applepay_payment_data: Secret::new(hex_token),
-                        })),
-                        if router_data.request.is_auto_capture() {
-                            TransactionType::Sale
-                        } else {
-                            TransactionType::Auth
-                        },
-                    )
+                    let txn_type = if router_data.request.is_auto_capture() {
+                        TransactionType::Sale
+                    } else {
+                        TransactionType::Auth
+                    };
+                    match &apple_pay_data.payment_data {
+                        // Flow A — HS decrypted the token (payment_processing_details_at: "hyperswitch")
+                        // Send decrypted card fields; NMI identifies this as Apple Pay via decrypted_applepay_data=1
+                        ApplePayPaymentData::Decrypted(decrypted_data) => {
+                            let ccexp = decrypted_data.get_expiry_date_as_mmyy().change_context(
+                                IntegrationError::RequestEncodingFailed {
+                                    context: Default::default(),
+                                },
+                            )?;
+                            (
+                                NmiPaymentMethod::ApplePayDecrypt(Box::new(
+                                    ApplePayDecryptedData {
+                                        decrypted_applepay_data: DecryptedDataIndicator::Decrypted,
+                                        ccnumber: Secret::new(
+                                            decrypted_data
+                                                .application_primary_account_number
+                                                .get_card_no(),
+                                        ),
+                                        ccexp,
+                                        cavv: decrypted_data
+                                            .payment_data
+                                            .online_payment_cryptogram
+                                            .clone(),
+                                        eci: decrypted_data.payment_data.eci_indicator.clone(),
+                                    },
+                                )),
+                                txn_type,
+                            )
+                        }
+                        // Flow B — HS passes encrypted blob (payment_processing_details_at: "connector")
+                        // NMI decrypts using their registered Apple Pay certificate
+                        ApplePayPaymentData::Encrypted(_) => {
+                            let base64_token = apple_pay_data
+                                .payment_data
+                                .get_encrypted_apple_pay_payment_data_mandatory()
+                                .change_context(IntegrationError::MissingRequiredField {
+                                    field_name: "apple_pay.payment_data",
+                                    context: Default::default(),
+                                })?;
+                            let binary_token = base64::engine::general_purpose::STANDARD
+                                .decode(base64_token)
+                                .change_context(IntegrationError::InvalidWalletToken {
+                                    wallet_name: "Apple Pay".to_string(),
+                                    context: Default::default(),
+                                })?;
+                            let hex_token = hex::encode(&binary_token);
+                            (
+                                NmiPaymentMethod::ApplePay(Box::new(ApplePayData {
+                                    applepay_payment_data: Secret::new(hex_token),
+                                })),
+                                txn_type,
+                            )
+                        }
+                    }
                 }
                 PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data)) => {
                     match &google_pay_data.tokenization_data {
