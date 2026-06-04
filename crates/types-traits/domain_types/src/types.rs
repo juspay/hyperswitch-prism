@@ -9613,15 +9613,12 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
         })
         .transpose()?;
 
-    // Set amount_captured based on status - only if Charged/PartialCharged
-    let captured_amount = match status {
-        common_enums::AttemptStatus::Charged
-        | common_enums::AttemptStatus::PartialCharged
-        | common_enums::AttemptStatus::PartialChargedAndChargeable => router_data_v2.request.amount,
-        _ => None,
-    };
-
-    let minor_captured_amount = captured_amount;
+    // Mirror the Authorize/Capture flows: amount_captured comes from
+    // resource_common_data (set explicitly by connectors that capture). For a
+    // setup-mandate / zero-dollar authorization it stays None, matching the
+    // hyperswitch reference RouterData. Previously this synthesized Some(0) from
+    // the request amount when status was Charged, which diverged from hyperswitch.
+    let minor_captured_amount = router_data_v2.resource_common_data.amount_captured;
 
     let response = match transaction_response {
         Ok(response) => match response {
