@@ -388,13 +388,14 @@ pub struct Connectors {
     pub finix: ConnectorParams,
     pub trustly: ConnectorParams,
     pub itaubank: ConnectorParams,
-    pub sanlam: ConnectorParams,
+    pub absa_sanlam: ConnectorParams,
     pub pinelabs_online: ConnectorParams,
     pub easebuzz: ConnectorParams,
     pub imerchantsolutions: ConnectorParams,
     pub axisbank: ConnectorParams,
     pub twoc_twop_paco: ConnectorParams,
     pub interpayments: ConnectorParams,
+    pub juspay: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -647,8 +648,8 @@ impl Connectors {
             ConnectorEnum::Revolv3 => {
                 patched.revolv3.apply(params_patch);
             }
-            ConnectorEnum::Sanlam => {
-                patched.sanlam.apply(params_patch);
+            ConnectorEnum::AbsaSanlam => {
+                patched.absa_sanlam.apply(params_patch);
             }
             ConnectorEnum::Shift4 => {
                 patched.shift4.apply(params_patch);
@@ -694,6 +695,9 @@ impl Connectors {
                 };
                 patched.trustpay.apply(trustpay_patch);
             }
+            ConnectorEnum::TwocTwopPaco => {
+                patched.twoc_twop_paco.apply(params_patch);
+            }
             _ => {
                 // Connector not supported for URL patching - return error
                 return Err(IntegrationError::InvalidDataFormat {
@@ -701,7 +705,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, multisafepay, nexixpay, payload, payme, placetopay, powertranz, revolv3, sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat",
+                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, multisafepay, nexixpay, payload, payme, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat",
                             connector
                         )),
                         ..Default::default()
@@ -1220,6 +1224,11 @@ impl<
                 grpc_api_types::payments::payment_method::PaymentMethod::MbWayRedirect(_) => Ok(
                     Self::Wallet(payment_method_data::WalletData::MbWayRedirect(Box::new(
                         payment_method_data::MbWayRedirection {},
+                    ))),
+                ),
+                grpc_api_types::payments::payment_method::PaymentMethod::MobilePayRedirect(_) => Ok(
+                    Self::Wallet(payment_method_data::WalletData::MobilePayRedirect(Box::new(
+                        payment_method_data::MobilePayRedirection {},
                     ))),
                 ),
                 grpc_api_types::payments::payment_method::PaymentMethod::MomoRedirect(_) => Ok(
@@ -1758,6 +1767,9 @@ impl<
                 grpc_api_types::payments::payment_method::PaymentMethod::Klarna(_) => Ok(
                     Self::PayLater(payment_method_data::PayLaterData::KlarnaRedirect {}),
                 ),
+                grpc_api_types::payments::payment_method::PaymentMethod::Alma(_) => Ok(
+                    Self::PayLater(payment_method_data::PayLaterData::AlmaRedirect {}),
+                ),
                 // ============================================================================
                 // DIRECT DEBIT - Direct variants
                 // ============================================================================
@@ -2051,9 +2063,18 @@ impl<
                 // VOUCHER PAYMENT METHODS
                 // ============================================================================
                 grpc_api_types::payments::payment_method::PaymentMethod::Boleto(boleto) => {
+                    // Parse the merchant-supplied boleto due date from an ISO 8601 string if provided.
+                    let expiration_date = boleto.expiration_date.as_ref().and_then(|date_str| {
+                        time::PrimitiveDateTime::parse(
+                            date_str,
+                            &time::format_description::well_known::Iso8601::DEFAULT,
+                        )
+                        .ok()
+                    });
                     Ok(Self::Voucher(payment_method_data::VoucherData::Boleto(Box::new(
                         payment_method_data::BoletoVoucherData {
                             social_security_number: boleto.social_security_number.map(Secret::new),
+                            expiration_date,
                         },
                     ))))
                 }
@@ -2468,6 +2489,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::Affirm(_) => Ok(Some(PaymentMethodType::Affirm)),
                 grpc_api_types::payments::payment_method::PaymentMethod::AfterpayClearpay(_) => Ok(Some(PaymentMethodType::AfterpayClearpay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Klarna(_) => Ok(Some(PaymentMethodType::Klarna)),
+                grpc_api_types::payments::payment_method::PaymentMethod::Alma(_) => Ok(Some(PaymentMethodType::Alma)),
                 // ============================================================================
                 // DIRECT DEBIT - PaymentMethodType mappings
                 // ============================================================================
@@ -2794,6 +2816,11 @@ pub struct AuthorizationRequest {
     pub test_mode: Option<bool>,
     pub payment_method_token: Option<Secret<String>>,
     pub merchant_request_id: Option<String>,
+    /// Connector-side order identifier when a `CreateOrder` has already been
+    /// performed (e.g. Juspay's merchant `order_id`). Propagated to
+    /// `PaymentFlowData::connector_order_id` so the Authorize TryFrom can
+    /// attach the payment to the right pre-existing order.
+    pub connector_order_id: Option<String>,
 }
 
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
@@ -2885,6 +2912,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             test_mode: req.test_mode,
             payment_method_token: None,
             merchant_request_id: req.merchant_request_id,
+            connector_order_id: req.connector_order_id,
         }
     }
 }
@@ -2948,6 +2976,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             test_mode: req.test_mode,
             payment_method_token: None,
             merchant_request_id: None,
+            connector_order_id: None,
         }
     }
 }
@@ -4376,7 +4405,7 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             access_token,
             session_token: value.session_token,
             reference_id: value.merchant_order_id.clone(),
-            connector_order_id: None,
+            connector_order_id: value.connector_order_id.clone(),
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: value.test_mode,
@@ -4663,7 +4692,11 @@ impl
             access_token,
             session_token: None,
             reference_id: value.connector_order_reference_id.clone(),
-            connector_order_id: None,
+            // Also expose connector_order_reference_id as connector_order_id so
+            // connectors that anchor sync on the merchant order id (e.g. Juspay
+            // `GET /orders/{order_id}`) can read it from the same field they use
+            // during CreateOrder / Authorize.
+            connector_order_id: value.connector_order_reference_id.clone(),
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: value.test_mode,
@@ -5643,6 +5676,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::Klarna(_)),
+            } => Ok(Self::PayLater),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::Alma(_)),
             } => Ok(Self::PayLater),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -9615,11 +9652,19 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
 
                 PaymentServiceSetupRecurringResponse {
                     connector_recurring_payment_id: Option::foreign_try_from(resource_id)?,
-                    redirection_data: redirection_data.map(|form| {
-                            match *form {
-                                router_response_types::RedirectForm::Form { endpoint, method, form_fields: _ } => {
-                                    Ok::<grpc_api_types::payments::RedirectForm, error_stack::Report<ConnectorError>>(grpc_api_types::payments::RedirectForm {
-                                        form_type: Some(grpc_api_types::payments::redirect_form::FormType::Form(
+                    redirection_data: redirection_data
+                        .map(|form| match *form {
+                            router_response_types::RedirectForm::Form {
+                                endpoint,
+                                method,
+                                form_fields,
+                            } => Ok::<
+                                grpc_api_types::payments::RedirectForm,
+                                error_stack::Report<ConnectorError>,
+                            >(
+                                grpc_api_types::payments::RedirectForm {
+                                    form_type: Some(
+                                        grpc_api_types::payments::redirect_form::FormType::Form(
                                             grpc_api_types::payments::FormData {
                                                 endpoint,
                                                 method: match method {
@@ -9629,44 +9674,55 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                                                     Method::Delete => 4,
                                                     _ => 0,
                                                 },
-                                                form_fields: HashMap::default(), //TODO
-                                            }
-                                        ))
-                                    })
+                                                form_fields,
+                                            },
+                                        ),
+                                    ),
                                 },
-                                router_response_types::RedirectForm::Html { html_data } => {
-                                    Ok(grpc_api_types::payments::RedirectForm {
-                                        form_type: Some(grpc_api_types::payments::redirect_form::FormType::Html(
-                                            grpc_api_types::payments::HtmlData {
-                                                html_data,
-                                            }
-                                        ))
-                                    })
-                                },
-                                router_response_types::RedirectForm::Nmi {
-                                    amount,
-                                    public_key,
-                                    customer_vault_id,
-                                    order_id,
-                                    continue_redirection_url,
-                                } => Ok(grpc_api_types::payments::RedirectForm {
-                                    form_type: Some(grpc_api_types::payments::redirect_form::FormType::Nmi(
+                            ),
+                            router_response_types::RedirectForm::Html { html_data } => {
+                                Ok(grpc_api_types::payments::RedirectForm {
+                                    form_type: Some(
+                                        grpc_api_types::payments::redirect_form::FormType::Html(
+                                            grpc_api_types::payments::HtmlData { html_data },
+                                        ),
+                                    ),
+                                })
+                            }
+                            router_response_types::RedirectForm::Nmi {
+                                amount,
+                                public_key,
+                                customer_vault_id,
+                                order_id,
+                                continue_redirection_url,
+                            } => Ok(grpc_api_types::payments::RedirectForm {
+                                form_type: Some(
+                                    grpc_api_types::payments::redirect_form::FormType::Nmi(
                                         grpc_api_types::payments::NmiData {
                                             amount: Some(amount),
                                             public_key: Some(public_key),
                                             customer_vault_id,
                                             order_id,
                                             continue_redirection_url,
-                                        }
-                                    ))
-                                }),
-                                _ => Err(report!(
-                                    ConnectorError::UnexpectedResponseError { context: ResponseTransformationErrorContext { http_status_code: None, additional_context: Some("Invalid redirect form type from connector response".to_owned()) } })),
-                            }
-                        }
-                    ).transpose()?,
+                                        },
+                                    ),
+                                ),
+                            }),
+                            _ => Err(report!(ConnectorError::UnexpectedResponseError {
+                                context: ResponseTransformationErrorContext {
+                                    http_status_code: None,
+                                    additional_context: Some(
+                                        "Invalid redirect form type from connector response"
+                                            .to_owned()
+                                    )
+                                }
+                            })),
+                        })
+                        .transpose()?,
                     network_transaction_id: network_txn_id,
-                    merchant_recurring_payment_id: extract_connector_request_reference_id(&connector_response_reference_id),
+                    merchant_recurring_payment_id: extract_connector_request_reference_id(
+                        &connector_response_reference_id,
+                    ),
                     status: grpc_status as i32,
                     mandate_reference: mandate_reference_grpc,
                     incremental_authorization_allowed,
@@ -9678,7 +9734,9 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                     state,
                     raw_connector_request,
                     connector_response,
-                    connector_feature_data: convert_connector_metadata_to_secret_string(connector_metadata),
+                    connector_feature_data: convert_connector_metadata_to_secret_string(
+                        connector_metadata,
+                    ),
                     captured_amount: minor_captured_amount,
                 }
             }
@@ -10648,6 +10706,13 @@ impl
             .transpose()?
             .unwrap_or_else(PaymentAddress::default);
 
+        let access_token = value
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.as_ref())
+            .map(ServerAuthenticationTokenResponseData::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -10683,7 +10748,7 @@ impl
             minor_amount_captured: None,
             minor_amount_capturable: None,
             amount: None,
-            access_token: None,
+            access_token,
             session_token: None,
             reference_id: None,
             connector_order_id: None,
@@ -12581,6 +12646,13 @@ impl
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
         let vault_headers = extract_headers_from_metadata(metadata);
 
+        let access_token = value
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.as_ref())
+            .map(ServerAuthenticationTokenResponseData::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -12606,7 +12678,7 @@ impl
             minor_amount_captured: None,
             minor_amount_capturable: None,
             amount: None,
-            access_token: None,
+            access_token,
             session_token: None,
             reference_id: None,
             connector_order_id: None,
@@ -12674,6 +12746,13 @@ impl
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
 
+        let access_token = value
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.as_ref())
+            .map(ServerAuthenticationTokenResponseData::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -12697,7 +12776,7 @@ impl
                 .transpose()?,
             amount_captured: None,
             minor_amount_captured: None,
-            access_token: None,
+            access_token,
             session_token: None,
             reference_id: None,
             connector_order_id: None,
@@ -13899,6 +13978,24 @@ pub fn generate_mandate_revoke_response(
             raw_connector_response,
             raw_connector_request,
         }),
+    }
+}
+
+impl ForeignFrom<connector_types::WebhookIntegrityCheck>
+    for grpc_api_types::payments::IntegrityCheck
+{
+    fn foreign_from(check: connector_types::WebhookIntegrityCheck) -> Self {
+        match check {
+            connector_types::WebhookIntegrityCheck::ConnectorTransactionId => {
+                grpc_api_types::payments::IntegrityCheck::ConnectorTransactionId
+            }
+            connector_types::WebhookIntegrityCheck::Amount => {
+                grpc_api_types::payments::IntegrityCheck::Amount
+            }
+            connector_types::WebhookIntegrityCheck::Currency => {
+                grpc_api_types::payments::IntegrityCheck::Currency
+            }
+        }
     }
 }
 

@@ -1,11 +1,14 @@
 use common_enums::{self, AttemptStatus, Currency, RefundStatus};
 use common_utils::{pii::IpAddress, Email};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{
+        Authorize, Capture, PSync, RSync, Refund, ServerSessionAuthenticationToken, Void,
+    },
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        RefundsResponseData, ResponseId, ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{
@@ -17,7 +20,7 @@ use domain_types::{
     router_response_types::RedirectForm,
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_masking::{PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::types::ResponseRouterData;
@@ -1970,5 +1973,150 @@ impl TryFrom<ResponseRouterData<PayuRefundSyncResponse, Self>>
                 })
             }
         }
+    }
+}
+
+// ================================
+// SDKSessionToken (ServerSessionAuthenticationToken) Flow
+// ================================
+//
+// PayU acquires an OAuth2 `client_credentials` access token that is surfaced as
+// the SDK/payment session token. The token is then reused as
+// `Authorization: Bearer {access_token}` on subsequent order/payment APIs.
+//
+// Request:  POST /pl/standard/user/oauth/authorize  (application/x-www-form-urlencoded)
+//           grant_type=client_credentials&client_id={POS id}&client_secret={secret}
+// Response: { "access_token", "token_type", "expires_in", "grant_type" }
+
+#[derive(Debug, Serialize)]
+pub struct PayuSessionTokenRequest {
+    pub grant_type: String,
+    pub client_id: Secret<String>,
+    pub client_secret: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PayuSessionTokenResponse {
+    // Optional because PayU's OAuth endpoint omits `access_token` on failure and instead
+    // populates `error` / `error_description` (handled in the error branch below).
+    // Wrapped in `Secret` so the bearer token is not leaked via Debug.
+    pub access_token: Option<Secret<String>>,
+    pub token_type: Option<String>,
+    pub expires_in: Option<i64>,
+    pub grant_type: Option<String>,
+    // OAuth error fields (returned on failure)
+    pub error: Option<String>,
+    pub error_description: Option<String>,
+}
+
+// Session Token Request Transformation
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::PayuRouterData<
+            RouterDataV2<
+                ServerSessionAuthenticationToken,
+                PaymentFlowData,
+                ServerSessionAuthenticationTokenRequestData,
+                ServerSessionAuthenticationTokenResponseData,
+            >,
+            T,
+        >,
+    > for PayuSessionTokenRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: super::PayuRouterData<
+            RouterDataV2<
+                ServerSessionAuthenticationToken,
+                PaymentFlowData,
+                ServerSessionAuthenticationTokenRequestData,
+                ServerSessionAuthenticationTokenResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        // This SDKSessionToken flow uses OAuth2 `client_credentials` (PayU Europe;
+        // PayU India instead uses hash-based auth). The credentials are carried by the
+        // `ConnectorSpecificConfig::Payu` variant via `PayuAuthType` (api_key / api_secret).
+        let auth = PayuAuthType::try_from(&router_data.connector_config)?;
+
+        // PayU BodyKey maps api_key -> client_secret and api_secret (key1) -> client_id (POS id).
+        Ok(Self {
+            grant_type: "client_credentials".to_string(),
+            client_id: auth.api_secret.clone(),
+            client_secret: auth.api_key.clone(),
+        })
+    }
+}
+
+// Session Token Response Transformation
+impl TryFrom<ResponseRouterData<PayuSessionTokenResponse, Self>>
+    for RouterDataV2<
+        ServerSessionAuthenticationToken,
+        PaymentFlowData,
+        ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<PayuSessionTokenResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        // OAuth error response (e.g. invalid_client / invalid_scope)
+        if let Some(error_code) = response.error {
+            let error_message = response
+                .error_description
+                .clone()
+                .unwrap_or_else(|| error_code.clone());
+            return Ok(Self {
+                response: Err(ErrorResponse {
+                    status_code: item.http_code,
+                    code: error_code,
+                    message: error_message.clone(),
+                    reason: Some(error_message),
+                    attempt_status: Some(AttemptStatus::Failure),
+                    connector_transaction_id: None,
+                    network_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                }),
+                resource_common_data: PaymentFlowData {
+                    status: AttemptStatus::Failure,
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            });
+        }
+
+        // A fresh OAuth token is acquired on every SDKSessionToken request (this connector
+        // layer performs no caching), so the token's `expires_in` TTL is not relevant here
+        // and there is no stale-cache concern.
+        let session_token = response
+            .access_token
+            .ok_or_else(|| {
+                report!(ConnectorError::response_handling_failed_with_context(
+                    item.http_code,
+                    Some("access_token missing in PayU OAuth response".to_string()),
+                ))
+            })?
+            .expose();
+
+        // This flow only issues a session token; no payment has been authorized yet, so the
+        // attempt status is left unchanged (it is not Pending).
+        Ok(Self {
+            response: Ok(ServerSessionAuthenticationTokenResponseData {
+                session_token: session_token.clone(),
+            }),
+            resource_common_data: PaymentFlowData {
+                session_token: Some(session_token),
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
     }
 }

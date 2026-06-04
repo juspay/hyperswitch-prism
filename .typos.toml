@@ -20,6 +20,8 @@ ede = "ede" # Encrypt-Decrypt-Encrypt (Triple DES EDE mode)
 Hashi = "Hashi" # HashiCorp brand name token
 HashiCorp = "HashiCorp" # HashiCorp company name
 caf = "caf" # part of café (URL-encoding / Unicode examples)
+Automatico = "Automatico" # Brazilian Portuguese — Globalgetnet's PIX_AUTOMATICO API method
+AUTOMATICO = "AUTOMATICO" # Brazilian Portuguese — Globalgetnet's PIX_AUTOMATICO API method
 
 [default.extend-identifiers]
 ACI = "ACI" # Name of a connector

@@ -9,12 +9,13 @@ import asyncio
 import sys
 from payments import PaymentClient
 from payments import CustomerClient
+from payments import MerchantAuthenticationClient
 from payments import EventClient
 from payments import RecurringPaymentClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "create_customer", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "reverse", "setup_recurring", "void"]
+SUPPORTED_FLOWS = ["authorize", "capture", "create_customer", "create_server_session_authentication_token", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "reverse", "setup_recurring", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -70,6 +71,16 @@ def _build_create_customer_request():
         customer_name="John Doe",  # Name of the customer.
         email=payment_methods_pb2.SecretString(value="test@example.com"),  # Email address of the customer.
         phone_number="4155552671",  # Phone number of the customer.
+    )
+
+def _build_create_server_session_authentication_token_request():
+    return payment_pb2.MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest(
+        payment=payment_pb2.PaymentSessionContext(  # PayoutSessionContext payout = 6; // future FrmSessionContext frm = 7; // future.
+            amount=payment_pb2.Money(
+                minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+                currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+            ),
+        ),
     )
 
 def _build_get_request(connector_transaction_id: str):
@@ -367,6 +378,15 @@ async def process_create_customer(merchant_transaction_id: str, config: sdk_conf
     create_response = await customer_client.create(_build_create_customer_request())
 
     return {"customer_id": create_response.connector_customer_id}
+
+
+async def process_create_server_session_authentication_token(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: MerchantAuthenticationService.CreateServerSessionAuthenticationToken"""
+    merchantauthentication_client = MerchantAuthenticationClient(config)
+
+    create_response = await merchantauthentication_client.create_server_session_authentication_token(_build_create_server_session_authentication_token_request())
+
+    return {"status": create_response.status}
 
 
 async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

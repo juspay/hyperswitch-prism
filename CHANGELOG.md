@@ -19,6 +19,103 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.04.0
+
+### Testing
+
+- **redsys:** Harden integration test overrides ([#1308](https://github.com/juspay/connector-service/pull/1308)) ([`a86d319`](https://github.com/juspay/connector-service/commit/a86d3197f328ad6cae4e6bb9223e11c1c46b0a68))
+
+**Full Changelog:** [`2026.06.03.0...2026.06.04.0`](https://github.com/juspay/connector-service/compare/2026.06.03.0...2026.06.04.0)
+
+- - -
+
+## 2026.06.03.0
+
+### Features
+
+- **connector:**
+  - Juspay (EC API) with 6 core flows + multi-PM Authorize ([#1366](https://github.com/juspay/connector-service/pull/1366)) ([`09b03bc`](https://github.com/juspay/connector-service/commit/09b03bce14c11cf94bcbbe5948e40aea1c99afd0))
+  - Nexixpay SetupRecurring + RepeatPayment (MIT) ([#1401](https://github.com/juspay/connector-service/pull/1401)) ([`b3c86a5`](https://github.com/juspay/connector-service/commit/b3c86a59a531244e4f24a6a4dda6f1ccc5028edb))
+- **globalgetnet:** Boleto + Pix QR + full UCS 3DS + Cofre PaymentMethodToken (LATAM) ([#1373](https://github.com/juspay/connector-service/pull/1373)) ([`96eb340`](https://github.com/juspay/connector-service/commit/96eb3409a153aabd7f4b43ce2907dccfa5b84d1a))
+- **wallets:** Consolidate successful Adyen (WeChatPay, MobilePay, MbWay) & Stripe (Alma) wallet/paylater PMs ([#1418](https://github.com/juspay/connector-service/pull/1418)) ([`25fe886`](https://github.com/juspay/connector-service/commit/25fe8864af49f568c00ae5ea340fdd6941c092de))
+
+### Documentation
+
+- Add payout engineering blog — Hyperswitch Prism ([#1246](https://github.com/juspay/connector-service/pull/1246)) ([`5269996`](https://github.com/juspay/connector-service/commit/52699962a0ccd5b83e162bd97e1e010b02a7e4db))
+
+**Full Changelog:** [`2026.06.02.0...2026.06.03.0`](https://github.com/juspay/connector-service/compare/2026.06.02.0...2026.06.03.0)
+
+- - -
+
+## 2026.06.02.0
+
+### Features
+
+- **adyen:** Support AliPayHk wallet ([#1423](https://github.com/juspay/connector-service/pull/1423)) ([`ed0f79c`](https://github.com/juspay/connector-service/commit/ed0f79c1515ca11ab8e9993adfd97351f319c2d8))
+- **composite_service:** Add server session authentication token in composite authorize flow ([#1426](https://github.com/juspay/connector-service/pull/1426)) ([`b7d8ead`](https://github.com/juspay/connector-service/commit/b7d8ead9d546a2e62392d9190b9662421ad72a77))
+- **framework:** Fixed the Connector Variant Type for Payout and Payin ([#1425](https://github.com/juspay/connector-service/pull/1425)) ([`f5195e3`](https://github.com/juspay/connector-service/commit/f5195e3ee60e39003e11d5ab67a146c7b7896d28))
+
+**Full Changelog:** [`2026.06.01.0...2026.06.02.0`](https://github.com/juspay/connector-service/compare/2026.06.01.0...2026.06.02.0)
+
+- - -
+
+## 2026.06.01.0
+
+### Bug Fixes
+
+- **connector:** Update types.rs for payouts ([#1430](https://github.com/juspay/connector-service/pull/1430)) ([`2fd7868`](https://github.com/juspay/connector-service/commit/2fd78686639fe4c3820e47f8955c0be2a8ab95cd))
+
+**Full Changelog:** [`2026.05.28.0...2026.06.01.0`](https://github.com/juspay/connector-service/compare/2026.05.28.0...2026.06.01.0)
+
+- - -
+
+## 2026.05.28.0
+
+### Features
+
+- **connector:**
+  - Implement CreateConnectorCustomer for payload ([#1391](https://github.com/juspay/connector-service/pull/1391)) ([`4d97105`](https://github.com/juspay/connector-service/commit/4d971059ad3993a46d9b65720359a202e03ae35f))
+  - Implement Pay.SetupRecurring for fiuu ([#1399](https://github.com/juspay/connector-service/pull/1399)) ([`fad20a6`](https://github.com/juspay/connector-service/commit/fad20a6da1237b5c426634c2097881876ca7036a))
+  - Implement Pay.SetupRecurring for braintree ([#1397](https://github.com/juspay/connector-service/pull/1397)) ([`6687a25`](https://github.com/juspay/connector-service/commit/6687a258646dd8e28b7ed8d41234daadde721fa7))
+  - Webhook integrity check ENUM support added in ucs ([#1378](https://github.com/juspay/connector-service/pull/1378)) ([`a5830ce`](https://github.com/juspay/connector-service/commit/a5830ceec509a5183b90941d51cdd463c6be06f3))
+- [InterPayments] implement surcharge payment & refund event handling via notify connector ([#1369](https://github.com/juspay/connector-service/pull/1369)) ([`166697d`](https://github.com/juspay/connector-service/commit/166697dc9ae7c32eaad017c12b3172a510a73604))
+
+### Documentation
+
+- Add PayoutService API reference documentation ([#1340](https://github.com/juspay/connector-service/pull/1340)) ([`29554ed`](https://github.com/juspay/connector-service/commit/29554ed7046ca481c927dc64bdc4c3b8ad7dcff3))
+
+**Full Changelog:** [`2026.05.26.1...2026.05.28.0`](https://github.com/juspay/connector-service/compare/2026.05.26.1...2026.05.28.0)
+
+- - -
+
+## 2026.05.26.1
+
+### Features
+
+- **framework:** Refactor Payout flows in domain and integration layer ([#1388](https://github.com/juspay/connector-service/pull/1388)) ([`d6cf55b`](https://github.com/juspay/connector-service/commit/d6cf55b58cea5f7abdd150e3cae21343afc4fbca))
+
+### Bug Fixes
+
+- **connector:** 2c2p_paco fix superposition url ([#1411](https://github.com/juspay/connector-service/pull/1411)) ([`17e7fe8`](https://github.com/juspay/connector-service/commit/17e7fe8e21a0209d99d3b04dcd1ec785af810f45))
+
+### Miscellaneous Tasks
+
+- Change Sanlam connector name to AbsaSanlam ([#1390](https://github.com/juspay/connector-service/pull/1390)) ([`f26f7bd`](https://github.com/juspay/connector-service/commit/f26f7bd00ce127aaeec7c2d87d63fcca65b151a8))
+
+**Full Changelog:** [`2026.05.26.0...2026.05.26.1`](https://github.com/juspay/connector-service/compare/2026.05.26.0...2026.05.26.1)
+
+- - -
+
+## 2026.05.26.0
+
+### Features
+
+- **connector:** Implement Reverse (VoidPostCapture) for PlaceToPay ([#1288](https://github.com/juspay/connector-service/pull/1288)) ([`d84328d`](https://github.com/juspay/connector-service/commit/d84328da3eb61cebbc0e57654a8465386018f08f))
+
+**Full Changelog:** [`2026.05.25.0...2026.05.26.0`](https://github.com/juspay/connector-service/compare/2026.05.25.0...2026.05.26.0)
+
+- - -
+
 ## 2026.05.25.0
 
 ### Bug Fixes
