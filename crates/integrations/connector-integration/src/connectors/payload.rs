@@ -377,10 +377,14 @@ macros::macro_connector_implementation!(
 );
 
 // Capture flow implementation
+// PUT {base_url}/transactions/{id} — body is JSON, so Content-Type must be
+// `application/json` (the connector default is form-urlencoded, used by the
+// other payment flows). Mirrors the ClientAuthenticationToken/CreateConnectorCustomer
+// JSON flows below.
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_error_response_v2],
     connector: Payload,
-    curl_request: FormUrlEncoded(PayloadCaptureRequest),
+    curl_request: Json(PayloadCaptureRequest),
     curl_response: PayloadCaptureResponse,
     flow_name: Capture,
     resource_common_data: PaymentFlowData,
@@ -390,11 +394,20 @@ macros::macro_connector_implementation!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
+        fn get_content_type(&self) -> &'static str {
+            "application/json"
+        }
         fn get_headers(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
+            let mut header = vec![(
+                headers::CONTENT_TYPE.to_string(),
+                "application/json".to_string().into(),
+            )];
+            let mut api_key = self.get_auth_header(&req.connector_config)?;
+            header.append(&mut api_key);
+            Ok(header)
         }
         fn get_url(
             &self,
