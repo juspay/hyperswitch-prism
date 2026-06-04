@@ -555,7 +555,7 @@ connector_id: razorpay
 doc: docs/connectors/razorpay.md
 scenarios: none
 payment_methods: none
-flows: capture, create_order, get, handle_event, parse_event, refund, refund_get
+flows: capture, create_order, create_server_session_authentication_token, get, handle_event, parse_event, refund, refund_get
 examples_python: none
 
 ## Razorpay V2
