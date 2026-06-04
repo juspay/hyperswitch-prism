@@ -179,7 +179,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Paypal](connectors/paypal.md) | ✓ | ✓ | x | ✓ | ✓ | ✓ | ⚠ | ⚠ | ✓ | x | x | ✓ | ✓ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ✓ | ⚠ | ⚠ | ? | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ✓ | x |
 | [Paysafe](connectors/paysafe.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ? | ⚠ | ? | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Paytm](connectors/paytm.md) | ✓ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | ⚠ | ⚠ | ? | ⚠ | ? | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ✓ | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
-| [PayU](connectors/payu.md) | ✓ | ✓ | x | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | x | ⚠ | x | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
+| [PayU](connectors/payu.md) | ✓ | ✓ | x | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | x | ⚠ | x | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Peachpayments](connectors/peachpayments.md) | ✓ | ✓ | x | ✓ | x | ✓ | x | ⚠ | ✓ | x | x | ✓ | ✓ | x | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ✓ | ✓ | x |
 | [PhonePe](connectors/phonepe.md) | ✓ | ✓ | x | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | x | ⚠ | x | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | x | x | ✓ | ✓ | x |
 | [Pinelabsonline](connectors/pinelabsonline.md) | ? | ? | x | ? | ? | ? | x | ⚠ | ⚠ | ? | ⚠ | ? | ⚠ | ⚠ | ⚠ | ? | x | ⚠ | ⚠ | ✓ | x | x | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |

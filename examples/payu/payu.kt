@@ -10,6 +10,7 @@ package examples.payu
 import types.Payment.*
 import types.PaymentMethods.*
 import payments.PaymentClient
+import payments.MerchantAuthenticationClient
 import payments.RefundClient
 import payments.Currency
 import payments.ConnectorConfig
@@ -19,7 +20,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.PayuConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("capture", "get", "refund", "refund_get", "void")
+val SUPPORTED_FLOWS = listOf<String>("capture", "create_server_session_authentication_token", "get", "refund", "refund_get", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -88,6 +89,21 @@ fun capture(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Done: ${response.status.name}")
 }
 
+// Flow: MerchantAuthenticationService.CreateServerSessionAuthenticationToken
+fun createServerSessionAuthenticationToken(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = MerchantAuthenticationClient(config)
+    val request = MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest.newBuilder().apply {
+        paymentBuilder.apply {  // PayoutSessionContext payout = 6; // future FrmSessionContext frm = 7; // future.
+            amountBuilder.apply {
+                minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+                currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            }
+        }
+    }.build()
+    val response = client.create_server_session_authentication_token(request)
+    println("Session token: ${response.sessionToken} (statusCode=${response.statusCode})")
+}
+
 // Flow: PaymentService.Get
 fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -134,10 +150,11 @@ fun main(args: Array<String>) {
     val flow = args.firstOrNull() ?: "capture"
     when (flow) {
         "capture" -> capture(txnId)
+        "createServerSessionAuthenticationToken" -> createServerSessionAuthenticationToken(txnId)
         "get" -> get(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, get, refund, refundGet, void")
+        else -> System.err.println("Unknown flow: $flow. Available: capture, createServerSessionAuthenticationToken, get, refund, refundGet, void")
     }
 }
