@@ -498,8 +498,27 @@
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: server_session_authentication_token flow for payu"
+        "status": "supported",
+        "proto_request": {
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              }
+            }
+          }
+        },
+        "sample": {
+          "url": "https://test.payu.in/pl/standard/user/oauth/authorize",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "grant_type=client_credentials&client_id=probe_secret&client_secret=probe_key"
+        }
       }
     },
     "dispute_accept": {

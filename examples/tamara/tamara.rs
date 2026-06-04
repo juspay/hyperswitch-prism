@@ -1,30 +1,28 @@
 // This file is auto-generated. Do not edit manually.
 // Replace YOUR_API_KEY and placeholder values with real data.
-// Regenerate: python3 scripts/generate-connector-docs.py razorpay
+// Regenerate: python3 scripts/generate-connector-docs.py tamara
 //
-// Razorpay — all scenarios and flows in one file.
-// Run a scenario:  cargo run --example razorpay -- process_checkout_card
+// Tamara — all scenarios and flows in one file.
+// Run a scenario:  cargo run --example tamara -- process_checkout_card
 use grpc_api_types::payments::connector_specific_config;
 use grpc_api_types::payments::*;
 use hyperswitch_payments_client::ConnectorClient;
 use std::collections::HashMap;
 
 #[allow(dead_code)]
-pub const SUPPORTED_FLOWS: &[&str] = &[
-    "capture",
-    "create_order",
-    "create_server_session_authentication_token",
-    "get",
-    "parse_event",
-    "refund",
-    "refund_get",
-];
+pub const SUPPORTED_FLOWS: &[&str] = &["capture", "get", "parse_event", "refund", "refund_get"];
 
 #[allow(dead_code)]
 fn build_client() -> ConnectorClient {
     // Configure the connector with authentication
     let config = ConnectorConfig {
-        connector_config: None, // TODO: Add your connector config here,
+        connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Tamara(TamaraConfig {
+                api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())), // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
         options: Some(SdkOptions {
             environment: Environment::Sandbox.into(),
         }),
@@ -45,26 +43,6 @@ pub fn build_capture_request(connector_transaction_id: &str) -> PaymentServiceCa
     }
 }
 
-pub fn build_create_order_request() -> PaymentServiceCreateOrderRequest {
-    PaymentServiceCreateOrderRequest {
-        merchant_order_id: Some("probe_order_001".to_string()), // Identification.
-        amount: Some(Money {
-            // Amount Information.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
-        }),
-        ..Default::default()
-    }
-}
-
-pub fn build_create_server_session_authentication_token_request(
-) -> MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest {
-    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest {
-        // domain_context: {"payment": {"amount": {"minor_amount": 1000, "currency": "USD"}}}
-        ..Default::default()
-    }
-}
-
 pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetRequest {
     PaymentServiceGetRequest {
         merchant_transaction_id: Some("probe_merchant_txn_001".to_string()), // Identification.
@@ -80,12 +58,12 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
 
 pub fn build_handle_event_request() -> EventServiceHandleRequest {
     EventServiceHandleRequest {
-        merchant_event_id: Some("probe_event_001".to_string()),  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        merchant_event_id: Some("probe_event_001".to_string()), // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
         request_details: Some(RequestDetails {
-            method: HttpMethod::HttpMethodPost.into(),  // HTTP method of the request (e.g., GET, POST).
-            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
-            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
-            body: "{\"account_id\":\"probe_acct\",\"contains\":[\"payment\"],\"entity\":\"event\",\"event\":\"payment.captured\",\"payload\":{\"payment\":{\"entity\":{\"id\":\"pay_probe001\",\"entity\":\"payment\",\"amount\":1000,\"currency\":\"USD\",\"status\":\"captured\",\"order_id\":\"order_probe001\"}}}}".to_string(),  // Body of the HTTP request.
+            method: HttpMethod::HttpMethodPost.into(), // HTTP method of the request (e.g., GET, POST).
+            uri: Some("https://example.com/webhook".to_string()), // URI of the request.
+            headers: [].into_iter().collect::<HashMap<_, _>>(), // Headers of the HTTP request.
+            body: "{}".to_string(),                    // Body of the HTTP request.
             ..Default::default()
         }),
         ..Default::default()
@@ -95,10 +73,10 @@ pub fn build_handle_event_request() -> EventServiceHandleRequest {
 pub fn build_parse_event_request() -> EventServiceParseRequest {
     EventServiceParseRequest {
         request_details: Some(RequestDetails {
-            method: HttpMethod::HttpMethodPost.into(),  // HTTP method of the request (e.g., GET, POST).
-            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
-            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
-            body: "{\"account_id\":\"probe_acct\",\"contains\":[\"payment\"],\"entity\":\"event\",\"event\":\"payment.captured\",\"payload\":{\"payment\":{\"entity\":{\"id\":\"pay_probe001\",\"entity\":\"payment\",\"amount\":1000,\"currency\":\"USD\",\"status\":\"captured\",\"order_id\":\"order_probe001\"}}}}".to_string(),  // Body of the HTTP request.
+            method: HttpMethod::HttpMethodPost.into(), // HTTP method of the request (e.g., GET, POST).
+            uri: Some("https://example.com/webhook".to_string()), // URI of the request.
+            headers: [].into_iter().collect::<HashMap<_, _>>(), // Headers of the HTTP request.
+            body: "{}".to_string(),                    // Body of the HTTP request.
             ..Default::default()
         }),
     }
@@ -127,6 +105,12 @@ pub fn build_refund_get_request() -> RefundServiceGetRequest {
     }
 }
 
+pub fn build_verify_redirect_request() -> PaymentServiceVerifyRedirectResponseRequest {
+    PaymentServiceVerifyRedirectResponseRequest {
+        ..Default::default()
+    }
+}
+
 // Flow: PaymentService.Capture
 #[allow(dead_code)]
 pub async fn process_capture(
@@ -141,34 +125,6 @@ pub async fn process_capture(
         )
         .await?;
     Ok(format!("status: {:?}", response.status()))
-}
-
-// Flow: PaymentService.CreateOrder
-#[allow(dead_code)]
-pub async fn process_create_order(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .create_order(build_create_order_request(), &HashMap::new(), None)
-        .await?;
-    Ok(format!("status: {:?}", response.status()))
-}
-
-// Flow: MerchantAuthenticationService.CreateServerSessionAuthenticationToken
-#[allow(dead_code)]
-pub async fn process_create_server_session_authentication_token(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .create_server_session_authentication_token(
-            build_create_server_session_authentication_token_request(),
-            &HashMap::new(),
-            None,
-        )
-        .await?;
-    Ok(format!("status: {:?}", response.status_code))
 }
 
 // Flow: PaymentService.Get
@@ -236,16 +192,12 @@ async fn main() {
         .unwrap_or_else(|| "process_capture".to_string());
     let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
         "process_capture" => process_capture(&client, "txn_001").await,
-        "process_create_order" => process_create_order(&client, "txn_001").await,
-        "process_create_server_session_authentication_token" => {
-            process_create_server_session_authentication_token(&client, "txn_001").await
-        }
         "process_get" => process_get(&client, "txn_001").await,
         "process_parse_event" => process_parse_event(&client, "txn_001").await,
         "process_refund" => process_refund(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_capture, process_create_order, process_create_server_session_authentication_token, process_get, process_parse_event, process_refund, process_refund_get", flow);
+            eprintln!("Unknown flow: {}. Available: process_capture, process_get, process_parse_event, process_refund, process_refund_get", flow);
             return;
         }
     };

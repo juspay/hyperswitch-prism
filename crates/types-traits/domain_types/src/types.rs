@@ -397,6 +397,7 @@ pub struct Connectors {
     pub interpayments: ConnectorParams,
     pub juspay: ConnectorParams,
     pub nextiva: ConnectorParams,
+    pub tamara: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]

@@ -770,6 +770,10 @@ pub enum ConnectorSpecificConfig {
         account_id: Secret<String>,
         base_url: Option<String>,
     },
+    Tamara {
+        api_key: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -1091,6 +1095,7 @@ impl ConnectorSpecificConfig {
                 api_key,
                 account_id
             },
+            Tamara { api_key },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             TwocTwopPaco {
@@ -1511,6 +1516,7 @@ impl ConnectorSpecificConfig {
                     api_key,
                     account_id
                 },
+                Tamara { api_key },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 TwocTwopPaco {
@@ -2060,6 +2066,10 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: nextiva.api_key.ok_or_else(err)?,
                 account_id: nextiva.account_id.ok_or_else(err)?,
                 base_url: nextiva.base_url,
+            }),
+            AuthType::Tamara(tamara) => Ok(Self::Tamara {
+                api_key: tamara.api_key.ok_or_else(err)?,
+                base_url: tamara.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -3190,6 +3200,13 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
                 ConnectorEnum::TwocTwopPaco => Err(err().into()),
+                ConnectorEnum::Tamara => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Tamara {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
             },
             connector_types::ConnectorVariant::Surcharge(connector_enum) => match connector_enum {
                 SurchargeConnectorEnum::Interpayments => match auth {

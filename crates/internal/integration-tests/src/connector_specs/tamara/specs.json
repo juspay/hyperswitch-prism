@@ -1,8 +1,7 @@
 {
-  "connector": "payu",
+  "connector": "tamara",
   "supported_suites": [
     "PaymentService/Authorize",
-    "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
     "PaymentService/Capture",
     "PaymentService/Get",
     "PaymentService/Refund",

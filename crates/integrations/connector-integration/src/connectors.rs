@@ -265,3 +265,5 @@ pub use self::juspay::Juspay;
 
 pub mod nextiva;
 pub use self::nextiva::Nextiva;
+pub mod tamara;
+pub use self::tamara::Tamara;

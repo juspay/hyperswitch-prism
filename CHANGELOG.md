@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.04.0
+
+### Testing
+
+- **redsys:** Harden integration test overrides ([#1308](https://github.com/juspay/connector-service/pull/1308)) ([`a86d319`](https://github.com/juspay/connector-service/commit/a86d3197f328ad6cae4e6bb9223e11c1c46b0a68))
+
+**Full Changelog:** [`2026.06.03.0...2026.06.04.0`](https://github.com/juspay/connector-service/compare/2026.06.03.0...2026.06.04.0)
+
+- - -
+
 ## 2026.06.03.0
 
 ### Features
