@@ -10,10 +10,11 @@ use common_utils::{
     types::StringMajorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -32,7 +33,8 @@ use serde::Serialize;
 use transformers::{
     NextivaCaptureRequest, NextivaCaptureResponse, NextivaErrorResponse, NextivaPaymentsRequest,
     NextivaPaymentsResponse, NextivaRefundRequest, NextivaRefundResponse, NextivaRefundSyncRequest,
-    NextivaRefundSyncResponse, NextivaSyncRequest, NextivaSyncResponse,
+    NextivaRefundSyncResponse, NextivaSyncRequest, NextivaSyncResponse, NextivaVoidRequest,
+    NextivaVoidResponse,
 };
 
 use super::macros;
@@ -68,6 +70,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Nextiva<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentVoidV2 for Nextiva<T>
 {
 }
 
@@ -129,6 +136,12 @@ macros::create_all_prerequisites!(
             request_body: NextivaCaptureRequest,
             response_body: NextivaCaptureResponse,
             router_data: RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+        ),
+        (
+            flow: Void,
+            request_body: NextivaVoidRequest,
+            response_body: NextivaVoidResponse,
+            router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         ),
         (
             flow: Refund,
@@ -363,6 +376,35 @@ macros::macro_connector_implementation!(
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Nextiva,
+    curl_request: FormUrlEncoded(NextivaVoidRequest),
+    curl_response: NextivaVoidResponse,
+    flow_name: Void,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentVoidData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    preprocess_response: true,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}{QSAPI_PATH}", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Nextiva,
     curl_request: FormUrlEncoded(NextivaRefundRequest),
     curl_response: NextivaRefundResponse,
     flow_name: Refund,
@@ -435,7 +477,6 @@ macros::macro_connector_flow_status_impls!(
         PreAuthenticate,
         PaymentMethodToken,
         VoidPC,
-        Void,
         RepeatPayment,
         ServerAuthenticationToken,
         ServerSessionAuthenticationToken,

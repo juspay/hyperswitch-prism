@@ -6,11 +6,11 @@ use common_utils::{
     types::{MinorUnit, StringMajorUnit},
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        ResponseId,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -71,6 +71,8 @@ pub enum TransactionType {
     Capture,
     #[serde(rename = "REFUND")]
     Refund,
+    #[serde(rename = "REVERSAL")]
+    Reverse,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -284,6 +286,45 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             transaction_type: TransactionType::Capture,
             token_id: router_data.request.get_connector_transaction_id()?,
             transaction_amount,
+            response_format: ResponseFormat::Json,
+        })
+    }
+}
+
+// =============================================================================
+// VOID (REVERSAL) REQUEST
+// =============================================================================
+#[derive(Debug, Serialize)]
+pub struct NextivaVoidRequest {
+    pub account_id: Secret<String>,
+    pub api_accesskey: Secret<String>,
+    pub transaction_type: TransactionType,
+    pub token_id: String,
+    pub response_format: ResponseFormat,
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        NextivaRouterData<
+            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+            T,
+        >,
+    > for NextivaVoidRequest
+{
+    type Error = Report<IntegrationError>;
+    fn try_from(
+        item: NextivaRouterData<
+            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let auth = NextivaAuthType::try_from(&router_data.connector_config)?;
+        Ok(Self {
+            account_id: auth.account_id,
+            api_accesskey: auth.api_accesskey,
+            transaction_type: TransactionType::Reverse,
+            token_id: router_data.request.connector_transaction_id.clone(),
             response_format: ResponseFormat::Json,
         })
     }
@@ -608,6 +649,90 @@ impl TryFrom<ResponseRouterData<NextivaCaptureResponse, Self>>
             Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status: common_enums::AttemptStatus::CaptureFailed,
+                    ..item.router_data.resource_common_data
+                },
+                response: Err(ErrorResponse {
+                    code: item.response.error_code_string(),
+                    message: item.response.error_message_string(),
+                    reason: item.response.authorization_message.clone(),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                }),
+                ..item.router_data
+            })
+        }
+    }
+}
+
+// ---- Void (REVERSAL) response ----
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct NextivaVoidResponse {
+    pub transaction_id: Option<String>,
+    #[serde(default, deserialize_with = "de_flexible_bool")]
+    pub transaction_approved: bool,
+    pub authorization_message: Option<String>,
+    pub error_code: Option<serde_json::Value>,
+    pub error_message: Option<String>,
+}
+
+impl NextivaVoidResponse {
+    fn is_approved(&self) -> bool {
+        self.transaction_approved
+    }
+    fn get_transaction_id(&self, http_code: u16) -> CustomResult<String, ConnectorError> {
+        self.transaction_id.clone().ok_or_else(|| {
+            report!(ConnectorError::response_handling_failed_with_context(
+                http_code,
+                Some("missing transaction_id in Nextiva void response".to_string()),
+            ))
+        })
+    }
+    fn error_code_string(&self) -> String {
+        self.error_code
+            .as_ref()
+            .map(value_to_string)
+            .unwrap_or_else(|| NO_ERROR_CODE.to_string())
+    }
+    fn error_message_string(&self) -> String {
+        self.error_message
+            .clone()
+            .or_else(|| self.authorization_message.clone())
+            .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string())
+    }
+}
+
+impl TryFrom<ResponseRouterData<NextivaVoidResponse, Self>>
+    for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
+{
+    type Error = Report<ConnectorError>;
+    fn try_from(item: ResponseRouterData<NextivaVoidResponse, Self>) -> Result<Self, Self::Error> {
+        if item.response.is_approved() {
+            let transaction_id = item.response.get_transaction_id(item.http_code)?;
+            Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status: common_enums::AttemptStatus::Voided,
+                    ..item.router_data.resource_common_data
+                },
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(transaction_id),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    status_code: item.http_code,
+                }),
+                ..item.router_data
+            })
+        } else {
+            Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status: common_enums::AttemptStatus::VoidFailed,
                     ..item.router_data.resource_common_data
                 },
                 response: Err(ErrorResponse {
