@@ -23,6 +23,7 @@ bypass_proxy_urls = ["localhost", "local"]
 mitm_proxy_enabled = false
 
 [connectors]
+tamara.base_url = "https://api-sandbox.tamara.co"
 juspay.base_url = "https://sandbox.juspay.in/"
 peachpayments.base_url = "https://apitest.bankint.ppay.io/v/1"
 finix.base_url = "https://finix.sandbox-payments-api.com"
@@ -81,7 +82,7 @@ fiuu.secondary_base_url = "https://sandbox.merchant.razer.com/"
 fiuu.third_base_url = "https://api.merchant.razer.com/"
 payload.base_url = "https://api.payload.com"
 forte.base_url = "https://sandbox.forte.net/api/v3"
-payu.base_url = "https://test.payu.in/"
+payu.base_url = "https://secure.snd.payu.com/"
 paytm.base_url = "https://securestage.paytmpayments.com/"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 novalnet.base_url = "https://payport.novalnet.de/v2"

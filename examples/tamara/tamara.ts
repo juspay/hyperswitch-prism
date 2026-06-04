@@ -1,19 +1,24 @@
 // This file is auto-generated. Do not edit manually.
 // Replace YOUR_API_KEY and placeholder values with real data.
-// Regenerate: python3 scripts/generate-connector-docs.py razorpay
+// Regenerate: python3 scripts/generate-connector-docs.py tamara
 //
-// Razorpay — all integration scenarios and flows in one file.
-// Run a scenario:  npx tsx razorpay.ts checkout_autocapture
+// Tamara — all integration scenarios and flows in one file.
+// Run a scenario:  npx tsx tamara.ts checkout_autocapture
 
-import { PaymentClient, MerchantAuthenticationClient, EventClient, RefundClient, types } from 'hyperswitch-prism';
+import { PaymentClient, EventClient, RefundClient, types } from 'hyperswitch-prism';
 const { Environment, Currency, HttpMethod } = types;
-export const SUPPORTED_FLOWS = ["capture", "create_order", "create_server_session_authentication_token", "get", "parse_event", "refund", "refund_get"];
+export const SUPPORTED_FLOWS = ["capture", "get", "parse_event", "refund", "refund_get"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
-    // connectorConfig: { razorpay: { apiKey: { value: 'YOUR_API_KEY' } } },
+    connectorConfig: {
+        tamara: {
+            apiKey: { value: 'YOUR_API_KEY' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
+    },
 };
 
 
@@ -24,27 +29,6 @@ function _buildCaptureRequest(connectorTransactionId: string): types.IPaymentSer
         "amountToCapture": {  // Capture Details.
             "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-    };
-}
-
-function _buildCreateOrderRequest(): types.IPaymentServiceCreateOrderRequest {
-    return {
-        "merchantOrderId": "probe_order_001",  // Identification.
-        "amount": {  // Amount Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-    };
-}
-
-function _buildCreateServerSessionAuthenticationTokenRequest(): types.IMerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest {
-    return {
-        "payment": {  // PayoutSessionContext payout = 6; // future FrmSessionContext frm = 7; // future.
-            "amount": {
-                "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-                "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-            }
         }
     };
 }
@@ -68,7 +52,7 @@ function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
             "uri": "https://example.com/webhook",  // URI of the request.
             "headers": {  // Headers of the HTTP request.
             },
-            "body": new Uint8Array(Buffer.from("{\"account_id\":\"probe_acct\",\"contains\":[\"payment\"],\"entity\":\"event\",\"event\":\"payment.captured\",\"payload\":{\"payment\":{\"entity\":{\"id\":\"pay_probe001\",\"entity\":\"payment\",\"amount\":1000,\"currency\":\"USD\",\"status\":\"captured\",\"order_id\":\"order_probe001\"}}}}", "utf-8"))  // Body of the HTTP request.
+            "body": new Uint8Array(Buffer.from("{}", "utf-8"))  // Body of the HTTP request.
         }
     };
 }
@@ -80,7 +64,7 @@ function _buildParseEventRequest(): types.IEventServiceParseRequest {
             "uri": "https://example.com/webhook",  // URI of the request.
             "headers": {  // Headers of the HTTP request.
             },
-            "body": new Uint8Array(Buffer.from("{\"account_id\":\"probe_acct\",\"contains\":[\"payment\"],\"entity\":\"event\",\"event\":\"payment.captured\",\"payload\":{\"payment\":{\"entity\":{\"id\":\"pay_probe001\",\"entity\":\"payment\",\"amount\":1000,\"currency\":\"USD\",\"status\":\"captured\",\"order_id\":\"order_probe001\"}}}}", "utf-8"))  // Body of the HTTP request.
+            "body": new Uint8Array(Buffer.from("{}", "utf-8"))  // Body of the HTTP request.
         }
     };
 }
@@ -106,6 +90,11 @@ function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
     };
 }
 
+function _buildVerifyRedirectRequest(): types.IPaymentServiceVerifyRedirectResponseRequest {
+    return {
+    };
+}
+
 
 // ANCHOR: scenario_functions
 // Flow: PaymentService.Capture
@@ -115,24 +104,6 @@ async function capture(merchantTransactionId: string, config: types.IConnectorCo
     const captureResponse = await paymentClient.capture(_buildCaptureRequest('probe_connector_txn_001'));
 
     return captureResponse;
-}
-
-// Flow: PaymentService.CreateOrder
-async function createOrder(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
-
-    const createResponse = await paymentClient.createOrder(_buildCreateOrderRequest());
-
-    return createResponse;
-}
-
-// Flow: MerchantAuthenticationService.CreateServerSessionAuthenticationToken
-async function createServerSessionAuthenticationToken(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const merchantAuthenticationClient = new MerchantAuthenticationClient(config);
-
-    const createResponse = await merchantAuthenticationClient.createServerSessionAuthenticationToken(_buildCreateServerSessionAuthenticationTokenRequest());
-
-    return createResponse;
 }
 
 // Flow: PaymentService.Get
@@ -180,10 +151,19 @@ async function refundGet(merchantTransactionId: string, config: types.IConnector
     return refundResponse;
 }
 
+// Flow: PaymentService.VerifyRedirectResponse
+async function verifyRedirect(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const verifyResponse = await paymentClient.verifyRedirectResponse(_buildVerifyRedirectRequest());
+
+    return verifyResponse;
+}
+
 
 // Export all process* functions for the smoke test
 export {
-    capture, createOrder, createServerSessionAuthenticationToken, get, handleEvent, parseEvent, refund, refundGet, _buildCaptureRequest, _buildCreateOrderRequest, _buildCreateServerSessionAuthenticationTokenRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildRefundRequest, _buildRefundGetRequest
+    capture, get, handleEvent, parseEvent, refund, refundGet, verifyRedirect, _buildCaptureRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVerifyRedirectRequest
 };
 
 // CLI runner
