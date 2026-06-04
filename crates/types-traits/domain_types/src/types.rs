@@ -1358,6 +1358,7 @@ impl<
                                                 decrypted_data.application_expiration_year,
                                             )?,
                                             payment_data,
+                                            device_manufacturer_identifier: decrypted_data.device_manufacturer_identifier,
                                         }
                                     ))
                                 },
@@ -4363,6 +4364,13 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
         let connector_feature_data = value
             .connector_feature_data
             .map(|m| ForeignTryFrom::foreign_try_from((m, "feature_data")))
+            .transpose()?;
+
+        let access_token = value
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.as_ref())
+            .map(ServerAuthenticationTokenResponseData::foreign_try_from)
             .transpose()?;
 
         let order_details: Option<Vec<OrderDetailsWithAmount>> = None;

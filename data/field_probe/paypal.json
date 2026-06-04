@@ -48,7 +48,6 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
-          "shipping_cost": 0,
           "payment_method": {
             "apple_pay_sdk": {
               "payment_data": {
@@ -59,7 +58,8 @@
                   "payment_data": {
                     "online_payment_cryptogram": "AAAAAA==",
                     "eci_indicator": "05"
-                  }
+                  },
+                  "device_manufacturer_identifier": "040010030273"
                 }
               },
               "payment_method": {
@@ -95,7 +95,7 @@
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":{\"currency_code\":\"USD\",\"value\":\"0.00\"}}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"apple_pay\":{\"id\":\"probe_txn_id\",\"decrypted_token\":{\"tokenized_card\":{\"number\":\"4111111111111111\",\"expiry\":\"2030-03\"},\"payment_data_type\":\"3DSECURE\",\"payment_data\":{\"cryptogram\":\"AAAAAA==\",\"eci_indicator\":\"05\"},\"transaction_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"device_manufacturer_id\":\"040010030273\"}}}}"
+          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":null}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"apple_pay\":{\"id\":\"probe_txn_id\",\"decrypted_token\":{\"tokenized_card\":{\"number\":\"4111111111111111\",\"expiry\":\"2030-03\"},\"payment_data_type\":\"3DSECURE\",\"payment_data\":{\"cryptogram\":\"AAAAAA==\",\"eci_indicator\":\"05\"},\"transaction_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"device_manufacturer_id\":\"040010030273\"}}}}"
         }
       },
       "ApplePayThirdPartySdk": {
@@ -158,7 +158,6 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
-          "shipping_cost": 0,
           "payment_method": {
             "card": {
               "card_number": "4111111111111111",
@@ -193,7 +192,7 @@
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":{\"currency_code\":\"USD\",\"value\":\"0.00\"}}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"card\":{\"billing_address\":null,\"expiry\":\"2030-03\",\"name\":null,\"number\":\"4111111111111111\",\"security_code\":\"737\",\"attributes\":{\"vault\":null,\"verification\":null}}}}"
+          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":null}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"card\":{\"billing_address\":null,\"expiry\":\"2030-03\",\"name\":null,\"number\":\"4111111111111111\",\"security_code\":\"737\",\"attributes\":{\"vault\":null,\"verification\":null}}}}"
         }
       },
       "CashappQr": {
@@ -252,7 +251,6 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
-          "shipping_cost": 0,
           "payment_method": {
             "eps": {}
           },
@@ -284,7 +282,7 @@
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":{\"currency_code\":\"USD\",\"value\":\"0.00\"}}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"eps\":{\"name\":\"John\",\"country_code\":\"US\",\"experience_context\":{\"return_url\":null,\"cancel_url\":null,\"user_action\":\"PAY_NOW\",\"shipping_preference\":\"GET_FROM_FILE\"}}}}"
+          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":null}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"eps\":{\"name\":\"John\",\"country_code\":\"US\",\"experience_context\":{\"return_url\":null,\"cancel_url\":null,\"user_action\":\"PAY_NOW\",\"shipping_preference\":\"GET_FROM_FILE\"}}}}"
         }
       },
       "FamilyMart": {
@@ -303,7 +301,6 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
-          "shipping_cost": 0,
           "payment_method": {
             "giropay": {}
           },
@@ -335,7 +332,7 @@
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":{\"currency_code\":\"USD\",\"value\":\"0.00\"}}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"giropay\":{\"name\":\"John\",\"country_code\":\"US\",\"experience_context\":{\"return_url\":null,\"cancel_url\":null,\"user_action\":\"PAY_NOW\",\"shipping_preference\":\"GET_FROM_FILE\"}}}}"
+          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":null}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"giropay\":{\"name\":\"John\",\"country_code\":\"US\",\"experience_context\":{\"return_url\":null,\"cancel_url\":null,\"user_action\":\"PAY_NOW\",\"shipping_preference\":\"GET_FROM_FILE\"}}}}"
         }
       },
       "Givex": {
@@ -358,7 +355,6 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
-          "shipping_cost": 0,
           "payment_method": {
             "google_pay_sdk": {
               "type": "CARD",
@@ -403,7 +399,7 @@
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":{\"currency_code\":\"USD\",\"value\":\"0.00\"}}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"google_pay\":{\"decrypted_token\":{\"message_id\":\"00000000-0000-0000-0000-000000000000\",\"message_expiration\":\"0000000000000\",\"payment_method\":\"CARD\",\"authentication_method\":\"CRYPTOGRAM_3DS\",\"cryptogram\":\"AAAAAA==\",\"eci_indicator\":\"05\",\"card\":{\"number\":\"4111111111111111\",\"expiry\":\"2030-03\"}}}}}"
+          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":null}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"google_pay\":{\"decrypted_token\":{\"message_id\":\"00000000-0000-0000-0000-000000000000\",\"message_expiration\":\"0000000000000\",\"payment_method\":\"CARD\",\"authentication_method\":\"CRYPTOGRAM_3DS\",\"cryptogram\":\"AAAAAA==\",\"eci_indicator\":\"05\",\"card\":{\"number\":\"4111111111111111\",\"expiry\":\"2030-03\"}}}}}"
         }
       },
       "GooglePayThirdPartySdk": {
@@ -418,7 +414,6 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
-          "shipping_cost": 0,
           "payment_method": {
             "ideal": {}
           },
@@ -450,7 +445,7 @@
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":{\"currency_code\":\"USD\",\"value\":\"0.00\"}}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"ideal\":{\"name\":\"John\",\"country_code\":\"US\",\"experience_context\":{\"return_url\":null,\"cancel_url\":null,\"user_action\":\"PAY_NOW\",\"shipping_preference\":\"GET_FROM_FILE\"}}}}"
+          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":null}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"ideal\":{\"name\":\"John\",\"country_code\":\"US\",\"experience_context\":{\"return_url\":null,\"cancel_url\":null,\"user_action\":\"PAY_NOW\",\"shipping_preference\":\"GET_FROM_FILE\"}}}}"
         }
       },
       "Indomaret": {
@@ -597,7 +592,6 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
-          "shipping_cost": 0,
           "payment_method": {
             "paypal_redirect": {
               "email": "test@example.com"
@@ -628,7 +622,7 @@
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":{\"currency_code\":\"USD\",\"value\":\"0.00\"}}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"paypal\":{\"experience_context\":{\"return_url\":null,\"cancel_url\":null,\"user_action\":\"PAY_NOW\",\"shipping_preference\":\"GET_FROM_FILE\"},\"attributes\":null}}}"
+          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":null}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"paypal\":{\"experience_context\":{\"return_url\":null,\"cancel_url\":null,\"user_action\":\"PAY_NOW\",\"shipping_preference\":\"GET_FROM_FILE\"},\"attributes\":null}}}"
         }
       },
       "PaypalSdk": {
@@ -752,7 +746,6 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
-          "shipping_cost": 0,
           "payment_method": {
             "sofort": {}
           },
@@ -784,7 +777,7 @@
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":{\"currency_code\":\"USD\",\"value\":\"0.00\"}}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"sofort\":{\"name\":\"John\",\"country_code\":\"US\",\"experience_context\":{\"return_url\":null,\"cancel_url\":null,\"user_action\":\"PAY_NOW\",\"shipping_preference\":\"GET_FROM_FILE\"}}}}"
+          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":null}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"sofort\":{\"name\":\"John\",\"country_code\":\"US\",\"experience_context\":{\"return_url\":null,\"cancel_url\":null,\"user_action\":\"PAY_NOW\",\"shipping_preference\":\"GET_FROM_FILE\"}}}}"
         }
       },
       "Swish": {
@@ -1094,8 +1087,7 @@
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
             }
-          },
-          "shipping_cost": 0
+          }
         },
         "sample": {
           "url": "https://api-m.sandbox.paypal.com/v2/checkout/orders",
@@ -1108,7 +1100,7 @@
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_proxy_txn_001\",\"invoice_id\":\"probe_proxy_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":{\"currency_code\":\"USD\",\"value\":\"0.00\"}}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_proxy_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"card\":{\"billing_address\":null,\"expiry\":\"{{$card_exp_year}}-{{$card_exp_month}}\",\"name\":null,\"number\":\"{{$card_number}}\",\"security_code\":\"{{$card_cvc}}\",\"attributes\":{\"vault\":null,\"verification\":null}}}}"
+          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_proxy_txn_001\",\"invoice_id\":\"probe_proxy_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":null}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_proxy_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"card\":{\"billing_address\":null,\"expiry\":\"{{$card_exp_year}}-{{$card_exp_month}}\",\"name\":null,\"number\":\"{{$card_number}}\",\"security_code\":\"{{$card_cvc}}\",\"attributes\":{\"vault\":null,\"verification\":null}}}}"
         }
       }
     },
