@@ -2050,6 +2050,7 @@ impl ConnectorCustomerData {
 #[derive(Debug, Clone)]
 pub struct ConnectorCustomerResponse {
     pub connector_customer_id: String,
+    pub status_code: u16,
 }
 
 #[derive(Debug, Clone)]

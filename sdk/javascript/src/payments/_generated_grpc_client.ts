@@ -320,6 +320,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   PazeDecryptedData: { "token": "PazeToken", "dynamicData": "PazeDynamicData", "billingAddress": "PazeAddress", "consumer": "PazeConsumer" },
   ErrorInfo: { "unifiedDetails": "UnifiedErrorDetails", "issuerDetails": "IssuerErrorDetails", "connectorDetails": "ConnectorErrorDetails" },
   IssuerErrorDetails: { "networkDetails": "NetworkErrorDetails" },
+  ConnectorErrorDetails: { "status": "FlowStatus" },
   Identifier: { "noResponseIdMarker": "Empty" },
   ConnectorState: { "accessToken": "AccessToken" },
   NetworkParams: { "cartesBancaires": "CartesBancairesParams" },

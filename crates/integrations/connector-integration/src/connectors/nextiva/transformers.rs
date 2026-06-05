@@ -14,7 +14,7 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 use error_stack::{report, Report, ResultExt};
@@ -807,7 +807,7 @@ impl TryFrom<ResponseRouterData<NextivaSyncResponse, Self>>
                 ),
                 reason: item.response.authorization_message.clone(),
                 status_code: item.http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: item.response.transaction_id.clone(),
                 network_advice_code: None,
                 network_decline_code: None,
