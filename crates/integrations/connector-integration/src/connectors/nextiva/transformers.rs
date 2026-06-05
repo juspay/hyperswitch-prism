@@ -552,13 +552,28 @@ fn error_message_string(
         .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string())
 }
 
-// Approved card transactions map to `Charged` when auto-captured and `Authorized`
-// when the merchant captures manually. Shared by the Authorize and PSync mappings.
-fn approved_attempt_status(is_auto_capture: bool) -> common_enums::AttemptStatus {
-    if is_auto_capture {
-        common_enums::AttemptStatus::Charged
-    } else {
-        common_enums::AttemptStatus::Authorized
+// Common payment-status mapping shared by the Authorize and PSync flows. `found` is
+// false only for a sync query with no record yet; an approved transaction is `Charged`
+// under auto-capture and `Authorized` under manual capture.
+fn map_payment_status(
+    found: bool,
+    approved: bool,
+    is_auto_capture: bool,
+) -> common_enums::AttemptStatus {
+    match (found, approved, is_auto_capture) {
+        (false, _, _) => common_enums::AttemptStatus::Pending,
+        (true, true, true) => common_enums::AttemptStatus::Charged,
+        (true, true, false) => common_enums::AttemptStatus::Authorized,
+        (true, false, _) => common_enums::AttemptStatus::Failure,
+    }
+}
+
+// Common refund-status mapping shared by the Refund and RSync flows.
+fn map_refund_status(found: bool, approved: bool) -> common_enums::RefundStatus {
+    match (found, approved) {
+        (false, _) => common_enums::RefundStatus::Pending,
+        (true, true) => common_enums::RefundStatus::Success,
+        (true, false) => common_enums::RefundStatus::Failure,
     }
 }
 
@@ -571,49 +586,43 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NextivaPaymentsRespon
         item: ResponseRouterData<NextivaPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let is_auto_capture = item.router_data.request.is_auto_capture();
-        if item.response.is_approved() {
-            let status = approved_attempt_status(is_auto_capture);
-            let transaction_id = item.response.get_transaction_id(item.http_code)?;
-            Ok(Self {
-                resource_common_data: PaymentFlowData {
-                    status,
-                    ..item.router_data.resource_common_data
-                },
-                response: Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id: ResponseId::ConnectorTransactionId(transaction_id),
-                    redirection_data: None,
-                    mandate_reference: None,
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: None,
-                    incremental_authorization_allowed: None,
-                    status_code: item.http_code,
-                }),
-                ..item.router_data
-            })
-        } else {
-            Ok(Self {
-                resource_common_data: PaymentFlowData {
-                    status: common_enums::AttemptStatus::Failure,
-                    ..item.router_data.resource_common_data
-                },
-                response: Err(ErrorResponse {
-                    code: error_code_string(&item.response.error_code),
-                    message: error_message_string(
-                        &item.response.error_message,
-                        &item.response.authorization_message,
-                    ),
-                    reason: item.response.authorization_message.clone(),
-                    status_code: item.http_code,
-                    attempt_status: None,
-                    connector_transaction_id: item.response.transaction_id.clone(),
-                    network_advice_code: None,
-                    network_decline_code: None,
-                    network_error_message: None,
-                }),
-                ..item.router_data
-            })
-        }
+        let status = map_payment_status(true, item.response.is_approved(), is_auto_capture);
+        let response = match status {
+            common_enums::AttemptStatus::Failure => Err(ErrorResponse {
+                code: error_code_string(&item.response.error_code),
+                message: error_message_string(
+                    &item.response.error_message,
+                    &item.response.authorization_message,
+                ),
+                reason: item.response.authorization_message.clone(),
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: item.response.transaction_id.clone(),
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+            }),
+            _ => Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(
+                    item.response.get_transaction_id(item.http_code)?,
+                ),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+            }),
+        };
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            response,
+            ..item.router_data
+        })
     }
 }
 
@@ -787,19 +796,17 @@ impl TryFrom<ResponseRouterData<NextivaSyncResponse, Self>>
 {
     type Error = Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<NextivaSyncResponse, Self>) -> Result<Self, Self::Error> {
-        let status = if !item.response.found {
-            common_enums::AttemptStatus::Pending
-        } else if item.response.transaction_approved {
-            // PayConex GET_TRANSACTION_STATUS does not expose whether a manual
-            // authorization has been captured, so mirror the Authorize intent:
-            // auto-capture -> Charged, manual-capture -> Authorized.
-            approved_attempt_status(item.router_data.request.is_auto_capture())
-        } else {
-            common_enums::AttemptStatus::Failure
-        };
+        // PayConex GET_TRANSACTION_STATUS does not expose whether a manual authorization
+        // has been captured, so mirror the Authorize intent: approved auto-capture ->
+        // Charged, approved manual-capture -> Authorized, no record yet -> Pending.
+        let status = map_payment_status(
+            item.response.found,
+            item.response.transaction_approved,
+            item.router_data.request.is_auto_capture(),
+        );
 
-        let response = if status == common_enums::AttemptStatus::Failure {
-            Err(ErrorResponse {
+        let response = match status {
+            common_enums::AttemptStatus::Failure => Err(ErrorResponse {
                 code: error_code_string(&item.response.error_code),
                 message: error_message_string(
                     &item.response.error_message,
@@ -812,9 +819,8 @@ impl TryFrom<ResponseRouterData<NextivaSyncResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
-            })
-        } else {
-            Ok(PaymentsResponseData::TransactionResponse {
+            }),
+            _ => Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: item
                     .response
                     .transaction_id
@@ -828,7 +834,7 @@ impl TryFrom<ResponseRouterData<NextivaSyncResponse, Self>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
-            })
+            }),
         };
 
         Ok(Self {
@@ -862,24 +868,9 @@ impl TryFrom<ResponseRouterData<NextivaRefundResponse, Self>>
     fn try_from(
         item: ResponseRouterData<NextivaRefundResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = if item.response.transaction_approved {
-            common_enums::RefundStatus::Success
-        } else {
-            common_enums::RefundStatus::Failure
-        };
-        let response = if refund_status == common_enums::RefundStatus::Success {
-            Ok(RefundsResponseData {
-                connector_refund_id: item.response.transaction_id.clone().ok_or_else(|| {
-                    report!(ConnectorError::response_handling_failed_with_context(
-                        item.http_code,
-                        Some("missing transaction_id in Nextiva refund response".to_string()),
-                    ))
-                })?,
-                refund_status,
-                status_code: item.http_code,
-            })
-        } else {
-            Err(ErrorResponse {
+        let refund_status = map_refund_status(true, item.response.transaction_approved);
+        let response = match refund_status {
+            common_enums::RefundStatus::Failure => Err(ErrorResponse {
                 code: error_code_string(&item.response.error_code),
                 message: error_message_string(
                     &item.response.error_message,
@@ -892,7 +883,17 @@ impl TryFrom<ResponseRouterData<NextivaRefundResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
-            })
+            }),
+            _ => Ok(RefundsResponseData {
+                connector_refund_id: item.response.transaction_id.clone().ok_or_else(|| {
+                    report!(ConnectorError::response_handling_failed_with_context(
+                        item.http_code,
+                        Some("missing transaction_id in Nextiva refund response".to_string()),
+                    ))
+                })?,
+                refund_status,
+                status_code: item.http_code,
+            }),
         };
         Ok(Self {
             resource_common_data: RefundFlowData {
@@ -924,15 +925,10 @@ impl TryFrom<ResponseRouterData<NextivaRefundSyncResponse, Self>>
     fn try_from(
         item: ResponseRouterData<NextivaRefundSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = if !item.response.found {
-            common_enums::RefundStatus::Pending
-        } else if item.response.transaction_approved {
-            common_enums::RefundStatus::Success
-        } else {
-            common_enums::RefundStatus::Failure
-        };
-        let response = if refund_status == common_enums::RefundStatus::Failure {
-            Err(ErrorResponse {
+        let refund_status =
+            map_refund_status(item.response.found, item.response.transaction_approved);
+        let response = match refund_status {
+            common_enums::RefundStatus::Failure => Err(ErrorResponse {
                 code: error_code_string(&item.response.error_code),
                 message: error_message_string(
                     &item.response.error_message,
@@ -945,9 +941,8 @@ impl TryFrom<ResponseRouterData<NextivaRefundSyncResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
-            })
-        } else {
-            Ok(RefundsResponseData {
+            }),
+            _ => Ok(RefundsResponseData {
                 connector_refund_id: item
                     .response
                     .transaction_id
@@ -955,7 +950,7 @@ impl TryFrom<ResponseRouterData<NextivaRefundSyncResponse, Self>>
                     .unwrap_or_else(|| item.router_data.request.connector_refund_id.clone()),
                 refund_status,
                 status_code: item.http_code,
-            })
+            }),
         };
         Ok(Self {
             resource_common_data: RefundFlowData {
