@@ -1,7 +1,7 @@
 use super::payout_method_data::{Bank, PayoutMethodData};
 use crate::{
     connector_types::{
-        ConnectorResponseHeaders, RawConnectorRequestResponse,
+        ConnectorHttpStatusCode, ConnectorResponseHeaders, RawConnectorRequestResponse,
         ServerAuthenticationTokenResponseData,
     },
     errors::IntegrationError,
@@ -53,6 +53,8 @@ impl ConnectorResponseHeaders for PayoutFlowData {
         self.connector_response_headers.as_ref()
     }
 }
+
+impl ConnectorHttpStatusCode for PayoutFlowData {}
 
 impl PayoutFlowData {
     pub fn get_access_token(&self) -> Result<String, Error> {

@@ -630,12 +630,22 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<HipayTokenResponse, S
 
     fn try_from(item: ResponseRouterData<HipayTokenResponse, Self>) -> Result<Self, Self::Error> {
         use hyperswitch_masking::ExposeInterface;
-        Ok(Self {
-            response: Ok(PaymentMethodTokenResponse {
-                token: item.response.token.expose(),
-            }),
-            ..item.router_data
-        })
+        let mut router_data = item.router_data;
+        router_data.resource_common_data.connector_response = Some(
+            domain_types::router_data::ConnectorResponseData::with_additional_payment_method_data(
+                domain_types::router_data::AdditionalPaymentMethodConnectorResponse::Card {
+                    authentication_data: None,
+                    payment_checks: None,
+                    card_network: Some(item.response.brand.clone()),
+                    domestic_network: None,
+                    auth_code: None,
+                },
+            ),
+        );
+        router_data.response = Ok(PaymentMethodTokenResponse {
+            token: item.response.token.expose(),
+        });
+        Ok(router_data)
     }
 }
 

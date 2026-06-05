@@ -3556,6 +3556,9 @@ message PaymentMethodServiceTokenizeResponse {
 
   // State Information
   optional ConnectorState state = 6;
+
+  // Connector response data (card network, etc.)
+  optional ConnectorResponseData connector_response = 7;
 }
 
 // Request message for getting a payment method

@@ -482,6 +482,10 @@ pub trait ConnectorResponseHeaders {
     }
 }
 
+pub trait ConnectorHttpStatusCode {
+    fn set_connector_http_status_code(&mut self, _status_code: u16) {}
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
 pub struct NetworkTokenWithNTIRef {
     pub network_transaction_id: String,
@@ -1303,6 +1307,12 @@ impl ConnectorResponseHeaders for PaymentFlowData {
 
     fn get_connector_response_headers(&self) -> Option<&http::HeaderMap> {
         self.connector_response_headers.as_ref()
+    }
+}
+
+impl ConnectorHttpStatusCode for PaymentFlowData {
+    fn set_connector_http_status_code(&mut self, status_code: u16) {
+        self.connector_http_status_code = Some(status_code);
     }
 }
 
@@ -2149,6 +2159,8 @@ impl ConnectorResponseHeaders for RefundFlowData {
         self.connector_response_headers.as_ref()
     }
 }
+
+impl ConnectorHttpStatusCode for RefundFlowData {}
 
 impl RefundFlowData {
     pub fn get_merchant_request_id(&self) -> Result<String, Error> {
@@ -3133,6 +3145,8 @@ impl ConnectorResponseHeaders for DisputeFlowData {
     }
 }
 
+impl ConnectorHttpStatusCode for DisputeFlowData {}
+
 #[derive(Debug, Clone)]
 pub struct VerifyWebhookSourceFlowData {
     pub connectors: Connectors,
@@ -3169,6 +3183,8 @@ impl ConnectorResponseHeaders for VerifyWebhookSourceFlowData {
         self.connector_response_headers.as_ref()
     }
 }
+
+impl ConnectorHttpStatusCode for VerifyWebhookSourceFlowData {}
 
 #[derive(Debug, Clone)]
 pub struct DisputeResponseData {

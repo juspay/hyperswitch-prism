@@ -10781,6 +10781,17 @@ pub fn generate_create_payment_method_token_response<T: PaymentMethodDataTypes>(
 > {
     let token_response = router_data_v2.response;
 
+    let connector_response = router_data_v2
+        .resource_common_data
+        .connector_response
+        .as_ref()
+        .map(|connector_response_data| {
+            grpc_api_types::payments::ConnectorResponseData::foreign_try_from(
+                connector_response_data.clone(),
+            )
+        })
+        .transpose()?;
+
     match token_response {
         Ok(response) => {
             let token_clone = response.token.clone();
@@ -10788,12 +10799,16 @@ pub fn generate_create_payment_method_token_response<T: PaymentMethodDataTypes>(
                 grpc_api_types::payments::PaymentMethodServiceTokenizeResponse {
                     payment_method_token: response.token,
                     error: None,
-                    status_code: 200,
+                    status_code: router_data_v2
+                        .resource_common_data
+                        .connector_http_status_code
+                        .unwrap_or(200) as u32,
                     response_headers: router_data_v2
                         .resource_common_data
                         .get_connector_response_headers_as_map(),
                     merchant_payment_method_id: Some(token_clone),
                     state: None,
+                    connector_response: connector_response.clone(),
                 },
             )
         }
@@ -10816,6 +10831,7 @@ pub fn generate_create_payment_method_token_response<T: PaymentMethodDataTypes>(
                     .get_connector_response_headers_as_map(),
                 merchant_payment_method_id: e.connector_transaction_id,
                 state: None,
+                connector_response,
             },
         ),
     }
