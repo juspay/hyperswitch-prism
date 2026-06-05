@@ -529,7 +529,7 @@ macros::create_all_prerequisites!(
             req.resource_common_data.connectors.authorizedotnet.base_url.to_string()
         }
 
-        pub fn connector_base_url_merchat_auth<F, Req, Res>(
+        pub fn connector_base_url_merchant_auth<F, Req, Res>(
             &self,
             req: &RouterDataV2<F, MerchantAuthenticationFlowData, Req, Res>,
         ) -> String {
@@ -874,7 +874,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<ServerSessionAuthenticationToken, MerchantAuthenticationFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(self.connector_base_url_merchat_auth(req).to_string())
+            Ok(self.connector_base_url_merchant_auth(req).to_string())
         }
     }
 );
