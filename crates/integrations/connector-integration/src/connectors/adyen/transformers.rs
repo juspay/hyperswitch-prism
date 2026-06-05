@@ -18,10 +18,10 @@ use domain_types::{
         AcceptDisputeData,
         AdyenClientAuthenticationResponse as AdyenClientAuthenticationResponseDomain,
         CardDetailUpdate, ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
-        ConnectorSpecificClientAuthenticationResponse, DisputeDefendData, DisputeFlowData,
-        DisputeResponseData, EventType, MandateReference, MandateReferenceId,
-        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodUpdate,
-        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        ConnectorChargeResponseData, ConnectorSpecificClientAuthenticationResponse,
+        DisputeDefendData, DisputeFlowData, DisputeResponseData, EventType, MandateReference,
+        MandateReferenceId, PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
+        PaymentMethodUpdate, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
         SetupMandateRequestData, SubmitEvidenceData,
@@ -1051,7 +1051,7 @@ pub enum Channel {
 struct AdyenSplitData {
     amount: Option<Amount>,
     #[serde(rename = "type")]
-    split_type: AdyenSplitType,
+    split_type: common_enums::AdyenSplitType,
     account: Option<String>,
     reference: String,
     description: Option<String>,
@@ -1212,43 +1212,6 @@ impl TryFrom<&common_enums::PaymentMethodType> for PaymentType {
     }
 }
 
-#[derive(
-    Clone,
-    Debug,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-)]
-#[strum(serialize_all = "PascalCase")]
-#[serde(rename_all = "PascalCase")]
-pub enum AdyenSplitType {
-    /// Books split amount to the specified account.
-    BalanceAccount,
-    /// The aggregated amount of the interchange and scheme fees.
-    AcquiringFees,
-    /// The aggregated amount of all transaction fees.
-    PaymentFee,
-    /// The aggregated amount of Adyen's commission and markup fees.
-    AdyenFees,
-    ///  The transaction fees due to Adyen under blended rates.
-    AdyenCommission,
-    /// The transaction fees due to Adyen under Interchange ++ pricing.
-    AdyenMarkup,
-    ///  The fees paid to the issuer for each payment made with the card network.
-    Interchange,
-    ///  The fees paid to the card scheme for using their network.
-    SchemeFee,
-    /// Your platform's commission on the payment (specified in amount), booked to your liable balance account.
-    Commission,
-    /// Allows you and your users to top up balance accounts using direct debit, card payments, or other payment methods.
-    TopUp,
-    /// The value-added tax charged on the payment, booked to your platforms liable balance account.
-    Vat,
-}
-
 // Wrapper types for RepeatPayment to avoid duplicate templating structs in macro
 #[derive(Debug, Serialize)]
 #[serde(transparent)]
@@ -1325,7 +1288,7 @@ struct AdyenSplitPaymentRequest {
 struct AdyenSplitItem {
     pub amount: Option<MinorUnit>,
     pub reference: String,
-    pub split_type: AdyenSplitType,
+    pub split_type: common_enums::AdyenSplitType,
     pub account: Option<String>,
     pub description: Option<String>,
 }
@@ -3968,6 +3931,7 @@ pub struct AdyenResponse {
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
     additional_data: Option<AdditionalData>,
+    splits: Option<Vec<AdyenSplitData>>,
     store: Option<String>,
 }
 
@@ -4556,6 +4520,11 @@ pub fn get_adyen_response(
                 .map(|network_tx_id| network_tx_id.clone().expose())
         });
 
+    let charges = match &response.splits {
+        Some(split_items) => Some(construct_charge_response(response.store, split_items)),
+        None => None,
+    };
+
     let payments_response_data = PaymentsResponseData::TransactionResponse {
         resource_id: ResponseId::ConnectorTransactionId(response.psp_reference),
         redirection_data: None,
@@ -4564,7 +4533,7 @@ pub fn get_adyen_response(
         connector_response_reference_id: Some(response.merchant_reference),
         incremental_authorization_allowed: None,
         mandate_reference: mandate_reference.map(Box::new),
-        charges: None,
+        charges,
         status_code,
     };
 
@@ -5957,6 +5926,27 @@ pub struct AdyenCaptureResponse {
     amount: Amount,
     merchant_reference: Option<String>,
     store: Option<String>,
+    splits: Option<Vec<AdyenSplitData>>,
+}
+
+fn construct_charge_response(
+    store: Option<String>,
+    split_items: &[AdyenSplitData],
+) -> ConnectorChargeResponseData {
+    let splits = split_items
+        .iter()
+        .map(|item| domain_types::connector_types::AdyenSplitItem {
+            amount: item.amount.as_ref().map(|a| a.value),
+            reference: item.reference.clone(),
+            split_type: item.split_type.clone(),
+            account: item.account.clone(),
+            description: item.description.clone(),
+        })
+        .collect();
+    ConnectorChargeResponseData::AdyenSplitPayment(domain_types::connector_types::AdyenSplitData {
+        store,
+        split_items: splits,
+    })
 }
 
 impl<F> TryFrom<ResponseRouterData<AdyenCaptureResponse, Self>>
@@ -5977,6 +5967,10 @@ impl<F> TryFrom<ResponseRouterData<AdyenCaptureResponse, Self>>
         } else {
             response.payment_psp_reference
         };
+        let charges = match &response.splits {
+            Some(split_items) => Some(construct_charge_response(response.store, split_items)),
+            None => None,
+        };
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -5987,7 +5981,7 @@ impl<F> TryFrom<ResponseRouterData<AdyenCaptureResponse, Self>>
                 connector_response_reference_id: Some(response.reference),
                 incremental_authorization_allowed: None,
                 mandate_reference: None,
-                charges: None,
+                charges,
                 status_code: http_code,
             }),
             resource_common_data: PaymentFlowData {
