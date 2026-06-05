@@ -407,17 +407,15 @@ message CompositeEventHandleResponse {
 
 // Request message for composite payment method create flow.
 message CompositePaymentMethodCreateRequest {
-  // Payment Method Identification
-  optional string merchant_payment_method_id = 1;
+  optional string merchant_payment_method_id = 1; // Merchant's reference ID for the payment method
   
   // Customer Information
   optional Customer customer = 2;
   
-  // Payment Method Details
-  optional string description = 3;
+  optional string description = 3; // Human-readable description of the payment method
   optional SecretString connector_feature_data = 4;
   optional bool test_mode = 5;
-  PaymentMethodType payment_method_type = 6;
+  PaymentMethodType payment_method_type = 6; // PaymentMethodType enum (CARD, WALLET, UPI, etc.)
   
   // State Information (for access token)
   optional ConnectorState state = 7;
@@ -435,23 +433,24 @@ message CompositePaymentMethodCreateResponse {
 
 // Request message for composite payment method get flow.
 message CompositePaymentMethodGetRequest {
-  // Payment Method Identification
-  optional string merchant_payment_method_id = 1;
-  optional string connector_payment_method_id = 2;
+  optional string merchant_payment_method_id = 1; // Merchant's reference ID for the payment method
+  optional string connector_payment_method_id = 2; // Connector-issued payment method ID (incase of wallet_detail it is connector_wallet_id)
   
   // Customer Information
   optional Customer customer = 3;
   
+  PaymentMethodType payment_method_type = 4; // PaymentMethodType enum (CARD, WALLET, UPI, etc.)
+  
   // Additional Configuration
-  optional SecretString connector_feature_data = 4;
-  optional bool test_mode = 5;
+  optional SecretString connector_feature_data = 5;
+  optional bool test_mode = 6;
   
   // State Information (for access token)
-  optional ConnectorState state = 6;
+  optional ConnectorState state = 7;
   
   // Access Token Request field
-  optional SecretString metadata = 7;
-  optional string merchant_access_token_id = 8;
+  optional SecretString metadata = 8;
+  optional string merchant_access_token_id = 9;
 }
 
 // Response message for composite payment method get flow.

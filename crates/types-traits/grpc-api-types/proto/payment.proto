@@ -3560,44 +3560,42 @@ message PaymentMethodServiceTokenizeResponse {
   // State Information
   optional ConnectorState state = 6;
 }
-
-
 enum WalletStatus {
   WALLET_STATUS_UNSPECIFIED = 0;
-  ACTIVE = 1;
-  INACTIVE = 2;
+  ACTIVE = 1; // Wallet is operational and can process transactions
+  INACTIVE = 2; // Wallet is suspended or closed
 }
 
 message WalletDetails {
-  optional string connector_wallet_id = 1;
-  optional SecretString wallet_pin = 2;
-  optional WalletStatus wallet_status = 3;
-  optional string wallet_program_group_name = 4;
-  optional string wallet_holder_name = 5;
-  optional int64 balance = 6;
+  optional string connector_wallet_id = 1; // Unique wallet identifier from connector (e.g., QwikWallet number)
+  optional SecretString wallet_pin = 2; // wallet PIN for authentication
+  optional WalletStatus wallet_status = 3; // Current operational status (ACTIVE/INACTIVE)
+  optional string wallet_program_name = 4; // Wallet program/tier classification
+  optional string wallet_holder_name = 5; // Name registered on the wallet account
+  optional int64 balance = 6; // Current wallet balance in minor currency units
 }
 
 message PaymentMethodDetails {
   oneof details {
-    WalletDetails wallet = 1;
+    WalletDetails wallet = 1; // Wallet-specific details
   }
 }
 
 message PaymentMethodServiceCreateRequest {
-  optional string merchant_payment_method_id = 1;
-  optional Customer customer = 2;
-  optional string description = 3;
-  PaymentMethodType payment_method_type = 4;
-  optional ConnectorState state = 5;
-  optional SecretString connector_feature_data = 6;
+  optional string merchant_payment_method_id = 1; // Merchant's reference ID for the payment method
+  optional Customer customer = 2; // Customer information
+  optional string description = 3; // Human-readable description of the payment method
+  PaymentMethodType payment_method_type = 4; // PaymentMethodType enum (CARD, WALLET, UPI, etc.)
+  optional ConnectorState state = 5;   // State Information (for access token)
+  optional SecretString connector_feature_data = 6; // Connector-specific metadata for the transaction
   optional bool test_mode = 7;
 }
 
 message PaymentMethodServiceCreateResponse {
-  optional string merchant_payment_method_id = 1;
-  optional string connector_payment_method_id = 2;
+  optional string merchant_payment_method_id = 1; // Merchant's reference ID for the payment method
+  optional string connector_payment_method_id = 2; // Connector-issued payment method ID (incase of wallet_detail it is connector_wallet_id)
   
-  PaymentMethodDetails payment_method_details = 3;
+  PaymentMethodDetails payment_method_details = 3; // details of the Payment method created
 
   // Customer Information
   optional Customer customer = 4;
@@ -3614,19 +3612,21 @@ message PaymentMethodServiceCreateResponse {
 }
 
 message PaymentMethodServiceGetRequest {
-  optional string merchant_payment_method_id = 1;
-  optional string connector_payment_method_id = 2;
+  optional string merchant_payment_method_id = 1; // Merchant's reference ID for the payment method
+  optional string connector_payment_method_id = 2; // Connector-issued payment method ID (incase of wallet_detail it is connector_wallet_id)
+  
+  // Customer Information
   optional Customer customer = 3;
-  optional ConnectorState state = 4;
-  optional SecretString connector_feature_data = 5;
+  optional ConnectorState state = 4;   // State Information (for access token)
+  optional SecretString connector_feature_data = 5; // Connector-specific metadata for the transaction
   optional bool test_mode = 6;
 }
 
 message PaymentMethodServiceGetResponse {
-  optional string merchant_payment_method_id = 1;
-  optional string connector_payment_method_id = 2;
+  optional string merchant_payment_method_id = 1; // Merchant's reference ID for the payment method
+  optional string connector_payment_method_id = 2; // Connector-issued payment method ID (incase of wallet_detail it is connector_wallet_id)
   
-  PaymentMethodDetails payment_method_details = 3;
+  PaymentMethodDetails payment_method_details = 3; // details of the Payment method
 
   // Customer Information
   optional Customer customer = 4;
