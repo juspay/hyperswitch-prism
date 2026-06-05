@@ -17,6 +17,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "::hyperswitch_masking::Secret<String>",
     );
 
+    // Add #[serde(default)] for all `repeated` (Vec) fields in connector config messages.
+    // Protobuf `repeated` fields map to Vec<T> in Rust. serde requires `#[serde(default)]`
+    // on Vec fields to treat a missing JSON key as an empty vec; without it, serde errors
+    // with "missing field" when the sender (HS) omits the field.  g2h already adds `default`
+    // for repeated *enum* fields, but not for repeated string/message fields, so we add it
+    // explicitly for each known repeated non-enum field in the connector config messages.
+    // BraintreeConfig is currently the only ConnectorConfig message with repeated fields.
+    for field in [
+        ".types.BraintreeConfig.apple_pay_supported_networks",
+        ".types.BraintreeConfig.apple_pay_merchant_capabilities",
+        ".types.BraintreeConfig.gpay_allowed_auth_methods",
+        ".types.BraintreeConfig.gpay_allowed_card_networks",
+    ] {
+        config.field_attribute(field, "#[serde(default)]");
+    }
+
     // Add serde rename_all = "snake_case" for oneof enum types to output proper proto JSON
     // This ensures variant names like "ApplePay" serialize as "apple_pay"
     config.type_attribute(
