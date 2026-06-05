@@ -3515,6 +3515,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetCreateConnectorCustomerResponse, 
             // Success - return the connector customer ID
             new_router_data.response = Ok(ConnectorCustomerResponse {
                 connector_customer_id: profile_id,
+                status_code: http_code,
             });
         } else {
             // Check if this is a "duplicate customer" error (E00039)
@@ -3532,6 +3533,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetCreateConnectorCustomerResponse, 
                     );
                     new_router_data.response = Ok(ConnectorCustomerResponse {
                         connector_customer_id: existing_profile_id,
+                        status_code: http_code,
                     });
                 } else {
                     // Couldn't extract ID, return error

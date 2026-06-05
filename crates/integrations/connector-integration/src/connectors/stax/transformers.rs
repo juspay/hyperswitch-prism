@@ -884,6 +884,7 @@ impl TryFrom<ResponseRouterData<StaxCustomerResponse, Self>>
         Ok(Self {
             response: Ok(domain_types::connector_types::ConnectorCustomerResponse {
                 connector_customer_id: item.response.id.expose(),
+                status_code: item.http_code,
             }),
             ..item.router_data
         })
