@@ -2010,6 +2010,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 redirection_data,
                 connector_response_reference_id: item.response.transaction_id.clone(),
                 status_code: item.http_code,
+                resource_id: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,

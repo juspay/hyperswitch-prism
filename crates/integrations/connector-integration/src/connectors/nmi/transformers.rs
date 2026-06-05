@@ -1508,6 +1508,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NmiVaultResponse, Sel
                         })),
                         connector_response_reference_id: Some(response.transactionid.clone()),
                         status_code: item.http_code,
+                        resource_id: None,
                     }),
                 )
             }

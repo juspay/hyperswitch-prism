@@ -1417,6 +1417,7 @@ where
             connector_response_reference_id,
             status_code: item.http_code,
             authentication_data: None,
+            resource_id: None,
         });
 
         Ok(Self {

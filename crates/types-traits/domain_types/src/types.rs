@@ -13046,15 +13046,26 @@ pub fn generate_payment_pre_authenticate_response<T: PaymentMethodDataTypes>(
         .resource_common_data
         .get_connector_response_headers_as_map();
 
+    let connector_feature_data = convert_connector_metadata_to_secret_string(
+        router_data_v2
+            .resource_common_data
+            .connector_feature_data
+            .map(|secret| secret.expose()),
+    );
+
     let response = match transaction_response {
         Ok(response) => match response {
             PaymentsResponseData::PreAuthenticateResponse {
+                resource_id,
                 redirection_data,
                 connector_response_reference_id,
                 status_code,
                 authentication_data,
             } => PaymentMethodAuthenticationServicePreAuthenticateResponse {
-                connector_transaction_id: None,
+                connector_transaction_id: resource_id
+                    .map(Option::foreign_try_from)
+                    .transpose()?
+                    .flatten(),
                 redirection_data: redirection_data
                     .map(|form| match *form {
                         router_response_types::RedirectForm::Form {
@@ -13159,7 +13170,7 @@ pub fn generate_payment_pre_authenticate_response<T: PaymentMethodDataTypes>(
                         })),
                     })
                     .transpose()?,
-                connector_feature_data: None,
+                connector_feature_data,
                 merchant_order_id: connector_response_reference_id,
                 status: grpc_status.into(),
                 error: None,
@@ -13243,6 +13254,13 @@ pub fn generate_payment_authenticate_response<T: PaymentMethodDataTypes>(
     let response_headers = router_data_v2
         .resource_common_data
         .get_connector_response_headers_as_map();
+
+    let connector_feature_data = convert_connector_metadata_to_secret_string(
+        router_data_v2
+            .resource_common_data
+            .connector_feature_data
+            .map(|secret| secret.expose()),
+    );
 
     let response = match transaction_response {
         Ok(response) => match response {
@@ -13341,7 +13359,7 @@ pub fn generate_payment_authenticate_response<T: PaymentMethodDataTypes>(
                         })),
                     })
                     .transpose()?,
-                connector_feature_data: None,
+                connector_feature_data,
                 authentication_data: authentication_data.map(ForeignFrom::foreign_from),
                 status: grpc_status.into(),
                 error: None,

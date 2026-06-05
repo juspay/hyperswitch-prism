@@ -2,6 +2,7 @@ use std::{str::FromStr, sync::LazyLock};
 
 use crate::{
     connectors::redsys::{RedsysAmountConvertor, RedsysRouterData},
+    errors::ResponseTransformationErrorContext,
     types::ResponseRouterData,
     utils,
 };
@@ -631,6 +632,20 @@ fn build_threeds_invoke_response(
         three_d_s_server_trans_i_d: three_d_s_server_trans_i_d.to_string(),
     };
 
+    let connector_metadata = Some(
+        serde_json::to_value(&three_ds_invoke_data)
+            .change_context(ConnectorError::ResponseHandlingFailed {
+                context: ResponseTransformationErrorContext {
+                    additional_context: Some(format!(
+                        "Failed to serialize ThreeDsInvokeData for connector metadata. Data: {:?}",
+                        three_ds_invoke_data
+                    )),
+                    ..Default::default()
+                },
+            })
+            .attach_printable("Failed to serialize ThreeDsData")?,
+    );
+
     // Serialize to JSON, then deserialize to HashMap<String, String>
     let json = serde_json::to_value(&three_ds_invoke_data).change_context(
         utils::response_handling_fail_for_connector(http_status, "redsys"),
@@ -648,7 +663,7 @@ fn build_threeds_invoke_response(
 
     Ok(responses::PreAuthenticateResponseData {
         redirection_data: redirect_form,
-        connector_meta_data: None,
+        connector_meta_data: connector_metadata.map(Secret::new),
         response_ref_id: Some(response_data.ds_order.clone()),
         authentication_data: None,
     })
@@ -934,10 +949,12 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                     resource_common_data: PaymentFlowData {
                         status: common_enums::AttemptStatus::AuthenticationPending,
                         connector_feature_data: connector_meta_data,
-                        reference_id: response_ref_id.clone(),
                         ..item.router_data.resource_common_data
                     },
                     response: Ok(PaymentsResponseData::PreAuthenticateResponse {
+                        resource_id: response_ref_id
+                            .clone()
+                            .map(ResponseId::ConnectorTransactionId),
                         redirection_data,
                         connector_response_reference_id: response_ref_id,
                         status_code: item.http_code,
@@ -1123,13 +1140,23 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                     false,
                 )?;
 
+                let connector_metadata = Some(
+                    serde_json::to_value(item.router_data.request.authentication_data.clone())
+                        .change_context(ConnectorError::ResponseHandlingFailed {
+                            context: ResponseTransformationErrorContext {
+                                additional_context: Some(format!(
+                                    "Failed to serialize authentication_data for connector metadata. Data: {:?}",
+                                    item.router_data.request.authentication_data
+                                )),
+                                ..Default::default()
+                            },
+                        })?
+                );
+
                 Ok(Self {
                     resource_common_data: PaymentFlowData {
                         status,
-                        connector_feature_data: item
-                            .router_data
-                            .resource_common_data
-                            .connector_feature_data,
+                        connector_feature_data: connector_metadata.map(Secret::new),
                         reference_id: Some(ds_order),
 
                         ..item.router_data.resource_common_data

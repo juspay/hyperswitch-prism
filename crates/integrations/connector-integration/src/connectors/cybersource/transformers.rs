@@ -3426,6 +3426,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     ),
                     status_code: item.http_code,
                     authentication_data: None,
+                    resource_id: None,
                 }),
                 ..item.router_data
             }),
