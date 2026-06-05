@@ -37,7 +37,7 @@ use domain_types::{
     },
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorSpecificConfig, ErrorResponse,
-        PazeDecryptedData,
+        FlowStatus, PazeDecryptedData,
     },
     router_data_v2::RouterDataV2,
     router_request_types,
@@ -4744,7 +4744,7 @@ pub fn get_error_response(
         message: error_message.unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
         reason,
         status_code,
-        attempt_status,
+        attempt_status: attempt_status.map(FlowStatus::Payment),
         connector_transaction_id: Some(transaction_id),
         network_advice_code,
         network_decline_code,
