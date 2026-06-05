@@ -177,11 +177,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .and_then(get_cybersource_card_type)
                     {
                         Some(card_network) => Some(card_network.to_string()),
-                        None => domain_types::utils::get_card_issuer(
-                            ccard.card_number.peek(),
-                        )
-                        .ok()
-                        .map(card_issuer_to_string),
+                        None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
+                            .ok()
+                            .map(card_issuer_to_string),
                     };
 
                     (
@@ -2529,11 +2527,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .and_then(get_cybersource_card_type)
                 {
                     Some(card_network) => Some(card_network.to_string()),
-                    None => domain_types::utils::get_card_issuer(
-                        ccard.card_number.peek(),
-                    )
-                    .ok()
-                    .map(card_issuer_to_string),
+                    None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
+                        .ok()
+                        .map(card_issuer_to_string),
                 };
 
                 let payment_information =
@@ -3559,11 +3555,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .and_then(get_cybersource_card_type)
                 {
                     Some(card_network) => Some(card_network.to_string()),
-                    None => domain_types::utils::get_card_issuer(
-                        ccard.card_number.peek(),
-                    )
-                    .ok()
-                    .map(card_issuer_to_string),
+                    None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
+                        .ok()
+                        .map(card_issuer_to_string),
                 };
 
                 Ok(PaymentInformation::Cards(Box::new(
@@ -3837,11 +3831,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .and_then(get_cybersource_card_type)
                 {
                     Some(card_network) => Some(card_network.to_string()),
-                    None => domain_types::utils::get_card_issuer(
-                        ccard.card_number.peek(),
-                    )
-                    .ok()
-                    .map(card_issuer_to_string),
+                    None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
+                        .ok()
+                        .map(card_issuer_to_string),
                 };
 
                 Ok(PaymentInformation::Cards(Box::new(
