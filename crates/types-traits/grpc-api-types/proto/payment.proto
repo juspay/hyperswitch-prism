@@ -132,6 +132,9 @@ message Customer {
       4;                                  // Customer ID in the connector system
   optional string phone_number = 5;       // Customer's phone number
   optional string phone_country_code = 6; // Customer's phone country code
+  optional string first_name = 7;       // Customer's first name
+  optional string last_name = 8;        // Customer's last name
+  optional string salutation = 9;       // Customer's salutation (Mr., Ms., etc.)
 }
 
 // ============================================================================
@@ -3558,32 +3561,85 @@ message PaymentMethodServiceTokenizeResponse {
   optional ConnectorState state = 6;
 }
 
-// Request message for getting a payment method
-message PaymentMethodServiceGetRequest {
-  // Identification
-  optional string merchant_payment_method_id = 1;
-  // Payment Method Information
-  string payment_method_token = 2;
 
-  // State Information
-  optional ConnectorState state = 3;
+enum WalletStatus {
+  WALLET_STATUS_UNSPECIFIED = 0;
+  ACTIVE = 1;
+  INACTIVE = 2;
 }
 
-// Response message for getting a payment method
-message PaymentMethodServiceGetResponse {
-  // Payment Method Information
-  PaymentMethod payment_method = 1;
+message WalletDetails {
+  optional string connector_wallet_id = 1;
+  optional SecretString wallet_pin = 2;
+  optional WalletStatus wallet_status = 3;
+  optional string wallet_program_group_name = 4;
+  optional string wallet_holder_name = 5;
+  optional int64 balance = 6;
+}
+
+message PaymentMethodDetails {
+  oneof details {
+    WalletDetails wallet = 1;
+  }
+}
+
+message PaymentMethodServiceCreateRequest {
+  optional string merchant_payment_method_id = 1;
+  optional Customer customer = 2;
+  optional string description = 3;
+  PaymentMethodType payment_method_type = 4;
+  optional ConnectorState state = 5;
+  optional SecretString connector_feature_data = 6;
+  optional bool test_mode = 7;
+}
+
+message PaymentMethodServiceCreateResponse {
+  optional string merchant_payment_method_id = 1;
+  optional string connector_payment_method_id = 2;
+  
+  PaymentMethodDetails payment_method_details = 3;
 
   // Customer Information
-  optional Customer customer = 2;
+  optional Customer customer = 4;
+  optional Address address = 5;
 
   // Error Information
-  optional ErrorInfo error = 3;
-  uint32 status_code = 4;
-  map<string, string> response_headers = 5;
+  optional ErrorInfo error = 6;
+  uint32 status_code = 7;
+  map<string, string> response_headers = 8;
 
-  // Reference
-  optional string merchant_payment_method_id = 6;
+  // Raw Response/Request for debugging
+  optional SecretString raw_connector_response = 9;
+  optional SecretString raw_connector_request = 10;
+}
+
+message PaymentMethodServiceGetRequest {
+  optional string merchant_payment_method_id = 1;
+  optional string connector_payment_method_id = 2;
+  optional Customer customer = 3;
+  optional ConnectorState state = 4;
+  optional SecretString connector_feature_data = 5;
+  optional bool test_mode = 6;
+}
+
+message PaymentMethodServiceGetResponse {
+  optional string merchant_payment_method_id = 1;
+  optional string connector_payment_method_id = 2;
+  
+  PaymentMethodDetails payment_method_details = 3;
+
+  // Customer Information
+  optional Customer customer = 4;
+  optional Address address = 5;
+
+  // Error Information
+  optional ErrorInfo error = 6;
+  uint32 status_code = 7;
+  map<string, string> response_headers = 8;
+
+  // Raw Response/Request for debugging
+  optional SecretString raw_connector_response = 9;
+  optional SecretString raw_connector_request = 10;
 }
 
 // ============================================================================

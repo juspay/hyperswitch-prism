@@ -404,3 +404,58 @@ message CompositeEventHandleResponse {
   optional string           merchant_event_id  = 5;  // Echoed from request.
   optional EventAckResponse event_ack_response = 6;
 }
+
+// Request message for composite payment method create flow.
+message CompositePaymentMethodCreateRequest {
+  // Payment Method Identification
+  optional string merchant_payment_method_id = 1;
+  
+  // Customer Information
+  optional Customer customer = 2;
+  
+  // Payment Method Details
+  optional string description = 3;
+  optional SecretString connector_feature_data = 4;
+  optional bool test_mode = 5;
+  PaymentMethodType payment_method_type = 6;
+  
+  // State Information (for access token)
+  optional ConnectorState state = 7;
+  
+  // Access Token Request field
+  optional SecretString metadata = 8;
+  optional string merchant_access_token_id = 9;
+}
+
+// Response message for composite payment method create flow.
+message CompositePaymentMethodCreateResponse {
+  optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 1;
+  optional PaymentMethodServiceCreateResponse create_response = 2;
+}
+
+// Request message for composite payment method get flow.
+message CompositePaymentMethodGetRequest {
+  // Payment Method Identification
+  optional string merchant_payment_method_id = 1;
+  optional string connector_payment_method_id = 2;
+  
+  // Customer Information
+  optional Customer customer = 3;
+  
+  // Additional Configuration
+  optional SecretString connector_feature_data = 4;
+  optional bool test_mode = 5;
+  
+  // State Information (for access token)
+  optional ConnectorState state = 6;
+  
+  // Access Token Request field
+  optional SecretString metadata = 7;
+  optional string merchant_access_token_id = 8;
+}
+
+// Response message for composite payment method get flow.
+message CompositePaymentMethodGetResponse {
+  optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 1;
+  optional PaymentMethodServiceGetResponse get_response = 2;
+}

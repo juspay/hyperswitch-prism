@@ -35,3 +35,12 @@ service CompositeEventService {
   rpc HandleEvent(CompositeEventHandleRequest) returns (CompositeEventHandleResponse);
 }
 
+
+// Service for composite payment method operations.
+service CompositePaymentMethodService {
+  // Runs composite payment method create flow.
+  rpc Create(CompositePaymentMethodCreateRequest) returns (CompositePaymentMethodCreateResponse);
+  
+  // Runs composite payment method get flow.
+  rpc Get(CompositePaymentMethodGetRequest) returns (CompositePaymentMethodGetResponse);
+}
