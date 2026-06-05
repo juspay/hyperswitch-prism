@@ -1,5 +1,5 @@
-pub mod transformers;
 mod test;
+pub mod transformers;
 
 use std::fmt::Debug;
 

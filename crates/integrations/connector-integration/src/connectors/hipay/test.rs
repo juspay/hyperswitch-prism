@@ -17,10 +17,7 @@ mod tests {
         types::Connectors,
     };
 
-    use crate::{
-        connectors::hipay::transformers::HipayTokenResponse,
-        types::ResponseRouterData,
-    };
+    use crate::{connectors::hipay::transformers::HipayTokenResponse, types::ResponseRouterData};
 
     fn default_payment_flow_data() -> PaymentFlowData {
         PaymentFlowData {

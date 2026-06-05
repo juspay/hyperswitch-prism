@@ -1,5 +1,7 @@
 use crate::{
-    connector_types::{ConnectorHttpStatusCode, ConnectorResponseHeaders, RawConnectorRequestResponse},
+    connector_types::{
+        ConnectorHttpStatusCode, ConnectorResponseHeaders, RawConnectorRequestResponse,
+    },
     types::Connectors,
 };
 use common_enums::Currency;

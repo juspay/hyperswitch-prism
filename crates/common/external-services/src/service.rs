@@ -14,7 +14,9 @@ use common_utils::{
     request::{Method, Request, RequestContent},
 };
 use domain_types::{
-    connector_types::{ConnectorHttpStatusCode, ConnectorResponseHeaders, RawConnectorRequestResponse},
+    connector_types::{
+        ConnectorHttpStatusCode, ConnectorResponseHeaders, RawConnectorRequestResponse,
+    },
     errors::ApiErrorResponse,
     router_data_v2::RouterDataV2,
     router_response_types::Response,
@@ -231,7 +233,8 @@ where
     F: Clone + 'static,
     Req: Clone + 'static + std::fmt::Debug,
     Resp: Clone + 'static + std::fmt::Debug,
-    ResourceCommonData: Clone + RawConnectorRequestResponse + ConnectorResponseHeaders + ConnectorHttpStatusCode,
+    ResourceCommonData:
+        Clone + RawConnectorRequestResponse + ConnectorResponseHeaders + ConnectorHttpStatusCode,
 {
     let return_raw = event_params.is_none_or(|p| p.return_raw_connector_data);
     match response {
@@ -275,7 +278,9 @@ where
                     }
 
                     let mut result = handle_response_result?;
-                    result.resource_common_data.set_connector_http_status_code(status_code);
+                    result
+                        .resource_common_data
+                        .set_connector_http_status_code(status_code);
                     result
                 }
                 Err(body) => {
