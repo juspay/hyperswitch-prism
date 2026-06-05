@@ -1592,15 +1592,27 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             (_, FinixPaymentStatus::Unknown) => AttemptStatus::Pending,
         };
 
+        // Mirror the Authorize flow for shadow parity: surface the charged Payment
+        // Instrument (`source`) as the connector mandate id and attach the AVS / network
+        // details as the connector_response.
+        let connector_response_data =
+            convert_to_additional_payment_method_connector_response(&item.response)
+                .map(ConnectorResponseData::with_additional_payment_method_data);
+
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                connector_response: connector_response_data,
                 ..item.router_data.resource_common_data.clone()
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Some(Box::new(MandateReference {
+                    connector_mandate_id: response.source.clone().map(|id| id.expose()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                })),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(response.id.clone()),
