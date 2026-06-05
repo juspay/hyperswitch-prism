@@ -5777,6 +5777,7 @@ mod tests {
     // format!("{:?}", card_number) which triggered Debug masking
     // ("424242**********") and broke the BIN regex match, producing card.type = null.
     #[test]
+    #[allow(clippy::expect_used)]
     fn card_type_fallback_returns_visa_001_for_test_card() {
         let issuer = domain_types::utils::get_card_issuer("4242424242424242")
             .expect("Visa BIN should be recognized");
