@@ -3855,7 +3855,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
                         platform_chargeback_logic,
                         session_validity: None,
-            installments: None,
+                        installments: None,
                     })
                 }
                 PaymentMethodData::Crypto(_)
@@ -5678,13 +5678,11 @@ fn get_additional_data<
         match item.request.capture_method.unwrap_or_default() {
             common_enums::CaptureMethod::Manual | common_enums::CaptureMethod::ManualMultiple => {
                 if metadata_capture_delay.is_some() {
-                    return Err(error_stack::report!(
-                        IntegrationError::InvalidDataFormat {
-                            field_name:
-                                "metadata.capture_delay_hours should be None for manual capture",
-                            context: Default::default(),
-                        }
-                    ));
+                    return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name:
+                            "metadata.capture_delay_hours should be None for manual capture",
+                        context: Default::default(),
+                    }));
                 }
                 None
             }
@@ -5692,13 +5690,11 @@ fn get_additional_data<
                 None => None,
                 Some(0) => Some(0),
                 Some(_) => {
-                    return Err(error_stack::report!(
-                        IntegrationError::InvalidDataFormat {
-                            field_name:
-                                "metadata.capture_delay_hours should be 0 or None for automatic capture",
-                            context: Default::default(),
-                        }
-                    ));
+                    return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name:
+                            "metadata.capture_delay_hours should be 0 or None for automatic capture",
+                        context: Default::default(),
+                    }));
                 }
             },
         }
