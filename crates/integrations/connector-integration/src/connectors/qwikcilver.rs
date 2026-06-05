@@ -99,6 +99,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
+// NOTE: despite the `_payout_` in its name, this macro is the framework's
+// universal "emit default stubs for every flow we don't explicitly handle"
+// fan-out — it's used by all ~87 payment connectors in this crate. The name
+// is a historical artifact; do not be misled into thinking Qwikcilver is a
+// payout connector.
 macros::macro_connector_payout_implementation!(
     connector: Qwikcilver,
     generic_type: T,
@@ -145,10 +150,13 @@ macros::create_all_prerequisites!(
         /// Headers required by every authenticated Qwikcilver call. The
         /// `TransactionId` value MUST be numeric — non-numeric values produce
         /// HTTP 500 ("Input string was not in a correct format") from the API.
+        /// The session JWT stays wrapped in `Secret<String>` until the very
+        /// last moment (`.peek()` inside `format!`) and is then immediately
+        /// masked before leaving the function.
         pub fn build_authenticated_headers<F, FCD, Req, Res>(
             &self,
             _req: &RouterDataV2<F, FCD, Req, Res>,
-            access_token: &str,
+            access_token: &hyperswitch_masking::Secret<String>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError>
         where
             Self: ConnectorIntegrationV2<F, FCD, Req, Res>,
@@ -160,7 +168,7 @@ macros::create_all_prerequisites!(
                 ),
                 (
                     headers::AUTHORIZATION.to_string(),
-                    format!("Bearer {}", access_token).into_masked(),
+                    format!("Bearer {}", access_token.peek()).into_masked(),
                 ),
                 (
                     headers::DATE_AT_CLIENT.to_string(),
@@ -176,12 +184,12 @@ macros::create_all_prerequisites!(
         pub fn extract_access_token<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
-        ) -> CustomResult<String, IntegrationError>
+        ) -> CustomResult<hyperswitch_masking::Secret<String>, IntegrationError>
         where
             FCD: AccessTokenHolder,
         {
             req.resource_common_data
-                .access_token_string()
+                .access_token_secret()
                 .ok_or_else(|| {
                     IntegrationError::FailedToObtainAuthType {
                         context: IntegrationErrorContext {
@@ -215,25 +223,31 @@ macros::create_all_prerequisites!(
 // ACCESS-TOKEN PLUMBING — small trait so member functions in the
 // `create_all_prerequisites!` block can extract the cached JWT regardless of
 // whether the flow's common data is `PaymentFlowData` or `RefundFlowData`.
+//
+// `RouterDataV2` is generic over the flow-common-data type; the framework
+// gives us no shared accessor for "the access_token field" because not every
+// FCD has one. We bridge that gap here with a tiny trait. Token stays
+// wrapped in `Secret<String>` until the very last moment (the `format!` in
+// `build_authenticated_headers`), keeping it out of logs and event_builder
+// snapshots.
+//
+// Adding a new flow whose common-data type is neither PaymentFlowData nor
+// RefundFlowData? Implement `AccessTokenHolder` for it here.
 // ============================================================================
 
 pub trait AccessTokenHolder {
-    fn access_token_string(&self) -> Option<String>;
+    fn access_token_secret(&self) -> Option<hyperswitch_masking::Secret<String>>;
 }
 
 impl AccessTokenHolder for PaymentFlowData {
-    fn access_token_string(&self) -> Option<String> {
-        self.access_token
-            .as_ref()
-            .map(|t| t.access_token.clone().expose())
+    fn access_token_secret(&self) -> Option<hyperswitch_masking::Secret<String>> {
+        self.access_token.as_ref().map(|t| t.access_token.clone())
     }
 }
 
 impl AccessTokenHolder for RefundFlowData {
-    fn access_token_string(&self) -> Option<String> {
-        self.access_token
-            .as_ref()
-            .map(|t| t.access_token.clone().expose())
+    fn access_token_secret(&self) -> Option<hyperswitch_masking::Secret<String>> {
+        self.access_token.as_ref().map(|t| t.access_token.clone())
     }
 }
 

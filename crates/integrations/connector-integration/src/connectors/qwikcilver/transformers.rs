@@ -168,11 +168,12 @@ pub struct QwikcilverLocaleInfo {
     pub display_unit_for_points: Option<String>,
 }
 
-/// Qwikcilver JWTs are valid 7 days from issue (we've inspected the `exp`
-/// claim live — 604800s). We expose 6 days here so the framework refreshes
-/// at least 24h before the upstream token expires; this avoids spending
-/// 7-day-old tokens that could fail mid-call.
-const SESSION_EXPIRY_SECONDS: i64 = 60 * 60 * 24 * 6;
+/// Qwikcilver JWTs themselves are valid 7 days (verified via the `exp`
+/// claim — 604800s), but we expose a conservative 20-minute TTL to the
+/// framework so the access-token cache refreshes frequently and stays
+/// well clear of any upstream invalidation (e.g. ops-side revocation,
+/// terminal rebinding) we can't see.
+const SESSION_EXPIRY_SECONDS: i64 = 60 * 20;
 
 impl<F>
     TryFrom<
@@ -208,6 +209,9 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         let mut data = item.router_data;
         if item.response.response_code != QWIKCILVER_SUCCESS_CODE {
+            // Token-bootstrap errors are NOT payment attempt failures —
+            // leave attempt_status unset so they don't surface in payment
+            // success/failure dashboards.
             data.response = Err(make_error_response(
                 item.response.response_code,
                 item.response.response_message.clone(),
@@ -215,6 +219,7 @@ impl<F>
                 None,
                 None,
                 item.http_code,
+                None,
             ));
             return Ok(data);
         }
@@ -402,6 +407,7 @@ where
                 body.error_description,
                 Some(body.transaction_id.to_string()),
                 item.http_code,
+                Some(AttemptStatus::Failure),
             ));
             return Ok(data);
         }
@@ -413,7 +419,7 @@ where
             "transaction_id": body.transaction_id,
             "wallet_number": body.wallet_number.expose(),
         });
-        let resource_id = format!("{}:{}", body.batch_number, body.transaction_id);
+        let resource_id = format_composite_txn_id(body.batch_number, body.transaction_id);
         data.resource_common_data.status = AttemptStatus::Charged;
         data.response = Ok(PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(resource_id),
@@ -438,10 +444,14 @@ where
 //   refund_type = "add_card"        → credit a refund eCard (default)
 // ============================================================================
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
+/// Refund-op discriminator. There is intentionally NO `Default` impl: the
+/// two operations move money in opposite directions (AddCard credits the
+/// customer's wallet; CancelRedeem reverses a prior debit), and silently
+/// defaulting either way is a footgun. Callers must specify `refund_type`
+/// explicitly in `refund_metadata`.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum QwikcilverRefundOp {
-    #[default]
     AddCard,
     CancelRedeem,
 }
@@ -452,8 +462,13 @@ pub enum QwikcilverRefundOp {
 /// The on-wire JSON shape lives in `refund_connector_metadata.value`:
 ///
 /// ```json
-/// // Add Card (default)
-/// { "wallet_number": "4999771007702947" }
+/// // Add Card — card_program_name is REQUIRED and region-specific
+/// // (e.g. "Blue Retail UAE Refund eCard" for UAE).
+/// {
+///   "refund_type":       "add_card",
+///   "wallet_number":     "4999771007702947",
+///   "card_program_name": "Blue Retail UAE Refund eCard"
+/// }
 ///
 /// // Cancel Redeem
 /// {
@@ -464,26 +479,28 @@ pub enum QwikcilverRefundOp {
 /// }
 /// ```
 ///
-/// `wallet_number` is mandatory in both cases; the connector cannot route
-/// without it. Everything else is optional with sensible defaults.
+/// `wallet_number` and `refund_type` are mandatory in both cases. AddCard
+/// additionally requires `card_program_name`. CancelRedeem additionally
+/// requires the `original_batch_number` + `original_transaction_id` pair
+/// (or a composite `connector_transaction_id` of the form
+/// `"{batch}:{txn}"` on the request, which we'll parse as a fallback).
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct QwikcilverRefundMetadata {
     /// Destination wallet for both Add Card and Cancel Redeem. PII.
     pub wallet_number: Secret<String>,
-    #[serde(default)]
     pub refund_type: QwikcilverRefundOp,
-    #[serde(default = "default_card_program_name")]
-    pub card_program_name: String,
+    /// Required when `refund_type = "add_card"`. Pine Labs provisions
+    /// per-region program names (UAE / IN / KSA differ); using the wrong
+    /// one returns a domain error from Qwikcilver, so we never default
+    /// it — the caller must pick. Ignored for `cancel_redeem`.
+    #[serde(default)]
+    pub card_program_name: Option<String>,
     /// Required when `refund_type = "cancel_redeem"`. The batch+txn pair from
     /// the original Redeem response.
     #[serde(default)]
     pub original_batch_number: Option<i64>,
     #[serde(default)]
     pub original_transaction_id: Option<i64>,
-}
-
-fn default_card_program_name() -> String {
-    "Blue Retail UAE Refund eCard".to_string()
 }
 
 impl QwikcilverRefundMetadata {
@@ -630,6 +647,12 @@ where
                 }))
             }
             QwikcilverRefundOp::AddCard => {
+                let card_program_name = metadata.card_program_name.ok_or_else(|| {
+                    error_stack::report!(IntegrationError::MissingRequiredField {
+                        field_name: "refund_metadata.card_program_name",
+                        context: Default::default(),
+                    })
+                })?;
                 let amount = item
                     .connector
                     .amount_converter
@@ -640,7 +663,7 @@ where
                 Ok(Self::AddCard(QwikcilverAddCardBody {
                     idempotency_key: req.refund_id.clone(),
                     amount,
-                    card_program_name: metadata.card_program_name,
+                    card_program_name,
                     notes: req.reason.clone(),
                     invoice_number: req.refund_id.clone(),
                 }))
@@ -696,6 +719,8 @@ impl
         let mut data = item.router_data;
         let body = item.response;
         if body.response_code != QWIKCILVER_SUCCESS_CODE {
+            // Refund failures are payment-attempt failures from the
+            // framework's perspective.
             data.response = Err(make_error_response(
                 body.response_code,
                 body.response_message,
@@ -703,13 +728,14 @@ impl
                 body.error_description,
                 Some(body.transaction_id.to_string()),
                 item.http_code,
+                Some(AttemptStatus::Failure),
             ));
             return Ok(data);
         }
         // CancelRedeem returns `batch_number`; AddCard returns only
         // `current_batch_number`. Prefer the explicit one when present.
         let batch = body.batch_number.unwrap_or(body.current_batch_number);
-        let resource_id = format!("{}:{}", batch, body.transaction_id);
+        let resource_id = format_composite_txn_id(batch, body.transaction_id);
         data.response = Ok(RefundsResponseData {
             connector_refund_id: resource_id,
             refund_status: RefundStatus::Success,
@@ -719,7 +745,24 @@ impl
     }
 }
 
-fn parse_composite_txn_id(id: &str) -> Option<(i64, i64)> {
+/// Composite `connector_transaction_id` for Qwikcilver: `"{batch}:{txn}"`.
+///
+/// Qwikcilver identifies transactions by a `(BatchNumber, TransactionId)`
+/// pair rather than a single id, so we encode both into the single
+/// `connector_transaction_id` slot the framework gives us. Refund →
+/// CancelRedeem needs to recover the pair to address the original Redeem,
+/// hence the inverse [`parse_composite_txn_id`].
+///
+/// Both writers (Redeem response, the metadata JSON) and the reader
+/// (CancelRedeem fallback path) MUST route through this pair — if you
+/// change the encoding here, update both.
+pub(crate) fn format_composite_txn_id(batch: i64, txn: i64) -> String {
+    format!("{batch}:{txn}")
+}
+
+/// Inverse of [`format_composite_txn_id`]. Returns `None` if the input
+/// doesn't match `"{i64}:{i64}"` exactly.
+pub(crate) fn parse_composite_txn_id(id: &str) -> Option<(i64, i64)> {
     let mut parts = id.splitn(2, ':');
     let batch = parts.next()?.parse().ok()?;
     let txn = parts.next()?.parse().ok()?;
@@ -754,14 +797,21 @@ pub(crate) fn numeric_transaction_id() -> u64 {
     (uuid::Uuid::new_v4().as_u128() as u64) & 0x3FFF_FFFF_FFFF_FFFF
 }
 
-/// `DateAtClient` header value. Qwikcilver accepts a wide range of ISO-8601
-/// shapes; samples in the postman use `YYYY-MM-DDTHH:MM:SS`.
+/// `DateAtClient` header value. Emits the `time` crate's
+/// `Iso8601::DEFAULT` shape — UTC with a trailing `Z`, e.g.
+/// `"2026-06-05T12:34:56.789012345Z"`. Verified accepted by Qwikcilver in
+/// live UAE-sandbox testing; this is wider than the postman samples
+/// (`YYYY-MM-DDTHH:MM:SS`) but the API tolerates the longer form.
 pub(crate) fn current_datetime_qwikcilver() -> String {
     time::OffsetDateTime::now_utc()
         .format(&time::format_description::well_known::Iso8601::DEFAULT)
-        .unwrap_or_else(|_| "1970-01-01T00:00:00".to_string())
+        .unwrap_or_else(|_| "1970-01-01T00:00:00.000000000Z".to_string())
 }
 
+/// Build an `ErrorResponse` from a Qwikcilver domain error. `attempt_status`
+/// is parameterized because the token-bootstrap flow shouldn't tag its
+/// errors as `AttemptStatus::Failure` (those metrics roll into the payment
+/// success/failure pipeline); payment flows pass `Some(Failure)`.
 fn make_error_response(
     response_code: i64,
     response_message: Option<String>,
@@ -769,6 +819,7 @@ fn make_error_response(
     error_description: Option<String>,
     connector_txn_id: Option<String>,
     http_code: u16,
+    attempt_status: Option<AttemptStatus>,
 ) -> ErrorResponse {
     ErrorResponse {
         status_code: http_code,
@@ -778,10 +829,11 @@ fn make_error_response(
             .or_else(|| error_description.clone())
             .unwrap_or_else(|| "Qwikcilver returned a non-zero response code".to_string()),
         reason: error_description.or(response_message),
-        attempt_status: Some(AttemptStatus::Failure),
+        attempt_status,
         connector_transaction_id: connector_txn_id,
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
     }
 }
+
