@@ -1275,7 +1275,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 expiration_year: Some(card.get_expiry_year_as_i32()?),
                 identity: customer_id,
                 tags,
-                address: None,
+                address: get_billing_address_as_finix_address(
+                    &item.router_data.resource_common_data,
+                ),
                 merchant_identity: None,
                 third_party_token: None,
                 account_number: None,
