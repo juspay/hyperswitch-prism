@@ -47,7 +47,10 @@ mod tests {
             "gpay_allowed_auth_methods": ["PAN_ONLY"]
         }"#;
         let config: BraintreeConfig = serde_json::from_str(json).unwrap();
-        assert_eq!(config.apple_pay_supported_networks, vec!["visa", "mastercard"]);
+        assert_eq!(
+            config.apple_pay_supported_networks,
+            vec!["visa", "mastercard"]
+        );
         assert_eq!(config.gpay_allowed_auth_methods, vec!["PAN_ONLY"]);
         assert!(config.apple_pay_merchant_capabilities.is_empty());
         assert!(config.gpay_allowed_card_networks.is_empty());

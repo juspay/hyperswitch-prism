@@ -83,10 +83,7 @@ fn add_serde_default_recursive(config: &mut prost_build::Config, message: &Descr
     for field in &message.field {
         if field.label() == Label::Repeated && field.r#type() != Type::Enum {
             let field_name = field.name.as_deref().unwrap_or_default();
-            config.field_attribute(
-                format!("{message_name}.{field_name}"),
-                "#[serde(default)]",
-            );
+            config.field_attribute(format!("{message_name}.{field_name}"), "#[serde(default)]");
         }
     }
     for nested in &message.nested_type {
