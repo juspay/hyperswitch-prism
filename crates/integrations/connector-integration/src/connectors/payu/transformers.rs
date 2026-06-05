@@ -11,6 +11,7 @@ use domain_types::{
         ServerSessionAuthenticationTokenResponseData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
         BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, UpiData, WalletData,
     },
@@ -2015,7 +2016,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         super::PayuRouterData<
             RouterDataV2<
                 ServerSessionAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerSessionAuthenticationTokenRequestData,
                 ServerSessionAuthenticationTokenResponseData,
             >,
@@ -2029,7 +2030,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         item: super::PayuRouterData<
             RouterDataV2<
                 ServerSessionAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerSessionAuthenticationTokenRequestData,
                 ServerSessionAuthenticationTokenResponseData,
             >,
@@ -2055,7 +2056,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<PayuSessionTokenResponse, Self>>
     for RouterDataV2<
         ServerSessionAuthenticationToken,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         ServerSessionAuthenticationTokenRequestData,
         ServerSessionAuthenticationTokenResponseData,
     >
@@ -2085,10 +2086,6 @@ impl TryFrom<ResponseRouterData<PayuSessionTokenResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                 }),
-                resource_common_data: PaymentFlowData {
-                    status: AttemptStatus::Failure,
-                    ..item.router_data.resource_common_data
-                },
                 ..item.router_data
             });
         }
@@ -2111,11 +2108,8 @@ impl TryFrom<ResponseRouterData<PayuSessionTokenResponse, Self>>
         Ok(Self {
             response: Ok(ServerSessionAuthenticationTokenResponseData {
                 session_token: session_token.clone(),
+                status: None,
             }),
-            resource_common_data: PaymentFlowData {
-                session_token: Some(session_token),
-                ..item.router_data.resource_common_data
-            },
             ..item.router_data
         })
     }
