@@ -1872,6 +1872,7 @@ impl TryFrom<ResponseRouterData<AirwallexCustomerResponse, Self>>
         let mut router_data = item.router_data;
         router_data.response = Ok(ConnectorCustomerResponse {
             connector_customer_id: item.response.id,
+            status_code: item.http_code,
         });
         router_data.resource_common_data.connector_http_status_code = Some(item.http_code);
         Ok(router_data)
