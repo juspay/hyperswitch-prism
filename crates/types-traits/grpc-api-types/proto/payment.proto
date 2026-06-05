@@ -3620,7 +3620,7 @@ message PaymentMethodServiceGetRequest {
   optional ConnectorState state = 4;   // State Information (for access token)
   optional SecretString connector_feature_data = 5; // Connector-specific metadata for the transaction
   optional bool test_mode = 6;
-  PaymentMethodType payment_method_type = 4; // PaymentMethodType enum (CARD, WALLET, UPI, etc.)
+  PaymentMethodType payment_method_type = 7; // PaymentMethodType enum (CARD, WALLET, UPI, etc.)
 }
 
 message PaymentMethodServiceGetResponse {
