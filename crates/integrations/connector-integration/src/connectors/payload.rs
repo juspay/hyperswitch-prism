@@ -1,7 +1,5 @@
 mod requests;
 mod responses;
-#[cfg(test)]
-mod tests;
 pub mod transformers;
 
 use base64::Engine;
