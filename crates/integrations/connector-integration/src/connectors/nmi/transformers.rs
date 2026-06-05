@@ -1570,6 +1570,8 @@ pub struct NmiSetupMandateRequest<
     zip: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     country: Option<common_enums::CountryAlpha2>,
+    #[serde(flatten)]
+    shipping_details: NmiShippingDetails,
 }
 
 /// Payment method for SetupMandate - supports Card and ACH
@@ -1715,6 +1717,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             state: common_data.get_optional_billing_state(),
             zip: common_data.get_optional_billing_zip(),
             country: common_data.get_optional_billing_country(),
+            shipping_details: NmiShippingDetails {
+                shipping_firstname: common_data.get_optional_shipping_first_name(),
+                shipping_lastname: common_data.get_optional_shipping_last_name(),
+                shipping_address1: common_data.get_optional_shipping_line1(),
+                shipping_address2: common_data.get_optional_shipping_line2(),
+                shipping_city: common_data.get_optional_shipping_city(),
+                shipping_state: common_data.get_optional_shipping_state(),
+                shipping_zip: common_data.get_optional_shipping_zip(),
+                shipping_country: common_data.get_optional_shipping_country(),
+                shipping_email: common_data.get_optional_shipping_email(),
+            },
         })
     }
 }
