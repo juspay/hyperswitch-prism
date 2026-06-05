@@ -62,7 +62,10 @@ fn test_parity_16476_setup_mandate_json_serialization() {
     );
 
     let ba = &pm["billing_address"];
-    assert!(ba.is_object(), "billing_address nested inside payment_method");
+    assert!(
+        ba.is_object(),
+        "billing_address nested inside payment_method"
+    );
     assert_eq!(ba["city"], "New York");
     assert_eq!(ba["country_code"], "US");
     assert_eq!(ba["postal_code"], "10001");
