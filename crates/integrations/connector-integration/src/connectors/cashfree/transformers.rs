@@ -12,7 +12,7 @@ use domain_types::{
         ResponseTransformationErrorContext,
     },
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 use error_stack::{report, Report, ResultExt};
@@ -1203,7 +1203,7 @@ impl TryFrom<ResponseRouterData<CashfreeSyncResponse, Self>>
                             .clone()
                             .unwrap_or_else(|| payment.payment_message.clone().unwrap_or_default()),
                         reason: error.error_description.clone(),
-                        attempt_status: Some(attempt_status),
+                        attempt_status: Some(FlowStatus::Payment(attempt_status)),
                         connector_transaction_id: Some(order_id),
                         network_decline_code: None,
                         network_advice_code: None,

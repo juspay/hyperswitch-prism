@@ -2,7 +2,6 @@ use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{pii::Email, MinorUnit};
 use domain_types::errors::ConnectorError;
-use domain_types::errors::IntegrationError;
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
@@ -14,6 +13,7 @@ use domain_types::{
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
 };
+use domain_types::{errors::IntegrationError, router_data::FlowStatus};
 use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -604,7 +604,7 @@ impl TryFrom<ResponseRouterData<CeleroSyncResponse, Self>>
                         response.status
                     )),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -793,7 +793,7 @@ impl TryFrom<ResponseRouterData<CeleroCaptureResponse, Self>>
                         response.status
                     )),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: Some(connector_transaction_id.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -908,7 +908,7 @@ impl TryFrom<ResponseRouterData<CeleroRefundResponse, Self>>
                         response.status
                     )),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: Some(
                         router_data.request.connector_transaction_id.clone(),
                     ),
@@ -1094,7 +1094,7 @@ impl TryFrom<ResponseRouterData<CeleroVoidResponse, Self>>
                         response.status
                     )),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::VoidFailed),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::VoidFailed)),
                     connector_transaction_id: Some(connector_transaction_id.clone()),
                     network_decline_code: None,
                     network_advice_code: None,

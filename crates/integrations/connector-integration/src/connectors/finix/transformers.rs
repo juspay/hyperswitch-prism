@@ -17,7 +17,7 @@ use domain_types::{
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
-        ConnectorSpecificConfig, ErrorResponse,
+        ConnectorSpecificConfig, ErrorResponse, FlowStatus,
     },
     router_data_v2::RouterDataV2,
 };
@@ -1182,7 +1182,7 @@ fn disabled_instrument_error(
         message: message.clone(),
         reason: Some(message),
         status_code,
-        attempt_status: Some(AttemptStatus::Failure),
+        attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
         connector_transaction_id: response.id.clone(),
         network_decline_code: None,
         network_advice_code: None,
@@ -1570,7 +1570,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     message: failure_message.clone(),
                     reason: Some(failure_message),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: Some(response.id.clone()),
                     network_decline_code: None,
                     network_advice_code: None,

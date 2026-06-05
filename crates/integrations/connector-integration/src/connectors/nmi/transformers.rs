@@ -17,7 +17,7 @@ use domain_types::{
         BankDebitData, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes,
         RawCardNumber, WalletData,
     },
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
     utils::{get_unimplemented_payment_method_error_message, ForeignTryFrom},
@@ -1518,7 +1518,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NmiVaultResponse, Sel
                     message: response.responsetext.clone(),
                     reason: Some(response.responsetext.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: Some(response.transactionid.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -1760,7 +1760,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         mandate_reference,
                         connector_metadata: None,
                         network_txn_id: None,
-                        connector_response_reference_id: Some(response.transactionid.clone()),
+                        // Hyperswitch parity: NMI maps connector_response_reference_id to the
+                        // merchant `orderid` (echoed back), not the connector `transactionid`
+                        // (which is already the resource_id / ConnectorTransactionId above).
+                        connector_response_reference_id: Some(response.orderid.clone()),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                     }),
@@ -1773,7 +1776,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     message: response.responsetext.clone(),
                     reason: Some(response.responsetext.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: Some(response.transactionid.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -1898,7 +1901,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: Some(response.transactionid.clone()),
+                    // Hyperswitch parity: NMI maps connector_response_reference_id to the
+                    // merchant `orderid` (echoed back), not the connector `transactionid`
+                    // (which is already the resource_id / ConnectorTransactionId above).
+                    connector_response_reference_id: Some(response.orderid.clone()),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                 }),
@@ -1910,7 +1916,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     message: response.responsetext.clone(),
                     reason: Some(response.responsetext.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: Some(response.transactionid.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
