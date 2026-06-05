@@ -584,7 +584,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .resource_common_data
                         .get_optional_shipping_email(),
                 }),
-                customer_vault: router_data.request.is_mandate_payment().then_some(CustomerAction::AddCustomer),
+                customer_vault: router_data
+                    .request
+                    .is_mandate_payment()
+                    .then_some(CustomerAction::AddCustomer),
                 customer_vault_id: None,
                 email: None,
                 cardholder_auth: None,
