@@ -96,7 +96,7 @@ fn add_serde_default_for_connector_configs(
             m.field
                 .iter()
                 .filter_map(|f: &prost_types::FieldDescriptorProto| {
-                    f.type_name().split('.').last()
+                    f.type_name().split('.').next_back()
                 })
                 .collect()
         })
@@ -114,15 +114,12 @@ fn add_serde_default_for_connector_configs(
 /// Adds `#[serde(default)]` to every repeated non-enum field in a message (and its nested types).
 /// Repeated fields become `Vec<T>` or `HashMap<K,V>` in Rust; both need `#[serde(default)]`
 /// so serde treats a missing JSON key as empty rather than erroring.
-fn add_repeated_default(
-    config: &mut prost_build::Config,
-    message: &prost_types::DescriptorProto,
-) {
+fn add_repeated_default(config: &mut prost_build::Config, message: &prost_types::DescriptorProto) {
     use prost_types::field_descriptor_proto::{Label, Type};
     for field in &message.field {
         if field.label() == Label::Repeated && field.r#type() != Type::Enum {
             config.field_attribute(
-                &format!("{}.{}", message.name(), field.name()),
+                format!("{}.{}", message.name(), field.name()),
                 "#[serde(default)]",
             );
         }
