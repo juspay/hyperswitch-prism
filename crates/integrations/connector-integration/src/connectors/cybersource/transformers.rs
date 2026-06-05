@@ -2106,13 +2106,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let sec_code = match connector_metadata.and_then(|m| m.sec_code) {
                     Some(code) if matches!(code.as_str(), "WEB" | "CCD" | "PPD" | "TEL") => code,
                     Some(_invalid) => {
-                        return Err(error_stack::report!(
-                            IntegrationError::InvalidDataFormat {
-                                field_name:
-                                    "metadata.sec_code: must be one of WEB, CCD, PPD, TEL",
-                                context: Default::default(),
-                            }
-                        ));
+                        return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+                            field_name: "metadata.sec_code: must be one of WEB, CCD, PPD, TEL",
+                            context: Default::default(),
+                        }));
                     }
                     None => String::from("WEB"),
                 };
