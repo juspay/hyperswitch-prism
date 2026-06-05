@@ -177,11 +177,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .and_then(get_cybersource_card_type)
                     {
                         Some(card_network) => Some(card_network.to_string()),
-                        None => domain_types::utils::get_card_issuer(
-                            &(format!("{:?}", ccard.card_number.0)),
-                        )
-                        .ok()
-                        .map(card_issuer_to_string),
+                        None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
+                            .ok()
+                            .map(card_issuer_to_string),
                     };
 
                     (
@@ -1370,7 +1368,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let card_type = match raw_card_type.clone().and_then(get_cybersource_card_type) {
             Some(card_network) => Some(card_network.to_string()),
-            None => domain_types::utils::get_card_issuer(&(format!("{:?}", ccard.card_number.0)))
+            None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
                 .ok()
                 .map(card_issuer_to_string),
         };
@@ -2529,11 +2527,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .and_then(get_cybersource_card_type)
                 {
                     Some(card_network) => Some(card_network.to_string()),
-                    None => domain_types::utils::get_card_issuer(
-                        &(format!("{:?}", ccard.card_number.0)),
-                    )
-                    .ok()
-                    .map(card_issuer_to_string),
+                    None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
+                        .ok()
+                        .map(card_issuer_to_string),
                 };
 
                 let payment_information =
@@ -3559,11 +3555,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .and_then(get_cybersource_card_type)
                 {
                     Some(card_network) => Some(card_network.to_string()),
-                    None => domain_types::utils::get_card_issuer(
-                        &(format!("{:?}", ccard.card_number.0)),
-                    )
-                    .ok()
-                    .map(card_issuer_to_string),
+                    None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
+                        .ok()
+                        .map(card_issuer_to_string),
                 };
 
                 Ok(PaymentInformation::Cards(Box::new(
@@ -3837,11 +3831,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .and_then(get_cybersource_card_type)
                 {
                     Some(card_network) => Some(card_network.to_string()),
-                    None => domain_types::utils::get_card_issuer(
-                        &(format!("{:?}", ccard.card_number.0)),
-                    )
-                    .ok()
-                    .map(card_issuer_to_string),
+                    None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
+                        .ok()
+                        .map(card_issuer_to_string),
                 };
 
                 Ok(PaymentInformation::Cards(Box::new(
@@ -5773,5 +5765,22 @@ impl TryFrom<ResponseRouterData<CybersourceClientAuthResponse, Self>>
             }),
             ..item.router_data
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Regression: when card_network is absent, the fallback path must pass the
+    // raw card number to get_card_issuer. Previously the code used
+    // format!("{:?}", card_number) which triggered Debug masking
+    // ("424242**********") and broke the BIN regex match, producing card.type = null.
+    #[test]
+    #[allow(clippy::expect_used)]
+    fn card_type_fallback_returns_visa_001_for_test_card() {
+        let issuer = domain_types::utils::get_card_issuer("4242424242424242")
+            .expect("Visa BIN should be recognized");
+        assert_eq!(card_issuer_to_string(issuer), "001");
     }
 }
