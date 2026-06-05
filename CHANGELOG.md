@@ -19,6 +19,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.05.0
+
+### Features
+
+- **connector:**
+  - Implement ServerSessionAuthenticationToken for razorpay ([#1450](https://github.com/juspay/connector-service/pull/1450)) ([`9a7b687`](https://github.com/juspay/connector-service/commit/9a7b687b13d93937db657517885d6494f3df2247))
+  - Implement ServerSessionAuthenticationToken for payu ([#1448](https://github.com/juspay/connector-service/pull/1448)) ([`5ea0fa9`](https://github.com/juspay/connector-service/commit/5ea0fa9cf97ad8ea0088a7dc5f902450fe362287))
+  - Implement ServerSessionAuthenticationToken for authorizedotnet ([#1447](https://github.com/juspay/connector-service/pull/1447)) ([`7a7aed2`](https://github.com/juspay/connector-service/commit/7a7aed2f93051462df7a1f0da0e68ff0c5df9175))
+  - Add tamara connector ([#1389](https://github.com/juspay/connector-service/pull/1389)) ([`1a6f8ab`](https://github.com/juspay/connector-service/commit/1a6f8ab4563f50e4ac291f09e850fe90120a62d0))
+  - Applepay integration for Bankofamerica ([#1431](https://github.com/juspay/connector-service/pull/1431)) ([`c093d17`](https://github.com/juspay/connector-service/commit/c093d17bf4b53d14ba3b39d219d3ad77d40be247))
+
+### Testing
+
+- **noon,worldpay,payu,peachpayments:** Harden integration test overrides ([#1429](https://github.com/juspay/connector-service/pull/1429)) ([`75aae3a`](https://github.com/juspay/connector-service/commit/75aae3a0d1fc82d70f2b736cb8a6ffdee034114c))
+
+**Full Changelog:** [`2026.06.04.0...2026.06.05.0`](https://github.com/juspay/connector-service/compare/2026.06.04.0...2026.06.05.0)
+
+- - -
+
 ## 2026.06.04.0
 
 ### Testing
