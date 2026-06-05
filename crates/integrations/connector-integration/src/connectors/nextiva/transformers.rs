@@ -12,7 +12,7 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -56,47 +56,42 @@ impl TryFrom<&ConnectorSpecificConfig> for NextivaAuthType {
 // COMMON ENUMS
 // =============================================================================
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum TenderType {
-    #[serde(rename = "CARD")]
     Card,
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum TransactionType {
-    #[serde(rename = "SALE")]
     Sale,
-    #[serde(rename = "AUTHORIZATION")]
     Authorization,
-    #[serde(rename = "CAPTURE")]
     Capture,
-    #[serde(rename = "REFUND")]
     Refund,
+    // PayConex names the reversal action "REVERSAL", not "REVERSE".
     #[serde(rename = "REVERSAL")]
     Reverse,
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum ResponseFormat {
-    #[serde(rename = "JSON")]
     Json,
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TsapiAction {
-    #[serde(rename = "GET_TRANSACTION_STATUS")]
     GetTransactionStatus,
 }
 
 /// PayConex QSAPI `payment_type` — the source/nature of the transaction.
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum PaymentType {
-    #[serde(rename = "ECOMMERCE")]
     Ecommerce,
-    #[serde(rename = "INSTALLMENT")]
     Installment,
-    #[serde(rename = "RECURRING")]
     Recurring,
-    #[serde(rename = "MOTO")]
     Moto,
 }
 
@@ -183,23 +178,37 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             return Err(report!(IntegrationError::NotSupported {
                 message: "3DS card payments".to_string(),
                 connector: "Nextiva",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Route 3DS card payments to a 3DS-capable connector; Nextiva (PayConex) \
+                         supports no-3DS card payments only."
+                            .to_string(),
+                    ),
+                    additional_context: Some(
+                        "Authorize received a card flagged for 3DS authentication, which PayConex \
+                         QSAPI does not support."
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
             }));
         }
 
-        let transaction_type = if request.is_auto_capture() {
-            TransactionType::Sale
-        } else {
-            TransactionType::Authorization
+        // Manual / scheduled capture maps to an AUTHORIZATION hold; everything else
+        // (auto-capture) is a SALE. Mirrors `PaymentsAuthorizeData::is_auto_capture`.
+        let transaction_type = match request.capture_method {
+            Some(common_enums::CaptureMethod::Manual)
+            | Some(common_enums::CaptureMethod::ManualMultiple)
+            | Some(common_enums::CaptureMethod::Scheduled) => TransactionType::Authorization,
+            _ => TransactionType::Sale,
         };
 
         // Off-session (merchant-initiated) card payments are recurring; everything
         // else is a customer-present e-commerce transaction. MOTO / INSTALLMENT
         // have no corresponding UCS signal, so they are not inferred here.
-        let payment_type = if request.off_session.unwrap_or(false) {
-            PaymentType::Recurring
-        } else {
-            PaymentType::Ecommerce
+        let payment_type = match request.off_session {
+            Some(true) => PaymentType::Recurring,
+            _ => PaymentType::Ecommerce,
         };
 
         let transaction_amount = item
@@ -232,7 +241,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }),
             _ => Err(report!(IntegrationError::NotImplemented(
                 "Payment method".to_string(),
-                Default::default()
+                IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use a card payment method; Nextiva (PayConex) currently supports card \
+                         payments only."
+                            .to_string(),
+                    ),
+                    additional_context: Some(
+                        "Received a non-card payment method for the Nextiva Authorize flow."
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
             ))),
         }
     }
@@ -503,26 +523,42 @@ impl NextivaPaymentsResponse {
             ))
         })
     }
-
-    fn error_code_string(&self) -> String {
-        self.error_code
-            .as_ref()
-            .map(value_to_string)
-            .unwrap_or_else(|| NO_ERROR_CODE.to_string())
-    }
-
-    fn error_message_string(&self) -> String {
-        self.error_message
-            .clone()
-            .or_else(|| self.authorization_message.clone())
-            .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string())
-    }
 }
 
 pub fn value_to_string(value: &serde_json::Value) -> String {
     match value {
         serde_json::Value::String(s) => s.clone(),
         other => other.to_string(),
+    }
+}
+
+// All Nextiva responses share the same `error_code` / `error_message` /
+// `authorization_message` shape, so the error-string mapping lives here once
+// rather than being re-implemented on every response struct.
+fn error_code_string(error_code: &Option<serde_json::Value>) -> String {
+    error_code
+        .as_ref()
+        .map(value_to_string)
+        .unwrap_or_else(|| NO_ERROR_CODE.to_string())
+}
+
+fn error_message_string(
+    error_message: &Option<String>,
+    authorization_message: &Option<String>,
+) -> String {
+    error_message
+        .clone()
+        .or_else(|| authorization_message.clone())
+        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string())
+}
+
+// Approved card transactions map to `Charged` when auto-captured and `Authorized`
+// when the merchant captures manually. Shared by the Authorize and PSync mappings.
+fn approved_attempt_status(is_auto_capture: bool) -> common_enums::AttemptStatus {
+    if is_auto_capture {
+        common_enums::AttemptStatus::Charged
+    } else {
+        common_enums::AttemptStatus::Authorized
     }
 }
 
@@ -536,11 +572,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NextivaPaymentsRespon
     ) -> Result<Self, Self::Error> {
         let is_auto_capture = item.router_data.request.is_auto_capture();
         if item.response.is_approved() {
-            let status = if is_auto_capture {
-                common_enums::AttemptStatus::Charged
-            } else {
-                common_enums::AttemptStatus::Authorized
-            };
+            let status = approved_attempt_status(is_auto_capture);
             let transaction_id = item.response.get_transaction_id(item.http_code)?;
             Ok(Self {
                 resource_common_data: PaymentFlowData {
@@ -566,8 +598,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NextivaPaymentsRespon
                     ..item.router_data.resource_common_data
                 },
                 response: Err(ErrorResponse {
-                    code: item.response.error_code_string(),
-                    message: item.response.error_message_string(),
+                    code: error_code_string(&item.response.error_code),
+                    message: error_message_string(
+                        &item.response.error_message,
+                        &item.response.authorization_message,
+                    ),
                     reason: item.response.authorization_message.clone(),
                     status_code: item.http_code,
                     attempt_status: None,
@@ -605,18 +640,6 @@ impl NextivaCaptureResponse {
             ))
         })
     }
-    fn error_code_string(&self) -> String {
-        self.error_code
-            .as_ref()
-            .map(value_to_string)
-            .unwrap_or_else(|| NO_ERROR_CODE.to_string())
-    }
-    fn error_message_string(&self) -> String {
-        self.error_message
-            .clone()
-            .or_else(|| self.authorization_message.clone())
-            .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string())
-    }
 }
 
 impl TryFrom<ResponseRouterData<NextivaCaptureResponse, Self>>
@@ -652,8 +675,11 @@ impl TryFrom<ResponseRouterData<NextivaCaptureResponse, Self>>
                     ..item.router_data.resource_common_data
                 },
                 response: Err(ErrorResponse {
-                    code: item.response.error_code_string(),
-                    message: item.response.error_message_string(),
+                    code: error_code_string(&item.response.error_code),
+                    message: error_message_string(
+                        &item.response.error_message,
+                        &item.response.authorization_message,
+                    ),
                     reason: item.response.authorization_message.clone(),
                     status_code: item.http_code,
                     attempt_status: None,
@@ -691,18 +717,6 @@ impl NextivaVoidResponse {
             ))
         })
     }
-    fn error_code_string(&self) -> String {
-        self.error_code
-            .as_ref()
-            .map(value_to_string)
-            .unwrap_or_else(|| NO_ERROR_CODE.to_string())
-    }
-    fn error_message_string(&self) -> String {
-        self.error_message
-            .clone()
-            .or_else(|| self.authorization_message.clone())
-            .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string())
-    }
 }
 
 impl TryFrom<ResponseRouterData<NextivaVoidResponse, Self>>
@@ -736,8 +750,11 @@ impl TryFrom<ResponseRouterData<NextivaVoidResponse, Self>>
                     ..item.router_data.resource_common_data
                 },
                 response: Err(ErrorResponse {
-                    code: item.response.error_code_string(),
-                    message: item.response.error_message_string(),
+                    code: error_code_string(&item.response.error_code),
+                    message: error_message_string(
+                        &item.response.error_message,
+                        &item.response.authorization_message,
+                    ),
                     reason: item.response.authorization_message.clone(),
                     status_code: item.http_code,
                     attempt_status: None,
@@ -776,29 +793,18 @@ impl TryFrom<ResponseRouterData<NextivaSyncResponse, Self>>
             // PayConex GET_TRANSACTION_STATUS does not expose whether a manual
             // authorization has been captured, so mirror the Authorize intent:
             // auto-capture -> Charged, manual-capture -> Authorized.
-            if item.router_data.request.is_auto_capture() {
-                common_enums::AttemptStatus::Charged
-            } else {
-                common_enums::AttemptStatus::Authorized
-            }
+            approved_attempt_status(item.router_data.request.is_auto_capture())
         } else {
             common_enums::AttemptStatus::Failure
         };
 
         let response = if status == common_enums::AttemptStatus::Failure {
             Err(ErrorResponse {
-                code: item
-                    .response
-                    .error_code
-                    .as_ref()
-                    .map(value_to_string)
-                    .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-                message: item
-                    .response
-                    .error_message
-                    .clone()
-                    .or_else(|| item.response.authorization_message.clone())
-                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                code: error_code_string(&item.response.error_code),
+                message: error_message_string(
+                    &item.response.error_message,
+                    &item.response.authorization_message,
+                ),
                 reason: item.response.authorization_message.clone(),
                 status_code: item.http_code,
                 attempt_status: Some(status),
@@ -849,21 +855,6 @@ pub struct NextivaRefundResponse {
     pub error_message: Option<String>,
 }
 
-impl NextivaRefundResponse {
-    fn error_code_string(&self) -> String {
-        self.error_code
-            .as_ref()
-            .map(value_to_string)
-            .unwrap_or_else(|| NO_ERROR_CODE.to_string())
-    }
-    fn error_message_string(&self) -> String {
-        self.error_message
-            .clone()
-            .or_else(|| self.authorization_message.clone())
-            .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string())
-    }
-}
-
 impl TryFrom<ResponseRouterData<NextivaRefundResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
@@ -889,8 +880,11 @@ impl TryFrom<ResponseRouterData<NextivaRefundResponse, Self>>
             })
         } else {
             Err(ErrorResponse {
-                code: item.response.error_code_string(),
-                message: item.response.error_message_string(),
+                code: error_code_string(&item.response.error_code),
+                message: error_message_string(
+                    &item.response.error_message,
+                    &item.response.authorization_message,
+                ),
                 reason: item.response.authorization_message.clone(),
                 status_code: item.http_code,
                 attempt_status: None,
@@ -923,21 +917,6 @@ pub struct NextivaRefundSyncResponse {
     pub error_message: Option<String>,
 }
 
-impl NextivaRefundSyncResponse {
-    fn error_code_string(&self) -> String {
-        self.error_code
-            .as_ref()
-            .map(value_to_string)
-            .unwrap_or_else(|| NO_ERROR_CODE.to_string())
-    }
-    fn error_message_string(&self) -> String {
-        self.error_message
-            .clone()
-            .or_else(|| self.authorization_message.clone())
-            .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string())
-    }
-}
-
 impl TryFrom<ResponseRouterData<NextivaRefundSyncResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
@@ -954,8 +933,11 @@ impl TryFrom<ResponseRouterData<NextivaRefundSyncResponse, Self>>
         };
         let response = if refund_status == common_enums::RefundStatus::Failure {
             Err(ErrorResponse {
-                code: item.response.error_code_string(),
-                message: item.response.error_message_string(),
+                code: error_code_string(&item.response.error_code),
+                message: error_message_string(
+                    &item.response.error_message,
+                    &item.response.authorization_message,
+                ),
                 reason: item.response.authorization_message.clone(),
                 status_code: item.http_code,
                 attempt_status: None,

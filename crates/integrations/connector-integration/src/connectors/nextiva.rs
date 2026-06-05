@@ -464,23 +464,29 @@ macros::macro_connector_flow_status_impls!(
     connector: Nextiva,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    // Flows that could be built against PayConex later but are not implemented yet.
     not_implemented: [
-        Accept,
-        ClientAuthenticationToken,
         CreateConnectorCustomer,
-        DefendDispute,
-        MandateRevoke,
-        Authenticate,
-        IncrementalAuthorization,
         CreateOrder,
+        MandateRevoke,
+        PaymentMethodToken,
+        RepeatPayment,
+        SetupMandate
+    ],
+    // Flows PayConex/Nextiva fundamentally cannot do: 3DS authentication (this is a
+    // no-3DS card connector), client/server SDK session tokens (direct server-to-server
+    // only), disputes, and partial-capture void.
+    not_supported: [
+        Accept,
+        Authenticate,
+        ClientAuthenticationToken,
+        DefendDispute,
+        IncrementalAuthorization,
         PostAuthenticate,
         PreAuthenticate,
-        PaymentMethodToken,
-        VoidPC,
-        RepeatPayment,
         ServerAuthenticationToken,
         ServerSessionAuthenticationToken,
-        SetupMandate,
-        SubmitEvidence
+        SubmitEvidence,
+        VoidPC
     ],
 );
