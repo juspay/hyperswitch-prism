@@ -597,6 +597,49 @@ pub struct FinixPaymentsResponse {
     pub failure_code: Option<String>,
     pub failure_message: Option<String>,
     pub transfer: Option<String>,
+    // Stored Payment Instrument backing this transaction (PI...). Hyperswitch maps this
+    // into `mandate_reference.connector_mandate_id` so the sync response stays in parity.
+    pub source: Option<Secret<String>>,
+    // AVS / network details echoed by Finix; surfaced into `connector_response` to mirror HS.
+    pub address_verification: Option<String>,
+    pub network_details: Option<FinixNetworkDetails>,
+}
+
+// Build the additional-payment-method `connector_response` from Finix AVS / network
+// details, mirroring Hyperswitch's `convert_to_additional_payment_method_connector_response`.
+fn build_finix_connector_response(
+    response: &FinixPaymentsResponse,
+) -> Option<ConnectorResponseData> {
+    if response.address_verification.is_none() && response.network_details.is_none() {
+        return None;
+    }
+
+    let mut payment_checks = serde_json::Map::new();
+    if let Some(code) = response.address_verification.as_ref() {
+        payment_checks.insert("avs_result".to_string(), serde_json::json!(code));
+    }
+
+    let card_network = response
+        .network_details
+        .as_ref()
+        .and_then(|details| details.brand.clone());
+    let auth_code = response
+        .network_details
+        .as_ref()
+        .and_then(|details| details.authorization_code.clone());
+
+    let additional = AdditionalPaymentMethodConnectorResponse::Card {
+        authentication_data: None,
+        payment_checks: (!payment_checks.is_empty())
+            .then(|| serde_json::Value::Object(payment_checks)),
+        card_network,
+        domestic_network: None,
+        auth_code,
+    };
+
+    Some(ConnectorResponseData::with_additional_payment_method_data(
+        additional,
+    ))
 }
 
 // Aliases for backward compatibility during migration
@@ -630,20 +673,31 @@ impl TryFrom<ResponseRouterData<FinixPSyncResponse, Self>>
             .clone()
             .unwrap_or_else(|| response.id.clone());
 
+        // Mirror Hyperswitch's PSync mapping: surface the stored Payment Instrument
+        // (`source`) as the mandate reference, leave `connector_response_reference_id`
+        // empty, and propagate AVS / network details via `connector_response`.
+        let mandate_reference = Some(Box::new(MandateReference {
+            connector_mandate_id: response.source.as_ref().map(|s| s.clone().expose()),
+            payment_method_id: None,
+            connector_mandate_request_reference_id: None,
+        }));
+        let connector_response = build_finix_connector_response(response);
+
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference,
                 connector_metadata: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
-                connector_response_reference_id: Some(response.id.clone()),
+                connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
             }),
             resource_common_data: PaymentFlowData {
                 status,
+                connector_response,
                 ..item.router_data.resource_common_data.clone()
             },
             ..item.router_data

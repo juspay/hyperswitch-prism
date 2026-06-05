@@ -457,39 +457,6 @@ impl From<common_enums::TransactionStatus> for CybersourceParesStatus {
     }
 }
 
-fn get_authentication_data_for_check_enrollment_response(
-    response: CybersourceConsumerAuthInformationEnrollmentResponse,
-) -> router_request_types::AuthenticationData {
-    let trans_status = response
-        .validate_response
-        .pares_status
-        .map(common_enums::TransactionStatus::from);
-    // CAVV is populated from UCAF data if available(for mastercard), else from CAVV field
-    let cavv = response
-        .validate_response
-        .ucaf_authentication_data
-        .or(response.validate_response.cavv);
-    let eci = response.validate_response.ecommerce_indicator;
-    let ucaf_collection_indicator = response.validate_response.ucaf_collection_indicator.clone();
-    let ds_trans_id = response
-        .validate_response
-        .directory_server_transaction_id
-        .map(|id| id.expose());
-    router_request_types::AuthenticationData {
-        ucaf_collection_indicator,
-        eci,
-        cavv,
-        threeds_server_transaction_id: response.validate_response.three_d_s_server_transaction_id,
-        message_version: response.validate_response.specification_version,
-        trans_status,
-        ds_trans_id,
-        acs_transaction_id: response.validate_response.acs_transaction_id,
-        transaction_id: response.validate_response.xid,
-        exemption_indicator: None,
-        network_params: None,
-    }
-}
-
 fn get_authentication_data_for_validation_response(
     response: CybersourceConsumerAuthInformationEnrollmentResponse,
 ) -> router_request_types::AuthenticationData {
@@ -518,6 +485,51 @@ fn get_authentication_data_for_validation_response(
         ds_trans_id,
         acs_transaction_id: response.validate_response.acs_transaction_id,
         transaction_id: response.validate_response.xid,
+        exemption_indicator: None,
+        network_params: None,
+    }
+}
+
+/// Builds the `three_ds_data` JSON surfaced in `connector_metadata` for the Authenticate flow.
+///
+/// Matches Hyperswitch, which serializes only the slim `CybersourceConsumerAuthValidateResponse`
+/// subset (`ucafCollectionIndicator`, `cavv`, `ucafAuthenticationData`, `xid`,
+/// `specificationVersion`, `directoryServerTransactionId`, `indicator`) into `three_ds_data`.
+fn get_three_ds_data_for_authenticate_response(
+    validate_response: &CybersourceConsumerAuthValidateResponse,
+) -> serde_json::Value {
+    serde_json::json!({
+        "ucafCollectionIndicator": validate_response.ucaf_collection_indicator,
+        "cavv": validate_response.cavv,
+        "ucafAuthenticationData": validate_response.ucaf_authentication_data,
+        "xid": validate_response.xid,
+        "specificationVersion": validate_response.specification_version,
+        "directoryServerTransactionId": validate_response.directory_server_transaction_id,
+        "indicator": validate_response.indicator,
+    })
+}
+
+/// Builds the `AuthenticationData` for the Authenticate flow.
+///
+/// Matches Hyperswitch's `UcsAuthenticationData` mapping for cybersource: `eci` comes from
+/// `indicator`, while `threeds_server_transaction_id`, `acs_transaction_id` and `trans_status`
+/// are intentionally left empty (the richer values are carried in `connector_metadata`).
+fn get_authentication_data_for_authenticate_response(
+    validate_response: &CybersourceConsumerAuthValidateResponse,
+) -> router_request_types::AuthenticationData {
+    router_request_types::AuthenticationData {
+        eci: validate_response.indicator.clone(),
+        cavv: validate_response.cavv.clone(),
+        threeds_server_transaction_id: None,
+        message_version: validate_response.specification_version.clone(),
+        ds_trans_id: validate_response
+            .directory_server_transaction_id
+            .as_ref()
+            .map(|id| id.clone().expose()),
+        acs_transaction_id: None,
+        trans_status: None,
+        transaction_id: validate_response.xid.clone(),
+        ucaf_collection_indicator: validate_response.ucaf_collection_indicator.clone(),
         exemption_indicator: None,
         network_params: None,
     }
@@ -3721,6 +3733,17 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         _ => None,
                     };
 
+                    let validate_response = &info_response
+                        .consumer_authentication_information
+                        .validate_response;
+                    let connector_metadata = Some(serde_json::json!({
+                        "three_ds_data":
+                            get_three_ds_data_for_authenticate_response(validate_response)
+                    }));
+                    let authentication_data = Some(
+                        get_authentication_data_for_authenticate_response(validate_response),
+                    );
+
                     Ok(Self {
                         resource_common_data: PaymentFlowData {
                             status,
@@ -3730,11 +3753,8 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                             resource_id: None,
                             redirection_data: redirection_data.map(Box::new),
                             connector_response_reference_id,
-                            authentication_data: Some(
-                                get_authentication_data_for_check_enrollment_response(
-                                    info_response.consumer_authentication_information,
-                                ),
-                            ),
+                            authentication_data,
+                            connector_metadata,
                             status_code: item.http_code,
                         }),
                         ..item.router_data

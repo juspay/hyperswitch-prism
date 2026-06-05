@@ -13441,6 +13441,7 @@ pub fn generate_payment_authenticate_response<T: PaymentMethodDataTypes>(
                 resource_id,
                 redirection_data,
                 authentication_data,
+                connector_metadata,
                 connector_response_reference_id,
                 status_code,
             } => PaymentMethodAuthenticationServiceAuthenticateResponse {
@@ -13532,7 +13533,9 @@ pub fn generate_payment_authenticate_response<T: PaymentMethodDataTypes>(
                         })),
                     })
                     .transpose()?,
-                connector_feature_data: None,
+                connector_feature_data: convert_connector_metadata_to_secret_string(
+                    connector_metadata,
+                ),
                 authentication_data: authentication_data.map(ForeignFrom::foreign_from),
                 status: grpc_status.into(),
                 error: None,

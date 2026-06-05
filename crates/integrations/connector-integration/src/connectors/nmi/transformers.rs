@@ -208,30 +208,38 @@ pub struct NmiMerchantDefinedField {
 
 impl NmiMerchantDefinedField {
     pub fn new(metadata: &serde_json::Value) -> Self {
-        let inner = metadata
-            .as_object()
-            .map(|obj| {
-                obj.iter()
-                    .enumerate()
-                    .map(|(index, (hs_key, hs_value))| {
-                        // Extract string value properly to avoid JSON encoding
-                        let value_str = hs_value
-                            .as_str()
-                            .map(str::to_owned)
-                            .unwrap_or_else(|| hs_value.to_string());
-                        let nmi_key = format!("merchant_defined_field_{}", index + 1);
-                        let nmi_value = format!("{hs_key}={value_str}");
-                        (nmi_key, Secret::new(nmi_value))
-                    })
-                    .collect()
+        // Match Hyperswitch: deserialize into a BTreeMap so the merchant defined
+        // fields are emitted in key-sorted order (e.g. login_date, new_customer,
+        // udf1), independent of the original metadata insertion order.
+        let metadata_as_string = metadata.to_string();
+        let sorted: std::collections::BTreeMap<String, serde_json::Value> =
+            serde_json::from_str(&metadata_as_string).unwrap_or_default();
+        let inner = sorted
+            .into_iter()
+            .enumerate()
+            .map(|(index, (hs_key, hs_value))| {
+                // Extract string value properly to avoid JSON encoding
+                let value_str = match hs_value {
+                    serde_json::Value::Bool(boolean) => boolean.to_string(),
+                    serde_json::Value::Number(number) => number.to_string(),
+                    serde_json::Value::String(string) => string,
+                    other => other.to_string(),
+                };
+                let nmi_key = format!("merchant_defined_field_{}", index + 1);
+                let nmi_value = format!("{hs_key}={value_str}");
+                (nmi_key, Secret::new(nmi_value))
             })
-            .unwrap_or_default();
+            .collect();
         Self { inner }
     }
 }
 
 #[derive(Debug, Serialize)]
 pub struct NmiBillingDetails {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    last_name: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     address1: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -289,6 +297,8 @@ pub struct NmiPaymentsRequest<T: PaymentMethodDataTypes> {
     #[serde(flatten)]
     #[serde(skip_serializing_if = "Option::is_none")]
     merchant_defined_field: Option<NmiMerchantDefinedField>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    customer_vault: Option<CustomerAction>,
     #[serde(flatten)]
     #[serde(skip_serializing_if = "Option::is_none")]
     billing_details: Option<NmiBillingDetails>,
@@ -432,6 +442,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 })?,
                 payment_method: None,
                 merchant_defined_field: None,
+                customer_vault: None,
                 billing_details: None,
                 shipping_details: None,
                 customer_vault_id: Some(three_ds_data.customer_vault_id),
@@ -530,7 +541,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .metadata
                     .as_ref()
                     .map(|m| NmiMerchantDefinedField::new(m.peek())),
+                customer_vault: router_data
+                    .request
+                    .is_mandate_payment()
+                    .then_some(CustomerAction::AddCustomer),
                 billing_details: Some(NmiBillingDetails {
+                    first_name: router_data
+                        .resource_common_data
+                        .get_optional_billing_first_name(),
+                    last_name: router_data
+                        .resource_common_data
+                        .get_optional_billing_last_name(),
                     address1: router_data
                         .resource_common_data
                         .get_optional_billing_line1(),
