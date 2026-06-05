@@ -5919,12 +5919,10 @@ fn construct_charge_response(
             description: item.description.clone(),
         })
         .collect();
-    ConnectorChargeResponseData::AdyenSplitPayment(
-        domain_types::connector_types::AdyenSplitData {
-            store,
-            split_items: splits,
-        },
-    )
+    ConnectorChargeResponseData::AdyenSplitPayment(domain_types::connector_types::AdyenSplitData {
+        store,
+        split_items: splits,
+    })
 }
 
 impl<F> TryFrom<ResponseRouterData<AdyenCaptureResponse, Self>>
@@ -5946,9 +5944,7 @@ impl<F> TryFrom<ResponseRouterData<AdyenCaptureResponse, Self>>
             response.payment_psp_reference
         };
         let charges = match &response.splits {
-            Some(split_items) => {
-                Some(construct_charge_response(response.store, split_items))
-            }
+            Some(split_items) => Some(construct_charge_response(response.store, split_items)),
             None => None,
         };
 
