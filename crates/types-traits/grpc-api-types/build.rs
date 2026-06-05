@@ -17,21 +17,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "::hyperswitch_masking::Secret<String>",
     );
 
-    // Add #[serde(default)] for all `repeated` (Vec) fields in connector config messages.
-    // Protobuf `repeated` fields map to Vec<T> in Rust. serde requires `#[serde(default)]`
-    // on Vec fields to treat a missing JSON key as an empty vec; without it, serde errors
-    // with "missing field" when the sender (HS) omits the field.  g2h already adds `default`
-    // for repeated *enum* fields, but not for repeated string/message fields, so we add it
-    // explicitly for each known repeated non-enum field in the connector config messages.
-    // BraintreeConfig is currently the only ConnectorConfig message with repeated fields.
-    for field in [
-        ".types.BraintreeConfig.apple_pay_supported_networks",
-        ".types.BraintreeConfig.apple_pay_merchant_capabilities",
-        ".types.BraintreeConfig.gpay_allowed_auth_methods",
-        ".types.BraintreeConfig.gpay_allowed_card_networks",
-    ] {
-        config.field_attribute(field, "#[serde(default)]");
-    }
+    // Add #[serde(default)] for all `repeated` (Vec) and map (HashMap) fields in connector
+    // config messages referenced by ConnectorSpecificConfig (i.e. x-connector-config header).
+    // Proto3: absent repeated field = empty list. serde doesn't know this without the attribute
+    // and errors with "missing field" when HS omits an empty repeated field (spec-compliant).
+    // g2h handles repeated *enum* fields but not repeated string/message fields or map fields,
+    // so we add it generically by reading ConnectorSpecificConfig's oneof from the descriptor —
+    // no connector names hardcoded.
+    let fds = prost_build::Config::new().load_fds(&["proto/payment.proto"], &["proto"])?;
+    add_serde_default_for_connector_configs(&mut config, &fds);
 
     // Add serde rename_all = "snake_case" for oneof enum types to output proper proto JSON
     // This ensures variant names like "ApplePay" serialize as "apple_pay"
@@ -84,4 +78,56 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //     )?;
 
     Ok(())
+}
+
+/// Finds all message types listed in `ConnectorSpecificConfig`'s `oneof config` and adds
+/// `#[serde(default)]` to every repeated non-enum field in those messages.
+/// Scoped to x-connector-config only — no connector names are hardcoded.
+fn add_serde_default_for_connector_configs(
+    config: &mut prost_build::Config,
+    fds: &prost_types::FileDescriptorSet,
+) {
+    let connector_config_names: std::collections::HashSet<&str> = fds
+        .file
+        .iter()
+        .flat_map(|f| &f.message_type)
+        .find(|m: &&prost_types::DescriptorProto| m.name() == "ConnectorSpecificConfig")
+        .map(|m| {
+            m.field
+                .iter()
+                .filter_map(|f: &prost_types::FieldDescriptorProto| {
+                    f.type_name().split('.').last()
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    for file in &fds.file {
+        for message in &file.message_type {
+            if connector_config_names.contains(message.name()) {
+                add_repeated_default(config, message);
+            }
+        }
+    }
+}
+
+/// Adds `#[serde(default)]` to every repeated non-enum field in a message (and its nested types).
+/// Repeated fields become `Vec<T>` or `HashMap<K,V>` in Rust; both need `#[serde(default)]`
+/// so serde treats a missing JSON key as empty rather than erroring.
+fn add_repeated_default(
+    config: &mut prost_build::Config,
+    message: &prost_types::DescriptorProto,
+) {
+    use prost_types::field_descriptor_proto::{Label, Type};
+    for field in &message.field {
+        if field.label() == Label::Repeated && field.r#type() != Type::Enum {
+            config.field_attribute(
+                &format!("{}.{}", message.name(), field.name()),
+                "#[serde(default)]",
+            );
+        }
+    }
+    for nested in &message.nested_type {
+        add_repeated_default(config, nested);
+    }
 }
