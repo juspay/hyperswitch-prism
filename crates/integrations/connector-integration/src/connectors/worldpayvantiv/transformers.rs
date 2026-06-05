@@ -7,14 +7,17 @@ use domain_types::{
         Authorize, Capture, IncrementalAuthorization, PSync, RSync, Refund, Void, VoidPC,
     },
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        ResponseId,
+        MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorResponseData, ConnectorSpecificConfig,
+        ErrorResponse,
+    },
     router_data_v2::RouterDataV2,
     ResponseTransformationErrorContext,
 };
@@ -43,6 +46,12 @@ fn extract_customer_id(customer_id: &Option<CustomerId>) -> Option<String> {
 }
 
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorldpayvantivPaymentMetadata {
+    pub report_group: Option<String>,
+    pub fraud_filter_override: Option<bool>,
+}
 
 // WorldpayVantiv Payments Request - wrapper for all payment flows with custom XML serialization
 #[derive(Debug)]
@@ -1376,13 +1385,62 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         ..item.router_data
                     })
                 } else {
+                    let mandate_reference_data = sale_response
+                        .token_response
+                        .as_ref()
+                        .map(|tr| {
+                            Box::new(MandateReference {
+                                connector_mandate_id: Some(tr.cnp_token.clone().expose()),
+                                payment_method_id: None,
+                                connector_mandate_request_reference_id: None,
+                            })
+                        });
+
+                    let fraud_filter_override = item
+                        .router_data
+                        .request
+                        .metadata
+                        .as_ref()
+                        .and_then(|m| {
+                            serde_json::from_value::<WorldpayvantivPaymentMetadata>(
+                                m.peek().clone(),
+                            )
+                            .ok()
+                        })
+                        .and_then(|wm| wm.fraud_filter_override);
+
+                    let connector_metadata = Some(serde_json::json!({
+                        "report_group": sale_response.report_group,
+                        "fraud_filter_override": fraud_filter_override,
+                    }));
+
+                    let connector_response = sale_response.fraud_result.as_ref().map(
+                        |fraud_result| {
+                            let payment_checks = serde_json::json!({
+                                "avs_result": fraud_result.avs_result,
+                                "card_validation_result": fraud_result.card_validation_result,
+                                "authentication_result": fraud_result.authentication_result,
+                                "advanced_a_v_s_result": fraud_result.advanced_a_v_s_result,
+                            });
+                            ConnectorResponseData::with_additional_payment_method_data(
+                                AdditionalPaymentMethodConnectorResponse::Card {
+                                    authentication_data: None,
+                                    payment_checks: Some(payment_checks),
+                                    card_network: None,
+                                    domestic_network: None,
+                                    auth_code: None,
+                                },
+                            )
+                        },
+                    );
+
                     let payments_response = PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(
                             sale_response.cnp_txn_id.clone(),
                         ),
                         redirection_data: None,
-                        mandate_reference: None,
-                        connector_metadata: None,
+                        mandate_reference: mandate_reference_data,
+                        connector_metadata,
                         network_txn_id: sale_response
                             .network_transaction_id
                             .clone()
@@ -1395,6 +1453,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     Ok(Self {
                         resource_common_data: PaymentFlowData {
                             status,
+                            connector_response,
                             ..item.router_data.resource_common_data
                         },
                         response: Ok(payments_response),
@@ -2743,7 +2802,7 @@ fn get_attempt_status(
         | WorldpayvantivResponseCode::PartiallyApproved
         | WorldpayvantivResponseCode::OfflineApproval
         | WorldpayvantivResponseCode::TransactionReceived => match flow {
-            WorldpayvantivPaymentFlow::Sale => Ok(common_enums::AttemptStatus::Pending),
+            WorldpayvantivPaymentFlow::Sale => Ok(common_enums::AttemptStatus::Charged),
             WorldpayvantivPaymentFlow::Auth => Ok(common_enums::AttemptStatus::Authorizing),
             WorldpayvantivPaymentFlow::Capture => Ok(common_enums::AttemptStatus::CaptureInitiated),
             WorldpayvantivPaymentFlow::Void => Ok(common_enums::AttemptStatus::VoidInitiated),
