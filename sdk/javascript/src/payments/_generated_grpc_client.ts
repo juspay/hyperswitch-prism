@@ -370,7 +370,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   PaymentServiceReverseResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse: { "error": "ErrorInfo" },
   MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest: { "state": "ConnectorState", "payment": "PaymentSessionContext" },
-  PaymentSessionContext: { "amount": "Money", "browserInfo": "BrowserInformation" },
+  PaymentSessionContext: { "amount": "Money", "browserInfo": "BrowserInformation", "customer": "Customer", "address": "PaymentAddress" },
   MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse: { "error": "ErrorInfo" },
   MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest: { "payment": "PaymentClientAuthenticationContext", "permissions": "Permissions" },
   PaymentClientAuthenticationContext: { "amount": "Money", "customer": "Customer" },
