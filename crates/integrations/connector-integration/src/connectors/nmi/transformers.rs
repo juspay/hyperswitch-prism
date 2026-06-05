@@ -1807,6 +1807,27 @@ pub struct NmiRepeatPaymentRequest {
     currency: common_enums::Currency,
     orderid: String,
     customer_vault_id: Secret<String>,
+    #[serde(flatten)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    merchant_defined_field: Option<NmiMerchantDefinedField>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    last_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    address1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    address2: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    city: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    state: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    zip: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    country: Option<common_enums::CountryAlpha2>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    phone: Option<Secret<String>>,
 }
 
 pub type NmiRepeatPaymentResponse = NmiSetupMandateResponse;
@@ -1867,16 +1888,32 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             })?;
 
+        let common_data = &router_data.resource_common_data;
+
         Ok(Self {
             transaction_type: TransactionType::Sale,
             security_key: auth.api_key,
             amount,
             currency: router_data.request.currency,
-            orderid: router_data
-                .resource_common_data
-                .connector_request_reference_id
-                .clone(),
+            orderid: common_data.connector_request_reference_id.clone(),
             customer_vault_id: Secret::new(customer_vault_id),
+            // Mirror the Authorize/SetupMandate flows: NMI expects the billing
+            // address and merchant_defined_field_* as flat top-level fields, which
+            // the hyperswitch reference also sends on recurring (MIT) charges.
+            merchant_defined_field: router_data
+                .request
+                .metadata
+                .as_ref()
+                .map(|m| NmiMerchantDefinedField::new(m.peek())),
+            first_name: common_data.get_optional_billing_first_name(),
+            last_name: common_data.get_optional_billing_last_name(),
+            address1: common_data.get_optional_billing_line1(),
+            address2: common_data.get_optional_billing_line2(),
+            city: common_data.get_optional_billing_city(),
+            state: common_data.get_optional_billing_state(),
+            zip: common_data.get_optional_billing_zip(),
+            country: common_data.get_optional_billing_country(),
+            phone: common_data.get_optional_billing_phone_number(),
         })
     }
 }
