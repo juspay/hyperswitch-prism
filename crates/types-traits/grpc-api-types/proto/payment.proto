@@ -3562,8 +3562,8 @@ message PaymentMethodServiceTokenizeResponse {
 }
 enum WalletStatus {
   WALLET_STATUS_UNSPECIFIED = 0;
-  ACTIVE = 1; // Wallet is operational and can process transactions
-  INACTIVE = 2; // Wallet is suspended or closed
+  ACTIVE_WALLET = 1; // Wallet is operational and can process transactions
+  INACTIVE_WALLET = 2; // Wallet is suspended or closed
 }
 
 message WalletDetails {
@@ -3620,6 +3620,7 @@ message PaymentMethodServiceGetRequest {
   optional ConnectorState state = 4;   // State Information (for access token)
   optional SecretString connector_feature_data = 5; // Connector-specific metadata for the transaction
   optional bool test_mode = 6;
+  PaymentMethodType payment_method_type = 4; // PaymentMethodType enum (CARD, WALLET, UPI, etc.)
 }
 
 message PaymentMethodServiceGetResponse {
