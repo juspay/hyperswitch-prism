@@ -769,6 +769,14 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         base_url: Option<String>,
     },
+    Qwikcilver {
+        // Long-lived Bearer used only on the `/authorize` bootstrap call.
+        bootstrap_bearer_token: Secret<String>,
+        terminal_id: Secret<String>,
+        username: Secret<String>,
+        password: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -1093,6 +1101,12 @@ impl ConnectorSpecificConfig {
                 access_token,
                 office_id,
                 paco_kid
+            },
+            Qwikcilver {
+                bootstrap_bearer_token,
+                terminal_id,
+                username,
+                password
             },
         )
     }
@@ -1510,6 +1524,12 @@ impl ConnectorSpecificConfig {
                     access_token,
                     office_id,
                     paco_kid
+                },
+                Qwikcilver {
+                    bootstrap_bearer_token,
+                    terminal_id,
+                    username,
+                    password
                 },
             ),
             serde_json::Value::Object(connector_patch),
@@ -2096,6 +2116,13 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 merchant_identity_id: finix.merchant_identity_id.ok_or_else(err)?,
                 merchant_id: finix.merchant_id.ok_or_else(err)?,
                 base_url: finix.base_url,
+            }),
+            AuthType::Qwikcilver(qwikcilver) => Ok(Self::Qwikcilver {
+                bootstrap_bearer_token: qwikcilver.bootstrap_bearer_token.ok_or_else(err)?,
+                terminal_id: qwikcilver.terminal_id.ok_or_else(err)?,
+                username: qwikcilver.username.ok_or_else(err)?,
+                password: qwikcilver.password.ok_or_else(err)?,
+                base_url: qwikcilver.base_url,
             }),
         }
     }
@@ -3181,6 +3208,12 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                // Qwikcilver requires 4 secrets that don't fit the generic
+                // ConnectorAuthType variants. The runtime path that builds
+                // ConnectorSpecificConfig from per-connector legacy creds
+                // is not used for Qwikcilver — configure via the proto
+                // QwikcilverConfig path instead.
+                ConnectorEnum::Qwikcilver => Err(err().into()),
             },
             connector_types::ConnectorVariant::Surcharge(connector_enum) => match connector_enum {
                 SurchargeConnectorEnum::Interpayments => match auth {

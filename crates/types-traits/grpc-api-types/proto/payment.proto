@@ -768,6 +768,7 @@ enum Connector {
   TWOC_TWOP_PACO = 121;
   JUSPAY = 122;
   TAMARA = 123;
+  QWIKCILVER = 124;
 }
 
 // Payment method types
@@ -4504,6 +4505,19 @@ message JuspayConfig {
   optional string base_url = 50;
 }
 
+// Qwikcilver (Pine Labs stored-value wallet) credentials.
+// Per-session flow: bootstrap_bearer_token + terminal_id/username/password
+// are POSTed to /authorize, which returns a short-lived JWT used as the
+// Bearer for every subsequent call.
+message QwikcilverConfig {
+  // Long-lived Bearer token used only on the /authorize bootstrap call.
+  SecretString bootstrap_bearer_token = 1;
+  SecretString terminal_id = 2;
+  SecretString username = 3;
+  SecretString password = 4;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -4784,6 +4798,9 @@ message ConnectorSpecificConfig {
 
     // TAMARA = 123
     TamaraConfig tamara = 128;
+
+    // QWIKCILVER = 124
+    QwikcilverConfig qwikcilver = 129;
   }
 }
 

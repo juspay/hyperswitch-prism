@@ -400,6 +400,7 @@ pub struct Connectors {
     pub interpayments: ConnectorParams,
     pub juspay: ConnectorParams,
     pub tamara: ConnectorParams,
+    pub qwikcilver: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]

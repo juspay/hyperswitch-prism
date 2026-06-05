@@ -265,3 +265,6 @@ pub use self::juspay::Juspay;
 
 pub mod tamara;
 pub use self::tamara::Tamara;
+
+pub mod qwikcilver;
+pub use self::qwikcilver::Qwikcilver;
