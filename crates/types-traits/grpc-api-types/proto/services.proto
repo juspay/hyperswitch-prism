@@ -246,6 +246,9 @@ service PaymentMethodService {
 
   // Check if the payout method is eligible for the transaction
   rpc Eligibility(PayoutMethodEligibilityRequest) returns (PayoutMethodEligibilityResponse);
+
+  // Recharge a payment method (wallet, gift card, prepaid card) with funds.
+  rpc Recharge(PaymentMethodServiceRechargeRequest) returns (PaymentMethodServiceRechargeResponse);
 }
 
 // ============================================================================

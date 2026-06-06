@@ -458,3 +458,33 @@ message CompositePaymentMethodGetResponse {
   optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 1;
   optional PaymentMethodServiceGetResponse get_response = 2;
 }
+
+// Request message for composite payment method recharge flow.
+message CompositePaymentMethodRechargeRequest {
+  // Identifiers
+  optional string merchant_payment_method_id = 1;  // Merchant's payment method ID (e.g., wallet number)
+  optional string connector_payment_method_id = 2; // Connector's payment method ID (wallet number at connector's end)
+  optional string merchant_request_id = 3;         // Idempotency key for safe retries
+  optional string merchant_recharge_id = 4;        // Merchant's recharge tracking ID (invoice number or reference)
+  
+  // Recharge Details
+  string product_id = 5;                           // Product or program under which the payment method exists
+  Money amount = 6;                                // Recharge amount in minor currency units
+  optional string description = 7;                 // Human-readable description or notes about the recharge
+  PaymentMethodType payment_method_type = 8;       // Type of payment method (WALLET, GIFT_CARD, PREPAID_CARD, etc.)
+  
+  // Configuration
+  optional ConnectorState state = 9;               // State information for multi-step flows (access token, session data)
+  optional SecretString connector_feature_data = 10; // Connector-specific metadata for the transaction
+  optional bool test_mode = 11;                    // Sandbox/test mode flag (true for test environment)
+  
+  // Access Token Request field
+  optional SecretString metadata = 12;             // Metadata for access token creation
+  optional string merchant_access_token_id = 13;   // Merchant's access token ID
+}
+
+// Response message for composite payment method recharge flow.
+message CompositePaymentMethodRechargeResponse {
+  optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 1; // Access token generation result
+  optional PaymentMethodServiceRechargeResponse recharge_response = 2; // Recharge operation result
+}

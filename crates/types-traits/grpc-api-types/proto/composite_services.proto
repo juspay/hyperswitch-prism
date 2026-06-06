@@ -43,4 +43,7 @@ service CompositePaymentMethodService {
   
   // Runs composite payment method get flow.
   rpc Get(CompositePaymentMethodGetRequest) returns (CompositePaymentMethodGetResponse);
+  
+  // Runs composite payment method recharge flow.
+  rpc Recharge(CompositePaymentMethodRechargeRequest) returns (CompositePaymentMethodRechargeResponse);
 }
