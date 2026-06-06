@@ -64,7 +64,10 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
     PaymentMethodAuthenticationServicePostAuthenticateResponse,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
-    PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentMethodServiceTokenizeRequest,
+    PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentMethodServiceCreateRequest,
+    PaymentMethodServiceCreateResponse, PaymentMethodServiceGetRequest,
+    PaymentMethodServiceGetResponse, PaymentMethodServiceRechargeRequest,
+    PaymentMethodServiceRechargeResponse, PaymentMethodServiceTokenizeRequest,
     PaymentMethodServiceTokenizeResponse, PaymentServiceAuthorizeRequest,
     PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest, PaymentServiceCaptureResponse,
     PaymentServiceCreateOrderRequest, PaymentServiceCreateOrderResponse, PaymentServiceGetRequest,
@@ -2085,6 +2088,31 @@ impl PaymentMethodService for PaymentMethod {
         Err(tonic::Status::unimplemented(
             "Eligibility check not implemented yet",
         ))
+    }
+
+    async fn create(
+        &self,
+        _request: tonic::Request<PaymentMethodServiceCreateRequest>,
+    ) -> Result<tonic::Response<PaymentMethodServiceCreateResponse>, tonic::Status> {
+        Err(tonic::Status::unimplemented(
+            "Create payment method not implemented yet",
+        ))
+    }
+
+    async fn get(
+        &self,
+        _request: tonic::Request<PaymentMethodServiceGetRequest>,
+    ) -> Result<tonic::Response<PaymentMethodServiceGetResponse>, tonic::Status> {
+        Err(tonic::Status::unimplemented(
+            "Get payment method not implemented yet",
+        ))
+    }
+
+    async fn recharge(
+        &self,
+        _request: tonic::Request<PaymentMethodServiceRechargeRequest>,
+    ) -> Result<tonic::Response<PaymentMethodServiceRechargeResponse>, tonic::Status> {
+        Err(tonic::Status::unimplemented("Recharge not implemented yet"))
     }
 }
 
