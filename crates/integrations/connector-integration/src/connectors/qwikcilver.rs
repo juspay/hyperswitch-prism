@@ -11,11 +11,11 @@ use common_utils::{
     types::FloatMajorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, Refund, ServerAuthenticationToken},
+    connector_flow::{Authorize, Recharge, Refund, ServerAuthenticationToken},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, RefundFlowData, RefundsData,
-        RefundsResponseData, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData,
+        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, RechargeRequestData,
+        RechargeResponseData, RefundFlowData, RefundsData, RefundsResponseData,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::PaymentMethodDataTypes,
@@ -33,9 +33,10 @@ use interfaces::{
 use serde::Serialize;
 use transformers::{
     self as qwikcilver, QwikcilverAuthType, QwikcilverAuthorizeFeatureData,
-    QwikcilverAuthorizeRequest, QwikcilverAuthorizeResponse, QwikcilverErrorResponse,
-    QwikcilverRedeemRequest, QwikcilverRedeemResponse, QwikcilverRefundMetadata,
-    QwikcilverRefundOp, QwikcilverRefundRequest, QwikcilverRefundResponse,
+    QwikcilverAuthorizeRequest, QwikcilverAuthorizeResponse, QwikcilverCancelRedeemBody,
+    QwikcilverCancelRedeemResponse, QwikcilverErrorResponse, QwikcilverRechargeRequest,
+    QwikcilverRechargeResponse, QwikcilverRedeemRequest, QwikcilverRedeemResponse,
+    QwikcilverRefundMetadata,
 };
 
 use super::macros;
@@ -49,8 +50,8 @@ pub(crate) mod headers {
 }
 
 // ============================================================================
-// TRAIT WIRING — Qwikcilver implements only ServerAuthenticationToken +
-// Authorize (Redeem) + Refund (Add Card | Cancel Redeem). Everything else
+// TRAIT WIRING — Qwikcilver implements ServerAuthenticationToken + Authorize
+// (Redeem) + Refund (Cancel Redeem) + Recharge (Add Card). Everything else
 // falls through to the `not_supported`/`not_implemented` stubs emitted by
 // `macro_connector_flow_status_impls!` below.
 // ============================================================================
@@ -65,6 +66,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Qwikcilver<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RechargeV2 for Qwikcilver<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -117,7 +122,7 @@ macros::macro_connector_payout_implementation!(
 macros::create_amount_converter_wrapper!(connector_name: Qwikcilver, amount_type: FloatMajorUnit);
 
 // ============================================================================
-// PREREQUISITES — registers the 3 active flows + amount converter + helpers
+// PREREQUISITES — registers the 4 active flows + amount converter + helpers
 // ============================================================================
 
 macros::create_all_prerequisites!(
@@ -138,9 +143,15 @@ macros::create_all_prerequisites!(
         ),
         (
             flow: Refund,
-            request_body: QwikcilverRefundRequest,
-            response_body: QwikcilverRefundResponse,
+            request_body: QwikcilverCancelRedeemBody,
+            response_body: QwikcilverCancelRedeemResponse,
             router_data: RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+        ),
+        (
+            flow: Recharge,
+            request_body: QwikcilverRechargeRequest,
+            response_body: QwikcilverRechargeResponse,
+            router_data: RouterDataV2<Recharge, PaymentFlowData, RechargeRequestData, RechargeResponseData>,
         )
     ],
     amount_converters: [
@@ -412,14 +423,18 @@ macros::macro_connector_implementation!(
 );
 
 // ============================================================================
-// REFUND — Add Card or Cancel Redeem (chosen by `refund_metadata.refund_type`)
+// REFUND — Cancel Redeem (reverse a prior Redeem)
+//
+// Refund is now Cancel-Redeem-only. The credit-value-to-wallet operation
+// that used to share this flow ("Add Card") has moved to the dedicated
+// Recharge flow below.
 // ============================================================================
 
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Qwikcilver,
-    curl_request: Json(QwikcilverRefundRequest),
-    curl_response: QwikcilverRefundResponse,
+    curl_request: Json(QwikcilverCancelRedeemBody),
+    curl_response: QwikcilverCancelRedeemResponse,
     flow_name: Refund,
     resource_common_data: RefundFlowData,
     flow_request: RefundsData,
@@ -433,21 +448,74 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let metadata = QwikcilverRefundMetadata::from_request(&req.request)?;
-            let endpoint = match metadata.refund_type {
-                QwikcilverRefundOp::CancelRedeem => "CANCELREDEEM",
-                QwikcilverRefundOp::AddCard => "card",
-            };
             Ok(format!(
-                "{}QwikCilver/egms.restapi/api/v2/wallet/{}/{}",
+                "{}QwikCilver/egms.restapi/api/v2/wallet/{}/CANCELREDEEM",
                 self.connector_base_url_refunds(req),
                 urlencoding::encode(metadata.wallet_number.peek()),
-                endpoint,
             ))
         }
 
         fn get_headers(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let token = self.extract_access_token(req)?;
+            self.build_authenticated_headers(req, &token)
+        }
+    }
+);
+
+// ============================================================================
+// RECHARGE — Add Card (credit value to a wallet)
+//
+// The wallet number is sourced from `RechargeRequestData.connector_payment_method_id`
+// (the connector-side wallet identifier from the proto `PaymentMethodService.Recharge`
+// request). Missing → MissingRequiredField.
+// ============================================================================
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Qwikcilver,
+    curl_request: Json(QwikcilverRechargeRequest),
+    curl_response: QwikcilverRechargeResponse,
+    flow_name: Recharge,
+    resource_common_data: PaymentFlowData,
+    flow_request: RechargeRequestData,
+    flow_response: RechargeResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Recharge, PaymentFlowData, RechargeRequestData, RechargeResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let wallet_number = req
+                .request
+                .connector_payment_method_id
+                .as_deref()
+                .ok_or_else(|| {
+                    IntegrationError::MissingRequiredField {
+                        field_name: "connector_payment_method_id",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Qwikcilver Recharge needs the wallet number in \
+                                 `connector_payment_method_id`".to_string(),
+                            ),
+                            ..Default::default()
+                        },
+                    }
+                })?;
+            Ok(format!(
+                "{}QwikCilver/egms.restapi/api/v2/wallet/{}/card",
+                self.connector_base_url_payments(req),
+                urlencoding::encode(wallet_number),
+            ))
+        }
+
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<Recharge, PaymentFlowData, RechargeRequestData, RechargeResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let token = self.extract_access_token(req)?;
             self.build_authenticated_headers(req, &token)

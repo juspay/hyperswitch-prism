@@ -1,10 +1,13 @@
 //! Qwikcilver / QwikWallet — Pine Labs stored-value wallet connector.
 //!
 //! Surface (active flows in this build):
-//!   1. POST `/api/v2/authorize`             — session login (ServerAuthenticationToken)
-//!   2. POST `/api/v2/wallet/{wn}/REDEEM`    — debit (Authorize)
-//!   3. POST `/api/v2/wallet/{wn}/CANCELREDEEM` — reverse (Refund → cancel_redeem)
-//!   4. POST `/api/v2/wallet/{wn}/card`      — credit refund (Refund)
+//!   1. POST `/api/v2/authorize`                — session login (ServerAuthenticationToken)
+//!   2. POST `/api/v2/wallet/{wn}/REDEEM`       — debit (Authorize)
+//!   3. POST `/api/v2/wallet/{wn}/CANCELREDEEM` — reverse a prior Redeem (Refund)
+//!   4. POST `/api/v2/wallet/{wn}/card`         — credit value to the wallet
+//!                                                (Recharge — refund top-ups,
+//!                                                promo credits, loyalty,
+//!                                                cashback, gift loads, …)
 //!
 //! Notes:
 //! * `/authorize` returns JSON with **camelCase** field names; every other
@@ -14,17 +17,17 @@
 //! * Every authenticated call requires a numeric `TransactionId` header and
 //!   a `DateAtClient` header alongside the standard `Authorization: Bearer`.
 
-use common_enums::{AttemptStatus, RefundStatus};
+use common_enums::{AttemptStatus, RechargeStatus, RefundStatus};
 use common_utils::types::FloatMajorUnit;
 use domain_types::{
-    connector_flow::{Authorize, Refund, ServerAuthenticationToken},
+    connector_flow::{Authorize, Recharge, Refund, ServerAuthenticationToken},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
-        RefundFlowData, RefundsData, RefundsResponseData, ResponseId,
+        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, RechargeRequestData,
+        RechargeResponseData, RefundFlowData, RefundsData, RefundsResponseData, ResponseId,
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
     errors::{ConnectorError, IntegrationError},
-    payment_method_data::PaymentMethodDataTypes,
+    payment_method_data::{PaymentMethodDataTypes, PaymentMethodDetails, WalletDetails},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
 };
@@ -32,9 +35,7 @@ use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    connectors::qwikcilver::QwikcilverRouterData, types::ResponseRouterData,
-};
+use crate::{connectors::qwikcilver::QwikcilverRouterData, types::ResponseRouterData};
 
 // ============================================================================
 // AUTH — resolved from `ConnectorSpecificConfig::Qwikcilver`
@@ -436,25 +437,14 @@ where
 }
 
 // ============================================================================
-// REFUND — dispatches to either AddCard (`/wallet/{wn}/card`) or
-// CancelRedeem (`/wallet/{wn}/CANCELREDEEM`) based on
-// `refund_metadata.refund_type`.
+// REFUND — Cancel Redeem (`/api/v2/wallet/{wn}/CANCELREDEEM`)
 //
-//   refund_type = "cancel_redeem"  → reverse the original redeem
-//   refund_type = "add_card"        → credit a refund eCard (default)
+// Refund means "reverse a prior Redeem" here — money flows back out of the
+// merchant's settlement and the wallet's balance is restored. The Add Card
+// "credit value to a wallet" operation that used to also live behind Refund
+// has moved to the dedicated `Recharge` flow below; it isn't a refund in
+// any semantic sense (it issues fresh value, no prior debit required).
 // ============================================================================
-
-/// Refund-op discriminator. There is intentionally NO `Default` impl: the
-/// two operations move money in opposite directions (AddCard credits the
-/// customer's wallet; CancelRedeem reverses a prior debit), and silently
-/// defaulting either way is a footgun. Callers must specify `refund_type`
-/// explicitly in `refund_metadata`.
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum QwikcilverRefundOp {
-    AddCard,
-    CancelRedeem,
-}
 
 /// Connector-specific refund metadata passed through `refund_metadata` on
 /// `PaymentService.Refund`. Typed end-to-end — no ad-hoc JSON poking.
@@ -462,41 +452,21 @@ pub enum QwikcilverRefundOp {
 /// The on-wire JSON shape lives in `refund_connector_metadata.value`:
 ///
 /// ```json
-/// // Add Card — card_program_name is REQUIRED and region-specific
-/// // (e.g. "Blue Retail UAE Refund eCard" for UAE).
 /// {
-///   "refund_type":       "add_card",
-///   "wallet_number":     "4999771007702947",
-///   "card_program_name": "Blue Retail UAE Refund eCard"
-/// }
-///
-/// // Cancel Redeem
-/// {
-///   "refund_type":            "cancel_redeem",
 ///   "wallet_number":          "4999771007702947",
 ///   "original_batch_number":  17302801,
 ///   "original_transaction_id":3486942062100047824
 /// }
 /// ```
 ///
-/// `wallet_number` and `refund_type` are mandatory in both cases. AddCard
-/// additionally requires `card_program_name`. CancelRedeem additionally
-/// requires the `original_batch_number` + `original_transaction_id` pair
-/// (or a composite `connector_transaction_id` of the form
-/// `"{batch}:{txn}"` on the request, which we'll parse as a fallback).
+/// `wallet_number` is required. `original_batch_number` +
+/// `original_transaction_id` are also required, but as a convenience we fall
+/// back to parsing a composite `connector_transaction_id` of the form
+/// `"{batch}:{txn}"` if the explicit fields are absent.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct QwikcilverRefundMetadata {
-    /// Destination wallet for both Add Card and Cancel Redeem. PII.
+    /// Destination wallet for the reversal. PII.
     pub wallet_number: Secret<String>,
-    pub refund_type: QwikcilverRefundOp,
-    /// Required when `refund_type = "add_card"`. Pine Labs provisions
-    /// per-region program names (UAE / IN / KSA differ); using the wrong
-    /// one returns a domain error from Qwikcilver, so we never default
-    /// it — the caller must pick. Ignored for `cancel_redeem`.
-    #[serde(default)]
-    pub card_program_name: Option<String>,
-    /// Required when `refund_type = "cancel_redeem"`. The batch+txn pair from
-    /// the original Redeem response.
     #[serde(default)]
     pub original_batch_number: Option<i64>,
     #[serde(default)]
@@ -569,18 +539,6 @@ impl QwikcilverAuthorizeFeatureData {
     }
 }
 
-/// Add Card body — credits a refund eCard to the wallet.
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct QwikcilverAddCardBody {
-    pub idempotency_key: String,
-    pub amount: FloatMajorUnit,
-    pub card_program_name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub notes: Option<String>,
-    pub invoice_number: String,
-}
-
 /// Cancel Redeem body — reverses a prior Redeem on the same wallet.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
@@ -591,29 +549,13 @@ pub struct QwikcilverCancelRedeemBody {
     pub notes: Option<String>,
 }
 
-/// Wire-level union of the two Refund request bodies.
-///
-/// Qwikcilver expects DIFFERENT JSON payloads at the two refund endpoints
-/// (`/wallet/{wn}/card` and `/wallet/{wn}/CANCELREDEEM`) — neither carries
-/// a discriminator field. We use `#[serde(untagged)]` so the on-wire JSON
-/// is exactly one body or the other with no extra wrapper.
-///
-/// The variant is chosen in [`QwikcilverRefundRequest::try_from`] based on
-/// [`QwikcilverRefundMetadata::refund_type`]. The URL chosen by
-/// `get_url` (see `qwikcilver.rs`) MUST agree with the variant — both reads
-/// come from the same parsed `QwikcilverRefundMetadata`, so they stay in
-/// sync.
-#[derive(Debug, Serialize)]
-#[serde(untagged)]
-pub enum QwikcilverRefundRequest {
-    AddCard(QwikcilverAddCardBody),
-    CancelRedeem(QwikcilverCancelRedeemBody),
-}
-
 impl<T>
     TryFrom<
-        QwikcilverRouterData<RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>, T>,
-    > for QwikcilverRefundRequest
+        QwikcilverRouterData<
+            RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+            T,
+        >,
+    > for QwikcilverCancelRedeemBody
 where
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 {
@@ -627,65 +569,37 @@ where
     ) -> Result<Self, Self::Error> {
         let req = &item.router_data.request;
         let metadata = QwikcilverRefundMetadata::from_request(req)?;
-        match metadata.refund_type {
-            QwikcilverRefundOp::CancelRedeem => {
-                let (batch, txn) = metadata
-                    .original_batch_number
-                    .zip(metadata.original_transaction_id)
-                    .or_else(|| parse_composite_txn_id(&req.connector_transaction_id))
-                    .ok_or_else(|| {
-                        error_stack::report!(IntegrationError::MissingRequiredField {
-                            field_name:
-                                "refund_metadata.{original_batch_number,original_transaction_id}",
-                            context: Default::default(),
-                        })
-                    })?;
-                Ok(Self::CancelRedeem(QwikcilverCancelRedeemBody {
-                    original_batch_number: batch,
-                    original_transaction_id: txn,
-                    notes: req.reason.clone(),
-                }))
-            }
-            QwikcilverRefundOp::AddCard => {
-                let card_program_name = metadata.card_program_name.ok_or_else(|| {
-                    error_stack::report!(IntegrationError::MissingRequiredField {
-                        field_name: "refund_metadata.card_program_name",
-                        context: Default::default(),
-                    })
-                })?;
-                let amount = item
-                    .connector
-                    .amount_converter
-                    .convert(req.minor_refund_amount, req.currency)
-                    .change_context(IntegrationError::AmountConversionFailed {
-                        context: Default::default(),
-                    })?;
-                Ok(Self::AddCard(QwikcilverAddCardBody {
-                    idempotency_key: req.refund_id.clone(),
-                    amount,
-                    card_program_name,
-                    notes: req.reason.clone(),
-                    invoice_number: req.refund_id.clone(),
-                }))
-            }
-        }
+        let (batch, txn) = metadata
+            .original_batch_number
+            .zip(metadata.original_transaction_id)
+            .or_else(|| parse_composite_txn_id(&req.connector_transaction_id))
+            .ok_or_else(|| {
+                error_stack::report!(IntegrationError::MissingRequiredField {
+                    field_name: "refund_metadata.{original_batch_number,original_transaction_id}",
+                    context: Default::default(),
+                })
+            })?;
+        Ok(Self {
+            original_batch_number: batch,
+            original_transaction_id: txn,
+            notes: req.reason.clone(),
+        })
     }
 }
 
-/// Unified Refund response — both AddCard and CancelRedeem return the same
-/// PascalCase envelope with the same key fields. Optional sub-payloads
-/// (`wallet`, `batch_number`, `wallet_number`) differ between the two.
+/// Cancel Redeem response. Optional fields reflect Qwikcilver returning a
+/// pared-down envelope on this endpoint; only the success-discriminator
+/// (`response_code`), batch/txn ids, and the error fields are load-bearing.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
-pub struct QwikcilverRefundResponse {
+pub struct QwikcilverCancelRedeemResponse {
     pub current_batch_number: i64,
     pub invoice_number: Option<String>,
     pub bill_amount: Option<FloatMajorUnit>,
-    /// `AddCard` only — wallet snapshot after the credit.
-    pub wallet: Option<QwikcilverWallet>,
-    /// `CancelRedeem` only — the reversed wallet's number. PII.
+    /// Wallet whose Redeem was reversed. PII.
     pub wallet_number: Option<Secret<String>>,
-    /// `CancelRedeem` only — the batch under which the reversal posted.
+    /// The batch under which the reversal posted (distinct from
+    /// `current_batch_number`, which is the merchant's running batch).
     pub batch_number: Option<i64>,
     pub amount: Option<FloatMajorUnit>,
     pub balance: Option<FloatMajorUnit>,
@@ -703,7 +617,7 @@ pub struct QwikcilverRefundResponse {
 impl
     TryFrom<
         ResponseRouterData<
-            QwikcilverRefundResponse,
+            QwikcilverCancelRedeemResponse,
             RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         >,
     > for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
@@ -712,15 +626,13 @@ impl
 
     fn try_from(
         item: ResponseRouterData<
-            QwikcilverRefundResponse,
+            QwikcilverCancelRedeemResponse,
             RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         >,
     ) -> Result<Self, Self::Error> {
         let mut data = item.router_data;
         let body = item.response;
         if body.response_code != QWIKCILVER_SUCCESS_CODE {
-            // Refund failures are payment-attempt failures from the
-            // framework's perspective.
             data.response = Err(make_error_response(
                 body.response_code,
                 body.response_message,
@@ -732,13 +644,175 @@ impl
             ));
             return Ok(data);
         }
-        // CancelRedeem returns `batch_number`; AddCard returns only
-        // `current_batch_number`. Prefer the explicit one when present.
         let batch = body.batch_number.unwrap_or(body.current_batch_number);
         let resource_id = format_composite_txn_id(batch, body.transaction_id);
         data.response = Ok(RefundsResponseData {
             connector_refund_id: resource_id,
             refund_status: RefundStatus::Success,
+            status_code: item.http_code,
+        });
+        Ok(data)
+    }
+}
+
+// ============================================================================
+// RECHARGE — Add Card (`/api/v2/wallet/{wn}/card`)
+//
+// Credits value to an existing wallet by issuing a new "card" on it. The
+// operation is intentionally use-case-agnostic — the same endpoint serves
+// refund top-ups, promo credits, loyalty rewards, cashback, gift loads, …
+//
+// Domain → wire field mapping (RechargeRequestData → Qwikcilver POST body):
+//   connector_payment_method_id → URL path /wallet/{wn}/card  (wallet number)
+//   merchant_recharge_id        → IdempotencyKey  +  InvoiceNumber
+//   product_id                  → CardProgramName (Pine Labs program, region-
+//                                   specific — e.g. "Blue Retail UAE Refund
+//                                   eCard" for UAE)
+//   amount + currency           → Amount  (FloatMajorUnit, e.g. 10.0 AED)
+//   description                 → Notes
+// ============================================================================
+
+/// Add Card wire body — credits a card to the wallet.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct QwikcilverRechargeRequest {
+    pub idempotency_key: String,
+    pub amount: FloatMajorUnit,
+    pub card_program_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notes: Option<String>,
+    pub invoice_number: String,
+}
+
+impl<T>
+    TryFrom<
+        QwikcilverRouterData<
+            RouterDataV2<Recharge, PaymentFlowData, RechargeRequestData, RechargeResponseData>,
+            T,
+        >,
+    > for QwikcilverRechargeRequest
+where
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: QwikcilverRouterData<
+            RouterDataV2<Recharge, PaymentFlowData, RechargeRequestData, RechargeResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let req = &item.router_data.request;
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(req.amount, req.currency)
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
+        let idempotency_key = req.merchant_recharge_id.clone().ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "merchant_recharge_id",
+                context: Default::default(),
+            })
+        })?;
+        Ok(Self {
+            invoice_number: idempotency_key.clone(),
+            idempotency_key,
+            amount,
+            card_program_name: req.product_id.clone(),
+            notes: req.description.clone(),
+        })
+    }
+}
+
+/// Add Card response. Carries a `Wallet` sub-payload reflecting the wallet's
+/// post-credit snapshot, alongside the standard envelope.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct QwikcilverRechargeResponse {
+    pub current_batch_number: i64,
+    pub invoice_number: Option<String>,
+    pub bill_amount: Option<FloatMajorUnit>,
+    /// Snapshot of the wallet after the credit posted.
+    pub wallet: Option<QwikcilverWallet>,
+    pub amount: Option<FloatMajorUnit>,
+    pub balance: Option<FloatMajorUnit>,
+    pub consolidated_balance: Option<FloatMajorUnit>,
+    pub notes: Option<String>,
+    pub approval_code: Option<String>,
+    pub response_code: i64,
+    pub response_message: Option<String>,
+    pub transaction_id: i64,
+    pub transaction_type: Option<String>,
+    pub error_code: Option<String>,
+    pub error_description: Option<String>,
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            QwikcilverRechargeResponse,
+            RouterDataV2<Recharge, PaymentFlowData, RechargeRequestData, RechargeResponseData>,
+        >,
+    > for RouterDataV2<Recharge, PaymentFlowData, RechargeRequestData, RechargeResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<
+            QwikcilverRechargeResponse,
+            RouterDataV2<Recharge, PaymentFlowData, RechargeRequestData, RechargeResponseData>,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let mut data = item.router_data;
+        let body = item.response;
+        if body.response_code != QWIKCILVER_SUCCESS_CODE {
+            // Recharge failure: surface the connector error, leave
+            // attempt_status unset (Recharge isn't an AttemptStatus flow).
+            data.response = Err(make_error_response(
+                body.response_code,
+                body.response_message,
+                body.error_code,
+                body.error_description,
+                Some(body.transaction_id.to_string()),
+                item.http_code,
+                None,
+            ));
+            return Ok(data);
+        }
+        let connector_recharge_id =
+            format_composite_txn_id(body.current_batch_number, body.transaction_id);
+        let merchant_recharge_id = data.request.merchant_recharge_id.clone();
+        let connector_payment_method_id = body
+            .wallet
+            .as_ref()
+            .map(|w| w.wallet_number.clone().expose())
+            .or_else(|| data.request.connector_payment_method_id.clone());
+        let payment_method_details = body.wallet.as_ref().map(|w| {
+            PaymentMethodDetails::Wallet(WalletDetails {
+                wallet_account_id: w.wallet_number.clone().expose(),
+                wallet_pin: w.wallet_pin.clone(),
+                wallet_status: None,
+                wallet_holder_name: w
+                    .wallet_holder_name
+                    .as_ref()
+                    .map(|h| h.clone().expose()),
+                // Qwikcilver returns balance in major units; the domain type
+                // is MinorUnit. We don't have the currency's exponent here,
+                // so leave balance unset rather than risk a wrong conversion.
+                balance: None,
+                product_id: w.wallet_program_group_name.clone().unwrap_or_default(),
+                items: Vec::new(),
+            })
+        });
+        data.response = Ok(RechargeResponseData {
+            merchant_payment_method_id: data.request.merchant_payment_method_id.clone(),
+            connector_payment_method_id,
+            merchant_recharge_id,
+            connector_recharge_id: Some(connector_recharge_id),
+            status: RechargeStatus::Success,
+            payment_method_details,
             status_code: item.http_code,
         });
         Ok(data)
