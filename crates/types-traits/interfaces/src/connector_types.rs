@@ -15,7 +15,9 @@ use domain_types::{
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RechargeRequestData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
+        CreatePaymentMethodData, CreatePaymentMethodResponseData, GetPaymentMethodData,
+        GetPaymentMethodResponseData, RechargeRequestData,
         RechargeResponseData, RedirectDetailsResponse, RefundFlowData, RefundSyncData,
         RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RepeatPaymentData,
         RequestDetails, ServerAuthenticationTokenRequestData,
@@ -91,6 +93,8 @@ pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     + CreateConnectorCustomer
     + PaymentTokenV2<T>
     + RechargeV2
+    + CreatePaymentMethodV2
+    + GetPaymentMethodV2
     + PaymentVoidV2
     + PaymentVoidPostCaptureV2
     + IncomingWebhook
@@ -272,6 +276,26 @@ pub trait RechargeV2:
     PaymentFlowData,
     RechargeRequestData,
     RechargeResponseData,
+>
+{
+}
+
+pub trait CreatePaymentMethodV2:
+    ConnectorIntegrationV2<
+    connector_flow::CreatePaymentMethod,
+    PaymentFlowData,
+    CreatePaymentMethodData,
+    CreatePaymentMethodResponseData,
+>
+{
+}
+
+pub trait GetPaymentMethodV2:
+    ConnectorIntegrationV2<
+    connector_flow::GetPaymentMethod,
+    PaymentFlowData,
+    GetPaymentMethodData,
+    GetPaymentMethodResponseData,
 >
 {
 }

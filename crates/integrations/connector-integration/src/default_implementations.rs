@@ -15,9 +15,11 @@
 use crate::connectors::*;
 use common_utils::{request::Request, CustomResult};
 use domain_types::{
-    connector_flow::{Recharge, VerifyWebhookSource},
+    connector_flow::{CreatePaymentMethod, GetPaymentMethod, Recharge, VerifyWebhookSource},
     connector_types::{
-        PaymentFlowData, RechargeRequestData, RechargeResponseData, VerifyWebhookSourceFlowData,
+        CreatePaymentMethodData, CreatePaymentMethodResponseData, GetPaymentMethodData,
+        GetPaymentMethodResponseData, PaymentFlowData, RechargeRequestData, RechargeResponseData,
+        VerifyWebhookSourceFlowData,
     },
     errors::IntegrationError,
     payment_method_data::PaymentMethodDataTypes,
@@ -26,7 +28,9 @@ use domain_types::{
     router_response_types::VerifyWebhookSourceResponseData,
 };
 use interfaces::connector_integration_v2::ConnectorIntegrationV2;
-use interfaces::connector_types::{RechargeV2, VerifyWebhookSourceV2};
+use interfaces::connector_types::{
+    CreatePaymentMethodV2, GetPaymentMethodV2, RechargeV2, VerifyWebhookSourceV2,
+};
 
 /// Inner helper: emit the `VerifyWebhookSourceV2` + `ConnectorIntegrationV2` default impls
 /// for a single connector, routing `get_url` to the chosen `IntegrationError` constructor
@@ -380,4 +384,150 @@ default_impl_recharge_v2!(
     Worldpayxml,
     Xendit,
     Zift,
+);
+
+// ============================================================================
+// CreatePaymentMethod / GetPaymentMethod default impls
+//
+// Same pattern as `default_impl_recharge_v2!` — the two traits are now
+// supertraits of `ConnectorServiceTrait`, so every connector needs an impl.
+// Connectors that wire a real implementation in their own file opt out by
+// being removed from the lists below.
+// ============================================================================
+
+#[macro_export]
+macro_rules! default_impl_create_payment_method_v2_single {
+    ($connector:ident) => {
+        impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
+            CreatePaymentMethodV2 for $connector<T>
+        {
+        }
+
+        impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
+            ConnectorIntegrationV2<
+                CreatePaymentMethod,
+                PaymentFlowData,
+                CreatePaymentMethodData,
+                CreatePaymentMethodResponseData,
+            > for $connector<T>
+        {
+            fn get_url(
+                &self,
+                _req: &RouterDataV2<
+                    CreatePaymentMethod,
+                    PaymentFlowData,
+                    CreatePaymentMethodData,
+                    CreatePaymentMethodResponseData,
+                >,
+            ) -> CustomResult<String, IntegrationError> {
+                Err(::domain_types::errors::IntegrationError::connector_flow_not_implemented(
+                    ::interfaces::api::ConnectorCommon::id(self),
+                    "create_payment_method",
+                    ::domain_types::errors::IntegrationErrorContext::default(),
+                )
+                .into())
+            }
+
+            fn build_request_v2(
+                &self,
+                _req: &RouterDataV2<
+                    CreatePaymentMethod,
+                    PaymentFlowData,
+                    CreatePaymentMethodData,
+                    CreatePaymentMethodResponseData,
+                >,
+            ) -> CustomResult<Option<Request>, IntegrationError> {
+                Ok(None)
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! default_impl_create_payment_method_v2 {
+    ( $( $connector:ident ),* $(,)? ) => {
+        $( $crate::default_impl_create_payment_method_v2_single!($connector); )*
+    };
+}
+
+#[macro_export]
+macro_rules! default_impl_get_payment_method_v2_single {
+    ($connector:ident) => {
+        impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
+            GetPaymentMethodV2 for $connector<T>
+        {
+        }
+
+        impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
+            ConnectorIntegrationV2<
+                GetPaymentMethod,
+                PaymentFlowData,
+                GetPaymentMethodData,
+                GetPaymentMethodResponseData,
+            > for $connector<T>
+        {
+            fn get_url(
+                &self,
+                _req: &RouterDataV2<
+                    GetPaymentMethod,
+                    PaymentFlowData,
+                    GetPaymentMethodData,
+                    GetPaymentMethodResponseData,
+                >,
+            ) -> CustomResult<String, IntegrationError> {
+                Err(::domain_types::errors::IntegrationError::connector_flow_not_implemented(
+                    ::interfaces::api::ConnectorCommon::id(self),
+                    "get_payment_method",
+                    ::domain_types::errors::IntegrationErrorContext::default(),
+                )
+                .into())
+            }
+
+            fn build_request_v2(
+                &self,
+                _req: &RouterDataV2<
+                    GetPaymentMethod,
+                    PaymentFlowData,
+                    GetPaymentMethodData,
+                    GetPaymentMethodResponseData,
+                >,
+            ) -> CustomResult<Option<Request>, IntegrationError> {
+                Ok(None)
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! default_impl_get_payment_method_v2 {
+    ( $( $connector:ident ),* $(,)? ) => {
+        $( $crate::default_impl_get_payment_method_v2_single!($connector); )*
+    };
+}
+
+// Same connector universe as default_impl_recharge_v2! above.
+default_impl_create_payment_method_v2!(
+    AbsaSanlam, Aci, Adyen, Airwallex, Authipay, Authorizedotnet, Axisbank, Bambora,
+    Bamboraapac, Bankofamerica, Barclaycard, Billwerk, Bluesnap, Braintree, Calida, Cashfree,
+    Cashtocode, Celero, Checkout, Cryptopay, Cybersource, Datatrans, Dlocal, Easebuzz, Elavon,
+    Finix, Fiserv, Fiservcommercehub, Fiservemea, Fiuu, Forte, Getnet, Gigadat, Globalpay,
+    Helcim, Hipay, Hyperpg, Iatapay, Imerchantsolutions, Itaubank, Jpmorgan, Juspay, Loonio,
+    Mifinity, Mollie, Multisafepay, Nexinets, Nexixpay, Nmi, Noon, Novalnet, Nuvei, Paybox,
+    Payload, Payme, Paypal, Paysafe, Paytm, Payu, Peachpayments, Phonepe, PinelabsOnline,
+    Placetopay, Powertranz, Ppro, Rapyd, Razorpay, RazorpayV2, Redsys, Revolut, Revolv3,
+    Shift4, Silverflow, Stax, Stripe, Tamara, Truelayer, Trustly, Trustpay, Trustpayments,
+    Tsys, TwocTwopPaco, Volt, Wellsfargo, Worldpay, Worldpayvantiv, Worldpayxml, Xendit, Zift,
+);
+
+default_impl_get_payment_method_v2!(
+    AbsaSanlam, Aci, Adyen, Airwallex, Authipay, Authorizedotnet, Axisbank, Bambora,
+    Bamboraapac, Bankofamerica, Barclaycard, Billwerk, Bluesnap, Braintree, Calida, Cashfree,
+    Cashtocode, Celero, Checkout, Cryptopay, Cybersource, Datatrans, Dlocal, Easebuzz, Elavon,
+    Finix, Fiserv, Fiservcommercehub, Fiservemea, Fiuu, Forte, Getnet, Gigadat, Globalpay,
+    Helcim, Hipay, Hyperpg, Iatapay, Imerchantsolutions, Itaubank, Jpmorgan, Juspay, Loonio,
+    Mifinity, Mollie, Multisafepay, Nexinets, Nexixpay, Nmi, Noon, Novalnet, Nuvei, Paybox,
+    Payload, Payme, Paypal, Paysafe, Paytm, Payu, Peachpayments, Phonepe, PinelabsOnline,
+    Placetopay, Powertranz, Ppro, Rapyd, Razorpay, RazorpayV2, Redsys, Revolut, Revolv3,
+    Shift4, Silverflow, Stax, Stripe, Tamara, Truelayer, Trustly, Trustpay, Trustpayments,
+    Tsys, TwocTwopPaco, Volt, Wellsfargo, Worldpay, Worldpayvantiv, Worldpayxml, Xendit, Zift,
 );
