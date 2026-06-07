@@ -1840,6 +1840,55 @@ pub struct RechargeResponseData {
     pub status_code: u16,
 }
 
+/// Slimmed-down customer info used by the payment-method-management flows
+/// (Create / Get). Fields are picked from the proto `Customer` message — only
+/// the ones a connector actually needs to provision or look up a payment
+/// method.
+#[derive(Debug, Clone, Default)]
+pub struct PaymentMethodCustomerInfo {
+    pub merchant_customer_id: Option<String>,
+    pub first_name: Option<Secret<String>>,
+    pub last_name: Option<Secret<String>>,
+    pub email: Option<Email>,
+    pub phone_number: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CreatePaymentMethodData {
+    pub merchant_payment_method_id: Option<String>,
+    pub customer: Option<PaymentMethodCustomerInfo>,
+    pub description: Option<String>,
+    pub payment_method_type: PaymentMethodType,
+    pub connector_feature_data: Option<common_utils::pii::SecretSerdeValue>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CreatePaymentMethodResponseData {
+    pub merchant_payment_method_id: Option<String>,
+    pub connector_payment_method_id: Option<String>,
+    pub payment_method_details: Option<payment_method_data::PaymentMethodDetails>,
+    pub customer: Option<PaymentMethodCustomerInfo>,
+    pub status_code: u16,
+}
+
+#[derive(Debug, Clone)]
+pub struct GetPaymentMethodData {
+    pub merchant_payment_method_id: Option<String>,
+    pub connector_payment_method_id: Option<String>,
+    pub customer: Option<PaymentMethodCustomerInfo>,
+    pub payment_method_type: PaymentMethodType,
+    pub connector_feature_data: Option<common_utils::pii::SecretSerdeValue>,
+}
+
+#[derive(Debug, Clone)]
+pub struct GetPaymentMethodResponseData {
+    pub merchant_payment_method_id: Option<String>,
+    pub connector_payment_method_id: Option<String>,
+    pub payment_method_details: Option<payment_method_data::PaymentMethodDetails>,
+    pub customer: Option<PaymentMethodCustomerInfo>,
+    pub status_code: u16,
+}
+
 #[derive(Debug, Clone)]
 pub struct PaymentsPreAuthenticateData<T: PaymentMethodDataTypes> {
     pub payment_method_data: Option<PaymentMethodData<T>>,
