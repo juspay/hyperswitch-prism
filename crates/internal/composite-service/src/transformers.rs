@@ -1,9 +1,9 @@
 use domain_types::connector_types::ConnectorEnum;
 use grpc_api_types::payments::{
     CompositeAuthorizeRequest, CompositeCaptureRequest, CompositeGetRequest,
-    CompositeRefundGetRequest, CompositeRefundRequest, CompositeVoidRequest, ConnectorState,
-    CustomerServiceCreateRequest, CustomerServiceCreateResponse,
-    MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
+    CompositePaymentMethodRechargeRequest, CompositeRefundGetRequest, CompositeRefundRequest,
+    CompositeVoidRequest, ConnectorState, CustomerServiceCreateRequest,
+    CustomerServiceCreateResponse, MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
@@ -12,9 +12,9 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
     PaymentMethodAuthenticationServicePostAuthenticateResponse,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
-    PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentServiceAuthorizeRequest,
-    PaymentServiceCaptureRequest, PaymentServiceGetRequest, PaymentServiceRefundRequest,
-    PaymentServiceVoidRequest, RefundServiceGetRequest,
+    PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentMethodServiceRechargeRequest,
+    PaymentServiceAuthorizeRequest, PaymentServiceCaptureRequest, PaymentServiceGetRequest,
+    PaymentServiceRefundRequest, PaymentServiceVoidRequest, RefundServiceGetRequest,
 };
 
 use crate::utils::{
@@ -614,6 +614,58 @@ impl
             test_mode: item.test_mode,
             merchant_order_id: item.merchant_order_id.clone(),
             merchant_request_id: item.merchant_request_id.clone(),
+        }
+    }
+}
+
+// ============================================================================
+// Composite Recharge → inner PaymentMethodServiceRechargeRequest
+//
+// Splices the bootstrapped (or caller-provided) access token into the inner
+// recharge request's `state.access_token`. Mirrors `PaymentServiceRefundRequest`
+// above but for the PaymentMethodService.Recharge RPC.
+// ============================================================================
+
+impl
+    ForeignFrom<(
+        &CompositePaymentMethodRechargeRequest,
+        Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+    )> for PaymentMethodServiceRechargeRequest
+{
+    fn foreign_from(
+        (item, access_token_response): (
+            &CompositePaymentMethodRechargeRequest,
+            Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+        ),
+    ) -> Self {
+        let access_token_from_req = item
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.clone());
+        let access_token = get_access_token(access_token_from_req, access_token_response);
+
+        let connector_customer_id = item
+            .state
+            .as_ref()
+            .and_then(|state| state.connector_customer_id.clone());
+
+        let resolved_state = Some(ConnectorState {
+            access_token,
+            connector_customer_id,
+        });
+
+        Self {
+            merchant_payment_method_id: item.merchant_payment_method_id.clone(),
+            connector_payment_method_id: item.connector_payment_method_id.clone(),
+            merchant_request_id: item.merchant_request_id.clone(),
+            merchant_recharge_id: item.merchant_recharge_id.clone(),
+            product_id: item.product_id.clone(),
+            amount: item.amount,
+            description: item.description.clone(),
+            payment_method_type: item.payment_method_type,
+            state: resolved_state,
+            connector_feature_data: item.connector_feature_data.clone(),
+            test_mode: item.test_mode,
         }
     }
 }
