@@ -2152,6 +2152,17 @@ impl PaymentMethodService for PaymentMethod {
         .await
     }
 
+}
+
+impl PaymentMethod {
+    // `internal_recharge` is an inherent helper (not a trait method). The
+    // `implement_connector_operation!` macro emits a free `async fn`, so it
+    // must live in an inherent impl — putting it inside `impl
+    // PaymentMethodService for PaymentMethod` makes Rust treat it as a trait
+    // method, which fails because the proto-generated trait doesn't declare
+    // it. Other connector-op helpers (internal_void_payment, internal_refund,
+    // …) follow the same pattern via their `*Operational` traits; here we
+    // simplify by using an inherent impl directly.
     implement_connector_operation!(
         fn_name: internal_recharge,
         log_prefix: "RECHARGE",
@@ -2167,9 +2178,7 @@ impl PaymentMethodService for PaymentMethod {
         connector_data_type: ConnectorData<DefaultPCIHolder>,
         all_keys_required: None
     );
-}
 
-impl PaymentMethod {
     #[allow(clippy::too_many_arguments)]
     pub async fn handle_tokenize_internal<
         T: PaymentMethodDataTypes
