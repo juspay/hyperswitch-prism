@@ -3647,11 +3647,10 @@ message WalletDetails {
   string wallet_account_id = 1; // Unique wallet identifier from connector (e.g., QwikWallet number)
   optional SecretString wallet_pin = 2; // wallet PIN for authentication
   optional WalletStatus wallet_status = 3; // Current operational status (ACTIVE/INACTIVE)
-  optional string wallet_program_name = 4; // Wallet program/tier classification
-  optional string wallet_holder_name = 5; // Name registered on the wallet account
-  optional int64 balance = 6; // Current wallet balance in minor currency units (for stored value wallets)
-  string product_id = 7; // Product or program identifier under which the wallet exists
-  repeated WalletItem items = 8; // Payment method items stored in this wallet (for container/hybrid wallets)
+  optional string wallet_holder_name = 4; // Name registered on the wallet account
+  optional int64 balance = 5; // Current wallet balance in minor currency units (for stored value wallets)
+  string product_id = 6; // Product or program identifier under which the wallet exists
+  repeated WalletItem items = 7; // Payment method items stored in this wallet (for container/hybrid wallets)
 }
 
 // Status of a wallet item (payment method within a container/hybrid wallet)

@@ -39,6 +39,9 @@ async fn test_config_override() -> Result<(), Box<dyn std::error::Error>> {
                 connector_customer_id: None,
                 phone_number: None,
                 phone_country_code: None,
+                first_name: None,
+                last_name: None,
+                salutation: None,
             }),
             payment_method: Some(PaymentMethod {
                 payment_method: Some(payment_method::PaymentMethod::Card(CardDetails {
