@@ -24,6 +24,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // g2h handles repeated *enum* fields but not repeated string/message fields or map fields,
     // so we add it generically by reading ConnectorSpecificConfig's oneof from the descriptor —
     // no connector names hardcoded.
+    // Only payment.proto is needed here: ConnectorSpecificConfig (the x-connector-config
+    // header type) is defined there. Loading all protos would be slower and unnecessary.
     let fds = prost_build::Config::new().load_fds(&["proto/payment.proto"], &["proto"])?;
     add_serde_default_for_connector_configs(&mut config, &fds);
 
@@ -87,16 +89,32 @@ fn add_serde_default_for_connector_configs(
     config: &mut prost_build::Config,
     fds: &prost_types::FileDescriptorSet,
 ) {
-    let connector_config_names: std::collections::HashSet<&str> = fds
+    let maybe_config_msg = fds
         .file
         .iter()
         .flat_map(|f| &f.message_type)
-        .find(|m: &&prost_types::DescriptorProto| m.name() == "ConnectorSpecificConfig")
+        .find(|m: &&prost_types::DescriptorProto| m.name() == "ConnectorSpecificConfig");
+
+    if maybe_config_msg.is_none() {
+        eprintln!(
+            "cargo:warning=build.rs: ConnectorSpecificConfig not found in payment.proto; \
+             no #[serde(default)] will be added for connector config repeated fields"
+        );
+    }
+
+    let connector_config_names: std::collections::HashSet<&str> = maybe_config_msg
         .map(|m| {
             m.field
                 .iter()
                 .filter_map(|f: &prost_types::FieldDescriptorProto| {
-                    f.type_name().split('.').next_back()
+                    // type_name is empty for primitive fields (int32, string, etc.);
+                    // skip them — we only want message/enum type names.
+                    let tn = f.type_name();
+                    if tn.is_empty() {
+                        None
+                    } else {
+                        tn.split('.').next_back()
+                    }
                 })
                 .collect()
         })
