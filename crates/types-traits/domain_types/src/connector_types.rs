@@ -1817,6 +1817,30 @@ pub struct PaymentMethodTokenResponse {
 }
 
 #[derive(Debug, Clone)]
+pub struct RechargeRequestData {
+    pub merchant_payment_method_id: Option<String>,
+    pub connector_payment_method_id: Option<String>,
+    pub merchant_request_id: Option<String>,
+    pub merchant_recharge_id: Option<String>,
+    pub product_id: String,
+    pub amount: MinorUnit,
+    pub currency: Currency,
+    pub description: Option<String>,
+    pub payment_method_type: PaymentMethodType,
+}
+
+#[derive(Debug, Clone)]
+pub struct RechargeResponseData {
+    pub merchant_payment_method_id: Option<String>,
+    pub connector_payment_method_id: Option<String>,
+    pub merchant_recharge_id: Option<String>,
+    pub connector_recharge_id: Option<String>,
+    pub status: common_enums::RechargeStatus,
+    pub payment_method_details: Option<payment_method_data::PaymentMethodDetails>,
+    pub status_code: u16,
+}
+
+#[derive(Debug, Clone)]
 pub struct PaymentsPreAuthenticateData<T: PaymentMethodDataTypes> {
     pub payment_method_data: Option<PaymentMethodData<T>>,
     pub amount: MinorUnit,

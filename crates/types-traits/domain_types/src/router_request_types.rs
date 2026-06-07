@@ -460,3 +460,9 @@ pub struct VerifyWebhookSourceRequestData {
 pub struct VerifyWebhookSourceIntegrityObject {
     pub webhook_id: String,
 }
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct RechargeIntegrityObject {
+    pub amount: common_utils::types::MinorUnit,
+    pub currency: common_enums::Currency,
+}

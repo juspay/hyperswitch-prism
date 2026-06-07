@@ -1748,3 +1748,48 @@ pub struct CustomerInfoDetails {
     #[schema(value_type = Option<String>)]
     pub customer_bank_name: Option<Secret<String>>,
 }
+
+/// Generic payment method details returned in responses (e.g., after recharge, query operations)
+/// Supports multiple payment method types with their specific metadata
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
+pub enum PaymentMethodDetails {
+    /// Wallet-specific details (stored value, container, or hybrid wallets)
+    Wallet(WalletDetails),
+    
+    // Future expansions: For gift cards, prepaid cards, loyality rewards, etc.
+}
+
+/// Represents an item (payment method) stored within a wallet (for container/hybrid wallets)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WalletItem {
+    /// Unique identifier for this wallet item from the connector
+    pub wallet_item_id: String,
+    /// Product identifier under which this item exists
+    pub product_id: String,
+    /// Current status of this wallet item
+    pub status: common_enums::WalletItemStatus,
+    /// Available balance for this item (if applicable)
+    pub available_balance: Option<common_utils::types::Money>,
+    /// Expiry date of this item (ISO 8601 format)
+    pub expiry_date: Option<String>,
+}
+
+/// Represents wallet-specific details after a recharge or query operation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WalletDetails {
+    /// Unique wallet account identifier from connector (e.g., QwikWallet number)
+    pub wallet_account_id: String,
+    /// Wallet PIN for authentication (if applicable)
+    pub wallet_pin: Option<Secret<String>>,
+    /// Current operational status of the wallet
+    pub wallet_status: Option<common_enums::WalletStatus>,
+    /// Name registered on the wallet account
+    pub wallet_holder_name: Option<String>,
+    /// Current wallet balance in minor currency units (for stored value wallets)
+    pub balance: Option<common_utils::types::MinorUnit>,
+    /// Product or program identifier under which the wallet exists
+    pub product_id: String,
+    /// Payment method items stored in this wallet (for container/hybrid wallets)
+    pub items: Vec<WalletItem>,
+}

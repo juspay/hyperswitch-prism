@@ -13,8 +13,8 @@ use domain_types::{
     connector_flow::{
         Authenticate, Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
         CreateOrder, IncrementalAuthorization, MandateRevoke, PSync, PaymentMethodToken,
-        PostAuthenticate, PreAuthenticate, Refund, RepeatPayment, ServerAuthenticationToken,
-        ServerSessionAuthenticationToken, SetupMandate, Void, VoidPC,
+        PostAuthenticate, PreAuthenticate, Recharge, Refund, RepeatPayment,
+        ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate, Void, VoidPC,
     },
     connector_types::{
         ClientAuthenticationTokenRequestData, ConnectorCustomerData, ConnectorCustomerResponse,
@@ -24,10 +24,11 @@ use domain_types::{
         PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
         PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
-        PaymentsSyncData, RawConnectorRequestResponse, RefundFlowData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData, ServerSessionAuthenticationTokenRequestData,
-        ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData,
+        PaymentsSyncData, RawConnectorRequestResponse, RechargeRequestData, RechargeResponseData,
+        RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
+        SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{DefaultPCIHolder, PaymentMethodDataTypes, VaultTokenHolder},
@@ -39,12 +40,12 @@ use domain_types::{
         generate_payment_post_authenticate_response, generate_payment_pre_authenticate_response,
         generate_payment_sdk_session_token_response, generate_payment_sync_response,
         generate_payment_void_post_capture_response, generate_payment_void_response,
-        generate_refund_response, generate_repeat_payment_response,
+        generate_recharge_response, generate_refund_response, generate_repeat_payment_response,
         generate_setup_mandate_response, tokenized_authorize_to_base,
         tokenized_setup_recurring_to_base, AuthorizationRequest, PaymentMethodDataAction,
         SetupRecurringRequest,
     },
-    utils::ForeignTryFrom,
+    utils::{ForeignFrom, ForeignTryFrom},
 };
 use external_services::service::EventProcessingParams;
 use grpc_api_types::payments::{
@@ -1988,7 +1989,7 @@ impl PaymentMethodService for PaymentMethod {
             .extensions()
             .get::<String>()
             .cloned()
-            .unwrap_or_else(|| "PaymentService".to_string());
+            .unwrap_or_else(|| "PaymentMethodService".to_string());
         let config = get_config_from_request(&request)?;
 
         grpc_logging_wrapper(
@@ -2108,12 +2109,66 @@ impl PaymentMethodService for PaymentMethod {
         ))
     }
 
+    #[tracing::instrument(
+        name = "recharge",
+        fields(
+            name = common_utils::consts::NAME,
+            service_name = common_utils::consts::PAYMENT_SERVICE_NAME,
+            service_method = "Recharge",
+            request_body = tracing::field::Empty,
+            response_body = tracing::field::Empty,
+            error_message = tracing::field::Empty,
+            merchant_id = tracing::field::Empty,
+            gateway = tracing::field::Empty,
+            request_id = tracing::field::Empty,
+            status_code = tracing::field::Empty,
+            message_ = "Golden Log Line (incoming)",
+            response_time = tracing::field::Empty,
+            tenant_id = tracing::field::Empty,
+            flow = FlowName::Recharge.as_str(),
+            flow_specific_fields.status = tracing::field::Empty,
+        ),
+        skip(self, request)
+    )]
     async fn recharge(
         &self,
-        _request: tonic::Request<PaymentMethodServiceRechargeRequest>,
+        request: tonic::Request<PaymentMethodServiceRechargeRequest>,
     ) -> Result<tonic::Response<PaymentMethodServiceRechargeResponse>, tonic::Status> {
-        Err(tonic::Status::unimplemented("Recharge not implemented yet"))
+        info!("RECHARGE_FLOW: initiated");
+        let service_name = request
+            .extensions()
+            .get::<String>()
+            .cloned()
+            .unwrap_or_else(|| "PaymentMethodService".to_string());
+        let config = get_config_from_request(&request)?;
+
+        grpc_logging_wrapper(
+            request,
+            &service_name,
+            config.clone(),
+            FlowName::Recharge,
+            |request_data| {
+                Box::pin(self.internal_recharge(request_data))
+            },
+        )
+        .await
     }
+
+    implement_connector_operation!(
+        fn_name: internal_recharge,
+        log_prefix: "RECHARGE",
+        request_type: PaymentMethodServiceRechargeRequest,
+        response_type: PaymentMethodServiceRechargeResponse,
+        flow_marker: Recharge,
+        resource_common_data_type: PaymentFlowData,
+        request_data_type: RechargeRequestData,
+        response_data_type: RechargeResponseData,
+        request_data_constructor: RechargeRequestData::foreign_try_from,
+        common_flow_data_constructor: PaymentFlowData::foreign_try_from,
+        generate_response_fn: generate_recharge_response,
+        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        all_keys_required: None
+    );
 }
 
 impl PaymentMethod {

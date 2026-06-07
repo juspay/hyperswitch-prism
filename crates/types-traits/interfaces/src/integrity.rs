@@ -13,9 +13,9 @@ use domain_types::connector_types::{
     PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
     PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
     PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-    PaymentsPreAuthenticateData, PaymentsSyncData, RefundSyncData, RefundsData, RepeatPaymentData,
-    ServerAuthenticationTokenRequestData, ServerSessionAuthenticationTokenRequestData,
-    SetupMandateRequestData, SubmitEvidenceData,
+    PaymentsPreAuthenticateData, PaymentsSyncData, RechargeRequestData, RefundSyncData,
+    RefundsData, RepeatPaymentData, ServerAuthenticationTokenRequestData,
+    ServerSessionAuthenticationTokenRequestData, SetupMandateRequestData, SubmitEvidenceData,
 };
 use domain_types::payouts::payouts_types::{
     PayoutCreateLinkRequest, PayoutCreateRecipientRequest, PayoutCreateRequest,
@@ -43,9 +43,10 @@ use domain_types::{
         IncrementalAuthorizationIntegrityObject, MandateRevokeIntegrityObject,
         PaymentMethodTokenIntegrityObject, PaymentSynIntegrityObject, PaymentVoidIntegrityObject,
         PaymentVoidPostCaptureIntegrityObject, PostAuthenticateIntegrityObject,
-        PreAuthenticateIntegrityObject, RefundIntegrityObject, RefundSyncIntegrityObject,
-        RepeatPaymentIntegrityObject, SessionTokenIntegrityObject, SetupMandateIntegrityObject,
-        SubmitEvidenceIntegrityObject, VerifyWebhookSourceIntegrityObject,
+        PreAuthenticateIntegrityObject, RechargeIntegrityObject, RefundIntegrityObject,
+        RefundSyncIntegrityObject, RepeatPaymentIntegrityObject, SessionTokenIntegrityObject,
+        SetupMandateIntegrityObject, SubmitEvidenceIntegrityObject,
+        VerifyWebhookSourceIntegrityObject,
     },
 };
 
@@ -201,6 +202,7 @@ impl_check_integrity!(PayoutVoidRequest);
 impl_check_integrity!(SurchargeCalculateRequest);
 impl_check_integrity!(SurchargePaymentSucceededRequest);
 impl_check_integrity!(SurchargeRefundSucceededRequest);
+impl_check_integrity!(RechargeRequestData);
 
 // ========================================================================
 // GET INTEGRITY OBJECT IMPLEMENTATIONS
@@ -1420,6 +1422,19 @@ impl GetIntegrityObject<SurchargeRefundSucceededIntegrityObject>
     }
 }
 
+impl GetIntegrityObject<RechargeIntegrityObject> for RechargeRequestData {
+    fn get_response_integrity_object(&self) -> Option<RechargeIntegrityObject> {
+        None // Recharge responses don't have integrity objects
+    }
+
+    fn get_request_integrity_object(&self) -> RechargeIntegrityObject {
+        RechargeIntegrityObject {
+            amount: self.amount,
+            currency: self.currency,
+        }
+    }
+}
+
 // --- GENERATED FLOW INTEGRITY IMPLEMENTATIONS ---
 
 impl FlowIntegrity for PayoutTransferIntegrityObject {
@@ -1693,6 +1708,38 @@ impl FlowIntegrity for SurchargeRefundSucceededIntegrityObject {
                 "connector_surcharge_id",
                 &req_integrity_object.connector_surcharge_id,
                 &res_integrity_object.connector_surcharge_id,
+            ));
+        }
+
+        check_integrity_result(mismatched_fields, connector_transaction_id)
+    }
+}
+
+impl FlowIntegrity for RechargeIntegrityObject {
+    type IntegrityObject = Self;
+
+    fn compare(
+        req_integrity_object: Self,
+        res_integrity_object: Self,
+        connector_transaction_id: Option<String>,
+    ) -> Result<(), IntegrityCheckError> {
+        let mut mismatched_fields = Vec::new();
+
+        // Check amount
+        if req_integrity_object.amount != res_integrity_object.amount {
+            mismatched_fields.push(format_mismatch(
+                "amount",
+                &req_integrity_object.amount.to_string(),
+                &res_integrity_object.amount.to_string(),
+            ));
+        }
+
+        // Check currency
+        if req_integrity_object.currency != res_integrity_object.currency {
+            mismatched_fields.push(format_mismatch(
+                "currency",
+                &req_integrity_object.currency.to_string(),
+                &res_integrity_object.currency.to_string(),
             ));
         }
 
