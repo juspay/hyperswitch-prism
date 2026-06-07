@@ -34,10 +34,9 @@ use grpc_api_types::payments::{
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
     PaymentMethodAuthenticationServiceAuthenticateResponse,
     PaymentMethodAuthenticationServicePostAuthenticateResponse,
-    PaymentMethodAuthenticationServicePreAuthenticateResponse,
-    PaymentMethodServiceCreateResponse, PaymentMethodServiceGetResponse,
-    PaymentMethodServiceRechargeResponse, PaymentServiceAuthorizeRequest,
-    PaymentServiceAuthorizeResponse, PaymentServiceCaptureResponse,
+    PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentMethodServiceCreateResponse,
+    PaymentMethodServiceGetResponse, PaymentMethodServiceRechargeResponse,
+    PaymentServiceAuthorizeRequest, PaymentServiceAuthorizeResponse, PaymentServiceCaptureResponse,
     PaymentServiceCreateOrderResponse, PaymentServiceGetResponse,
     PaymentServiceIncrementalAuthorizationRequest, PaymentServiceIncrementalAuthorizationResponse,
     PaymentServiceReverseResponse, PaymentServiceSetupRecurringRequest,
@@ -10973,10 +10972,16 @@ fn payment_method_customer_info_from_proto(
     let email = customer
         .email
         .and_then(|e| Email::try_from(e.expose()).ok());
+    // Prefer the split first/last fields; fall back to `name` (legacy full
+    // name) only if first_name is absent.
+    let first_name = customer
+        .first_name
+        .map(Secret::new)
+        .or_else(|| customer.name.clone().map(Secret::new));
     connector_types::PaymentMethodCustomerInfo {
         merchant_customer_id: customer.id,
-        first_name: customer.name.map(Secret::new),
-        last_name: None,
+        first_name,
+        last_name: customer.last_name.map(Secret::new),
         email,
         phone_number: customer.phone_number.map(Secret::new),
     }
@@ -14515,7 +14520,9 @@ fn proto_customer_from_payment_method_customer_info(
             .or_else(|| info.first_name.as_ref().map(|f| f.peek().clone())),
         first_name: info.first_name.as_ref().map(|f| f.peek().clone()),
         last_name: info.last_name.as_ref().map(|l| l.peek().clone()),
-        email: info.email.map(|e| Secret::new(e.expose().expose().to_string())),
+        email: info
+            .email
+            .map(|e| Secret::new(e.expose().expose().to_string())),
         phone_number: info.phone_number.map(|p| p.expose()),
         ..Default::default()
     }
@@ -14544,7 +14551,9 @@ pub fn generate_create_payment_method_response(
             payment_method_details: r
                 .payment_method_details
                 .map(grpc_api_types::payments::PaymentMethodDetails::foreign_from),
-            customer: r.customer.map(proto_customer_from_payment_method_customer_info),
+            customer: r
+                .customer
+                .map(proto_customer_from_payment_method_customer_info),
             address: None,
             error: None,
             status_code: r.status_code as u32,
@@ -14603,7 +14612,9 @@ pub fn generate_get_payment_method_response(
             payment_method_details: r
                 .payment_method_details
                 .map(grpc_api_types::payments::PaymentMethodDetails::foreign_from),
-            customer: r.customer.map(proto_customer_from_payment_method_customer_info),
+            customer: r
+                .customer
+                .map(proto_customer_from_payment_method_customer_info),
             address: None,
             error: None,
             status_code: r.status_code as u32,

@@ -20,10 +20,15 @@
 use common_enums::{AttemptStatus, RechargeStatus, RefundStatus};
 use common_utils::types::FloatMajorUnit;
 use domain_types::{
-    connector_flow::{Authorize, Recharge, Refund, ServerAuthenticationToken},
+    connector_flow::{
+        Authorize, CreatePaymentMethod, GetPaymentMethod, Recharge, Refund,
+        ServerAuthenticationToken,
+    },
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, RechargeRequestData,
-        RechargeResponseData, RefundFlowData, RefundsData, RefundsResponseData, ResponseId,
+        CreatePaymentMethodData, CreatePaymentMethodResponseData, GetPaymentMethodData,
+        GetPaymentMethodResponseData, PaymentFlowData, PaymentMethodCustomerInfo,
+        PaymentsAuthorizeData, PaymentsResponseData, RechargeRequestData, RechargeResponseData,
+        RefundFlowData, RefundsData, RefundsResponseData, ResponseId,
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
     errors::{ConnectorError, IntegrationError},
@@ -32,7 +37,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{connectors::qwikcilver::QwikcilverRouterData, types::ResponseRouterData};
@@ -280,7 +285,8 @@ pub struct QwikcilverCustomer {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct QwikcilverCard {
-    pub card_number: String,
+    /// Gift-card / refund-eCard credential issued by Pine Labs. PII.
+    pub card_number: Secret<String>,
     pub amount: FloatMajorUnit,
     pub card_program_name: Option<String>,
     pub card_status: Option<String>,
@@ -309,7 +315,12 @@ pub struct QwikcilverRedeemRequest {
 impl<T>
     TryFrom<
         QwikcilverRouterData<
-            RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     > for QwikcilverRedeemRequest
@@ -320,7 +331,12 @@ where
 
     fn try_from(
         item: QwikcilverRouterData<
-            RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     ) -> Result<Self, Self::Error> {
@@ -383,10 +399,14 @@ impl<T>
     TryFrom<
         ResponseRouterData<
             QwikcilverRedeemResponse,
-            RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
         >,
-    >
-    for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
+    > for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 where
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 {
@@ -395,7 +415,12 @@ where
     fn try_from(
         item: ResponseRouterData<
             QwikcilverRedeemResponse,
-            RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
         >,
     ) -> Result<Self, Self::Error> {
         let mut data = item.router_data;
@@ -794,10 +819,7 @@ impl
                 wallet_account_id: w.wallet_number.clone().expose(),
                 wallet_pin: w.wallet_pin.clone(),
                 wallet_status: None,
-                wallet_holder_name: w
-                    .wallet_holder_name
-                    .as_ref()
-                    .map(|h| h.clone().expose()),
+                wallet_holder_name: w.wallet_holder_name.as_ref().map(|h| h.clone().expose()),
                 // Qwikcilver returns balance in major units; the domain type
                 // is MinorUnit. We don't have the currency's exponent here,
                 // so leave balance unset rather than risk a wrong conversion.
@@ -841,6 +863,423 @@ pub(crate) fn parse_composite_txn_id(id: &str) -> Option<(i64, i64)> {
     let batch = parts.next()?.parse().ok()?;
     let txn = parts.next()?.parse().ok()?;
     Some((batch, txn))
+}
+
+// ============================================================================
+// CREATE WALLET — POST `/api/v2/wallet`
+//
+// Provisions a new wallet for a customer. Wire shape per the QwikWallet
+// V2 PDF §10.2:
+//   Request body : { Externalwalletid, WalletProgramGroupName, Customer{…}, Notes }
+//   Response     : { Wallet{WalletNumber, ExternalWalletId, Status, …, Customer{…}},
+//                    CurrentBatchNumber, ResponseCode, ResponseMessage, TransactionId, … }
+//
+// Domain mapping (CreatePaymentMethodData → wire):
+//   customer.phone_number       → Externalwalletid (customer mobile)
+//   customer.first_name/last_name/email → Customer.* (passed through verbatim)
+//   description                 → Notes
+//   product_id  (NOT present in the domain type) → WalletProgramGroupName,
+//     so we fetch it from the description for now; future revision can move
+//     it into `connector_feature_data` JSON.
+// ============================================================================
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct QwikcilverCreateWalletRequest {
+    /// Customer's unique mobile number used to associate the wallet.
+    /// Stored as ExternalWalletId on the connector side. PII.
+    #[serde(rename = "Externalwalletid")]
+    pub externalwalletid: Secret<String>,
+    pub wallet_program_group_name: String,
+    pub customer: QwikcilverCreateCustomer,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notes: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct QwikcilverCreateCustomer {
+    pub customer_type: Option<String>,
+    pub salutation: String,
+    pub firstname: Secret<String>,
+    pub last_name: Secret<String>,
+    pub phone_number: Secret<String>,
+    pub email: Secret<String>,
+    pub prefered_notification_language: String,
+}
+
+/// `connector_feature_data` carries connector-specific fields the generic
+/// domain type can't express. For Create we need at least
+/// `wallet_program_group_name` (Pine Labs program identifier, region-specific).
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+pub struct QwikcilverCreateFeatureData {
+    #[serde(default)]
+    pub wallet_program_group_name: Option<String>,
+}
+
+impl QwikcilverCreateFeatureData {
+    fn from_request(req: &CreatePaymentMethodData) -> Self {
+        req.connector_feature_data
+            .as_ref()
+            .and_then(|raw| serde_json::from_value(raw.clone().expose()).ok())
+            .unwrap_or_default()
+    }
+}
+
+impl<T>
+    TryFrom<
+        QwikcilverRouterData<
+            RouterDataV2<
+                CreatePaymentMethod,
+                PaymentFlowData,
+                CreatePaymentMethodData,
+                CreatePaymentMethodResponseData,
+            >,
+            T,
+        >,
+    > for QwikcilverCreateWalletRequest
+where
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: QwikcilverRouterData<
+            RouterDataV2<
+                CreatePaymentMethod,
+                PaymentFlowData,
+                CreatePaymentMethodData,
+                CreatePaymentMethodResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let req = &item.router_data.request;
+        let customer = req.customer.clone().ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "customer",
+                context: Default::default(),
+            })
+        })?;
+        let phone = customer.phone_number.clone().ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "customer.phone_number",
+                context: Default::default(),
+            })
+        })?;
+        let first = customer.first_name.clone().ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "customer.first_name",
+                context: Default::default(),
+            })
+        })?;
+        let feature = QwikcilverCreateFeatureData::from_request(req);
+        let program = feature.wallet_program_group_name.ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "connector_feature_data.wallet_program_group_name",
+                context: Default::default(),
+            })
+        })?;
+        Ok(Self {
+            externalwalletid: phone.clone(),
+            wallet_program_group_name: program,
+            customer: QwikcilverCreateCustomer {
+                customer_type: None,
+                salutation: String::new(),
+                firstname: first,
+                last_name: customer
+                    .last_name
+                    .clone()
+                    .unwrap_or_else(|| Secret::new(String::new())),
+                phone_number: phone,
+                email: customer
+                    .email
+                    .as_ref()
+                    .map(|e| Secret::new(e.peek().to_string()))
+                    .unwrap_or_else(|| Secret::new(String::new())),
+                prefered_notification_language: "tel".to_string(),
+            },
+            notes: req.description.clone(),
+        })
+    }
+}
+
+/// Get Wallet uses an empty request body — only headers + URL.
+#[derive(Debug, Serialize)]
+pub struct QwikcilverEmptyBody {}
+
+impl<T>
+    TryFrom<
+        QwikcilverRouterData<
+            RouterDataV2<
+                GetPaymentMethod,
+                PaymentFlowData,
+                GetPaymentMethodData,
+                GetPaymentMethodResponseData,
+            >,
+            T,
+        >,
+    > for QwikcilverEmptyBody
+where
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        _item: QwikcilverRouterData<
+            RouterDataV2<
+                GetPaymentMethod,
+                PaymentFlowData,
+                GetPaymentMethodData,
+                GetPaymentMethodResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {})
+    }
+}
+
+/// Shared Create/Get response envelope. Both endpoints return the same
+/// `Wallet{…}` sub-payload + standard envelope (see PDF §10.2.2 and §10.3.2).
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct QwikcilverWalletEnvelope {
+    pub wallet: Option<QwikcilverWalletDetails>,
+    pub current_batch_number: Option<i64>,
+    pub notes: Option<String>,
+    pub approval_code: Option<String>,
+    pub response_code: i64,
+    pub response_message: Option<String>,
+    pub transaction_id: Option<i64>,
+    pub transaction_type: Option<String>,
+    pub error_code: Option<String>,
+    pub error_description: Option<String>,
+}
+
+/// Newtype wrapper for the Get response. Get + Create return the same wire
+/// envelope but the framework's `create_all_prerequisites!` macro requires
+/// distinct response types per flow (it generates a `*Templating` struct
+/// per response, and duplicate names collide). The wrapper deserializes
+/// transparently — same shape, just a distinct Rust nominal type.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(transparent)]
+pub struct QwikcilverGetWalletResponse(pub QwikcilverWalletEnvelope);
+
+/// Detailed Wallet snapshot returned in Create/Get responses. Wider than the
+/// `QwikcilverWallet` used by Recharge because Create/Get return a fuller
+/// customer record alongside the wallet basics.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct QwikcilverWalletDetails {
+    /// Wallet PAN-equivalent identifier. PII.
+    pub wallet_number: Secret<String>,
+    pub external_wallet_id: Option<Secret<String>>,
+    pub wallet_pin: Option<Secret<String>>,
+    pub status: Option<String>,
+    /// Mag-stripe Track 1/2 content for physical-card-backed wallets. PII.
+    /// Always `null` for our virtual wallet deployment, but kept Secret so
+    /// a future physical-card rollout doesn't start dumping it to logs.
+    pub track_data: Option<Secret<String>>,
+    /// Barcode payload — typically encodes the wallet number. PII.
+    pub bar_code: Option<Secret<String>>,
+    pub wallet_program_group_name: Option<String>,
+    pub wallet_holder_name: Option<Secret<String>>,
+    pub balance: Option<FloatMajorUnit>,
+    pub notes: Option<String>,
+    pub card: Option<serde_json::Value>,
+    pub customer: Option<QwikcilverCustomerDetails>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct QwikcilverCustomerDetails {
+    pub customer_type: Option<String>,
+    pub salutation: Option<String>,
+    pub firstname: Option<Secret<String>>,
+    pub last_name: Option<Secret<String>>,
+    pub phone_number: Option<Secret<String>>,
+    pub email: Option<Secret<String>>,
+    #[serde(rename = "DOB")]
+    pub dob: Option<Secret<String>>,
+    pub external_customer_id: Option<Secret<String>>,
+}
+
+fn wallet_details_to_payment_method_details(
+    wallet: &QwikcilverWalletDetails,
+) -> PaymentMethodDetails {
+    PaymentMethodDetails::Wallet(WalletDetails {
+        wallet_account_id: wallet.wallet_number.clone().expose(),
+        wallet_pin: wallet.wallet_pin.clone(),
+        wallet_status: None,
+        wallet_holder_name: wallet
+            .wallet_holder_name
+            .as_ref()
+            .map(|h| h.clone().expose()),
+        balance: None,
+        product_id: wallet.wallet_program_group_name.clone().unwrap_or_default(),
+        items: Vec::new(),
+    })
+}
+
+fn customer_details_to_payment_method_customer_info(
+    customer: &QwikcilverCustomerDetails,
+) -> PaymentMethodCustomerInfo {
+    PaymentMethodCustomerInfo {
+        merchant_customer_id: customer
+            .external_customer_id
+            .as_ref()
+            .map(|id| id.clone().expose()),
+        first_name: customer.firstname.clone(),
+        last_name: customer.last_name.clone(),
+        email: customer
+            .email
+            .as_ref()
+            .and_then(|e| common_utils::pii::Email::try_from(e.clone().expose()).ok()),
+        phone_number: customer.phone_number.clone(),
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            QwikcilverWalletEnvelope,
+            RouterDataV2<
+                CreatePaymentMethod,
+                PaymentFlowData,
+                CreatePaymentMethodData,
+                CreatePaymentMethodResponseData,
+            >,
+        >,
+    >
+    for RouterDataV2<
+        CreatePaymentMethod,
+        PaymentFlowData,
+        CreatePaymentMethodData,
+        CreatePaymentMethodResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<
+            QwikcilverWalletEnvelope,
+            RouterDataV2<
+                CreatePaymentMethod,
+                PaymentFlowData,
+                CreatePaymentMethodData,
+                CreatePaymentMethodResponseData,
+            >,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let mut data = item.router_data;
+        let body = item.response;
+        if body.response_code != QWIKCILVER_SUCCESS_CODE {
+            data.response = Err(make_error_response(
+                body.response_code,
+                body.response_message,
+                body.error_code,
+                body.error_description,
+                body.transaction_id.map(|t| t.to_string()),
+                item.http_code,
+                None,
+            ));
+            return Ok(data);
+        }
+        let merchant_pm_id = data.request.merchant_payment_method_id.clone();
+        let (connector_pm_id, payment_method_details, customer) =
+            if let Some(wallet) = body.wallet.as_ref() {
+                (
+                    Some(wallet.wallet_number.clone().expose()),
+                    Some(wallet_details_to_payment_method_details(wallet)),
+                    wallet
+                        .customer
+                        .as_ref()
+                        .map(customer_details_to_payment_method_customer_info),
+                )
+            } else {
+                (None, None, None)
+            };
+        data.response = Ok(CreatePaymentMethodResponseData {
+            merchant_payment_method_id: merchant_pm_id,
+            connector_payment_method_id: connector_pm_id,
+            payment_method_details,
+            customer,
+            status_code: item.http_code,
+        });
+        Ok(data)
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            QwikcilverGetWalletResponse,
+            RouterDataV2<
+                GetPaymentMethod,
+                PaymentFlowData,
+                GetPaymentMethodData,
+                GetPaymentMethodResponseData,
+            >,
+        >,
+    >
+    for RouterDataV2<
+        GetPaymentMethod,
+        PaymentFlowData,
+        GetPaymentMethodData,
+        GetPaymentMethodResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<
+            QwikcilverGetWalletResponse,
+            RouterDataV2<
+                GetPaymentMethod,
+                PaymentFlowData,
+                GetPaymentMethodData,
+                GetPaymentMethodResponseData,
+            >,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let mut data = item.router_data;
+        let body = item.response.0;
+        if body.response_code != QWIKCILVER_SUCCESS_CODE {
+            data.response = Err(make_error_response(
+                body.response_code,
+                body.response_message,
+                body.error_code,
+                body.error_description,
+                body.transaction_id.map(|t| t.to_string()),
+                item.http_code,
+                None,
+            ));
+            return Ok(data);
+        }
+        let merchant_pm_id = data.request.merchant_payment_method_id.clone();
+        let (connector_pm_id, payment_method_details, customer) =
+            if let Some(wallet) = body.wallet.as_ref() {
+                (
+                    Some(wallet.wallet_number.clone().expose()),
+                    Some(wallet_details_to_payment_method_details(wallet)),
+                    wallet
+                        .customer
+                        .as_ref()
+                        .map(customer_details_to_payment_method_customer_info),
+                )
+            } else {
+                (data.request.connector_payment_method_id.clone(), None, None)
+            };
+        data.response = Ok(GetPaymentMethodResponseData {
+            merchant_payment_method_id: merchant_pm_id,
+            connector_payment_method_id: connector_pm_id,
+            payment_method_details,
+            customer,
+            status_code: item.http_code,
+        });
+        Ok(data)
+    }
 }
 
 // ============================================================================
@@ -910,4 +1349,3 @@ fn make_error_response(
         network_error_message: None,
     }
 }
-

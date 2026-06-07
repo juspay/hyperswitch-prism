@@ -11,11 +11,16 @@ use common_utils::{
     types::FloatMajorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, Recharge, Refund, ServerAuthenticationToken},
+    connector_flow::{
+        Authorize, CreatePaymentMethod, GetPaymentMethod, Recharge, Refund,
+        ServerAuthenticationToken,
+    },
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, RechargeRequestData,
-        RechargeResponseData, RefundFlowData, RefundsData, RefundsResponseData,
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        CreatePaymentMethodData, CreatePaymentMethodResponseData, GetPaymentMethodData,
+        GetPaymentMethodResponseData, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
+        RechargeRequestData, RechargeResponseData, RefundFlowData, RefundsData,
+        RefundsResponseData, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::PaymentMethodDataTypes,
@@ -34,9 +39,10 @@ use serde::Serialize;
 use transformers::{
     self as qwikcilver, QwikcilverAuthType, QwikcilverAuthorizeFeatureData,
     QwikcilverAuthorizeRequest, QwikcilverAuthorizeResponse, QwikcilverCancelRedeemBody,
-    QwikcilverCancelRedeemResponse, QwikcilverErrorResponse, QwikcilverRechargeRequest,
+    QwikcilverCancelRedeemResponse, QwikcilverCreateWalletRequest, QwikcilverEmptyBody,
+    QwikcilverErrorResponse, QwikcilverGetWalletResponse, QwikcilverRechargeRequest,
     QwikcilverRechargeResponse, QwikcilverRedeemRequest, QwikcilverRedeemResponse,
-    QwikcilverRefundMetadata,
+    QwikcilverRefundMetadata, QwikcilverWalletEnvelope,
 };
 
 use super::macros;
@@ -70,6 +76,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RechargeV2 for Qwikcilver<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::CreatePaymentMethodV2 for Qwikcilver<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::GetPaymentMethodV2 for Qwikcilver<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -152,6 +166,18 @@ macros::create_all_prerequisites!(
             request_body: QwikcilverRechargeRequest,
             response_body: QwikcilverRechargeResponse,
             router_data: RouterDataV2<Recharge, PaymentFlowData, RechargeRequestData, RechargeResponseData>,
+        ),
+        (
+            flow: CreatePaymentMethod,
+            request_body: QwikcilverCreateWalletRequest,
+            response_body: QwikcilverWalletEnvelope,
+            router_data: RouterDataV2<CreatePaymentMethod, PaymentFlowData, CreatePaymentMethodData, CreatePaymentMethodResponseData>,
+        ),
+        (
+            flow: GetPaymentMethod,
+            request_body: QwikcilverEmptyBody,
+            response_body: QwikcilverGetWalletResponse,
+            router_data: RouterDataV2<GetPaymentMethod, PaymentFlowData, GetPaymentMethodData, GetPaymentMethodResponseData>,
         )
     ],
     amount_converters: [
@@ -516,6 +542,100 @@ macros::macro_connector_implementation!(
         fn get_headers(
             &self,
             req: &RouterDataV2<Recharge, PaymentFlowData, RechargeRequestData, RechargeResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let token = self.extract_access_token(req)?;
+            self.build_authenticated_headers(req, &token)
+        }
+    }
+);
+
+// ============================================================================
+// CREATE WALLET — POST /wallet  (provisions a new wallet for a customer)
+// ============================================================================
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Qwikcilver,
+    curl_request: Json(QwikcilverCreateWalletRequest),
+    curl_response: QwikcilverWalletEnvelope,
+    flow_name: CreatePaymentMethod,
+    resource_common_data: PaymentFlowData,
+    flow_request: CreatePaymentMethodData,
+    flow_response: CreatePaymentMethodResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_url(
+            &self,
+            req: &RouterDataV2<CreatePaymentMethod, PaymentFlowData, CreatePaymentMethodData, CreatePaymentMethodResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}QwikCilver/egms.restapi/api/v2/wallet",
+                self.connector_base_url_payments(req),
+            ))
+        }
+
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<CreatePaymentMethod, PaymentFlowData, CreatePaymentMethodData, CreatePaymentMethodResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let token = self.extract_access_token(req)?;
+            self.build_authenticated_headers(req, &token)
+        }
+    }
+);
+
+// ============================================================================
+// GET WALLET — GET /wallet/{wallet_number}  (look up an existing wallet)
+//
+// `connector_payment_method_id` carries the wallet number on the connector
+// side. Missing → MissingRequiredField.
+// ============================================================================
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Qwikcilver,
+    curl_request: Json(QwikcilverEmptyBody),
+    curl_response: QwikcilverGetWalletResponse,
+    flow_name: GetPaymentMethod,
+    resource_common_data: PaymentFlowData,
+    flow_request: GetPaymentMethodData,
+    flow_response: GetPaymentMethodResponseData,
+    http_method: Get,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_url(
+            &self,
+            req: &RouterDataV2<GetPaymentMethod, PaymentFlowData, GetPaymentMethodData, GetPaymentMethodResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let wallet_number = req
+                .request
+                .connector_payment_method_id
+                .as_deref()
+                .ok_or_else(|| {
+                    IntegrationError::MissingRequiredField {
+                        field_name: "connector_payment_method_id",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Qwikcilver Get needs the wallet number in \
+                                 `connector_payment_method_id`".to_string(),
+                            ),
+                            ..Default::default()
+                        },
+                    }
+                })?;
+            Ok(format!(
+                "{}QwikCilver/egms.restapi/api/v2/wallet/{}",
+                self.connector_base_url_payments(req),
+                urlencoding::encode(wallet_number),
+            ))
+        }
+
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<GetPaymentMethod, PaymentFlowData, GetPaymentMethodData, GetPaymentMethodResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let token = self.extract_access_token(req)?;
             self.build_authenticated_headers(req, &token)
