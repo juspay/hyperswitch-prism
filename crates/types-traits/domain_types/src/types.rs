@@ -3,7 +3,9 @@ use std::{borrow::Cow, collections::HashMap, fmt::Debug, str::FromStr};
 
 use crate::{
     connector_flow::{MandateRevoke, Recharge},
-    connector_types::{self, CaptureSyncResponse, ConnectorEnum, RechargeRequestData, RechargeResponseData},
+    connector_types::{
+        self, CaptureSyncResponse, ConnectorEnum, RechargeRequestData, RechargeResponseData,
+    },
     payment_method_data::SamsungPayWalletCredentials,
     utils::extract_connector_request_reference_id,
 };
@@ -10843,25 +10845,27 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodServiceRechargeReques
         }?;
 
         // Convert proto PaymentMethodType (i32) to common_enums::PaymentMethodType
-        let pm_type_proto = grpc_api_types::payments::PaymentMethodType::try_from(value.payment_method_type)
-            .change_context(IntegrationError::MissingRequiredField {
-                field_name: "payment_method_type",
-                context: IntegrationErrorContext::default(),
-            })?;
+        let pm_type_proto =
+            grpc_api_types::payments::PaymentMethodType::try_from(value.payment_method_type)
+                .change_context(IntegrationError::MissingRequiredField {
+                    field_name: "payment_method_type",
+                    context: IntegrationErrorContext::default(),
+                })?;
 
         // Use existing ForeignTryFrom implementation for type conversion
-        let payment_method_type = Option::<common_enums::PaymentMethodType>::foreign_try_from(pm_type_proto)?
-            .ok_or_else(|| {
-                report!(IntegrationError::InvalidDataFormat {
-                    field_name: "payment_method_type",
-                    context: IntegrationErrorContext {
-                        additional_context: Some(
-                            "Unsupported payment method type for recharge flow".to_string()
-                        ),
-                        ..Default::default()
-                    },
-                })
-            })?;
+        let payment_method_type =
+            Option::<common_enums::PaymentMethodType>::foreign_try_from(pm_type_proto)?
+                .ok_or_else(|| {
+                    report!(IntegrationError::InvalidDataFormat {
+                        field_name: "payment_method_type",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Unsupported payment method type for recharge flow".to_string()
+                            ),
+                            ..Default::default()
+                        },
+                    })
+                })?;
 
         Ok(Self {
             merchant_payment_method_id: value.merchant_payment_method_id,
@@ -10913,7 +10917,7 @@ impl
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_recharge_id,
             ),
-            customer_id: None, // No customer in recharge proto
+            customer_id: None,        // No customer in recharge proto
             connector_customer: None, // No connector customer in recharge proto
             description: value.description,
             return_url: None,
@@ -10926,7 +10930,9 @@ impl
             minor_amount_capturable: None,
             amount: value.amount.map(|amt| common_utils::types::Money {
                 amount: common_utils::types::MinorUnit::new(amt.minor_amount),
-                currency: common_enums::Currency::foreign_try_from(amt.currency()).ok().unwrap_or_default(),
+                currency: common_enums::Currency::foreign_try_from(amt.currency())
+                    .ok()
+                    .unwrap_or_default(),
             }),
             access_token,
             session_token: None,
@@ -14159,23 +14165,31 @@ impl ForeignFrom<payment_method_data::WalletItem> for grpc_api_types::payments::
     }
 }
 
-impl ForeignFrom<payment_method_data::PaymentMethodDetails> for grpc_api_types::payments::PaymentMethodDetails {
+impl ForeignFrom<payment_method_data::PaymentMethodDetails>
+    for grpc_api_types::payments::PaymentMethodDetails
+{
     fn foreign_from(details: payment_method_data::PaymentMethodDetails) -> Self {
         match details {
             payment_method_data::PaymentMethodDetails::Wallet(wallet) => Self {
-                details: Some(grpc_api_types::payments::payment_method_details::Details::Wallet(
-                    grpc_api_types::payments::WalletDetails {
-                        wallet_account_id: wallet.wallet_account_id,
-                        wallet_pin: wallet.wallet_pin,
-                        wallet_status: wallet.wallet_status.map(|status| 
-                            grpc_api_types::payments::WalletStatus::foreign_from(status).into()
-                        ),
-                        wallet_holder_name: wallet.wallet_holder_name,
-                        balance: wallet.balance.map(|b| b.get_amount_as_i64()),
-                        product_id: wallet.product_id,
-                        items: wallet.items.into_iter().map(grpc_api_types::payments::WalletItem::foreign_from).collect(),
-                    },
-                )),
+                details: Some(
+                    grpc_api_types::payments::payment_method_details::Details::Wallet(
+                        grpc_api_types::payments::WalletDetails {
+                            wallet_account_id: wallet.wallet_account_id,
+                            wallet_pin: wallet.wallet_pin,
+                            wallet_status: wallet.wallet_status.map(|status| {
+                                grpc_api_types::payments::WalletStatus::foreign_from(status).into()
+                            }),
+                            wallet_holder_name: wallet.wallet_holder_name,
+                            balance: wallet.balance.map(|b| b.get_amount_as_i64()),
+                            product_id: wallet.product_id,
+                            items: wallet
+                                .items
+                                .into_iter()
+                                .map(grpc_api_types::payments::WalletItem::foreign_from)
+                                .collect(),
+                        },
+                    ),
+                ),
             },
             // Future payment method types will be handled here
         }
@@ -14209,9 +14223,9 @@ pub fn generate_recharge_response(
                 merchant_recharge_id: response.merchant_recharge_id,
                 connector_recharge_id: response.connector_recharge_id,
                 status: grpc_status.into(),
-                payment_method_details: response.payment_method_details.map(
-                    grpc_api_types::payments::PaymentMethodDetails::foreign_from
-                ),
+                payment_method_details: response
+                    .payment_method_details
+                    .map(grpc_api_types::payments::PaymentMethodDetails::foreign_from),
                 error: None,
                 status_code: response.status_code as u32,
                 response_headers: router_data_v2
@@ -14223,7 +14237,7 @@ pub fn generate_recharge_response(
         }
         Err(e) => {
             let grpc_status = grpc_api_types::payments::RechargeStatus::RechargeFailure;
-            
+
             Ok(PaymentMethodServiceRechargeResponse {
                 merchant_payment_method_id: None,
                 connector_payment_method_id: None,

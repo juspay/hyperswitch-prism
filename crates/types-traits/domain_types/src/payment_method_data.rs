@@ -1756,7 +1756,6 @@ pub struct CustomerInfoDetails {
 pub enum PaymentMethodDetails {
     /// Wallet-specific details (stored value, container, or hybrid wallets)
     Wallet(WalletDetails),
-    
     // Future expansions: For gift cards, prepaid cards, loyality rewards, etc.
 }
 

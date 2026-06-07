@@ -2147,9 +2147,7 @@ impl PaymentMethodService for PaymentMethod {
             &service_name,
             config.clone(),
             FlowName::Recharge,
-            |request_data| {
-                Box::pin(self.internal_recharge(request_data))
-            },
+            |request_data| Box::pin(self.internal_recharge(request_data)),
         )
         .await
     }
