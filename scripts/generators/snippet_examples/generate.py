@@ -2033,7 +2033,7 @@ def render_consolidated_python(
             body_lines.append(f'    return {{"status": {resp_var}.status, "transaction_id": {resp_var}.connector_transaction_id}}')
         elif flow_key == "setup_recurring":
             body_lines.append(f'    return {{"status": {resp_var}.status, "mandate_id": {resp_var}.connector_recurring_payment_id}}')
-        elif flow_key == "create_customer":
+        elif flow_key in ("create_customer", "customer_create"):
             body_lines.append(f'    return {{"customer_id": {resp_var}.connector_customer_id}}')
         elif flow_key == "tokenize":
             body_lines.append(f'    return {{"token": {resp_var}.payment_method_token}}')
