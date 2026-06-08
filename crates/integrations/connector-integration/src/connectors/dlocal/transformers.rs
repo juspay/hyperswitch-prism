@@ -81,19 +81,20 @@ fn build_payer_phone_and_address(
         .and_then(|b| b.phone.as_ref())
         .and_then(|p| p.get_number_with_country_code().ok());
 
-    let address = billing
-        .and_then(|b| b.address.as_ref())
-        .and_then(|ad| {
-            let country = ad.country?;
-            Some(DlocalAddress {
-                country,
-                state: ad.state.clone().unwrap_or_default(),
-                city: ad.city.clone().unwrap_or_default(),
-                zip_code: ad.zip.clone().unwrap_or_default(),
-                street: ad.line1.clone().unwrap_or_default(),
-                number: ad.line2.clone().unwrap_or_else(|| Secret::new("NA".to_string())),
-            })
-        });
+    let address = billing.and_then(|b| b.address.as_ref()).and_then(|ad| {
+        let country = ad.country?;
+        Some(DlocalAddress {
+            country,
+            state: ad.state.clone().unwrap_or_default(),
+            city: ad.city.clone().unwrap_or_default(),
+            zip_code: ad.zip.clone().unwrap_or_default(),
+            street: ad.line1.clone().unwrap_or_default(),
+            number: ad
+                .line2
+                .clone()
+                .unwrap_or_else(|| Secret::new("NA".to_string())),
+        })
+    });
 
     (phone, address)
 }

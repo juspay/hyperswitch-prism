@@ -34,12 +34,12 @@ use serde::Serialize;
 use std::fmt::Debug;
 use transformers::{
     self as dlocal, DlocalPaymentStatus, DlocalPaymentsCaptureRequest, DlocalPaymentsRequest,
-    DlocalPaymentsResponse, DlocalWebhookBody,
-    DlocalPaymentsResponse as DlocalPaymentsSyncResponse,
+    DlocalPaymentsResponse, DlocalPaymentsResponse as DlocalPaymentsSyncResponse,
     DlocalPaymentsResponse as DlocalPaymentsCaptureResponse,
     DlocalPaymentsResponse as DlocalPaymentsVoidResponse, DlocalRefundRequest,
     DlocalRepeatPaymentRequest, DlocalRepeatPaymentResponse, DlocalSetupMandateRequest,
-    DlocalSetupMandateResponse, RefundResponse, RefundResponse as RefundSyncResponse,
+    DlocalSetupMandateResponse, DlocalWebhookBody, RefundResponse,
+    RefundResponse as RefundSyncResponse,
 };
 
 use super::macros;
@@ -235,17 +235,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // dLocal delivers the reusable wallet token only via the IPN (never in the
         // synchronous authorize/CIT response). Surface it as the connector mandate
         // id so HS can persist the mandate.
-        let mandate_reference =
-            body.wallet
-                .as_ref()
-                .and_then(|w| w.token.clone())
-                .map(|token| {
-                    Box::new(MandateReference {
-                        connector_mandate_id: Some(token.expose()),
-                        payment_method_id: None,
-                        connector_mandate_request_reference_id: None,
-                    })
-                });
+        let mandate_reference = body
+            .wallet
+            .as_ref()
+            .and_then(|w| w.token.clone())
+            .map(|token| {
+                Box::new(MandateReference {
+                    connector_mandate_id: Some(token.expose()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                })
+            });
 
         Ok(WebhookDetailsResponse {
             resource_id: Some(ResponseId::ConnectorTransactionId(body.id.clone())),

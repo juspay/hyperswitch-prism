@@ -203,7 +203,7 @@ connector_id: dlocal
 doc: docs/connectors/dlocal.md
 scenarios: none
 payment_methods: none
-flows: capture, get, refund, refund_get, void
+flows: capture, get, handle_event, parse_event, refund, refund_get, void
 examples_python: none
 
 ## Easebuzz
