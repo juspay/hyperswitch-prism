@@ -1101,7 +1101,7 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: billing.address.city — Missing required field: billing.address.city"
       }
     },
@@ -1222,7 +1222,7 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: billing.address.city — Missing required field: billing.address.city"
       }
     },

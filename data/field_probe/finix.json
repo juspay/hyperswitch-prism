@@ -604,7 +604,7 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: connector_customer_id. Finix requires an identity — Missing required field: connector_customer_id. Finix requires an identity (connector customer) to create a payment instrument. The identity ID (ID...) must be provided in the 'identity' field."
       }
     },
@@ -704,7 +704,7 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: connector_customer_id. Finix requires an identity — Missing required field: connector_customer_id. Finix requires an identity (connector customer) to create a payment instrument. The identity ID (ID...) must be provided in the 'identity' field."
       }
     },
@@ -738,13 +738,13 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: connector_customer_id. Finix requires an identity — Missing required field: connector_customer_id. Finix requires an identity (connector customer) to create a payment instrument. The identity ID (ID...) must be provided in the 'identity' field."
       }
     },
     "tokenize": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
       }
     },

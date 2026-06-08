@@ -58,7 +58,7 @@
         }
       },
       "AchBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: metadata for ACH details — Missing required field: metadata for ACH details"
       },
       "Affirm": {
@@ -891,19 +891,19 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: session_token — Missing required field: session_token"
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: billing_address.first_name and billing_address.last_name — Missing required field: billing_address.first_name and billing_address.last_name"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: state.access_token — Missing required field: state.access_token"
       }
     },
@@ -964,13 +964,13 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: billing_address.first_name and billing_address.last_name — Missing required field: billing_address.first_name and billing_address.last_name"
       }
     },
     "token_authorize": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: session_token — Missing required field: session_token"
       }
     },

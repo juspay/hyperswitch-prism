@@ -251,7 +251,7 @@
         "error": "This feature is not implemented: Wallet not supported"
       },
       "GooglePay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to encode connector request"
       },
       "GooglePayDecrypted": {
@@ -715,7 +715,7 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to encode connector request"
       }
     },
@@ -836,7 +836,7 @@
     },
     "reverse": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       }
     },

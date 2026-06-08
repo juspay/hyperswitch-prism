@@ -37,7 +37,7 @@
         "error": "This feature is not implemented: Payment method not supported"
       },
       "ApplePay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: apple_pay_decrypted_data — Missing required field: apple_pay_decrypted_data"
       },
       "ApplePayDecrypted": {
@@ -247,7 +247,7 @@
         "error": "This feature is not implemented: Payment method not supported"
       },
       "GooglePay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token — Failed to parse Google Pay wallet token"
       },
       "GooglePayDecrypted": {

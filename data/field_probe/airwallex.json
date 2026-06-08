@@ -632,7 +632,7 @@
     },
     "create_customer": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       }
     },
@@ -820,13 +820,13 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: connector_order_id — Missing required field: connector_order_id"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: connector_order_id — Missing required field: connector_order_id"
       }
     },
@@ -903,7 +903,7 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: connector_order_id — Missing required field: connector_order_id"
       }
     },
@@ -915,7 +915,7 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: connector_order_id — Missing required field: connector_order_id"
       }
     },

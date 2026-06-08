@@ -9,111 +9,111 @@
     },
     "authorize": {
       "Ach": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "AchBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Affirm": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Afterpay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Alfamart": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "AliPayRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "AmazonPayRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "ApplePay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "ApplePayDecrypted": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "ApplePayThirdPartySdk": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Bacs": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "BacsBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "BancontactCard": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "BcaBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Becs": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "BillDeskRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Bizum": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Blik": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Bluecode": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "BniVaBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Boleto": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "BriVaBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Card": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "CashappQr": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "CashfreeRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "CimbVaBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "ClassicReward": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Crypto": {
@@ -121,11 +121,11 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Dana": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "DanamonVaBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "DuitNow": {
@@ -133,35 +133,35 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "EaseBuzzRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Efecty": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Eft": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Eps": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "FamilyMart": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "GCash": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Giropay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Givex": {
@@ -169,87 +169,87 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GoPay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "GooglePay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "GooglePayDecrypted": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "GooglePayThirdPartySdk": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Ideal": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Indomaret": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "IndonesianBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "InstantBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "InstantBankTransferFinland": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "InstantBankTransferPoland": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Interac": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "KakaoPay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Klarna": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Lawson": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "LazyPayRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "LocalBankRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "LocalBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "MandiriVaBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "MbWay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Mifinity": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "MiniStop": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "MobilePayRedirect": {
@@ -257,43 +257,43 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Momo": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "MultibancoBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Netbanking": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "OnlineBankingCzechRepublic": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "OnlineBankingFinland": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "OnlineBankingFpx": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "OnlineBankingPoland": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "OnlineBankingSlovakia": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "OnlineBankingThailand": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "OpenBanking": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "OpenBankingPis": {
@@ -301,19 +301,19 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Oxxo": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "PagoEfectivo": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "PayEasy": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "PaySafeCard": {
@@ -321,15 +321,15 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PayURedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "PaypalRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "PaypalSdk": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Paysera": {
@@ -341,63 +341,63 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "PhonePeRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Pix": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Przelewy24": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Pse": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "RedCompra": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "RedPagos": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "RevolutPay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "SamsungPay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Satispay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Seicomart": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Sepa": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "SepaBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "SepaGuaranteedDebit": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "SevenEleven": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Skrill": {
@@ -405,47 +405,47 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Sofort": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Swish": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "TouchNGo": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Trustly": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Twint": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "UpiCollect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "UpiIntent": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "UpiQr": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Vipps": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "WeChatPayQr": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       },
       "Wero": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       }
     },
@@ -583,7 +583,7 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata. — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata."
       }
     },
@@ -595,7 +595,7 @@
     },
     "recurring_charge": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: mandate_metadata — Missing required field: mandate_metadata"
       }
     },

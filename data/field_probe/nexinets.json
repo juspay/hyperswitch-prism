@@ -76,7 +76,7 @@
         }
       },
       "ApplePayDecrypted": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: Apple pay encrypted data — Missing required field: Apple pay encrypted data"
       },
       "ApplePayThirdPartySdk": {
@@ -644,7 +644,7 @@
     },
     "capture": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: connector_integration::connectors::nexinets::transformers::NexinetsPaymentsMetadata"
       }
     },
@@ -889,7 +889,7 @@
     },
     "refund_get": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: connector_meta_data — Missing required field: connector_meta_data"
       }
     },
@@ -930,7 +930,7 @@
     },
     "void": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: connector_integration::connectors::nexinets::transformers::NexinetsPaymentsMetadata"
       }
     }

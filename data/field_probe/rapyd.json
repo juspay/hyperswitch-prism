@@ -135,7 +135,7 @@
         }
       },
       "ApplePayDecrypted": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: Apple pay encrypted data — Missing required field: Apple pay encrypted data"
       },
       "ApplePayThirdPartySdk": {
@@ -600,7 +600,7 @@
         }
       },
       "GooglePayDecrypted": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: gpay wallet_token — Missing required field: gpay wallet_token"
       },
       "GooglePayThirdPartySdk": {
@@ -1488,7 +1488,7 @@
     },
     "create_order": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: billing_country or connector_feature_data.country — Missing required field: billing_country or connector_feature_data.country"
       }
     },
@@ -1736,7 +1736,7 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: return_url — Missing required field: return_url"
       }
     },

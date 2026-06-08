@@ -113,7 +113,7 @@
         }
       },
       "ApplePayDecrypted": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: Apple pay encrypted data — Missing required field: Apple pay encrypted data"
       },
       "ApplePayThirdPartySdk": {
@@ -328,7 +328,7 @@
         }
       },
       "GooglePayDecrypted": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: gpay wallet_token — Missing required field: gpay wallet_token"
       },
       "GooglePayThirdPartySdk": {

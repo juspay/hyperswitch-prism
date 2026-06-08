@@ -125,7 +125,7 @@
         "error": "Selected payment method through braintree is not supported by Braintree"
       },
       "Card": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
       },
       "CashappQr": {
@@ -690,7 +690,7 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
       }
     },
@@ -774,7 +774,7 @@
     },
     "refund_get": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: currency — Missing required field: currency"
       }
     },

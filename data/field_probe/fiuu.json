@@ -286,7 +286,7 @@
         }
       },
       "GooglePayDecrypted": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: gpay wallet_token — Missing required field: gpay wallet_token"
       },
       "GooglePayThirdPartySdk": {

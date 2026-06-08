@@ -517,7 +517,7 @@
     },
     "capture": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: amount — Missing required field: amount"
       }
     },
@@ -657,7 +657,7 @@
     },
     "refund": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Connector metadata not found"
       }
     },

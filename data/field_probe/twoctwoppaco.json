@@ -9,111 +9,111 @@
     },
     "authorize": {
       "Ach": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "AchBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Affirm": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Afterpay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Alfamart": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "AliPayRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "AmazonPayRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "ApplePay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "ApplePayDecrypted": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "ApplePayThirdPartySdk": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Bacs": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "BacsBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "BancontactCard": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "BcaBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Becs": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "BillDeskRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Bizum": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Blik": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Bluecode": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "BniVaBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Boleto": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "BriVaBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Card": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "CashappQr": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "CashfreeRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "CimbVaBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "ClassicReward": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Crypto": {
@@ -121,11 +121,11 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Dana": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "DanamonVaBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "DuitNow": {
@@ -133,35 +133,35 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "EaseBuzzRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Efecty": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Eft": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Eps": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "FamilyMart": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "GCash": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Giropay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Givex": {
@@ -169,87 +169,87 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GoPay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "GooglePay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "GooglePayDecrypted": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "GooglePayThirdPartySdk": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Ideal": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Indomaret": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "IndonesianBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "InstantBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "InstantBankTransferFinland": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "InstantBankTransferPoland": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Interac": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "KakaoPay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Klarna": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Lawson": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "LazyPayRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "LocalBankRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "LocalBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "MandiriVaBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "MbWay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Mifinity": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "MiniStop": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "MobilePayRedirect": {
@@ -257,43 +257,43 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Momo": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "MultibancoBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Netbanking": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "OnlineBankingCzechRepublic": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "OnlineBankingFinland": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "OnlineBankingFpx": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "OnlineBankingPoland": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "OnlineBankingSlovakia": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "OnlineBankingThailand": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "OpenBanking": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "OpenBankingPis": {
@@ -301,19 +301,19 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Oxxo": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "PagoEfectivo": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "PayEasy": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "PaySafeCard": {
@@ -321,15 +321,15 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PayURedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "PaypalRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "PaypalSdk": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Paysera": {
@@ -341,63 +341,63 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "PhonePeRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Pix": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Przelewy24": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Pse": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "RedCompra": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "RedPagos": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "RevolutPay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "SamsungPay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Satispay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Seicomart": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Sepa": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "SepaBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "SepaGuaranteedDebit": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "SevenEleven": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Skrill": {
@@ -405,53 +405,53 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Sofort": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Swish": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "TouchNGo": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Trustly": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Twint": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "UpiCollect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "UpiIntent": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "UpiQr": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Vipps": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "WeChatPayQr": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
       "Wero": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       }
     },
     "capture": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       }
     },
@@ -515,7 +515,7 @@
     },
     "get": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       }
     },
@@ -549,7 +549,7 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       }
     },
@@ -573,19 +573,19 @@
     },
     "refund": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       }
     },
     "refund_get": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: connector_order_id. PACO's Inquiry endpoint matches refund-sync by `orderNo`, which is not derivable from `connector_transaction_id` — Missing required field: connector_order_id. PACO's Inquiry endpoint matches refund-sync by `orderNo`, which is not derivable from `connector_transaction_id` (PACO's `invoiceNo2C2P`) or `connector_refund_id`."
       }
     },
     "reverse": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       }
     },
@@ -597,7 +597,7 @@
     },
     "token_authorize": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       }
     },
@@ -620,7 +620,7 @@
     },
     "void": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       }
     }

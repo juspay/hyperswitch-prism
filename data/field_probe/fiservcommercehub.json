@@ -97,7 +97,7 @@
         "error": "This feature is not implemented: This payment method is not implemented"
       },
       "Card": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to encode connector request"
       },
       "CashappQr": {
@@ -593,7 +593,7 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to encode connector request"
       }
     },

@@ -262,7 +262,7 @@
         "error": "This feature is not implemented: Juspay Authorize does not support payment method variant BankTransfer(BriVaBankTransfer); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
       },
       "Card": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_data.card.card_network — Missing required field: payment_method_data.card.card_network"
       },
       "CashappQr": {

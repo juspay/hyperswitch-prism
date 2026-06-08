@@ -9,111 +9,111 @@
     },
     "authorize": {
       "Ach": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "AchBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Affirm": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Afterpay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Alfamart": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "AliPayRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "AmazonPayRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "ApplePay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "ApplePayDecrypted": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "ApplePayThirdPartySdk": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Bacs": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "BacsBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "BancontactCard": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "BcaBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Becs": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "BillDeskRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Bizum": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Blik": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Bluecode": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "BniVaBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Boleto": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "BriVaBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Card": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "CashappQr": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "CashfreeRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "CimbVaBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "ClassicReward": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Crypto": {
@@ -121,11 +121,11 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Dana": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "DanamonVaBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "DuitNow": {
@@ -133,35 +133,35 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "EaseBuzzRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Efecty": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Eft": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Eps": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "FamilyMart": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "GCash": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Giropay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Givex": {
@@ -169,87 +169,87 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GoPay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "GooglePay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "GooglePayDecrypted": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "GooglePayThirdPartySdk": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Ideal": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Indomaret": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "IndonesianBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "InstantBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "InstantBankTransferFinland": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "InstantBankTransferPoland": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Interac": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "KakaoPay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Klarna": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Lawson": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "LazyPayRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "LocalBankRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "LocalBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "MandiriVaBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "MbWay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Mifinity": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "MiniStop": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "MobilePayRedirect": {
@@ -257,43 +257,43 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Momo": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "MultibancoBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Netbanking": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "OnlineBankingFinland": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "OnlineBankingFpx": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "OnlineBankingPoland": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "OnlineBankingSlovakia": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "OnlineBankingThailand": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "OpenBanking": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "OpenBankingPis": {
@@ -301,19 +301,19 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Oxxo": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "PagoEfectivo": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "PayEasy": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "PaySafeCard": {
@@ -321,15 +321,15 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PayURedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "PaypalRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "PaypalSdk": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Paysera": {
@@ -341,63 +341,63 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "PhonePeRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Pix": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Przelewy24": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Pse": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "RedCompra": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "RedPagos": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "RevolutPay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "SamsungPay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Satispay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Seicomart": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Sepa": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "SepaBankTransfer": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "SepaGuaranteedDebit": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "SevenEleven": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Skrill": {
@@ -405,53 +405,53 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Sofort": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Swish": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "TouchNGo": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Trustly": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Twint": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "UpiCollect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "UpiIntent": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "UpiQr": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Vipps": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "WeChatPayQr": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       },
       "Wero": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       }
     },
     "capture": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       }
     },
@@ -469,7 +469,7 @@
     },
     "create_order": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       }
     },
@@ -524,7 +524,7 @@
     },
     "get": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       }
     },
@@ -558,7 +558,7 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       }
     },
@@ -582,13 +582,13 @@
     },
     "refund": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       }
     },
     "refund_get": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       }
     },
@@ -606,7 +606,7 @@
     },
     "token_authorize": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       }
     },
@@ -629,7 +629,7 @@
     },
     "void": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       }
     }

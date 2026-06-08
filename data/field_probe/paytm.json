@@ -660,7 +660,7 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: session_token — Missing required field: session_token"
       }
     },
@@ -708,7 +708,7 @@
     },
     "token_authorize": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: session_token — Missing required field: session_token"
       }
     },

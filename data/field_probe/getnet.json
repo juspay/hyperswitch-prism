@@ -3,7 +3,7 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       }
     },
@@ -89,7 +89,7 @@
         "error": "BankTransfer variant is not supported by Getnet"
       },
       "Boleto": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_data.voucher.boleto.social_security_number — Missing required field: payment_method_data.voucher.boleto.social_security_number"
       },
       "BriVaBankTransfer": {
@@ -97,7 +97,7 @@
         "error": "BankTransfer variant is not supported by Getnet"
       },
       "Card": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: merchant_request_id — Missing required field: merchant_request_id"
       },
       "CashappQr": {
@@ -349,7 +349,7 @@
         "error": "Payment method is not supported by Getnet"
       },
       "Pix": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: merchant_request_id — Missing required field: merchant_request_id"
       },
       "Przelewy24": {
@@ -597,19 +597,19 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       }
     },
     "proxy_authorize": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: merchant_request_id — Missing required field: merchant_request_id"
       }
     },
@@ -718,7 +718,7 @@
     },
     "tokenize": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       }
     },

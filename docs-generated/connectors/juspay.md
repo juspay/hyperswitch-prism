@@ -175,7 +175,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 | Payment Method | Supported |
 |----------------|:---------:|
-| Card | ? |
+| Card | ⚠ |
 | Bancontact | ⚠ |
 | Apple Pay | ✓ |
 | Apple Pay Dec | ✓ |

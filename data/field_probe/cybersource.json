@@ -832,7 +832,7 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: return_url. Cybersource Flex Microform requires a return_url to set target_origins for the session — Missing required field: return_url. Cybersource Flex Microform requires a return_url to set target_origins for the session"
       }
     },
@@ -1084,7 +1084,7 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid connector configuration: metadata"
       }
     },
@@ -1234,7 +1234,7 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid connector configuration: metadata"
       }
     },
@@ -1276,7 +1276,7 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid connector configuration: metadata"
       }
     },

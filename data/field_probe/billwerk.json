@@ -474,7 +474,7 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: customer_id. Billwerk checkout sessions require a customer handle to associate the session with a customer record. — Missing required field: customer_id. Billwerk checkout sessions require a customer handle to associate the session with a customer record."
       }
     },

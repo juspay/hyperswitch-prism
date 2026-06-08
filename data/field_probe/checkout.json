@@ -276,7 +276,7 @@
         "error": "This feature is not implemented: Selected payment method through checkout"
       },
       "GooglePay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: google_pay_decrypted_data — Missing required field: google_pay_decrypted_data"
       },
       "GooglePayDecrypted": {

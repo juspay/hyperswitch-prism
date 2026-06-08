@@ -37,7 +37,7 @@
         "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "ApplePay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: apple_pay_decrypted_data — Missing required field: apple_pay_decrypted_data"
       },
       "ApplePayDecrypted": {
@@ -1047,7 +1047,7 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to obtain authentication type"
       }
     },

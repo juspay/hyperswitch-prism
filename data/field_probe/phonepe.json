@@ -345,7 +345,7 @@
         "error": "Payment method not supported is not supported by Phonepe"
       },
       "PhonePeRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: billing.phone.number. PhonePe wallet debit requires a mobile number — Missing required field: billing.phone.number. PhonePe wallet debit requires a mobile number"
       },
       "Pix": {

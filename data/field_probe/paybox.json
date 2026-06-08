@@ -684,7 +684,7 @@
     },
     "recurring_charge": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid data format: connector_mandate_id. Expected format 'PORTEUR::DATEVAL' from Paybox SetupMandate"
       }
     },

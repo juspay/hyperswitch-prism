@@ -78,7 +78,7 @@
         }
       },
       "ApplePayDecrypted": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: Apple pay encrypted data — Missing required field: Apple pay encrypted data"
       },
       "ApplePayThirdPartySdk": {
@@ -287,7 +287,7 @@
         }
       },
       "GooglePayDecrypted": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: gpay wallet_token — Missing required field: gpay wallet_token"
       },
       "GooglePayThirdPartySdk": {
@@ -704,13 +704,13 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: redirect_response.params — Missing required field: redirect_response.params"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: redirect_response.params — Missing required field: redirect_response.params"
       }
     },
@@ -834,7 +834,7 @@
     },
     "token_authorize": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_type — Missing required field: payment_method_type"
       }
     },

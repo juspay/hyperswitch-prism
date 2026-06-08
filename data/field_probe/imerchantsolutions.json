@@ -685,7 +685,7 @@
     },
     "recurring_charge": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: customer_id — Missing required field: customer_id"
       }
     },

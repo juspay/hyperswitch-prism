@@ -9,7 +9,7 @@
     },
     "authorize": {
       "Ach": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token (from PaymentMethodToken flow) or connector_mandate_id (for saved payment methods)"
       },
       "AchBankTransfer": {
@@ -49,7 +49,7 @@
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
       "Bacs": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token (from PaymentMethodToken flow) or connector_mandate_id (for saved payment methods)"
       },
       "BacsBankTransfer": {
@@ -65,7 +65,7 @@
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
       "Becs": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token (from PaymentMethodToken flow) or connector_mandate_id (for saved payment methods)"
       },
       "BillDeskRedirect": {
@@ -97,7 +97,7 @@
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
       "Card": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token (from PaymentMethodToken flow) or connector_mandate_id (for saved payment methods)"
       },
       "CashappQr": {
@@ -385,7 +385,7 @@
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
       "Sepa": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token (from PaymentMethodToken flow) or connector_mandate_id (for saved payment methods)"
       },
       "SepaBankTransfer": {
@@ -393,7 +393,7 @@
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
       "SepaGuaranteedDebit": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token (from PaymentMethodToken flow) or connector_mandate_id (for saved payment methods)"
       },
       "SevenEleven": {
@@ -597,13 +597,13 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token (from PaymentMethodToken flow) or connector_mandate_id (for saved payment methods)"
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token (from PaymentMethodToken flow) or connector_mandate_id (for saved payment methods)"
       }
     },
@@ -702,7 +702,7 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token (from PaymentMethodToken flow) or connector_mandate_id (for saved payment methods)"
       }
     },
@@ -779,7 +779,7 @@
     },
     "tokenize": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
       }
     },

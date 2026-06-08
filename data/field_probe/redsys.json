@@ -145,7 +145,7 @@
         "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Card": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Field 'ds_merchant_order' is too long for connector 'Redsys'"
       },
       "CashappQr": {
@@ -658,7 +658,7 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Field 'ds_merchant_order' is too long for connector 'Redsys'"
       }
     },

@@ -137,7 +137,7 @@
         "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
       },
       "EaseBuzzRedirect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/ — Missing required field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/"
       },
       "Efecty": {
@@ -265,7 +265,7 @@
         "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
       },
       "Netbanking": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/ — Missing required field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/"
       },
       "OnlineBankingCzechRepublic": {
@@ -425,15 +425,15 @@
         "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
       },
       "UpiCollect": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/ — Missing required field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/"
       },
       "UpiIntent": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/ — Missing required field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/"
       },
       "UpiQr": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/ — Missing required field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/"
       },
       "Vipps": {

@@ -97,7 +97,7 @@
         "error": "This feature is not implemented: Payment method BankTransfer(BriVaBankTransfer)"
       },
       "Card": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: authentication_data.transaction_id — Missing required field: authentication_data.transaction_id (operationId from PostAuthenticate)"
       },
       "CashappQr": {
@@ -476,7 +476,7 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Field 'payment_id' is too long for connector 'Nexixpay'"
       }
     },
@@ -573,7 +573,7 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: PaRes from redirect_response — Missing required field: PaRes from redirect_response"
       }
     },
@@ -615,13 +615,13 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: authentication_data.transaction_id — Missing required field: authentication_data.transaction_id (operationId from PostAuthenticate)"
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Field 'payment_id' is too long for connector 'Nexixpay'"
       }
     },

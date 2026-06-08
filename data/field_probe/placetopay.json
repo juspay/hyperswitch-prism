@@ -716,7 +716,7 @@
     },
     "refund_get": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to encode connector request"
       }
     },

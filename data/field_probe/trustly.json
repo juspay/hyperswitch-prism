@@ -417,7 +417,7 @@
         "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Trustly": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: country — Missing required field: country"
       },
       "Twint": {
@@ -602,7 +602,7 @@
     },
     "refund": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to encode connector request"
       }
     },

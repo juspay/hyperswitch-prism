@@ -483,7 +483,7 @@
     },
     "capture": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: description — Missing required field: description"
       }
     },
@@ -765,7 +765,7 @@
     },
     "tokenize": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid connector configuration: profile_token"
       }
     },

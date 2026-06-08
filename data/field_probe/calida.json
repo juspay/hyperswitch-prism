@@ -81,7 +81,7 @@
         "error": "This feature is not implemented: Payment method"
       },
       "Bluecode": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Invalid connector configuration: Deserializing CalidaMetadataObject from connector_meta_data value"
       },
       "BniVaBankTransfer": {

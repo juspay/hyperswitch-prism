@@ -37,11 +37,11 @@
         "error": "Selected payment method through Noon is not supported by Noon"
       },
       "ApplePay": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_token — Failed to parse Apple Pay wallet token"
       },
       "ApplePayDecrypted": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: Apple pay encrypted data — Missing required field: Apple pay encrypted data"
       },
       "ApplePayThirdPartySdk": {
@@ -944,7 +944,7 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: description — Missing required field: description"
       }
     },

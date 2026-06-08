@@ -592,7 +592,7 @@
         "error": "payment method touch_n_go is not supported by PPRO is not supported by ppro"
       },
       "Trustly": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
       },
       "Twint": {
@@ -1018,13 +1018,13 @@
     },
     "token_authorize": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_type — Missing required field: payment_method_type"
       }
     },
     "token_setup_recurring": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: payment_method_type — Missing required field: payment_method_type"
       }
     },

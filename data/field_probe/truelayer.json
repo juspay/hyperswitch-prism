@@ -293,7 +293,7 @@
         "error": "This feature is not implemented: Selected payment method through Truelayer"
       },
       "OpenBanking": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Stuck on field: either billing.email/customer_email or billing.phone — Missing required field: either billing.email/customer_email or billing.phone"
       },
       "OpenBankingPis": {
@@ -635,7 +635,7 @@
     },
     "refund": {
       "default": {
-        "status": "error",
+        "status": "not_implemented",
         "error": "Failed to encode connector request"
       }
     },
