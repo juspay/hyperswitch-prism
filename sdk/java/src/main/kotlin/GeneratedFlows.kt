@@ -172,17 +172,6 @@ object FlowRegistry {
 
 }
 
-class CustomerClient(
-    config: ConnectorConfig,
-    defaults: RequestConfig = RequestConfig.getDefaultInstance(),
-    libPath: String? = null
-) : ConnectorClient(config, defaults, libPath) {
-    // create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
-    fun create(request: CustomerServiceCreateRequest, options: RequestConfig? = null): CustomerServiceCreateResponse =
-        executeFlow("create", request.toByteArray(), CustomerServiceCreateResponse.parser(), options)
-
-}
-
 class DisputeClient(
     config: ConnectorConfig,
     defaults: RequestConfig = RequestConfig.getDefaultInstance(),
@@ -260,6 +249,10 @@ class PaymentMethodClient(
     defaults: RequestConfig = RequestConfig.getDefaultInstance(),
     libPath: String? = null
 ) : ConnectorClient(config, defaults, libPath) {
+    // create: PaymentMethodService.Create — Create payment method at connector. Establishes a new payment method and returns connector-specific details.
+    fun create(request: PaymentMethodServiceCreateRequest, options: RequestConfig? = null): PaymentMethodServiceCreateResponse =
+        executeFlow("create", request.toByteArray(), PaymentMethodServiceCreateResponse.parser(), options)
+
     // tokenize: PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing.
     fun tokenize(request: PaymentMethodServiceTokenizeRequest, options: RequestConfig? = null): PaymentMethodServiceTokenizeResponse =
         executeFlow("tokenize", request.toByteArray(), PaymentMethodServiceTokenizeResponse.parser(), options)

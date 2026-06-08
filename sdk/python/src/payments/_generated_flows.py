@@ -51,9 +51,11 @@ SERVICE_FLOWS = {
         # recurring_revoke: RecurringPaymentService.Revoke — Cancel an existing recurring payment mandate. Stops future automatic charges on customer's stored consent for subscription cancellations.
         "recurring_revoke": "RecurringPaymentServiceRevokeResponse",
     },
-    "CustomerClient": {
-        # create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
-        "create": "CustomerServiceCreateResponse",
+    "PaymentMethodClient": {
+        # create: PaymentMethodService.Create — Create payment method at connector. Establishes a new payment method and returns connector-specific details.
+        "create": "PaymentMethodServiceCreateResponse",
+        # tokenize: PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing.
+        "tokenize": "PaymentMethodServiceTokenizeResponse",
     },
     "MerchantAuthenticationClient": {
         # create_client_authentication_token: MerchantAuthenticationService.CreateClientAuthenticationToken — Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI.
@@ -88,10 +90,6 @@ SERVICE_FLOWS = {
     "SurchargeClient": {
         # surcharge_calculate: SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing.
         "surcharge_calculate": "SurchargeServiceCalculateResponse",
-    },
-    "PaymentMethodClient": {
-        # tokenize: PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing.
-        "tokenize": "PaymentMethodServiceTokenizeResponse",
     },
 }
 

@@ -2,8 +2,6 @@
 // Source: services.proto ∩ services/*.rs  |  Regenerate: make generate
 
 use grpc_api_types::payments::{
-    CustomerServiceCreateRequest,
-    CustomerServiceCreateResponse,
     DisputeServiceAcceptRequest,
     DisputeServiceAcceptResponse,
     DisputeServiceDefendRequest,
@@ -22,6 +20,8 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePostAuthenticateResponse,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateResponse,
+    PaymentMethodServiceCreateRequest,
+    PaymentMethodServiceCreateResponse,
     PaymentMethodServiceTokenizeRequest,
     PaymentMethodServiceTokenizeResponse,
     PaymentServiceAuthorizeRequest,
@@ -128,8 +128,8 @@ impl_flow_handlers!(authorize, PaymentServiceAuthorizeRequest, PaymentServiceAut
 impl_flow_handlers!(capture, PaymentServiceCaptureRequest, PaymentServiceCaptureResponse, capture_req_transformer, capture_res_transformer, domain_types::connector_types::ConnectorEnum);
 // charge: RecurringPaymentService.Charge — Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details.
 impl_flow_handlers!(charge, RecurringPaymentServiceChargeRequest, RecurringPaymentServiceChargeResponse, charge_req_transformer, charge_res_transformer, domain_types::connector_types::ConnectorEnum);
-// create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
-impl_flow_handlers!(create, CustomerServiceCreateRequest, CustomerServiceCreateResponse, create_req_transformer, create_res_transformer, domain_types::connector_types::ConnectorEnum);
+// create: PaymentMethodService.Create — Create payment method at connector. Establishes a new payment method and returns connector-specific details.
+impl_flow_handlers!(create, PaymentMethodServiceCreateRequest, PaymentMethodServiceCreateResponse, create_req_transformer, create_res_transformer, domain_types::connector_types::ConnectorEnum);
 // create_client_authentication_token: MerchantAuthenticationService.CreateClientAuthenticationToken — Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI.
 impl_flow_handlers!(create_client_authentication_token, MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest, MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse, create_client_authentication_token_req_transformer, create_client_authentication_token_res_transformer, domain_types::connector_types::ConnectorEnum);
 // create_order: PaymentService.CreateOrder — Create a payment order for later processing. Establishes a transaction context that can be authorized or captured in subsequent API calls.

@@ -5,8 +5,6 @@
 # (Pylance, pyright, mypy) so IDEs offer completions and type checking.
 from payments.generated.sdk_config_pb2 import ConnectorConfig, RequestConfig
 from payments.generated.payment_pb2 import (
-    CustomerServiceCreateRequest,
-    CustomerServiceCreateResponse,
     DisputeServiceAcceptRequest,
     DisputeServiceAcceptResponse,
     DisputeServiceDefendRequest,
@@ -29,6 +27,8 @@ from payments.generated.payment_pb2 import (
     PaymentMethodAuthenticationServicePostAuthenticateResponse,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateResponse,
+    PaymentMethodServiceCreateRequest,
+    PaymentMethodServiceCreateResponse,
     PaymentMethodServiceTokenizeRequest,
     PaymentMethodServiceTokenizeResponse,
     PaymentServiceAuthorizeRequest,
@@ -83,12 +83,6 @@ from payments.generated.payment_pb2 import (
 class _ConnectorClientBase:
     def __init__(self, config: ConnectorConfig, defaults: RequestConfig | None = ..., lib_path: str | None = ...) -> None: ...
 
-class CustomerClient(_ConnectorClientBase):
-    def create(self, request: CustomerServiceCreateRequest, options: RequestConfig | None = ...) -> CustomerServiceCreateResponse:
-        """CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information."""
-        ...
-
-
 class DisputeClient(_ConnectorClientBase):
     def accept(self, request: DisputeServiceAcceptRequest, options: RequestConfig | None = ...) -> DisputeServiceAcceptResponse:
         """DisputeService.Accept — Concede dispute and accepts chargeback loss. Acknowledges liability and stops dispute defense process when evidence is insufficient."""
@@ -142,6 +136,10 @@ class PaymentMethodAuthenticationClient(_ConnectorClientBase):
 
 
 class PaymentMethodClient(_ConnectorClientBase):
+    def create(self, request: PaymentMethodServiceCreateRequest, options: RequestConfig | None = ...) -> PaymentMethodServiceCreateResponse:
+        """PaymentMethodService.Create — Create payment method at connector. Establishes a new payment method and returns connector-specific details."""
+        ...
+
     def tokenize(self, request: PaymentMethodServiceTokenizeRequest, options: RequestConfig | None = ...) -> PaymentMethodServiceTokenizeResponse:
         """PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing."""
         ...

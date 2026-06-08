@@ -18,8 +18,8 @@ const FLOWS = {
   // charge: RecurringPaymentService.Charge — Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details.
   charge                                     : { request: "RecurringPaymentServiceChargeRequest", response: "RecurringPaymentServiceChargeResponse" },
 
-  // create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
-  create                                     : { request: "CustomerServiceCreateRequest", response: "CustomerServiceCreateResponse" },
+  // create: PaymentMethodService.Create — Create payment method at connector. Establishes a new payment method and returns connector-specific details.
+  create                                     : { request: "PaymentMethodServiceCreateRequest", response: "PaymentMethodServiceCreateResponse" },
 
   // create_client_authentication_token: MerchantAuthenticationService.CreateClientAuthenticationToken — Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI.
   create_client_authentication_token         : { request: "MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest", response: "MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse" },

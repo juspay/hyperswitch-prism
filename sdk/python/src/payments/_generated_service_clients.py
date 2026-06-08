@@ -4,13 +4,6 @@
 from payments.connector_client import _ConnectorClientBase
 import payments.generated.payment_pb2 as _pb2
 
-class CustomerClient(_ConnectorClientBase):
-    """CustomerService flows"""
-
-    def create(self, request, options=None):
-        """CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information."""
-        return self._execute_flow("create", request, _pb2.CustomerServiceCreateResponse, options)
-
 class DisputeClient(_ConnectorClientBase):
     """DisputeService flows"""
 
@@ -69,6 +62,10 @@ class PaymentMethodAuthenticationClient(_ConnectorClientBase):
 
 class PaymentMethodClient(_ConnectorClientBase):
     """PaymentMethodService flows"""
+
+    def create(self, request, options=None):
+        """PaymentMethodService.Create — Create payment method at connector. Establishes a new payment method and returns connector-specific details."""
+        return self._execute_flow("create", request, _pb2.PaymentMethodServiceCreateResponse, options)
 
     def tokenize(self, request, options=None):
         """PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing."""

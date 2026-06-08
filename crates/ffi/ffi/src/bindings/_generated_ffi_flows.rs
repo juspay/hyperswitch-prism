@@ -2,7 +2,6 @@
 // Source: services.proto ∩ services/*.rs  |  Regenerate: make generate
 
 use grpc_api_types::payments::{
-    CustomerServiceCreateRequest,
     DisputeServiceAcceptRequest,
     DisputeServiceDefendRequest,
     DisputeServiceSubmitEvidenceRequest,
@@ -12,6 +11,7 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServiceAuthenticateRequest,
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
+    PaymentMethodServiceCreateRequest,
     PaymentMethodServiceTokenizeRequest,
     PaymentServiceAuthorizeRequest,
     PaymentServiceCaptureRequest,
@@ -93,8 +93,8 @@ define_ffi_flow!(authorize, PaymentServiceAuthorizeRequest, authorize_req_handle
 define_ffi_flow!(capture, PaymentServiceCaptureRequest, capture_req_handler, capture_res_handler);
 // charge: RecurringPaymentService.Charge — Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details.
 define_ffi_flow!(charge, RecurringPaymentServiceChargeRequest, charge_req_handler, charge_res_handler);
-// create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
-define_ffi_flow!(create, CustomerServiceCreateRequest, create_req_handler, create_res_handler);
+// create: PaymentMethodService.Create — Create payment method at connector. Establishes a new payment method and returns connector-specific details.
+define_ffi_flow!(create, PaymentMethodServiceCreateRequest, create_req_handler, create_res_handler);
 // create_client_authentication_token: MerchantAuthenticationService.CreateClientAuthenticationToken — Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI.
 define_ffi_flow!(create_client_authentication_token, MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest, create_client_authentication_token_req_handler, create_client_authentication_token_res_handler);
 // create_order: PaymentService.CreateOrder — Create a payment order for later processing. Establishes a transaction context that can be authorized or captured in subsequent API calls.

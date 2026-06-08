@@ -5,17 +5,6 @@ import { ConnectorClient as _ConnectorClientBase } from "./connector_client";
 // @ts-ignore - protobuf generated files might not have types yet
 import { types } from "./generated/proto";
 
-export class CustomerClient extends _ConnectorClientBase {
-  /** CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information. */
-  async create(
-    requestMsg: types.ICustomerServiceCreateRequest,
-    options?: types.IRequestConfig | null
-  ): Promise<types.CustomerServiceCreateResponse> {
-    return this._executeFlow('create', requestMsg, options, 'CustomerServiceCreateRequest', 'CustomerServiceCreateResponse') as Promise<types.CustomerServiceCreateResponse>;
-  }
-
-}
-
 export class DisputeClient extends _ConnectorClientBase {
   /** DisputeService.Accept — Concede dispute and accepts chargeback loss. Acknowledges liability and stops dispute defense process when evidence is insufficient. */
   async accept(
@@ -117,6 +106,14 @@ export class PaymentMethodAuthenticationClient extends _ConnectorClientBase {
 }
 
 export class PaymentMethodClient extends _ConnectorClientBase {
+  /** PaymentMethodService.Create — Create payment method at connector. Establishes a new payment method and returns connector-specific details. */
+  async create(
+    requestMsg: types.IPaymentMethodServiceCreateRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PaymentMethodServiceCreateResponse> {
+    return this._executeFlow('create', requestMsg, options, 'PaymentMethodServiceCreateRequest', 'PaymentMethodServiceCreateResponse') as Promise<types.PaymentMethodServiceCreateResponse>;
+  }
+
   /** PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing. */
   async tokenize(
     requestMsg: types.IPaymentMethodServiceTokenizeRequest,
