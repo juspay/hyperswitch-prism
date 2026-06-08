@@ -84,7 +84,7 @@ pub fn process_webhook_event<
         .connector
         .get_webhook_api_response(request_details.clone(), None, connector_config)?
         .map(|ack| grpc_api_types::payments::EventAckResponse {
-            status_code: ack.status_code as u32,
+            status_code: ack.status_code,
             headers: ack
                 .headers
                 .into_iter()

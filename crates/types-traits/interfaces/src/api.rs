@@ -82,7 +82,7 @@ pub enum ApplicationResponse<R> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct EventAckResponse {
-    pub status_code: u16,
+    pub status_code: u32,
     pub headers: Vec<(String, String)>,
     pub body: Option<Vec<u8>>,
 }

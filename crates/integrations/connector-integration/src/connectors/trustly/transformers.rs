@@ -390,7 +390,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 };
 
                 let signature = generate_trustly_signature(
-                    &TrustlyMethod::Deposit.as_str(),
+                    TrustlyMethod::Deposit.as_str(),
                     uuid.as_str(),
                     &data,
                     &auth_details.private_key.expose(),
@@ -606,7 +606,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         let signature = generate_trustly_signature(
-            &TrustlyMethod::Refund.as_str(),
+            TrustlyMethod::Refund.as_str(),
             uuid.as_str(),
             &data,
             &auth_details.private_key.expose(),
