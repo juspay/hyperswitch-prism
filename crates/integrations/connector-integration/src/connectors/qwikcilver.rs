@@ -55,13 +55,6 @@ pub(crate) mod headers {
     pub(crate) const TRANSACTION_ID: &str = "TransactionId";
 }
 
-// ============================================================================
-// TRAIT WIRING — Qwikcilver implements ServerAuthenticationToken + Authorize
-// (Redeem) + Refund (Cancel Redeem) + Recharge (Add Card). Everything else
-// falls through to the `not_supported`/`not_implemented` stubs emitted by
-// `macro_connector_flow_status_impls!` below.
-// ============================================================================
-
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Qwikcilver<T>
 {
@@ -110,34 +103,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Qwikcilver<T>
 {
-    /// The `/authorize` endpoint runs as the access-token flow before any
-    /// other call. The framework caches the resulting JWT on RouterDataV2
-    /// and reuses it across subsequent flows.
     fn should_do_access_token(&self, _payment_method: Option<common_enums::PaymentMethod>) -> bool {
         true
     }
 }
 
-// NOTE: despite the `_payout_` in its name, this macro is the framework's
-// universal "emit default stubs for every flow we don't explicitly handle"
-// fan-out — it's used by all ~87 payment connectors in this crate. The name
-// is a historical artifact; do not be misled into thinking Qwikcilver is a
-// payout connector.
+// Despite the `_payout_` in its name, this macro is the framework's universal
+// "emit default stubs for every flow we don't explicitly handle" fan-out —
+// used by all payment connectors. Name is a historical artifact.
 macros::macro_connector_payout_implementation!(
     connector: Qwikcilver,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
 );
 
-// ============================================================================
-// AMOUNT CONVERTER — Qwikcilver uses decimal major units (e.g. `10.0` = 10 AED)
-// ============================================================================
-
 macros::create_amount_converter_wrapper!(connector_name: Qwikcilver, amount_type: FloatMajorUnit);
-
-// ============================================================================
-// PREREQUISITES — registers the 4 active flows + amount converter + helpers
-// ============================================================================
 
 macros::create_all_prerequisites!(
     connector_name: Qwikcilver,
@@ -184,12 +164,8 @@ macros::create_all_prerequisites!(
         amount_converter: FloatMajorUnit
     ],
     member_functions: {
-        /// Headers required by every authenticated Qwikcilver call. The
-        /// `TransactionId` value MUST be numeric — non-numeric values produce
-        /// HTTP 500 ("Input string was not in a correct format") from the API.
-        /// The session JWT stays wrapped in `Secret<String>` until the very
-        /// last moment (`.peek()` inside `format!`) and is then immediately
-        /// masked before leaving the function.
+        /// `TransactionId` must be numeric — non-numeric values produce HTTP 500
+        /// ("Input string was not in a correct format") from the API.
         pub fn build_authenticated_headers<F, FCD, Req, Res>(
             &self,
             _req: &RouterDataV2<F, FCD, Req, Res>,
@@ -262,22 +238,8 @@ macros::create_all_prerequisites!(
     }
 );
 
-// ============================================================================
-// ACCESS-TOKEN PLUMBING — small trait so member functions in the
-// `create_all_prerequisites!` block can extract the cached JWT regardless of
-// whether the flow's common data is `PaymentFlowData` or `RefundFlowData`.
-//
-// `RouterDataV2` is generic over the flow-common-data type; the framework
-// gives us no shared accessor for "the access_token field" because not every
-// FCD has one. We bridge that gap here with a tiny trait. Token stays
-// wrapped in `Secret<String>` until the very last moment (the `format!` in
-// `build_authenticated_headers`), keeping it out of logs and event_builder
-// snapshots.
-//
-// Adding a new flow whose common-data type is neither PaymentFlowData nor
-// RefundFlowData? Implement `AccessTokenHolder` for it here.
-// ============================================================================
-
+// Bridge trait: `RouterDataV2` has no shared `access_token` accessor because
+// not every FCD carries one. Implement for any new FCD that needs the JWT.
 pub trait AccessTokenHolder {
     fn access_token_secret(&self) -> Option<hyperswitch_masking::Secret<String>>;
 }
@@ -293,10 +255,6 @@ impl AccessTokenHolder for RefundFlowData {
         self.access_token.as_ref().map(|t| t.access_token.clone())
     }
 }
-
-// ============================================================================
-// ConnectorCommon — shared identity, base URL, error parser.
-// ============================================================================
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
     for Qwikcilver<T>
@@ -321,9 +279,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         auth_type: &ConnectorSpecificConfig,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-        // For the access-token bootstrap call we send the long-lived bearer
-        // from the connector config. All other calls use the session JWT
-        // returned by `/authorize`, attached via `build_authenticated_headers`.
+        // Only `/authorize` uses this long-lived bearer; all other calls use
+        // the session JWT via `build_authenticated_headers`.
         let auth = QwikcilverAuthType::try_from(auth_type)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -343,7 +300,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     res.status_code,
                     "qwikcilver: response body did not match the expected format; confirm API version and connector documentation.",
                 ),
-            )?;
+            ).attach_printable_lazy(|| format!(
+                "qwikcilver: failed to parse error response (status={}, body_len={})",
+                res.status_code,
+                res.response.len(),
+            ))?;
 
         with_error_response_body!(event_builder, response);
 
@@ -371,10 +332,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         })
     }
 }
-
-// ============================================================================
-// SERVER AUTHENTICATION TOKEN — `/authorize` bootstrap call
-// ============================================================================
 
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
@@ -415,10 +372,6 @@ macros::macro_connector_implementation!(
     }
 );
 
-// ============================================================================
-// AUTHORIZE (Redeem)
-// ============================================================================
-
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Qwikcilver,
@@ -438,7 +391,7 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             let wallet_number = qwikcilver::qwikcilver_wallet_number_from_authorize(&req.request)?;
             Ok(format!(
-                "{}QwikCilver/egms.restapi/api/v2/wallet/{}/REDEEM",
+                "{}Qwikcilver/eGMS.RestApi/api/v2/wallet/{}/REDEEM",
                 self.connector_base_url_payments(req),
                 urlencoding::encode(wallet_number.peek()),
             ))
@@ -452,21 +405,13 @@ macros::macro_connector_implementation!(
             let date = qwikcilver::resolve_date_at_client(
                 req.resource_common_data.connector_feature_data.as_ref().map(|s| s.peek()),
             )?;
-            let txn_id = qwikcilver::transaction_id_from_reference(
+            let txn_id = qwikcilver::parse_transaction_id_from_reference(
                 &req.resource_common_data.connector_request_reference_id,
-            );
+            )?;
             self.build_authenticated_headers(req, &token, &date, txn_id)
         }
     }
 );
-
-// ============================================================================
-// REFUND — Cancel Redeem (reverse a prior Redeem)
-//
-// Refund is now Cancel-Redeem-only. The credit-value-to-wallet operation
-// that used to share this flow ("Add Card") has moved to the dedicated
-// Recharge flow below.
-// ============================================================================
 
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
@@ -487,7 +432,7 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             let metadata = QwikcilverRefundMetadata::from_request(&req.request)?;
             Ok(format!(
-                "{}QwikCilver/egms.restapi/api/v2/wallet/{}/CANCELREDEEM",
+                "{}Qwikcilver/eGMS.RestApi/api/v2/wallet/{}/CANCELREDEEM",
                 self.connector_base_url_refunds(req),
                 urlencoding::encode(metadata.wallet_number.peek()),
             ))
@@ -501,21 +446,13 @@ macros::macro_connector_implementation!(
             let date = qwikcilver::resolve_date_at_client(
                 req.request.refund_connector_metadata.as_ref().map(|s| s.peek()),
             )?;
-            let txn_id = qwikcilver::transaction_id_from_reference(
+            let txn_id = qwikcilver::parse_transaction_id_from_reference(
                 &req.resource_common_data.connector_request_reference_id,
-            );
+            )?;
             self.build_authenticated_headers(req, &token, &date, txn_id)
         }
     }
 );
-
-// ============================================================================
-// RECHARGE — Add Card (credit value to a wallet)
-//
-// The wallet number is sourced from `RechargeRequestData.connector_payment_method_id`
-// (the connector-side wallet identifier from the proto `PaymentMethodService.Recharge`
-// request). Missing → MissingRequiredField.
-// ============================================================================
 
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
@@ -553,7 +490,7 @@ macros::macro_connector_implementation!(
                     }
                 })?;
             Ok(format!(
-                "{}QwikCilver/egms.restapi/api/v2/wallet/{}/card",
+                "{}Qwikcilver/eGMS.RestApi/api/v2/wallet/{}/card",
                 self.connector_base_url_payments(req),
                 urlencoding::encode(wallet_number),
             ))
@@ -567,17 +504,13 @@ macros::macro_connector_implementation!(
             let date = qwikcilver::resolve_date_at_client(
                 req.resource_common_data.connector_feature_data.as_ref().map(|s| s.peek()),
             )?;
-            let txn_id = qwikcilver::transaction_id_from_reference(
+            let txn_id = qwikcilver::parse_transaction_id_from_reference(
                 &req.resource_common_data.connector_request_reference_id,
-            );
+            )?;
             self.build_authenticated_headers(req, &token, &date, txn_id)
         }
     }
 );
-
-// ============================================================================
-// CREATE WALLET — POST /wallet  (provisions a new wallet for a customer)
-// ============================================================================
 
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
@@ -597,7 +530,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<CreatePaymentMethod, PaymentFlowData, CreatePaymentMethodData, CreatePaymentMethodResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!(
-                "{}QwikCilver/egms.restapi/api/v2/wallet",
+                "{}Qwikcilver/eGMS.RestApi/api/v2/wallet",
                 self.connector_base_url_payments(req),
             ))
         }
@@ -610,20 +543,13 @@ macros::macro_connector_implementation!(
             let date = qwikcilver::resolve_date_at_client(
                 req.resource_common_data.connector_feature_data.as_ref().map(|s| s.peek()),
             )?;
-            let txn_id = qwikcilver::transaction_id_from_reference(
+            let txn_id = qwikcilver::parse_transaction_id_from_reference(
                 &req.resource_common_data.connector_request_reference_id,
-            );
+            )?;
             self.build_authenticated_headers(req, &token, &date, txn_id)
         }
     }
 );
-
-// ============================================================================
-// GET WALLET — GET /wallet/{wallet_number}  (look up an existing wallet)
-//
-// `connector_payment_method_id` carries the wallet number on the connector
-// side. Missing → MissingRequiredField.
-// ============================================================================
 
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
@@ -660,7 +586,7 @@ macros::macro_connector_implementation!(
                     }
                 })?;
             Ok(format!(
-                "{}QwikCilver/egms.restapi/api/v2/wallet/{}",
+                "{}Qwikcilver/eGMS.RestApi/api/v2/wallet/{}",
                 self.connector_base_url_payments(req),
                 urlencoding::encode(wallet_number),
             ))
@@ -674,17 +600,13 @@ macros::macro_connector_implementation!(
             let date = qwikcilver::resolve_date_at_client(
                 req.resource_common_data.connector_feature_data.as_ref().map(|s| s.peek()),
             )?;
-            let txn_id = qwikcilver::transaction_id_from_reference(
+            let txn_id = qwikcilver::parse_transaction_id_from_reference(
                 &req.resource_common_data.connector_request_reference_id,
-            );
+            )?;
             self.build_authenticated_headers(req, &token, &date, txn_id)
         }
     }
 );
-
-// ============================================================================
-// Opt-out list — every other framework flow is `not_supported`/`not_implemented`
-// ============================================================================
 
 macros::macro_connector_flow_status_impls!(
     connector: Qwikcilver,
