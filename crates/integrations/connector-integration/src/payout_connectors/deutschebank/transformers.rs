@@ -818,12 +818,12 @@ fn current_iso_utc_seconds() -> String {
     let fmt = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
     time::OffsetDateTime::now_utc()
         .format(&fmt)
-        .expect("static format_description always formats OffsetDateTime")
+        .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string())
 }
 
 fn current_iso_date() -> String {
     use time::format_description::well_known::Iso8601;
     let date = time::OffsetDateTime::now_utc().date();
     date.format(&Iso8601::DATE)
-        .expect("Iso8601::DATE always formats Date")
+        .unwrap_or_else(|_| "1970-01-01".to_string())
 }

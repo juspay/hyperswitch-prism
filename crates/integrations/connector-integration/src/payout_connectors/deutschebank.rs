@@ -138,7 +138,7 @@ fn current_iso_utc_seconds() -> String {
     let fmt = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
     time::OffsetDateTime::now_utc()
         .format(&fmt)
-        .expect("static format_description always formats OffsetDateTime")
+        .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string())
 }
 
 fn serialize_json<T: serde::Serialize>(value: &T) -> CustomResult<Vec<u8>, IntegrationError> {
