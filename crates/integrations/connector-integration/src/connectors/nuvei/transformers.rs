@@ -341,6 +341,7 @@ pub struct NuveiPaymentResponse {
     pub client_unique_id: Option<String>,
     pub client_request_id: Option<String>,
     pub internal_request_id: Option<i64>,
+    pub external_scheme_transaction_id: Option<String>,
     #[serde(rename = "paymentOption")]
     pub payment_option: Option<PaymentOption>,
 }
@@ -350,6 +351,17 @@ pub struct NuveiPaymentResponse {
 pub struct PaymentOption {
     #[serde(rename = "redirectUrl")]
     pub redirect_url: Option<String>,
+    pub user_payment_option_id: Option<String>,
+    pub card: Option<NuveiCardResponse>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiCardResponse {
+    pub avs_code: Option<String>,
+    pub cvv2_reply: Option<String>,
+    pub brand: Option<String>,
+    pub three_d: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
@@ -426,6 +438,7 @@ pub struct NuveiSyncResponse {
     pub merchant_site_id: Option<String>,
     pub version: Option<String>,
     pub transaction_details: Option<NuveiTransactionDetails>,
+    pub payment_option: Option<PaymentOption>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -465,6 +478,7 @@ pub struct NuveiCaptureResponse {
     pub merchant_site_id: Option<String>,
     pub internal_request_id: Option<i64>,
     pub transaction_id: Option<String>,
+    pub order_id: Option<String>,
     pub status: NuveiPaymentStatus,
     pub transaction_status: Option<NuveiTransactionStatus>,
     pub err_code: Option<i32>,
@@ -1125,6 +1139,71 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+#[derive(Debug, Serialize)]
+pub struct NuveiMeta {
+    pub session_token: String,
+}
+
+fn get_avs_response_description(code: &str) -> Option<&str> {
+    match code {
+        "A" => Some("The street address matches, the ZIP code does not."),
+        "W" => Some("Postal code matches, the street address does not."),
+        "Y" => Some("Postal code and the street address match."),
+        "X" => Some("An exact match of both the 9-digit ZIP code and the street address."),
+        "Z" => Some("Postal code matches, the street code does not."),
+        "U" => Some("Issuer is unavailable."),
+        "S" => Some("AVS not supported by issuer."),
+        "R" => Some("Retry."),
+        "B" => Some("Not authorized (declined)."),
+        "N" => Some("Both the street address and postal code do not match."),
+        _ => None,
+    }
+}
+
+fn get_cvv2_response_description(code: &str) -> Option<&str> {
+    match code {
+        "M" => Some("CVV2 Match"),
+        "N" => Some("CVV2 No Match"),
+        "P" => Some("Not Processed. For EU card-on-file (COF) and ecommerce (ECOM) network token transactions, Visa removes any CVV and sends P. If you have fraud or security concerns, Visa recommends using 3DS."),
+        "U" => Some("Issuer is not certified and/or has not provided Visa the encryption keys"),
+        "S" => Some("CVV2 processor is unavailable."),
+        _ => None,
+    }
+}
+
+fn build_connector_response_data(
+    payment_option: &Option<PaymentOption>,
+) -> Option<domain_types::router_data::ConnectorResponseData> {
+    let card = payment_option.as_ref()?.card.as_ref()?;
+    let avs_code = card.avs_code.as_ref();
+    let cvv2_code = card.cvv2_reply.as_ref();
+
+    let avs_description = avs_code.and_then(|code| get_avs_response_description(code));
+    let cvv_description = cvv2_code.and_then(|code| get_cvv2_response_description(code));
+
+    let payment_checks = serde_json::json!({
+        "avs_result": avs_code,
+        "avs_description": avs_description,
+        "card_validation_result": cvv2_code,
+        "card_validation_description": cvv_description,
+    });
+
+    let card_network = card.brand.clone();
+    let authentication_data = card.three_d.clone();
+
+    Some(
+        domain_types::router_data::ConnectorResponseData::with_additional_payment_method_data(
+            domain_types::router_data::AdditionalPaymentMethodConnectorResponse::Card {
+                authentication_data,
+                payment_checks: Some(payment_checks),
+                card_network,
+                domestic_network: None,
+                auth_code: None,
+            },
+        ),
+    )
+}
+
 // Response Transformation
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<NuveiPaymentResponse, Self>>
@@ -1208,13 +1287,40 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .and_then(|url| Url::parse(&url).ok())
             .map(|url| Box::new(RedirectForm::from((url, Method::Get))));
 
+        let ip_address = router_data
+            .request
+            .browser_info
+            .as_ref()
+            .and_then(|browser_info| browser_info.ip_address.map(|ip| ip.to_string()));
+
+        let mandate_reference = response
+            .payment_option
+            .as_ref()
+            .and_then(|po| po.user_payment_option_id.clone())
+            .map(|id| {
+                Box::new(MandateReference {
+                    connector_mandate_id: Some(id),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: ip_address,
+                })
+            });
+
+        let connector_metadata = response.session_token.as_ref().and_then(|token| {
+            serde_json::to_value(NuveiMeta {
+                session_token: token.clone(),
+            })
+            .ok()
+        });
+
+        let connector_response = build_connector_response_data(&response.payment_option);
+
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
             redirection_data,
-            mandate_reference: None,
-            connector_metadata: None,
-            network_txn_id: None,
-            connector_response_reference_id: response.client_request_id.clone(),
+            mandate_reference,
+            connector_metadata,
+            network_txn_id: response.external_scheme_transaction_id.clone(),
+            connector_response_reference_id: response.order_id.clone(),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
         };
@@ -1222,6 +1328,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                connector_response,
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
@@ -1399,13 +1506,15 @@ impl TryFrom<ResponseRouterData<NuveiSyncResponse, Self>>
                 ))
             })?;
 
+        let connector_response = build_connector_response_data(&response.payment_option);
+
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
             redirection_data: None,
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
-            connector_response_reference_id: transaction_details.client_unique_id.clone(),
+            connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
         };
@@ -1413,6 +1522,7 @@ impl TryFrom<ResponseRouterData<NuveiSyncResponse, Self>>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                connector_response,
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
@@ -1489,7 +1599,7 @@ impl TryFrom<ResponseRouterData<NuveiCaptureResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
-            connector_response_reference_id: None,
+            connector_response_reference_id: response.order_id.clone(),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
         };
