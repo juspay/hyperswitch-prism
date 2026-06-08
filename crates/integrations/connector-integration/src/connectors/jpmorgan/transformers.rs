@@ -17,7 +17,7 @@ use domain_types::{
         ServerAuthenticationTokenResponseData, SetupMandateRequestData,
     },
     payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -901,7 +901,7 @@ fn build_payments_response_result(
 ) -> Result<Result<PaymentsResponseData, ErrorResponse>, ResponseError> {
     if is_payment_failure(status) {
         Ok(Err(ErrorResponse {
-            attempt_status: Some(status),
+            attempt_status: Some(FlowStatus::Payment(status)),
             code: response.response_code.clone(),
             message: response
                 .response_message

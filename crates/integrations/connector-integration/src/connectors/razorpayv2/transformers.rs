@@ -14,7 +14,7 @@ use domain_types::{
     },
     payment_address::Address,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, UpiData},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
@@ -625,7 +625,7 @@ impl
                     .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: payment_response.error_reason,
                 status_code: _status_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: Some(payment_response.id),
                 network_decline_code: None,
                 network_advice_code: None,

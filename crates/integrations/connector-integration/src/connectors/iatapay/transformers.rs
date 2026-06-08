@@ -12,7 +12,7 @@ use domain_types::{
     payment_method_data::{
         BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, RealTimePaymentData, UpiData,
     },
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
@@ -354,7 +354,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     message: response.failure_details.clone().unwrap_or_default(),
                     reason: response.failure_details.clone(),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: response.iata_payment_id.clone(),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -469,7 +469,7 @@ impl TryFrom<ResponseRouterData<IatapaySyncResponse, Self>>
                     message: response.failure_details.clone().unwrap_or_default(),
                     reason: response.failure_details.clone(),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: response.iata_payment_id.clone(),
                     network_decline_code: None,
                     network_advice_code: None,

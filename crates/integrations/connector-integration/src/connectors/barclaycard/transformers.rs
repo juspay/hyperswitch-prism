@@ -11,7 +11,7 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface, Secret};
@@ -441,7 +441,7 @@ fn get_error_response(
             .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
         reason,
         status_code,
-        attempt_status,
+        attempt_status: attempt_status.map(FlowStatus::Payment),
         connector_transaction_id: Some(transaction_id),
         network_advice_code,
         network_decline_code,

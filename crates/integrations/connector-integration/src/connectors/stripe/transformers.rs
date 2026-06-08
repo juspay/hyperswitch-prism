@@ -4716,6 +4716,7 @@ impl<F, T> TryFrom<ResponseRouterData<CreateConnectorCustomerResponse, Self>>
         Ok(Self {
             response: Ok(ConnectorCustomerResponse {
                 connector_customer_id: item.response.id,
+                status_code: item.http_code,
             }),
             ..item.router_data
         })

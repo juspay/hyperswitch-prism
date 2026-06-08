@@ -9,7 +9,7 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError, ResponseTransformationErrorContext},
     payment_method_data::{self, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
     utils,
@@ -624,9 +624,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         item.response.status
                     )),
                     status_code: item.http_code,
-                    attempt_status: Some(common_enums::AttemptStatus::from(
+                    attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::from(
                         item.response.status.clone(),
-                    )),
+                    ))),
                     connector_transaction_id: Some(item.response.id.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
