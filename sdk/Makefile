@@ -173,15 +173,14 @@ generate: install-deps ## Auto-discover flows and regenerate all SDK clients (pa
 	@echo
 	@echo "Generating Python protobuf stubs (_pb2.pyi)..."
 	@mkdir -p $(REPO_ROOT)/sdk/python/src/payments/generated
-	@MYPY_BIN="$$(python3 -c "import sysconfig; print(sysconfig.get_path('scripts', 'posix_user'))")" && \
+	@PROTO_EXCLUDES="health_check.proto composite_payment.proto composite_services.proto"; \
+	PROTO_FILES_PY=$$(ls $(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/*.proto | xargs -n1 basename | grep -v -E "$$(echo $$PROTO_EXCLUDES | tr ' ' '|')"); \
+	MYPY_BIN="$$(python3 -c "import sysconfig; print(sysconfig.get_path('scripts', 'posix_user'))")" && \
 		PATH="$$MYPY_BIN:$$PATH" python3 -m grpc_tools.protoc \
 		--proto_path=$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto \
 		--python_out=$(REPO_ROOT)/sdk/python/src/payments/generated \
 		--mypy_out=$(REPO_ROOT)/sdk/python/src/payments/generated \
-		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/payment.proto \
-		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/payouts.proto \
-		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/payment_methods.proto \
-		$(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/sdk_config.proto
+		$$(for f in $$PROTO_FILES_PY; do echo $(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/$$f; done)
 	@echo "Generating JavaScript protobuf stubs (proto.js / proto.d.ts)..."
 	@$(MAKE) -C $(MAKEFILE_DIR)javascript generate-proto
 	@echo "All SDK clients regenerated successfully!"

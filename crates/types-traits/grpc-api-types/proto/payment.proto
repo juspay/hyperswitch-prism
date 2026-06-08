@@ -102,6 +102,12 @@ message ConnectorErrorDetails {
   optional string code = 1;    // Connector-specific error code
   optional string message = 2; // Human-readable error message
   optional string reason = 3;  // Detailed explanation
+  optional string connector_transaction_id = 4; // Connector's unique transaction ID for debugging and support reference
+  
+  // Attempt status from the connector flow (Payment/Refund/Dispute).
+  // Extracted from ErrorResponse.attempt_status (domain_types::FlowStatus).
+  // Only one of payment_status, refund_status, or dispute_status will be set.
+  optional FlowStatus status = 5;
 }
 
 // Metadata consolidates all metadata types
@@ -237,6 +243,17 @@ enum DisputeStatus {
   DISPUTE_CHALLENGED = 5; // Dispute is being challenged with evidence
   DISPUTE_WON = 6;
   DISPUTE_LOST = 7;
+}
+
+// Unified flow status wrapping payment, refund, or dispute status.
+// Used to represent the attempt status in error responses and flow results.
+// Only one variant should be set at a time.
+message FlowStatus {
+  oneof status {
+    PaymentStatus payment_status = 1;  // Status for payment flow
+    RefundStatus refund_status = 2;    // Status for refund flow
+    DisputeStatus dispute_status = 3;  // Status for dispute flow
+  }
 }
 
 // Status of a mandate
@@ -461,6 +478,15 @@ enum WebhookEventType {
   RECOVERY_PAYMENT_SUCCESS = 38; // Recovery payment success
   RECOVERY_PAYMENT_PENDING = 39; // Recovery payment pending
   RECOVERY_INVOICE_CANCEL = 40;  // Recovery invoice cancelled
+}
+
+// Type of event for outgoing connector notifications (not webhooks)
+enum NotifyEventType {
+  NOTIFY_EVENT_TYPE_UNSPECIFIED = 0; // Default unspecified event
+
+  // Surcharge events
+  SURCHARGE_PAYMENT_SUCCEEDED = 1; // Surcharge payment succeeded
+  SURCHARGE_REFUND_SUCCEEDED = 2;  // Surcharge refund succeeded
 }
 
 // Currency codes (ISO 4217)
@@ -747,9 +773,14 @@ enum Connector {
   PPRO = 113;
   FISERVCOMMERCEHUB = 114;
   TRUSTLY = 115;
-  SANLAM = 116;
+  ABSA_SANLAM = 116;
   PINELABS_ONLINE = 117;
   IMERCHANTSOLUTIONS = 118;
+  AXISBANK = 119;
+  EASEBUZZ = 120;
+  TWOC_TWOP_PACO = 121;
+  JUSPAY = 122;
+  TAMARA = 123;
 }
 
 // Payment method types
@@ -1337,6 +1368,14 @@ message RedirectResponseSecrets {
   optional string additional_secret = 2;
 }
 
+// Integrity dimensions a connector can confirm are present in a webhook payload.
+enum IntegrityCheck {
+  INTEGRITY_CHECK_UNSPECIFIED = 0; // Default value
+  INTEGRITY_CHECK_CONNECTOR_TRANSACTION_ID = 1; // Maps to: EventContent.*.connector_transaction_id
+  INTEGRITY_CHECK_AMOUNT = 2; // Maps to: EventContent.payments_response.amount.minor_amount
+  INTEGRITY_CHECK_CURRENCY = 3; // Maps to: EventContent.payments_response.amount.currency
+}
+
 // Response for EventService.HandleEvent.
 // event_content mirrors PaymentService.Get / RefundService.Get / DisputeService.Get.
 // Returns INVALID_ARGUMENT if required EventContext fields are absent for this connector.
@@ -1358,6 +1397,52 @@ message EventServiceHandleResponse {
 
   // Suggested HTTP response to send back to the connector for webhook acknowledgement
   optional EventAckResponse event_ack_response = 5;
+
+  // Integrity fields that downstream can use to verify the webhook payload.
+  repeated IntegrityCheck supported_integrity_checks = 6;
+}
+
+// Request for notifying connectors about events
+message NotifyConnectorRequest {
+  // Merchant identification
+  string merchant_id = 1;
+
+  // Unique event identifier
+  string event_id = 2;
+
+  // Event type
+  NotifyEventType event_type = 3;
+
+  // Event content with notify connector content 
+  NotifyConnectorContent content = 4;
+
+  // Timestamp when the event occurred (Unix timestamp in seconds)
+  int64 timestamp = 5;
+}
+
+
+// Content of an event
+message NotifyConnectorContent {
+  oneof content {
+    // surcharge details 
+    SurchargeContent surcharge_content = 1;
+  }
+}
+
+
+// Surcharge details object
+message SurchargeContent {
+  // Connector surcharge identifier
+  string connector_surcharge_id = 1;
+}
+
+// Response for notifying connectors
+message NotifyConnectorResponse {
+  // Status of the notification
+  uint32 status_code = 1;
+
+  // Optional error information if notification failed
+  optional ErrorInfo error = 2;
 }
 
 // Suggested HTTP response for webhook acknowledgement (status, headers, body).
@@ -1596,6 +1681,7 @@ message ConnectorSpecificClientAuthenticationResponse {
     MultisafepayClientAuthenticationResponse multisafepay = 23;
     NexinetsClientAuthenticationResponse nexinets = 24;
     NexixpayClientAuthenticationResponse nexixpay = 25;
+    RevolutClientAuthenticationResponse revolut = 26;
   }
 }
 
@@ -1729,6 +1815,14 @@ message NexinetsClientAuthenticationResponse {
 message NexixpayClientAuthenticationResponse {
   SecretString security_token = 1;
   string hosted_page = 2;
+}
+
+// Revolut SDK initialization data — order_id and token for Revolut Pay widget initialization
+message RevolutClientAuthenticationResponse {
+  // The order ID created on Revolut
+  string order_id = 1;
+  // The client authentication token for SDK initialization
+  SecretString token = 2;
 }
 
 // Stripe SDK initialization data — client_secret for stripe.confirmPayment()
@@ -2039,6 +2133,10 @@ message PaymentServiceAuthorizeRequest {
   // Send the connector order identifier here if an order was created before
   // authorize
   optional string connector_order_id = 44;
+
+  // Request ID generated by the caller system for payment gateway requests.
+  // Required by some connectors for authorize requests.
+  optional string merchant_request_id = 45;
 }
 
 // Response message for a payment authorization
@@ -2116,6 +2214,10 @@ message PaymentServiceGetRequest {
 
   // Payment Experience
   optional PaymentExperience payment_experience = 14;
+
+  // Request ID generated by the caller system for payment gateway requests.
+  // Required by some connectors that demand a per-request idempotency token.
+  optional string merchant_request_id = 15;
 }
 
 // Response message for a payment status synchronization
@@ -2168,6 +2270,8 @@ message PaymentServiceGetResponse {
   optional bool incremental_authorization_allowed = 27;
   // Payment method updates
   optional PaymentMethodUpdate payment_method_update = 29; // Updated payment method details, if present
+
+  optional string sender_payment_instrument_id = 30;
 }
 
 // Request message for voiding a payment
@@ -2196,6 +2300,10 @@ message PaymentServiceVoidRequest {
   optional bool test_mode = 10;
   // Additional Context
   optional string merchant_order_id = 11;
+
+  // Request ID generated by the caller system for payment gateway requests.
+  // Required by some connectors that demand a per-request idempotency token.
+  optional string merchant_request_id = 12;
 }
 
 // Response message for a payment void operation
@@ -2244,6 +2352,10 @@ message PaymentServiceReverseRequest {
   optional SecretString metadata = 6; // Additional metadata for the connector
   optional SecretString connector_feature_data =
       7; // Connector-specific metadata for the transaction
+
+  // Request ID generated by the caller system for payment gateway requests.
+  // Required by some connectors that demand a per-request idempotency token.
+  optional string merchant_request_id = 8;
 }
 
 // Response message for reversing a captured payment if not yet settled (similar
@@ -2390,6 +2502,10 @@ message PaymentServiceCaptureRequest {
 
   // Additional Context
   optional string merchant_order_id = 11;
+
+  // Request ID generated by the caller system for payment gateway requests.
+  // Required by some connectors that demand a per-request idempotency token.
+  optional string merchant_request_id = 12;
 }
 
 // Response message for a payment capture operation
@@ -2513,6 +2629,13 @@ message PaymentServiceRefundRequest {
       15; // Indicates the sub type of payment method. (e.g., card,
           // bank_redirect, bank_transfer)
   optional string customer_id = 16; // Merchant's customer ID
+
+  // Request ID generated by the caller system for payment gateway requests.
+  // Required by some connectors that demand a per-request idempotency token.
+  optional string merchant_request_id = 17;
+
+  // Connector-side identifier for the original payment that this refund targets.  
+  optional string connector_order_id = 18;
 }
 
 // Response message for a refund operation (unified for both Create and Get)
@@ -3316,6 +3439,16 @@ message RefundServiceGetRequest {
   optional PaymentMethodType payment_method_type = 9;
 
   optional SecretString connector_feature_data = 10;
+
+  // Amount Information
+  optional Money refund_amount = 15;
+
+  // Request ID generated by the caller system for payment gateway requests.
+  // Required by some connectors that demand a per-request idempotency token.
+  optional string merchant_request_id = 16;
+
+  // Connector-side identifier for the original payment that this refund sync targets. 
+  optional string connector_order_id = 17;
 }
 
 // ============================================================================
@@ -3455,6 +3588,9 @@ message PaymentMethodServiceTokenizeRequest {
 
   // Environment Configuration
   optional bool test_mode = 9;
+
+  // State Information
+  optional ConnectorState state = 10;
 }
 
 // Response message for tokenizing a payment method
@@ -3628,9 +3764,22 @@ message StripeConfig {
   optional string base_url = 50;
 }
 
+message AciConfig {
+  SecretString api_key = 1;
+  SecretString entity_id = 2;
+  optional string base_url = 50;
+}
+
 message BamboraConfig {
   SecretString merchant_id = 1;
   SecretString api_key = 2;
+  optional string base_url = 50;
+}
+
+message BamboraapacConfig {
+  SecretString username = 1;
+  SecretString password = 2;
+  SecretString account_number = 3;
   optional string base_url = 50;
 }
 
@@ -3773,6 +3922,14 @@ message DatatransConfig {
 message FiservemeaConfig {
   SecretString api_key = 1;
   SecretString api_secret = 2;
+  optional string base_url = 50;
+}
+
+message FinixConfig {
+  SecretString finix_user_name = 1;
+  SecretString finix_password = 2;
+  SecretString merchant_identity_id = 3;
+  SecretString merchant_id = 4;
   optional string base_url = 50;
 }
 
@@ -4025,7 +4182,7 @@ message FiservcommercehubConfig {
   optional string base_url = 50;
 }
 
-message SanlamConfig {
+message AbsaSanlamConfig {
   SecretString api_key = 1;
   SecretString merchant_id = 2;
   optional string base_url = 50;
@@ -4034,7 +4191,10 @@ message SanlamConfig {
 message ItaubankConfig {
   SecretString client_secret = 1;
   SecretString client_id = 2;
+  optional SecretString certificates = 3;
+  optional SecretString private_key = 4;
   optional string base_url = 50;
+  optional string secondary_base_url = 51;
 }
 
 message GigadatConfig {
@@ -4130,6 +4290,12 @@ message PayloadConfig {
   optional string base_url = 50;
 }
 
+message PlacetopayConfig {
+  SecretString login = 1;
+  SecretString tran_key = 2;
+  optional string base_url = 50;
+}
+
 message EbanxConfig {
   SecretString api_key = 1;
   optional string base_url = 50;
@@ -4186,6 +4352,13 @@ message TrustlyConfig {
   optional string base_url = 50;
 }
 
+message EasebuzzConfig {
+  SecretString api_key = 1;
+  SecretString api_salt = 2;
+  optional string base_url = 50;
+  optional string secondary_base_url = 51;
+}
+
 message TruelayerConfig {
   SecretString client_id = 1;
   SecretString client_secret = 2;
@@ -4205,7 +4378,55 @@ message PinelabsOnlineConfig {
 
 message ImerchantsolutionsConfig {
   SecretString api_key = 1;
-  optional string base_url = 2;
+  optional SecretString merchant_id = 2;
+  optional string base_url = 3;
+}
+
+message AxisbankConfig {
+  SecretString merchant_kid = 3;
+  SecretString juspay_kid = 4;
+  SecretString merchant_private_key = 5;
+  SecretString juspay_public_key = 6;
+  optional string base_url = 50;
+}
+
+message TwocTwopPacoConfig {
+  // Company access token, used as both the `token`/`apikey` HTTP header and
+  // as the `iss` / `CompanyApiKey` JWT claim.
+  SecretString access_token = 1;
+  // PACO multi-merchant scoping key, present in every JOSE request body.
+  SecretString office_id = 2;
+  // 32-hex-char JWE key id, environment-specific (UAT vs PRD).
+  SecretString paco_kid = 3;
+  // Merchant RSA private key (PEM) — signs the request JWS (PS256).
+  SecretString merchant_signing_private_key = 4;
+  // Merchant RSA private key (PEM) — decrypts the response JWE (RSA-OAEP).
+  SecretString merchant_encryption_private_key = 5;
+  // PACO RSA public key (PEM) — verifies the response JWS.
+  SecretString paco_signing_public_key = 6;
+  // PACO RSA public key (PEM) — encrypts the request JWE.
+  SecretString paco_encryption_public_key = 7;
+  // Expected `aud` claim on JOSE response JWTs. Defaults to the access_token
+  // when None. Set if PACO emits a different aud on a specific office.
+  optional SecretString response_audience = 8;
+  optional string base_url = 50;
+}
+
+message TamaraConfig {
+  SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
+// Single field auth types
+message InterpaymentsConfig {
+  SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
+message JuspayConfig {
+  SecretString api_key = 1;
+  SecretString merchant_id = 2;
+  optional string base_url = 50;
 }
 
 // ConnectorSpecificConfig message with oneof containing all connector
@@ -4450,14 +4671,44 @@ message ConnectorSpecificConfig {
     // TRUSTLY = 116
     TrustlyConfig trustly = 115;
 
-    // SANLAM = 116
-    SanlamConfig sanlam = 116;
+    // ABSA_SANLAM = 116
+    AbsaSanlamConfig absa_sanlam = 116;
 
     // PINELABS_ONLINE = 117
     PinelabsOnlineConfig pinelabs_online = 117;
 
     // IMERCHANTSOLUTIONS = 118
     ImerchantsolutionsConfig imerchantsolutions = 118;
+
+    // AXISBANK = 119
+    AxisbankConfig axisbank = 119;
+
+    // EASEBUZZ = 120
+    EasebuzzConfig easebuzz = 120;
+
+    // TWOC_TWOP_PACO = 121
+    TwocTwopPacoConfig twoc_twop_paco = 121;
+
+    // BAMBORAAPAC = 7
+    BamboraapacConfig bamboraapac = 122;
+
+    // PLACETOPAY = 65
+    PlacetopayConfig placetopay = 123;
+
+    // FINIX = 111
+    FinixConfig finix = 124;
+
+    // ACI = 125
+    AciConfig aci = 125;
+
+    // INTERPAYMENTS = 126
+    InterpaymentsConfig interpayments = 126;
+
+    // JUSPAY = 122
+    JuspayConfig juspay = 127;
+
+    // TAMARA = 123
+    TamaraConfig tamara = 128;
   }
 }
 

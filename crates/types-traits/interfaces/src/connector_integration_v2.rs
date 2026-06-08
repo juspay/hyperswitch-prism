@@ -6,8 +6,8 @@ use common_utils::{
     CustomResult,
 };
 use domain_types::{
-    errors::{ConnectorError, IntegrationError},
-    router_data::ErrorResponse,
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
 };
 use hyperswitch_masking::Maskable;
@@ -67,11 +67,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     fn get_url(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
-    ) -> CustomResult<String, IntegrationError> {
-        // metrics::UNIMPLEMENTED_FLOW
-        //     .add(1, router_env::metric_attributes!(("connector", self.id()))); // TODO: discuss env
-        Ok(String::new())
-    }
+    ) -> CustomResult<String, IntegrationError>;
 
     /// returns request body
     fn get_request_body(
@@ -93,12 +89,17 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         TransportType::Http
     }
 
-    /// returns kafka topic
+    /// returns kafka topic; default returns Err(NotImplemented).
     fn get_kafka_topic(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
     ) -> CustomResult<String, IntegrationError> {
-        Ok(String::new())
+        Err(IntegrationError::connector_flow_not_implemented(
+            self.id(),
+            std::any::type_name::<Flow>(),
+            IntegrationErrorContext::default(),
+        )
+        .into())
     }
 
     /// returns kafka key
@@ -109,11 +110,17 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         Ok(None)
     }
 
+    /// returns kafka record; default returns Err(NotImplemented).
     fn build_kafka_record(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
     ) -> CustomResult<Option<KafkaRecord>, IntegrationError> {
-        Ok(None)
+        Err(IntegrationError::connector_flow_not_implemented(
+            self.id(),
+            std::any::type_name::<Flow>(),
+            IntegrationErrorContext::default(),
+        )
+        .into())
     }
 
     /// builds the request and returns it
@@ -134,10 +141,10 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         ))
     }
 
-    /// accepts the raw api response and decodes it
+    /// accepts the raw api response and decodes it; default returns Err(ResponseHandlingFailed).
     fn handle_response_v2(
         &self,
-        data: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
+        _data: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
         event_builder: Option<&mut events::Event>,
         _res: domain_types::router_response_types::Response,
     ) -> CustomResult<RouterDataV2<Flow, ResourceCommonData, Req, Resp>, ConnectorError>
@@ -150,14 +157,28 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         if let Some(e) = event_builder {
             e.set_connector_response(&json!({"error": "Not Implemented"}))
         }
-        Ok(data.clone())
+        Err(ConnectorError::ResponseHandlingFailed {
+            context: domain_types::errors::ResponseTransformationErrorContext {
+                http_status_code: None,
+                additional_context: Some(format!(
+                    "{}: handle_response_v2 not implemented for flow {}",
+                    self.id(),
+                    std::any::type_name::<Flow>()
+                )),
+            },
+        }
+        .into())
     }
 
     /// accepts the raw api error response and decodes it
+    ///
+    /// `connector_config` carries the per-merchant credentials (PEMs, kid,
+    /// access tokens) needed to decrypt encrypted error bodies.
     fn get_error_response_v2(
         &self,
         res: domain_types::router_response_types::Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         if let Some(event) = event_builder {
             event.set_connector_response(&json!({"error": "Error response parsing not implemented", "status_code": res.status_code}))
@@ -170,6 +191,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         &self,
         res: domain_types::router_response_types::Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         let error_message = match res.status_code {
             500 => "internal_server_error",

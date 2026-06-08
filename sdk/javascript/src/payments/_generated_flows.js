@@ -96,6 +96,9 @@ const FLOWS = {
   // submit_evidence: DisputeService.SubmitEvidence — Upload evidence to dispute customer chargeback. Provides documentation like receipts and delivery proof to contest fraudulent transaction claims.
   submit_evidence                            : { request: "DisputeServiceSubmitEvidenceRequest", response: "DisputeServiceSubmitEvidenceResponse" },
 
+  // surcharge_calculate: SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing.
+  surcharge_calculate                        : { request: "SurchargeServiceCalculateRequest", response: "SurchargeServiceCalculateResponse" },
+
   // token_authorize: PaymentService.TokenAuthorize — Authorize using a connector-issued payment method token.
   token_authorize                            : { request: "PaymentServiceTokenAuthorizeRequest", response: "PaymentServiceAuthorizeResponse" },
 

@@ -388,9 +388,15 @@ pub struct Connectors {
     pub finix: ConnectorParams,
     pub trustly: ConnectorParams,
     pub itaubank: ConnectorParams,
-    pub sanlam: ConnectorParams,
+    pub absa_sanlam: ConnectorParams,
     pub pinelabs_online: ConnectorParams,
+    pub easebuzz: ConnectorParams,
     pub imerchantsolutions: ConnectorParams,
+    pub axisbank: ConnectorParams,
+    pub twoc_twop_paco: ConnectorParams,
+    pub interpayments: ConnectorParams,
+    pub juspay: ConnectorParams,
+    pub tamara: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -532,6 +538,12 @@ impl Connectors {
             ConnectorEnum::Revolut => {
                 patched.revolut.apply(params_patch);
             }
+            ConnectorEnum::Aci => {
+                patched.aci.apply(params_patch);
+            }
+            ConnectorEnum::Bankofamerica => {
+                patched.bankofamerica.apply(params_patch);
+            }
             ConnectorEnum::Worldpay => {
                 patched.worldpay.apply(params_patch);
             }
@@ -550,6 +562,132 @@ impl Connectors {
             ConnectorEnum::Novalnet => {
                 patched.novalnet.apply(params_patch);
             }
+            ConnectorEnum::Forte => {
+                patched.forte.apply(params_patch);
+            }
+            ConnectorEnum::Bambora => {
+                patched.bambora.apply(params_patch);
+            }
+            ConnectorEnum::Bamboraapac => {
+                patched.bamboraapac.apply(params_patch);
+            }
+            ConnectorEnum::Barclaycard => {
+                patched.barclaycard.apply(params_patch);
+            }
+            ConnectorEnum::Billwerk => {
+                patched.billwerk.apply(params_patch);
+            }
+            ConnectorEnum::Bluesnap => {
+                patched.bluesnap.apply(params_patch);
+            }
+            ConnectorEnum::Calida => {
+                patched.calida.apply(params_patch);
+            }
+            ConnectorEnum::Cashfree => {
+                patched.cashfree.apply(params_patch);
+            }
+            ConnectorEnum::Celero => {
+                patched.celero.apply(params_patch);
+            }
+            ConnectorEnum::Cryptopay => {
+                patched.cryptopay.apply(params_patch);
+            }
+            ConnectorEnum::Datatrans => {
+                patched.datatrans.apply(params_patch);
+            }
+            ConnectorEnum::Finix => {
+                patched.finix.apply(params_patch);
+            }
+            ConnectorEnum::Fiservcommercehub => {
+                patched.fiservcommercehub.apply(params_patch);
+            }
+            ConnectorEnum::Fiservemea => {
+                patched.fiservemea.apply(params_patch);
+            }
+            ConnectorEnum::Globalpay => {
+                patched.globalpay.apply(params_patch);
+            }
+            ConnectorEnum::Helcim => {
+                patched.helcim.apply(params_patch);
+            }
+            ConnectorEnum::Hipay => {
+                patched.hipay.apply(params_patch);
+            }
+            ConnectorEnum::Imerchantsolutions => {
+                patched.imerchantsolutions.apply(params_patch);
+            }
+            ConnectorEnum::Jpmorgan => {
+                patched.jpmorgan.apply(params_patch);
+            }
+            ConnectorEnum::Loonio => {
+                patched.loonio.apply(params_patch);
+            }
+            ConnectorEnum::Mifinity => {
+                patched.mifinity.apply(params_patch);
+            }
+            ConnectorEnum::Mollie => {
+                patched.mollie.apply(params_patch);
+            }
+            ConnectorEnum::Multisafepay => {
+                patched.multisafepay.apply(params_patch);
+            }
+            ConnectorEnum::Nexixpay => {
+                patched.nexixpay.apply(params_patch);
+            }
+            ConnectorEnum::Payload => {
+                patched.payload.apply(params_patch);
+            }
+            ConnectorEnum::Payme => {
+                patched.payme.apply(params_patch);
+            }
+            ConnectorEnum::Placetopay => {
+                patched.placetopay.apply(params_patch);
+            }
+            ConnectorEnum::Powertranz => {
+                patched.powertranz.apply(params_patch);
+            }
+            ConnectorEnum::Revolv3 => {
+                patched.revolv3.apply(params_patch);
+            }
+            ConnectorEnum::AbsaSanlam => {
+                patched.absa_sanlam.apply(params_patch);
+            }
+            ConnectorEnum::Shift4 => {
+                patched.shift4.apply(params_patch);
+            }
+            ConnectorEnum::Silverflow => {
+                patched.silverflow.apply(params_patch);
+            }
+            ConnectorEnum::Stax => {
+                patched.stax.apply(params_patch);
+            }
+            ConnectorEnum::Truelayer => {
+                patched.truelayer.apply(params_patch);
+            }
+            ConnectorEnum::Trustly => {
+                patched.trustly.apply(params_patch);
+            }
+            ConnectorEnum::Trustpayments => {
+                patched.trustpayments.apply(params_patch);
+            }
+            ConnectorEnum::Tsys => {
+                patched.tsys.apply(params_patch);
+            }
+            ConnectorEnum::Wellsfargo => {
+                patched.wellsfargo.apply(params_patch);
+            }
+            ConnectorEnum::Worldpayvantiv => {
+                patched.worldpayvantiv.apply(params_patch);
+            }
+            ConnectorEnum::Worldpayxml => {
+                patched.worldpayxml.apply(params_patch);
+            }
+            ConnectorEnum::Zift => {
+                patched.zift.apply(params_patch);
+            }
+            ConnectorEnum::Gigadat => {
+                patched.gigadat.apply(params_patch);
+            }
             ConnectorEnum::Trustpay => {
                 // TrustPay uses ConnectorParamsWithMoreUrls which has different fields
                 let trustpay_patch = ConnectorParamsWithMoreUrlsPatch {
@@ -558,6 +696,9 @@ impl Connectors {
                 };
                 patched.trustpay.apply(trustpay_patch);
             }
+            ConnectorEnum::TwocTwopPaco => {
+                patched.twoc_twop_paco.apply(params_patch);
+            }
             _ => {
                 // Connector not supported for URL patching - return error
                 return Err(IntegrationError::InvalidDataFormat {
@@ -565,7 +706,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay",
+                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, multisafepay, nexixpay, payload, payme, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat",
                             connector
                         )),
                         ..Default::default()
@@ -1030,7 +1171,7 @@ impl<
                 // ============================================================================
                 // DIGITAL WALLETS - Direct conversions
                 // ============================================================================
-                grpc_api_types::payments::payment_method::PaymentMethod::Bluecode(_) => Ok(
+                grpc_api_types::payments::payment_method::PaymentMethod::BluecodeRedirect(_) => Ok(
                     Self::Wallet(payment_method_data::WalletData::BluecodeRedirect {}),
                 ),
                 grpc_api_types::payments::payment_method::PaymentMethod::RevolutPay(_) => {
@@ -1043,7 +1184,22 @@ impl<
                         payment_method_data::AliPayRedirection {},
                     )),
                 ),
-                grpc_api_types::payments::payment_method::PaymentMethod::AliPayHk(_) => Ok(
+                grpc_api_types::payments::payment_method::PaymentMethod::RevolutPayRedirect(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::RevolutPay(
+                        payment_method_data::RevolutPayData {},
+                    )))
+                }
+                grpc_api_types::payments::payment_method::PaymentMethod::SatispayRedirect(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::Satispay(
+                        payment_method_data::SatispayData {},
+                    )))
+                }
+                grpc_api_types::payments::payment_method::PaymentMethod::WeroRedirect(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::Wero(
+                        payment_method_data::WeroData {},
+                    )))
+                }
+                grpc_api_types::payments::payment_method::PaymentMethod::AliPayHkRedirect(_) => Ok(
                     Self::Wallet(payment_method_data::WalletData::AliPayHkRedirect(
                         payment_method_data::AliPayHkRedirection {},
                     )),
@@ -1069,6 +1225,11 @@ impl<
                 grpc_api_types::payments::payment_method::PaymentMethod::MbWayRedirect(_) => Ok(
                     Self::Wallet(payment_method_data::WalletData::MbWayRedirect(Box::new(
                         payment_method_data::MbWayRedirection {},
+                    ))),
+                ),
+                grpc_api_types::payments::payment_method::PaymentMethod::MobilePayRedirect(_) => Ok(
+                    Self::Wallet(payment_method_data::WalletData::MobilePayRedirect(Box::new(
+                        payment_method_data::MobilePayRedirection {},
                     ))),
                 ),
                 grpc_api_types::payments::payment_method::PaymentMethod::MomoRedirect(_) => Ok(
@@ -1159,7 +1320,7 @@ impl<
                         Box::new(payment_method_data::WeChatPayRedirection {}),
                     )))
                 }
-                grpc_api_types::payments::payment_method::PaymentMethod::Mifinity(
+                grpc_api_types::payments::payment_method::PaymentMethod::MifinityRedirect(
                     mifinity_data,
                 ) => Ok(Self::Wallet(payment_method_data::WalletData::Mifinity(
                     payment_method_data::MifinityData {
@@ -1172,7 +1333,7 @@ impl<
                         language_preference: mifinity_data.language_preference,
                     },
                 ))),
-                grpc_api_types::payments::payment_method::PaymentMethod::ApplePay(apple_wallet) => {
+                grpc_api_types::payments::payment_method::PaymentMethod::ApplePaySdk(apple_wallet) => {
                     let payment_data = apple_wallet.payment_data.ok_or_else(|| {
                         IntegrationError::InvalidDataFormat { field_name: "payment_method.apple_pay.payment_data", context: IntegrationErrorContext { additional_context: Some("Apple Pay payment data is required".to_string()), ..Default::default() } }
                     })?;
@@ -1221,7 +1382,7 @@ impl<
                         wallet_data,
                     )))
                 }
-                grpc_api_types::payments::payment_method::PaymentMethod::GooglePay(
+                grpc_api_types::payments::payment_method::PaymentMethod::GooglePaySdk(
                     google_wallet,
                 ) => {
                     let info = google_wallet.info.ok_or_else(|| {
@@ -1327,7 +1488,7 @@ impl<
                         },
                     ),
                 )),
-                grpc_api_types::payments::payment_method::PaymentMethod::Paze(paze_wallet) => {
+                grpc_api_types::payments::payment_method::PaymentMethod::PazeSdk(paze_wallet) => {
                     let paze_wallet_data = match paze_wallet.paze_data {
                         Some(grpc_api_types::payments::paze_wallet::PazeData::CompleteResponse(
                             complete_response,
@@ -1348,7 +1509,7 @@ impl<
                         paze_wallet_data,
                     ))))
                 }
-                grpc_api_types::payments::payment_method::PaymentMethod::SamsungPay(
+                grpc_api_types::payments::payment_method::PaymentMethod::SamsungPaySdk(
                     samsung_pay,
                 ) => {
                 let credential = samsung_pay
@@ -1528,7 +1689,14 @@ impl<
                         email: match interac.email {
                             Some(ref email_str) => Some(
                                 Email::try_from(email_str.clone().expose()).change_context(
-                                    IntegrationError::InvalidDataFormat { field_name: "unknown", context: IntegrationErrorContext { additional_context: Some("Invalid email for Interac".to_string()), ..Default::default() } },
+                                    IntegrationError::InvalidDataFormat {
+                                        field_name: "payment_method.interac.email",
+                                        context: IntegrationErrorContext {
+                                            additional_context: Some("Invalid email format for Interac payment method".to_string()),
+                                            suggested_action: Some("Provide a valid email address for Interac".to_string()),
+                                            doc_url: None,
+                                        },
+                                    },
                                 )?,
                             ),
                             None => None,
@@ -1560,7 +1728,14 @@ impl<
                         email: match online_banking_finland.email {
                                 Some(ref email_str) => Some(
                                     Email::try_from(email_str.clone().expose()).change_context(
-                                        IntegrationError::InvalidDataFormat { field_name: "unknown", context: IntegrationErrorContext { additional_context: Some("Invalid email".to_string()), ..Default::default() } },
+                                        IntegrationError::InvalidDataFormat {
+                                            field_name: "payment_method.online_banking_finland.email",
+                                            context: IntegrationErrorContext {
+                                                additional_context: Some("Invalid email format for Online Banking Finland".to_string()),
+                                                suggested_action: Some("Provide a valid email address for Online Banking Finland".to_string()),
+                                                doc_url: None,
+                                            },
+                                        },
                                     )?,
                                 ),
                                 None => None,
@@ -1586,6 +1761,9 @@ impl<
                 ),
                 grpc_api_types::payments::payment_method::PaymentMethod::Klarna(_) => Ok(
                     Self::PayLater(payment_method_data::PayLaterData::KlarnaRedirect {}),
+                ),
+                grpc_api_types::payments::payment_method::PaymentMethod::Alma(_) => Ok(
+                    Self::PayLater(payment_method_data::PayLaterData::AlmaRedirect {}),
                 ),
                 // ============================================================================
                 // DIRECT DEBIT - Direct variants
@@ -1630,9 +1808,7 @@ impl<
                         account_number: eft.account_number.ok_or(
                             IntegrationError::InvalidDataFormat { field_name: "unknown", context: IntegrationErrorContext { additional_context: Some("EFT account number is required".to_string()), ..Default::default() } },
                         )?,
-                        branch_code: eft.branch_code.ok_or(
-                            IntegrationError::InvalidDataFormat { field_name: "unknown", context: IntegrationErrorContext { additional_context: Some("EFT branch code is required".to_string()), ..Default::default() } },
-                        )?,
+                        branch_code: eft.branch_code,
                     }),
                 ),
                 grpc_api_types::payments::payment_method::PaymentMethod::Sepa(sepa) => Ok(
@@ -1882,9 +2058,18 @@ impl<
                 // VOUCHER PAYMENT METHODS
                 // ============================================================================
                 grpc_api_types::payments::payment_method::PaymentMethod::Boleto(boleto) => {
+                    // Parse the merchant-supplied boleto due date from an ISO 8601 string if provided.
+                    let expiration_date = boleto.expiration_date.as_ref().and_then(|date_str| {
+                        time::PrimitiveDateTime::parse(
+                            date_str,
+                            &time::format_description::well_known::Iso8601::DEFAULT,
+                        )
+                        .ok()
+                    });
                     Ok(Self::Voucher(payment_method_data::VoucherData::Boleto(Box::new(
                         payment_method_data::BoletoVoucherData {
                             social_security_number: boleto.social_security_number.map(Secret::new),
+                            expiration_date,
                         },
                     ))))
                 }
@@ -2217,8 +2402,8 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 // ============================================================================
                 // DIGITAL WALLETS - PaymentMethodType mappings
                 // ============================================================================
-                grpc_api_types::payments::payment_method::PaymentMethod::ApplePay(_) => Ok(Some(PaymentMethodType::ApplePay)),
-                grpc_api_types::payments::payment_method::PaymentMethod::GooglePay(_) => Ok(Some(PaymentMethodType::GooglePay)),
+                grpc_api_types::payments::payment_method::PaymentMethod::ApplePaySdk(_) => Ok(Some(PaymentMethodType::ApplePay)),
+                grpc_api_types::payments::payment_method::PaymentMethod::GooglePaySdk(_) => Ok(Some(PaymentMethodType::GooglePay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::ApplePayThirdPartySdk(_) => Ok(Some(PaymentMethodType::ApplePay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::GooglePayThirdPartySdk(_) => Ok(Some(PaymentMethodType::GooglePay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::PaypalSdk(_) => Ok(Some(PaymentMethodType::Paypal)),
@@ -2229,10 +2414,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::WeChatPayRedirect(_) => Ok(Some(PaymentMethodType::WeChatPay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::AliPayRedirect(_) => Ok(Some(PaymentMethodType::AliPay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::RevolutPay(_) => Ok(Some(PaymentMethodType::RevolutPay)),
-                grpc_api_types::payments::payment_method::PaymentMethod::Mifinity(_) => Ok(Some(PaymentMethodType::Mifinity)),
-                grpc_api_types::payments::payment_method::PaymentMethod::Bluecode(_) => Ok(Some(PaymentMethodType::Bluecode)),
-                grpc_api_types::payments::payment_method::PaymentMethod::Paze(_) => Ok(Some(PaymentMethodType::Paze)),
-                grpc_api_types::payments::payment_method::PaymentMethod::AliPayHk(_) => Ok(Some(PaymentMethodType::AliPayHk)),
+                grpc_api_types::payments::payment_method::PaymentMethod::MifinityRedirect(_) => Ok(Some(PaymentMethodType::Mifinity)),
+                grpc_api_types::payments::payment_method::PaymentMethod::BluecodeRedirect(_) => Ok(Some(PaymentMethodType::Bluecode)),
+                grpc_api_types::payments::payment_method::PaymentMethod::PazeSdk(_) => Ok(Some(PaymentMethodType::Paze)),
+                grpc_api_types::payments::payment_method::PaymentMethod::AliPayHkRedirect(_) => Ok(Some(PaymentMethodType::AliPayHk)),
                 grpc_api_types::payments::payment_method::PaymentMethod::DanaRedirect(_) => Ok(Some(PaymentMethodType::Dana)),
                 grpc_api_types::payments::payment_method::PaymentMethod::GcashRedirect(_) => Ok(Some(PaymentMethodType::Gcash)),
                 grpc_api_types::payments::payment_method::PaymentMethod::GoPayRedirect(_) => Ok(Some(PaymentMethodType::GoPay)),
@@ -2243,7 +2428,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::TwintRedirect(_) => Ok(Some(PaymentMethodType::Twint)),
                 grpc_api_types::payments::payment_method::PaymentMethod::VippsRedirect(_) => Ok(Some(PaymentMethodType::Vipps)),
                 grpc_api_types::payments::payment_method::PaymentMethod::SwishQr(_) => Ok(Some(PaymentMethodType::Swish)),
-                grpc_api_types::payments::payment_method::PaymentMethod::SamsungPay(_) => Ok(Some(PaymentMethodType::SamsungPay)),
+                grpc_api_types::payments::payment_method::PaymentMethod::SamsungPaySdk(_) => Ok(Some(PaymentMethodType::SamsungPay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::MbWay(_) => Ok(Some(PaymentMethodType::MbWay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Satispay(_) => Ok(Some(PaymentMethodType::Satispay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Wero(_) => Ok(Some(PaymentMethodType::Wero)),
@@ -2254,9 +2439,13 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::PayuRedirect(_) => Ok(Some(PaymentMethodType::PayU)),
                 grpc_api_types::payments::payment_method::PaymentMethod::EasebuzzRedirect(_) => Ok(Some(PaymentMethodType::EaseBuzz)),
                 grpc_api_types::payments::payment_method::PaymentMethod::MobilePayRedirect(_) => Ok(Some(PaymentMethodType::MobilePay)),
-                grpc_api_types::payments::payment_method::PaymentMethod::Venmo(_) => Ok(Some(PaymentMethodType::Venmo)),
-                grpc_api_types::payments::payment_method::PaymentMethod::Skrill(_) => Ok(Some(PaymentMethodType::Skrill)),
-                grpc_api_types::payments::payment_method::PaymentMethod::Paysera(_) => Ok(Some(PaymentMethodType::Paysera)),
+                grpc_api_types::payments::payment_method::PaymentMethod::VenmoRedirect(_) => Ok(Some(PaymentMethodType::Venmo)),
+                grpc_api_types::payments::payment_method::PaymentMethod::SkrillRedirect(_) => Ok(Some(PaymentMethodType::Skrill)),
+                grpc_api_types::payments::payment_method::PaymentMethod::PayseraRedirect(_) => Ok(Some(PaymentMethodType::Paysera)),
+                grpc_api_types::payments::payment_method::PaymentMethod::RevolutPayRedirect(_) => Ok(Some(PaymentMethodType::RevolutPay)),
+                grpc_api_types::payments::payment_method::PaymentMethod::SatispayRedirect(_) => Ok(Some(PaymentMethodType::Satispay)),
+                grpc_api_types::payments::payment_method::PaymentMethod::WeroRedirect(_) => Ok(Some(PaymentMethodType::Wero)),
+
                 // ============================================================================
                 // BANK TRANSFERS - PaymentMethodType mappings
                 // ============================================================================
@@ -2295,6 +2484,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::Affirm(_) => Ok(Some(PaymentMethodType::Affirm)),
                 grpc_api_types::payments::payment_method::PaymentMethod::AfterpayClearpay(_) => Ok(Some(PaymentMethodType::AfterpayClearpay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Klarna(_) => Ok(Some(PaymentMethodType::Klarna)),
+                grpc_api_types::payments::payment_method::PaymentMethod::Alma(_) => Ok(Some(PaymentMethodType::Alma)),
                 // ============================================================================
                 // DIRECT DEBIT - PaymentMethodType mappings
                 // ============================================================================
@@ -2620,6 +2810,12 @@ pub struct AuthorizationRequest {
     pub tokenization_strategy: Option<grpc_payment_types::Tokenization>,
     pub test_mode: Option<bool>,
     pub payment_method_token: Option<Secret<String>>,
+    pub merchant_request_id: Option<String>,
+    /// Connector-side order identifier when a `CreateOrder` has already been
+    /// performed (e.g. Juspay's merchant `order_id`). Propagated to
+    /// `PaymentFlowData::connector_order_id` so the Authorize TryFrom can
+    /// attach the payment to the right pre-existing order.
+    pub connector_order_id: Option<String>,
 }
 
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
@@ -2635,21 +2831,26 @@ pub struct SetupRecurringRequest {
     pub metadata: Option<Secret<String>>,
     pub connector_feature_data: Option<Secret<String>>,
     pub state: Option<grpc_payment_types::ConnectorState>,
+    pub session_token: Option<String>,
     pub setup_mandate_details: Option<grpc_payment_types::SetupMandateDetails>,
     pub customer_acceptance: Option<grpc_payment_types::CustomerAcceptance>,
     pub auth_type: AuthenticationType,
     pub authentication_data: Option<grpc_payment_types::AuthenticationData>,
     pub setup_future_usage: grpc_payment_types::FutureUsage,
+    pub request_incremental_authorization: bool,
+    pub enable_partial_authorization: Option<bool>,
     pub browser_info: Option<grpc_payment_types::BrowserInformation>,
     pub billing_descriptor: Option<grpc_payment_types::BillingDescriptor>,
     pub locale: Option<String>,
-    pub payment_channel: Option<i32>,
+    pub payment_channel: Option<grpc_payment_types::PaymentChannel>,
     pub complete_authorize_url: Option<String>,
     pub off_session: Option<bool>,
     pub order_category: Option<String>,
     pub order_id: Option<String>,
     pub order_tax_amount: Option<i64>,
+    pub shipping_cost: Option<i64>,
     pub merchant_order_id: Option<String>,
+    pub connector_testing_data: Option<Secret<String>>,
     pub l2_l3_data: Option<grpc_payment_types::L2l3Data>,
 }
 
@@ -2705,6 +2906,8 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             order_details: Some(req.order_details),
             test_mode: req.test_mode,
             payment_method_token: None,
+            merchant_request_id: req.merchant_request_id,
+            connector_order_id: req.connector_order_id,
         }
     }
 }
@@ -2720,7 +2923,9 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
                         grpc_payment_types::payment_method::PaymentMethod::CardProxy(card_proxy),
                     ),
                 });
-
+        let threeds_completion_indicator = req
+            .threeds_completion_indicator
+            .map(|_| req.threeds_completion_indicator());
         Self {
             merchant_transaction_id: req.merchant_transaction_id.clone(),
             amount: req.amount,
@@ -2748,14 +2953,14 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             enable_partial_authorization: None,
             customer_acceptance: req.customer_acceptance.clone(),
             browser_info: req.browser_info,
-            billing_descriptor: None,
+            billing_descriptor: req.billing_descriptor,
             payment_experience: None,
             description: req.description.clone(),
             payment_channel: grpc_payment_types::PaymentChannel::Unspecified,
             locale: None,
             state: req.state,
-            threeds_completion_indicator: None,
-            redirection_response: None,
+            threeds_completion_indicator,
+            redirection_response: req.redirection_response,
             continue_redirection_url: None,
             l2_l3_data: req.l2_l3_data,
             setup_mandate_details: req.setup_mandate_details,
@@ -2765,6 +2970,8 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             tokenization_strategy: None,
             test_mode: req.test_mode,
             payment_method_token: None,
+            merchant_request_id: None,
+            connector_order_id: None,
         }
     }
 }
@@ -2784,19 +2991,26 @@ impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecu
             metadata: req.metadata,
             connector_feature_data: req.connector_feature_data,
             state: req.state,
+            session_token: req.session_token,
             setup_mandate_details: req.setup_mandate_details,
             customer_acceptance: req.customer_acceptance,
             authentication_data: req.authentication_data,
             browser_info: req.browser_info,
             billing_descriptor: req.billing_descriptor,
             locale: req.locale,
-            payment_channel: req.payment_channel,
+            payment_channel: req
+                .payment_channel
+                .and_then(|v| grpc_payment_types::PaymentChannel::try_from(v).ok()),
             complete_authorize_url: req.complete_authorize_url,
             off_session: req.off_session,
+            request_incremental_authorization: req.request_incremental_authorization,
+            enable_partial_authorization: req.enable_partial_authorization,
             order_category: req.order_category,
             order_id: req.order_id,
             order_tax_amount: req.order_tax_amount,
+            shipping_cost: req.shipping_cost,
             merchant_order_id: req.merchant_order_id,
+            connector_testing_data: req.connector_testing_data,
             l2_l3_data: req.l2_l3_data,
         }
     }
@@ -2827,19 +3041,24 @@ impl From<grpc_payment_types::PaymentServiceProxySetupRecurringRequest> for Setu
             metadata: req.metadata,
             connector_feature_data: None,
             state: req.state,
+            session_token: None,
             setup_mandate_details: req.setup_mandate_details,
             customer_acceptance: req.customer_acceptance,
             authentication_data: req.authentication_data,
+            request_incremental_authorization: false,
+            enable_partial_authorization: None,
             browser_info: req.browser_info,
             billing_descriptor: None,
             locale: None,
             payment_channel: None,
             complete_authorize_url: None,
             off_session: None,
-            order_category: None,
+            order_category: req.order_category,
             order_id: None,
             order_tax_amount: None,
+            shipping_cost: None,
             merchant_order_id: None,
+            connector_testing_data: None,
             l2_l3_data: None,
         }
     }
@@ -2910,43 +3129,26 @@ impl ForeignTryFrom<grpc_api_types::payments::ProxyCardDetails>
     fn foreign_try_from(
         card: grpc_api_types::payments::ProxyCardDetails,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
+        // Derive card_network from the proto field only.
+        // NOTE: card.card_number is a vault token (e.g. "token_123456"), NOT a real card BIN,
+        // so BIN-based issuer detection is not possible here. The caller must populate the card_network proto field
+
+        let card_network = card.card_network.and_then(|n| {
+            grpc_api_types::payments::CardNetwork::try_from(n)
+                .ok()
+                .and_then(|cn| CardNetwork::foreign_try_from(cn).ok())
+        });
+
         Ok(payment_method_data::Card {
-            card_number: RawCardNumber(card.card_number.ok_or(
-                IntegrationError::InvalidDataFormat {
-                    field_name: "unknown",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Missing card number".to_string()),
-                        ..Default::default()
-                    },
-                },
-            )?),
-            card_exp_month: card
-                .card_exp_month
-                .ok_or(IntegrationError::InvalidDataFormat {
-                    field_name: "unknown",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Missing Card Expiry Month".to_string()),
-                        ..Default::default()
-                    },
-                })?,
-            card_exp_year: card
-                .card_exp_year
-                .ok_or(IntegrationError::InvalidDataFormat {
-                    field_name: "unknown",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Missing Card Expiry Year".to_string()),
-                        ..Default::default()
-                    },
-                })?,
-            card_cvc: card.card_cvc.ok_or(IntegrationError::InvalidDataFormat {
-                field_name: "unknown",
-                context: IntegrationErrorContext {
-                    additional_context: Some("Missing CVC".to_string()),
-                    ..Default::default()
-                },
-            })?,
+            card_number: RawCardNumber(
+                //card number token is already stored in token_data , so we can update the value to internal transformation value.
+                "{{$card_number}}".to_string().into(),
+            ),
+            card_exp_month: "{{$card_exp_month}}".to_string().into(),
+            card_exp_year: "{{$card_exp_year}}".to_string().into(),
+            card_cvc: "{{$card_cvc}}".to_string().into(),
             card_issuer: card.card_issuer,
-            card_network: None,
+            card_network,
             card_type: card.card_type,
             card_issuing_country: card.card_issuing_country_alpha2,
             bank_code: card.bank_code,
@@ -3119,6 +3321,19 @@ impl ForeignTryFrom<grpc_api_types::payments::Currency> for common_enums::Curren
     }
 }
 
+impl ForeignTryFrom<grpc_api_types::payments::Money> for common_utils::types::Money {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::Money,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            amount: common_utils::types::MinorUnit::new(value.minor_amount),
+            currency: common_enums::Currency::foreign_try_from(value.currency())?,
+        })
+    }
+}
+
 impl<
         T: PaymentMethodDataTypes
             + Default
@@ -3150,10 +3365,13 @@ impl<
             Some(ref email_str) => {
                 Some(Email::try_from(email_str.clone().expose()).map_err(|_| {
                     error_stack::Report::new(IntegrationError::InvalidDataFormat {
-                        field_name: "unknown",
+                        field_name: "customer.email",
                         context: IntegrationErrorContext {
-                            additional_context: Some("Invalid email".to_string()),
-                            ..Default::default()
+                            additional_context: Some("Invalid customer email format".to_string()),
+                            suggested_action: Some(
+                                "Provide a valid email address in customer.email".to_string(),
+                            ),
+                            doc_url: None,
                         },
                     })
                 })?)
@@ -3276,33 +3494,28 @@ impl<
             mandate_id: None,
             off_session: value.off_session,
             order_category: value.order_category,
-            session_token: None,
+            session_token: value.session_token,
             access_token,
             customer_acceptance: customer_acceptance
                 .map(mandates::CustomerAcceptance::foreign_try_from)
                 .transpose()?,
             enrolled_for_3ds: value.enrolled_for_3ds,
             related_transaction_id: None,
-            payment_experience: None,
-            customer_id: value
-                .customer
-                .and_then(|customer| customer.id)
-                .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
-                .transpose()
-                .change_context(IntegrationError::InvalidDataFormat {
-                    field_name: "unknown",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Failed to parse Customer Id".to_string()),
-                        ..Default::default()
-                    },
-                })?,
+            payment_experience: value
+                .payment_experience
+                .filter(|pe| *pe != grpc_payment_types::PaymentExperience::Unspecified)
+                .map(common_enums::PaymentExperience::foreign_try_from)
+                .transpose()?,
+            customer_id: Option::<CustomerId>::foreign_try_from(value.customer.clone())?,
             request_incremental_authorization: value.request_incremental_authorization,
             metadata: value
                 .metadata
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "metadata")))
                 .transpose()?,
             merchant_order_id: value.merchant_order_id,
-            order_tax_amount: None,
+            order_tax_amount: value
+                .order_tax_amount
+                .map(common_utils::types::MinorUnit::new),
             shipping_cost,
             merchant_account_id,
             integrity_object: None,
@@ -3398,6 +3611,17 @@ impl<
             .billing_descriptor
             .map(|descriptor| BillingDescriptor::from((&descriptor, None, None)));
 
+        let payment_channel = value
+            .payment_channel
+            .filter(|channel| !matches!(channel, grpc_payment_types::PaymentChannel::Unspecified))
+            .map(common_enums::PaymentChannel::foreign_try_from)
+            .transpose()?;
+
+        let connector_testing_data = value
+            .connector_testing_data
+            .map(|m| ForeignTryFrom::foreign_try_from((m, "connector_testing_data")))
+            .transpose()?;
+
         Ok(Self {
             currency: common_enums::Currency::foreign_try_from(amount.currency())?,
             payment_method_data,
@@ -3438,7 +3662,7 @@ impl<
                     })
                 })?,
             )?,
-            request_incremental_authorization: false,
+            request_incremental_authorization: value.request_incremental_authorization,
             metadata: value
                 .metadata
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "metadata")))
@@ -3463,10 +3687,10 @@ impl<
                     },
                 })?,
             integrity_object: None,
-            payment_channel: None,
-            enable_partial_authorization: None,
+            payment_channel,
+            enable_partial_authorization: value.enable_partial_authorization,
             locale: value.locale.clone(),
-            connector_testing_data: None,
+            connector_testing_data,
         })
     }
 }
@@ -3974,7 +4198,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -4057,7 +4283,7 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
             auth_type: common_enums::AuthenticationType::foreign_try_from(
                 grpc_api_types::payments::AuthenticationType::try_from(value.auth_type)
                     .unwrap_or_default(),
-            )?, // Use direct enum
+            )?,
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_transaction_id,
             ),
@@ -4068,10 +4294,11 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
                 .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
                 .transpose()
                 .change_context(IntegrationError::InvalidDataFormat {
-                    field_name: "unknown",
+                    field_name: "customer.connector_customer_id",
                     context: IntegrationErrorContext {
                         additional_context: Some("Failed to parse Customer Id".to_string()),
-                        ..Default::default()
+                        suggested_action: Some("Provide a valid connector customer ID".to_string()),
+                        doc_url: None,
                     },
                 })?,
             connector_customer: value
@@ -4103,6 +4330,8 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
             order_details,
             l2_l3_data: l2_l3_data.map(Box::new),
             minor_amount_authorized: None,
+            merchant_request_id: value.merchant_request_id.clone(),
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -4139,6 +4368,13 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
 
         let order_details: Option<Vec<OrderDetailsWithAmount>> = None;
 
+        let access_token = value
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.as_ref())
+            .map(ServerAuthenticationTokenResponseData::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -4146,28 +4382,28 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             status: common_enums::AttemptStatus::Pending,
             payment_method: PaymentMethod::Card,
             address,
-            auth_type: common_enums::AuthenticationType::default(),
+            auth_type: common_enums::AuthenticationType::foreign_try_from(value.auth_type)?,
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_transaction_id,
             ),
-            customer_id: None,
+            customer_id: Option::<CustomerId>::foreign_try_from(value.customer.clone())?,
             connector_customer: value
                 .customer
                 .and_then(|customer| customer.connector_customer_id),
-            description: None,
+            description: value.description,
             return_url: value.return_url.clone(),
             connector_feature_data,
             amount_captured: None,
             minor_amount_captured: None,
             minor_amount_capturable: None,
             amount: None,
-            access_token: None,
-            session_token: None,
-            reference_id: None,
-            connector_order_id: None,
+            access_token,
+            session_token: value.session_token,
+            reference_id: value.merchant_order_id.clone(),
+            connector_order_id: value.connector_order_id.clone(),
             preprocessing_id: None,
             connector_api_version: None,
-            test_mode: None,
+            test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
             connectors,
@@ -4179,7 +4415,9 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             recurring_mandate_payment_data: None,
             order_details,
             minor_amount_authorized: None,
+            merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: l2_l3_data.map(Box::new),
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -4216,6 +4454,13 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
 
         let order_details: Option<Vec<OrderDetailsWithAmount>> = None;
 
+        let access_token = value
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.as_ref())
+            .map(ServerAuthenticationTokenResponseData::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -4227,8 +4472,10 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
             connector_request_reference_id: extract_connector_request_reference_id(&Some(
                 value.merchant_recurring_payment_id.clone(),
             )),
-            customer_id: None,
-            connector_customer: None,
+            customer_id: Option::<CustomerId>::foreign_try_from(value.customer.clone())?,
+            connector_customer: value
+                .customer
+                .and_then(|customer| customer.connector_customer_id),
             description: None,
             return_url: value.return_url.clone(),
             connector_feature_data,
@@ -4236,10 +4483,10 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
             minor_amount_captured: None,
             minor_amount_capturable: None,
             amount: None,
-            access_token: None,
-            session_token: None,
-            reference_id: None,
-            connector_order_id: None,
+            access_token,
+            session_token: value.session_token,
+            reference_id: value.order_id.clone(),
+            connector_order_id: value.order_id,
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: None,
@@ -4254,6 +4501,8 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
             recurring_mandate_payment_data: None,
             order_details,
             minor_amount_authorized: None,
+            merchant_request_id: None,
+            sender_payment_instrument_id: None,
             l2_l3_data: l2_l3_data.map(Box::new),
         })
     }
@@ -4310,6 +4559,20 @@ impl
             .map(ServerAuthenticationTokenResponseData::foreign_try_from)
             .transpose()?;
 
+        let customer_id = value
+            .customer
+            .as_ref()
+            .and_then(|c| c.id.as_ref())
+            .map(|id| common_utils::id_type::CustomerId::from_str(id))
+            .transpose()
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "customer.id",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Failed to parse customer id".to_string()),
+                    ..Default::default()
+                },
+            })?;
+
         Ok(Self {
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -4321,7 +4584,7 @@ impl
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_charge_id,
             ),
-            customer_id: None,
+            customer_id,
             connector_customer: value.connector_customer_id,
             description: value.description,
             return_url: None,
@@ -4351,7 +4614,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: None,
             l2_l3_data: l2_l3_data.map(Box::new),
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -4422,7 +4687,11 @@ impl
             access_token,
             session_token: None,
             reference_id: value.connector_order_reference_id.clone(),
-            connector_order_id: None,
+            // Also expose connector_order_reference_id as connector_order_id so
+            // connectors that anchor sync on the merchant order id (e.g. Juspay
+            // `GET /orders/{order_id}`) can read it from the same field they use
+            // during CreateOrder / Authorize.
+            connector_order_id: value.connector_order_reference_id.clone(),
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: value.test_mode,
@@ -4437,7 +4706,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -4508,7 +4779,9 @@ impl ForeignTryFrom<(PaymentServiceVoidRequest, Connectors, &MaskedMetadata)> fo
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -4836,6 +5109,8 @@ pub fn generate_create_order_response(
                     code: Some(err.code),
                     message: Some(err.message.clone()),
                     reason: None,
+                    connector_transaction_id: err.connector_transaction_id.clone(),
+                    status: None,
                 }),
                 issuer_details: None,
             }),
@@ -5006,7 +5281,9 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                     connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
                         code: Some(err.code.clone()),
                         reason: err.reason.clone(),
+                        connector_transaction_id: err.connector_transaction_id.clone(),
                         message: Some(err.message.clone()),
+                        status: None,
                     }),
                     issuer_details: Some(grpc_api_types::payments::IssuerErrorDetails {
                         code: None, // To be filled with card network specific error code if available
@@ -5083,15 +5360,15 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             } => Ok(Self::Reward),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
-                    Some(grpc_api_types::payments::payment_method::PaymentMethod::ApplePay(_)),
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::ApplePaySdk(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
-                    Some(grpc_api_types::payments::payment_method::PaymentMethod::GooglePay(_)),
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::GooglePaySdk(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
-                    Some(grpc_api_types::payments::payment_method::PaymentMethod::SamsungPay(_)),
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::SamsungPaySdk(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -5119,11 +5396,11 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
-                    Some(grpc_api_types::payments::payment_method::PaymentMethod::Mifinity(_)),
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::MifinityRedirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
-                    Some(grpc_api_types::payments::payment_method::PaymentMethod::Bluecode(_)),
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::BluecodeRedirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -5143,7 +5420,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
-                    Some(grpc_api_types::payments::payment_method::PaymentMethod::AliPayHk(_)),
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::AliPayHkRedirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -5220,6 +5497,18 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::EasebuzzRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::RevolutPayRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::SatispayRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::WeroRedirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -5384,6 +5673,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::Klarna(_)),
+            } => Ok(Self::PayLater),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::Alma(_)),
             } => Ok(Self::PayLater),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -5695,6 +5988,92 @@ impl ForeignFrom<common_enums::RefundStatus> for grpc_api_types::payments::Refun
     }
 }
 
+// Map FlowStatus to PaymentStatus (for payment flow errors)
+impl ForeignFrom<router_data::FlowStatus> for grpc_api_types::payments::PaymentStatus {
+    fn foreign_from(status: router_data::FlowStatus) -> Self {
+        match status {
+            router_data::FlowStatus::Payment(attempt_status) => {
+                grpc_api_types::payments::PaymentStatus::foreign_from(attempt_status)
+            }
+            // For Refund/Dispute in payment context, this shouldn't happen
+            // but we provide sensible defaults
+            router_data::FlowStatus::Refund(_) | router_data::FlowStatus::Dispute(_) => {
+                Self::Unspecified
+            }
+        }
+    }
+}
+
+// Map FlowStatus to RefundStatus (for refund flow errors)
+impl ForeignFrom<router_data::FlowStatus> for grpc_api_types::payments::RefundStatus {
+    fn foreign_from(status: router_data::FlowStatus) -> Self {
+        match status {
+            router_data::FlowStatus::Refund(refund_status) => {
+                grpc_api_types::payments::RefundStatus::foreign_from(refund_status)
+            }
+            // For Payment/Dispute in refund context, map to failure
+            router_data::FlowStatus::Payment(_) | router_data::FlowStatus::Dispute(_) => {
+                Self::RefundFailure
+            }
+        }
+    }
+}
+
+// Map FlowStatus to DisputeStatus (for dispute flow errors)
+impl ForeignFrom<router_data::FlowStatus> for grpc_api_types::payments::DisputeStatus {
+    fn foreign_from(status: router_data::FlowStatus) -> Self {
+        match status {
+            router_data::FlowStatus::Dispute(dispute_status) => {
+                grpc_api_types::payments::DisputeStatus::foreign_from(dispute_status)
+            }
+            // For Payment/Refund in dispute context, map to default/unspecified
+            router_data::FlowStatus::Payment(_) | router_data::FlowStatus::Refund(_) => {
+                Self::default()
+            }
+        }
+    }
+}
+
+// Map domain FlowStatus to proto FlowStatus message (with oneof variants)
+// Used for error responses to provide typed status information
+impl ForeignFrom<&router_data::FlowStatus> for grpc_api_types::payments::FlowStatus {
+    fn foreign_from(flow_status: &router_data::FlowStatus) -> Self {
+        match flow_status {
+            router_data::FlowStatus::Payment(attempt_status) => {
+                let payment_status: grpc_api_types::payments::PaymentStatus =
+                    ForeignFrom::foreign_from(*attempt_status);
+                grpc_api_types::payments::FlowStatus {
+                    status: Some(
+                        grpc_api_types::payments::flow_status::Status::PaymentStatus(
+                            payment_status as i32,
+                        ),
+                    ),
+                }
+            }
+            router_data::FlowStatus::Refund(refund_status) => {
+                let refund_status_proto: grpc_api_types::payments::RefundStatus =
+                    ForeignFrom::foreign_from(*refund_status);
+                grpc_api_types::payments::FlowStatus {
+                    status: Some(grpc_api_types::payments::flow_status::Status::RefundStatus(
+                        refund_status_proto as i32,
+                    )),
+                }
+            }
+            router_data::FlowStatus::Dispute(dispute_status) => {
+                let dispute_status_proto: grpc_api_types::payments::DisputeStatus =
+                    ForeignFrom::foreign_from(*dispute_status);
+                grpc_api_types::payments::FlowStatus {
+                    status: Some(
+                        grpc_api_types::payments::flow_status::Status::DisputeStatus(
+                            dispute_status_proto as i32,
+                        ),
+                    ),
+                }
+            }
+        }
+    }
+}
+
 pub fn generate_payment_void_response(
     router_data_v2: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
 ) -> Result<PaymentServiceVoidResponse, error_stack::Report<ConnectorError>> {
@@ -5801,7 +6180,7 @@ pub fn generate_payment_void_response(
                 connector_transaction_id: extract_connector_request_reference_id(
                     &e.connector_transaction_id,
                 ),
-                merchant_void_id: e.connector_transaction_id,
+                merchant_void_id: e.connector_transaction_id.clone(),
                 status: status as i32,
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
@@ -5809,6 +6188,8 @@ pub fn generate_payment_void_response(
                         code: Some(e.code.clone()),
                         message: Some(e.message.clone()),
                         reason: e.reason.clone(),
+                        connector_transaction_id: e.connector_transaction_id.clone(),
+                        status: None,
                     }),
                     issuer_details: None,
                 }),
@@ -5883,6 +6264,34 @@ pub fn generate_payment_void_post_capture_response(
                         .get_connector_response_headers_as_map(),
                 })
             }
+            PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status,
+                connector_reference_id,
+                description: _,
+                status_code,
+            } => {
+                let grpc_status = match post_capture_void_status {
+                    common_enums::PostCaptureVoidStatus::Succeeded => {
+                        grpc_api_types::payments::PaymentStatus::VoidedPostCapture
+                    }
+                    common_enums::PostCaptureVoidStatus::Pending => {
+                        grpc_api_types::payments::PaymentStatus::Pending
+                    }
+                    common_enums::PostCaptureVoidStatus::Failed => {
+                        grpc_api_types::payments::PaymentStatus::Failure
+                    }
+                };
+                Ok(PaymentServiceReverseResponse {
+                    connector_transaction_id: connector_reference_id.clone().unwrap_or_default(),
+                    status: grpc_status.into(),
+                    merchant_reverse_id: connector_reference_id,
+                    error: None,
+                    status_code: u32::from(status_code),
+                    response_headers: router_data_v2
+                        .resource_common_data
+                        .get_connector_response_headers_as_map(),
+                })
+            }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
                 context: ResponseTransformationErrorContext {
                     http_status_code: None,
@@ -5907,13 +6316,15 @@ pub fn generate_payment_void_post_capture_response(
                     &e.connector_transaction_id,
                 ),
                 status: status.into(),
-                merchant_reverse_id: e.connector_transaction_id,
+                merchant_reverse_id: e.connector_transaction_id.clone(),
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
                     connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
                         code: Some(e.code.clone()),
                         message: Some(e.message.clone()),
                         reason: e.reason.clone(),
+                        connector_transaction_id: e.connector_transaction_id.clone(),
+                        status: None,
                     }),
                     issuer_details: None,
                 }),
@@ -6009,6 +6420,8 @@ pub fn generate_access_token_response(
                         message: Some(error_response.message),
                         code: Some(error_response.code),
                         reason: error_response.reason,
+                        connector_transaction_id: error_response.connector_transaction_id,
+                        status: None,
                     }),
                     issuer_details: None,
                 }),
@@ -6133,7 +6546,10 @@ pub fn generate_payment_sync_response(
                     captured_at: None,
                     customer_name: None,
                     email: None,
-                    connector_customer_id: None,
+                    connector_customer_id: router_data_v2
+                        .resource_common_data
+                        .connector_customer
+                        .clone(),
                     merchant_order_id: None,
                     metadata: None,
                     status_code: status_code as u32,
@@ -6146,6 +6562,10 @@ pub fn generate_payment_sync_response(
                     connector_response,
                     incremental_authorization_allowed,
                     payment_method_update: None,
+                    sender_payment_instrument_id: router_data_v2
+                        .resource_common_data
+                        .sender_payment_instrument_id
+                        .clone(),
                 })
             }
             PaymentsResponseData::MultipleCaptureResponse {
@@ -6237,6 +6657,10 @@ pub fn generate_payment_sync_response(
                     connector_response,
                     incremental_authorization_allowed: None,
                     payment_method_update: None,
+                    sender_payment_instrument_id: router_data_v2
+                        .resource_common_data
+                        .sender_payment_instrument_id
+                        .clone(),
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -6289,6 +6713,8 @@ pub fn generate_payment_sync_response(
                         message: Some(e.message),
                         code: Some(e.code),
                         reason: e.reason,
+                        connector_transaction_id: e.connector_transaction_id.clone(),
+                        status: None,
                     }),
                     issuer_details: Some(grpc_payment_types::IssuerErrorDetails {
                         code: None,
@@ -6326,6 +6752,7 @@ pub fn generate_payment_sync_response(
                 redirection_data: None,
                 incremental_authorization_allowed: None,
                 payment_method_update: None,
+                sender_payment_instrument_id: None,
             })
         }
     }
@@ -6364,6 +6791,11 @@ impl ForeignTryFrom<grpc_api_types::payments::RefundServiceGetRequest> for Refun
                 .connector_feature_data
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "merchant account metadata")))
                 .transpose()?,
+            refund_money: value
+                .refund_amount
+                .map(common_utils::types::Money::foreign_try_from)
+                .transpose()?,
+            connector_order_id: value.connector_order_id,
         })
     }
 }
@@ -6426,6 +6858,7 @@ impl
             connector_feature_data,
             test_mode: value.test_mode,
             payment_method,
+            merchant_request_id: value.merchant_request_id.clone(),
         })
     }
 }
@@ -6486,6 +6919,7 @@ impl
             connector_feature_data,
             test_mode: value.test_mode,
             payment_method,
+            merchant_request_id: value.merchant_request_id.clone(),
         })
     }
 }
@@ -6734,7 +7168,7 @@ pub fn generate_accept_dispute_response(
 
             Ok(DisputeServiceAcceptResponse {
                 dispute_status: grpc_dispute_status as i32,
-                dispute_id: e.connector_transaction_id.unwrap_or_default(),
+                dispute_id: e.connector_transaction_id.clone().unwrap_or_default(),
                 connector_status_code: None,
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
@@ -6742,6 +7176,8 @@ pub fn generate_accept_dispute_response(
                         message: Some(e.message),
                         code: Some(e.code),
                         reason: e.reason,
+                        connector_transaction_id: e.connector_transaction_id.clone(),
+                        status: None,
                     }),
                     issuer_details: None,
                 }),
@@ -6849,14 +7285,14 @@ pub fn generate_submit_evidence_response(
             })
         }
         Err(e) => {
-            let grpc_attempt_status = e
+            let status = e
                 .attempt_status
-                .map(grpc_api_types::payments::PaymentStatus::foreign_from)
+                .map(grpc_api_types::payments::DisputeStatus::foreign_from)
                 .unwrap_or_default();
 
             Ok(DisputeServiceSubmitEvidenceResponse {
-                dispute_status: grpc_attempt_status.into(),
-                dispute_id: e.connector_transaction_id,
+                dispute_status: status.into(),
+                dispute_id: e.connector_transaction_id.clone(),
                 submitted_evidence_ids: vec![],
                 connector_status_code: None,
                 error: Some(grpc_api_types::payments::ErrorInfo {
@@ -6865,6 +7301,8 @@ pub fn generate_submit_evidence_response(
                         message: Some(e.message),
                         code: Some(e.code),
                         reason: e.reason,
+                        connector_transaction_id: e.connector_transaction_id.clone(),
+                        status: None,
                     }),
                     issuer_details: None,
                 }),
@@ -6985,7 +7423,7 @@ pub fn generate_refund_sync_response(
         Err(e) => {
             let status = e
                 .attempt_status
-                .map(grpc_api_types::payments::PaymentStatus::foreign_from)
+                .map(grpc_api_types::payments::RefundStatus::foreign_from)
                 .unwrap_or_default();
             let response_headers = router_data_v2
                 .resource_common_data
@@ -6995,13 +7433,15 @@ pub fn generate_refund_sync_response(
                 connector_transaction_id: e.connector_transaction_id.clone(),
                 connector_refund_id: String::new(),
                 status: status as i32,
-                merchant_refund_id: e.connector_transaction_id,
+                merchant_refund_id: e.connector_transaction_id.clone(),
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
                     connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
                         message: Some(e.message),
                         code: Some(e.code),
                         reason: e.reason,
+                        connector_transaction_id: e.connector_transaction_id.clone(),
+                        status: None,
                     }),
                     issuer_details: None,
                 }),
@@ -7100,6 +7540,8 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
                     message: value.error_message.clone(),
                     code: value.error_code,
                     reason: None,
+                    connector_transaction_id: None,
+                    status: None,
                 }),
                 issuer_details: None,
             }),
@@ -7129,6 +7571,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             redirection_data: None,
             incremental_authorization_allowed: None,
             payment_method_update: payment_method_update_grpc,
+            sender_payment_instrument_id: value.sender_payment_instrument_id,
         })
     }
 }
@@ -7224,6 +7667,33 @@ impl
 
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
 
+        // PaymentServiceReverseRequest has no `state` field. Connectors that require an
+        // OAuth Bearer token for post-capture reversal (e.g. JPMorgan) can pass the token
+        // via `connector_feature_data` as a JSON object:
+        //   {"access_token": "<token>", "token_type": "Bearer", "expires_in": 3600}
+        let connector_feature_data = value
+            .connector_feature_data
+            .map(|m| ForeignTryFrom::foreign_try_from((m, "connector_feature_data")))
+            .transpose()?;
+
+        let access_token =
+            connector_feature_data
+                .as_ref()
+                .and_then(|serde_val: &SecretSerdeValue| {
+                    let obj = serde_val.peek();
+                    let token_str = obj.get("access_token").and_then(|v| v.as_str())?;
+                    let token_type = obj
+                        .get("token_type")
+                        .and_then(|v| v.as_str())
+                        .map(str::to_string);
+                    let expires_in = obj.get("expires_in").and_then(|v| v.as_i64());
+                    Some(ServerAuthenticationTokenResponseData {
+                        access_token: Secret::new(token_str.to_string()),
+                        token_type,
+                        expires_in,
+                    })
+                });
+
         Ok(Self {
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -7239,10 +7709,10 @@ impl
             connector_customer: None,
             description: None,
             return_url: None,
-            connector_feature_data: None,
+            connector_feature_data,
             amount_captured: None,
             minor_amount_captured: None,
-            access_token: None,
+            access_token,
             session_token: None,
             reference_id: None,
             connector_order_id: None,
@@ -7262,7 +7732,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -7370,7 +7842,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -7408,6 +7882,8 @@ impl ForeignTryFrom<RefundWebhookDetailsResponse> for RefundResponse {
                     message: value.error_message,
                     code: value.error_code,
                     reason: None,
+                    connector_transaction_id: None,
+                    status: None,
                 }),
                 issuer_details: None,
             }),
@@ -7534,6 +8010,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceRefundRequest> for R
                 .transpose()?,
             integrity_object: None,
             split_refunds: None,
+            connector_order_id: value.connector_order_id,
         })
     }
 }
@@ -7735,11 +8212,11 @@ pub fn generate_refund_response(
         Err(e) => {
             let status = e
                 .attempt_status
-                .map(grpc_api_types::payments::PaymentStatus::foreign_from)
+                .map(grpc_api_types::payments::RefundStatus::foreign_from)
                 .unwrap_or_default();
 
             Ok(RefundResponse {
-                connector_transaction_id: e.connector_transaction_id,
+                connector_transaction_id: e.connector_transaction_id.clone(),
                 connector_refund_id: String::new(),
                 status: status as i32,
                 merchant_refund_id: None,
@@ -7749,6 +8226,8 @@ pub fn generate_refund_response(
                         message: Some(e.message.clone()),
                         code: Some(e.code.clone()),
                         reason: e.reason.clone(),
+                        connector_transaction_id: e.connector_transaction_id.clone(),
+                        status: None,
                     }),
                     issuer_details: None,
                 }),
@@ -7812,10 +8291,16 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
             Some(ref email_str) => {
                 Some(Email::try_from(email_str.clone().expose()).map_err(|_| {
                     error_stack::Report::new(IntegrationError::InvalidDataFormat {
-                        field_name: "unknown",
+                        field_name: "payment_context.customer.email",
                         context: IntegrationErrorContext {
-                            additional_context: Some("Invalid email".to_string()),
-                            ..Default::default()
+                            additional_context: Some(
+                                "Invalid email format in payment context customer".to_string(),
+                            ),
+                            suggested_action: Some(
+                                "Provide a valid email address in payment_context.customer.email"
+                                    .to_string(),
+                            ),
+                            doc_url: None,
                         },
                     })
                 })?)
@@ -7976,7 +8461,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -8076,7 +8563,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -8154,6 +8643,8 @@ pub fn generate_payment_incremental_authorization_response(
                     message: Some(e.message.clone()),
                     code: Some(e.code.clone()),
                     reason: e.reason.clone(),
+                    connector_transaction_id: e.connector_transaction_id.clone(),
+                    status: None,
                 }),
                 issuer_details: None,
             }),
@@ -8285,6 +8776,8 @@ pub fn generate_payment_capture_response(
                         message: Some(e.message.clone()),
                         code: Some(e.code.clone()),
                         reason: e.reason.clone(),
+                        connector_transaction_id: e.connector_transaction_id.clone(),
+                        status: None,
                     }),
                     issuer_details: None,
                 }),
@@ -8380,20 +8873,7 @@ impl
                     .unwrap_or_default(),
             )?,
             connector_request_reference_id: value.merchant_recurring_payment_id,
-            customer_id: value
-                .customer
-                .clone()
-                .and_then(|customer| customer.id)
-                .clone()
-                .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
-                .transpose()
-                .change_context(IntegrationError::InvalidDataFormat {
-                    field_name: "unknown",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Failed to parse Customer Id".to_string()),
-                        ..Default::default()
-                    },
-                })?,
+            customer_id: Option::<CustomerId>::foreign_try_from(value.customer.clone())?,
             connector_customer: value
                 .customer
                 .and_then(|customer| customer.connector_customer_id),
@@ -8422,7 +8902,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: None,
             l2_l3_data: l2_l3_data.map(Box::new),
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -8487,19 +8969,7 @@ impl
             address,
             auth_type: common_enums::AuthenticationType::default(),
             connector_request_reference_id: value.merchant_recurring_payment_id,
-            customer_id: value
-                .customer
-                .clone()
-                .and_then(|customer| customer.id)
-                .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
-                .transpose()
-                .change_context(IntegrationError::InvalidDataFormat {
-                    field_name: "unknown",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Failed to parse Customer Id".to_string()),
-                        ..Default::default()
-                    },
-                })?,
+            customer_id: Option::<CustomerId>::foreign_try_from(value.customer.clone())?,
             connector_customer: value
                 .customer
                 .and_then(|customer| customer.connector_customer_id),
@@ -8528,7 +8998,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -8556,10 +9028,13 @@ impl<
             Some(ref email_str) => {
                 Some(Email::try_from(email_str.clone().expose()).map_err(|_| {
                     error_stack::Report::new(IntegrationError::InvalidDataFormat {
-                        field_name: "unknown",
+                        field_name: "customer.email",
                         context: IntegrationErrorContext {
-                            additional_context: Some("Invalid email".to_string()),
-                            ..Default::default()
+                            additional_context: Some("Invalid customer email format".to_string()),
+                            suggested_action: Some(
+                                "Provide a valid email address in customer.email".to_string(),
+                            ),
+                            doc_url: None,
                         },
                     })
                 })?)
@@ -8589,6 +9064,13 @@ impl<
 
         let setup_future_usage = value.setup_future_usage();
 
+        let payment_channel = match value.payment_channel() {
+            grpc_payment_types::PaymentChannel::Unspecified => None,
+            _ => Some(common_enums::PaymentChannel::foreign_try_from(
+                value.payment_channel(),
+            )?),
+        };
+
         let setup_mandate_details = MandateData {
             update_mandate_id: None,
             customer_acceptance: Some(mandates::CustomerAcceptance::foreign_try_from(
@@ -8609,13 +9091,6 @@ impl<
                     statement_descriptor_suffix: descriptor.statement_descriptor_suffix.clone(),
                     reference: descriptor.reference.clone(),
                 });
-
-        let payment_channel = match value.payment_channel() {
-            grpc_payment_types::PaymentChannel::Unspecified => None,
-            _ => Some(common_enums::PaymentChannel::foreign_try_from(
-                value.payment_channel(),
-            )?),
-        };
 
         Ok(Self {
             currency: amount.currency,
@@ -8649,16 +9124,16 @@ impl<
                 .map(<Option<common_enums::PaymentMethodType>>::foreign_try_from)
                 .transpose()?
                 .flatten(),
-            request_incremental_authorization: false,
+            request_incremental_authorization: value.request_incremental_authorization,
             metadata: value
                 .metadata
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "metadata")))
                 .transpose()?,
-            complete_authorize_url: None,
+            complete_authorize_url: value.complete_authorize_url.clone(),
             capture_method: None,
             integrity_object: None,
             minor_amount: Some(amount.amount),
-            shipping_cost: None,
+            shipping_cost: value.shipping_cost.map(common_utils::types::MinorUnit::new),
             customer_id: value
                 .customer
                 .and_then(|customer| customer.id)
@@ -8666,10 +9141,11 @@ impl<
                 .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
                 .transpose()
                 .change_context(IntegrationError::InvalidDataFormat {
-                    field_name: "unknown",
+                    field_name: "customer.id",
                     context: IntegrationErrorContext {
                         additional_context: Some("Failed to parse Customer Id".to_string()),
-                        ..Default::default()
+                        suggested_action: Some("Provide a valid customer ID".to_string()),
+                        doc_url: None,
                     },
                 })?,
             billing_descriptor,
@@ -8906,10 +9382,11 @@ impl ForeignTryFrom<&grpc_api_types::payments::Customer> for CustomerInfo {
             .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
             .transpose()
             .change_context(IntegrationError::InvalidDataFormat {
-                field_name: "unknown",
+                field_name: "customer.id",
                 context: IntegrationErrorContext {
                     additional_context: Some("Failed to parse Customer Id".to_string()),
-                    ..Default::default()
+                    suggested_action: Some("Provide a valid customer ID".to_string()),
+                    doc_url: None,
                 },
             })?;
 
@@ -8917,10 +9394,13 @@ impl ForeignTryFrom<&grpc_api_types::payments::Customer> for CustomerInfo {
             Some(ref email_str) => {
                 Some(Email::try_from(email_str.clone().expose()).map_err(|_| {
                     error_stack::Report::new(IntegrationError::InvalidDataFormat {
-                        field_name: "unknown",
+                        field_name: "customer.email",
                         context: IntegrationErrorContext {
-                            additional_context: Some("Invalid email".to_string()),
-                            ..Default::default()
+                            additional_context: Some("Invalid customer email format".to_string()),
+                            suggested_action: Some(
+                                "Provide a valid email address in customer.email".to_string(),
+                            ),
+                            doc_url: None,
                         },
                     })
                 })?)
@@ -8935,6 +9415,73 @@ impl ForeignTryFrom<&grpc_api_types::payments::Customer> for CustomerInfo {
             customer_phone_number: value.phone_number.clone().map(Into::into),
             customer_phone_country_code: value.phone_country_code.clone(),
         })
+    }
+}
+
+impl ForeignTryFrom<&grpc_api_types::payouts::Customer> for CustomerInfo {
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        value: &grpc_api_types::payouts::Customer,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let customer_id = value
+            .id
+            .clone()
+            .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
+            .transpose()
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "customer.id",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Failed to parse Customer Id".to_string()),
+                    suggested_action: Some("Provide a valid customer ID".to_string()),
+                    doc_url: None,
+                },
+            })?;
+
+        let customer_email: Option<Email> = match value.email {
+            Some(ref email_str) => {
+                Some(Email::try_from(email_str.clone().expose()).map_err(|_| {
+                    error_stack::Report::new(IntegrationError::InvalidDataFormat {
+                        field_name: "customer.email",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid customer email format".to_string()),
+                            suggested_action: Some(
+                                "Provide a valid email address in customer.email".to_string(),
+                            ),
+                            doc_url: None,
+                        },
+                    })
+                })?)
+            }
+            None => None,
+        };
+
+        Ok(Self {
+            customer_id,
+            customer_email,
+            customer_name: value.name.clone().map(Into::into),
+            customer_phone_number: value.phone_number.clone().map(Into::into),
+            customer_phone_country_code: value.phone_country_code.clone(),
+        })
+    }
+}
+
+impl ForeignTryFrom<Option<grpc_payment_types::Customer>> for Option<CustomerId> {
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        value: Option<grpc_payment_types::Customer>,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        value
+            .and_then(|customer| customer.id)
+            .map(|id| CustomerId::try_from(Cow::from(id)))
+            .transpose()
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "customer.id",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Failed to parse Customer Id".to_string()),
+                    suggested_action: Some("Provide a valid customer ID".to_string()),
+                    doc_url: None,
+                },
+            })
     }
 }
 
@@ -9166,14 +9713,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
         })
         .transpose()?;
 
-    // Set amount_captured based on status - only if Charged/PartialCharged
-    let captured_amount = match status {
-        common_enums::AttemptStatus::Charged
-        | common_enums::AttemptStatus::PartialCharged
-        | common_enums::AttemptStatus::PartialChargedAndChargeable => router_data_v2.request.amount,
-        _ => None,
-    };
-
+    let captured_amount = router_data_v2.resource_common_data.amount_captured;
     let minor_captured_amount = captured_amount;
 
     let response = match transaction_response {
@@ -9200,11 +9740,19 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
 
                 PaymentServiceSetupRecurringResponse {
                     connector_recurring_payment_id: Option::foreign_try_from(resource_id)?,
-                    redirection_data: redirection_data.map(|form| {
-                            match *form {
-                                router_response_types::RedirectForm::Form { endpoint, method, form_fields: _ } => {
-                                    Ok::<grpc_api_types::payments::RedirectForm, error_stack::Report<ConnectorError>>(grpc_api_types::payments::RedirectForm {
-                                        form_type: Some(grpc_api_types::payments::redirect_form::FormType::Form(
+                    redirection_data: redirection_data
+                        .map(|form| match *form {
+                            router_response_types::RedirectForm::Form {
+                                endpoint,
+                                method,
+                                form_fields,
+                            } => Ok::<
+                                grpc_api_types::payments::RedirectForm,
+                                error_stack::Report<ConnectorError>,
+                            >(
+                                grpc_api_types::payments::RedirectForm {
+                                    form_type: Some(
+                                        grpc_api_types::payments::redirect_form::FormType::Form(
                                             grpc_api_types::payments::FormData {
                                                 endpoint,
                                                 method: match method {
@@ -9214,44 +9762,55 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                                                     Method::Delete => 4,
                                                     _ => 0,
                                                 },
-                                                form_fields: HashMap::default(), //TODO
-                                            }
-                                        ))
-                                    })
+                                                form_fields,
+                                            },
+                                        ),
+                                    ),
                                 },
-                                router_response_types::RedirectForm::Html { html_data } => {
-                                    Ok(grpc_api_types::payments::RedirectForm {
-                                        form_type: Some(grpc_api_types::payments::redirect_form::FormType::Html(
-                                            grpc_api_types::payments::HtmlData {
-                                                html_data,
-                                            }
-                                        ))
-                                    })
-                                },
-                                router_response_types::RedirectForm::Nmi {
-                                    amount,
-                                    public_key,
-                                    customer_vault_id,
-                                    order_id,
-                                    continue_redirection_url,
-                                } => Ok(grpc_api_types::payments::RedirectForm {
-                                    form_type: Some(grpc_api_types::payments::redirect_form::FormType::Nmi(
+                            ),
+                            router_response_types::RedirectForm::Html { html_data } => {
+                                Ok(grpc_api_types::payments::RedirectForm {
+                                    form_type: Some(
+                                        grpc_api_types::payments::redirect_form::FormType::Html(
+                                            grpc_api_types::payments::HtmlData { html_data },
+                                        ),
+                                    ),
+                                })
+                            }
+                            router_response_types::RedirectForm::Nmi {
+                                amount,
+                                public_key,
+                                customer_vault_id,
+                                order_id,
+                                continue_redirection_url,
+                            } => Ok(grpc_api_types::payments::RedirectForm {
+                                form_type: Some(
+                                    grpc_api_types::payments::redirect_form::FormType::Nmi(
                                         grpc_api_types::payments::NmiData {
                                             amount: Some(amount),
                                             public_key: Some(public_key),
                                             customer_vault_id,
                                             order_id,
                                             continue_redirection_url,
-                                        }
-                                    ))
-                                }),
-                                _ => Err(report!(
-                                    ConnectorError::UnexpectedResponseError { context: ResponseTransformationErrorContext { http_status_code: None, additional_context: Some("Invalid redirect form type from connector response".to_owned()) } })),
-                            }
-                        }
-                    ).transpose()?,
+                                        },
+                                    ),
+                                ),
+                            }),
+                            _ => Err(report!(ConnectorError::UnexpectedResponseError {
+                                context: ResponseTransformationErrorContext {
+                                    http_status_code: None,
+                                    additional_context: Some(
+                                        "Invalid redirect form type from connector response"
+                                            .to_owned()
+                                    )
+                                }
+                            })),
+                        })
+                        .transpose()?,
                     network_transaction_id: network_txn_id,
-                    merchant_recurring_payment_id: extract_connector_request_reference_id(&connector_response_reference_id),
+                    merchant_recurring_payment_id: extract_connector_request_reference_id(
+                        &connector_response_reference_id,
+                    ),
                     status: grpc_status as i32,
                     mandate_reference: mandate_reference_grpc,
                     incremental_authorization_allowed,
@@ -9263,7 +9822,9 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                     state,
                     raw_connector_request,
                     connector_response,
-                    connector_feature_data: convert_connector_metadata_to_secret_string(connector_metadata),
+                    connector_feature_data: convert_connector_metadata_to_secret_string(
+                        connector_metadata,
+                    ),
                     captured_amount: minor_captured_amount,
                 }
             }
@@ -9304,6 +9865,8 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                         message: Some(err.message.clone()),
                         code: Some(err.code.clone()),
                         reason: err.reason.clone(),
+                        connector_transaction_id: err.connector_transaction_id.clone(),
+                        status: None,
                     }),
                     issuer_details: None,
                 }),
@@ -9410,6 +9973,7 @@ pub fn generate_defend_dispute_response(
         Err(e) => Ok(DisputeServiceDefendResponse {
             dispute_id: e
                 .connector_transaction_id
+                .clone()
                 .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
             dispute_status: common_enums::DisputeStatus::DisputeLost as i32,
             connector_status_code: None,
@@ -9419,6 +9983,8 @@ pub fn generate_defend_dispute_response(
                     message: Some(e.message.clone()),
                     code: Some(e.code.clone()),
                     reason: e.reason.clone(),
+                    connector_transaction_id: e.connector_transaction_id.clone(),
+                    status: None,
                 }),
                 issuer_details: None,
             }),
@@ -9467,6 +10033,8 @@ pub fn generate_session_token_response(
                         code: Some(e.code.clone()),
                         message: Some(e.message.clone()),
                         reason: e.reason.clone(),
+                        connector_transaction_id: e.connector_transaction_id.clone(),
+                        status: None,
                     }),
                     issuer_details: None,
                 }),
@@ -9590,7 +10158,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -10150,7 +10720,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -10272,6 +10844,13 @@ impl
             .transpose()?
             .unwrap_or_else(PaymentAddress::default);
 
+        let access_token = value
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.as_ref())
+            .map(ServerAuthenticationTokenResponseData::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -10292,13 +10871,14 @@ impl
                 .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
                 .transpose()
                 .change_context(IntegrationError::InvalidDataFormat {
-                    field_name: "unknown",
+                    field_name: "customer.id",
                     context: IntegrationErrorContext {
                         additional_context: Some("Failed to parse Customer Id".to_string()),
-                        ..Default::default()
+                        suggested_action: Some("Provide a valid customer ID".to_string()),
+                        doc_url: None,
                     },
                 })?,
-            connector_customer: value.customer.and_then(|c| c.id),
+            connector_customer: value.customer.and_then(|c| c.connector_customer_id),
             description: None,
             return_url: value.return_url,
             connector_feature_data: None,
@@ -10306,7 +10886,7 @@ impl
             minor_amount_captured: None,
             minor_amount_capturable: None,
             amount: None,
-            access_token: None,
+            access_token,
             session_token: None,
             reference_id: None,
             connector_order_id: None,
@@ -10324,7 +10904,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -10367,6 +10949,8 @@ pub fn generate_create_payment_method_token_response<T: PaymentMethodDataTypes>(
                         message: Some(e.message.clone()),
                         code: Some(e.code.clone()),
                         reason: e.reason.clone(),
+                        connector_transaction_id: e.connector_transaction_id.clone(),
+                        status: None,
                     }),
                     issuer_details: None,
                 }),
@@ -10472,7 +11056,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -10492,7 +11078,7 @@ pub fn generate_create_connector_customer_response(
         Ok(response) => Ok(grpc_payment_types::CustomerServiceCreateResponse {
             connector_customer_id: response.connector_customer_id.clone(),
             error: None,
-            status_code: 200,
+            status_code: response.status_code as u32,
             response_headers: router_data_v2
                 .resource_common_data
                 .get_connector_response_headers_as_map(),
@@ -10504,13 +11090,15 @@ pub fn generate_create_connector_customer_response(
             response_headers: router_data_v2
                 .resource_common_data
                 .get_connector_response_headers_as_map(),
-            merchant_customer_id: e.connector_transaction_id,
+            merchant_customer_id: e.connector_transaction_id.clone(),
             error: Some(grpc_api_types::payments::ErrorInfo {
                 unified_details: None,
                 connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
                     message: Some(e.message.clone()),
                     code: Some(e.code.clone()),
                     reason: e.reason.clone(),
+                    connector_transaction_id: e.connector_transaction_id.clone(),
+                    status: None,
                 }),
                 issuer_details: None,
             }),
@@ -10531,7 +11119,7 @@ impl<
     >
     ForeignTryFrom<(
         grpc_api_types::payments::RecurringPaymentServiceChargeRequest,
-        PaymentMethodData<T>,
+        Option<PaymentMethodData<T>>,
     )> for RepeatPaymentData<T>
 {
     type Error = IntegrationError;
@@ -10539,7 +11127,7 @@ impl<
     fn foreign_try_from(
         (value, payment_method_data): (
             grpc_api_types::payments::RecurringPaymentServiceChargeRequest,
-            PaymentMethodData<T>,
+            Option<PaymentMethodData<T>>,
         ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         // Extract values first to avoid partial move
@@ -10565,10 +11153,13 @@ impl<
             Some(ref email_str) => {
                 Some(Email::try_from(email_str.clone().expose()).map_err(|_| {
                     error_stack::Report::new(IntegrationError::InvalidDataFormat {
-                        field_name: "unknown",
+                        field_name: "customer.email",
                         context: IntegrationErrorContext {
-                            additional_context: Some("Invalid email".to_string()),
-                            ..Default::default()
+                            additional_context: Some("Invalid customer email format".to_string()),
+                            suggested_action: Some(
+                                "Provide a valid email address in customer.email".to_string(),
+                            ),
+                            doc_url: None,
                         },
                     })
                 })?)
@@ -10687,7 +11278,8 @@ impl<
             mit_category,
             billing_descriptor,
             enable_partial_authorization: value.enable_partial_authorization,
-            payment_method_data,
+            payment_method_data: payment_method_data
+                .unwrap_or_else(|| PaymentMethodData::MandatePayment),
             authentication_data,
             locale: value.locale.clone(),
             connector_testing_data: value.connector_testing_data.and_then(|s| {
@@ -10836,6 +11428,8 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                             message: Some(err.message.clone()),
                             code: Some(err.code.clone()),
                             reason: err.reason.clone(),
+                    connector_transaction_id: err.connector_transaction_id.clone(),
+                        status: None,
                         }),
                         issuer_details: Some(grpc_payment_types::IssuerErrorDetails{
                             code: None,
@@ -11183,6 +11777,18 @@ ConnectorSpecificClientAuthenticationResponse::Cybersource(cybersource_data) => 
                 ),
             }
         }
+                ConnectorSpecificClientAuthenticationResponse::Revolut(revolut_data) => {
+            grpc_api_types::payments::ConnectorSpecificClientAuthenticationResponse {
+                connector: Some(
+                    grpc_api_types::payments::connector_specific_client_authentication_response::Connector::Revolut(
+                        grpc_api_types::payments::RevolutClientAuthenticationResponse {
+                            order_id: revolut_data.order_id,
+                            token: Some(revolut_data.token),
+                        },
+                    ),
+                ),
+            }
+        }
     };
     grpc_api_types::payments::ClientAuthenticationTokenData {
         sdk_type: Some(
@@ -11303,6 +11909,8 @@ pub fn generate_payment_sdk_session_token_response(
                         message: Some(e.message.clone()),
                         code: Some(e.code.clone()),
                         reason: e.reason.clone(),
+                        connector_transaction_id: e.connector_transaction_id.clone(),
+                        status: None,
                     }),
                     issuer_details: None,
                 }),
@@ -11844,10 +12452,13 @@ impl<
             Some(ref email_str) => {
                 Some(Email::try_from(email_str.clone().expose()).map_err(|_| {
                     error_stack::Report::new(IntegrationError::InvalidDataFormat {
-                        field_name: "unknown",
+                        field_name: "customer.email",
                         context: IntegrationErrorContext {
-                            additional_context: Some("Invalid email".to_string()),
-                            ..Default::default()
+                            additional_context: Some("Invalid customer email format".to_string()),
+                            suggested_action: Some(
+                                "Provide a valid email address in customer.email".to_string(),
+                            ),
+                            doc_url: None,
                         },
                     })
                 })?)
@@ -11943,10 +12554,13 @@ impl<
             Some(ref email_str) => {
                 Some(Email::try_from(email_str.clone().expose()).map_err(|_| {
                     error_stack::Report::new(IntegrationError::InvalidDataFormat {
-                        field_name: "unknown",
+                        field_name: "customer.email",
                         context: IntegrationErrorContext {
-                            additional_context: Some("Invalid email".to_string()),
-                            ..Default::default()
+                            additional_context: Some("Invalid customer email format".to_string()),
+                            suggested_action: Some(
+                                "Provide a valid email address in customer.email".to_string(),
+                            ),
+                            doc_url: None,
                         },
                     })
                 })?)
@@ -12058,10 +12672,13 @@ impl<
             Some(ref email_str) => {
                 Some(Email::try_from(email_str.clone().expose()).map_err(|_| {
                     error_stack::Report::new(IntegrationError::InvalidDataFormat {
-                        field_name: "unknown",
+                        field_name: "customer.email",
                         context: IntegrationErrorContext {
-                            additional_context: Some("Invalid email".to_string()),
-                            ..Default::default()
+                            additional_context: Some("Invalid customer email format".to_string()),
+                            suggested_action: Some(
+                                "Provide a valid email address in customer.email".to_string(),
+                            ),
+                            doc_url: None,
                         },
                     })
                 })?)
@@ -12174,6 +12791,13 @@ impl
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
         let vault_headers = extract_headers_from_metadata(metadata);
 
+        let access_token = value
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.as_ref())
+            .map(ServerAuthenticationTokenResponseData::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -12199,7 +12823,7 @@ impl
             minor_amount_captured: None,
             minor_amount_capturable: None,
             amount: None,
-            access_token: None,
+            access_token,
             session_token: None,
             reference_id: None,
             connector_order_id: None,
@@ -12217,7 +12841,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -12265,6 +12891,13 @@ impl
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
 
+        let access_token = value
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.as_ref())
+            .map(ServerAuthenticationTokenResponseData::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -12288,7 +12921,7 @@ impl
                 .transpose()?,
             amount_captured: None,
             minor_amount_captured: None,
-            access_token: None,
+            access_token,
             session_token: None,
             reference_id: None,
             connector_order_id: None,
@@ -12308,7 +12941,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -12406,7 +13041,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -12482,7 +13119,9 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
+            merchant_request_id: None,
             l2_l3_data: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -12502,7 +13141,9 @@ impl ForeignTryFrom<(bool, RedirectDetailsResponse)>
                 .map(Option::foreign_try_from)
                 .transpose()?
                 .unwrap_or_default(),
-            merchant_order_id: redirect_details_response.connector_response_reference_id,
+            merchant_order_id: redirect_details_response
+                .connector_response_reference_id
+                .clone(),
             response_amount: match redirect_details_response.response_amount {
                 Some(money) => Some(grpc_api_types::payments::Money {
                     minor_amount: money.amount.get_amount_as_i64(),
@@ -12520,6 +13161,10 @@ impl ForeignTryFrom<(bool, RedirectDetailsResponse)>
                     code: redirect_details_response.error_code.clone(),
                     reason: redirect_details_response.error_reason.clone(),
                     message: redirect_details_response.error_message.clone(),
+                    connector_transaction_id: redirect_details_response
+                        .connector_response_reference_id
+                        .clone(),
+                    status: None,
                 }),
                 unified_details: None,
                 issuer_details: None,
@@ -12705,6 +13350,8 @@ pub fn generate_payment_pre_authenticate_response<T: PaymentMethodDataTypes>(
                         code: Some(err.code),
                         message: Some(err.message.clone()),
                         reason: err.reason.clone(),
+                        connector_transaction_id: err.connector_transaction_id.clone(),
+                        status: None,
                     }),
                     issuer_details: Some(grpc_api_types::payments::IssuerErrorDetails {
                         code: None,
@@ -12886,6 +13533,8 @@ pub fn generate_payment_authenticate_response<T: PaymentMethodDataTypes>(
                         code: Some(err.code),
                         message: Some(err.message.clone()),
                         reason: err.reason.clone(),
+                        connector_transaction_id: err.connector_transaction_id.clone(),
+                        status: None,
                     }),
                     issuer_details: Some(grpc_api_types::payments::IssuerErrorDetails {
                         code: None,
@@ -12981,6 +13630,8 @@ pub fn generate_payment_post_authenticate_response<T: PaymentMethodDataTypes>(
                         code: Some(err.code),
                         message: Some(err.message.clone()),
                         reason: err.reason.clone(),
+                        connector_transaction_id: err.connector_transaction_id.clone(),
+                        status: None,
                     }),
                     issuer_details: Some(grpc_api_types::payments::IssuerErrorDetails {
                         code: None,
@@ -13074,6 +13725,7 @@ pub fn tokenized_authorize_to_base(
         statement_descriptor_suffix: None,
         threeds_completion_indicator: None,
         tokenization_strategy: None,
+        merchant_request_id: None,
     }
 }
 
@@ -13128,16 +13780,16 @@ pub fn tokenized_setup_recurring_to_base(
         customer_acceptance: v.customer_acceptance,
         setup_mandate_details: v.setup_mandate_details,
         setup_future_usage: v.setup_future_usage,
-        // Fields not in TokenSetupRecurringRequest - set to None/default
+        billing_descriptor: v.billing_descriptor,
+        locale: v.locale,
+        // Fields absent from TokenSetupRecurringRequest - set to None/default
         auth_type: grpc_payment_types::AuthenticationType::NoThreeDs as i32,
         authentication_data: None,
-        billing_descriptor: None,
         browser_info: None,
         complete_authorize_url: None,
         connector_testing_data: None,
         enable_partial_authorization: None,
         enrolled_for_3ds: false,
-        locale: None,
         l2_l3_data: None,
         merchant_order_id: None,
         off_session: None,
@@ -13222,10 +13874,12 @@ pub fn proxied_authorize_to_base(
         threeds_completion_indicator: v.threeds_completion_indicator,
         redirection_response: v.redirection_response,
         billing_descriptor: v.billing_descriptor,
+        setup_mandate_details: v.setup_mandate_details,
+        test_mode: v.test_mode,
         complete_authorize_url: None,
         continue_redirection_url: None,
         description: v.description,
-        // Fields not present in PaymentServiceProxyAuthorizeRequest - set to None/default
+        // Fields absent from PaymentServiceProxyAuthorizeRequest - set to None/default
         enrolled_for_3ds: None,
         enable_partial_authorization: None,
         locale: None,
@@ -13237,13 +13891,12 @@ pub fn proxied_authorize_to_base(
         order_category: v.order_category,
         order_details: Vec::new(),
         session_token: None,
-        shipping_cost: None,
+        shipping_cost: v.shipping_cost,
         order_tax_amount: None,
         statement_descriptor_name: None,
         statement_descriptor_suffix: None,
         tokenization_strategy: None,
-        setup_mandate_details: None,
-        test_mode: None,
+        merchant_request_id: None,
     })
 }
 
@@ -13335,9 +13988,10 @@ pub fn proxied_setup_recurring_to_base(
         setup_mandate_details: v.setup_mandate_details,
         setup_future_usage: v.setup_future_usage,
         browser_info: v.browser_info,
-        // Fields not in ProxySetupRecurringRequest - set to None/default
-        auth_type: grpc_payment_types::AuthenticationType::NoThreeDs as i32,
-        authentication_data: None,
+        auth_type: v.auth_type,
+        authentication_data: v.authentication_data,
+        order_category: v.order_category,
+        // Fields absent from ProxySetupRecurringRequest - set to None/default
         billing_descriptor: None,
         connector_feature_data: None,
         connector_testing_data: None,
@@ -13348,7 +14002,6 @@ pub fn proxied_setup_recurring_to_base(
         l2_l3_data: None,
         merchant_order_id: None,
         off_session: None,
-        order_category: None,
         order_id: None,
         order_tax_amount: None,
         payment_channel: None,
@@ -13463,6 +14116,8 @@ pub fn generate_mandate_revoke_response(
                     code: Some(e.code),
                     message: Some(e.message.clone()),
                     reason: e.reason.clone(),
+                    connector_transaction_id: e.connector_transaction_id.clone(),
+                    status: None,
                 }),
                 issuer_details: None,
             }),
@@ -13473,6 +14128,24 @@ pub fn generate_mandate_revoke_response(
             raw_connector_response,
             raw_connector_request,
         }),
+    }
+}
+
+impl ForeignFrom<connector_types::WebhookIntegrityCheck>
+    for grpc_api_types::payments::IntegrityCheck
+{
+    fn foreign_from(check: connector_types::WebhookIntegrityCheck) -> Self {
+        match check {
+            connector_types::WebhookIntegrityCheck::ConnectorTransactionId => {
+                grpc_api_types::payments::IntegrityCheck::ConnectorTransactionId
+            }
+            connector_types::WebhookIntegrityCheck::Amount => {
+                grpc_api_types::payments::IntegrityCheck::Amount
+            }
+            connector_types::WebhookIntegrityCheck::Currency => {
+                grpc_api_types::payments::IntegrityCheck::Currency
+            }
+        }
     }
 }
 

@@ -3,17 +3,21 @@ use std::fmt::Debug;
 use common_enums::{AttemptStatus, AuthorizationStatus, CaptureMethod, Currency};
 use common_utils::types::StringMinorUnit;
 use domain_types::{
-    connector_flow::{Authorize, Capture, IncrementalAuthorization, PSync, RSync, Refund, Void},
+    connector_flow::{
+        Authorize, Capture, IncrementalAuthorization, PSync, RSync, Refund, RepeatPayment,
+        SetupMandate, Void,
+    },
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{
         GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, WalletData,
     },
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -172,7 +176,7 @@ pub struct TrustpaymentsAuthRequest {
     pub orderreference: String,
     pub requesttypedescriptions: Vec<TrustpaymentsRequestType>,
     pub sitereference: Secret<String>,
-    pub settlestatus: String,
+    pub settlestatus: TrustpaymentsSettleStatus,
     #[serde(flatten)]
     pub payment_method: TrustpaymentsPaymentMethod,
 }
@@ -485,10 +489,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .clone(),
             requesttypedescriptions: vec![TrustpaymentsRequestType::Auth],
             sitereference: auth.site_reference.clone(),
-            settlestatus: serde_json::to_value(&settlestatus)
-                .ok()
-                .and_then(|v| v.as_str().map(String::from))
-                .unwrap_or_else(|| "0".to_string()),
+            settlestatus,
             payment_method,
         };
 
@@ -529,7 +530,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     message: response.errormessage.clone(),
                     reason: Some(response.errormessage.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: response.transactionreference.clone(),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -739,7 +740,7 @@ impl TryFrom<ResponseRouterData<TrustpaymentsPSyncResponse, Self>>
                     message: response_item.errormessage.clone(),
                     reason: Some(response_item.errormessage.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -771,7 +772,7 @@ impl TryFrom<ResponseRouterData<TrustpaymentsPSyncResponse, Self>>
                     message: record.errormessage.clone(),
                     reason: Some(record.errormessage.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: Some(record.transactionreference.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -824,7 +825,7 @@ pub struct TrustpaymentsCaptureRequestItem {
 
 #[derive(Debug, Serialize)]
 pub struct TrustpaymentsCaptureUpdates {
-    pub settlestatus: String,
+    pub settlestatus: TrustpaymentsSettleStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub baseamount: Option<StringMinorUnit>,
 }
@@ -891,12 +892,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // Trust Payments TRANSACTIONUPDATE for capture only needs settlestatus change
         // Do NOT send baseamount - it causes "Invalid updates specified" error
         // The full authorized amount will be captured automatically
-        let settlestatus = TrustpaymentsSettleStatus::AutomaticCapture;
         let updates = TrustpaymentsCaptureUpdates {
-            settlestatus: serde_json::to_value(&settlestatus)
-                .ok()
-                .and_then(|v| v.as_str().map(String::from))
-                .unwrap_or_else(|| "0".to_string()),
+            settlestatus: TrustpaymentsSettleStatus::AutomaticCapture,
             baseamount: None, // Never send amount for Trust Payments captures
         };
 
@@ -942,7 +939,7 @@ impl TryFrom<ResponseRouterData<TrustpaymentsCaptureResponse, Self>>
                     message: response_item.errormessage.clone(),
                     reason: Some(response_item.errormessage.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -999,7 +996,7 @@ pub struct TrustpaymentsVoidRequestItem {
 
 #[derive(Debug, Serialize)]
 pub struct TrustpaymentsVoidUpdates {
-    pub settlestatus: String,
+    pub settlestatus: TrustpaymentsSettleStatus,
 }
 
 // ===== VOID RESPONSE =====
@@ -1041,12 +1038,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         // settlestatus="3" means Cancelled/Reversed (Void)
-        let settlestatus = TrustpaymentsSettleStatus::Cancelled;
         let updates = TrustpaymentsVoidUpdates {
-            settlestatus: serde_json::to_value(&settlestatus)
-                .ok()
-                .and_then(|v| v.as_str().map(String::from))
-                .unwrap_or_else(|| "3".to_string()),
+            settlestatus: TrustpaymentsSettleStatus::Cancelled,
         };
 
         let request_item = TrustpaymentsVoidRequestItem {
@@ -1091,7 +1084,7 @@ impl TryFrom<ResponseRouterData<TrustpaymentsVoidResponse, Self>>
                     message: response_item.errormessage.clone(),
                     reason: Some(response_item.errormessage.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::VoidFailed),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::VoidFailed)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -1642,6 +1635,408 @@ impl TryFrom<ResponseRouterData<TrustpaymentsIncrementalAuthResponse, Self>>
                 connector_authorization_id,
                 status_code: item.http_code,
             }),
+            ..router_data.clone()
+        })
+    }
+}
+
+// ===== CONSTANTS FOR MIT =====
+// Per Trust Payments MIT docs, merchant-initiated transactions with stored
+// credentials must use accounttypedescription="ECOM" together with
+// credentialsonfile="2" and a parenttransactionreference from the original
+// CIT (SetupMandate) transaction. The "RECUR" account type refers to a
+// separately provisioned recurring sub-account that most merchants (and the
+// sandbox test account) do not have enabled. Using "RECUR" on a standard ECOM
+// merchant yields error 40000 "No account found".
+const TRUSTPAYMENTS_CREDENTIALS_ON_FILE_STORED: &str = "2";
+
+// ===== SETUP MANDATE REQUEST (Zero Dollar Auth / Store Credentials) =====
+// SetupMandate reuses the same Authorize request/response structures
+// because Trust Payments uses the same AUTH endpoint for credential storage.
+// The key difference is that credentialsonfile=1 is set to indicate storing.
+pub type TrustpaymentsSetupMandateRequest = TrustpaymentsAuthorizeRequest;
+pub type TrustpaymentsSetupMandateResponse = TrustpaymentsAuthorizeResponse;
+
+// ===== SETUP MANDATE REQUEST TRANSFORMER =====
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::TrustpaymentsRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for TrustpaymentsSetupMandateRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: super::TrustpaymentsRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        // Extract auth credentials for alias and sitereference
+        let auth = TrustpaymentsAuthType::try_from(&router_data.connector_config)?;
+
+        // Extract payment method data
+        let payment_method = match &router_data.request.payment_method_data {
+            PaymentMethodData::Card(card_data) => {
+                let card_number_string = card_data.card_number.peek().to_string();
+
+                let expiry_date =
+                    card_data.get_card_expiry_month_year_2_digit_with_delimiter("/".to_string())?;
+                TrustpaymentsPaymentMethod::Card(TrustpaymentsCardData {
+                    pan: Secret::new(card_number_string),
+                    expirydate: expiry_date,
+                    securitycode: card_data.card_cvc.clone(),
+                })
+            }
+            _ => {
+                return Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "Payment method not supported for SetupMandate".to_string(),
+                    connector: "trustpayments",
+                    context: Default::default(),
+                }))
+            }
+        };
+
+        // For SetupMandate, use 0 amount if no amount provided (zero dollar auth)
+        let minor_amount = router_data
+            .request
+            .minor_amount
+            .unwrap_or(common_utils::types::MinorUnit::zero());
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(minor_amount, router_data.request.currency)
+            .map_err(|_| IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
+
+        // Determine settlestatus based on capture method
+        let settlestatus = match router_data.request.capture_method {
+            Some(CaptureMethod::Manual) => TrustpaymentsSettleStatus::ManualCapture,
+            Some(_) | None => TrustpaymentsSettleStatus::AutomaticCapture,
+        };
+
+        // Extract billing name
+        let first_name = router_data
+            .resource_common_data
+            .get_optional_billing_first_name();
+        let last_name = router_data
+            .resource_common_data
+            .get_optional_billing_last_name();
+
+        let auth_request = TrustpaymentsAuthRequest {
+            accounttypedescription: Some(TRUSTPAYMENTS_ACCOUNT_TYPE_ECOM.to_string()),
+            authmethod: None,
+            baseamount: amount,
+            billingfirstname: first_name,
+            billinglastname: last_name,
+            // credentialsonfile=1 to store credentials for future use
+            credentialsonfile: Some(TRUSTPAYMENTS_CREDENTIALS_ON_FILE.to_string()),
+            currencyiso3a: router_data.request.currency,
+            orderreference: router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            requesttypedescriptions: vec![TrustpaymentsRequestType::Auth],
+            sitereference: auth.site_reference.clone(),
+            settlestatus,
+            payment_method,
+        };
+
+        Ok(Self {
+            alias: auth.username.expose(),
+            version: TRUSTPAYMENTS_API_VERSION.to_string(),
+            request: vec![auth_request],
+        })
+    }
+}
+
+// ===== SETUP MANDATE RESPONSE TRANSFORMER =====
+// Returns the transactionreference as the connector_mandate_id in mandate_reference.
+// This allows RepeatPayment to use it as parenttransactionreference.
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<TrustpaymentsSetupMandateResponse, Self>>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<TrustpaymentsSetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        // Get the first response from the array
+        let response = item.response.responses.first().ok_or(
+            crate::utils::response_handling_fail_for_connector(item.http_code, "trustpayments"),
+        )?;
+
+        // Check for errors
+        if response.errorcode != "0" {
+            return Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status: AttemptStatus::Failure,
+                    ..router_data.resource_common_data.clone()
+                },
+                response: Err(domain_types::router_data::ErrorResponse {
+                    code: response.errorcode.clone(),
+                    message: response.errormessage.clone(),
+                    reason: Some(response.errormessage.clone()),
+                    status_code: item.http_code,
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
+                    connector_transaction_id: response.transactionreference.clone(),
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }),
+                ..router_data.clone()
+            });
+        }
+
+        // Map status based on settlestatus
+        let status = get_status_from_settlestatus(
+            response.settlestatus.as_ref(),
+            response.authcode.as_deref(),
+        );
+
+        // Store the transactionreference as the connector_mandate_id
+        // This will be used as parenttransactionreference in RepeatPayment
+        let mandate_reference = response.transactionreference.as_ref().map(|txn_ref| {
+            Box::new(MandateReference {
+                connector_mandate_id: Some(txn_ref.clone()),
+                payment_method_id: None,
+                connector_mandate_request_reference_id: None,
+            })
+        });
+
+        let payments_response_data = PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(
+                response
+                    .transactionreference
+                    .clone()
+                    .unwrap_or(item.response.requestreference.clone()),
+            ),
+            redirection_data: None,
+            mandate_reference,
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: Some(item.response.requestreference.clone()),
+            incremental_authorization_allowed: None,
+            status_code: item.http_code,
+        };
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                ..router_data.resource_common_data.clone()
+            },
+            response: Ok(payments_response_data),
+            ..router_data.clone()
+        })
+    }
+}
+
+// ===== REPEAT PAYMENT REQUEST (Merchant Initiated Transaction) =====
+#[derive(Debug, Serialize)]
+pub struct TrustpaymentsRepeatPaymentRequest {
+    pub alias: String,
+    pub version: String,
+    pub request: Vec<TrustpaymentsRepeatPaymentRequestItem>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct TrustpaymentsRepeatPaymentRequestItem {
+    pub accounttypedescription: String,
+    pub baseamount: StringMinorUnit,
+    pub credentialsonfile: String,
+    pub currencyiso3a: Currency,
+    pub parenttransactionreference: String,
+    pub requesttypedescriptions: Vec<TrustpaymentsRequestType>,
+    pub sitereference: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub initiationreason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subscriptiontype: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subscriptionnumber: Option<String>,
+    pub settlestatus: TrustpaymentsSettleStatus,
+}
+
+// ===== REPEAT PAYMENT RESPONSE =====
+// Reuses the same AUTH response structure
+pub type TrustpaymentsRepeatPaymentResponse = TrustpaymentsAuthorizeResponse;
+
+// ===== REPEAT PAYMENT REQUEST TRANSFORMER =====
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::TrustpaymentsRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for TrustpaymentsRepeatPaymentRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: super::TrustpaymentsRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        // Extract auth credentials for alias and sitereference
+        let auth = TrustpaymentsAuthType::try_from(&router_data.connector_config)?;
+
+        // Get the connector_mandate_id which stores the parent transactionreference
+        let parent_transaction_reference = router_data.request.connector_mandate_id().ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "connector_mandate_id",
+                context: Default::default(),
+            },
+        )?;
+
+        // Get amount from connector's amount_converter
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(
+                router_data.request.minor_amount,
+                router_data.request.currency,
+            )
+            .map_err(|_| IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
+
+        // Determine settlestatus based on capture method
+        let settlestatus = match router_data.request.capture_method {
+            Some(CaptureMethod::Manual) => TrustpaymentsSettleStatus::ManualCapture,
+            Some(_) | None => TrustpaymentsSettleStatus::AutomaticCapture,
+        };
+
+        let repeat_request_item = TrustpaymentsRepeatPaymentRequestItem {
+            // Use the ECOM account (same as Authorize / SetupMandate) because
+            // MIT with stored credentials is performed against the same
+            // merchant e-commerce account. RECUR is a distinct provisioned
+            // account type that most merchants do not have enabled.
+            accounttypedescription: TRUSTPAYMENTS_ACCOUNT_TYPE_ECOM.to_string(),
+            baseamount: amount,
+            // credentialsonfile=2 for using previously stored credentials
+            credentialsonfile: TRUSTPAYMENTS_CREDENTIALS_ON_FILE_STORED.to_string(),
+            currencyiso3a: router_data.request.currency,
+            parenttransactionreference: parent_transaction_reference,
+            requesttypedescriptions: vec![TrustpaymentsRequestType::Auth],
+            sitereference: auth.site_reference.clone(),
+            // Default to "C" (unscheduled) for MIT since this is the most common use case
+            initiationreason: Some("C".to_string()),
+            subscriptiontype: None,
+            subscriptionnumber: None,
+            settlestatus,
+        };
+
+        Ok(Self {
+            alias: auth.username.expose(),
+            version: TRUSTPAYMENTS_API_VERSION.to_string(),
+            request: vec![repeat_request_item],
+        })
+    }
+}
+
+// ===== REPEAT PAYMENT RESPONSE TRANSFORMER =====
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<TrustpaymentsRepeatPaymentResponse, Self>>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<TrustpaymentsRepeatPaymentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        // Get the first response from the array
+        let response = item.response.responses.first().ok_or(
+            crate::utils::response_handling_fail_for_connector(item.http_code, "trustpayments"),
+        )?;
+
+        // Check for errors
+        if response.errorcode != "0" {
+            return Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status: AttemptStatus::Failure,
+                    ..router_data.resource_common_data.clone()
+                },
+                response: Err(domain_types::router_data::ErrorResponse {
+                    code: response.errorcode.clone(),
+                    message: response.errormessage.clone(),
+                    reason: Some(response.errormessage.clone()),
+                    status_code: item.http_code,
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
+                    connector_transaction_id: response.transactionreference.clone(),
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }),
+                ..router_data.clone()
+            });
+        }
+
+        // Map status based on settlestatus
+        let status = get_status_from_settlestatus(
+            response.settlestatus.as_ref(),
+            response.authcode.as_deref(),
+        );
+
+        let payments_response_data = PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(
+                response
+                    .transactionreference
+                    .clone()
+                    .unwrap_or(item.response.requestreference.clone()),
+            ),
+            redirection_data: None,
+            mandate_reference: None,
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: Some(item.response.requestreference.clone()),
+            incremental_authorization_allowed: None,
+            status_code: item.http_code,
+        };
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                ..router_data.resource_common_data.clone()
+            },
+            response: Ok(payments_response_data),
             ..router_data.clone()
         })
     }

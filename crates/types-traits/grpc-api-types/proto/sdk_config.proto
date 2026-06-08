@@ -182,6 +182,7 @@ message ConnectorError {
   string error_message = 1;           // Human-readable description (e.g., "Expected JSON response, got HTML")
   string error_code = 2;              // Machine-readable code (e.g., "CONNECTOR_ERROR_RESPONSE")
   optional uint32 http_status_code = 3;  // HTTP status from connector (set for all variants when known)
+  optional ErrorInfo error_info = 4; // Standard structured error metadata  
 }
 
 // Result type for FFI operations with explicit type discrimination

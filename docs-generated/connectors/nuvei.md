@@ -195,7 +195,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Payment Method | Supported |
 |----------------|:---------:|
 | Card | ✓ |
-| Bancontact | ⚠ |
+| Bancontact | x |
 | Apple Pay | ⚠ |
 | Apple Pay Dec | ⚠ |
 | Apple Pay SDK | ⚠ |
@@ -231,27 +231,27 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | UPI Collect | ⚠ |
 | UPI Intent | ⚠ |
 | UPI QR | ⚠ |
-| Thailand | ⚠ |
-| Czech | ⚠ |
-| Finland | ⚠ |
-| FPX | ⚠ |
-| Poland | ⚠ |
-| Slovakia | ⚠ |
-| UK | ⚠ |
+| Thailand | x |
+| Czech | x |
+| Finland | x |
+| FPX | x |
+| Poland | x |
+| Slovakia | x |
+| UK | x |
 | PIS | x |
-| Generic | ⚠ |
-| Local | ⚠ |
-| iDEAL | ⚠ |
-| Sofort | ⚠ |
-| Trustly | ⚠ |
-| Giropay | ⚠ |
-| EPS | ⚠ |
-| Przelewy24 | ⚠ |
+| Generic | x |
+| Local | x |
+| iDEAL | ✓ |
+| Sofort | ✓ |
+| Trustly | x |
+| Giropay | ✓ |
+| EPS | ✓ |
+| Przelewy24 | x |
 | PSE | x |
-| BLIK | ⚠ |
-| Interac | ⚠ |
-| Bizum | ⚠ |
-| EFT | ⚠ |
+| BLIK | x |
+| Interac | x |
+| Bizum | x |
+| EFT | x |
 | DuitNow | x |
 | ACH | ? |
 | SEPA | x |
@@ -270,11 +270,11 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Mandiri VA | x |
 | Local | x |
 | Indonesian | x |
-| ACH | ⚠ |
-| SEPA | ⚠ |
-| BACS | ⚠ |
-| BECS | ⚠ |
-| SEPA Guaranteed | ⚠ |
+| ACH | ✓ |
+| SEPA | x |
+| BACS | x |
+| BECS | x |
+| SEPA Guaranteed | x |
 | Crypto | x |
 | Reward | ⚠ |
 | Givex | x |
@@ -308,6 +308,26 @@ Authorize a payment amount on a payment method. This reserves funds without capt
     "card_cvc": "737",
     "card_holder_name": "John Doe"
   }
+}
+```
+
+##### ACH Direct Debit
+
+```python
+"payment_method": {
+  "ach": {
+    "account_number": "000123456789",
+    "routing_number": "110000000",
+    "bank_account_holder_name": "John Doe"
+  }
+}
+```
+
+##### iDEAL
+
+```python
+"payment_method": {
+  "ideal": {}
 }
 ```
 

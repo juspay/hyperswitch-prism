@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "authenticate flow not supported by novalnet connector"
       }
     },
     "authorize": {
@@ -77,7 +78,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "apple_pay": {
+            "apple_pay_sdk": {
               "payment_data": {
                 "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
               },
@@ -289,7 +290,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "google_pay": {
+            "google_pay_sdk": {
               "type": "CARD",
               "description": "Visa 1111",
               "info": {
@@ -687,37 +688,44 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by novalnet connector"
       }
     },
     "create_customer": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by novalnet connector"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_order flow not supported by novalnet connector"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for novalnet"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by novalnet connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by novalnet connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by novalnet connector"
       }
     },
     "dispute_get": {
@@ -727,7 +735,8 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by novalnet connector"
       }
     },
     "eligibility": {
@@ -823,12 +832,14 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by novalnet connector"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by novalnet connector"
       }
     },
     "proxy_authorize": {
@@ -845,7 +856,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "customer": {
             "email": "test@example.com"
@@ -868,7 +880,7 @@
             "via": "HyperSwitch",
             "x-nn-access-key": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA=="
           },
-          "body": "{\"merchant\":{\"signature\":\"probe_key\",\"tariff\":\"probe_id\"},\"customer\":{\"first_name\":\"John\",\"last_name\":null,\"email\":\"test@example.com\",\"mobile\":null,\"billing\":{\"house_no\":null,\"street\":null,\"city\":null,\"zip\":null,\"country_code\":null},\"no_nc\":1,\"birth_date\":null},\"transaction\":{\"test_mode\":0,\"payment_type\":\"CREDITCARD\",\"amount\":\"1000\",\"currency\":\"USD\",\"order_no\":\"probe_proxy_txn_001\",\"payment_data\":{\"card_number\":\"4111111111111111\",\"card_expiry_month\":\"03\",\"card_expiry_year\":\"2030\",\"card_cvc\":\"123\",\"card_holder\":\"John\"},\"hook_url\":\"https://example.com/webhook\",\"return_url\":\"https://example.com/return\",\"error_return_url\":\"https://example.com/return\",\"enforce_3d\":null,\"create_token\":null},\"custom\":{\"lang\":\"en\"}}"
+          "body": "{\"merchant\":{\"signature\":\"probe_key\",\"tariff\":\"probe_id\"},\"customer\":{\"first_name\":\"John\",\"last_name\":null,\"email\":\"test@example.com\",\"mobile\":null,\"billing\":{\"house_no\":null,\"street\":null,\"city\":null,\"zip\":null,\"country_code\":null},\"no_nc\":1,\"birth_date\":null},\"transaction\":{\"test_mode\":0,\"payment_type\":\"CREDITCARD\",\"amount\":\"1000\",\"currency\":\"USD\",\"order_no\":\"probe_proxy_txn_001\",\"payment_data\":{\"card_number\":\"{{$card_number}}\",\"card_expiry_month\":\"{{$card_exp_month}}\",\"card_expiry_year\":\"{{$card_exp_year}}\",\"card_cvc\":\"{{$card_cvc}}\",\"card_holder\":\"John\"},\"hook_url\":\"https://example.com/webhook\",\"return_url\":\"https://example.com/return\",\"error_return_url\":\"https://example.com/return\",\"enforce_3d\":null,\"create_token\":null},\"custom\":{\"lang\":\"en\"}}"
         }
       }
     },
@@ -886,7 +898,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "customer": {
             "email": "test@example.com"
@@ -913,7 +926,7 @@
             "via": "HyperSwitch",
             "x-nn-access-key": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA=="
           },
-          "body": "{\"merchant\":{\"signature\":\"probe_key\",\"tariff\":\"probe_id\"},\"customer\":{\"first_name\":\"John\",\"last_name\":null,\"email\":\"test@example.com\",\"mobile\":null,\"billing\":{\"house_no\":null,\"street\":null,\"city\":null,\"zip\":null,\"country_code\":null},\"no_nc\":1,\"birth_date\":null},\"transaction\":{\"test_mode\":0,\"payment_type\":\"CREDITCARD\",\"amount\":0,\"currency\":\"USD\",\"order_no\":\"probe_proxy_mandate_001\",\"payment_data\":{\"card_number\":\"4111111111111111\",\"card_expiry_month\":\"03\",\"card_expiry_year\":\"2030\",\"card_cvc\":\"123\",\"card_holder\":\"John\"},\"hook_url\":\"https://example.com/webhook\",\"return_url\":\"https://example.com/return\",\"error_return_url\":\"https://example.com/return\",\"enforce_3d\":null,\"create_token\":1},\"custom\":{\"lang\":\"en\"}}"
+          "body": "{\"merchant\":{\"signature\":\"probe_key\",\"tariff\":\"probe_id\"},\"customer\":{\"first_name\":\"John\",\"last_name\":null,\"email\":\"test@example.com\",\"mobile\":null,\"billing\":{\"house_no\":null,\"street\":null,\"city\":null,\"zip\":null,\"country_code\":null},\"no_nc\":1,\"birth_date\":null},\"transaction\":{\"test_mode\":0,\"payment_type\":\"CREDITCARD\",\"amount\":0,\"currency\":\"USD\",\"order_no\":\"probe_proxy_mandate_001\",\"payment_data\":{\"card_number\":\"{{$card_number}}\",\"card_expiry_month\":\"{{$card_exp_month}}\",\"card_expiry_year\":\"{{$card_exp_year}}\",\"card_cvc\":\"{{$card_cvc}}\",\"card_holder\":\"John\"},\"hook_url\":\"https://example.com/webhook\",\"return_url\":\"https://example.com/return\",\"error_return_url\":\"https://example.com/return\",\"enforce_3d\":null,\"create_token\":1},\"custom\":{\"lang\":\"en\"}}"
         }
       }
     },
@@ -958,7 +971,8 @@
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for novalnet"
       }
     },
     "refund": {
@@ -1008,7 +1022,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by novalnet connector"
       }
     },
     "setup_recurring": {
@@ -1074,7 +1089,8 @@
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for novalnet"
       }
     },
     "verify_redirect": {

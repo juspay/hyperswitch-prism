@@ -23,6 +23,58 @@ on:
         required: false
         default: false
         type: boolean
+      ref:
+        description: 'Git ref to checkout (tag or branch)'
+        required: false
+        default: ''
+        type: string
+      version:
+        description: 'Version to publish (e.g. 0.1.0) — overrides version in manifest files'
+        required: false
+        default: ''
+        type: string
+
+  workflow_call:
+    inputs:
+      publish_java:
+        required: false
+        default: false
+        type: boolean
+      publish_python:
+        required: false
+        default: false
+        type: boolean
+      publish_javascript:
+        required: false
+        default: false
+        type: boolean
+      preview_only:
+        required: false
+        default: true
+        type: boolean
+      ref:
+        required: false
+        default: ''
+        type: string
+      version:
+        required: false
+        default: ''
+        type: string
+    secrets:
+      CONNECTOR_SERVICE_CI_PAT:
+        required: true
+      CENTRAL_TOKEN_USERNAME:
+        required: true
+      CENTRAL_TOKEN_PASSWORD:
+        required: true
+      GPG_SIGNING_KEY:
+        required: true
+      GPG_SIGNING_KEY_PASSWORD:
+        required: true
+      PYPI_TOKEN:
+        required: true
+      NPM_TOKEN:
+        required: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -39,8 +91,29 @@ env:
   RUSTFLAGS: "-C codegen-units=16"
 
 jobs:
+  validate-inputs:
+    name: Validate inputs
+    runs-on: ubuntu-latest
+    if: ${{ inputs.preview_only == false }}
+    steps:
+      - name: Validate version is SemVer
+        shell: bash
+        run: |
+          VERSION="${{ inputs.version }}"
+          if [ -z "${VERSION}" ]; then
+            echo "::error::version input is required when preview_only is false"
+            exit 1
+          fi
+          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::version '${VERSION}' is not valid SemVer (expected X.Y.Z)"
+            exit 1
+          fi
+          echo "Version ${VERSION} is valid SemVer"
+
   build-binaries:
     name: Build Binaries (${{ matrix.os }} ${{ matrix.arch }})
+    needs: [validate-inputs]
+    if: always() && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped')
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
@@ -57,6 +130,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -154,8 +229,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-binaries]
     if: ${{ inputs.preview_only == true || inputs.publish_java == true }}
+    env:
+      VERSION: ${{ inputs.version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-java@v4
         with:
           java-version: '17'
@@ -197,8 +276,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-binaries]
     if: ${{ inputs.preview_only == true || inputs.publish_python == true }}
+    env:
+      VERSION: ${{ inputs.version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -234,8 +317,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-binaries]
     if: ${{ inputs.preview_only == true || inputs.publish_javascript == true }}
+    env:
+      VERSION: ${{ inputs.version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -294,6 +381,8 @@ jobs:
     if: always() && needs.collect-sdks.result == 'success'
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
       - name: Download Java SDK artifact
         if: ${{ inputs.preview_only == true || inputs.publish_java == true }}
         uses: actions/download-artifact@v4
@@ -350,8 +439,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: [collect-sdks]
     if: always() && needs.collect-sdks.result == 'success' && (inputs.preview_only == true || inputs.publish_java == true || inputs.publish_python == true || inputs.publish_javascript == true)
+    env:
+      VERSION: ${{ inputs.version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -469,7 +562,7 @@ jobs:
         continue-on-error: true
         working-directory: sdk/javascript
         run: |
-          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          PACKAGE_VERSION="${VERSION:-$(node -p "require('./package.json').version")}"
           echo "Checking if hyperswitch-prism $PACKAGE_VERSION exists on npm..."
           if npm view hyperswitch-prism@$PACKAGE_VERSION version >/dev/null 2>&1; then
             echo "Error: Version $PACKAGE_VERSION already exists on npm"
@@ -579,8 +672,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: [preview-publish, pre-publish-check]
     if: always() && inputs.publish_java == true && inputs.preview_only == false && needs.pre-publish-check.result == 'success'
+    env:
+      VERSION: ${{ inputs.version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-java@v4
         with:
           java-version: '17'
@@ -645,8 +742,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: [preview-publish, pre-publish-check]
     if: always() && inputs.publish_python == true && inputs.preview_only == false && needs.pre-publish-check.result == 'success'
+    env:
+      VERSION: ${{ inputs.version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -706,6 +807,8 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: '20'

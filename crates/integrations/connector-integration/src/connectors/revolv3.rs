@@ -8,7 +8,6 @@ use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, types
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 use domain_types::{
-    connector_flow,
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::*,
     payment_method_data::PaymentMethodDataTypes,
@@ -75,6 +74,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: revolv3::Revolv3ErrorResponse = res
             .response
@@ -107,37 +107,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::AcceptDispute for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::CreateConnectorCustomer for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::DisputeDefend for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::MandateRevokeV2 for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerAuthentication for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAuthenticateV2<T> for Revolv3<T>
 {
 }
 
@@ -152,42 +122,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentIncrementalAuthorization for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentOrderCreate for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentPostAuthenticateV2<T> for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentPreAuthenticateV2<T> for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerSessionAuthentication for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentTokenV2<T> for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentVoidPostCaptureV2 for Revolv3<T>
 {
 }
 
@@ -211,11 +146,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ClientAuthentication for Revolv3<T>
-{
-}
-
 macros::macro_connector_payout_implementation!(
     connector: Revolv3,
     generic_type: T,
@@ -228,167 +158,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SubmitEvidenceV2 for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Revolv3<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::Accept,
-        DisputeFlowData,
-        AcceptDisputeData,
-        DisputeResponseData,
-    > for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::CreateConnectorCustomer,
-        PaymentFlowData,
-        ConnectorCustomerData,
-        ConnectorCustomerResponse,
-    > for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::DefendDispute,
-        DisputeFlowData,
-        DisputeDefendData,
-        DisputeResponseData,
-    > for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::MandateRevoke,
-        PaymentFlowData,
-        MandateRevokeRequestData,
-        MandateRevokeResponseData,
-    > for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::ServerAuthenticationToken,
-        PaymentFlowData,
-        ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData,
-    > for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::Authenticate,
-        PaymentFlowData,
-        PaymentsAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::CreateOrder,
-        PaymentFlowData,
-        PaymentCreateOrderData,
-        PaymentCreateOrderResponse,
-    > for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::PostAuthenticate,
-        PaymentFlowData,
-        PaymentsPostAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::PreAuthenticate,
-        PaymentFlowData,
-        PaymentsPreAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::ServerSessionAuthenticationToken,
-        PaymentFlowData,
-        ServerSessionAuthenticationTokenRequestData,
-        ServerSessionAuthenticationTokenResponseData,
-    > for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::PaymentMethodToken,
-        PaymentFlowData,
-        PaymentMethodTokenizationData<T>,
-        PaymentMethodTokenResponse,
-    > for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::VoidPC,
-        PaymentFlowData,
-        PaymentsCancelPostCaptureData,
-        PaymentsResponseData,
-    > for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::ClientAuthenticationToken,
-        PaymentFlowData,
-        ClientAuthenticationTokenRequestData,
-        PaymentsResponseData,
-    > for Revolv3<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::SubmitEvidence,
-        DisputeFlowData,
-        SubmitEvidenceData,
-        DisputeResponseData,
-    > for Revolv3<T>
 {
 }
 
@@ -759,4 +534,29 @@ macros::macro_connector_implementation!(
             ))
         }
     }
+);
+
+macros::macro_connector_flow_status_impls!(
+    connector: Revolv3,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    not_implemented: [
+        Accept,
+        CreateConnectorCustomer,
+        DefendDispute,
+        MandateRevoke,
+        ServerAuthenticationToken,
+        IncrementalAuthorization,
+        CreateOrder,
+        ServerSessionAuthenticationToken,
+        PaymentMethodToken,
+        VoidPC,
+        SubmitEvidence,
+    ],
+    not_supported: [
+        Authenticate,
+        PostAuthenticate,
+        PreAuthenticate,
+        ClientAuthenticationToken,
+    ],
 );

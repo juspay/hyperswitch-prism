@@ -2,6 +2,11 @@
   "connector": "phonepe",
   "supported_suites": [
     "PaymentService/Authorize",
-    "PaymentService/Get"
+    "PaymentService/Get",
+    "PaymentService/Capture",
+    "PaymentService/Void",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "EventService/HandleEvent"
   ]
 }

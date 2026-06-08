@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for paypal"
       }
     },
     "authorize": {
@@ -47,9 +48,8 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
-          "shipping_cost": 0,
           "payment_method": {
-            "apple_pay": {
+            "apple_pay_sdk": {
               "payment_data": {
                 "decrypted_data": {
                   "application_primary_account_number": "4111111111111111",
@@ -157,7 +157,6 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
-          "shipping_cost": 0,
           "payment_method": {
             "card": {
               "card_number": "4111111111111111",
@@ -251,7 +250,6 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
-          "shipping_cost": 0,
           "payment_method": {
             "eps": {}
           },
@@ -302,7 +300,6 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
-          "shipping_cost": 0,
           "payment_method": {
             "giropay": {}
           },
@@ -357,9 +354,8 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
-          "shipping_cost": 0,
           "payment_method": {
-            "google_pay": {
+            "google_pay_sdk": {
               "type": "CARD",
               "description": "Visa 1111",
               "info": {
@@ -417,7 +413,6 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
-          "shipping_cost": 0,
           "payment_method": {
             "ideal": {}
           },
@@ -596,7 +591,6 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
-          "shipping_cost": 0,
           "payment_method": {
             "paypal_redirect": {
               "email": "test@example.com"
@@ -751,7 +745,6 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
-          "shipping_cost": 0,
           "payment_method": {
             "sofort": {}
           },
@@ -888,7 +881,8 @@
     },
     "create_customer": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for paypal"
       }
     },
     "create_order": {
@@ -941,17 +935,20 @@
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by paypal connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for paypal"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for paypal"
       }
     },
     "dispute_get": {
@@ -961,7 +958,8 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for paypal"
       }
     },
     "eligibility": {
@@ -1024,7 +1022,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for paypal"
       }
     },
     "parse_event": {
@@ -1054,7 +1053,8 @@
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for paypal"
       }
     },
     "proxy_authorize": {
@@ -1071,7 +1071,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "address": {
             "billing_address": {}
@@ -1085,8 +1086,7 @@
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
             }
-          },
-          "shipping_cost": 0
+          }
         },
         "sample": {
           "url": "https://api-m.sandbox.paypal.com/v2/checkout/orders",
@@ -1099,7 +1099,7 @@
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_proxy_txn_001\",\"invoice_id\":\"probe_proxy_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":{\"currency_code\":\"USD\",\"value\":\"0.00\"}}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_proxy_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"card\":{\"billing_address\":null,\"expiry\":\"2030-03\",\"name\":null,\"number\":\"4111111111111111\",\"security_code\":\"123\",\"attributes\":{\"vault\":null,\"verification\":null}}}}"
+          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_proxy_txn_001\",\"invoice_id\":\"probe_proxy_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":{\"currency_code\":\"USD\",\"value\":\"0.00\"}}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_proxy_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"card\":{\"billing_address\":null,\"expiry\":\"{{$card_exp_year}}-{{$card_exp_month}}\",\"name\":null,\"number\":\"{{$card_number}}\",\"security_code\":\"{{$card_cvc}}\",\"attributes\":{\"vault\":null,\"verification\":null}}}}"
         }
       }
     },
@@ -1117,7 +1117,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "address": {
             "billing_address": {}
@@ -1147,7 +1148,7 @@
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": "{\"payment_source\":{\"card\":{\"billing_address\":null,\"expiry\":\"2030-03\",\"name\":null,\"number\":\"4111111111111111\"}}}"
+          "body": "{\"payment_source\":{\"card\":{\"billing_address\":null,\"expiry\":\"{{$card_exp_year}}-{{$card_exp_month}}\",\"name\":null,\"number\":null}}}"
         }
       }
     },
@@ -1200,7 +1201,8 @@
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for paypal"
       }
     },
     "refund": {
@@ -1270,7 +1272,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by paypal connector"
       }
     },
     "setup_recurring": {
@@ -1340,7 +1343,8 @@
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for paypal"
       }
     },
     "verify_redirect": {

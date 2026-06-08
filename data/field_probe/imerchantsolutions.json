@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "authenticate flow not supported by imerchantsolutions connector"
       }
     },
     "authorize": {
@@ -127,7 +128,7 @@
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"card\":{\"number\":\"4111111111111111\",\"cvv\":\"737\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"holder\":\"John Doe\"},\"shopperEmail\":null,\"shopperName\":{\"firstName\":null,\"lastName\":null},\"telephoneNumber\":null,\"billing\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"deliveryAddress\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"manualCapture\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"card\":{\"number\":\"4111111111111111\",\"cvv\":\"737\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"holder\":\"John Doe\"},\"shopperName\":{\"firstName\":null,\"lastName\":null},\"billing\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"deliveryAddress\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"manualCapture\":false,\"storePaymentMethod\":false}"
         }
       },
       "CashappQr": {
@@ -498,43 +499,50 @@
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"pspReference\":\"probe_connector_txn_001\",\"amount\":1000,\"currency\":\"USD\"}"
+          "body": "{\"pspReference\":\"probe_connector_txn_001\",\"amount\":1000,\"currency\":\"USD\",\"final\":false}"
         }
       }
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by imerchantsolutions connector"
       }
     },
     "create_customer": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by imerchantsolutions connector"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for imerchantsolutions"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for imerchantsolutions"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by imerchantsolutions connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by imerchantsolutions connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by imerchantsolutions connector"
       }
     },
     "dispute_get": {
@@ -544,7 +552,8 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by imerchantsolutions connector"
       }
     },
     "eligibility": {
@@ -577,27 +586,59 @@
     },
     "handle_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"type\": \"payment.completed\",\"paymentId\": \"cmml1234abcd\",\"pspReference\": \"ABC123DEF456\",\"reference\": \"order-12345\",\"amount\": 5000,\"currency\": \"USD\",\"status\": \"captured\",\"processor\": \"Adyen\",\"cardLast4\": \"1111\",\"cardBrand\": \"visa\",\"customerEmail\": \"customer@example.com\",\"partnerId\": \"your_partner_id\",\"merchantId\": \"merchant_id\",\"timestamp\": \"2026-03-30T15:45:00.000Z\"}}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"type\": \"payment.completed\",\"paymentId\": \"cmml1234abcd\",\"pspReference\": \"ABC123DEF456\",\"reference\": \"order-12345\",\"amount\": 5000,\"currency\": \"USD\",\"status\": \"captured\",\"processor\": \"Adyen\",\"cardLast4\": \"1111\",\"cardBrand\": \"visa\",\"customerEmail\": \"customer@example.com\",\"partnerId\": \"your_partner_id\",\"merchantId\": \"merchant_id\",\"timestamp\": \"2026-03-30T15:45:00.000Z\"}}}"
+        }
       }
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by imerchantsolutions connector"
       }
     },
     "parse_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"type\": \"payment.completed\",\"paymentId\": \"cmml1234abcd\",\"pspReference\": \"ABC123DEF456\",\"reference\": \"order-12345\",\"amount\": 5000,\"currency\": \"USD\",\"status\": \"captured\",\"processor\": \"Adyen\",\"cardLast4\": \"1111\",\"cardBrand\": \"visa\",\"customerEmail\": \"customer@example.com\",\"partnerId\": \"your_partner_id\",\"merchantId\": \"merchant_id\",\"timestamp\": \"2026-03-30T15:45:00.000Z\"}}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"type\": \"payment.completed\",\"paymentId\": \"cmml1234abcd\",\"pspReference\": \"ABC123DEF456\",\"reference\": \"order-12345\",\"amount\": 5000,\"currency\": \"USD\",\"status\": \"captured\",\"processor\": \"Adyen\",\"cardLast4\": \"1111\",\"cardBrand\": \"visa\",\"customerEmail\": \"customer@example.com\",\"partnerId\": \"your_partner_id\",\"merchantId\": \"merchant_id\",\"timestamp\": \"2026-03-30T15:45:00.000Z\"}}}"
+        }
       }
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by imerchantsolutions connector"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by imerchantsolutions connector"
       }
     },
     "proxy_authorize": {
@@ -614,7 +655,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "address": {
             "billing_address": {}
@@ -631,23 +673,26 @@
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"reference\":\"probe_proxy_txn_001\",\"card\":{\"number\":\"4111111111111111\",\"cvv\":\"123\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"holder\":\"John Doe\"},\"shopperEmail\":null,\"shopperName\":{\"firstName\":null,\"lastName\":null},\"telephoneNumber\":null,\"billing\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"deliveryAddress\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"manualCapture\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"reference\":\"probe_proxy_txn_001\",\"card\":{\"number\":\"{{$card_number}}\",\"cvv\":\"{{$card_cvc}}\",\"expiry_month\":\"{{$card_exp_month}}\",\"expiry_year\":\"{{$card_exp_year}}\",\"holder\":\"John Doe\"},\"shopperName\":{\"firstName\":null,\"lastName\":null},\"billing\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"deliveryAddress\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"manualCapture\":false,\"storePaymentMethod\":false}"
         }
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for imerchantsolutions"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: customer_id — Missing required field: customer_id"
       }
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for imerchantsolutions"
       }
     },
     "refund": {
@@ -697,12 +742,14 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for imerchantsolutions"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for imerchantsolutions"
       }
     },
     "token_authorize": {
@@ -713,12 +760,14 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for imerchantsolutions"
       }
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for imerchantsolutions"
       }
     },
     "verify_redirect": {

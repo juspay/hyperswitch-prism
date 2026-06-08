@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "authenticate flow not supported by revolv3 connector"
       }
     },
     "authorize": {
@@ -504,37 +505,44 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by revolv3 connector"
       }
     },
     "create_customer": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for revolv3"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for revolv3"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for revolv3"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for revolv3"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for revolv3"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for revolv3"
       }
     },
     "dispute_get": {
@@ -544,7 +552,8 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for revolv3"
       }
     },
     "eligibility": {
@@ -565,7 +574,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for revolv3"
       }
     },
     "parse_event": {
@@ -575,12 +585,14 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by revolv3 connector"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by revolv3 connector"
       }
     },
     "proxy_authorize": {
@@ -597,7 +609,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "address": {
             "billing_address": {}
@@ -614,7 +627,7 @@
             "via": "HyperSwitch",
             "x-revolv3-token": "probe_key"
           },
-          "body": "{\"paymentMethod\":{\"billingAddress\":{\"addressLine1\":null,\"addressLine2\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"phoneNumber\":null,\"email\":null,\"country\":null},\"billingFirstName\":null,\"billingLastName\":null,\"billingFullName\":\"John Doe\",\"creditCard\":{\"paymentAccountNumber\":\"4111111111111111\",\"expirationDate\":\"0330\",\"securityCode\":\"123\"}},\"invoice\":{\"merchantInvoiceRefId\":null,\"amount\":{\"value\":10.0,\"currency\":\"USD\"},\"orderProcessingChannel\":null},\"threeDs\":null,\"networkProcessing\":null,\"dynamicDescriptor\":null}"
+          "body": "{\"paymentMethod\":{\"billingAddress\":{\"addressLine1\":null,\"addressLine2\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"phoneNumber\":null,\"email\":null,\"country\":null},\"billingFirstName\":null,\"billingLastName\":null,\"billingFullName\":\"John Doe\",\"creditCard\":{\"paymentAccountNumber\":\"{{$card_number}}\",\"expirationDate\":\"{{$card_exp_month}}{{$card_exp_year}}\",\"securityCode\":\"{{$card_cvc}}\"}},\"invoice\":{\"merchantInvoiceRefId\":null,\"amount\":{\"value\":10.0,\"currency\":\"USD\"},\"orderProcessingChannel\":null},\"threeDs\":null,\"networkProcessing\":null,\"dynamicDescriptor\":null}"
         }
       }
     },
@@ -632,7 +645,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "address": {
             "billing_address": {}
@@ -652,7 +666,7 @@
             "via": "HyperSwitch",
             "x-revolv3-token": "probe_key"
           },
-          "body": "{\"paymentMethod\":{\"billingAddress\":{\"addressLine1\":null,\"addressLine2\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"phoneNumber\":null,\"email\":null,\"country\":null},\"billingFirstName\":null,\"billingLastName\":null,\"billingFullName\":\"John Doe\",\"creditCard\":{\"paymentAccountNumber\":\"4111111111111111\",\"expirationDate\":\"0330\",\"securityCode\":\"123\"}},\"networkProcessing\":{\"processingType\":\"InitialRecurring\",\"originalNetworkTransactionId\":null},\"amount\":{\"value\":0.0,\"currency\":\"USD\"},\"orderProcessingChannel\":null,\"dynamicDescriptor\":null}"
+          "body": "{\"paymentMethod\":{\"billingAddress\":{\"addressLine1\":null,\"addressLine2\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"phoneNumber\":null,\"email\":null,\"country\":null},\"billingFirstName\":null,\"billingLastName\":null,\"billingFullName\":\"John Doe\",\"creditCard\":{\"paymentAccountNumber\":\"{{$card_number}}\",\"expirationDate\":\"{{$card_exp_month}}{{$card_exp_year}}\",\"securityCode\":\"{{$card_cvc}}\"}},\"networkProcessing\":{\"processingType\":\"InitialRecurring\",\"originalNetworkTransactionId\":null},\"amount\":{\"value\":0.0,\"currency\":\"USD\"},\"orderProcessingChannel\":null,\"dynamicDescriptor\":null}"
         }
       }
     },
@@ -664,7 +678,8 @@
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for revolv3"
       }
     },
     "refund": {
@@ -714,7 +729,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for revolv3"
       }
     },
     "setup_recurring": {
@@ -774,7 +790,8 @@
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for revolv3"
       }
     },
     "verify_redirect": {

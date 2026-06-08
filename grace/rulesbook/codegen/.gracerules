@@ -70,6 +70,19 @@ This workflow is designed for NEW CONNECTOR INTEGRATIONS ONLY where:
 
 ## MANDATORY EXECUTION SEQUENCE
 
+### PHASE 1.0: TECH SPEC DISCOVERY & RECOVERY (MANDATORY)
+
+The tech spec at `grace/rulesbook/codegen/references/{connector_name}/technical_specification.md` is a hard dependency for every downstream subagent (Foundation Setup, Flow Implementation, Quality Guardian). If the file is missing at this point, recover via the Links → Tech Spec dependency chain — do NOT stop straight to GATE FAILURE.
+
+Procedure:
+
+1. **Check** for the spec at `grace/rulesbook/codegen/references/{connector_name}/technical_specification.md`. If present, proceed to PHASE 1 below.
+2. **If missing — recover**:
+   - **(Re-)spawn the Links Agent** via the Task tool with workflow file `grace/workflow/2.1_links.md`. Skip this step if `data/integration-source-links.json` already has a non-empty array under `"{Connector_Name}"` or `"{connector_name}"`.
+   - **(Re-)spawn the Tech Spec Agent** via the Task tool with workflow file `grace/workflow/2.2_techspec.md`. The Tech Spec Agent picks Path A (`grace techspec` CLI when `grace/.env` is configured) or Path B (Claude-native, following `.skills/generate-tech-spec/references/techspec-generation-native.md`) based on its internal environment check.
+   - **Re-check** the canonical path.
+3. **Hard stop** (fail GATE 1) only if the spec is still missing after recovery. Capture the failure reason from whichever recovery subagent returned FAILED so the GATE failure report names the root cause.
+
 ### PHASE 1: TECH SPEC VALIDATION
 1. **MANDATORY**: Read tech spec from grace/rulesbook/codegen/references/{connector_name}/technical_specification.md
 2. **MANDATORY**: Validate tech spec completeness and UCS compatibility
@@ -1224,11 +1237,11 @@ Before finalizing any request/response struct, verify:
 ## VALIDATION GATES (MANDATORY CHECKPOINTS)
 
 ### GATE 1: TECH SPEC VALIDATION
-- ✅ Tech spec file exists in grace/rulesbook/codegen/references/{connector_name}/technical_specification.md
+- ✅ Tech spec file exists in grace/rulesbook/codegen/references/{connector_name}/technical_specification.md *(after PHASE 1.0 Discovery & Recovery has run)*
 - ✅ Tech spec contains connector name and base URL
 - ✅ Tech spec lists supported payment methods
 - ✅ Tech spec defines required flows
-- **GATE FAILURE**: Cannot proceed without valid tech spec
+- **GATE FAILURE**: Cannot proceed without valid tech spec. GATE fails only if PHASE 1.0 recovery (Links Agent → Tech Spec Agent) also failed to produce the spec. Include the failing subagent's reason in the gate-failure report.
 
 ### GATE 2: FOUNDATION COMPLETION
 - ✅ add_connector.sh executed successfully

@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for jpmorgan"
       }
     },
     "authorize": {
@@ -586,12 +587,14 @@
     },
     "create_customer": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for jpmorgan"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for jpmorgan"
       }
     },
     "create_server_authentication_token": {
@@ -612,17 +615,20 @@
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for jpmorgan"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for jpmorgan"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for jpmorgan"
       }
     },
     "dispute_get": {
@@ -632,7 +638,8 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for jpmorgan"
       }
     },
     "eligibility": {
@@ -679,7 +686,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for jpmorgan"
       }
     },
     "parse_event": {
@@ -689,36 +697,52 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for jpmorgan"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for jpmorgan"
       }
     },
     "proxy_authorize": {
       "default": {
+        "status": "not_supported",
+        "error": "JPMorgan requires numeric expiry values; vault token placeholders are not supported for proxy flows is not supported by Jpmorgan"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      }
+    },
+    "recurring_charge": {
+      "default": {
         "status": "supported",
         "proto_request": {
-          "merchant_transaction_id": "probe_proxy_txn_001",
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
           "amount": {
             "minor_amount": 1000,
             "currency": "USD"
           },
-          "card_proxy": {
-            "card_number": "4111111111111111",
-            "card_exp_month": "03",
-            "card_exp_year": "2030",
-            "card_cvc": "123",
-            "card_holder_name": "John Doe"
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
           },
-          "address": {
-            "billing_address": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true,
           "state": {
             "access_token": {
               "token": "probe_access_token",
@@ -734,26 +758,17 @@
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
             "merchant-id": "DefaultMerchantId",
-            "request-id": "probe_proxy_txn_001",
+            "request-id": "",
             "via": "HyperSwitch"
           },
-          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030}}}}"
+          "body": "{\"captureMethod\":\"NOW\",\"amount\":1000,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"transactionReference\":{\"transactionReferenceId\":\"probe-mandate-123\"}},\"recurring\":{\"recurringSequence\":\"SUBSEQUENT\",\"agreementId\":\"\"},\"initiatorType\":\"MERCHANT\",\"accountOnFile\":\"STORED\",\"isAmountFinal\":true}"
         }
-      }
-    },
-    "proxy_setup_recurring": {
-      "default": {
-        "status": "not_implemented"
-      }
-    },
-    "recurring_charge": {
-      "default": {
-        "status": "not_implemented"
       }
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for jpmorgan"
       }
     },
     "refund": {
@@ -821,12 +836,60 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Failed to obtain authentication type"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api-mock.payments.jpmorgan.com/api/v2/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "merchant-id": "DefaultMerchantId",
+            "request-id": "probe_mandate_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"captureMethod\":\"NOW\",\"amount\":0,\"currency\":\"USD\",\"merchant\":{\"merchantSoftware\":{\"companyName\":\"ProbeCompany\",\"productName\":\"ProbeProduct\"},\"softMerchant\":{\"merchantPurchaseDescription\":\"Probe Purchase\"}},\"paymentMethodType\":{\"card\":{\"accountNumber\":\"4111111111111111\",\"expiry\":{\"month\":3,\"year\":2030}}},\"recurring\":{\"recurringSequence\":\"FIRST\",\"agreementId\":\"probe_mandate_001\",\"isVariableAmount\":false},\"initiatorType\":\"CARDHOLDER\",\"accountOnFile\":\"TO_BE_STORED\",\"isAmountFinal\":true}"
+        }
       }
     },
     "token_authorize": {
@@ -868,12 +931,14 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card payment method is implemented for JPMorgan SetupMandate"
       }
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for jpmorgan"
       }
     },
     "verify_redirect": {

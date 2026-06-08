@@ -18,6 +18,7 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "authorize",
     "capture",
     "create_client_authentication_token",
+    "create_customer",
     "get",
     "parse_event",
     "proxy_authorize",
@@ -132,6 +133,16 @@ pub fn build_create_client_authentication_token_request(
     }
 }
 
+pub fn build_create_customer_request() -> CustomerServiceCreateRequest {
+    CustomerServiceCreateRequest {
+        merchant_customer_id: Some("cust_probe_123".to_string()), // Identification.
+        customer_name: Some("John Doe".to_string()),              // Name of the customer.
+        email: Some(Secret::new("test@example.com".to_string())), // Email address of the customer.
+        phone_number: Some("4155552671".to_string()),             // Phone number of the customer.
+        ..Default::default()
+    }
+}
+
 pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetRequest {
     PaymentServiceGetRequest {
         merchant_transaction_id: Some("probe_merchant_txn_001".to_string()), // Identification.
@@ -181,6 +192,7 @@ pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
             card_exp_year: Some(Secret::new("2030".to_string())),
             card_cvc: Some(Secret::new("123".to_string())),
             card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
+            card_network: Some(CardNetwork::Visa.into()),
             ..Default::default()
         }),
         address: Some(PaymentAddress {
@@ -224,6 +236,7 @@ pub fn build_proxy_setup_recurring_request() -> PaymentServiceProxySetupRecurrin
             card_exp_year: Some(Secret::new("2030".to_string())),
             card_cvc: Some(Secret::new("123".to_string())),
             card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
+            card_network: Some(CardNetwork::Visa.into()),
             ..Default::default()
         }),
         address: Some(PaymentAddress {
@@ -687,6 +700,18 @@ pub async fn process_create_client_authentication_token(
     Ok(format!("status: {:?}", response.status_code))
 }
 
+// Flow: CustomerService.Create
+#[allow(dead_code)]
+pub async fn process_create_customer(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .create_customer(build_create_customer_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("customer_id: {}", response.connector_customer_id))
+}
+
 // Flow: PaymentService.Get
 #[allow(dead_code)]
 pub async fn process_get(
@@ -830,6 +855,7 @@ async fn main() {
         "process_create_client_authentication_token" => {
             process_create_client_authentication_token(&client, "txn_001").await
         }
+        "process_create_customer" => process_create_customer(&client, "txn_001").await,
         "process_get" => process_get(&client, "txn_001").await,
         "process_parse_event" => process_parse_event(&client, "txn_001").await,
         "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
@@ -840,7 +866,7 @@ async fn main() {
         "process_token_authorize" => process_token_authorize(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_client_authentication_token, process_get, process_parse_event, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_refund_get, process_setup_recurring, process_token_authorize, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_client_authentication_token, process_create_customer, process_get, process_parse_event, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_refund_get, process_setup_recurring, process_token_authorize, process_void", flow);
             return;
         }
     };

@@ -56,7 +56,7 @@ Prism supports **multiple connectors** with varying levels of payment method and
 | ⚠ | Implementation in progress or partial |
 | ? | Implementation needs validation against live environment |
 
-**[View Complete Connector Coverage →](./docs-generated/all_connector.md)**
+**[View Complete Connector Coverage →](https://github.com/juspay/hyperswitch-prism/blob/main/docs-generated/all_connector.md)**
 
 ## What Prism does not do (yet)?
 - **Built-in vault or tokenization service.** This is a design choice. You may bring your own vault, or use the payment processor's vault.

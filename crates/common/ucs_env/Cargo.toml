@@ -21,6 +21,7 @@ tracing-kafka = { path = "../tracing-kafka", optional = true }
 # Third-party dependencies
 config = "0.14.0"
 error-stack = "0.4.1"
+prost = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_path_to_error = "0.1.16"

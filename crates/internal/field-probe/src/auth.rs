@@ -284,7 +284,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             public_key: None,
             base_url: None,
         },
-        ConnectorEnum::Sanlam => ConnectorSpecificConfig::Sanlam {
+        ConnectorEnum::AbsaSanlam => ConnectorSpecificConfig::AbsaSanlam {
             api_key: k(),
             merchant_id: m(),
             base_url: None,
@@ -638,6 +638,8 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
         ConnectorEnum::Itaubank => ConnectorSpecificConfig::Itaubank {
             client_id: id(),
             client_secret: s(),
+            certificates: None,
+            private_key: None,
             base_url: None,
         },
         ConnectorEnum::PinelabsOnline => ConnectorSpecificConfig::PinelabsOnline {
@@ -645,7 +647,41 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             client_secret: s(),
             base_url: None,
         },
+        ConnectorEnum::Easebuzz => ConnectorSpecificConfig::Easebuzz {
+            api_key: s(),
+            api_salt: s(),
+            base_url: None,
+            secondary_base_url: None,
+        },
         ConnectorEnum::Imerchantsolutions => ConnectorSpecificConfig::Imerchantsolutions {
+            api_key: k(),
+            merchant_id: Some(m()),
+            base_url: None,
+        },
+        ConnectorEnum::Axisbank => ConnectorSpecificConfig::Axisbank {
+            merchant_kid: k(),
+            juspay_kid: k(),
+            merchant_private_key: s(),
+            juspay_public_key: s(),
+            base_url: None,
+        },
+        ConnectorEnum::TwocTwopPaco => ConnectorSpecificConfig::TwocTwopPaco {
+            access_token: s(),
+            office_id: s(),
+            paco_kid: s(),
+            merchant_signing_private_key: s(),
+            merchant_encryption_private_key: s(),
+            paco_signing_public_key: s(),
+            paco_encryption_public_key: s(),
+            response_audience: None,
+            base_url: None,
+        },
+        ConnectorEnum::Juspay => ConnectorSpecificConfig::Juspay {
+            api_key: k(),
+            merchant_id: m(),
+            base_url: None,
+        },
+        ConnectorEnum::Tamara => ConnectorSpecificConfig::Tamara {
             api_key: k(),
             base_url: None,
         },

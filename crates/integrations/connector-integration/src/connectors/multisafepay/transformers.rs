@@ -404,26 +404,36 @@ fn build_gateway_info<T: PaymentMethodDataTypes>(
     order_type: &Type,
     payment_method_data: &domain_types::payment_method_data::PaymentMethodData<T>,
 ) -> Result<Option<MultisafepayGatewayInfo<T>>, error_stack::Report<IntegrationError>> {
+    use common_utils::fp_utils::when;
     use domain_types::payment_method_data::{BankDebitData, PaymentMethodData};
     use error_stack::ResultExt;
 
     match (order_type, payment_method_data) {
         (Type::Direct, PaymentMethodData::Card(card_data)) => {
             // Build gateway_info with card details
-            // Format card expiry as YYMM (2-digit year + 2-digit month) as integer
-            let card_expiry_str = card_data
+            // Format card expiry as YYMM (2-digit year + 2-digit month)
+            let card_expiry_secret = card_data
                 .get_card_expiry_year_month_2_digit_with_delimiter(String::new())
                 .change_context(IntegrationError::RequestEncodingFailed {
                     context: Default::default(),
-                })?
-                .expose();
+                })?;
+            let card_expiry_str = card_expiry_secret.expose();
 
-            let card_expiry_date: i64 = card_expiry_str
-                .parse::<i64>()
-                .change_context(IntegrationError::RequestEncodingFailed {
+            // Vault token placeholders (e.g. "{{$card_exp_month}}") cannot be parsed as i64.
+            // Multisafepay requires a numeric YYMM value, so proxy flows are not supported.
+            when(card_expiry_str.contains("{{"), || {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "Multisafepay requires a numeric YYMM expiry value; vault token placeholders are not supported for proxy flows".to_string(),
+                    connector: "Multisafepay",
                     context: Default::default(),
-                })
-                .attach_printable("Failed to parse card expiry date as integer")?;
+                }))
+            })?;
+
+            let card_expiry_date = card_expiry_str.parse::<i64>().change_context(
+                IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
+                },
+            )?;
 
             Ok(Some(MultisafepayGatewayInfo::Card(GatewayInfo {
                 card_number: card_data.card_number.clone(),

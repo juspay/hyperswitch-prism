@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "authenticate flow not supported by trustpayments connector"
       }
     },
     "authorize": {
@@ -48,7 +49,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "apple_pay": {
+            "apple_pay_sdk": {
               "payment_data": {
                 "decrypted_data": {
                   "application_primary_account_number": "4111111111111111",
@@ -258,7 +259,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "google_pay": {
+            "google_pay_sdk": {
               "type": "CARD",
               "description": "Visa 1111",
               "info": {
@@ -588,37 +589,44 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by trustpayments connector"
       }
     },
     "create_customer": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by trustpayments connector"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for trustpayments"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by trustpayments connector"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by trustpayments connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by trustpayments connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by trustpayments connector"
       }
     },
     "dispute_get": {
@@ -628,7 +636,8 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by trustpayments connector"
       }
     },
     "eligibility": {
@@ -695,12 +704,14 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by trustpayments connector"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by trustpayments connector"
       }
     },
     "proxy_authorize": {
@@ -717,7 +728,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "address": {
             "billing_address": {}
@@ -734,23 +746,90 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"alias\":\"probe_user\",\"version\":\"1.00\",\"request\":[{\"accounttypedescription\":\"ECOM\",\"baseamount\":\"1000\",\"credentialsonfile\":\"1\",\"currencyiso3a\":\"USD\",\"orderreference\":\"probe_proxy_txn_001\",\"requesttypedescriptions\":[\"AUTH\"],\"sitereference\":\"probe_site_ref\",\"settlestatus\":\"0\",\"pan\":\"4111111111111111\",\"expirydate\":\"03/30\",\"securitycode\":\"123\"}]}"
+          "body": "{\"alias\":\"probe_user\",\"version\":\"1.00\",\"request\":[{\"accounttypedescription\":\"ECOM\",\"baseamount\":\"1000\",\"credentialsonfile\":\"1\",\"currencyiso3a\":\"USD\",\"orderreference\":\"probe_proxy_txn_001\",\"requesttypedescriptions\":[\"AUTH\"],\"sitereference\":\"probe_site_ref\",\"settlestatus\":\"0\",\"pan\":\"{{$card_number}}\",\"expirydate\":\"{{$card_exp_month}}/{{$card_exp_year}}\",\"securitycode\":\"{{$card_cvc}}\"}]}"
         }
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://webservices.securetrading.net/json/",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"alias\":\"probe_user\",\"version\":\"1.00\",\"request\":[{\"accounttypedescription\":\"ECOM\",\"baseamount\":\"0\",\"credentialsonfile\":\"1\",\"currencyiso3a\":\"USD\",\"orderreference\":\"probe_proxy_mandate_001\",\"requesttypedescriptions\":[\"AUTH\"],\"sitereference\":\"probe_site_ref\",\"settlestatus\":\"0\",\"pan\":\"{{$card_number}}\",\"expirydate\":\"{{$card_exp_month}}/{{$card_exp_year}}\",\"securitycode\":\"{{$card_cvc}}\"}]}"
+        }
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://webservices.securetrading.net/json/",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"alias\":\"probe_user\",\"version\":\"1.00\",\"request\":[{\"accounttypedescription\":\"ECOM\",\"baseamount\":\"1000\",\"credentialsonfile\":\"2\",\"currencyiso3a\":\"USD\",\"parenttransactionreference\":\"probe-mandate-123\",\"requesttypedescriptions\":[\"AUTH\"],\"sitereference\":\"probe_site_ref\",\"initiationreason\":\"C\",\"settlestatus\":\"0\"}]}"
+        }
       }
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for trustpayments"
       }
     },
     "refund": {
@@ -800,12 +879,51 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for trustpayments"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://webservices.securetrading.net/json/",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"alias\":\"probe_user\",\"version\":\"1.00\",\"request\":[{\"accounttypedescription\":\"ECOM\",\"baseamount\":\"0\",\"credentialsonfile\":\"1\",\"currencyiso3a\":\"USD\",\"orderreference\":\"probe_mandate_001\",\"requesttypedescriptions\":[\"AUTH\"],\"sitereference\":\"probe_site_ref\",\"settlestatus\":\"0\",\"pan\":\"4111111111111111\",\"expirydate\":\"03/30\",\"securitycode\":\"737\"}]}"
+        }
       }
     },
     "token_authorize": {
@@ -816,12 +934,14 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "Payment method not supported for SetupMandate is not supported by trustpayments"
       }
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for trustpayments"
       }
     },
     "verify_redirect": {

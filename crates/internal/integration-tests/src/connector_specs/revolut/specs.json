@@ -5,6 +5,7 @@
     "PaymentService/Capture",
     "PaymentService/Get",
     "PaymentService/Refund",
-    "RefundService/Get"
+    "RefundService/Get",
+    "MerchantAuthenticationService/CreateClientAuthenticationToken"
   ]
 }

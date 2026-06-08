@@ -9,29 +9,18 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,
-        CreateConnectorCustomer, CreateOrder, DefendDispute, IncrementalAuthorization,
-        MandateRevoke, PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund,
-        RepeatPayment, ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate,
-        SubmitEvidence, Void, VoidPC,
+        Authorize, Capture, PSync, RSync, Refund, ServerSessionAuthenticationToken, Void,
     },
     connector_types::{
-        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
-        ConnectorCustomerResponse, ConnectorSpecifications, DisputeDefendData, DisputeFlowData,
-        DisputeResponseData, MandateRevokeRequestData, MandateRevokeResponseData,
-        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
-        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
-        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        ConnectorSpecifications, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData,
         ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        SetupMandateRequestData, SubmitEvidenceData, SupportedPaymentMethodsExt,
+        SupportedPaymentMethodsExt,
     },
     errors::IntegrationError,
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::{
@@ -53,24 +42,13 @@ use transformers::{
     is_netbanking_redirect_flow, is_upi_collect_flow, is_wallet_redirect_flow, PayuAuthType,
     PayuCaptureRequest, PayuCaptureResponse, PayuPaymentRequest, PayuPaymentResponse,
     PayuRefundRequest, PayuRefundResponse, PayuRefundSyncRequest, PayuRefundSyncResponse,
-    PayuSyncRequest, PayuSyncResponse, PayuVoidRequest, PayuVoidResponse,
+    PayuSessionTokenRequest, PayuSessionTokenResponse, PayuSyncRequest, PayuSyncResponse,
+    PayuVoidRequest, PayuVoidResponse,
 };
 
 use super::macros;
 use crate::types::ResponseRouterData;
 use domain_types::errors::ConnectorError;
-
-// Trait implementations with generic type parameters
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Payu<T>
-{
-}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Payu<T>
@@ -82,18 +60,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Payu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerSessionAuthentication for Payu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerAuthentication for Payu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::CreateConnectorCustomer for Payu<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -113,22 +79,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SetupMandateV2<T> for Payu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::AcceptDispute for Payu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SubmitEvidenceV2 for Payu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::DisputeDefend for Payu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Payu<T>
 {
 }
@@ -145,78 +95,35 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentOrderCreate for Payu<T>
+    connector_types::ServerSessionAuthentication for Payu<T>
 {
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentIncrementalAuthorization for Payu<T>
-{
+    // Trait requirements satisfied by the macro-generated impl;
+    // no custom logic needed for the SDKSessionToken (ServerSessionAuthenticationToken) flow.
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Payu<T>
 {
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::RepeatPaymentV2<T> for Payu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentTokenV2<T> for Payu<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::MandateRevokeV2 for Payu<T>
-{
-}
-
-// Authentication trait implementations
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentPreAuthenticateV2<T> for Payu<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAuthenticateV2<T> for Payu<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentPostAuthenticateV2<T> for Payu<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ClientAuthentication for Payu<T>
-{
-}
-
+    fn should_do_session_token(&self) -> bool {
+        true // Enable SDKSessionToken (ServerSessionAuthenticationToken) flow
+    }
+} // Authentication trait implementations
 macros::macro_connector_payout_implementation!(
     connector: Payu,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
 );
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentVoidPostCaptureV2 for Payu<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        VoidPC,
-        PaymentFlowData,
-        PaymentsCancelPostCaptureData,
-        PaymentsResponseData,
-    > for Payu<T>
-{
-}
-
 // Set up connector using macros with all framework integrations
 macros::create_all_prerequisites!(
     connector_name: Payu,
     generic_type: T,
     api: [
+        (
+            flow: ServerSessionAuthenticationToken,
+            request_body: PayuSessionTokenRequest,
+            response_body: PayuSessionTokenResponse,
+            router_data: RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
+        ),
         (
             flow: Authorize,
             request_body: PayuPaymentRequest,
@@ -397,7 +304,8 @@ macros::macro_connector_implementation!(
             &self,
             res: Response,
             _event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            _connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
             // PayU sync may return error responses in different formats
             let response: PayuSyncResponse = res
                 .response
@@ -411,7 +319,7 @@ macros::macro_connector_implementation!(
                     code: "PAYU_SYNC_ERROR".to_string(),
                     message: response.msg.unwrap_or_default(),
                     reason: None,
-                    attempt_status: Some(enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(enums::AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_error_message: None,
                     network_advice_code: None,
@@ -424,7 +332,7 @@ macros::macro_connector_implementation!(
                     code: "SYNC_UNKNOWN_ERROR".to_string(),
                     message: "Unknown PayU sync error".to_string(),
                     reason: None,
-                    attempt_status: Some(enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(enums::AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_error_message: None,
                     network_advice_code: None,
@@ -476,7 +384,8 @@ macros::macro_connector_implementation!(
             &self,
             res: Response,
             _event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            _connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
             let response: PayuCaptureResponse = res
                 .response
                 .parse_struct("PayU Capture ErrorResponse")
@@ -490,7 +399,7 @@ macros::macro_connector_implementation!(
                     .or(response.message)
                     .unwrap_or_else(|| "PayU capture error".to_string()),
                 reason: None,
-                attempt_status: Some(enums::AttemptStatus::CaptureFailed),
+                attempt_status: Some(FlowStatus::Payment(enums::AttemptStatus::CaptureFailed)),
                 connector_transaction_id: response.mihpayid,
                 network_error_message: None,
                 network_advice_code: None,
@@ -541,7 +450,8 @@ macros::macro_connector_implementation!(
             &self,
             res: Response,
             _event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            _connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
             let response: PayuVoidResponse = res
                 .response
                 .parse_struct("PayU Void ErrorResponse")
@@ -555,7 +465,7 @@ macros::macro_connector_implementation!(
                     .or(response.message)
                     .unwrap_or_else(|| "PayU void error".to_string()),
                 reason: None,
-                attempt_status: Some(enums::AttemptStatus::VoidFailed),
+                attempt_status: Some(FlowStatus::Payment(enums::AttemptStatus::VoidFailed)),
                 connector_transaction_id: response.mihpayid,
                 network_error_message: None,
                 network_advice_code: None,
@@ -605,7 +515,8 @@ macros::macro_connector_implementation!(
             &self,
             res: Response,
             _event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            _connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
             let response: PayuRefundResponse = res
                 .response
                 .parse_struct("PayU Refund ErrorResponse")
@@ -669,7 +580,8 @@ macros::macro_connector_implementation!(
             &self,
             res: Response,
             _event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            _connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
             let response: PayuRefundSyncResponse = res
                 .response
                 .parse_struct("PayU RSync ErrorResponse")
@@ -684,6 +596,72 @@ macros::macro_connector_implementation!(
                     .unwrap_or_else(|| "PayU refund sync error".to_string()),
                 reason: None,
                 attempt_status: None,
+                connector_transaction_id: None,
+                network_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+            })
+        }
+    }
+);
+
+// Implement SDKSessionToken (ServerSessionAuthenticationToken) flow using macro framework
+macros::macro_connector_implementation!(
+    connector_default_implementations: [],
+    connector: Payu,
+    curl_request: FormUrlEncoded(PayuSessionTokenRequest),
+    curl_response: PayuSessionTokenResponse,
+    flow_name: ServerSessionAuthenticationToken,
+    resource_common_data: PaymentFlowData,
+    flow_request: ServerSessionAuthenticationTokenRequestData,
+    flow_response: ServerSessionAuthenticationTokenResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            _req: &RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            Ok(vec![
+                ("Content-Type".to_string(), "application/x-www-form-urlencoded".into()),
+                ("Accept".to_string(), "application/json".into()),
+            ])
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // PayU OAuth2 client_credentials token endpoint (SDKSessionToken).
+            let base_url = self.base_url(&req.resource_common_data.connectors);
+            let base_url = base_url.trim_end_matches('/');
+            Ok(format!("{base_url}/pl/standard/user/oauth/authorize"))
+        }
+
+        fn get_content_type(&self) -> &'static str {
+            "application/x-www-form-urlencoded"
+        }
+
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            _event_builder: Option<&mut events::Event>,
+            _connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            let response: PayuSessionTokenResponse = res
+                .response
+                .parse_struct("PayU SessionToken ErrorResponse")
+                .change_context(crate::utils::response_handling_fail_for_connector(res.status_code, "payu"))?;
+
+            Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: response.error.unwrap_or_else(|| "SESSION_TOKEN_ERROR".to_string()),
+                message: response
+                    .error_description
+                    .unwrap_or_else(|| "PayU session token error".to_string()),
+                reason: None,
+                attempt_status: Some(FlowStatus::Payment(enums::AttemptStatus::Failure)),
                 connector_transaction_id: None,
                 network_error_message: None,
                 network_advice_code: None,
@@ -732,7 +710,8 @@ macros::macro_connector_implementation!(
             &self,
             res: Response,
             _event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            _connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
             // PayU returns error responses in the same JSON format as success responses
             // We need to parse the response and check for error fields
             let response: PayuPaymentResponse = res
@@ -747,7 +726,7 @@ macros::macro_connector_implementation!(
                     code: response.error.unwrap_or_default(),
                     message: response.message.unwrap_or_default(),
                     reason: None,
-                    attempt_status: Some(enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(enums::AttemptStatus::Failure)),
                     connector_transaction_id: response.reference_id,
                     network_error_message: None,
                     network_advice_code: None,
@@ -761,7 +740,7 @@ macros::macro_connector_implementation!(
                     code: "UNKNOWN_ERROR".to_string(),
                     message: "Unknown PayU error".to_string(),
                     reason: None,
-                    attempt_status: Some(enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(enums::AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_error_message: None,
                     network_advice_code: None,
@@ -796,144 +775,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         // Payu uses form-based authentication, not headers
         Ok(vec![])
     }
-}
-
-// Connector integration implementations for unsupported flows (stubs)
-// Capture flow implemented via macro below
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Serialize>
-    ConnectorIntegrationV2<
-        SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
-        PaymentsResponseData,
-    > for Payu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Serialize>
-    ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
-    > for Payu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Serialize>
-    ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
-    for Payu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Serialize>
-    ConnectorIntegrationV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>
-    for Payu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Serialize>
-    ConnectorIntegrationV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
-    for Payu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Serialize>
-    ConnectorIntegrationV2<
-        CreateOrder,
-        PaymentFlowData,
-        PaymentCreateOrderData,
-        PaymentCreateOrderResponse,
-    > for Payu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PaymentMethodToken,
-        PaymentFlowData,
-        PaymentMethodTokenizationData<T>,
-        PaymentMethodTokenResponse,
-    > for Payu<T>
-{
-}
-
-// Add stub implementation for ServerSessionAuthenticationToken
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Serialize>
-    ConnectorIntegrationV2<
-        ServerSessionAuthenticationToken,
-        PaymentFlowData,
-        ServerSessionAuthenticationTokenRequestData,
-        ServerSessionAuthenticationTokenResponseData,
-    > for Payu<T>
-{
-}
-
-// Add stub implementation for ServerAuthenticationToken
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Serialize>
-    ConnectorIntegrationV2<
-        ServerAuthenticationToken,
-        PaymentFlowData,
-        ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData,
-    > for Payu<T>
-{
-}
-
-// Add stub implementation for CreateConnectorCustomer
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        CreateConnectorCustomer,
-        PaymentFlowData,
-        ConnectorCustomerData,
-        ConnectorCustomerResponse,
-    > for Payu<T>
-{
-}
-
-// Authentication flow implementations
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PreAuthenticate,
-        PaymentFlowData,
-        PaymentsPreAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Payu<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        Authenticate,
-        PaymentFlowData,
-        PaymentsAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Payu<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PostAuthenticate,
-        PaymentFlowData,
-        PaymentsPostAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Payu<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ClientAuthenticationToken,
-        PaymentFlowData,
-        ClientAuthenticationTokenRequestData,
-        PaymentsResponseData,
-    > for Payu<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        MandateRevoke,
-        PaymentFlowData,
-        MandateRevokeRequestData,
-        MandateRevokeResponseData,
-    > for Payu<T>
-{
 }
 
 static PAYU_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
@@ -1021,3 +862,29 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         Some(&PAYU_SUPPORTED_PAYMENT_METHODS)
     }
 }
+
+macros::macro_connector_flow_status_impls!(
+    connector: Payu,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    not_implemented: [
+        PaymentMethodToken,
+        CreateConnectorCustomer,
+        PreAuthenticate,
+        Authenticate,
+        PostAuthenticate,
+        ClientAuthenticationToken,
+        MandateRevoke,
+        SetupMandate,
+        RepeatPayment,
+        CreateOrder,
+        ServerAuthenticationToken,
+    ],
+    not_supported: [
+        IncrementalAuthorization,
+        VoidPC,
+        Accept,
+        SubmitEvidence,
+        DefendDispute,
+    ],
+);

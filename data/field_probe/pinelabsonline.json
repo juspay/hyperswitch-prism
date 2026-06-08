@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for pinelabs_online"
       }
     },
     "authorize": {
@@ -456,12 +457,14 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by pinelabs_online connector"
       }
     },
     "create_customer": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by pinelabs_online connector"
       }
     },
     "create_order": {
@@ -487,17 +490,20 @@
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by pinelabs_online connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by pinelabs_online connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by pinelabs_online connector"
       }
     },
     "dispute_get": {
@@ -507,7 +513,8 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by pinelabs_online connector"
       }
     },
     "eligibility": {
@@ -528,7 +535,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by pinelabs_online connector"
       }
     },
     "parse_event": {
@@ -538,12 +546,14 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for pinelabs_online"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for pinelabs_online"
       }
     },
     "proxy_authorize": {
@@ -554,17 +564,20 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for pinelabs_online"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for pinelabs_online"
       }
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for pinelabs_online"
       }
     },
     "refund": {
@@ -581,12 +594,14 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by pinelabs_online connector"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for pinelabs_online"
       }
     },
     "token_authorize": {
@@ -597,12 +612,14 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for pinelabs_online"
       }
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for pinelabs_online"
       }
     },
     "verify_redirect": {

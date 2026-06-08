@@ -1,5 +1,7 @@
 [common]
 environment = "development"
+# Whether to return raw connector request/response in the response (default: true)
+return_raw_connector_data = false
 
 [log.console]
 enabled = true
@@ -44,13 +46,15 @@ psync = "GW_TXN_SYNC"
 
 # Connectors that require an external API call for webhook source verification
 [webhook_source_verification_call] # comma-separated list of connector names (case-insensitive)
-connectors_with_webhook_source_verification_call = "paypal, truelayer "
+connectors_with_webhook_source_verification_call = "paypal, truelayer"
 
 [connectors]
+tamara.base_url = "https://api-sandbox.tamara.co"
+juspay.base_url = "https://sandbox.juspay.in/"
 peachpayments.base_url = "https://apitest.bankint.ppay.io/v/1"
 finix.base_url = "https://finix.sandbox-payments-api.com"
 fiservcommercehub.base_url = "https://connect-cert.fiservapis.com/ch/"
-sanlam.base_url = "dev"
+absa_sanlam.base_url = "dev"
 revolv3.base_url = "https://api-sandbox.revolv3.com"
 ppro.base_url = "https://api.sandbox.eu.ppro.com"
 gigadat.base_url = "https://interac.express-connect.com/"
@@ -70,6 +74,8 @@ bluesnap.secondary_base_url = "https://sandpay.bluesnap.com"
 multisafepay.base_url = "https://testapi.multisafepay.com/v1/json"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 imerchantsolutions.base_url = "https://imerchantsolutions.com/api"
+interpayments.base_url = "https://api-test.interpayments.com/v1"
+twoc_twop_paco.base_url = "https://core.demo-paco.2c2p.com"
 jpmorgan.base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
 jpmorgan.secondary_base_url = "https://id.payments.jpmorgan.com"
 nmi.base_url = "https://secure.nmi.com"
@@ -102,7 +108,7 @@ fiuu.base_url = "https://sandbox.merchant.razer.com/"
 fiuu.secondary_base_url = "https://sandbox.merchant.razer.com/"
 fiuu.third_base_url = "https://api.merchant.razer.com/"
 payload.base_url = "https://api.payload.com"
-payu.base_url = "https://test.payu.in/"
+payu.base_url = "https://secure.snd.payu.com/"
 paytm.base_url = "https://securestage.paytmpayments.com/"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 calida.base_url = "https://dev.eorder.reloadhero.com/"
@@ -145,6 +151,9 @@ truelayer.secondary_base_url = "https://auth.truelayer-sandbox.com"
 trustly.base_url = "https://test.trustly.com/api/1"
 itaubank.base_url = "https://sandbox.devportal.itau.com.br"
 pinelabs_online.base_url = "https://pluraluat.v2.pinepg.in/api/pay/v1"
+easebuzz.base_url = "https://testpay.easebuzz.in"
+easebuzz.secondary_base_url = "https://testdashboard.easebuzz.in"
+axisbank.base_url = "https://upiuatv3.axisbank.com/api/b2/"
 
 # Generic Events Configuration
 [events]

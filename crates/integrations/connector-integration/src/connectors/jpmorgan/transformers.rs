@@ -1,20 +1,23 @@
 use common_enums::{AttemptStatus, CaptureMethod};
-use common_utils::pii::SecretSerdeValue;
+use common_utils::consts::NO_ERROR_MESSAGE;
+use common_utils::{fp_utils::when, pii::SecretSerdeValue};
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, Refund, ServerAuthenticationToken, Void,
+        Authorize, Capture, ClientAuthenticationToken, Refund, RepeatPayment,
+        ServerAuthenticationToken, SetupMandate, Void, VoidPC,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse,
         JpmorganClientAuthenticationResponse as JpmorganClientAuthenticationResponseDomain,
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData,
+        RefundsResponseData, RepeatPaymentData, ResponseId, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData, SetupMandateRequestData,
     },
     payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes},
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -24,6 +27,7 @@ use serde::{Deserialize, Serialize};
 use super::{requests, responses, JpmorganAmountConvertor};
 use crate::{connectors::jpmorgan::JpmorganRouterData, types::ResponseRouterData, utils};
 use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
+use domain_types::utils::is_payment_failure;
 
 type Error = error_stack::Report<IntegrationError>;
 type ResponseError = error_stack::Report<ConnectorError>;
@@ -279,25 +283,33 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         },
                     };
 
+                let exp_month_str = card_data.card_exp_month.peek().to_string();
+                let exp_year_str = card_data.get_expiry_year_4_digit().peek().to_string();
+
+                // Vault token placeholders (e.g. "{{$card_exp_month}}") cannot be parsed as i32.
+                // JPMorgan requires numeric expiry values, so proxy flows are not supported.
+                when(
+                    exp_month_str.contains("{{") || exp_year_str.contains("{{"),
+                    || {
+                        Err(error_stack::report!(IntegrationError::NotSupported {
+                            message: "JPMorgan requires numeric expiry values; vault token placeholders are not supported for proxy flows".to_string(),
+                            connector: "Jpmorgan",
+                            context: Default::default(),
+                        }))
+                    },
+                )?;
+
                 let expiry = requests::Expiry {
-                    month: Secret::new(
-                        card_data
-                            .card_exp_month
-                            .peek()
-                            .parse::<i32>()
-                            .change_context(IntegrationError::RequestEncodingFailed {
-                                context: Default::default(),
-                            })?,
-                    ),
-                    year: Secret::new(
-                        card_data
-                            .get_expiry_year_4_digit()
-                            .peek()
-                            .parse::<i32>()
-                            .change_context(IntegrationError::RequestEncodingFailed {
-                                context: Default::default(),
-                            })?,
-                    ),
+                    month: Secret::new(exp_month_str.parse::<i32>().change_context(
+                        IntegrationError::RequestEncodingFailed {
+                            context: Default::default(),
+                        },
+                    )?),
+                    year: Secret::new(exp_year_str.parse::<i32>().change_context(
+                        IntegrationError::RequestEncodingFailed {
+                            context: Default::default(),
+                        },
+                    )?),
                 };
 
                 let card = requests::JpmorganCard {
@@ -677,6 +689,100 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+/// VoidPC (post-capture void/reversal) request transformer.
+///
+/// JPMorgan uses the same `PATCH /payments/{id}` endpoint with `{"isVoid": true}`
+/// for both pre-capture void and post-capture reversal. The transaction ID is used
+/// to build the URL in the connector implementation.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        JpmorganRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for requests::JpmorganVoidPcRequest
+{
+    type Error = Error;
+    fn try_from(
+        _item: JpmorganRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self { is_void: true })
+    }
+}
+
+impl<F> TryFrom<ResponseRouterData<responses::JpmorganPaymentsResponse, Self>>
+    for RouterDataV2<F, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>
+{
+    type Error = ResponseError;
+    fn try_from(
+        item: ResponseRouterData<responses::JpmorganPaymentsResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        // Map JPMorgan's transaction state directly to `PostCaptureVoidStatus` —
+        // the Reverse flow has its own status enum, so we don't go through
+        // `AttemptStatus`. `Closed` / `Authorized` mean the PATCH was accepted
+        // but the transaction did not move to `Voided`, so the reversal did
+        // not apply. `Declined` / `Error` are matched explicitly to keep the
+        // match exhaustive.
+        let post_capture_void_status = match item.response.transaction_state {
+            responses::JpmorganTransactionState::Voided => {
+                common_enums::PostCaptureVoidStatus::Succeeded
+            }
+            responses::JpmorganTransactionState::Pending => {
+                common_enums::PostCaptureVoidStatus::Pending
+            }
+            responses::JpmorganTransactionState::Closed
+            | responses::JpmorganTransactionState::Authorized
+            | responses::JpmorganTransactionState::Declined
+            | responses::JpmorganTransactionState::Error => {
+                common_enums::PostCaptureVoidStatus::Failed
+            }
+        };
+
+        let response = if post_capture_void_status.is_post_capture_void_failure() {
+            Err(ErrorResponse {
+                attempt_status: None,
+                code: item.response.response_code.clone(),
+                message: item
+                    .response
+                    .response_message
+                    .clone()
+                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                reason: item.response.response_message.clone(),
+                status_code: item.http_code,
+                connector_transaction_id: Some(item.response.transaction_id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status,
+                connector_reference_id: Some(item.response.transaction_id.clone()),
+                description: None,
+                status_code: item.http_code,
+            })
+        };
+
+        Ok(Self {
+            response,
+            ..item.router_data
+        })
+    }
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         JpmorganRouterData<
@@ -744,12 +850,30 @@ fn map_transaction_state_to_attempt_status(
 impl TryFrom<&responses::JpmorganPaymentsResponse> for PaymentsResponseData {
     type Error = ResponseError;
     fn try_from(item: &responses::JpmorganPaymentsResponse) -> Result<Self, Self::Error> {
+        // Extract networkTransactionId from card.networkResponse for MIT flows
+        let network_txn_id = item
+            .payment_method_type
+            .as_ref()
+            .and_then(|pmt| pmt.card.as_ref())
+            .and_then(|card| card.network_response.as_ref())
+            .and_then(|nr| nr.network_transaction_id.clone());
+
+        // JPMorgan's RepeatPayment flow uses the prior payment's `transaction_id`
+        // as the `transactionReference.transactionReferenceId` to identify the stored
+        // credential. Surface it as the `connector_mandate_id` so the framework can
+        // pass it back on subsequent MIT charges.
+        let mandate_reference = MandateReference {
+            connector_mandate_id: Some(item.transaction_id.clone()),
+            payment_method_id: None,
+            connector_mandate_request_reference_id: None,
+        };
+
         Ok(Self::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(item.transaction_id.clone()),
             redirection_data: None,
-            mandate_reference: None,
+            mandate_reference: Some(Box::new(mandate_reference)),
             connector_metadata: None,
-            network_txn_id: None,
+            network_txn_id,
             connector_response_reference_id: Some(item.request_id.clone()),
             incremental_authorization_allowed: None,
             status_code: item.response_code.parse::<u16>().unwrap_or(0),
@@ -764,6 +888,33 @@ impl TryFrom<&responses::JpmorganPaymentsResponse> for AttemptStatus {
             &item.transaction_state,
             &item.capture_method,
         ))
+    }
+}
+
+/// Build the `response` field for a JPMorgan payments flow: `Err(ErrorResponse)`
+/// when the transaction was declined/errored, otherwise `Ok(PaymentsResponseData)`.
+fn build_payments_response_result(
+    response: &responses::JpmorganPaymentsResponse,
+    http_code: u16,
+    status: AttemptStatus,
+) -> Result<Result<PaymentsResponseData, ErrorResponse>, ResponseError> {
+    if is_payment_failure(status) {
+        Ok(Err(ErrorResponse {
+            attempt_status: Some(FlowStatus::Payment(status)),
+            code: response.response_code.clone(),
+            message: response
+                .response_message
+                .clone()
+                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+            reason: response.response_message.clone(),
+            status_code: http_code,
+            connector_transaction_id: Some(response.transaction_id.clone()),
+            network_decline_code: None,
+            network_advice_code: None,
+            network_error_message: None,
+        }))
+    } else {
+        Ok(Ok(PaymentsResponseData::try_from(response)?))
     }
 }
 
@@ -795,10 +946,10 @@ impl<T: PaymentMethodDataTypes, F>
         item: ResponseRouterData<responses::JpmorganPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let status = AttemptStatus::try_from(&item.response)?;
-        let response_data = PaymentsResponseData::try_from(&item.response)?;
+        let response = build_payments_response_result(&item.response, item.http_code, status)?;
 
         Ok(Self {
-            response: Ok(response_data),
+            response,
             resource_common_data: PaymentFlowData {
                 status,
                 ..item.router_data.resource_common_data
@@ -816,10 +967,10 @@ impl<F> TryFrom<ResponseRouterData<responses::JpmorganPaymentsResponse, Self>>
         item: ResponseRouterData<responses::JpmorganPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let status = AttemptStatus::try_from(&item.response)?;
-        let response_data = PaymentsResponseData::try_from(&item.response)?;
+        let response = build_payments_response_result(&item.response, item.http_code, status)?;
 
         Ok(Self {
-            response: Ok(response_data),
+            response,
             resource_common_data: PaymentFlowData {
                 status,
                 ..item.router_data.resource_common_data
@@ -837,10 +988,10 @@ impl<F> TryFrom<ResponseRouterData<responses::JpmorganPaymentsResponse, Self>>
         item: ResponseRouterData<responses::JpmorganPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let status = AttemptStatus::try_from(&item.response)?;
-        let response_data = PaymentsResponseData::try_from(&item.response)?;
+        let response = build_payments_response_result(&item.response, item.http_code, status)?;
 
         Ok(Self {
-            response: Ok(response_data),
+            response,
             resource_common_data: PaymentFlowData {
                 status,
                 ..item.router_data.resource_common_data
@@ -858,10 +1009,10 @@ impl<F> TryFrom<ResponseRouterData<responses::JpmorganPaymentsResponse, Self>>
         item: ResponseRouterData<responses::JpmorganPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let status = AttemptStatus::try_from(&item.response)?;
-        let response_data = PaymentsResponseData::try_from(&item.response)?;
+        let response = build_payments_response_result(&item.response, item.http_code, status)?;
 
         Ok(Self {
-            response: Ok(response_data),
+            response,
             resource_common_data: PaymentFlowData {
                 status,
                 ..item.router_data.resource_common_data
@@ -995,6 +1146,324 @@ impl TryFrom<ResponseRouterData<responses::JpmorganClientAuthResponse, Self>>
                 session_data,
                 status_code: item.http_code,
             }),
+            ..item.router_data
+        })
+    }
+}
+
+impl TryFrom<&JpmorganAuthType> for requests::JpmorganMerchant {
+    type Error = Error;
+    fn try_from(auth: &JpmorganAuthType) -> Result<Self, Self::Error> {
+        Ok(Self {
+            merchant_software: requests::JpmorganMerchantSoftware {
+                company_name: auth.company_name.clone().ok_or(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "company_name",
+                        context: Default::default(),
+                    },
+                )?,
+                product_name: auth.product_name.clone().ok_or(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "product_name",
+                        context: Default::default(),
+                    },
+                )?,
+            },
+            soft_merchant: requests::JpmorganSoftMerchant {
+                merchant_purchase_description: auth.merchant_purchase_description.clone().ok_or(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "merchant_purchase_description",
+                        context: Default::default(),
+                    },
+                )?,
+            },
+        })
+    }
+}
+
+// Build JPMorgan Expiry from card data (shared by SetupMandate / RepeatPayment).
+fn build_jpmorgan_expiry<T: PaymentMethodDataTypes>(
+    card_data: &domain_types::payment_method_data::Card<T>,
+) -> Result<requests::Expiry, Error> {
+    let month = card_data
+        .card_exp_month
+        .peek()
+        .parse::<i32>()
+        .change_context(IntegrationError::RequestEncodingFailed {
+            context: Default::default(),
+        })?;
+    let year = card_data
+        .get_expiry_year_4_digit()
+        .peek()
+        .parse::<i32>()
+        .change_context(IntegrationError::RequestEncodingFailed {
+            context: Default::default(),
+        })?;
+    Ok(requests::Expiry {
+        month: Secret::new(month),
+        year: Secret::new(year),
+    })
+}
+
+// SetupMandate (initial CIT with credential storage) request transformer
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        JpmorganRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for requests::JpmorganSetupMandateRequest<T>
+{
+    type Error = Error;
+    fn try_from(
+        item: JpmorganRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        match &router_data.request.payment_method_data {
+            PaymentMethodData::Card(card_data) => {
+                let auth = JpmorganAuthType::try_from(&router_data.connector_config)?;
+                let merchant = requests::JpmorganMerchant::try_from(&auth)?;
+
+                let expiry = build_jpmorgan_expiry(card_data)?;
+
+                let payment_method_type = requests::JpmorganSetupMandatePaymentMethodType {
+                    card: requests::JpmorganSetupMandateCard {
+                        account_number: card_data.card_number.clone(),
+                        expiry,
+                    },
+                };
+
+                // Use connector_request_reference_id as agreement_id
+                let agreement_id = router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone();
+
+                let amount = router_data
+                    .request
+                    .minor_amount
+                    .map(|a| {
+                        item.connector
+                            .amount_converter
+                            .convert(a, router_data.request.currency)
+                            .change_context(IntegrationError::AmountConversionFailed {
+                                context: Default::default(),
+                            })
+                    })
+                    .transpose()?
+                    .unwrap_or(common_utils::types::MinorUnit::new(0));
+
+                let recurring = requests::JpmorganRecurring {
+                    recurring_sequence: requests::JpmorganRecurringSequence::First,
+                    agreement_id,
+                    is_variable_amount: Some(false),
+                };
+
+                Ok(Self {
+                    capture_method: requests::CapMethod::Now,
+                    amount,
+                    currency: router_data.request.currency,
+                    merchant,
+                    payment_method_type,
+                    recurring,
+                    initiator_type: requests::JpmorganInitiatorType::Cardholder,
+                    account_on_file: requests::JpmorganAccountOnFile::ToBeStored,
+                    is_amount_final: true,
+                })
+            }
+            _ => Err(IntegrationError::NotImplemented(
+                "Only Card payment method is implemented for JPMorgan SetupMandate".to_string(),
+                Default::default(),
+            )
+            .into()),
+        }
+    }
+}
+
+// SetupMandate response transformer
+impl<T: PaymentMethodDataTypes>
+    TryFrom<ResponseRouterData<responses::JpmorganPaymentsResponse, Self>>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = ResponseError;
+    fn try_from(
+        item: ResponseRouterData<responses::JpmorganPaymentsResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let status = AttemptStatus::try_from(&item.response)?;
+        let response = build_payments_response_result(&item.response, item.http_code, status)?;
+
+        Ok(Self {
+            response,
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// RepeatPayment (subsequent MIT) request transformer
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        JpmorganRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for requests::JpmorganRepeatPaymentRequest<T>
+{
+    type Error = Error;
+    fn try_from(
+        item: JpmorganRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        let auth = JpmorganAuthType::try_from(&router_data.connector_config)?;
+        let merchant = requests::JpmorganMerchant::try_from(&auth)?;
+
+        let agreement_id = router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+        let capture_method = map_capture_method(router_data.request.capture_method)?;
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(
+                router_data.request.minor_amount,
+                router_data.request.currency,
+            )
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
+
+        // For a subsequent MIT, the request shape depends on the mandate handle:
+        //   ConnectorMandateId  → reference the stored credential by JPMorgan's
+        //                         own transactionId via paymentMethodType.transactionReference;
+        //                         no card data is sent.
+        //   NetworkMandateId    → JPMorgan still requires card.{accountNumber,
+        //                         expiry}; the originalNetworkTransactionId is
+        //                         what reclassifies the txn as MIT (paired with
+        //                         initiatorType=MERCHANT, accountOnFile=STORED,
+        //                         recurringSequence=SUBSEQUENT), not a substitute
+        //                         for the card payload.
+        let payment_method_type = match &router_data.request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(connector_mandate_ref) => {
+                let transaction_reference_id = connector_mandate_ref
+                    .get_connector_mandate_id()
+                    .ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "connector_mandate_id",
+                        context: Default::default(),
+                    })?;
+                requests::JpmorganRepeatPaymentMethodType {
+                    card: None,
+                    transaction_reference: Some(requests::JpmorganTransactionReference {
+                        transaction_reference_id,
+                    }),
+                }
+            }
+            MandateReferenceId::NetworkMandateId(nti) => {
+                let card_data = match &router_data.request.payment_method_data {
+                    PaymentMethodData::Card(c) => c,
+                    _ => {
+                        return Err(IntegrationError::MissingRequiredField {
+                            field_name: "payment_method_data.card",
+                            context: Default::default(),
+                        }
+                        .into())
+                    }
+                };
+                let expiry = build_jpmorgan_expiry(card_data)?;
+                requests::JpmorganRepeatPaymentMethodType {
+                    card: Some(requests::JpmorganMitCardByNti {
+                        account_number: card_data.card_number.clone(),
+                        expiry,
+                        original_network_transaction_id: nti.clone(),
+                    }),
+                    transaction_reference: None,
+                }
+            }
+            MandateReferenceId::NetworkTokenWithNTI(_) => {
+                return Err(IntegrationError::NotImplemented(
+                    "NetworkTokenWithNTI mandate reference is not implemented for \
+                     JPMorgan RepeatPayment"
+                        .to_string(),
+                    Default::default(),
+                )
+                .into());
+            }
+        };
+
+        let recurring = requests::JpmorganRecurring {
+            recurring_sequence: requests::JpmorganRecurringSequence::Subsequent,
+            agreement_id,
+            is_variable_amount: None,
+        };
+
+        Ok(Self {
+            capture_method,
+            amount,
+            currency: router_data.request.currency,
+            merchant,
+            payment_method_type,
+            recurring,
+            initiator_type: requests::JpmorganInitiatorType::Merchant,
+            account_on_file: requests::JpmorganAccountOnFile::Stored,
+            is_amount_final: true,
+        })
+    }
+}
+
+// RepeatPayment response transformer
+impl<T: PaymentMethodDataTypes>
+    TryFrom<ResponseRouterData<responses::JpmorganPaymentsResponse, Self>>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = ResponseError;
+    fn try_from(
+        item: ResponseRouterData<responses::JpmorganPaymentsResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let status = AttemptStatus::try_from(&item.response)?;
+        let response = build_payments_response_result(&item.response, item.http_code, status)?;
+
+        Ok(Self {
+            response,
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
             ..item.router_data
         })
     }

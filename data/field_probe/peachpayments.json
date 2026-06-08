@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for peachpayments"
       }
     },
     "authorize": {
@@ -508,37 +509,44 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by peachpayments connector"
       }
     },
     "create_customer": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by peachpayments connector"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_order flow not supported by peachpayments connector"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by peachpayments connector"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by peachpayments connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by peachpayments connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by peachpayments connector"
       }
     },
     "dispute_get": {
@@ -548,7 +556,8 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by peachpayments connector"
       }
     },
     "eligibility": {
@@ -603,7 +612,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by peachpayments connector"
       }
     },
     "parse_event": {
@@ -627,12 +637,14 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for peachpayments"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for peachpayments"
       }
     },
     "proxy_authorize": {
@@ -649,7 +661,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "address": {
             "billing_address": {}
@@ -668,7 +681,7 @@
             "x-exi-auth-ver": "v1",
             "x-tenant-id": "probe_secret"
           },
-          "body": "{\"paymentMethod\":\"ecommerce_card_payment_only\",\"referenceId\":\"probe_proxy_txn_001\",\"ecommerceCardPaymentOnlyTransactionData\":{\"merchantInformation\":{\"clientMerchantReferenceId\":\"probe_merchant_ref_001\"},\"routing\":{\"route\":\"probe_route_001\"},\"card\":{\"pan\":\"4111111111111111\",\"cardholderName\":\"John Doe\",\"expiryYear\":\"30\",\"expiryMonth\":\"03\",\"cvv\":\"123\"},\"amount\":{\"amount\":1000,\"currencyCode\":\"USD\"}},\"sendDateTime\":\"2020-01-01T00:00:00+00:00\"}"
+          "body": "{\"paymentMethod\":\"ecommerce_card_payment_only\",\"referenceId\":\"probe_proxy_txn_001\",\"ecommerceCardPaymentOnlyTransactionData\":{\"merchantInformation\":{\"clientMerchantReferenceId\":\"probe_merchant_ref_001\"},\"routing\":{\"route\":\"probe_route_001\"},\"card\":{\"pan\":\"{{$card_number}}\",\"cardholderName\":\"John Doe\",\"expiryYear\":\"{{$card_exp_year}}\",\"expiryMonth\":\"{{$card_exp_month}}\",\"cvv\":\"{{$card_cvc}}\"},\"amount\":{\"amount\":1000,\"currencyCode\":\"USD\"}},\"sendDateTime\":\"2020-01-01T00:00:00+00:00\"}"
         }
       }
     },
@@ -686,7 +699,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "address": {
             "billing_address": {}
@@ -708,7 +722,7 @@
             "x-exi-auth-ver": "v1",
             "x-tenant-id": "probe_secret"
           },
-          "body": "{\"paymentMethod\":\"ecommerce_card_payment_only\",\"referenceId\":\"probe_proxy_mandate_001\",\"ecommerceCardPaymentOnlyTransactionData\":{\"merchantInformation\":{\"clientMerchantReferenceId\":\"probe_merchant_ref_001\"},\"routing\":{\"route\":\"probe_route_001\"},\"card\":{\"pan\":\"4111111111111111\",\"cardholderName\":\"John Doe\",\"expiryYear\":\"30\",\"expiryMonth\":\"03\",\"cvv\":\"123\"},\"amount\":{\"amount\":0,\"currencyCode\":\"USD\"},\"cofData\":{\"type\":\"recurring\",\"source\":\"cit\",\"mode\":\"initial\"}},\"sendDateTime\":\"2020-01-01T00:00:00+00:00\"}"
+          "body": "{\"paymentMethod\":\"ecommerce_card_payment_only\",\"referenceId\":\"probe_proxy_mandate_001\",\"ecommerceCardPaymentOnlyTransactionData\":{\"merchantInformation\":{\"clientMerchantReferenceId\":\"probe_merchant_ref_001\"},\"routing\":{\"route\":\"probe_route_001\"},\"card\":{\"pan\":\"{{$card_number}}\",\"cardholderName\":\"John Doe\",\"expiryYear\":\"{{$card_exp_year}}\",\"expiryMonth\":\"{{$card_exp_month}}\",\"cvv\":\"{{$card_cvc}}\"},\"amount\":{\"amount\":0,\"currencyCode\":\"USD\"},\"cofData\":{\"type\":\"recurring\",\"source\":\"cit\",\"mode\":\"initial\"}},\"sendDateTime\":\"2020-01-01T00:00:00+00:00\"}"
         }
       }
     },
@@ -720,7 +734,8 @@
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for peachpayments"
       }
     },
     "refund": {
@@ -774,7 +789,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by peachpayments connector"
       }
     },
     "setup_recurring": {
@@ -836,7 +852,8 @@
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for peachpayments"
       }
     },
     "verify_redirect": {

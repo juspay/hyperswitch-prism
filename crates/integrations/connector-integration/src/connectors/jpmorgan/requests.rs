@@ -130,6 +130,15 @@ pub struct JpmorganVoidRequest {
     pub is_void: bool,
 }
 
+/// VoidPC (post-capture void/reversal) request — JPMorgan uses the same PATCH endpoint
+/// and the same `{"isVoid": true}` body regardless of whether the payment has been
+/// captured or not.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganVoidPcRequest {
+    pub is_void: bool,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganRefundRequest {
@@ -142,6 +151,119 @@ pub struct JpmorganRefundRequest {
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganMerchantRefund {
     pub merchant_software: JpmorganMerchantSoftware,
+}
+
+/// JPMorgan initiator type for stored credentials / MIT
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum JpmorganInitiatorType {
+    Cardholder,
+    Merchant,
+}
+
+/// JPMorgan account on file status
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum JpmorganAccountOnFile {
+    ToBeStored,
+    Stored,
+}
+
+/// JPMorgan recurring sequence
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum JpmorganRecurringSequence {
+    First,
+    Subsequent,
+}
+
+/// JPMorgan recurring object for MIT transactions
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganRecurring {
+    pub recurring_sequence: JpmorganRecurringSequence,
+    pub agreement_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_variable_amount: Option<bool>,
+}
+
+/// JPMorgan card body used by SetupMandate (initial CIT) — carries the PAN and
+/// expiry the cardholder just entered.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganSetupMandateCard<T: PaymentMethodDataTypes> {
+    pub account_number: RawCardNumber<T>,
+    pub expiry: Expiry,
+}
+
+/// JPMorgan card body used by RepeatPayment when the upstream mandate is an
+/// NTI. JPMorgan's API requires `accountNumber` + `expiry` even on a SUBSEQUENT
+/// MIT — the `originalNetworkTransactionId` is what reclassifies the txn as
+/// MIT (paired with `initiatorType: MERCHANT`, `accountOnFile: STORED`,
+/// `recurringSequence: SUBSEQUENT`), not a substitute for the card data.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganMitCardByNti<T: PaymentMethodDataTypes> {
+    pub account_number: RawCardNumber<T>,
+    pub expiry: Expiry,
+    pub original_network_transaction_id: String,
+}
+
+/// JPMorgan stored-credential reference used by RepeatPayment when the
+/// upstream mandate is JPMorgan's own `transactionId` from the prior auth.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganTransactionReference {
+    pub transaction_reference_id: String,
+}
+
+/// SetupMandate's payment method type — always carries `card`.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganSetupMandatePaymentMethodType<T: PaymentMethodDataTypes> {
+    pub card: JpmorganSetupMandateCard<T>,
+}
+
+/// RepeatPayment's payment method type — exactly one of `card` (PAN + expiry +
+/// NTI) or `transaction_reference` is set, depending on which mandate handle
+/// the upstream gave us.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganRepeatPaymentMethodType<T: PaymentMethodDataTypes> {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card: Option<JpmorganMitCardByNti<T>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transaction_reference: Option<JpmorganTransactionReference>,
+}
+
+/// SetupMandate request (initial CIT with credential storage)
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganSetupMandateRequest<T: PaymentMethodDataTypes> {
+    pub capture_method: CapMethod,
+    pub amount: MinorUnit,
+    pub currency: common_enums::Currency,
+    pub merchant: JpmorganMerchant,
+    pub payment_method_type: JpmorganSetupMandatePaymentMethodType<T>,
+    pub recurring: JpmorganRecurring,
+    pub initiator_type: JpmorganInitiatorType,
+    pub account_on_file: JpmorganAccountOnFile,
+    pub is_amount_final: bool,
+}
+
+/// RepeatPayment request (subsequent MIT).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganRepeatPaymentRequest<T: PaymentMethodDataTypes> {
+    pub capture_method: CapMethod,
+    pub amount: MinorUnit,
+    pub currency: common_enums::Currency,
+    pub merchant: JpmorganMerchant,
+    pub payment_method_type: JpmorganRepeatPaymentMethodType<T>,
+    pub recurring: JpmorganRecurring,
+    pub initiator_type: JpmorganInitiatorType,
+    pub account_on_file: JpmorganAccountOnFile,
+    pub is_amount_final: bool,
 }
 
 // ---- Google Pay (encrypted) request structs ----

@@ -16,3 +16,7 @@ pub mod health_check {
 pub mod payouts {
     tonic::include_proto!("types");
 }
+
+pub mod surcharge {
+    tonic::include_proto!("types");
+}

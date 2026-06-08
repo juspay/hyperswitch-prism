@@ -42,6 +42,8 @@ pub enum Bank {
     Bacs(BacsBankTransfer),
     Sepa(SepaBankTransfer),
     Pix(PixBankTransfer),
+    PixKey(PixKeyBankTransfer),
+    PixEmv(PixEmvBankTransfer),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]
@@ -110,11 +112,23 @@ pub struct PixBankTransfer {
     /// Bank account number is an unique identifier assigned by a bank to a customer.
     pub bank_account_number: Secret<String>,
 
-    /// Unique key for pix customer
-    pub pix_key: Secret<String>,
-
     /// Individual taxpayer identification number
     pub tax_id: Option<Secret<String>>,
+
+    /// An 8-digit routing code that uniquely identifies the specific bank, fintech, or payment institution
+    pub ispb: Option<Secret<String>>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug)]
+pub struct PixKeyBankTransfer {
+    /// Unique key for pix customer
+    pub pix_key: Secret<String>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug)]
+pub struct PixEmvBankTransfer {
+    /// EMV data for pix
+    pub emv: Secret<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]

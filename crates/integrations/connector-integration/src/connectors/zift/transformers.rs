@@ -16,7 +16,7 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 
@@ -878,7 +878,7 @@ impl TryFrom<ResponseRouterData<ZiftSyncResponse, Self>>
                     .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
                 reason: item.response.response_message,
                 status_code: item.http_code,
-                attempt_status: Some(attempt_status),
+                attempt_status: Some(FlowStatus::Payment(attempt_status)),
                 connector_transaction_id: None,
                 network_advice_code: None,
                 network_decline_code: None,

@@ -1,0 +1,706 @@
+{
+  "connector": "easebuzz",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for easebuzz"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Affirm": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Afterpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "EaseBuzzRedirect": {
+        "status": "error",
+        "error": "Stuck on field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/ — Missing required field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Netbanking": {
+        "status": "error",
+        "error": "Stuck on field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/ — Missing required field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Sepa": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "UpiCollect": {
+        "status": "error",
+        "error": "Stuck on field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/ — Missing required field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/"
+      },
+      "UpiIntent": {
+        "status": "error",
+        "error": "Stuck on field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/ — Missing required field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/"
+      },
+      "UpiQr": {
+        "status": "error",
+        "error": "Stuck on field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/ — Missing required field: connector_order_id. Easebuzz seamless API requires a two-step flow: POST /payment/initiateLink returns an access_key which must be passed to POST /initiate_seamless_payment/"
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      },
+      "Wero": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://testpay.easebuzz.in/payment/v1/capture/direct",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "key=probe_secret&txnid=probe_connector_txn_001&amount=10.00&hash=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3"
+        }
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for easebuzz"
+      }
+    },
+    "create_customer": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for easebuzz"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_order_id": "probe_order_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://testpay.easebuzz.in/payment/initiateLink",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "key=probe_secret&txnid=probe_order_001&amount=10.00&productinfo=Payment&firstname=Customer&phone=9999999999&email=customer%40example.com&surl=https%3A%2F%2Fexample.com%2Freturn&furl=https%3A%2F%2Fexample.com%2Freturn&hash=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3&request_flow=SEAMLESS"
+        }
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for easebuzz"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for easebuzz"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for easebuzz"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for easebuzz"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for easebuzz"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://testdashboard.easebuzz.in/transaction/v1/retrieve",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "txnid=probe_merchant_txn_001&amount=10.00&email=customer%40example.com&phone=9999999999&key=probe_secret&hash=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3"
+        }
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for easebuzz"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for easebuzz"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for easebuzz"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for easebuzz"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for easebuzz"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for easebuzz"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://testdashboard.easebuzz.in/transaction/v2/refund",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "key=probe_secret&merchant_refund_id=probe_refund_001&easebuzz_id=probe_connector_txn_001&refund_amount=10.00&hash=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3"
+        }
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://testdashboard.easebuzz.in/refund/v1/retrieve",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "key=probe_secret&easebuzz_id=probe_connector_txn_001&hash=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3&merchant_refund_id=probe_refund_id_001"
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for easebuzz"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for easebuzz"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for easebuzz"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for easebuzz"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void flow for easebuzz"
+      }
+    }
+  }
+}

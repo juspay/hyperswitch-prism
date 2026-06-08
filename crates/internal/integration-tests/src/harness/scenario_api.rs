@@ -299,16 +299,11 @@ fn prepare_context_placeholders(suite: &str, _connector: &str, current_grpc_req:
 /// defaults (`""`, `0`, `null`, `false`).  This handles cases like an
 /// `access_token` block with `{"token": {"value": ""}, "expires_in_seconds": 0}`
 /// that should be pruned when dependency context didn't fill any real values.
+#[cfg(test)]
 fn prune_empty_context_wrappers(current_grpc_req: &mut Value) {
     // Special handling: connector_feature_data with unresolved "auto_generate"
     // sentinel must be removed before auto-generation fills it with garbage.
-    let should_remove_connector_feature =
-        lookup_json_path_with_case_fallback(current_grpc_req, "connector_feature_data")
-            .map(is_unresolved_connector_feature_data)
-            .unwrap_or(false);
-    if should_remove_connector_feature {
-        let _ = remove_json_path(current_grpc_req, "connector_feature_data");
-    }
+    drop_unresolved_connector_feature_data(current_grpc_req);
 
     // Generic cleanup: remove any top-level key whose value is an object (or
     // scalar) where ALL primitive leaf values are defaults ("", 0, null, false).
@@ -318,6 +313,22 @@ fn prune_empty_context_wrappers(current_grpc_req: &mut Value) {
     // `payment_method: { "ideal": {} }` — where the empty object is
     // intentional and choosing a variant.
     prune_all_default_top_level_keys(current_grpc_req);
+}
+
+/// Drops `connector_feature_data` when it still carries an unresolved
+/// `"auto_generate"` sentinel.
+///
+/// Lifted out of `prune_empty_context_wrappers` so it can be invoked
+/// before `resolve_auto_generate` runs, since the unresolved-state
+/// detection needs to see the sentinel intact.
+fn drop_unresolved_connector_feature_data(current_grpc_req: &mut Value) {
+    let should_remove =
+        lookup_json_path_with_case_fallback(current_grpc_req, "connector_feature_data")
+            .map(is_unresolved_connector_feature_data)
+            .unwrap_or(false);
+    if should_remove {
+        let _ = remove_json_path(current_grpc_req, "connector_feature_data");
+    }
 }
 
 /// Returns `true` if the JSON value contains at least one primitive leaf
@@ -363,10 +374,10 @@ fn maybe_execute_browser_automation_for_suite(
     effective_req: &mut Value,
 ) -> Result<(), ScenarioError> {
     // Convention-based Google Pay token generation
-    // If the request has payment_method.google_pay.tokenization_data.encrypted_data.token,
+    // If the request has payment_method.google_pay_sdk.tokenization_data.encrypted_data.token,
     // automatically generate a real token via browser automation
-    if let Some(token_field) =
-        effective_req.pointer("/payment_method/google_pay/tokenization_data/encrypted_data/token")
+    if let Some(token_field) = effective_req
+        .pointer("/payment_method/google_pay_sdk/tokenization_data/encrypted_data/token")
     {
         if token_field.is_string() {
             return execute_google_pay_token_generation(suite, scenario, connector, effective_req);
@@ -971,7 +982,7 @@ fn execute_google_pay_token_generation(
     };
 
     // 9. Inject the token into the request.
-    let target_path = "payment_method.google_pay.tokenization_data.encrypted_data.token";
+    let target_path = "payment_method.google_pay_sdk.tokenization_data.encrypted_data.token";
     if !set_json_path_value(effective_req, target_path, token_value) {
         return Err(ScenarioError::GrpcurlExecution {
             message: format!(
@@ -1637,10 +1648,12 @@ fn remove_json_path(root: &mut Value, path: &str) -> bool {
 fn has_only_default_leaves(value: &Value) -> bool {
     match value {
         Value::Null | Value::Bool(false) => true,
-        // Treat "auto_generate" sentinels as unresolved defaults so they are
-        // pruned before resolve_auto_generate runs, preventing bogus UUIDs from
-        // being generated for fields whose dependency context was never populated.
-        Value::String(s) => s.is_empty() || s == "auto_generate",
+        // Strings are never treated as defaults. Empty strings ("") in
+        // scenario templates mean "intentional, send empty" per
+        // prepare_context_placeholders' documented contract, and any
+        // remaining "auto_generate" sentinel is a bug that resolve_auto_generate
+        // should have substituted by now.
+        Value::String(_) => false,
         Value::Number(n) => n.as_f64().map(|f| f == 0.0).unwrap_or(false),
         Value::Array(items) => items.is_empty() || items.iter().all(has_only_default_leaves),
         Value::Object(map) => map.is_empty() || map.values().all(has_only_default_leaves),
@@ -2739,6 +2752,28 @@ pub fn execute_tonic_request_from_payload(
                 );
                 let mut client = grpc_api_types::payments::payment_method_service_client::PaymentMethodServiceClient::new(channel.clone());
                 let response = client.eligibility(request).await.map_err(|error| {
+                    ScenarioError::GrpcurlExecution {
+                        message: format!(
+                            "tonic execution failed for '{suite}/{scenario}': {error}"
+                        ),
+                    }
+                })?;
+                serialize_tonic_response(&response.into_inner())
+            }
+            "SurchargeService/Calculate" => {
+                let payload: grpc_api_types::surcharge::SurchargeServiceCalculateRequest =
+                    parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
+                let mut request = tonic::Request::new(payload);
+                add_connector_metadata(
+                    &mut request,
+                    &config,
+                    &merchant_id,
+                    &tenant_id,
+                    &request_id,
+                    &connector_request_reference_id,
+                );
+                let mut client = grpc_api_types::surcharge::surcharge_service_client::SurchargeServiceClient::new(channel.clone());
+                let response = client.calculate(request).await.map_err(|error| {
                     ScenarioError::GrpcurlExecution {
                         message: format!(
                             "tonic execution failed for '{suite}/{scenario}': {error}"
@@ -4206,9 +4241,23 @@ fn template_with_dep_res(template: &str, dependency_res: &[Value]) -> String {
 
 /// Fires the configured pre-request HTTP hook. Fire-and-forget: network
 /// errors are logged (when debug env is set) but do not fail the scenario.
+///
+/// When `hook.url` is `None`, the hook degenerates to a pure sleep of
+/// `timeout_secs` seconds — used to wait out sandbox-side dedup/rate windows.
 #[allow(clippy::print_stdout)]
 fn fire_pre_request_http_hook(hook: &PreRequestHttpHook, dependency_res: &[Value]) {
-    let url = template_with_dep_res(&hook.url, dependency_res);
+    let Some(url_template) = hook.url.as_ref() else {
+        thread::sleep(Duration::from_secs(hook.timeout_secs));
+        if std::env::var("UCS_DEBUG_PRE_REQUEST_HOOK").as_deref() == Ok("1") {
+            println!(
+                "[suite_run_test] pre_request_http → slept {}s (no url)",
+                hook.timeout_secs
+            );
+        }
+        return;
+    };
+
+    let url = template_with_dep_res(url_template, dependency_res);
     let body = hook
         .body
         .as_ref()
@@ -4477,19 +4526,21 @@ fn execute_single_scenario_with_context(
     // Apply any explicit dependency path mappings from suite_spec.json.
     apply_context_map(explicit_context_entries, &mut effective_req);
 
-    // Clean up empty wrapper objects left over from context propagation.
-    // This MUST run before resolve_auto_generate so that unresolved
-    // "auto_generate" sentinels inside wrapper objects like
-    // connector_feature_data and state.access_token are detected and
-    // removed — otherwise resolve_auto_generate would replace them with
-    // random "gen_XXXXX" values that the server cannot parse.
-    prune_empty_context_wrappers(&mut effective_req);
+    // Drop connector_feature_data if it still carries an unresolved
+    // "auto_generate" sentinel; this check must see the sentinel intact,
+    // so it runs before resolve_auto_generate.
+    drop_unresolved_connector_feature_data(&mut effective_req);
 
     // Generate values for any remaining "auto_generate" sentinels and resolve
     // "connector_name" placeholders to the uppercase connector enum name.
     // Since context has already been applied, dependency-carried fields are
     // already filled and won't be touched.
     resolve_auto_generate(&mut effective_req, connector)?;
+
+    // Clean up wrappers whose primitive leaves are all defaults (0, null,
+    // false, empty array, empty object). Runs after resolve so substituted
+    // values are present to "rescue" their wrappers.
+    prune_all_default_top_level_keys(&mut effective_req);
 
     if std::env::var("UCS_DEBUG_EFFECTIVE_REQ").as_deref() == Ok("1") {
         if let Ok(request_json) = serde_json::to_string_pretty(&effective_req) {
@@ -4665,6 +4716,8 @@ fn grpc_method_for_suite(suite: &str, spec: Option<&SuiteSpec>) -> Result<String
         "PaymentService/ProxySetupRecurring" => "types.PaymentService/ProxySetupRecurring",
         "PaymentMethodService/Eligibility" => "types.PaymentMethodService/Eligibility",
         "EventService/HandleEvent" => "types.EventService/HandleEvent",
+        "EventService/NotifyConnector" => "types.EventService/NotifyConnector",
+        "SurchargeService/Calculate" => "types.SurchargeService/Calculate",
         _ => {
             return Err(ScenarioError::UnsupportedSuite {
                 suite: suite.to_string(),
@@ -4694,6 +4747,7 @@ pub fn all_known_suites() -> &'static [&'static str] {
         "PaymentService/CreateOrder",
         "PaymentService/Get",
         "EventService/HandleEvent",
+        "EventService/NotifyConnector",
         "PaymentService/IncrementalAuthorization",
         "PaymentMethodService/Eligibility",
         "PaymentMethodAuthenticationService/PostAuthenticate",
@@ -5336,8 +5390,10 @@ grpc-status: 0
         assert!(
             req.get("connector_feature_data").is_none() || req["connector_feature_data"].is_null()
         );
-        // Empty context wrappers with only default leaves should be cleaned up.
-        assert!(req.get("state").is_none() || req["state"].is_null());
+        // Wrappers whose only string leaves are empty are kept: empty strings
+        // carry the documented "intentional send empty" meaning per
+        // prepare_context_placeholders and survive pruning.
+        assert!(req.get("state").is_some());
         // Real values should be kept.
         assert_eq!(req["merchant_transaction_id"]["id"], json!("mti_real"));
     }
@@ -5376,8 +5432,9 @@ grpc-status: 0
 
     #[test]
     fn has_only_default_leaves_detects_all_default_shapes() {
-        // Primitive defaults.
-        assert!(has_only_default_leaves(&json!("")));
+        // Strings are never defaults: empty string is an intentional
+        // "send empty" per prepare_context_placeholders' contract.
+        assert!(!has_only_default_leaves(&json!("")));
         assert!(has_only_default_leaves(&json!(0)));
         assert!(has_only_default_leaves(&json!(0.0)));
         assert!(has_only_default_leaves(&json!(null)));
@@ -5393,8 +5450,9 @@ grpc-status: 0
         assert!(has_only_default_leaves(&json!({})));
         assert!(has_only_default_leaves(&json!([])));
 
-        // Nested all-default objects.
-        assert!(has_only_default_leaves(&json!({
+        // Nested object containing only string leaves: strings are not
+        // defaults, so the wrapper is not all-default.
+        assert!(!has_only_default_leaves(&json!({
             "token": {"value": ""},
             "token_type": "",
             "expires_in_seconds": 0
@@ -5407,24 +5465,26 @@ grpc-status: 0
             "expires_in_seconds": 0
         })));
 
-        // Deeply nested all-default.
-        assert!(has_only_default_leaves(&json!({
+        // Deeply nested object with a string leaf: string is not default,
+        // so the whole wrapper is not all-default.
+        assert!(!has_only_default_leaves(&json!({
             "a": {"b": {"c": ""}, "d": 0},
             "e": null
         })));
 
-        // Array of defaults.
-        assert!(has_only_default_leaves(&json!(["", 0, null, false])));
+        // Array containing a non-default string leaf.
+        assert!(!has_only_default_leaves(&json!(["", 0, null, false])));
 
         // Array with one real value.
         assert!(!has_only_default_leaves(&json!(["", "real", 0])));
     }
 
     #[test]
-    fn prune_removes_all_default_subtree_for_access_token() {
-        // This is the critical Bug 2 scenario: access_token has default
-        // values (empty string, 0) that should be pruned when context
-        // didn't fill any real values.
+    fn prune_keeps_access_token_with_empty_string_leaves() {
+        // After the empty-string-is-default rule was removed, the
+        // access_token wrapper survives even when context never filled
+        // any real values. Strings carry the documented
+        // "intentional send empty" meaning (see prepare_context_placeholders).
         let mut req = json!({
             "merchant_transaction_id": "mti_abc123",
             "state": {
@@ -5438,11 +5498,8 @@ grpc-status: 0
 
         prune_empty_context_wrappers(&mut req);
 
-        // The entire state block should be pruned since all leaves are defaults.
-        assert!(
-            req.get("state").is_none() || req["state"].is_null(),
-            "state with all-default access_token should be pruned"
-        );
+        assert!(req.get("state").is_some());
+        assert_eq!(req["state"]["access_token"]["token"]["value"], json!(""));
         // Real values should be kept.
         assert_eq!(req["merchant_transaction_id"], json!("mti_abc123"));
     }
@@ -5498,17 +5555,19 @@ grpc-status: 0
         assert!(req["payment_method"]["ideal"].is_object());
         // amount should be kept — it has non-default leaves.
         assert_eq!(req["amount"]["minor_amount"], json!(6000));
-        // state should be pruned — all primitive leaves are defaults.
+        // state survives: its string leaves are intentional "send empty",
+        // not defaults that should be cleaned up.
         assert!(
-            req.get("state").is_none(),
-            "state with all-default leaves should be pruned"
+            req.get("state").is_some(),
+            "state with empty-string leaves carries intentional values and survives"
         );
     }
 
     #[test]
-    fn prune_removes_connector_token_with_empty_value() {
+    fn prune_keeps_connector_token_with_empty_value() {
         // Context placeholders like `connector_token: { "value": "" }`
-        // should be pruned when unfilled.
+        // survive: the empty string is a documented "send empty" sentinel,
+        // not a default that should be cleaned up.
         let mut req = json!({
             "connector_token": { "value": "" },
             "merchant_transaction_id": "mti_real"
@@ -5516,15 +5575,13 @@ grpc-status: 0
 
         prune_empty_context_wrappers(&mut req);
 
-        assert!(
-            req.get("connector_token").is_none(),
-            "connector_token with empty value should be pruned"
-        );
+        assert!(req.get("connector_token").is_some());
+        assert_eq!(req["connector_token"]["value"], json!(""));
         assert_eq!(req["merchant_transaction_id"], json!("mti_real"));
     }
 
     #[test]
-    fn prune_removes_customer_with_only_empty_connector_customer_id() {
+    fn prune_keeps_customer_with_only_empty_connector_customer_id() {
         let mut req = json!({
             "customer": { "connector_customer_id": "" },
             "amount": { "minor_amount": 100, "currency": "EUR" }
@@ -5532,10 +5589,9 @@ grpc-status: 0
 
         prune_empty_context_wrappers(&mut req);
 
-        assert!(
-            req.get("customer").is_none(),
-            "customer with only empty connector_customer_id should be pruned"
-        );
+        // Strings are intentional sends, not defaults — customer survives.
+        assert!(req.get("customer").is_some());
+        assert_eq!(req["customer"]["connector_customer_id"], json!(""));
         assert_eq!(req["amount"]["minor_amount"], json!(100));
     }
 
@@ -5566,7 +5622,7 @@ grpc-status: 0
     fn remove_json_path_if_all_defaults_removes_default_subtree() {
         let mut root = json!({
             "wrapper": {
-                "inner": {"value": ""},
+                "inner": {"count": 0},
                 "count": 0
             },
             "keep": "real_data"

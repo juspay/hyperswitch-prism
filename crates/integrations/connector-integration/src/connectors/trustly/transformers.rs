@@ -4,7 +4,7 @@ use common_enums::{self, AttemptStatus, CountryAlpha2, Currency};
 use common_utils::{
     pii::{self, IpAddress},
     request::Method,
-    CustomerId, StringMajorUnit,
+    StringMajorUnit,
 };
 use domain_types::{
     connector_flow::{Authorize, Refund},
@@ -101,7 +101,7 @@ pub struct TrustlyPaymentRequestParams {
 #[serde(rename_all = "PascalCase")]
 pub struct TrustlyPaymentRequestData {
     attributes: TrustlyPaymentRequestAttributes,
-    end_user_i_d: CustomerId,
+    end_user_i_d: String,
     message_i_d: String,
     notification_u_r_l: String,
     password: Secret<String>,
@@ -117,14 +117,21 @@ pub struct TrustlyPaymentRequestAttributes {
     email: pii::Email,
     fail_u_r_l: String,
     firstname: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     i_p: Option<Secret<String, IpAddress>>,
     lastname: Secret<String>,
     locale: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     mobile: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     shipping_address_city: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     shipping_address_country: Option<CountryAlpha2>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     shipping_address_line1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     shipping_address_line2: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     shipping_address_postal_code: Option<Secret<String>>,
     shopper_statement: String,
     success_u_r_l: String,
@@ -288,19 +295,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .change_context(errors::IntegrationError::AmountConversionFailed {
                             context: Default::default(),
                         })?,
-                    country: item
-                        .router_data
-                        .resource_common_data
-                        .get_billing_country()
-                        .unwrap_or(
-                            item.router_data
-                                .resource_common_data
-                                .get_optional_shipping_country()
-                                .ok_or(errors::IntegrationError::MissingRequiredField {
-                                    field_name: "country",
-                                    context: Default::default(),
-                                })?,
-                        ),
+                    country: match item.router_data.resource_common_data.get_billing_country() {
+                        Ok(country) => country,
+                        Err(_) => item
+                            .router_data
+                            .resource_common_data
+                            .get_optional_shipping_country()
+                            .ok_or(errors::IntegrationError::MissingRequiredField {
+                                field_name: "country",
+                                context: Default::default(),
+                            })?,
+                    },
                     currency: item.router_data.request.currency,
                     email: item
                         .router_data
@@ -366,7 +371,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                 let data = TrustlyPaymentRequestData {
                     attributes,
-                    end_user_i_d: item.router_data.request.get_customer_id()?,
+                    end_user_i_d: item
+                        .router_data
+                        .resource_common_data
+                        .get_connector_customer_id()?,
                     message_i_d: item
                         .router_data
                         .resource_common_data
@@ -540,6 +548,7 @@ pub struct TrustlyRefundRequestData {
     order_i_d: String,
     amount: StringMajorUnit,
     currency: Currency,
+    #[serde(skip_serializing_if = "Option::is_none")]
     attributes: Option<TrustlyRefundAttributes>,
 }
 
@@ -745,7 +754,7 @@ pub struct TrustlyWebhookData {
     pub messageid: Secret<String>,
     pub orderid: String,
     pub enduserid: Option<String>,
-    pub accountid: Option<Secret<String>>,
+    pub accountid: Option<String>,
     pub verified: Option<String>,
     pub notificationid: String,
     pub timestamp: Option<String>,
@@ -756,15 +765,15 @@ pub struct TrustlyWebhookData {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TrustlyWebhookAttributes {
-    pub bank: Secret<String>,
-    pub city: Secret<String>,
-    pub name: Secret<String>,
-    pub address: Secret<String>,
-    pub zipcode: Secret<String>,
-    pub personid: Secret<String>,
-    pub descriptor: String,
-    pub lastdigits: String,
-    pub clearinghouse: String,
+    pub bank: Option<Secret<String>>,
+    pub city: Option<Secret<String>>,
+    pub name: Option<Secret<String>>,
+    pub address: Option<Secret<String>>,
+    pub zipcode: Option<Secret<String>>,
+    pub personid: Option<Secret<String>>,
+    pub descriptor: Option<String>,
+    pub lastdigits: Option<String>,
+    pub clearinghouse: Option<String>,
 }
 
 pub fn verify_webhook_signature(
@@ -824,7 +833,10 @@ pub fn get_webhook_event(event: TrustlyWebhookMethod) -> domain_types::connector
         TrustlyWebhookMethod::Credit => {
             domain_types::connector_types::EventType::PaymentIntentSuccess
         }
-        TrustlyWebhookMethod::Debit | TrustlyWebhookMethod::Cancel => {
+        TrustlyWebhookMethod::Debit => {
+            domain_types::connector_types::EventType::PaymentIntentFailure
+        }
+        TrustlyWebhookMethod::Cancel => {
             domain_types::connector_types::EventType::PaymentIntentCancelled
         }
         TrustlyWebhookMethod::Account | TrustlyWebhookMethod::Pending => {
@@ -842,7 +854,8 @@ pub fn get_webhook_event(event: TrustlyWebhookMethod) -> domain_types::connector
 pub fn get_trustly_payment_webhook_status(event: &TrustlyWebhookMethod) -> AttemptStatus {
     match event {
         TrustlyWebhookMethod::Credit => AttemptStatus::Charged,
-        TrustlyWebhookMethod::Debit | TrustlyWebhookMethod::Cancel => AttemptStatus::Failure,
+        TrustlyWebhookMethod::Debit => AttemptStatus::Failure,
+        TrustlyWebhookMethod::Cancel => AttemptStatus::Voided,
         TrustlyWebhookMethod::Account | TrustlyWebhookMethod::Pending => AttemptStatus::Pending,
         _ => AttemptStatus::Pending,
     }

@@ -1,5 +1,5 @@
 {
-  "connector": "sanlam",
+  "connector": "absa_sanlam",
   "supported_suites": [
     "PaymentService/Authorize"
   ]

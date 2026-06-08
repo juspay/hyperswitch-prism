@@ -342,11 +342,15 @@ pub(crate) fn base_defend_dispute_request() -> DisputeServiceDefendRequest {
 
 fn base_card_proxy() -> ProxyCardDetails {
     ProxyCardDetails {
+        // card_number holds a vault token in production (e.g. "token_123456").
+        // We use a real-looking number here only for field-probe/testing purposes.
+        // card_network MUST be set explicitly since BIN detection is not possible on vault tokens.
         card_number: Some(Secret::new("4111111111111111".to_string())),
         card_exp_month: Some(Secret::new("03".to_string())),
         card_exp_year: Some(Secret::new("2030".to_string())),
         card_cvc: Some(Secret::new("123".to_string())),
         card_holder_name: Some(Secret::new("John Doe".to_string())),
+        card_network: Some(grpc_api_types::payments::CardNetwork::Visa as i32),
         ..Default::default()
     }
 }

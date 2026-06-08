@@ -4,7 +4,7 @@ use crate::{
     request::RequestData,
     utils::{grpc_logging_wrapper, MetadataPayload},
 };
-use connector_integration::types::ConnectorData;
+use connector_integration::types::{ConnectorData, ConnectorDataProvider};
 use domain_types::{
     connector_flow::{Accept, DefendDispute, FlowName, SubmitEvidence},
     connector_types::{
@@ -54,6 +54,7 @@ impl DisputeOperationsInternal for Disputes {
         request_data_constructor: DisputeDefendData::foreign_try_from,
         common_flow_data_constructor: DisputeFlowData::foreign_try_from,
         generate_response_fn: generate_defend_dispute_response,
+        connector_data_type: ConnectorData<DefaultPCIHolder>,
         all_keys_required: None
     );
 }
@@ -110,10 +111,13 @@ impl DisputeService for Disputes {
                         resource_id,
                         shadow_mode,
                         tenant_id,
+                        merchant_id,
                         ..
                     } = request_data.extracted_metadata;
                     let connector_data: ConnectorData<DefaultPCIHolder> =
-                        ConnectorData::get_connector_by_name(&connector);
+                        ConnectorData::from_connector_variant(&connector).ok_or_else(|| {
+                            tonic::Status::invalid_argument("Invalid Connector Received")
+                        })?;
 
                     let connector_integration: BoxedConnectorIntegrationV2<
                         '_,
@@ -149,7 +153,7 @@ impl DisputeService for Disputes {
                         response: Err(ErrorResponse::default()),
                     };
                     let event_params = external_services::service::EventProcessingParams {
-                        connector_name: &connector.to_string(),
+                        connector_name: &connector.get_connector_name(),
                         service_name: &service_name,
                         service_type: utils::service_type_str(&config.server.type_),
                         flow_name: common_utils::events::FlowName::SubmitEvidence,
@@ -160,6 +164,8 @@ impl DisputeService for Disputes {
                         resource_id: &resource_id,
                         shadow_mode,
                         tenant_id: &tenant_id,
+                        merchant_id: merchant_id.as_str(),
+                        return_raw_connector_data: config.common.return_raw_connector_data,
                     };
 
                     let response = Box::pin(
@@ -328,11 +334,13 @@ impl DisputeService for Disputes {
                         resource_id,
                         shadow_mode,
                         tenant_id,
+                        merchant_id,
                         ..
                     } = request_data.extracted_metadata;
-
                     let connector_data: ConnectorData<DefaultPCIHolder> =
-                        ConnectorData::get_connector_by_name(&connector);
+                        ConnectorData::from_connector_variant(&connector).ok_or_else(|| {
+                            tonic::Status::invalid_argument("Invalid Connector Received")
+                        })?;
 
                     let connector_integration: BoxedConnectorIntegrationV2<
                         '_,
@@ -369,7 +377,7 @@ impl DisputeService for Disputes {
                     };
 
                     let event_params = external_services::service::EventProcessingParams {
-                        connector_name: &connector.to_string(),
+                        connector_name: &connector.get_connector_name(),
                         service_name: &service_name,
                         service_type: utils::service_type_str(&config.server.type_),
                         flow_name: common_utils::events::FlowName::AcceptDispute,
@@ -380,6 +388,8 @@ impl DisputeService for Disputes {
                         resource_id: &resource_id,
                         shadow_mode,
                         tenant_id: &tenant_id,
+                        merchant_id: merchant_id.as_str(),
+                        return_raw_connector_data: config.common.return_raw_connector_data,
                     };
 
                     let response = Box::pin(

@@ -1,0 +1,9 @@
+{
+  "connector": "axisbank",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "RefundService/Get"
+  ]
+}

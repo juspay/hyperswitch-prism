@@ -2515,6 +2515,7 @@ impl TryFrom<NovalnetWebhookNotificationResponse> for WebhookDetailsResponse {
                                 }
                             }),
                             payment_method_update: None,
+                            sender_payment_instrument_id: None,
                         })
                     }
                     NovalnetAPIStatus::Failure => Ok(Self {
@@ -2537,6 +2538,7 @@ impl TryFrom<NovalnetWebhookNotificationResponse> for WebhookDetailsResponse {
                         error_reason: None,
                         network_txn_id: None,
                         payment_method_update: None,
+                        sender_payment_instrument_id: None,
                     }),
                 }
             }
