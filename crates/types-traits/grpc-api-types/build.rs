@@ -107,7 +107,11 @@ fn add_serde_default_for_connector_configs(
         .iter()
         .filter_map(|f: &prost_types::FieldDescriptorProto| {
             let name = f.type_name().split('.').next_back().unwrap_or("");
-            if name.is_empty() { None } else { Some(name) }
+            if name.is_empty() {
+                None
+            } else {
+                Some(name)
+            }
         })
         .collect();
 
