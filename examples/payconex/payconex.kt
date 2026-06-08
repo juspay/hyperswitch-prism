@@ -1,11 +1,11 @@
 // This file is auto-generated. Do not edit manually.
 // Replace YOUR_API_KEY and placeholder values with real data.
-// Regenerate: python3 scripts/generate-connector-docs.py nextiva
+// Regenerate: python3 scripts/generate-connector-docs.py payconex
 //
-// Nextiva — all scenarios and flows in one file.
-// Run a scenario:  ./gradlew run --args="nextiva processCheckoutCard"
+// Payconex — all scenarios and flows in one file.
+// Run a scenario:  ./gradlew run --args="payconex processCheckoutCard"
 
-package examples.nextiva
+package examples.payconex
 
 import types.Payment.*
 import types.PaymentMethods.*
@@ -19,7 +19,7 @@ import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
 import payments.ConnectorSpecificConfig
-import types.Payment.NextivaConfig
+import types.Payment.PayconexConfig
 import payments.SecretString
 
 val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "proxy_authorize", "refund", "refund_get", "void")
@@ -28,7 +28,7 @@ val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
     .setConnectorConfig(
         ConnectorSpecificConfig.newBuilder()
-            .setNextiva(NextivaConfig.newBuilder()
+            .setPayconex(PayconexConfig.newBuilder()
                 .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
                 .setAccountId(SecretString.newBuilder().setValue("YOUR_ACCOUNT_ID").build())
                 .setBaseUrl("YOUR_BASE_URL")

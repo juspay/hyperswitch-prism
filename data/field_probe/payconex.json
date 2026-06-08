@@ -1,100 +1,100 @@
 {
-  "connector": "nextiva",
+  "connector": "payconex",
   "flows": {
     "authenticate": {
       "default": {
         "status": "not_supported",
-        "error": "authenticate flow not supported by nextiva connector"
+        "error": "authenticate flow not supported by payconex connector"
       }
     },
     "authorize": {
       "Ach": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "AchBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Affirm": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Afterpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Alfamart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "AliPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "AmazonPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "ApplePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "ApplePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "BancontactCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "BillDeskRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Bizum": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Bluecode": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Boleto": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "BriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Card": {
         "status": "supported",
@@ -132,19 +132,19 @@
       },
       "CashappQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "CashfreeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "ClassicReward": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Crypto": {
         "status": "not_supported",
@@ -152,11 +152,11 @@
       },
       "Dana": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "DuitNow": {
         "status": "not_supported",
@@ -164,35 +164,35 @@
       },
       "EVoucher": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "EaseBuzzRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Efecty": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Eft": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Eps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "FamilyMart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "GCash": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Giropay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Givex": {
         "status": "not_supported",
@@ -200,87 +200,87 @@
       },
       "GoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "GooglePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "GooglePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Ideal": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Indomaret": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "IndonesianBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "InstantBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "InstantBankTransferFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "InstantBankTransferPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Interac": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "KakaoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Klarna": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Lawson": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "LazyPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "MandiriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "MbWay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Mifinity": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "MiniStop": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "MobilePayRedirect": {
         "status": "not_supported",
@@ -288,43 +288,43 @@
       },
       "Momo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Netbanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "OnlineBankingFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "OnlineBankingFpx": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "OnlineBankingPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "OnlineBankingSlovakia": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "OnlineBankingThailand": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "OpenBankingPis": {
         "status": "not_supported",
@@ -332,19 +332,19 @@
       },
       "OpenBankingUk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Oxxo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "PagoEfectivo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "PayEasy": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "PaySafeCard": {
         "status": "not_supported",
@@ -352,15 +352,15 @@
       },
       "PayURedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Paysera": {
         "status": "not_supported",
@@ -372,63 +372,63 @@
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "PhonePeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Pix": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Przelewy24": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Pse": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "RedCompra": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "RedPagos": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "RevolutPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Satispay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Seicomart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Sepa": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "SepaGuaranteedDebit": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "SevenEleven": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Skrill": {
         "status": "not_supported",
@@ -436,47 +436,47 @@
       },
       "Sofort": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Swish": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "TouchNGo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Trustly": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Twint": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "UpiCollect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "UpiIntent": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "UpiQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Vipps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "WeChatPayQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       },
       "Wero": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       }
     },
     "capture": {
@@ -504,43 +504,43 @@
     "create_client_authentication_token": {
       "default": {
         "status": "not_supported",
-        "error": "client_authentication_token flow not supported by nextiva connector"
+        "error": "client_authentication_token flow not supported by payconex connector"
       }
     },
     "create_customer": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: create_connector_customer flow for nextiva"
+        "error": "This feature is not implemented: create_connector_customer flow for payconex"
       }
     },
     "create_order": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: create_order flow for nextiva"
+        "error": "This feature is not implemented: create_order flow for payconex"
       }
     },
     "create_server_authentication_token": {
       "default": {
         "status": "not_supported",
-        "error": "server_authentication_token flow not supported by nextiva connector"
+        "error": "server_authentication_token flow not supported by payconex connector"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
         "status": "not_supported",
-        "error": "server_session_authentication_token flow not supported by nextiva connector"
+        "error": "server_session_authentication_token flow not supported by payconex connector"
       }
     },
     "dispute_accept": {
       "default": {
         "status": "not_supported",
-        "error": "accept_dispute flow not supported by nextiva connector"
+        "error": "accept_dispute flow not supported by payconex connector"
       }
     },
     "dispute_defend": {
       "default": {
         "status": "not_supported",
-        "error": "defend_dispute flow not supported by nextiva connector"
+        "error": "defend_dispute flow not supported by payconex connector"
       }
     },
     "dispute_get": {
@@ -551,7 +551,7 @@
     "dispute_submit_evidence": {
       "default": {
         "status": "not_supported",
-        "error": "submit_evidence flow not supported by nextiva connector"
+        "error": "submit_evidence flow not supported by payconex connector"
       }
     },
     "eligibility": {
@@ -589,7 +589,7 @@
     "incremental_authorization": {
       "default": {
         "status": "not_supported",
-        "error": "incremental_authorization flow not supported by nextiva connector"
+        "error": "incremental_authorization flow not supported by payconex connector"
       }
     },
     "parse_event": {
@@ -600,13 +600,13 @@
     "post_authenticate": {
       "default": {
         "status": "not_supported",
-        "error": "post_authenticate flow not supported by nextiva connector"
+        "error": "post_authenticate flow not supported by payconex connector"
       }
     },
     "pre_authenticate": {
       "default": {
         "status": "not_supported",
-        "error": "pre_authenticate flow not supported by nextiva connector"
+        "error": "pre_authenticate flow not supported by payconex connector"
       }
     },
     "proxy_authorize": {
@@ -647,19 +647,19 @@
     "proxy_setup_recurring": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for nextiva"
+        "error": "This feature is not implemented: setup_mandate flow for payconex"
       }
     },
     "recurring_charge": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: repeat_payment flow for nextiva"
+        "error": "This feature is not implemented: repeat_payment flow for payconex"
       }
     },
     "recurring_revoke": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: mandate_revoke flow for nextiva"
+        "error": "This feature is not implemented: mandate_revoke flow for payconex"
       }
     },
     "refund": {
@@ -708,31 +708,31 @@
     "reverse": {
       "default": {
         "status": "not_supported",
-        "error": "void_post_capture flow not supported by nextiva connector"
+        "error": "void_post_capture flow not supported by payconex connector"
       }
     },
     "setup_recurring": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for nextiva"
+        "error": "This feature is not implemented: setup_mandate flow for payconex"
       }
     },
     "token_authorize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the Nextiva Authorize flow."
+        "error": "This feature is not implemented: Payment method. Received a non-card payment method for the PayConex Authorize flow."
       }
     },
     "token_setup_recurring": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for nextiva"
+        "error": "This feature is not implemented: setup_mandate flow for payconex"
       }
     },
     "tokenize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for nextiva"
+        "error": "This feature is not implemented: payment_method_token flow for payconex"
       }
     },
     "verify_redirect": {

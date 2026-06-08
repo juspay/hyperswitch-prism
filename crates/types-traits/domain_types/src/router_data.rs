@@ -765,7 +765,7 @@ pub enum ConnectorSpecificConfig {
         merchant_id: Secret<String>,
         base_url: Option<String>,
     },
-    Nextiva {
+    Payconex {
         api_key: Secret<String>,
         account_id: Secret<String>,
         base_url: Option<String>,
@@ -1091,7 +1091,7 @@ impl ConnectorSpecificConfig {
                 api_key,
                 merchant_id
             },
-            Nextiva {
+            Payconex {
                 api_key,
                 account_id
             },
@@ -1512,7 +1512,7 @@ impl ConnectorSpecificConfig {
                     api_key,
                     merchant_id
                 },
-                Nextiva {
+                Payconex {
                     api_key,
                     account_id
                 },
@@ -2062,10 +2062,10 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 merchant_id: juspay.merchant_id.ok_or_else(err)?,
                 base_url: juspay.base_url,
             }),
-            AuthType::Nextiva(nextiva) => Ok(Self::Nextiva {
-                api_key: nextiva.api_key.ok_or_else(err)?,
-                account_id: nextiva.account_id.ok_or_else(err)?,
-                base_url: nextiva.base_url,
+            AuthType::Payconex(payconex) => Ok(Self::Payconex {
+                api_key: payconex.api_key.ok_or_else(err)?,
+                account_id: payconex.account_id.ok_or_else(err)?,
+                base_url: payconex.base_url,
             }),
             AuthType::Tamara(tamara) => Ok(Self::Tamara {
                 api_key: tamara.api_key.ok_or_else(err)?,
@@ -3160,8 +3160,8 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
-                ConnectorEnum::Nextiva => match auth {
-                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Nextiva {
+                ConnectorEnum::Payconex => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Payconex {
                         api_key: api_key.clone(),
                         account_id: key1.clone(),
                         base_url: None,

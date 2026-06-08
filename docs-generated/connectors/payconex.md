@@ -1,9 +1,9 @@
-# Nextiva
+# Payconex
 
 <!--
 This file is auto-generated. Do not edit by hand.
-Source: data/field_probe/nextiva.json
-Regenerate: python3 scripts/generators/docs/generate.py nextiva
+Source: data/field_probe/payconex.json
+Regenerate: python3 scripts/generators/docs/generate.py payconex
 -->
 
 ## SDK Configuration
@@ -23,7 +23,7 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
     connector_config=payment_pb2.ConnectorSpecificConfig(
-        nextiva=payment_pb2.NextivaConfig(
+        payconex=payment_pb2.PayconexConfig(
             api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
             account_id=payment_methods_pb2.SecretString(value="YOUR_ACCOUNT_ID"),
             base_url="YOUR_BASE_URL",
@@ -45,10 +45,10 @@ const { PaymentClient } = require('hyperswitch-prism');
 const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
 const config = ConnectorConfig.create({
-    connector: Connector.NEXTIVA,
+    connector: Connector.PAYCONEX,
     environment: Environment.SANDBOX,
     auth: {
-        nextiva: {
+        payconex: {
             apiKey: { value: 'YOUR_API_KEY' },
             accountId: { value: 'YOUR_ACCOUNT_ID' },
             baseUrl: 'YOUR_BASE_URL',
@@ -69,7 +69,7 @@ val config = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
     .setConnectorConfig(
         ConnectorSpecificConfig.newBuilder()
-            .setNextiva(NextivaConfig.newBuilder()
+            .setPayconex(PayconexConfig.newBuilder()
                 .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
                 .setAccountId(SecretString.newBuilder().setValue("YOUR_ACCOUNT_ID").build())
                 .setBaseUrl("YOUR_BASE_URL")
@@ -92,7 +92,7 @@ use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
     connector_config: Some(ConnectorSpecificConfig {
-            config: Some(connector_specific_config::Config::Nextiva(NextivaConfig {
+            config: Some(connector_specific_config::Config::Payconex(PayconexConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
                 account_id: Some(hyperswitch_masking::Secret::new("YOUR_ACCOUNT_ID".to_string())),  // Authentication credential
                 base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/nextiva/nextiva.py#L121) · [JavaScript](../../examples/nextiva/nextiva.js) · [Kotlin](../../examples/nextiva/nextiva.kt#L112) · [Rust](../../examples/nextiva/nextiva.rs#L157)
+**Examples:** [Python](../../examples/payconex/payconex.py#L121) · [JavaScript](../../examples/payconex/payconex.js) · [Kotlin](../../examples/payconex/payconex.kt#L112) · [Rust](../../examples/payconex/payconex.rs#L157)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/nextiva/nextiva.py#L140) · [JavaScript](../../examples/nextiva/nextiva.js) · [Kotlin](../../examples/nextiva/nextiva.kt#L128) · [Rust](../../examples/nextiva/nextiva.rs#L173)
+**Examples:** [Python](../../examples/payconex/payconex.py#L140) · [JavaScript](../../examples/payconex/payconex.js) · [Kotlin](../../examples/payconex/payconex.kt#L128) · [Rust](../../examples/payconex/payconex.rs#L173)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/nextiva/nextiva.py#L165) · [JavaScript](../../examples/nextiva/nextiva.js) · [Kotlin](../../examples/nextiva/nextiva.kt#L150) · [Rust](../../examples/nextiva/nextiva.rs#L196)
+**Examples:** [Python](../../examples/payconex/payconex.py#L165) · [JavaScript](../../examples/payconex/payconex.js) · [Kotlin](../../examples/payconex/payconex.kt#L150) · [Rust](../../examples/payconex/payconex.rs#L196)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/nextiva/nextiva.py#L190) · [JavaScript](../../examples/nextiva/nextiva.js) · [Kotlin](../../examples/nextiva/nextiva.kt#L172) · [Rust](../../examples/nextiva/nextiva.rs#L219)
+**Examples:** [Python](../../examples/payconex/payconex.py#L190) · [JavaScript](../../examples/payconex/payconex.js) · [Kotlin](../../examples/payconex/payconex.kt#L172) · [Rust](../../examples/payconex/payconex.rs#L219)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/nextiva/nextiva.py#L212) · [JavaScript](../../examples/nextiva/nextiva.js) · [Kotlin](../../examples/nextiva/nextiva.kt#L191) · [Rust](../../examples/nextiva/nextiva.rs#L238)
+**Examples:** [Python](../../examples/payconex/payconex.py#L212) · [JavaScript](../../examples/payconex/payconex.js) · [Kotlin](../../examples/payconex/payconex.kt#L191) · [Rust](../../examples/payconex/payconex.rs#L238)
 
 ## API Reference
 
@@ -305,7 +305,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/nextiva/nextiva.py) · [TypeScript](../../examples/nextiva/nextiva.ts#L245) · [Kotlin](../../examples/nextiva/nextiva.kt#L209) · [Rust](../../examples/nextiva/nextiva.rs)
+**Examples:** [Python](../../examples/payconex/payconex.py) · [TypeScript](../../examples/payconex/payconex.ts#L245) · [Kotlin](../../examples/payconex/payconex.kt#L209) · [Rust](../../examples/payconex/payconex.rs)
 
 #### PaymentService.Capture
 
@@ -316,7 +316,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/nextiva/nextiva.py) · [TypeScript](../../examples/nextiva/nextiva.ts#L254) · [Kotlin](../../examples/nextiva/nextiva.kt#L221) · [Rust](../../examples/nextiva/nextiva.rs)
+**Examples:** [Python](../../examples/payconex/payconex.py) · [TypeScript](../../examples/payconex/payconex.ts#L254) · [Kotlin](../../examples/payconex/payconex.kt#L221) · [Rust](../../examples/payconex/payconex.rs)
 
 #### PaymentService.Get
 
@@ -327,7 +327,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/nextiva/nextiva.py) · [TypeScript](../../examples/nextiva/nextiva.ts#L263) · [Kotlin](../../examples/nextiva/nextiva.kt#L231) · [Rust](../../examples/nextiva/nextiva.rs)
+**Examples:** [Python](../../examples/payconex/payconex.py) · [TypeScript](../../examples/payconex/payconex.ts#L263) · [Kotlin](../../examples/payconex/payconex.kt#L231) · [Rust](../../examples/payconex/payconex.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -338,7 +338,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/nextiva/nextiva.py) · [TypeScript](../../examples/nextiva/nextiva.ts#L272) · [Kotlin](../../examples/nextiva/nextiva.kt#L239) · [Rust](../../examples/nextiva/nextiva.rs)
+**Examples:** [Python](../../examples/payconex/payconex.py) · [TypeScript](../../examples/payconex/payconex.ts#L272) · [Kotlin](../../examples/payconex/payconex.kt#L239) · [Rust](../../examples/payconex/payconex.rs)
 
 #### PaymentService.Refund
 
@@ -349,7 +349,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/nextiva/nextiva.py) · [TypeScript](../../examples/nextiva/nextiva.ts#L281) · [Kotlin](../../examples/nextiva/nextiva.kt#L268) · [Rust](../../examples/nextiva/nextiva.rs)
+**Examples:** [Python](../../examples/payconex/payconex.py) · [TypeScript](../../examples/payconex/payconex.ts#L281) · [Kotlin](../../examples/payconex/payconex.kt#L268) · [Rust](../../examples/payconex/payconex.rs)
 
 #### PaymentService.Void
 
@@ -360,7 +360,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/nextiva/nextiva.py) · [TypeScript](../../examples/nextiva/nextiva.ts) · [Kotlin](../../examples/nextiva/nextiva.kt#L290) · [Rust](../../examples/nextiva/nextiva.rs)
+**Examples:** [Python](../../examples/payconex/payconex.py) · [TypeScript](../../examples/payconex/payconex.ts) · [Kotlin](../../examples/payconex/payconex.kt#L290) · [Rust](../../examples/payconex/payconex.rs)
 
 ### Refunds
 
@@ -373,4 +373,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/nextiva/nextiva.py) · [TypeScript](../../examples/nextiva/nextiva.ts#L290) · [Kotlin](../../examples/nextiva/nextiva.kt#L278) · [Rust](../../examples/nextiva/nextiva.rs)
+**Examples:** [Python](../../examples/payconex/payconex.py) · [TypeScript](../../examples/payconex/payconex.ts#L290) · [Kotlin](../../examples/payconex/payconex.kt#L278) · [Rust](../../examples/payconex/payconex.rs)

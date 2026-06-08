@@ -1,9 +1,9 @@
 // This file is auto-generated. Do not edit manually.
 // Replace YOUR_API_KEY and placeholder values with real data.
-// Regenerate: python3 scripts/generate-connector-docs.py nextiva
+// Regenerate: python3 scripts/generate-connector-docs.py payconex
 //
-// Nextiva — all scenarios and flows in one file.
-// Run a scenario:  cargo run --example nextiva -- process_checkout_card
+// Payconex — all scenarios and flows in one file.
+// Run a scenario:  cargo run --example payconex -- process_checkout_card
 use cards::CardNumber;
 use grpc_api_types::payments::connector_specific_config;
 use grpc_api_types::payments::payment_method;
@@ -29,14 +29,16 @@ fn build_client() -> ConnectorClient {
     // Configure the connector with authentication
     let config = ConnectorConfig {
         connector_config: Some(ConnectorSpecificConfig {
-            config: Some(connector_specific_config::Config::Nextiva(NextivaConfig {
-                api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())), // Authentication credential
-                account_id: Some(hyperswitch_masking::Secret::new(
-                    "YOUR_ACCOUNT_ID".to_string(),
-                )), // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
-                ..Default::default()
-            })),
+            config: Some(connector_specific_config::Config::Payconex(
+                PayconexConfig {
+                    api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())), // Authentication credential
+                    account_id: Some(hyperswitch_masking::Secret::new(
+                        "YOUR_ACCOUNT_ID".to_string(),
+                    )), // Authentication credential
+                    base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
+                    ..Default::default()
+                },
+            )),
         }),
         options: Some(SdkOptions {
             environment: Environment::Sandbox.into(),

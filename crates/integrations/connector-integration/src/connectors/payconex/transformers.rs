@@ -21,23 +21,23 @@ use error_stack::{report, Report, ResultExt};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::{connectors::nextiva::NextivaRouterData, types::ResponseRouterData};
+use crate::{connectors::payconex::PayconexRouterData, types::ResponseRouterData};
 
 // =============================================================================
 // AUTH
 // =============================================================================
 #[derive(Debug, Clone)]
-pub struct NextivaAuthType {
+pub struct PayconexAuthType {
     pub api_accesskey: Secret<String>,
     pub account_id: Secret<String>,
 }
 
-impl TryFrom<&ConnectorSpecificConfig> for NextivaAuthType {
+impl TryFrom<&ConnectorSpecificConfig> for PayconexAuthType {
     type Error = Report<IntegrationError>;
 
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorSpecificConfig::Nextiva {
+            ConnectorSpecificConfig::Payconex {
                 api_key,
                 account_id,
                 ..
@@ -126,7 +126,7 @@ where
 // AUTHORIZE / SALE REQUEST
 // =============================================================================
 #[derive(Debug, Serialize)]
-pub struct NextivaPaymentsRequest<T: PaymentMethodDataTypes + Serialize + Debug> {
+pub struct PayconexPaymentsRequest<T: PaymentMethodDataTypes + Serialize + Debug> {
     pub account_id: Secret<String>,
     pub api_accesskey: Secret<String>,
     pub tender_type: TenderType,
@@ -147,7 +147,7 @@ pub struct NextivaPaymentsRequest<T: PaymentMethodDataTypes + Serialize + Debug>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
-        NextivaRouterData<
+        PayconexRouterData<
             RouterDataV2<
                 Authorize,
                 PaymentFlowData,
@@ -156,11 +156,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             >,
             T,
         >,
-    > for NextivaPaymentsRequest<T>
+    > for PayconexPaymentsRequest<T>
 {
     type Error = Report<IntegrationError>;
     fn try_from(
-        item: NextivaRouterData<
+        item: PayconexRouterData<
             RouterDataV2<
                 Authorize,
                 PaymentFlowData,
@@ -172,15 +172,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let request = &router_data.request;
-        let auth = NextivaAuthType::try_from(&router_data.connector_config)?;
+        let auth = PayconexAuthType::try_from(&router_data.connector_config)?;
 
         if router_data.resource_common_data.is_three_ds() {
             return Err(report!(IntegrationError::NotSupported {
                 message: "3DS card payments".to_string(),
-                connector: "Nextiva",
+                connector: "Payconex",
                 context: IntegrationErrorContext {
                     suggested_action: Some(
-                        "Route 3DS card payments to a 3DS-capable connector; Nextiva (PayConex) \
+                        "Route 3DS card payments to a 3DS-capable connector; PayConex \
                          supports no-3DS card payments only."
                             .to_string(),
                     ),
@@ -243,12 +243,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 "Payment method".to_string(),
                 IntegrationErrorContext {
                     suggested_action: Some(
-                        "Use a card payment method; Nextiva (PayConex) currently supports card \
+                        "Use a card payment method; PayConex currently supports card \
                          payments only."
                             .to_string(),
                     ),
                     additional_context: Some(
-                        "Received a non-card payment method for the Nextiva Authorize flow."
+                        "Received a non-card payment method for the PayConex Authorize flow."
                             .to_string(),
                     ),
                     ..Default::default()
@@ -262,7 +262,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // CAPTURE REQUEST
 // =============================================================================
 #[derive(Debug, Serialize)]
-pub struct NextivaCaptureRequest {
+pub struct PayconexCaptureRequest {
     pub account_id: Secret<String>,
     pub api_accesskey: Secret<String>,
     pub tender_type: TenderType,
@@ -274,21 +274,21 @@ pub struct NextivaCaptureRequest {
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
-        NextivaRouterData<
+        PayconexRouterData<
             RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
             T,
         >,
-    > for NextivaCaptureRequest
+    > for PayconexCaptureRequest
 {
     type Error = Report<IntegrationError>;
     fn try_from(
-        item: NextivaRouterData<
+        item: PayconexRouterData<
             RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
             T,
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let auth = NextivaAuthType::try_from(&router_data.connector_config)?;
+        let auth = PayconexAuthType::try_from(&router_data.connector_config)?;
         let transaction_amount = item
             .connector
             .amount_converter
@@ -315,7 +315,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // VOID (REVERSAL) REQUEST
 // =============================================================================
 #[derive(Debug, Serialize)]
-pub struct NextivaVoidRequest {
+pub struct PayconexVoidRequest {
     pub account_id: Secret<String>,
     pub api_accesskey: Secret<String>,
     pub transaction_type: TransactionType,
@@ -325,21 +325,21 @@ pub struct NextivaVoidRequest {
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
-        NextivaRouterData<
+        PayconexRouterData<
             RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
             T,
         >,
-    > for NextivaVoidRequest
+    > for PayconexVoidRequest
 {
     type Error = Report<IntegrationError>;
     fn try_from(
-        item: NextivaRouterData<
+        item: PayconexRouterData<
             RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
             T,
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let auth = NextivaAuthType::try_from(&router_data.connector_config)?;
+        let auth = PayconexAuthType::try_from(&router_data.connector_config)?;
         Ok(Self {
             account_id: auth.account_id,
             api_accesskey: auth.api_accesskey,
@@ -354,7 +354,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // PSYNC REQUEST (TSAPI)
 // =============================================================================
 #[derive(Debug, Serialize)]
-pub struct NextivaSyncRequest {
+pub struct PayconexSyncRequest {
     pub account_id: Secret<String>,
     pub api_accesskey: Secret<String>,
     pub action: TsapiAction,
@@ -364,21 +364,21 @@ pub struct NextivaSyncRequest {
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
-        NextivaRouterData<
+        PayconexRouterData<
             RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
             T,
         >,
-    > for NextivaSyncRequest
+    > for PayconexSyncRequest
 {
     type Error = Report<IntegrationError>;
     fn try_from(
-        item: NextivaRouterData<
+        item: PayconexRouterData<
             RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
             T,
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let auth = NextivaAuthType::try_from(&router_data.connector_config)?;
+        let auth = PayconexAuthType::try_from(&router_data.connector_config)?;
         let transaction_id = router_data
             .request
             .connector_transaction_id
@@ -400,7 +400,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // REFUND REQUEST
 // =============================================================================
 #[derive(Debug, Serialize)]
-pub struct NextivaRefundRequest {
+pub struct PayconexRefundRequest {
     pub account_id: Secret<String>,
     pub api_accesskey: Secret<String>,
     pub tender_type: TenderType,
@@ -412,21 +412,21 @@ pub struct NextivaRefundRequest {
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
-        NextivaRouterData<
+        PayconexRouterData<
             RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
             T,
         >,
-    > for NextivaRefundRequest
+    > for PayconexRefundRequest
 {
     type Error = Report<IntegrationError>;
     fn try_from(
-        item: NextivaRouterData<
+        item: PayconexRouterData<
             RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
             T,
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let auth = NextivaAuthType::try_from(&router_data.connector_config)?;
+        let auth = PayconexAuthType::try_from(&router_data.connector_config)?;
         let transaction_amount = item
             .connector
             .amount_converter
@@ -453,7 +453,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // RSYNC REQUEST (TSAPI)
 // =============================================================================
 #[derive(Debug, Serialize)]
-pub struct NextivaRefundSyncRequest {
+pub struct PayconexRefundSyncRequest {
     pub account_id: Secret<String>,
     pub api_accesskey: Secret<String>,
     pub action: TsapiAction,
@@ -463,21 +463,21 @@ pub struct NextivaRefundSyncRequest {
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
-        NextivaRouterData<
+        PayconexRouterData<
             RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
             T,
         >,
-    > for NextivaRefundSyncRequest
+    > for PayconexRefundSyncRequest
 {
     type Error = Report<IntegrationError>;
     fn try_from(
-        item: NextivaRouterData<
+        item: PayconexRouterData<
             RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
             T,
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let auth = NextivaAuthType::try_from(&router_data.connector_config)?;
+        let auth = PayconexAuthType::try_from(&router_data.connector_config)?;
         Ok(Self {
             account_id: auth.account_id,
             api_accesskey: auth.api_accesskey,
@@ -492,7 +492,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // RESPONSES
 // =============================================================================
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct NextivaErrorResponse {
+pub struct PayconexErrorResponse {
     #[serde(default, deserialize_with = "de_flexible_bool")]
     pub error: bool,
     pub error_code: Option<String>,
@@ -501,7 +501,7 @@ pub struct NextivaErrorResponse {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct NextivaPaymentsResponse {
+pub struct PayconexPaymentsResponse {
     pub transaction_id: Option<String>,
     #[serde(default, deserialize_with = "de_flexible_bool")]
     pub transaction_approved: bool,
@@ -510,7 +510,7 @@ pub struct NextivaPaymentsResponse {
     pub error_message: Option<String>,
 }
 
-impl NextivaPaymentsResponse {
+impl PayconexPaymentsResponse {
     fn is_approved(&self) -> bool {
         self.transaction_approved
     }
@@ -519,7 +519,7 @@ impl NextivaPaymentsResponse {
         self.transaction_id.clone().ok_or_else(|| {
             report!(ConnectorError::response_handling_failed_with_context(
                 http_code,
-                Some("missing transaction_id in Nextiva response".to_string()),
+                Some("missing transaction_id in PayConex response".to_string()),
             ))
         })
     }
@@ -532,7 +532,7 @@ pub fn value_to_string(value: &serde_json::Value) -> String {
     }
 }
 
-// All Nextiva responses share the same `error_code` / `error_message` /
+// All PayConex responses share the same `error_code` / `error_message` /
 // `authorization_message` shape, so the error-string mapping lives here once
 // rather than being re-implemented on every response struct.
 fn error_code_string(error_code: &Option<serde_json::Value>) -> String {
@@ -578,12 +578,12 @@ fn map_refund_status(found: bool, approved: bool) -> common_enums::RefundStatus 
 }
 
 // ---- Authorize response ----
-impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NextivaPaymentsResponse, Self>>
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayconexPaymentsResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
     type Error = Report<ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<NextivaPaymentsResponse, Self>,
+        item: ResponseRouterData<PayconexPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let is_auto_capture = item.router_data.request.is_auto_capture();
         let status = map_payment_status(true, item.response.is_approved(), is_auto_capture);
@@ -628,7 +628,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NextivaPaymentsRespon
 
 // ---- Capture response ----
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct NextivaCaptureResponse {
+pub struct PayconexCaptureResponse {
     pub transaction_id: Option<String>,
     #[serde(default, deserialize_with = "de_flexible_bool")]
     pub transaction_approved: bool,
@@ -637,7 +637,7 @@ pub struct NextivaCaptureResponse {
     pub error_message: Option<String>,
 }
 
-impl NextivaCaptureResponse {
+impl PayconexCaptureResponse {
     fn is_approved(&self) -> bool {
         self.transaction_approved
     }
@@ -645,18 +645,18 @@ impl NextivaCaptureResponse {
         self.transaction_id.clone().ok_or_else(|| {
             report!(ConnectorError::response_handling_failed_with_context(
                 http_code,
-                Some("missing transaction_id in Nextiva capture response".to_string()),
+                Some("missing transaction_id in PayConex capture response".to_string()),
             ))
         })
     }
 }
 
-impl TryFrom<ResponseRouterData<NextivaCaptureResponse, Self>>
+impl TryFrom<ResponseRouterData<PayconexCaptureResponse, Self>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
     type Error = Report<ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<NextivaCaptureResponse, Self>,
+        item: ResponseRouterData<PayconexCaptureResponse, Self>,
     ) -> Result<Self, Self::Error> {
         if item.response.is_approved() {
             let transaction_id = item.response.get_transaction_id(item.http_code)?;
@@ -705,7 +705,7 @@ impl TryFrom<ResponseRouterData<NextivaCaptureResponse, Self>>
 
 // ---- Void (REVERSAL) response ----
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct NextivaVoidResponse {
+pub struct PayconexVoidResponse {
     pub transaction_id: Option<String>,
     #[serde(default, deserialize_with = "de_flexible_bool")]
     pub transaction_approved: bool,
@@ -714,7 +714,7 @@ pub struct NextivaVoidResponse {
     pub error_message: Option<String>,
 }
 
-impl NextivaVoidResponse {
+impl PayconexVoidResponse {
     fn is_approved(&self) -> bool {
         self.transaction_approved
     }
@@ -722,17 +722,17 @@ impl NextivaVoidResponse {
         self.transaction_id.clone().ok_or_else(|| {
             report!(ConnectorError::response_handling_failed_with_context(
                 http_code,
-                Some("missing transaction_id in Nextiva void response".to_string()),
+                Some("missing transaction_id in PayConex void response".to_string()),
             ))
         })
     }
 }
 
-impl TryFrom<ResponseRouterData<NextivaVoidResponse, Self>>
+impl TryFrom<ResponseRouterData<PayconexVoidResponse, Self>>
     for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
     type Error = Report<ConnectorError>;
-    fn try_from(item: ResponseRouterData<NextivaVoidResponse, Self>) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<PayconexVoidResponse, Self>) -> Result<Self, Self::Error> {
         if item.response.is_approved() {
             let transaction_id = item.response.get_transaction_id(item.http_code)?;
             Ok(Self {
@@ -780,10 +780,13 @@ impl TryFrom<ResponseRouterData<NextivaVoidResponse, Self>>
 
 // ---- PSync response (TSAPI) ----
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct NextivaSyncResponse {
+pub struct PayconexSyncResponse {
     pub transaction_id: Option<String>,
     #[serde(default, deserialize_with = "de_flexible_bool")]
     pub transaction_approved: bool,
+    /// PayConex TSAPI `found` flag: `true` when `GET_TRANSACTION_STATUS` located a
+    /// transaction record for the queried id. `false` means no record exists yet, so
+    /// the status is treated as Pending (see `map_payment_status` / `map_refund_status`).
     #[serde(default, deserialize_with = "de_flexible_bool")]
     pub found: bool,
     pub authorization_message: Option<String>,
@@ -791,11 +794,11 @@ pub struct NextivaSyncResponse {
     pub error_message: Option<String>,
 }
 
-impl TryFrom<ResponseRouterData<NextivaSyncResponse, Self>>
+impl TryFrom<ResponseRouterData<PayconexSyncResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = Report<ConnectorError>;
-    fn try_from(item: ResponseRouterData<NextivaSyncResponse, Self>) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<PayconexSyncResponse, Self>) -> Result<Self, Self::Error> {
         // PayConex GET_TRANSACTION_STATUS does not expose whether a manual authorization
         // has been captured, so mirror the Authorize intent: approved auto-capture ->
         // Charged, approved manual-capture -> Authorized, no record yet -> Pending.
@@ -850,10 +853,13 @@ impl TryFrom<ResponseRouterData<NextivaSyncResponse, Self>>
 
 // ---- Refund / RSync response ----
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct NextivaRefundResponse {
+pub struct PayconexRefundResponse {
     pub transaction_id: Option<String>,
     #[serde(default, deserialize_with = "de_flexible_bool")]
     pub transaction_approved: bool,
+    /// PayConex TSAPI `found` flag: `true` when `GET_TRANSACTION_STATUS` located a
+    /// transaction record for the queried id. `false` means no record exists yet, so
+    /// the status is treated as Pending (see `map_payment_status` / `map_refund_status`).
     #[serde(default, deserialize_with = "de_flexible_bool")]
     pub found: bool,
     pub authorization_message: Option<String>,
@@ -861,12 +867,12 @@ pub struct NextivaRefundResponse {
     pub error_message: Option<String>,
 }
 
-impl TryFrom<ResponseRouterData<NextivaRefundResponse, Self>>
+impl TryFrom<ResponseRouterData<PayconexRefundResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
     type Error = Report<ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<NextivaRefundResponse, Self>,
+        item: ResponseRouterData<PayconexRefundResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let refund_status = map_refund_status(true, item.response.transaction_approved);
         let response = match refund_status {
@@ -888,7 +894,7 @@ impl TryFrom<ResponseRouterData<NextivaRefundResponse, Self>>
                 connector_refund_id: item.response.transaction_id.clone().ok_or_else(|| {
                     report!(ConnectorError::response_handling_failed_with_context(
                         item.http_code,
-                        Some("missing transaction_id in Nextiva refund response".to_string()),
+                        Some("missing transaction_id in PayConex refund response".to_string()),
                     ))
                 })?,
                 refund_status,
@@ -907,10 +913,13 @@ impl TryFrom<ResponseRouterData<NextivaRefundResponse, Self>>
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct NextivaRefundSyncResponse {
+pub struct PayconexRefundSyncResponse {
     pub transaction_id: Option<String>,
     #[serde(default, deserialize_with = "de_flexible_bool")]
     pub transaction_approved: bool,
+    /// PayConex TSAPI `found` flag: `true` when `GET_TRANSACTION_STATUS` located a
+    /// transaction record for the queried id. `false` means no record exists yet, so
+    /// the status is treated as Pending (see `map_payment_status` / `map_refund_status`).
     #[serde(default, deserialize_with = "de_flexible_bool")]
     pub found: bool,
     pub authorization_message: Option<String>,
@@ -918,12 +927,12 @@ pub struct NextivaRefundSyncResponse {
     pub error_message: Option<String>,
 }
 
-impl TryFrom<ResponseRouterData<NextivaRefundSyncResponse, Self>>
+impl TryFrom<ResponseRouterData<PayconexRefundSyncResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
     type Error = Report<ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<NextivaRefundSyncResponse, Self>,
+        item: ResponseRouterData<PayconexRefundSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let refund_status =
             map_refund_status(item.response.found, item.response.transaction_approved);

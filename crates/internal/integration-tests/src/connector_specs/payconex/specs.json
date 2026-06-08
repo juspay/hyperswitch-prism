@@ -1,5 +1,5 @@
 {
-  "connector": "nextiva",
+  "connector": "payconex",
   "supported_suites": [
     "PaymentService/Authorize",
     "PaymentService/Capture",

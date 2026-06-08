@@ -781,7 +781,7 @@ enum Connector {
   TWOC_TWOP_PACO = 121;
   JUSPAY = 122;
   TAMARA = 123;
-  NEXTIVA = 124;
+  PAYCONEX = 124;
 }
 
 // Payment method types
@@ -4394,7 +4394,7 @@ message JuspayConfig {
   optional string base_url = 50;
 }
 
-message NextivaConfig {
+message PayconexConfig {
   SecretString api_key = 1;
   SecretString account_id = 2;
   optional string base_url = 50;
@@ -4680,8 +4680,8 @@ message ConnectorSpecificConfig {
     // TAMARA = 123
     TamaraConfig tamara = 128;
 
-    // NEXTIVA = 124
-    NextivaConfig nextiva = 129;
+    // PAYCONEX = 124
+    PayconexConfig payconex = 129;
   }
 }
 

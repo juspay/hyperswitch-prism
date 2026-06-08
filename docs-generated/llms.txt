@@ -406,14 +406,6 @@ payment_methods: none
 flows: capture, get, pre_authenticate, recurring_charge, refund, refund_get, setup_recurring, void
 examples_python: none
 
-## Nextiva
-connector_id: nextiva
-doc: docs/connectors/nextiva.md
-scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: Card
-flows: authorize, capture, get, proxy_authorize, refund, refund_get, void
-examples_python: examples/nextiva/nextiva.py
-
 ## Nmi
 connector_id: nmi
 doc: docs/connectors/nmi.md
@@ -453,6 +445,14 @@ scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_paymen
 payment_methods: Card
 flows: authorize, capture, get, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
 examples_python: examples/paybox/paybox.py
+
+## Payconex
+connector_id: payconex
+doc: docs/connectors/payconex.md
+scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, proxy_authorize, refund, refund_get, void
+examples_python: examples/payconex/payconex.py
 
 ## Payload
 connector_id: payload

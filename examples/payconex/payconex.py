@@ -1,9 +1,9 @@
 # This file is auto-generated. Do not edit manually.
 # Replace YOUR_API_KEY and placeholder values with real data.
-# Regenerate: python3 scripts/generate-connector-docs.py nextiva
+# Regenerate: python3 scripts/generate-connector-docs.py payconex
 #
-# Nextiva — all integration scenarios and flows in one file.
-# Run a scenario:  python3 nextiva.py checkout_card
+# Payconex — all integration scenarios and flows in one file.
+# Run a scenario:  python3 payconex.py checkout_card
 
 import asyncio
 import sys
@@ -16,7 +16,7 @@ SUPPORTED_FLOWS = ["authorize", "capture", "get", "proxy_authorize", "refund", "
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
     connector_config=payment_pb2.ConnectorSpecificConfig(
-        nextiva=payment_pb2.NextivaConfig(
+        payconex=payment_pb2.PayconexConfig(
             api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
             account_id=payment_methods_pb2.SecretString(value="YOUR_ACCOUNT_ID"),
             base_url="YOUR_BASE_URL",
