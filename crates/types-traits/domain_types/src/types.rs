@@ -2283,6 +2283,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for Option<Paym
             grpc_api_types::payments::PaymentMethodType::AliPay => {
                 Ok(Some(PaymentMethodType::AliPay))
             }
+            grpc_api_types::payments::PaymentMethodType::Gcash => {
+                Ok(Some(PaymentMethodType::Gcash))
+            }
             grpc_api_types::payments::PaymentMethodType::Cashapp => {
                 Ok(Some(PaymentMethodType::Cashapp))
             }
@@ -3392,6 +3395,9 @@ impl<
                     grpc_payment_types::DocumentKind::Cnpj => {
                         Some(crate::payment_method_data::DocumentKind::Cnpj)
                     }
+                    grpc_payment_types::DocumentKind::Other => {
+                        Some(crate::payment_method_data::DocumentKind::Other)
+                    }
                     grpc_payment_types::DocumentKind::Unspecified => None,
                 };
                 document_type.zip(doc.document_number.clone()).map(
@@ -3631,6 +3637,9 @@ impl<
                     }
                     grpc_payment_types::DocumentKind::Cnpj => {
                         Some(crate::payment_method_data::DocumentKind::Cnpj)
+                    }
+                    grpc_payment_types::DocumentKind::Other => {
+                        Some(crate::payment_method_data::DocumentKind::Other)
                     }
                     grpc_payment_types::DocumentKind::Unspecified => None,
                 };
@@ -9005,6 +9014,9 @@ impl<
                     grpc_payment_types::DocumentKind::Cnpj => {
                         Some(crate::payment_method_data::DocumentKind::Cnpj)
                     }
+                    grpc_payment_types::DocumentKind::Other => {
+                        Some(crate::payment_method_data::DocumentKind::Other)
+                    }
                     grpc_payment_types::DocumentKind::Unspecified => None,
                 };
                 document_type.zip(doc.document_number.clone()).map(
@@ -11099,14 +11111,19 @@ impl<
         // Extract the customer identification document (mirrors the EMAIL field above).
         // Proto DocumentKind -> domain DocumentKind; UNSPECIFIED document_type means
         // no usable document, so the whole detail is treated as None.
-        let customer_document_details: Option<CustomerDocumentDetails> =
-            value.customer_document_details.as_ref().and_then(|doc| {
+        let customer_document_details: Option<CustomerDocumentDetails> = value
+            .customer_document_details
+            .as_ref()
+            .and_then(|doc| {
                 let document_type = match doc.document_type() {
                     grpc_payment_types::DocumentKind::Cpf => {
                         Some(crate::payment_method_data::DocumentKind::Cpf)
                     }
                     grpc_payment_types::DocumentKind::Cnpj => {
                         Some(crate::payment_method_data::DocumentKind::Cnpj)
+                    }
+                    grpc_payment_types::DocumentKind::Other => {
+                        Some(crate::payment_method_data::DocumentKind::Other)
                     }
                     grpc_payment_types::DocumentKind::Unspecified => None,
                 };

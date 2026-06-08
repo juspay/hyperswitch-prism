@@ -141,6 +141,7 @@ enum DocumentKind {
   DOCUMENT_KIND_UNSPECIFIED = 0; // Default, unspecified document type.
   CPF = 1; // Cadastro de Pessoas Físicas - Brazilian individual taxpayer ID.
   CNPJ = 2; // Cadastro Nacional da Pessoa Jurídica - Brazilian business ID.
+  OTHER = 3; // Generic / non-Brazilian national document (e.g. the Philippine PSN required by dLocal for GCash). Validated by the connector per country.
 }
 
 // Customer's country-specific identification document.
