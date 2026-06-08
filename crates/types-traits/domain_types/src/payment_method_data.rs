@@ -748,6 +748,9 @@ pub enum WalletData {
     CashfreeRedirect(CashfreeRedirection),
     PayURedirect(PayURedirection),
     EaseBuzzRedirect(EaseBuzzRedirection),
+    /// Qwikcilver / Pine Labs stored-value wallet — server-to-server, the
+    /// caller supplies the wallet number directly.
+    QwikcilverDirect(Box<QwikcilverDirectWalletData>),
 }
 
 impl WalletData {
@@ -1661,6 +1664,14 @@ pub struct SamsungPayWebWalletData {
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AmazonPayRedirectData {}
+
+/// Qwikcilver / Pine Labs stored-value wallet payload. Carries the wallet
+/// number directly on the payment_method (no redirect, no SDK).
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct QwikcilverDirectWalletData {
+    /// Pine Labs wallet number. PII.
+    pub wallet_number: Secret<String>,
+}
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CoBadgedCardData {

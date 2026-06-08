@@ -131,12 +131,17 @@ where
         >,
     ) -> Result<Self, Self::Error> {
         let auth = QwikcilverAuthType::try_from(&item.router_data.connector_config)?;
+        let common = &item.router_data.resource_common_data;
+        let transaction_id =
+            transaction_id_from_reference(&common.connector_request_reference_id);
+        let date_at_client =
+            resolve_date_at_client(common.connector_feature_data.as_ref().map(|s| s.peek()))?;
         Ok(Self {
             terminal_id: auth.terminal_id,
             username: auth.username,
             password: auth.password,
-            transaction_id: numeric_transaction_id(),
-            date_at_client: current_datetime_qwikcilver(),
+            transaction_id,
+            date_at_client,
         })
     }
 }
@@ -361,12 +366,16 @@ where
             .merchant_order_id
             .clone()
             .unwrap_or_else(|| invoice_number.clone());
+        let notes = item.router_data.resource_common_data.description.clone();
         Ok(Self {
             idempotencykey,
             invoice_number,
-            amount,
-            notes: None,
-            bill_amount: None,
+            amount: amount.clone(),
+            notes,
+            // Pure Redeem with no upstream discount field: the cart's total
+            // bill equals what we're charging the wallet for. If a future
+            // proto field surfaces "amount before discount", switch to that.
+            bill_amount: Some(amount),
         })
     }
 }
@@ -522,45 +531,26 @@ impl QwikcilverRefundMetadata {
     }
 }
 
-/// Connector-specific feature data passed through `connector_feature_data`
-/// on `PaymentService.Authorize`. Carries the destination wallet number for
-/// Qwikcilver Redeem.
-///
-/// On-wire shape (inside `connector_feature_data.value`):
-///
-/// ```json
-/// { "wallet_number": "4999771007702947" }
-/// ```
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct QwikcilverAuthorizeFeatureData {
-    /// Destination wallet for the Redeem. PII.
-    pub wallet_number: Secret<String>,
-}
-
-impl QwikcilverAuthorizeFeatureData {
-    pub(crate) fn from_request<T>(
-        req: &PaymentsAuthorizeData<T>,
-    ) -> Result<Self, error_stack::Report<IntegrationError>>
-    where
-        T: PaymentMethodDataTypes,
-    {
-        let raw = req.connector_feature_data.as_ref().ok_or_else(|| {
-            error_stack::report!(IntegrationError::MissingRequiredField {
-                field_name: "connector_feature_data.wallet_number",
-                context: Default::default(),
-            })
-        })?;
-        serde_json::from_value(raw.clone().expose()).map_err(|e| {
-            error_stack::report!(IntegrationError::InvalidDataFormat {
-                field_name: "connector_feature_data",
-                context: domain_types::errors::IntegrationErrorContext {
-                    additional_context: Some(format!(
-                        "invalid Qwikcilver connector_feature_data: {e}"
-                    )),
-                    ..Default::default()
-                },
-            })
-        })
+/// Extract the destination wallet number from the typed `payment_method`
+/// tree for Authorize / Redeem. Qwikcilver wallet ops are first-class
+/// (since the `qwikcilver_direct` variant was added to the proto's
+/// `PaymentMethod` oneof) — no more sniffing through
+/// `connector_feature_data` JSON.
+pub(crate) fn qwikcilver_wallet_number_from_authorize<T>(
+    req: &PaymentsAuthorizeData<T>,
+) -> Result<Secret<String>, error_stack::Report<IntegrationError>>
+where
+    T: PaymentMethodDataTypes,
+{
+    use domain_types::payment_method_data::{PaymentMethodData, WalletData};
+    match &req.payment_method_data {
+        PaymentMethodData::Wallet(WalletData::QwikcilverDirect(d)) => {
+            Ok(d.wallet_number.clone())
+        }
+        _ => Err(error_stack::report!(IntegrationError::MissingRequiredField {
+            field_name: "payment_method.qwikcilver_direct.wallet_number",
+            context: Default::default(),
+        })),
     }
 }
 
@@ -814,17 +804,23 @@ impl
             .as_ref()
             .map(|w| w.wallet_number.clone().expose())
             .or_else(|| data.request.connector_payment_method_id.clone());
+        let recharge_currency = data.request.currency;
         let payment_method_details = body.wallet.as_ref().map(|w| {
+            let balance = crate::connectors::qwikcilver::QwikcilverAmountConvertor::convert_back(
+                w.balance,
+                recharge_currency,
+            )
+            .ok();
             PaymentMethodDetails::Wallet(WalletDetails {
                 wallet_account_id: w.wallet_number.clone().expose(),
                 wallet_pin: w.wallet_pin.clone(),
-                wallet_status: None,
+                wallet_status: map_wallet_status(w.status.as_ref()),
                 wallet_holder_name: w.wallet_holder_name.as_ref().map(|h| h.clone().expose()),
-                // Qwikcilver returns balance in major units; the domain type
-                // is MinorUnit. We don't have the currency's exponent here,
-                // so leave balance unset rather than risk a wrong conversion.
-                balance: None,
+                balance,
                 product_id: w.wallet_program_group_name.clone().unwrap_or_default(),
+                // Pine Labs's Wallet.Card carries the most recently added
+                // card, not a full inventory — see wallet_details_to_payment_method_details
+                // for the same rationale.
                 items: Vec::new(),
             })
         });
@@ -918,11 +914,28 @@ pub struct QwikcilverCreateFeatureData {
 }
 
 impl QwikcilverCreateFeatureData {
-    fn from_request(req: &CreatePaymentMethodData) -> Self {
-        req.connector_feature_data
-            .as_ref()
-            .and_then(|raw| serde_json::from_value(raw.clone().expose()).ok())
-            .unwrap_or_default()
+    /// Typed extraction. Absent feature data is fine (the surrounding
+    /// `try_from` reports a `MissingRequiredField` on the actual missing
+    /// scalar field), but *malformed* feature data must surface as
+    /// `InvalidDataFormat` so callers can fix the payload instead of
+    /// chasing a misleading `wallet_program_group_name` error.
+    pub(crate) fn from_request(
+        req: &CreatePaymentMethodData,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
+        let Some(raw) = req.connector_feature_data.as_ref() else {
+            return Ok(Self::default());
+        };
+        serde_json::from_value(raw.clone().expose()).map_err(|e| {
+            error_stack::report!(IntegrationError::InvalidDataFormat {
+                field_name: "connector_feature_data",
+                context: domain_types::errors::IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "invalid Qwikcilver connector_feature_data for Create: {e}"
+                    )),
+                    ..Default::default()
+                },
+            })
+        })
     }
 }
 
@@ -973,7 +986,7 @@ where
                 context: Default::default(),
             })
         })?;
-        let feature = QwikcilverCreateFeatureData::from_request(req);
+        let feature = QwikcilverCreateFeatureData::from_request(req)?;
         let program = feature.wallet_program_group_name.ok_or_else(|| {
             error_stack::report!(IntegrationError::MissingRequiredField {
                 field_name: "connector_feature_data.wallet_program_group_name",
@@ -1105,26 +1118,72 @@ pub struct QwikcilverCustomerDetails {
     pub external_customer_id: Option<Secret<String>>,
 }
 
+/// Map Qwikcilver's free-text wallet status string to the typed domain
+/// enum. Unknown / blank → `None` (don't silently lie via `Unspecified`).
+fn map_wallet_status(s: Option<&String>) -> Option<common_enums::WalletStatus> {
+    s.and_then(|raw| match raw.to_ascii_uppercase().as_str() {
+        "ACTIVE" => Some(common_enums::WalletStatus::Active),
+        "INACTIVE" => Some(common_enums::WalletStatus::Inactive),
+        _ => None,
+    })
+}
+
 fn wallet_details_to_payment_method_details(
     wallet: &QwikcilverWalletDetails,
+    currency: Option<common_enums::Currency>,
 ) -> PaymentMethodDetails {
+    // Qwikcilver returns balance in major units (e.g. `12.5` AED). We need
+    // a currency exponent to convert to MinorUnit — caller passes it in
+    // (typically from `connector_feature_data.currency`). Without it we
+    // leave balance unset rather than risk a wrong conversion.
+    let balance = wallet
+        .balance
+        .zip(currency)
+        .and_then(|(b, c)| {
+            crate::connectors::qwikcilver::QwikcilverAmountConvertor::convert_back(b, c).ok()
+        });
     PaymentMethodDetails::Wallet(WalletDetails {
         wallet_account_id: wallet.wallet_number.clone().expose(),
         wallet_pin: wallet.wallet_pin.clone(),
-        wallet_status: None,
+        wallet_status: map_wallet_status(wallet.status.as_ref()),
         wallet_holder_name: wallet
             .wallet_holder_name
             .as_ref()
             .map(|h| h.clone().expose()),
-        balance: None,
+        balance,
         product_id: wallet.wallet_program_group_name.clone().unwrap_or_default(),
+        // Pine Labs's Wallet.Card carries the most recently added card (the one
+        // from the current operation when it's an Add Card), NOT a snapshot of
+        // all cards in the wallet. Mapping it onto `items` would suggest the
+        // wallet holds exactly one card. Leaving empty until Qwikcilver exposes
+        // a wallet-contents endpoint (none today, per PDF §9).
         items: Vec::new(),
     })
 }
 
+/// Pull an optional `currency` out of the caller's `connector_feature_data`
+/// for response-side balance conversion. Accepts the standard ISO 4217 code
+/// (`"AED"`, `"INR"`, …) — same shape the rest of the API uses.
+fn currency_from_feature_data(
+    feature: Option<&common_utils::pii::SecretSerdeValue>,
+) -> Option<common_enums::Currency> {
+    feature
+        .map(|s| s.peek())
+        .and_then(|v| v.get("currency"))
+        .and_then(|v| v.as_str())
+        .and_then(|s| s.parse().ok())
+}
+
 fn customer_details_to_payment_method_customer_info(
     customer: &QwikcilverCustomerDetails,
+    wallet_external_id: Option<&Secret<String>>,
 ) -> PaymentMethodCustomerInfo {
+    // Pine Labs convention: ExternalWalletId IS the customer's mobile. Use it
+    // as a fallback when the Customer block doesn't carry phone_number directly.
+    let phone_number = customer
+        .phone_number
+        .clone()
+        .or_else(|| wallet_external_id.cloned());
     PaymentMethodCustomerInfo {
         merchant_customer_id: customer
             .external_customer_id
@@ -1136,7 +1195,7 @@ fn customer_details_to_payment_method_customer_info(
             .email
             .as_ref()
             .and_then(|e| common_utils::pii::Email::try_from(e.clone().expose()).ok()),
-        phone_number: customer.phone_number.clone(),
+        phone_number,
     }
 }
 
@@ -1187,15 +1246,18 @@ impl
             return Ok(data);
         }
         let merchant_pm_id = data.request.merchant_payment_method_id.clone();
+        let currency = currency_from_feature_data(data.request.connector_feature_data.as_ref());
         let (connector_pm_id, payment_method_details, customer) =
             if let Some(wallet) = body.wallet.as_ref() {
                 (
                     Some(wallet.wallet_number.clone().expose()),
-                    Some(wallet_details_to_payment_method_details(wallet)),
-                    wallet
-                        .customer
-                        .as_ref()
-                        .map(customer_details_to_payment_method_customer_info),
+                    Some(wallet_details_to_payment_method_details(wallet, currency)),
+                    wallet.customer.as_ref().map(|c| {
+                        customer_details_to_payment_method_customer_info(
+                            c,
+                            wallet.external_wallet_id.as_ref(),
+                        )
+                    }),
                 )
             } else {
                 (None, None, None)
@@ -1258,15 +1320,18 @@ impl
             return Ok(data);
         }
         let merchant_pm_id = data.request.merchant_payment_method_id.clone();
+        let currency = currency_from_feature_data(data.request.connector_feature_data.as_ref());
         let (connector_pm_id, payment_method_details, customer) =
             if let Some(wallet) = body.wallet.as_ref() {
                 (
                     Some(wallet.wallet_number.clone().expose()),
-                    Some(wallet_details_to_payment_method_details(wallet)),
-                    wallet
-                        .customer
-                        .as_ref()
-                        .map(customer_details_to_payment_method_customer_info),
+                    Some(wallet_details_to_payment_method_details(wallet, currency)),
+                    wallet.customer.as_ref().map(|c| {
+                        customer_details_to_payment_method_customer_info(
+                            c,
+                            wallet.external_wallet_id.as_ref(),
+                        )
+                    }),
                 )
             } else {
                 (data.request.connector_payment_method_id.clone(), None, None)
@@ -1302,23 +1367,38 @@ pub struct QwikcilverErrorResponse {
 // HELPERS
 // ============================================================================
 
-/// Numeric `TransactionId` header value. Qwikcilver requires a value that
-/// fits in a signed 64-bit integer — values larger than `i64::MAX` come back
-/// with ResponseCode=1 / "Value was either too large or too small for an Int64."
-/// We mask to 62 bits to stay safely positive.
-pub(crate) fn numeric_transaction_id() -> u64 {
-    (uuid::Uuid::new_v4().as_u128() as u64) & 0x3FFF_FFFF_FFFF_FFFF
+/// Derive Qwikcilver's numeric `TransactionId` header from the caller's
+/// `connector_request_reference_id`. Qwikcilver requires a positive i64;
+/// we take the first 8 bytes of the SHA-256 of the reference id and mask
+/// to 62 bits. Deterministic: same reference id → same TransactionId, so
+/// callers can reproduce/correlate replays without us generating anything
+/// on the server side.
+pub(crate) fn transaction_id_from_reference(reference_id: &str) -> u64 {
+    use sha2::{Digest, Sha256};
+    let digest = Sha256::digest(reference_id.as_bytes());
+    let mut buf = [0u8; 8];
+    buf.copy_from_slice(&digest[..8]);
+    u64::from_be_bytes(buf) & 0x3FFF_FFFF_FFFF_FFFF
 }
 
-/// `DateAtClient` header value. Emits the `time` crate's
-/// `Iso8601::DEFAULT` shape — UTC with a trailing `Z`, e.g.
-/// `"2026-06-05T12:34:56.789012345Z"`. Verified accepted by Qwikcilver in
-/// live UAE-sandbox testing; this is wider than the postman samples
-/// (`YYYY-MM-DDTHH:MM:SS`) but the API tolerates the longer form.
-pub(crate) fn current_datetime_qwikcilver() -> String {
-    time::OffsetDateTime::now_utc()
-        .format(&time::format_description::well_known::Iso8601::DEFAULT)
-        .unwrap_or_else(|_| "1970-01-01T00:00:00.000000000Z".to_string())
+/// Resolve the `DateAtClient` header. Strict: the caller MUST supply it
+/// via `connector_feature_data.date_at_client`; we never substitute a
+/// server-side `now()`, because every header value Qwikcilver sees needs
+/// to be reconcilable from the caller's request.
+pub(crate) fn resolve_date_at_client(
+    feature: Option<&serde_json::Value>,
+) -> Result<String, error_stack::Report<IntegrationError>> {
+    feature
+        .and_then(|v| v.get("date_at_client"))
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+        .map(String::from)
+        .ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "connector_feature_data.date_at_client",
+                context: Default::default(),
+            })
+        })
 }
 
 /// Build an `ErrorResponse` from a Qwikcilver domain error. `attempt_status`
@@ -1347,5 +1427,141 @@ fn make_error_response(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn transaction_id_from_reference_is_deterministic_and_fits_in_i64() {
+        let inputs = [
+            "a1b2c3d4-e5f6-7890-abcd-ef0123456789",
+            "qc-redeem-1780660887",
+            "",
+            "🚀",
+        ];
+        for input in inputs {
+            let a = transaction_id_from_reference(input);
+            let b = transaction_id_from_reference(input);
+            assert_eq!(a, b, "non-deterministic for {input:?}");
+            assert!(a <= i64::MAX as u64, "id {a} exceeds i64::MAX for {input:?}");
+        }
+        // Different inputs should generally produce different ids.
+        assert_ne!(
+            transaction_id_from_reference("ref-1"),
+            transaction_id_from_reference("ref-2"),
+        );
+    }
+
+    #[test]
+    fn composite_txn_id_round_trip() {
+        let cases: &[(i64, i64)] = &[
+            (1, 1),
+            (17_302_801, 4_316_951_125_949_827_754),
+            (i64::MAX, i64::MAX),
+            (0, 0),
+        ];
+        for &(batch, txn) in cases {
+            let s = format_composite_txn_id(batch, txn);
+            let (b, t) = parse_composite_txn_id(&s).expect("round-trip parses");
+            assert_eq!((b, t), (batch, txn));
+        }
+    }
+
+    #[test]
+    fn parse_composite_txn_id_rejects_malformed() {
+        for bad in ["", "123", "a:b", "123:", ":456", "1:2:3"] {
+            assert!(parse_composite_txn_id(bad).is_none(), "should reject {bad:?}");
+        }
+    }
+
+    #[test]
+    fn refund_metadata_parses_happy() {
+        let raw = serde_json::json!({
+            "wallet_number": "4999771007702947",
+            "original_batch_number": 17_306_153_i64,
+            "original_transaction_id": 1_129_324_760_429_976_552_i64,
+        });
+        let parsed: QwikcilverRefundMetadata = serde_json::from_value(raw).unwrap();
+        assert_eq!(parsed.wallet_number.peek(), "4999771007702947");
+        assert_eq!(parsed.original_batch_number, Some(17_306_153));
+        assert_eq!(parsed.original_transaction_id, Some(1_129_324_760_429_976_552));
+    }
+
+    #[test]
+    fn refund_metadata_rejects_missing_wallet_number() {
+        let raw = serde_json::json!({ "original_batch_number": 1 });
+        let parsed: Result<QwikcilverRefundMetadata, _> = serde_json::from_value(raw);
+        assert!(parsed.is_err());
+    }
+
+    fn make_create_req(
+        feature: Option<common_utils::pii::SecretSerdeValue>,
+    ) -> CreatePaymentMethodData {
+        CreatePaymentMethodData {
+            merchant_payment_method_id: None,
+            customer: None,
+            description: None,
+            payment_method_type: common_enums::PaymentMethodType::QwikcilverDirect,
+            connector_feature_data: feature,
+        }
+    }
+
+    #[test]
+    fn create_feature_data_absent_returns_default() {
+        let req = make_create_req(None);
+        let out = QwikcilverCreateFeatureData::from_request(&req).expect("absent is ok");
+        assert!(out.wallet_program_group_name.is_none());
+    }
+
+    #[test]
+    fn create_feature_data_malformed_returns_error() {
+        let req = make_create_req(Some(Secret::new(serde_json::json!("not-an-object"))));
+        let err = QwikcilverCreateFeatureData::from_request(&req).unwrap_err();
+        match err.current_context() {
+            IntegrationError::InvalidDataFormat { field_name, .. } => {
+                assert_eq!(*field_name, "connector_feature_data");
+            }
+            other => panic!("expected InvalidDataFormat, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn resolve_date_at_client_uses_provided() {
+        let v = serde_json::json!({ "date_at_client": "2024-01-01T00:00:00Z" });
+        assert_eq!(resolve_date_at_client(Some(&v)).unwrap(), "2024-01-01T00:00:00Z");
+    }
+
+    #[test]
+    fn resolve_date_at_client_hard_errors_when_missing() {
+        for missing in [None, Some(serde_json::json!({})), Some(serde_json::json!({"other": "x"})), Some(serde_json::json!({"date_at_client": ""}))] {
+            let err = resolve_date_at_client(missing.as_ref()).unwrap_err();
+            match err.current_context() {
+                IntegrationError::MissingRequiredField { field_name, .. } => {
+                    assert_eq!(*field_name, "connector_feature_data.date_at_client");
+                }
+                other => panic!("expected MissingRequiredField, got {other:?}"),
+            }
+        }
+    }
+
+    #[test]
+    fn map_wallet_status_covers_known_strings() {
+        let active = "ACTIVE".to_string();
+        let active_mixed = "Active".to_string();
+        let inactive_upper = "INACTIVE".to_string();
+        let inactive_mixed = "Inactive".to_string();
+        let unknown = "foo".to_string();
+        let empty = String::new();
+
+        assert_eq!(map_wallet_status(Some(&active)), Some(common_enums::WalletStatus::Active));
+        assert_eq!(map_wallet_status(Some(&active_mixed)), Some(common_enums::WalletStatus::Active));
+        assert_eq!(map_wallet_status(Some(&inactive_upper)), Some(common_enums::WalletStatus::Inactive));
+        assert_eq!(map_wallet_status(Some(&inactive_mixed)), Some(common_enums::WalletStatus::Inactive));
+        assert_eq!(map_wallet_status(Some(&unknown)), None);
+        assert_eq!(map_wallet_status(Some(&empty)), None);
+        assert_eq!(map_wallet_status(None), None);
     }
 }

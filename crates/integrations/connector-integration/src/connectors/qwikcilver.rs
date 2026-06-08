@@ -37,7 +37,7 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    self as qwikcilver, QwikcilverAuthType, QwikcilverAuthorizeFeatureData,
+    self as qwikcilver, QwikcilverAuthType,
     QwikcilverAuthorizeRequest, QwikcilverAuthorizeResponse, QwikcilverCancelRedeemBody,
     QwikcilverCancelRedeemResponse, QwikcilverCreateWalletRequest, QwikcilverEmptyBody,
     QwikcilverErrorResponse, QwikcilverGetWalletResponse, QwikcilverRechargeRequest,
@@ -194,6 +194,8 @@ macros::create_all_prerequisites!(
             &self,
             _req: &RouterDataV2<F, FCD, Req, Res>,
             access_token: &hyperswitch_masking::Secret<String>,
+            date_at_client: &str,
+            transaction_id: u64,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError>
         where
             Self: ConnectorIntegrationV2<F, FCD, Req, Res>,
@@ -209,11 +211,11 @@ macros::create_all_prerequisites!(
                 ),
                 (
                     headers::DATE_AT_CLIENT.to_string(),
-                    qwikcilver::current_datetime_qwikcilver().into(),
+                    date_at_client.to_string().into(),
                 ),
                 (
                     headers::TRANSACTION_ID.to_string(),
-                    qwikcilver::numeric_transaction_id().to_string().into(),
+                    transaction_id.to_string().into(),
                 ),
             ])
         }
@@ -430,11 +432,11 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            let feature_data = QwikcilverAuthorizeFeatureData::from_request(&req.request)?;
+            let wallet_number = qwikcilver::qwikcilver_wallet_number_from_authorize(&req.request)?;
             Ok(format!(
                 "{}QwikCilver/egms.restapi/api/v2/wallet/{}/REDEEM",
                 self.connector_base_url_payments(req),
-                urlencoding::encode(feature_data.wallet_number.peek()),
+                urlencoding::encode(wallet_number.peek()),
             ))
         }
 
@@ -443,7 +445,13 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let token = self.extract_access_token(req)?;
-            self.build_authenticated_headers(req, &token)
+            let date = qwikcilver::resolve_date_at_client(
+                req.resource_common_data.connector_feature_data.as_ref().map(|s| s.peek()),
+            )?;
+            let txn_id = qwikcilver::transaction_id_from_reference(
+                &req.resource_common_data.connector_request_reference_id,
+            );
+            self.build_authenticated_headers(req, &token, &date, txn_id)
         }
     }
 );
@@ -486,7 +494,13 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let token = self.extract_access_token(req)?;
-            self.build_authenticated_headers(req, &token)
+            let date = qwikcilver::resolve_date_at_client(
+                req.request.refund_connector_metadata.as_ref().map(|s| s.peek()),
+            )?;
+            let txn_id = qwikcilver::transaction_id_from_reference(
+                &req.resource_common_data.connector_request_reference_id,
+            );
+            self.build_authenticated_headers(req, &token, &date, txn_id)
         }
     }
 );
@@ -544,7 +558,13 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Recharge, PaymentFlowData, RechargeRequestData, RechargeResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let token = self.extract_access_token(req)?;
-            self.build_authenticated_headers(req, &token)
+            let date = qwikcilver::resolve_date_at_client(
+                req.resource_common_data.connector_feature_data.as_ref().map(|s| s.peek()),
+            )?;
+            let txn_id = qwikcilver::transaction_id_from_reference(
+                &req.resource_common_data.connector_request_reference_id,
+            );
+            self.build_authenticated_headers(req, &token, &date, txn_id)
         }
     }
 );
@@ -581,7 +601,13 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<CreatePaymentMethod, PaymentFlowData, CreatePaymentMethodData, CreatePaymentMethodResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let token = self.extract_access_token(req)?;
-            self.build_authenticated_headers(req, &token)
+            let date = qwikcilver::resolve_date_at_client(
+                req.resource_common_data.connector_feature_data.as_ref().map(|s| s.peek()),
+            )?;
+            let txn_id = qwikcilver::transaction_id_from_reference(
+                &req.resource_common_data.connector_request_reference_id,
+            );
+            self.build_authenticated_headers(req, &token, &date, txn_id)
         }
     }
 );
@@ -638,7 +664,13 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<GetPaymentMethod, PaymentFlowData, GetPaymentMethodData, GetPaymentMethodResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let token = self.extract_access_token(req)?;
-            self.build_authenticated_headers(req, &token)
+            let date = qwikcilver::resolve_date_at_client(
+                req.resource_common_data.connector_feature_data.as_ref().map(|s| s.peek()),
+            )?;
+            let txn_id = qwikcilver::transaction_id_from_reference(
+                &req.resource_common_data.connector_request_reference_id,
+            );
+            self.build_authenticated_headers(req, &token, &date, txn_id)
         }
     }
 );
