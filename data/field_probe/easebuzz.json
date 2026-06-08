@@ -477,12 +477,6 @@
         "error": "This feature is not implemented: client_authentication_token flow for easebuzz"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: create_connector_customer flow for easebuzz"
-      }
-    },
     "create_order": {
       "default": {
         "status": "supported",
@@ -514,6 +508,12 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: server_session_authentication_token flow for easebuzz"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for easebuzz"
       }
     },
     "dispute_accept": {

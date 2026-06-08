@@ -167,8 +167,8 @@ Retrieve current payment status from the connector.
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
-| [CustomerService.Create](#customerservicecreate) | Customers | `CustomerServiceCreateRequest` |
 | [MerchantAuthenticationService.CreateServerSessionAuthenticationToken](#merchantauthenticationservicecreateserversessionauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest` |
+| [CustomerService.Create](#customerservicecreate) | Customers | `CustomerServiceCreateRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
 | [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
@@ -452,7 +452,7 @@ Create customer record in the payment processor system. Stores customer details 
 | **Request** | `CustomerServiceCreateRequest` |
 | **Response** | `CustomerServiceCreateResponse` |
 
-**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts#L401) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L246) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)
+**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts#L410) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L261) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)
 
 ### Authentication
 
@@ -465,4 +465,4 @@ Create a server-side session with the connector. Establishes session state for m
 | **Request** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts#L410) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L259) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)
+**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts#L401) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L246) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)

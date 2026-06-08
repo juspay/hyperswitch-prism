@@ -18,7 +18,7 @@ use domain_types::{
         BankDebitData, DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
         VaultTokenHolder,
     },
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 
@@ -2147,7 +2147,7 @@ impl<
                         message: error.error_text.clone(),
                         reason: Some(error.error_text.clone()),
                         status_code: http_code,
-                        attempt_status: Some(status),
+                        attempt_status: Some(FlowStatus::Payment(status)),
                         connector_transaction_id: Some(transaction_response.transaction_id.clone()),
                         network_advice_code: None,
                         network_decline_code: None,
@@ -2247,7 +2247,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetRefundResponse, Self>>
                 message: error.error_text.clone(),
                 reason: Some(error.error_text.clone()),
                 status_code: http_code,
-                attempt_status: Some(AttemptStatus::Failure),
+                attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                 connector_transaction_id: Some(transaction_response.transaction_id.clone()),
                 network_advice_code: None,
                 network_decline_code: None,
@@ -2350,7 +2350,7 @@ impl<F> TryFrom<ResponseRouterData<AuthorizedotnetPSyncResponse, Self>>
                             .map(|m| m.text.clone())
                             .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                     ),
-                    attempt_status: Some(status),
+                    attempt_status: Some(FlowStatus::Payment(status)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -2438,7 +2438,7 @@ fn create_error_response(
         code: error_code,
         message: error_message.clone(),
         reason: Some(error_message),
-        attempt_status: Some(status),
+        attempt_status: Some(FlowStatus::Payment(status)),
         connector_transaction_id,
         network_decline_code: None,
         network_advice_code: None,
@@ -2922,7 +2922,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetRSyncResponse, Self>>
                             .map(|m| m.text.clone())
                             .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                     ),
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -3159,7 +3159,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .map(|m| m.text.clone())
                         .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 ),
-                attempt_status: Some(AttemptStatus::Failure),
+                attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                 connector_transaction_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
@@ -3515,6 +3515,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetCreateConnectorCustomerResponse, 
             // Success - return the connector customer ID
             new_router_data.response = Ok(ConnectorCustomerResponse {
                 connector_customer_id: profile_id,
+                status_code: http_code,
             });
         } else {
             // Check if this is a "duplicate customer" error (E00039)
@@ -3532,6 +3533,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetCreateConnectorCustomerResponse, 
                     );
                     new_router_data.response = Ok(ConnectorCustomerResponse {
                         connector_customer_id: existing_profile_id,
+                        status_code: http_code,
                     });
                 } else {
                     // Couldn't extract ID, return error
@@ -3540,7 +3542,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetCreateConnectorCustomerResponse, 
                         code: error_code.to_string(),
                         message: error_text.to_string(),
                         reason: Some(error_text.to_string()),
-                        attempt_status: Some(AttemptStatus::Failure), // Marking attempt as failure since we couldn't confirm existing profile ID
+                        attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)), // Marking attempt as failure since we couldn't confirm existing profile ID
                         connector_transaction_id: None,
                         network_decline_code: None,
                         network_advice_code: None,
@@ -3554,7 +3556,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetCreateConnectorCustomerResponse, 
                     code: error_code.to_string(),
                     message: error_text.to_string(),
                     reason: Some(error_text.to_string()),
-                    attempt_status: Some(AttemptStatus::Failure), // Marking attempt as failure for non-duplicate errors
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)), // Marking attempt as failure for non-duplicate errors
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -3669,7 +3671,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetSdkSessionTokenResponse, Self>>
                     message: message.clone(),
                     reason: Some(message),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,

@@ -115,7 +115,11 @@ def _get_client_method(flow_key: str) -> str:
     """Map flow key to ConnectorClient method name.
     
     Handles special prefixes like dispute_*, webhook_*, etc.
+    For customer_create, the SDK uses create_customer.
     """
+    # Special case: customer_create -> create_customer (SDK uses unprefixed name)
+    if flow_key == "customer_create":
+        return "create_customer"
     # Strip dispute_ prefix for dispute flows
     if flow_key.startswith("dispute_"):
         return flow_key[8:]  # Remove "dispute_" prefix
@@ -562,7 +566,7 @@ JS_RESERVED = frozenset({"void", "delete", "return", "new", "in", "do", "for", "
 # All other flows use the flow key directly as the method name (snake_case).
 _FLOW_KEY_TO_METHOD: dict[str, str] = {
     "recurring_charge":          "charge",                    # RecurringPaymentService.charge()
-    "create_customer":           "create",                    # CustomerClient.create()
+    "create_customer":           "customer_create",           # CustomerClient.customerCreate() (JS/TS), create_customer (Rust/Python)
     "dispute_accept":            "accept",                    # DisputeClient.accept()
     "dispute_defend":            "defend",                    # DisputeClient.defend()
     "dispute_submit_evidence":   "submit_evidence",           # DisputeClient.submit_evidence()
@@ -2339,7 +2343,12 @@ def render_consolidated_javascript(
                 "",
             ]
         else:
-            body_lines = list(_scenario_step_javascript("_standalone_", flow_key, 1, proto_req, grpc_req, db, client_var, ts_mode=True))
+            # Flow without builder — create client manually then call method
+            body_lines = [
+                f"    const {client_var} = new {cls}(config);",
+                "",
+            ]
+            body_lines.extend(_scenario_step_javascript("_standalone_", flow_key, 1, proto_req, grpc_req, db, client_var, ts_mode=True))
         # These standalone flow functions return the raw response to avoid type issues
         # with responses that don't have a status field (e.g., EventServiceHandleResponse)
         body_lines.append(f"    return {var_name};")
@@ -2512,6 +2521,7 @@ def render_scenario_section(
 _KT_FLOW_STATUS_BLOCK: dict[str, str] = {
     "tokenize":                             '    println("Token: ${response.paymentMethodToken}")',
     "create_customer":                      '    println("Customer: ${response.connectorCustomerId}")',
+    "customer_create":                      '    println("Customer: ${response.connectorCustomerId}")',  # Alias for create_customer (probe uses customer_create)
     "dispute_accept":                       '    println("Dispute status: ${response.disputeStatus.name}")',
     "dispute_defend":                       '    println("Dispute status: ${response.disputeStatus.name}")',
     "dispute_submit_evidence":              '    println("Dispute status: ${response.disputeStatus.name}")',
@@ -3587,7 +3597,7 @@ def render_consolidated_rust(
             )
         elif flow_key == "tokenize":
             status_block = '    Ok(format!("token: {}", response.payment_method_token))'
-        elif flow_key == "create_customer":
+        elif flow_key in ("create_customer", "customer_create"):
             status_block = '    Ok(format!("customer_id: {}", response.connector_customer_id))'
         elif flow_key in ("dispute_accept", "dispute_defend", "dispute_submit_evidence"):
             status_block = '    Ok(format!("dispute_status: {:?}", response.dispute_status()))'

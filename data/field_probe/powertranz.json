@@ -511,12 +511,6 @@
         "error": "client_authentication_token flow not supported by powertranz connector"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_supported",
-        "error": "create_connector_customer flow not supported by powertranz connector"
-      }
-    },
     "create_order": {
       "default": {
         "status": "not_supported",
@@ -533,6 +527,12 @@
       "default": {
         "status": "not_supported",
         "error": "server_session_authentication_token flow not supported by powertranz connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by powertranz connector"
       }
     },
     "dispute_accept": {
