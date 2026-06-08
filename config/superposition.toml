@@ -30,8 +30,7 @@ metrics_port = { value = 8080, schema = { type = "integer" } }
 
 # Proxy configuration
 proxy_idle_pool_connection_timeout = { value = 90, schema = { type = "integer" } }
-proxy_bypass_proxy_urls = { value = ["localhost", "local"], schema = { type = "array" } }
-proxy_mitm_proxy_enabled = { value = false, schema = { type = "boolean" } }
+proxy_bypass_urls = { value = ["localhost", "local"], schema = { type = "array" } }
 
 # Events configuration
 events_enabled = { value = false, schema = { type = "boolean" } }
@@ -113,7 +112,7 @@ events_static_values_category = "OUTGOING_API"
 events_static_values_message_req_type = "EXTERNAL"
 events_static_values_message_log_type = "API_CALL"
 api_tags_tags_psync = "GW_TXN_SYNC"
-proxy_bypass_proxy_urls = []
+proxy_bypass_urls = []
 
 [[overrides]]
 _context_ = { environment = "production" }

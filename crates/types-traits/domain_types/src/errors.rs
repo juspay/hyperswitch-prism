@@ -595,6 +595,10 @@ impl ForeignFrom<&ErrorResponse> for Option<grpc_api_types::payments::ErrorInfo>
                 message: Some(error_response.message.clone()),
                 reason: error_response.reason.clone(),
                 connector_transaction_id: error_response.connector_transaction_id.clone(),
+                status: error_response
+                    .attempt_status
+                    .as_ref()
+                    .map(ForeignFrom::foreign_from),
             });
 
         let issuer_details = has_network_details.then(|| {

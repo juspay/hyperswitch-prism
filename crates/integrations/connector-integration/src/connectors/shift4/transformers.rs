@@ -18,7 +18,7 @@ use domain_types::{
     payment_method_data::{
         BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
     },
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
@@ -124,6 +124,7 @@ impl<F, T> TryFrom<ResponseRouterData<Shift4CreateCustomerResponse, Self>>
         Ok(Self {
             response: Ok(ConnectorCustomerResponse {
                 connector_customer_id: item.response.id,
+                status_code: item.http_code,
             }),
             ..item.router_data
         })
@@ -1315,7 +1316,7 @@ impl TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
                     .clone()
                     .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
                 reason: item.response.failure_message.clone(),
-                attempt_status: Some(AttemptStatus::AuthorizationFailed),
+                attempt_status: Some(FlowStatus::Payment(AttemptStatus::AuthorizationFailed)),
                 connector_transaction_id: Some(item.response.id.clone()),
                 network_decline_code: None,
                 network_advice_code: None,
@@ -1633,7 +1634,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4SetupMandateRes
                     .clone()
                     .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
                 reason: item.response.failure_message.clone(),
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: Some(item.response.id.clone()),
                 network_decline_code: None,
                 network_advice_code: None,
