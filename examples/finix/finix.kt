@@ -104,7 +104,7 @@ fun createCustomer(txnId: String, config: ConnectorConfig = _defaultConfig) {
         emailBuilder.value = "test@example.com"  // Email address of the customer.
         phoneNumber = "4155552671"  // Phone number of the customer.
     }.build()
-    val response = client.create(request)
+    val response = client.customer_create(request)
     println("Customer: ${response.connectorCustomerId}")
 }
 

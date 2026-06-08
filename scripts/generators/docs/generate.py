@@ -275,7 +275,7 @@ _SERVICE_PREFIXES: dict[str, str] = {
 }
 
 
-def _derive_flow_key(service_name: str, rpc_name: str) -> str | None:
+def _derive_flow_key(service_name: str, rpc_name: str) -> Optional[str]:
     """
     Derive probe flow_key from gRPC service and RPC name.
     

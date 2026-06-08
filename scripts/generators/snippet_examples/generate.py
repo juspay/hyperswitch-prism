@@ -562,7 +562,7 @@ JS_RESERVED = frozenset({"void", "delete", "return", "new", "in", "do", "for", "
 # All other flows use the flow key directly as the method name (snake_case).
 _FLOW_KEY_TO_METHOD: dict[str, str] = {
     "recurring_charge":          "charge",                    # RecurringPaymentService.charge()
-    "create_customer":           "create",                    # CustomerClient.create()
+    "create_customer":           "customer_create",           # CustomerClient.customerCreate()
     "dispute_accept":            "accept",                    # DisputeClient.accept()
     "dispute_defend":            "defend",                    # DisputeClient.defend()
     "dispute_submit_evidence":   "submit_evidence",           # DisputeClient.submit_evidence()

@@ -190,7 +190,7 @@ async function capture(merchantTransactionId: string, config: types.IConnectorCo
 async function createCustomer(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const customerClient = new CustomerClient(config);
 
-    const createResponse = await customerClient.create(_buildCreateCustomerRequest());
+    const createResponse = await customerClient.customerCreate(_buildCreateCustomerRequest());
 
     return createResponse;
 }

@@ -408,7 +408,7 @@ async def process_create_customer(merchant_transaction_id: str, config: sdk_conf
     """Flow: CustomerService.Create"""
     customer_client = CustomerClient(config)
 
-    create_response = await customer_client.create(_build_create_customer_request())
+    create_response = await customer_client.customer_create(_build_create_customer_request())
 
     return {"customer_id": create_response.connector_customer_id}
 
