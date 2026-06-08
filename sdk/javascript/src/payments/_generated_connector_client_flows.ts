@@ -267,6 +267,14 @@ export class PayoutClient extends _ConnectorClientBase {
     return this._executeFlow('payout_create_recipient', requestMsg, options, 'PayoutServiceCreateRecipientRequest', 'PayoutServiceCreateRecipientResponse') as Promise<types.PayoutServiceCreateRecipientResponse>;
   }
 
+  /** PayoutService.Eligibility — Check eligibility of a payout before initiating it (e.g. SEPA VoP / payee verification). */
+  async payoutEligibility(
+    requestMsg: types.IPayoutServiceEligibilityRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PayoutServiceEligibilityResponse> {
+    return this._executeFlow('payout_eligibility', requestMsg, options, 'PayoutServiceEligibilityRequest', 'PayoutServiceEligibilityResponse') as Promise<types.PayoutServiceEligibilityResponse>;
+  }
+
   /** PayoutService.EnrollDisburseAccount — Enroll disburse account. */
   async payoutEnrollDisburseAccount(
     requestMsg: types.IPayoutServiceEnrollDisburseAccountRequest,

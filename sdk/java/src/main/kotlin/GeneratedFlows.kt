@@ -40,6 +40,8 @@ import uniffi.connector_service_ffi.payoutCreateLinkReqTransformer
 import uniffi.connector_service_ffi.payoutCreateLinkResTransformer
 import uniffi.connector_service_ffi.payoutCreateRecipientReqTransformer
 import uniffi.connector_service_ffi.payoutCreateRecipientResTransformer
+import uniffi.connector_service_ffi.payoutEligibilityReqTransformer
+import uniffi.connector_service_ffi.payoutEligibilityResTransformer
 import uniffi.connector_service_ffi.payoutEnrollDisburseAccountReqTransformer
 import uniffi.connector_service_ffi.payoutEnrollDisburseAccountResTransformer
 import uniffi.connector_service_ffi.payoutGetReqTransformer
@@ -102,6 +104,7 @@ object FlowRegistry {
         "payout_create" to ::payoutCreateReqTransformer,
         "payout_create_link" to ::payoutCreateLinkReqTransformer,
         "payout_create_recipient" to ::payoutCreateRecipientReqTransformer,
+        "payout_eligibility" to ::payoutEligibilityReqTransformer,
         "payout_enroll_disburse_account" to ::payoutEnrollDisburseAccountReqTransformer,
         "payout_get" to ::payoutGetReqTransformer,
         "payout_stage" to ::payoutStageReqTransformer,
@@ -141,6 +144,7 @@ object FlowRegistry {
         "payout_create" to ::payoutCreateResTransformer,
         "payout_create_link" to ::payoutCreateLinkResTransformer,
         "payout_create_recipient" to ::payoutCreateRecipientResTransformer,
+        "payout_eligibility" to ::payoutEligibilityResTransformer,
         "payout_enroll_disburse_account" to ::payoutEnrollDisburseAccountResTransformer,
         "payout_get" to ::payoutGetResTransformer,
         "payout_stage" to ::payoutStageResTransformer,
@@ -345,6 +349,10 @@ class PayoutClient(
     // payout_create_recipient: PayoutService.CreateRecipient — Create payout recipient.
     fun payout_create_recipient(request: PayoutServiceCreateRecipientRequest, options: RequestConfig? = null): PayoutServiceCreateRecipientResponse =
         executeFlow("payout_create_recipient", request.toByteArray(), PayoutServiceCreateRecipientResponse.parser(), options)
+
+    // payout_eligibility: PayoutService.Eligibility — Check eligibility of a payout before initiating it (e.g. SEPA VoP / payee verification).
+    fun payout_eligibility(request: PayoutServiceEligibilityRequest, options: RequestConfig? = null): PayoutServiceEligibilityResponse =
+        executeFlow("payout_eligibility", request.toByteArray(), PayoutServiceEligibilityResponse.parser(), options)
 
     // payout_enroll_disburse_account: PayoutService.EnrollDisburseAccount — Enroll disburse account.
     fun payout_enroll_disburse_account(request: PayoutServiceEnrollDisburseAccountRequest, options: RequestConfig? = null): PayoutServiceEnrollDisburseAccountResponse =

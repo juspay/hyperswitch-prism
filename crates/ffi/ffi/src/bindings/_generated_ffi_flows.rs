@@ -34,6 +34,7 @@ use grpc_api_types::payouts::{
     PayoutServiceCreateLinkRequest,
     PayoutServiceCreateRecipientRequest,
     PayoutServiceCreateRequest,
+    PayoutServiceEligibilityRequest,
     PayoutServiceEnrollDisburseAccountRequest,
     PayoutServiceGetRequest,
     PayoutServiceStageRequest,
@@ -61,6 +62,7 @@ use crate::handlers::payments::{
     payout_create_req_handler, payout_create_res_handler,
     payout_create_link_req_handler, payout_create_link_res_handler,
     payout_create_recipient_req_handler, payout_create_recipient_res_handler,
+    payout_eligibility_req_handler, payout_eligibility_res_handler,
     payout_enroll_disburse_account_req_handler, payout_enroll_disburse_account_res_handler,
     payout_get_req_handler, payout_get_res_handler,
     payout_stage_req_handler, payout_stage_res_handler,
@@ -115,6 +117,8 @@ define_ffi_flow!(payout_create, PayoutServiceCreateRequest, payout_create_req_ha
 define_ffi_flow!(payout_create_link, PayoutServiceCreateLinkRequest, payout_create_link_req_handler, payout_create_link_res_handler);
 // payout_create_recipient: PayoutService.CreateRecipient — Create payout recipient.
 define_ffi_flow!(payout_create_recipient, PayoutServiceCreateRecipientRequest, payout_create_recipient_req_handler, payout_create_recipient_res_handler);
+// payout_eligibility: PayoutService.Eligibility — Check eligibility of a payout before initiating it (e.g. SEPA VoP / payee verification).
+define_ffi_flow!(payout_eligibility, PayoutServiceEligibilityRequest, payout_eligibility_req_handler, payout_eligibility_res_handler);
 // payout_enroll_disburse_account: PayoutService.EnrollDisburseAccount — Enroll disburse account.
 define_ffi_flow!(payout_enroll_disburse_account, PayoutServiceEnrollDisburseAccountRequest, payout_enroll_disburse_account_req_handler, payout_enroll_disburse_account_res_handler);
 // payout_get: PayoutService.Get — Retrieve payout details.

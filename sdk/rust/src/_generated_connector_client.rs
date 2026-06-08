@@ -49,11 +49,11 @@ use grpc_api_types::payments::{
 use grpc_api_types::payouts::{
     PayoutServiceCreateLinkRequest, PayoutServiceCreateLinkResponse,
     PayoutServiceCreateRecipientRequest, PayoutServiceCreateRecipientResponse,
-    PayoutServiceCreateRequest, PayoutServiceCreateResponse,
-    PayoutServiceEnrollDisburseAccountRequest, PayoutServiceEnrollDisburseAccountResponse,
-    PayoutServiceGetRequest, PayoutServiceGetResponse, PayoutServiceStageRequest,
-    PayoutServiceStageResponse, PayoutServiceTransferRequest, PayoutServiceTransferResponse,
-    PayoutServiceVoidRequest, PayoutServiceVoidResponse,
+    PayoutServiceCreateRequest, PayoutServiceCreateResponse, PayoutServiceEligibilityRequest,
+    PayoutServiceEligibilityResponse, PayoutServiceEnrollDisburseAccountRequest,
+    PayoutServiceEnrollDisburseAccountResponse, PayoutServiceGetRequest, PayoutServiceGetResponse,
+    PayoutServiceStageRequest, PayoutServiceStageResponse, PayoutServiceTransferRequest,
+    PayoutServiceTransferResponse, PayoutServiceVoidRequest, PayoutServiceVoidResponse,
 };
 use grpc_api_types::surcharge::{
     SurchargeServiceCalculateRequest, SurchargeServiceCalculateResponse,
@@ -523,6 +523,13 @@ impl ConnectorClient {
         PayoutServiceCreateRecipientResponse,
         payout_create_recipient_req_handler,
         payout_create_recipient_res_handler
+    );
+    impl_flow_method!(
+        eligibility,
+        PayoutServiceEligibilityRequest,
+        PayoutServiceEligibilityResponse,
+        payout_eligibility_req_handler,
+        payout_eligibility_res_handler
     );
     impl_flow_method!(
         enroll_disburse_account,

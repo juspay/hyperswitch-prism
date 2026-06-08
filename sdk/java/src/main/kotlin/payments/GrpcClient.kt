@@ -374,6 +374,11 @@ class GrpcPayoutClient internal constructor(
      */
     suspend fun enroll_disburse_account(req: PayoutServiceEnrollDisburseAccountRequest): PayoutServiceEnrollDisburseAccountResponse =
         callGrpc(config, "payout/enroll_disburse_account", req, PayoutServiceEnrollDisburseAccountResponse.parser())
+    /**
+     * PayoutService.Eligibility — Check eligibility of a payout before initiating it (e.g. SEPA VoP / payee verification).
+     */
+    suspend fun payout_eligibility(req: PayoutServiceEligibilityRequest): PayoutServiceEligibilityResponse =
+        callGrpc(config, "payout/payout_eligibility", req, PayoutServiceEligibilityResponse.parser())
 }
 
 /**

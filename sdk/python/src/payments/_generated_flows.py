@@ -70,6 +70,8 @@ SERVICE_FLOWS = {
         "payout_create_link": "PayoutServiceCreateLinkResponse",
         # payout_create_recipient: PayoutService.CreateRecipient — Create payout recipient.
         "payout_create_recipient": "PayoutServiceCreateRecipientResponse",
+        # payout_eligibility: PayoutService.Eligibility — Check eligibility of a payout before initiating it (e.g. SEPA VoP / payee verification).
+        "payout_eligibility": "PayoutServiceEligibilityResponse",
         # payout_enroll_disburse_account: PayoutService.EnrollDisburseAccount — Enroll disburse account.
         "payout_enroll_disburse_account": "PayoutServiceEnrollDisburseAccountResponse",
         # payout_get: PayoutService.Get — Retrieve payout details.

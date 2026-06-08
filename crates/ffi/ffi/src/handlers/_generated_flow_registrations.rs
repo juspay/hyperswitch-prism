@@ -59,6 +59,8 @@ use grpc_api_types::payouts::{
     PayoutServiceCreateRecipientResponse,
     PayoutServiceCreateRequest,
     PayoutServiceCreateResponse,
+    PayoutServiceEligibilityRequest,
+    PayoutServiceEligibilityResponse,
     PayoutServiceEnrollDisburseAccountRequest,
     PayoutServiceEnrollDisburseAccountResponse,
     PayoutServiceGetRequest,
@@ -108,6 +110,7 @@ use crate::services::payouts::{
     payout_create_req_transformer, payout_create_res_transformer,
     payout_create_link_req_transformer, payout_create_link_res_transformer,
     payout_create_recipient_req_transformer, payout_create_recipient_res_transformer,
+    payout_eligibility_req_transformer, payout_eligibility_res_transformer,
     payout_enroll_disburse_account_req_transformer, payout_enroll_disburse_account_res_transformer,
     payout_get_req_transformer, payout_get_res_transformer,
     payout_stage_req_transformer, payout_stage_res_transformer,
@@ -150,6 +153,8 @@ impl_flow_handlers!(payout_create, PayoutServiceCreateRequest, PayoutServiceCrea
 impl_flow_handlers!(payout_create_link, PayoutServiceCreateLinkRequest, PayoutServiceCreateLinkResponse, payout_create_link_req_transformer, payout_create_link_res_transformer, domain_types::connector_types::PayoutConnectorEnum);
 // payout_create_recipient: PayoutService.CreateRecipient — Create payout recipient.
 impl_flow_handlers!(payout_create_recipient, PayoutServiceCreateRecipientRequest, PayoutServiceCreateRecipientResponse, payout_create_recipient_req_transformer, payout_create_recipient_res_transformer, domain_types::connector_types::PayoutConnectorEnum);
+// payout_eligibility: PayoutService.Eligibility — Check eligibility of a payout before initiating it (e.g. SEPA VoP / payee verification).
+impl_flow_handlers!(payout_eligibility, PayoutServiceEligibilityRequest, PayoutServiceEligibilityResponse, payout_eligibility_req_transformer, payout_eligibility_res_transformer, domain_types::connector_types::PayoutConnectorEnum);
 // payout_enroll_disburse_account: PayoutService.EnrollDisburseAccount — Enroll disburse account.
 impl_flow_handlers!(payout_enroll_disburse_account, PayoutServiceEnrollDisburseAccountRequest, PayoutServiceEnrollDisburseAccountResponse, payout_enroll_disburse_account_req_transformer, payout_enroll_disburse_account_res_transformer, domain_types::connector_types::PayoutConnectorEnum);
 // payout_get: PayoutService.Get — Retrieve payout details.
