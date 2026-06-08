@@ -17,15 +17,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "::hyperswitch_masking::Secret<String>",
     );
 
-    // Add #[serde(default)] for all `repeated` (Vec) and map (HashMap) fields in connector
-    // config messages referenced by ConnectorSpecificConfig (i.e. x-connector-config header).
-    // Proto3: absent repeated field = empty list. serde doesn't know this without the attribute
-    // and errors with "missing field" when HS omits an empty repeated field (spec-compliant).
-    // g2h handles repeated *enum* fields but not repeated string/message fields or map fields,
-    // so we add it generically by reading ConnectorSpecificConfig's oneof from the descriptor —
-    // no connector names hardcoded.
-    // Only payment.proto is needed here: ConnectorSpecificConfig (the x-connector-config
-    // header type) is defined there. Loading all protos would be slower and unnecessary.
+    // Add #[serde(default)] to repeated (Vec) fields in connector configs so missing
+    // keys deserialize as empty rather than erroring (proto3 semantics).
     let fds = prost_build::Config::new().load_fds(&["proto/payment.proto"], &["proto"])?;
     add_serde_default_for_connector_configs(&mut config, &fds);
 
@@ -82,9 +75,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// Finds all message types listed in `ConnectorSpecificConfig`'s `oneof config` and adds
-/// `#[serde(default)]` to every repeated non-enum field in those messages.
-/// Scoped to x-connector-config only — no connector names are hardcoded.
+/// Adds `#[serde(default)]` to every repeated non-enum field in connector config messages.
 fn add_serde_default_for_connector_configs(
     config: &mut prost_build::Config,
     fds: &prost_types::FileDescriptorSet,
@@ -107,8 +98,6 @@ fn add_serde_default_for_connector_configs(
             m.field
                 .iter()
                 .filter_map(|f: &prost_types::FieldDescriptorProto| {
-                    // type_name is empty for primitive fields (int32, string, etc.);
-                    // skip them — we only want message/enum type names.
                     let tn = f.type_name();
                     if tn.is_empty() {
                         None
@@ -129,9 +118,7 @@ fn add_serde_default_for_connector_configs(
     }
 }
 
-/// Adds `#[serde(default)]` to every repeated non-enum field in a message (and its nested types).
-/// Repeated fields become `Vec<T>` or `HashMap<K,V>` in Rust; both need `#[serde(default)]`
-/// so serde treats a missing JSON key as empty rather than erroring.
+/// Adds `#[serde(default)]` to every repeated non-enum field in a message and its nested types.
 fn add_repeated_default(config: &mut prost_build::Config, message: &prost_types::DescriptorProto) {
     use prost_types::field_descriptor_proto::{Label, Type};
     for field in &message.field {
