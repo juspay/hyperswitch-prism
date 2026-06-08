@@ -677,7 +677,6 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             base_url: None,
         },
         ConnectorEnum::Deutschebank => ConnectorSpecificConfig::Deutschebank {
-            apikey: k(),
             customer_identifier: id(),
             consumer_identifier: id(),
             key_id: id(),

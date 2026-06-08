@@ -761,7 +761,6 @@ pub enum ConnectorSpecificConfig {
         base_url: Option<String>,
     },
     Deutschebank {
-        apikey: Secret<String>,
         customer_identifier: Secret<String>,
         consumer_identifier: Secret<String>,
         key_id: Secret<String>,
@@ -1106,7 +1105,6 @@ impl ConnectorSpecificConfig {
                 paco_kid
             },
             Deutschebank {
-                apikey,
                 customer_identifier,
                 consumer_identifier
             },
@@ -1528,7 +1526,6 @@ impl ConnectorSpecificConfig {
                     paco_kid
                 },
                 Deutschebank {
-                    apikey,
                     customer_identifier,
                     consumer_identifier,
                     base_url
@@ -2120,7 +2117,6 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 base_url: finix.base_url,
             }),
             AuthType::Deutschebank(deutschebank) => Ok(Self::Deutschebank {
-                apikey: deutschebank.apikey.ok_or_else(err)?,
                 customer_identifier: deutschebank.customer_identifier.ok_or_else(err)?,
                 consumer_identifier: deutschebank.consumer_identifier.ok_or_else(err)?,
                 key_id: deutschebank.key_id.ok_or_else(err)?,
@@ -3275,7 +3271,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
-                // Deutsche Bank CSEAL needs 7 secrets (apikey + 2 identifiers + key_id +
+                // Deutsche Bank CSEAL needs 6 secrets (2 identifiers + key_id +
                 // signing_private_key + mTLS cert + mTLS key) — more than any
                 // ConnectorAuthType variant can carry. Callers must use the typed
                 // `x-connector-config` JSON header (DeutschebankConfig).

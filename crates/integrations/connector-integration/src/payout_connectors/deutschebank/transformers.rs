@@ -25,7 +25,6 @@ const VOP_ID_SEPARATOR: char = '|';
 
 #[derive(Debug, Clone)]
 pub struct DeutschebankAuthType {
-    pub apikey: Secret<String>,
     pub customer_identifier: Secret<String>,
     pub consumer_identifier: Secret<String>,
     pub key_id: Secret<String>,
@@ -41,7 +40,6 @@ impl TryFrom<&ConnectorSpecificConfig> for DeutschebankAuthType {
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
             ConnectorSpecificConfig::Deutschebank {
-                apikey,
                 customer_identifier,
                 consumer_identifier,
                 key_id,
@@ -51,7 +49,6 @@ impl TryFrom<&ConnectorSpecificConfig> for DeutschebankAuthType {
                 server_ca_bundle,
                 ..
             } => Ok(Self {
-                apikey: apikey.to_owned(),
                 customer_identifier: customer_identifier.to_owned(),
                 consumer_identifier: consumer_identifier.to_owned(),
                 key_id: key_id.to_owned(),

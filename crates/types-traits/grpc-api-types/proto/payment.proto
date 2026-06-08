@@ -3941,14 +3941,13 @@ message LoonioConfig {
 }
 
 message DeutschebankConfig {
-  SecretString apikey = 1;
-  SecretString customer_identifier = 2;
-  SecretString consumer_identifier = 3;
-  SecretString key_id = 4;
-  SecretString signing_private_key = 5;
-  SecretString client_certificate = 6;
-  SecretString client_certificate_key = 7;
-  optional SecretString server_ca_bundle = 8;
+  SecretString customer_identifier = 1;
+  SecretString consumer_identifier = 2;
+  SecretString key_id = 3;
+  SecretString signing_private_key = 4;
+  SecretString client_certificate = 5;
+  SecretString client_certificate_key = 6;
+  optional SecretString server_ca_bundle = 7;
   optional string base_url = 50;
 }
 

@@ -49,7 +49,6 @@ use transformers::{
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
-    pub(crate) const APIKEY: &str = "apikey";
     pub(crate) const DATE: &str = "Date";
     pub(crate) const DIGEST: &str = "Digest";
     pub(crate) const SIGNATURE: &str = "Signature";
@@ -83,10 +82,6 @@ impl DeutschebankPayouts {
             (
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
-            ),
-            (
-                headers::APIKEY.to_string(),
-                auth.apikey.clone().expose().into_masked(),
             ),
             (
                 headers::X_CUSTOMER_IDENTIFIER.to_string(),
