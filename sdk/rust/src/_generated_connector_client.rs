@@ -17,11 +17,11 @@ use domain_types::utils::ForeignTryFrom;
 use grpc_api_types::payments::NetworkErrorCode;
 use grpc_api_types::payments::{ConnectorConfig, FfiOptions, RequestConfig};
 use grpc_api_types::payments::{
-    DisputeServiceAcceptRequest, DisputeServiceAcceptResponse, DisputeServiceDefendRequest,
-    DisputeServiceDefendResponse, DisputeServiceSubmitEvidenceRequest,
-    DisputeServiceSubmitEvidenceResponse, EventServiceHandleRequest, EventServiceHandleResponse,
-    EventServiceParseRequest, EventServiceParseResponse,
-    MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
+    CustomerServiceCreateRequest, CustomerServiceCreateResponse, DisputeServiceAcceptRequest,
+    DisputeServiceAcceptResponse, DisputeServiceDefendRequest, DisputeServiceDefendResponse,
+    DisputeServiceSubmitEvidenceRequest, DisputeServiceSubmitEvidenceResponse,
+    EventServiceHandleRequest, EventServiceHandleResponse, EventServiceParseRequest,
+    EventServiceParseResponse, MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
@@ -32,8 +32,7 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
     PaymentMethodAuthenticationServicePostAuthenticateResponse,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
-    PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentMethodServiceCreateRequest,
-    PaymentMethodServiceCreateResponse, PaymentMethodServiceTokenizeRequest,
+    PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentMethodServiceTokenizeRequest,
     PaymentMethodServiceTokenizeResponse, PaymentServiceAuthorizeRequest,
     PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest, PaymentServiceCaptureResponse,
     PaymentServiceCreateOrderRequest, PaymentServiceCreateOrderResponse, PaymentServiceGetRequest,
@@ -271,6 +270,14 @@ impl ConnectorClient {
         Ok(new_client)
     }
 
+    // ── CustomerService flows ───────────────────────────────────────────────────
+    impl_flow_method!(
+        create_customer,
+        CustomerServiceCreateRequest,
+        CustomerServiceCreateResponse,
+        customer_create_req_handler,
+        customer_create_res_handler
+    );
     // ── DisputeService flows ───────────────────────────────────────────────────
     impl_flow_method!(
         accept,
@@ -395,13 +402,6 @@ impl ConnectorClient {
         pre_authenticate_res_handler
     );
     // ── PaymentMethodService flows ───────────────────────────────────────────────────
-    impl_flow_method!(
-        create,
-        PaymentMethodServiceCreateRequest,
-        PaymentMethodServiceCreateResponse,
-        create_req_handler,
-        create_res_handler
-    );
     impl_flow_method!(
         tokenize,
         PaymentMethodServiceTokenizeRequest,
