@@ -7,11 +7,15 @@ use common_utils::{
     errors::CustomResult, events, ext_traits::ByteSliceExt, request::RequestContent, FloatMajorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, PSync, RSync, Refund, ServerAuthenticationToken, Void},
+    connector_flow::{
+        Authorize, Capture, PSync, RSync, Refund, RepeatPayment, ServerAuthenticationToken,
+        SetupMandate, Void,
+    },
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData, SetupMandateRequestData,
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
@@ -586,6 +590,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentCapture for Fiservcommercehub<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RepeatPaymentV2<T> for Fiservcommercehub<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::SetupMandateV2<T> for Fiservcommercehub<T>
+{
+}
+
 // ===== CONNECTOR INTEGRATION V2 IMPLEMENTATIONS =====
 
 // ServerAuthenticationToken is implemented via macro_connector_implementation! above.
@@ -905,22 +923,6 @@ macros::macro_connector_implementation!(
     }
 );
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ClientAuthenticationToken,
-        PaymentFlowData,
-        ClientAuthenticationTokenRequestData,
-        PaymentsResponseData,
-    > for Fiservcommercehub<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>
-    for Fiservcommercehub<T>
-{
-}
-
 // ===== SOURCE VERIFICATION IMPLEMENTATION =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> SourceVerification
     for Fiservcommercehub<T>
@@ -931,11 +933,7 @@ macros::macro_connector_flow_status_impls!(
     connector: Fiservcommercehub,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    not_implemented: [
-        Capture,
-        RepeatPayment,
-        SetupMandate,
-    ],
+    not_implemented: [],
     not_supported: [
         Accept,
         CreateConnectorCustomer,
