@@ -177,15 +177,16 @@ fn der_wrap(tag: u8, data: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(data.len() + 4);
     out.push(tag);
     let len = data.len();
+    let len_bytes = len.to_le_bytes();
     if len < 0x80 {
-        out.push(len as u8);
+        out.push(len_bytes[0]);
     } else if len < 0x100 {
         out.push(0x81);
-        out.push(len as u8);
+        out.push(len_bytes[0]);
     } else {
         out.push(0x82);
-        out.push((len >> 8) as u8);
-        out.push((len & 0xff) as u8);
+        out.push(len_bytes[1]);
+        out.push(len_bytes[0]);
     }
     out.extend_from_slice(data);
     out

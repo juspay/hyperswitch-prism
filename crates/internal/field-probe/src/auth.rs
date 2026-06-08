@@ -684,6 +684,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             signing_private_key: s(),
             client_certificate: s(),
             client_certificate_key: s(),
+            server_ca_bundle: None,
             base_url: None,
         },
     }
