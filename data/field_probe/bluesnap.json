@@ -748,12 +748,6 @@
         }
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: create_connector_customer flow for bluesnap"
-      }
-    },
     "create_order": {
       "default": {
         "status": "not_supported",
@@ -770,6 +764,12 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: server_session_authentication_token flow for bluesnap"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for bluesnap"
       }
     },
     "dispute_accept": {

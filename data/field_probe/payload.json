@@ -585,7 +585,25 @@
         }
       }
     },
-    "create_customer": {
+    "create_order": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_order flow not supported by payload connector"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by payload connector"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by payload connector"
+      }
+    },
+    "customer_create": {
       "default": {
         "status": "supported",
         "proto_request": {
@@ -604,24 +622,6 @@
           },
           "body": "{\"keep_active\":false,\"email\":\"test@example.com\",\"name\":\"John Doe\"}"
         }
-      }
-    },
-    "create_order": {
-      "default": {
-        "status": "not_supported",
-        "error": "create_order flow not supported by payload connector"
-      }
-    },
-    "create_server_authentication_token": {
-      "default": {
-        "status": "not_supported",
-        "error": "server_authentication_token flow not supported by payload connector"
-      }
-    },
-    "create_server_session_authentication_token": {
-      "default": {
-        "status": "not_supported",
-        "error": "server_session_authentication_token flow not supported by payload connector"
       }
     },
     "dispute_accept": {

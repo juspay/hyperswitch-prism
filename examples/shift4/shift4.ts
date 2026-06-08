@@ -7,7 +7,7 @@
 
 import { PaymentClient, MerchantAuthenticationClient, CustomerClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
 const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "create_customer", "get", "incremental_authorization", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "token_setup_recurring"];
+export const SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "customer_create", "get", "incremental_authorization", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "token_setup_recurring"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -72,7 +72,7 @@ function _buildCreateClientAuthenticationTokenRequest(): types.IMerchantAuthenti
     };
 }
 
-function _buildCreateCustomerRequest(): types.ICustomerServiceCreateRequest {
+function _buildCustomerCreateRequest(): types.ICustomerServiceCreateRequest {
     return {
         "merchantCustomerId": "cust_probe_123",  // Identification.
         "customerName": "John Doe",  // Name of the customer.
@@ -405,12 +405,12 @@ async function createClientAuthenticationToken(merchantTransactionId: string, co
 }
 
 // Flow: CustomerService.Create
-async function createCustomer(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+async function customerCreate(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const customerClient = new CustomerClient(config);
 
-    const createResponse = await customerClient.customerCreate(_buildCreateCustomerRequest());
+    const customerResponse = await customerClient.customerCreate(_buildCustomerCreateRequest());
 
-    return createResponse;
+    return customerResponse;
 }
 
 // Flow: PaymentService.Get
@@ -506,7 +506,7 @@ async function tokenSetupRecurring(merchantTransactionId: string, config: types.
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processGetPayment, authorize, capture, createClientAuthenticationToken, createCustomer, get, incrementalAuthorization, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, tokenSetupRecurring, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildCreateCustomerRequest, _buildGetRequest, _buildIncrementalAuthorizationRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildTokenAuthorizeRequest, _buildTokenSetupRecurringRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processGetPayment, authorize, capture, createClientAuthenticationToken, customerCreate, get, incrementalAuthorization, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, tokenSetupRecurring, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildCustomerCreateRequest, _buildGetRequest, _buildIncrementalAuthorizationRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildTokenAuthorizeRequest, _buildTokenSetupRecurringRequest
 };
 
 // CLI runner

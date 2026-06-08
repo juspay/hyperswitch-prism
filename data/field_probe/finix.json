@@ -478,7 +478,25 @@
         "error": "client_authentication_token flow not supported by finix connector"
       }
     },
-    "create_customer": {
+    "create_order": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_order flow not supported by finix connector"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by finix connector"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by finix connector"
+      }
+    },
+    "customer_create": {
       "default": {
         "status": "supported",
         "proto_request": {
@@ -497,24 +515,6 @@
           },
           "body": "{\"entity\":{\"phone\":null,\"first_name\":\"John\",\"last_name\":\"Doe\",\"email\":\"test@example.com\",\"personal_address\":null},\"tags\":null,\"type\":\"PERSONAL\"}"
         }
-      }
-    },
-    "create_order": {
-      "default": {
-        "status": "not_supported",
-        "error": "create_order flow not supported by finix connector"
-      }
-    },
-    "create_server_authentication_token": {
-      "default": {
-        "status": "not_supported",
-        "error": "server_authentication_token flow not supported by finix connector"
-      }
-    },
-    "create_server_session_authentication_token": {
-      "default": {
-        "status": "not_supported",
-        "error": "server_session_authentication_token flow not supported by finix connector"
       }
     },
     "dispute_accept": {

@@ -2339,7 +2339,12 @@ def render_consolidated_javascript(
                 "",
             ]
         else:
-            body_lines = list(_scenario_step_javascript("_standalone_", flow_key, 1, proto_req, grpc_req, db, client_var, ts_mode=True))
+            # Flow without builder — create client manually then call method
+            body_lines = [
+                f"    const {client_var} = new {cls}(config);",
+                "",
+            ]
+            body_lines.extend(_scenario_step_javascript("_standalone_", flow_key, 1, proto_req, grpc_req, db, client_var, ts_mode=True))
         # These standalone flow functions return the raw response to avoid type issues
         # with responses that don't have a status field (e.g., EventServiceHandleResponse)
         body_lines.append(f"    return {var_name};")

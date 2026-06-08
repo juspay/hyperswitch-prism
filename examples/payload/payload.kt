@@ -30,7 +30,7 @@ import payments.Environment
 import payments.ConnectorSpecificConfig
 import types.Payment.PayloadConfig
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_client_authentication_token", "create_customer", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_client_authentication_token", "customer_create", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -290,7 +290,7 @@ fun createClientAuthenticationToken(txnId: String, config: ConnectorConfig = _de
 }
 
 // Flow: CustomerService.Create
-fun createCustomer(txnId: String, config: ConnectorConfig = _defaultConfig) {
+fun customerCreate(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = CustomerClient(config)
     val request = CustomerServiceCreateRequest.newBuilder().apply {
         merchantCustomerId = "cust_probe_123"  // Identification.
@@ -299,7 +299,7 @@ fun createCustomer(txnId: String, config: ConnectorConfig = _defaultConfig) {
         phoneNumber = "4155552671"  // Phone number of the customer.
     }.build()
     val response = client.customer_create(request)
-    println("Customer: ${response.connectorCustomerId}")
+    println("Status: ${response.status.name}")
 }
 
 // Flow: PaymentService.Get
@@ -579,7 +579,7 @@ fun main(args: Array<String>) {
         "authorize" -> authorize(txnId)
         "capture" -> capture(txnId)
         "createClientAuthenticationToken" -> createClientAuthenticationToken(txnId)
-        "createCustomer" -> createCustomer(txnId)
+        "customerCreate" -> customerCreate(txnId)
         "get" -> get(txnId)
         "parseEvent" -> parseEvent(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
@@ -590,6 +590,6 @@ fun main(args: Array<String>) {
         "setupRecurring" -> setupRecurring(txnId)
         "tokenAuthorize" -> tokenAuthorize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createCustomer, get, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, customerCreate, get, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, void")
     }
 }

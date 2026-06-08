@@ -18,7 +18,7 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "authorize",
     "capture",
     "create_client_authentication_token",
-    "create_customer",
+    "customer_create",
     "get",
     "parse_event",
     "proxy_authorize",
@@ -133,7 +133,7 @@ pub fn build_create_client_authentication_token_request(
     }
 }
 
-pub fn build_create_customer_request() -> CustomerServiceCreateRequest {
+pub fn build_customer_create_request() -> CustomerServiceCreateRequest {
     CustomerServiceCreateRequest {
         merchant_customer_id: Some("cust_probe_123".to_string()), // Identification.
         customer_name: Some("John Doe".to_string()),              // Name of the customer.
@@ -702,14 +702,14 @@ pub async fn process_create_client_authentication_token(
 
 // Flow: CustomerService.Create
 #[allow(dead_code)]
-pub async fn process_create_customer(
+pub async fn process_customer_create(
     client: &ConnectorClient,
     _merchant_transaction_id: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let response = client
-        .create_customer(build_create_customer_request(), &HashMap::new(), None)
+        .customer_create(build_customer_create_request(), &HashMap::new(), None)
         .await?;
-    Ok(format!("customer_id: {}", response.connector_customer_id))
+    Ok(format!("status: {:?}", response.status()))
 }
 
 // Flow: PaymentService.Get
@@ -855,7 +855,7 @@ async fn main() {
         "process_create_client_authentication_token" => {
             process_create_client_authentication_token(&client, "txn_001").await
         }
-        "process_create_customer" => process_create_customer(&client, "txn_001").await,
+        "process_customer_create" => process_customer_create(&client, "txn_001").await,
         "process_get" => process_get(&client, "txn_001").await,
         "process_parse_event" => process_parse_event(&client, "txn_001").await,
         "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
@@ -866,7 +866,7 @@ async fn main() {
         "process_token_authorize" => process_token_authorize(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_client_authentication_token, process_create_customer, process_get, process_parse_event, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_refund_get, process_setup_recurring, process_token_authorize, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_client_authentication_token, process_customer_create, process_get, process_parse_event, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_refund_get, process_setup_recurring, process_token_authorize, process_void", flow);
             return;
         }
     };
