@@ -223,7 +223,7 @@ for _category, pms in _PROBE_PM_BY_CATEGORY:
 # 
 # EXCEPTIONS: Only add entries here when the auto-derived key doesn't match probe data
 _FLOW_KEY_OVERRIDES: dict[tuple[str, str], str] = {
-    # CustomerService.Create now uses the standard pattern (customer_create)
+    # CustomerService.Create now uses prefixed pattern to match probe data
     ("CustomerService", "Create"): "customer_create",
     # Eligibility is a short name that doesn't need prefix
     ("PaymentMethodService", "Eligibility"): "eligibility",

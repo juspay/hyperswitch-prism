@@ -115,7 +115,11 @@ def _get_client_method(flow_key: str) -> str:
     """Map flow key to ConnectorClient method name.
     
     Handles special prefixes like dispute_*, webhook_*, etc.
+    For customer_create, the SDK uses create_customer.
     """
+    # Special case: customer_create -> create_customer (SDK uses unprefixed name)
+    if flow_key == "customer_create":
+        return "create_customer"
     # Strip dispute_ prefix for dispute flows
     if flow_key.startswith("dispute_"):
         return flow_key[8:]  # Remove "dispute_" prefix
@@ -562,7 +566,7 @@ JS_RESERVED = frozenset({"void", "delete", "return", "new", "in", "do", "for", "
 # All other flows use the flow key directly as the method name (snake_case).
 _FLOW_KEY_TO_METHOD: dict[str, str] = {
     "recurring_charge":          "charge",                    # RecurringPaymentService.charge()
-    "create_customer":           "customer_create",           # CustomerClient.customerCreate()
+    "create_customer":           "customer_create",           # CustomerClient.customerCreate() (JS/TS), create_customer (Rust/Python)
     "dispute_accept":            "accept",                    # DisputeClient.accept()
     "dispute_defend":            "defend",                    # DisputeClient.defend()
     "dispute_submit_evidence":   "submit_evidence",           # DisputeClient.submit_evidence()
@@ -3592,7 +3596,7 @@ def render_consolidated_rust(
             )
         elif flow_key == "tokenize":
             status_block = '    Ok(format!("token: {}", response.payment_method_token))'
-        elif flow_key == "create_customer":
+        elif flow_key in ("create_customer", "customer_create"):
             status_block = '    Ok(format!("customer_id: {}", response.connector_customer_id))'
         elif flow_key in ("dispute_accept", "dispute_defend", "dispute_submit_evidence"):
             status_block = '    Ok(format!("dispute_status: {:?}", response.dispute_status()))'

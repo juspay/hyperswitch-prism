@@ -707,9 +707,9 @@ pub async fn process_customer_create(
     _merchant_transaction_id: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let response = client
-        .customer_create(build_customer_create_request(), &HashMap::new(), None)
+        .create_customer(build_customer_create_request(), &HashMap::new(), None)
         .await?;
-    Ok(format!("status: {:?}", response.status()))
+    Ok(format!("customer_id: {}", response.connector_customer_id))
 }
 
 // Flow: PaymentService.Get
