@@ -2521,6 +2521,7 @@ def render_scenario_section(
 _KT_FLOW_STATUS_BLOCK: dict[str, str] = {
     "tokenize":                             '    println("Token: ${response.paymentMethodToken}")',
     "create_customer":                      '    println("Customer: ${response.connectorCustomerId}")',
+    "customer_create":                      '    println("Customer: ${response.connectorCustomerId}")',  # Alias for create_customer (probe uses customer_create)
     "dispute_accept":                       '    println("Dispute status: ${response.disputeStatus.name}")',
     "dispute_defend":                       '    println("Dispute status: ${response.disputeStatus.name}")',
     "dispute_submit_evidence":              '    println("Dispute status: ${response.disputeStatus.name}")',

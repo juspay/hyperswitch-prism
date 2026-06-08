@@ -103,7 +103,7 @@ fun customerCreate(txnId: String, config: ConnectorConfig = _defaultConfig) {
         phoneNumber = "4155552671"  // Phone number of the customer.
     }.build()
     val response = client.customer_create(request)
-    println("Status: ${response.status.name}")
+    println("Customer: ${response.connectorCustomerId}")
 }
 
 // Flow: PaymentService.Get
