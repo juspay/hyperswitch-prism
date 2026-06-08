@@ -8,7 +8,12 @@ use std::fmt;
 /// Represents the result status of probing a connector flow.
 ///
 /// Each variant maps to a specific string value that's stored in the JSON output
-/// and used by the documentation generation scripts.
+/// and used by the documentation generation scripts. There are exactly three
+/// states: a flow is either supported, not yet implemented, or not supported for
+/// this payment method. Unclassifiable probe failures collapse into
+/// `NotImplemented` (the probe could not produce a valid request and the
+/// connector did not explicitly reject the payment method); the diagnostic error
+/// message is preserved separately in `FlowResult::error`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum FlowStatus {
     /// Flow is fully supported - the connector produced a valid HTTP request.
@@ -16,16 +21,14 @@ pub enum FlowStatus {
 
     /// Flow is not implemented - the connector returns Ok(None) or has an empty
     /// default implementation (e.g., default trait impl with no URL override).
+    /// This is also the bucket for probe failures that couldn't be classified
+    /// as `NotSupported`.
+    #[default]
     NotImplemented,
 
     /// Flow is implemented but this specific payment method is not supported.
     /// The connector explicitly rejects this combination.
     NotSupported,
-
-    /// An error occurred during probing - usually a missing required field
-    /// that couldn't be patched automatically.
-    #[default]
-    Failed,
 }
 
 impl FlowStatus {
@@ -35,7 +38,6 @@ impl FlowStatus {
             Self::Supported => "supported",
             Self::NotImplemented => "not_implemented",
             Self::NotSupported => "not_supported",
-            Self::Failed => "error",
         }
     }
 
@@ -71,7 +73,9 @@ impl TryFrom<&str> for FlowStatus {
             "supported" => Ok(Self::Supported),
             "not_implemented" => Ok(Self::NotImplemented),
             "not_supported" => Ok(Self::NotSupported),
-            "error" => Ok(Self::Failed),
+            // Legacy alias: probe output prior to the 3-status model emitted
+            // "error"; treat it as not_implemented so old JSON still parses.
+            "error" => Ok(Self::NotImplemented),
             other => Err(format!("Unknown flow status: {}", other)),
         }
     }
@@ -120,7 +124,6 @@ mod tests {
         assert_eq!(FlowStatus::Supported.as_str(), "supported");
         assert_eq!(FlowStatus::NotImplemented.as_str(), "not_implemented");
         assert_eq!(FlowStatus::NotSupported.as_str(), "not_supported");
-        assert_eq!(FlowStatus::Failed.as_str(), "error");
     }
 
     #[test]
@@ -137,7 +140,11 @@ mod tests {
             FlowStatus::try_from("not_supported").unwrap(),
             FlowStatus::NotSupported
         );
-        assert_eq!(FlowStatus::try_from("error").unwrap(), FlowStatus::Failed);
+        // Legacy "error" output collapses into not_implemented.
+        assert_eq!(
+            FlowStatus::try_from("error").unwrap(),
+            FlowStatus::NotImplemented
+        );
         assert!(FlowStatus::try_from("unknown").is_err());
     }
 
@@ -146,6 +153,5 @@ mod tests {
         assert!(FlowStatus::Supported.is_success());
         assert!(!FlowStatus::NotImplemented.is_success());
         assert!(!FlowStatus::NotSupported.is_success());
-        assert!(!FlowStatus::Failed.is_success());
     }
 }

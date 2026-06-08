@@ -6,7 +6,8 @@
 //! 3. If error: classifies the error and either:
 //!    - Stops with "not_implemented" or "not_supported" status
 //!    - Attempts to patch the missing field and retries
-//!    - Stops with "error" if field cannot be patched
+//!    - Stops with "not_implemented" if the field cannot be patched (the
+//!      diagnostic message is preserved in the result's `error` field)
 //!
 //! # Architecture
 //!
@@ -221,7 +222,10 @@ fn classify_error_action(msg: &str) -> ErrorAction {
     } else if let Some(field) = parse_missing_field(msg).or_else(|| parse_missing_field_alt(msg)) {
         ErrorAction::PatchAndRetry(field)
     } else {
-        ErrorAction::Stop(FlowStatus::Failed)
+        // Unclassifiable error: the probe couldn't produce a valid request and
+        // the connector didn't explicitly reject the PM, so treat it as
+        // not_implemented. The raw message is kept in the result's `error` field.
+        ErrorAction::Stop(FlowStatus::NotImplemented)
     }
 }
 
@@ -270,7 +274,7 @@ where
 /// Handles the case where we're stuck on a field (already seen it).
 fn handle_stuck_field(field: &str, msg: &str, required_fields: Vec<String>) -> FlowResult {
     FlowResult {
-        status: FlowStatus::Failed.to_string(),
+        status: FlowStatus::NotImplemented.to_string(),
         required_fields,
         proto_request: None,
         sample: None,
@@ -283,7 +287,7 @@ fn handle_stuck_field(field: &str, msg: &str, required_fields: Vec<String>) -> F
 /// Handles reaching the maximum number of iterations.
 fn handle_max_iterations_reached(required_fields: Vec<String>) -> FlowResult {
     FlowResult {
-        status: FlowStatus::Failed.to_string(),
+        status: FlowStatus::NotImplemented.to_string(),
         required_fields,
         proto_request: None,
         sample: None,

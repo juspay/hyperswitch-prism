@@ -1542,8 +1542,6 @@ def _get_flow_status(flows: dict, flow_key: str) -> tuple[str, str]:
             # Mixed or other statuses
             if "supported" in statuses:
                 return ("✓", "")
-            if "error" in statuses:
-                return ("?", "Error")
             return ("x", "")
         # No PM entries at all
         return ("x", "")
@@ -1559,8 +1557,6 @@ def _get_flow_status(flows: dict, flow_key: str) -> tuple[str, str]:
             return ("⚠", "")
         if statuses == {"not_supported"}:
             return ("x", "")
-        if "error" in statuses:
-            return ("?", "Error")
         return ("x", "")
 
     # For flows with only 'default' entry
@@ -1569,11 +1565,6 @@ def _get_flow_status(flows: dict, flow_key: str) -> tuple[str, str]:
 
     if status == "supported":
         return ("✓", "")
-    elif status == "error":
-        error_msg = default_entry.get("error", "")
-        if len(error_msg) > 60:
-            error_msg = error_msg[:57] + "..."
-        return ("?", error_msg if error_msg else "Error")
     elif status == "not_supported":
         return ("x", "")
     elif status == "not_implemented":
@@ -1691,7 +1682,7 @@ def generate_all_connector_doc(probe_data: dict[str, dict], output_dir: Path) ->
                 pm_display_with_category.append(f"{short_cat} / {pm_name}")
         
         # Legend at top for clarity
-        a("**Legend:** ✓ Supported | x Not Supported | ⚠ Not Implemented | ? Error / Missing required fields")
+        a("**Legend:** ✓ Supported | x Not Supported | ⚠ Not Implemented")
         a("")
         
         a("| Connector | " + " | ".join(pm_display_with_category) + " |")
@@ -1727,7 +1718,7 @@ def generate_all_connector_doc(probe_data: dict[str, dict], output_dir: Path) ->
             flow_headers.append(f"{short_service}.{rpc_name}")
         
         # Legend at top for clarity
-        a("**Legend:** ✓ Supported | x Not Supported | ⚠ Not Implemented | ? Error / Missing required fields")
+        a("**Legend:** ✓ Supported | x Not Supported | ⚠ Not Implemented")
         a("")
         
         a("| Connector | " + " | ".join(flow_headers) + " |")

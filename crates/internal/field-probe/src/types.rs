@@ -32,7 +32,7 @@ pub(crate) struct SamplePayload {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub(crate) struct FlowResult {
-    pub(crate) status: String, // "supported" | "not_supported" | "error"
+    pub(crate) status: String, // "supported" | "not_implemented" | "not_supported"
     pub(crate) required_fields: Vec<String>,
     /// The proto JSON request that produced a successful transformer call.
     /// This is what the SDK user should send to UCS.
@@ -54,7 +54,7 @@ pub(crate) struct ConnectorResult {
 /// Compact flow result that omits null fields and not_supported status
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub(crate) struct CompactFlowResult {
-    pub(crate) status: String, // "supported" | "error" (not_supported is omitted entirely)
+    pub(crate) status: String, // "supported" | "not_implemented" | "not_supported"
     /// The proto JSON request that produced a successful transformer call.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) proto_request: Option<serde_json::Value>,
