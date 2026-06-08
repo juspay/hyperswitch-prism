@@ -18,8 +18,6 @@ import uniffi.connector_service_ffi.captureReqTransformer
 import uniffi.connector_service_ffi.captureResTransformer
 import uniffi.connector_service_ffi.chargeReqTransformer
 import uniffi.connector_service_ffi.chargeResTransformer
-import uniffi.connector_service_ffi.createReqTransformer
-import uniffi.connector_service_ffi.createResTransformer
 import uniffi.connector_service_ffi.createClientAuthenticationTokenReqTransformer
 import uniffi.connector_service_ffi.createClientAuthenticationTokenResTransformer
 import uniffi.connector_service_ffi.createOrderReqTransformer
@@ -28,6 +26,8 @@ import uniffi.connector_service_ffi.createServerAuthenticationTokenReqTransforme
 import uniffi.connector_service_ffi.createServerAuthenticationTokenResTransformer
 import uniffi.connector_service_ffi.createServerSessionAuthenticationTokenReqTransformer
 import uniffi.connector_service_ffi.createServerSessionAuthenticationTokenResTransformer
+import uniffi.connector_service_ffi.customerCreateReqTransformer
+import uniffi.connector_service_ffi.customerCreateResTransformer
 import uniffi.connector_service_ffi.defendReqTransformer
 import uniffi.connector_service_ffi.defendResTransformer
 import uniffi.connector_service_ffi.getReqTransformer
@@ -91,11 +91,11 @@ object FlowRegistry {
         "authorize" to ::authorizeReqTransformer,
         "capture" to ::captureReqTransformer,
         "charge" to ::chargeReqTransformer,
-        "create" to ::createReqTransformer,
         "create_client_authentication_token" to ::createClientAuthenticationTokenReqTransformer,
         "create_order" to ::createOrderReqTransformer,
         "create_server_authentication_token" to ::createServerAuthenticationTokenReqTransformer,
         "create_server_session_authentication_token" to ::createServerSessionAuthenticationTokenReqTransformer,
+        "customer_create" to ::customerCreateReqTransformer,
         "defend" to ::defendReqTransformer,
         "get" to ::getReqTransformer,
         "incremental_authorization" to ::incrementalAuthorizationReqTransformer,
@@ -130,11 +130,11 @@ object FlowRegistry {
         "authorize" to ::authorizeResTransformer,
         "capture" to ::captureResTransformer,
         "charge" to ::chargeResTransformer,
-        "create" to ::createResTransformer,
         "create_client_authentication_token" to ::createClientAuthenticationTokenResTransformer,
         "create_order" to ::createOrderResTransformer,
         "create_server_authentication_token" to ::createServerAuthenticationTokenResTransformer,
         "create_server_session_authentication_token" to ::createServerSessionAuthenticationTokenResTransformer,
+        "customer_create" to ::customerCreateResTransformer,
         "defend" to ::defendResTransformer,
         "get" to ::getResTransformer,
         "incremental_authorization" to ::incrementalAuthorizationResTransformer,
@@ -169,6 +169,17 @@ object FlowRegistry {
         "parse_event" to ::parseEventTransformer,
         "verify_redirect_response" to ::verifyRedirectResponseTransformer,
     )
+
+}
+
+class CustomerClient(
+    config: ConnectorConfig,
+    defaults: RequestConfig = RequestConfig.getDefaultInstance(),
+    libPath: String? = null
+) : ConnectorClient(config, defaults, libPath) {
+    // customer_create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
+    fun customer_create(request: CustomerServiceCreateRequest, options: RequestConfig? = null): CustomerServiceCreateResponse =
+        executeFlow("customer_create", request.toByteArray(), CustomerServiceCreateResponse.parser(), options)
 
 }
 
@@ -249,10 +260,6 @@ class PaymentMethodClient(
     defaults: RequestConfig = RequestConfig.getDefaultInstance(),
     libPath: String? = null
 ) : ConnectorClient(config, defaults, libPath) {
-    // create: PaymentMethodService.Create — Create payment method at connector. Establishes a new payment method and returns connector-specific details.
-    fun create(request: PaymentMethodServiceCreateRequest, options: RequestConfig? = null): PaymentMethodServiceCreateResponse =
-        executeFlow("create", request.toByteArray(), PaymentMethodServiceCreateResponse.parser(), options)
-
     // tokenize: PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing.
     fun tokenize(request: PaymentMethodServiceTokenizeRequest, options: RequestConfig? = null): PaymentMethodServiceTokenizeResponse =
         executeFlow("tokenize", request.toByteArray(), PaymentMethodServiceTokenizeResponse.parser(), options)
