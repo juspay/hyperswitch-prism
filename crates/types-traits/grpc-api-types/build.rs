@@ -80,56 +80,62 @@ fn add_serde_default_for_connector_configs(
     config: &mut prost_build::Config,
     fds: &prost_types::FileDescriptorSet,
 ) {
-    let maybe_config_msg = fds
-        .file
+    let file = match fds.file.iter().find(|f| {
+        f.message_type
+            .iter()
+            .any(|m| m.name() == "ConnectorSpecificConfig")
+    }) {
+        Some(f) => f,
+        None => {
+            eprintln!(
+                "cargo:warning=build.rs: ConnectorSpecificConfig not found in payment.proto; \
+                 no #[serde(default)] will be added for connector config repeated fields"
+            );
+            return;
+        }
+    };
+
+    let package = file.package();
+    let config_msg = file
+        .message_type
         .iter()
-        .flat_map(|f| &f.message_type)
-        .find(|m: &&prost_types::DescriptorProto| m.name() == "ConnectorSpecificConfig");
+        .find(|m| m.name() == "ConnectorSpecificConfig")
+        .expect("already verified above");
 
-    if maybe_config_msg.is_none() {
-        eprintln!(
-            "cargo:warning=build.rs: ConnectorSpecificConfig not found in payment.proto; \
-             no #[serde(default)] will be added for connector config repeated fields"
-        );
-    }
-
-    let connector_config_names: std::collections::HashSet<&str> = maybe_config_msg
-        .map(|m| {
-            m.field
-                .iter()
-                .filter_map(|f: &prost_types::FieldDescriptorProto| {
-                    let tn = f.type_name();
-                    if tn.is_empty() {
-                        None
-                    } else {
-                        tn.split('.').next_back()
-                    }
-                })
-                .collect()
+    let connector_config_names: std::collections::HashSet<&str> = config_msg
+        .field
+        .iter()
+        .filter_map(|f: &prost_types::FieldDescriptorProto| {
+            let name = f.type_name().split('.').next_back().unwrap_or("");
+            if name.is_empty() { None } else { Some(name) }
         })
-        .unwrap_or_default();
+        .collect();
 
-    for file in &fds.file {
-        for message in &file.message_type {
-            if connector_config_names.contains(message.name()) {
-                add_repeated_default(config, message);
-            }
+    for message in &file.message_type {
+        if connector_config_names.contains(message.name()) {
+            add_repeated_default(config, package, message.name(), message);
         }
     }
 }
 
 /// Adds `#[serde(default)]` to every repeated non-enum field in a message and its nested types.
-fn add_repeated_default(config: &mut prost_build::Config, message: &prost_types::DescriptorProto) {
+fn add_repeated_default(
+    config: &mut prost_build::Config,
+    package: &str,
+    parent_path: &str,
+    message: &prost_types::DescriptorProto,
+) {
     use prost_types::field_descriptor_proto::{Label, Type};
     for field in &message.field {
         if field.label() == Label::Repeated && field.r#type() != Type::Enum {
             config.field_attribute(
-                format!("{}.{}", message.name(), field.name()),
+                format!(".{package}.{parent_path}.{}", field.name()),
                 "#[serde(default)]",
             );
         }
     }
     for nested in &message.nested_type {
-        add_repeated_default(config, nested);
+        let nested_path = format!("{parent_path}.{}", nested.name());
+        add_repeated_default(config, package, &nested_path, nested);
     }
 }
