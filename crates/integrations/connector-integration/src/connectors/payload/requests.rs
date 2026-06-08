@@ -8,7 +8,7 @@ use crate::connectors::payload::responses;
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(untagged)]
 pub enum PayloadPaymentsRequest<T: PaymentMethodDataTypes> {
-    PayloadPaymentRequest(Box<PayloadPaymentRequestData<T>>),
+    PayloadPaymentRequest(Box<PayloadCardsRequestData<T>>),
     PayloadMandateRequest(Box<PayloadMandateRequestData>),
     PayloadCardTokenRequest(Box<PayloadCardTokenRequestData>),
 }
@@ -35,7 +35,7 @@ pub struct BillingAddress {
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
-pub struct PayloadPaymentRequestData<T: PaymentMethodDataTypes> {
+pub struct PayloadCardsRequestData<T: PaymentMethodDataTypes> {
     pub amount: FloatMajorUnit,
     pub payment_method: PayloadPaymentMethod<T>,
     #[serde(rename = "type")]

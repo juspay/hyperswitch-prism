@@ -35,7 +35,7 @@ use std::fmt::Debug;
 use transformers::{
     self as payload, PayloadAuthorizeResponse, PayloadCaptureRequest, PayloadCaptureResponse,
     PayloadClientAuthRequest, PayloadClientAuthResponse, PayloadCustomerRequest,
-    PayloadCustomerResponse, PayloadErrorResponse, PayloadPSyncResponse, PayloadPaymentRequestData,
+    PayloadCustomerResponse, PayloadErrorResponse, PayloadPSyncResponse, PayloadCardsRequestData,
     PayloadPaymentsRequest, PayloadRSyncResponse, PayloadRefundRequest, PayloadRefundResponse,
     PayloadRepeatPaymentRequest, PayloadRepeatPaymentResponse, PayloadSetupMandateResponse,
     PayloadVoidRequest, PayloadVoidResponse,
@@ -169,7 +169,7 @@ macros::create_all_prerequisites!(
         ),
         (
             flow: SetupMandate,
-            request_body: PayloadPaymentRequestData<T>,
+            request_body: PayloadCardsRequestData<T>,
             response_body: PayloadSetupMandateResponse,
             router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ),
@@ -514,7 +514,7 @@ macros::macro_connector_implementation!(
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Payload,
-    curl_request: Json(PayloadPaymentRequestData<T>),
+    curl_request: Json(PayloadCardsRequestData<T>),
     curl_response: PayloadSetupMandateResponse,
     flow_name: SetupMandate,
     resource_common_data: PaymentFlowData,

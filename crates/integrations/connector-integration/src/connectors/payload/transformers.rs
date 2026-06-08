@@ -36,7 +36,7 @@ use crate::connectors::payload::{PayloadAmountConvertor, PayloadRouterData};
 use crate::types::ResponseRouterData;
 
 pub use super::requests::{
-    PayloadCaptureRequest, PayloadCustomerRequest, PayloadPaymentRequestData,
+    PayloadCaptureRequest, PayloadCustomerRequest, PayloadCardsRequestData,
     PayloadPaymentsRequest, PayloadRefundRequest, PayloadRepeatPaymentRequest, PayloadVoidRequest,
 };
 pub use super::responses::{
@@ -135,7 +135,7 @@ fn build_payload_card_request_data<T: PaymentMethodDataTypes>(
     resource_common_data: &PaymentFlowData,
     capture_method: Option<enums::CaptureMethod>,
     is_mandate: bool,
-) -> Result<PayloadPaymentRequestData<T>, Error> {
+) -> Result<PayloadCardsRequestData<T>, Error> {
     if let PaymentMethodData::Card(req_card) = payment_method_data {
         let payload_auth = PayloadAuth::try_from((connector_config, currency))?;
 
@@ -174,7 +174,7 @@ fn build_payload_card_request_data<T: PaymentMethodDataTypes>(
             None
         };
 
-        Ok(PayloadPaymentRequestData {
+        Ok(PayloadCardsRequestData {
             amount,
             payment_method: requests::PayloadPaymentMethod {
                 method: requests::PayloadPaymentMethods::Card(card),
@@ -203,7 +203,7 @@ fn build_payload_bank_account_request_data<T: PaymentMethodDataTypes>(
     amount: FloatMajorUnit,
     capture_method: Option<enums::CaptureMethod>,
     resource_common_data: &PaymentFlowData,
-) -> Result<PayloadPaymentRequestData<T>, Error> {
+) -> Result<PayloadCardsRequestData<T>, Error> {
     match bank_debit_data {
         BankDebitData::AchBankDebit {
             account_number,
@@ -259,7 +259,7 @@ fn build_payload_bank_account_request_data<T: PaymentMethodDataTypes>(
                 None
             };
 
-            Ok(PayloadPaymentRequestData {
+            Ok(PayloadCardsRequestData {
                 amount,
                 payment_method: requests::PayloadPaymentMethod {
                     method: requests::PayloadPaymentMethods::BankAccount(bank),
@@ -298,7 +298,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             >,
             T,
         >,
-    > for PayloadPaymentRequestData<T>
+    > for PayloadCardsRequestData<T>
 {
     type Error = Error;
 
@@ -1128,6 +1128,7 @@ impl TryFrom<ResponseRouterData<PayloadCustomerResponse, Self>>
         Ok(Self {
             response: Ok(ConnectorCustomerResponse {
                 connector_customer_id: item.response.id,
+                status_code: item.http_code,
             }),
             ..item.router_data
         })

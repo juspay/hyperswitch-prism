@@ -10,7 +10,7 @@ use domain_types::{
         ResponseId, SetupMandateRequestData,
     },
     payment_method_data::{PaymentMethodDataTypes, RawCardNumber},
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -926,7 +926,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PowertranzSetupMandat
                 http_code,
             );
             Err(domain_types::router_data::ErrorResponse {
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: Some(response.transaction_identifier.clone()),
                 ..err
             })
@@ -1116,7 +1116,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PowertranzRepeatPayme
                 http_code,
             );
             Err(domain_types::router_data::ErrorResponse {
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: Some(response.transaction_identifier.clone()),
                 ..err
             })

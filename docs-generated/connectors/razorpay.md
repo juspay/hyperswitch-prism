@@ -92,6 +92,7 @@ let config = ConnectorConfig {
 |--------------------|----------|----------------------|
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.CreateOrder](#paymentservicecreateorder) | Payments | `PaymentServiceCreateOrderRequest` |
+| [MerchantAuthenticationService.CreateServerSessionAuthenticationToken](#merchantauthenticationservicecreateserversessionauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
 | [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
@@ -109,7 +110,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L101) · [Kotlin](../../examples/razorpay/razorpay.kt#L67) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L112) · [Kotlin](../../examples/razorpay/razorpay.kt#L68) · [Rust](../../examples/razorpay/razorpay.rs)
 
 #### PaymentService.CreateOrder
 
@@ -120,7 +121,7 @@ Create a payment order for later processing. Establishes a transaction context t
 | **Request** | `PaymentServiceCreateOrderRequest` |
 | **Response** | `PaymentServiceCreateOrderResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L110) · [Kotlin](../../examples/razorpay/razorpay.kt#L77) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L121) · [Kotlin](../../examples/razorpay/razorpay.kt#L78) · [Rust](../../examples/razorpay/razorpay.rs)
 
 #### PaymentService.Get
 
@@ -131,7 +132,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L119) · [Kotlin](../../examples/razorpay/razorpay.kt#L91) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L139) · [Kotlin](../../examples/razorpay/razorpay.kt#L107) · [Rust](../../examples/razorpay/razorpay.rs)
 
 #### PaymentService.Refund
 
@@ -142,7 +143,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L146) · [Kotlin](../../examples/razorpay/razorpay.kt#L130) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L166) · [Kotlin](../../examples/razorpay/razorpay.kt#L146) · [Rust](../../examples/razorpay/razorpay.rs)
 
 ### Refunds
 
@@ -155,4 +156,17 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L155) · [Kotlin](../../examples/razorpay/razorpay.kt#L140) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L175) · [Kotlin](../../examples/razorpay/razorpay.kt#L156) · [Rust](../../examples/razorpay/razorpay.rs)
+
+### Authentication
+
+#### MerchantAuthenticationService.CreateServerSessionAuthenticationToken
+
+Create a server-side session with the connector. Establishes session state for multi-step operations like 3DS verification or wallet authorization.
+
+| | Message |
+|---|---------|
+| **Request** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest` |
+| **Response** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse` |
+
+**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L130) · [Kotlin](../../examples/razorpay/razorpay.kt#L92) · [Rust](../../examples/razorpay/razorpay.rs)
