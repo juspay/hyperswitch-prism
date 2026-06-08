@@ -1,4 +1,5 @@
 use connector_integration::types::ConnectorData;
+use domain_types::utils::ForeignTryFrom as _;
 use grpc_api_types::payments::{
     composite_payment_method_service_server::CompositePaymentMethodService,
     merchant_authentication_service_server::MerchantAuthenticationService,
@@ -6,87 +7,73 @@ use grpc_api_types::payments::{
     CompositePaymentMethodCreateRequest, CompositePaymentMethodCreateResponse,
     CompositePaymentMethodGetRequest, CompositePaymentMethodGetResponse,
     CompositePaymentMethodRechargeRequest, CompositePaymentMethodRechargeResponse,
-    MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
     PaymentMethodServiceCreateRequest, PaymentMethodServiceGetRequest,
     PaymentMethodServiceRechargeRequest,
 };
-use hyperswitch_masking::Secret;
 
+use crate::payments::CompositeAccessTokenRequest;
 use crate::transformers::ForeignFrom;
-use crate::utils::{connector_from_composite_authorize_metadata, grpc_connector_from_connector_enum};
+use crate::utils::connector_from_composite_authorize_metadata;
 
-/// Common shape every composite-PaymentMethod request exposes for the
-/// access-token bootstrap step. Keeps `bootstrap_access_token` generic over
-/// Create / Get / Recharge.
-trait CompositePaymentMethodRequest {
-    fn already_has_access_token(&self) -> bool;
-    fn merchant_access_token_id(&self) -> Option<String>;
-    fn metadata(&self) -> Option<Secret<String>>;
-    fn connector_feature_data(&self) -> Option<Secret<String>>;
-    fn test_mode(&self) -> Option<bool>;
-}
+/// Implementation of CompositeAccessTokenRequest for payment method requests.
+/// These requests don't have a specific payment_method field since payment-method-management
+/// flows aren't gated on a specific payment method.
 
-impl CompositePaymentMethodRequest for CompositePaymentMethodRechargeRequest {
-    fn already_has_access_token(&self) -> bool {
-        self.state
-            .as_ref()
-            .and_then(|s| s.access_token.as_ref())
-            .is_some()
+impl CompositeAccessTokenRequest for CompositePaymentMethodRechargeRequest {
+    fn payment_method(&self) -> Option<grpc_api_types::payments::PaymentMethod> {
+        None
     }
-    fn merchant_access_token_id(&self) -> Option<String> {
-        self.merchant_access_token_id.clone()
+
+    fn state(&self) -> Option<&grpc_api_types::payments::ConnectorState> {
+        self.state.as_ref()
     }
-    fn metadata(&self) -> Option<Secret<String>> {
-        self.metadata.clone()
-    }
-    fn connector_feature_data(&self) -> Option<Secret<String>> {
-        self.connector_feature_data.clone()
-    }
-    fn test_mode(&self) -> Option<bool> {
-        self.test_mode
+
+    fn build_access_token_request(
+        &self,
+        connector: &domain_types::connector_types::ConnectorEnum,
+    ) -> grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+        grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
+            self, connector,
+        ))
     }
 }
 
-impl CompositePaymentMethodRequest for CompositePaymentMethodCreateRequest {
-    fn already_has_access_token(&self) -> bool {
-        self.state
-            .as_ref()
-            .and_then(|s| s.access_token.as_ref())
-            .is_some()
+impl CompositeAccessTokenRequest for CompositePaymentMethodCreateRequest {
+    fn payment_method(&self) -> Option<grpc_api_types::payments::PaymentMethod> {
+        None
     }
-    fn merchant_access_token_id(&self) -> Option<String> {
-        self.merchant_access_token_id.clone()
+
+    fn state(&self) -> Option<&grpc_api_types::payments::ConnectorState> {
+        self.state.as_ref()
     }
-    fn metadata(&self) -> Option<Secret<String>> {
-        self.metadata.clone()
-    }
-    fn connector_feature_data(&self) -> Option<Secret<String>> {
-        self.connector_feature_data.clone()
-    }
-    fn test_mode(&self) -> Option<bool> {
-        self.test_mode
+
+    fn build_access_token_request(
+        &self,
+        connector: &domain_types::connector_types::ConnectorEnum,
+    ) -> grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+        grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
+            self, connector,
+        ))
     }
 }
 
-impl CompositePaymentMethodRequest for CompositePaymentMethodGetRequest {
-    fn already_has_access_token(&self) -> bool {
-        self.state
-            .as_ref()
-            .and_then(|s| s.access_token.as_ref())
-            .is_some()
+impl CompositeAccessTokenRequest for CompositePaymentMethodGetRequest {
+    fn payment_method(&self) -> Option<grpc_api_types::payments::PaymentMethod> {
+        None
     }
-    fn merchant_access_token_id(&self) -> Option<String> {
-        self.merchant_access_token_id.clone()
+
+    fn state(&self) -> Option<&grpc_api_types::payments::ConnectorState> {
+        self.state.as_ref()
     }
-    fn metadata(&self) -> Option<Secret<String>> {
-        self.metadata.clone()
-    }
-    fn connector_feature_data(&self) -> Option<Secret<String>> {
-        self.connector_feature_data.clone()
-    }
-    fn test_mode(&self) -> Option<bool> {
-        self.test_mode
+
+    fn build_access_token_request(
+        &self,
+        connector: &domain_types::connector_types::ConnectorEnum,
+    ) -> grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+        grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
+            self, connector,
+        ))
     }
 }
 
@@ -123,7 +110,7 @@ where
     /// one and (b) the caller didn't already pass one via
     /// `state.access_token`. Returns `None` otherwise so the response's
     /// `access_token_response` slot stays unset.
-    async fn bootstrap_access_token<R: CompositePaymentMethodRequest>(
+    async fn create_server_authentication_token<R: CompositeAccessTokenRequest>(
         &self,
         connector: &domain_types::connector_types::ConnectorEnum,
         payload: &R,
@@ -133,38 +120,53 @@ where
         Option<MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
         tonic::Status,
     > {
-        if payload.already_has_access_token() {
-            return Ok(None);
-        }
-
-        // Payment-method-management flows aren't gated on a specific
-        // payment_method — bootstrap unconditionally when the connector asks
-        // for one.
-        let connector_data = ConnectorData::<
-            domain_types::payment_method_data::DefaultPCIHolder,
-        >::get_connector_by_name(connector);
-        if !connector_data.connector.should_do_access_token(None) {
-            return Ok(None);
-        }
-
-        let token_payload = MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
-            merchant_access_token_id: payload.merchant_access_token_id(),
-            connector: grpc_connector_from_connector_enum(connector),
-            metadata: payload.metadata(),
-            connector_feature_data: payload.connector_feature_data(),
-            test_mode: payload.test_mode(),
+        let should_do_access_token = {
+            let payment_method = payload
+                .payment_method()
+                .map(common_enums::PaymentMethod::foreign_try_from)
+                .transpose()
+                .map_err(|err| {
+                    tonic::Status::invalid_argument(format!(
+                        "invalid payment_method in request payload: {err}"
+                    ))
+                })?;
+            let connector_data = ConnectorData::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >::get_connector_by_name(connector);
+            connector_data
+                .connector
+                .should_do_access_token(payment_method)
         };
-        let mut token_request = tonic::Request::new(token_payload);
-        *token_request.metadata_mut() = metadata.clone();
-        *token_request.extensions_mut() = extensions.clone();
+        let payload_access_token = payload
+            .state()
+            .and_then(|state| state.access_token.as_ref())
+            .and_then(|token| {
+                domain_types::connector_types::ServerAuthenticationTokenResponseData::foreign_try_from(
+                    token,
+                )
+                .ok()
+            });
+        let should_create_access_token = should_do_access_token && payload_access_token.is_none();
 
-        let token_response = self
-            .merchant_authentication_service
-            .create_server_authentication_token(token_request)
-            .await?
-            .into_inner();
+        let access_token_response = match should_create_access_token {
+            true => {
+                let access_token_payload = payload.build_access_token_request(connector);
+                let mut access_token_request = tonic::Request::new(access_token_payload);
+                *access_token_request.metadata_mut() = metadata.clone();
+                *access_token_request.extensions_mut() = extensions.clone();
 
-        Ok(Some(token_response))
+                let access_token_response = self
+                    .merchant_authentication_service
+                    .create_server_authentication_token(access_token_request)
+                    .await?
+                    .into_inner();
+
+                Some(access_token_response)
+            }
+            false => None,
+        };
+
+        Ok(access_token_response)
     }
 
     async fn process_recharge(
@@ -175,7 +177,7 @@ where
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
         let access_token_response = self
-            .bootstrap_access_token(&connector, &payload, &metadata, &extensions)
+            .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
             .await?;
 
         let inner = PaymentMethodServiceRechargeRequest::foreign_from((
@@ -208,7 +210,7 @@ where
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
         let access_token_response = self
-            .bootstrap_access_token(&connector, &payload, &metadata, &extensions)
+            .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
             .await?;
 
         let inner = PaymentMethodServiceCreateRequest::foreign_from((
@@ -239,7 +241,7 @@ where
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
         let access_token_response = self
-            .bootstrap_access_token(&connector, &payload, &metadata, &extensions)
+            .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
             .await?;
 
         let inner = PaymentMethodServiceGetRequest::foreign_from((

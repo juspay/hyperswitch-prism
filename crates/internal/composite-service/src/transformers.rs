@@ -620,13 +620,51 @@ impl
     }
 }
 
-// ============================================================================
-// Composite Recharge → inner PaymentMethodServiceRechargeRequest
-//
-// Splices the bootstrapped (or caller-provided) access token into the inner
-// recharge request's `state.access_token`. Mirrors `PaymentServiceRefundRequest`
-// above but for the PaymentMethodService.Recharge RPC.
-// ============================================================================
+impl ForeignFrom<(&CompositePaymentMethodRechargeRequest, &ConnectorEnum)>
+    for MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
+{
+    fn foreign_from(
+        (item, connector): (&CompositePaymentMethodRechargeRequest, &ConnectorEnum),
+    ) -> Self {
+        Self {
+            merchant_access_token_id: item.merchant_access_token_id.clone(),
+            connector: grpc_connector_from_connector_enum(connector),
+            metadata: item.metadata.clone(),
+            connector_feature_data: item.connector_feature_data.clone(),
+            test_mode: item.test_mode,
+        }
+    }
+}
+
+impl ForeignFrom<(&CompositePaymentMethodCreateRequest, &ConnectorEnum)>
+    for MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
+{
+    fn foreign_from(
+        (item, connector): (&CompositePaymentMethodCreateRequest, &ConnectorEnum),
+    ) -> Self {
+        Self {
+            merchant_access_token_id: item.merchant_access_token_id.clone(),
+            connector: grpc_connector_from_connector_enum(connector),
+            metadata: item.metadata.clone(),
+            connector_feature_data: item.connector_feature_data.clone(),
+            test_mode: item.test_mode,
+        }
+    }
+}
+
+impl ForeignFrom<(&CompositePaymentMethodGetRequest, &ConnectorEnum)>
+    for MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
+{
+    fn foreign_from((item, connector): (&CompositePaymentMethodGetRequest, &ConnectorEnum)) -> Self {
+        Self {
+            merchant_access_token_id: item.merchant_access_token_id.clone(),
+            connector: grpc_connector_from_connector_enum(connector),
+            metadata: item.metadata.clone(),
+            connector_feature_data: item.connector_feature_data.clone(),
+            test_mode: item.test_mode,
+        }
+    }
+}
 
 impl
     ForeignFrom<(
@@ -672,10 +710,6 @@ impl
     }
 }
 
-// ============================================================================
-// Composite Create → inner PaymentMethodServiceCreateRequest
-// ============================================================================
-
 impl
     ForeignFrom<(
         &CompositePaymentMethodCreateRequest,
@@ -713,10 +747,6 @@ impl
         }
     }
 }
-
-// ============================================================================
-// Composite Get → inner PaymentMethodServiceGetRequest
-// ============================================================================
 
 impl
     ForeignFrom<(
