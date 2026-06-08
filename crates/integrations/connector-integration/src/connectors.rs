@@ -262,3 +262,9 @@ pub use self::twoc_twop_paco::TwocTwopPaco;
 
 pub mod deutschebank;
 pub use self::deutschebank::Deutschebank;
+
+pub mod juspay;
+pub use self::juspay::Juspay;
+
+pub mod tamara;
+pub use self::tamara::Tamara;

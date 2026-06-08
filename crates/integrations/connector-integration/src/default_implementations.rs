@@ -135,6 +135,7 @@ default_impl_verify_webhook_source_v2!(
         Phonepe,
         Ppro,
         Revolut,
+        Tamara,
         AbsaSanlam,
         Trustly,
         Trustpay,
@@ -209,6 +210,7 @@ default_impl_verify_webhook_source_v2!(
         Worldpayxml,
         Xendit,
         Zift,
+        Juspay,
     ],
 );
 // PayPal has its own implementation in paypal.rs

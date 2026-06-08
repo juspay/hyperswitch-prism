@@ -121,6 +121,8 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Axisbank => Box::new(connectors::Axisbank::new()),
             ConnectorEnum::TwocTwopPaco => Box::new(connectors::TwocTwopPaco::new()),
             ConnectorEnum::Deutschebank => Box::new(connectors::Deutschebank::new()),
+            ConnectorEnum::Juspay => Box::new(connectors::Juspay::<T>::new()),
+            ConnectorEnum::Tamara => Box::new(connectors::Tamara::<T>::new()),
         }
     }
 }
@@ -212,7 +214,14 @@ impl ConnectorDataProvider for PayoutConnectorData {
     fn from_connector_variant(
         variant: &domain_types::connector_types::ConnectorVariant,
     ) -> Option<Self> {
-        variant.as_payout().map(|c| Self::get_connector_by_name(&c))
+        variant
+            .as_payout()
+            .or_else(|| {
+                variant
+                    .as_payment()
+                    .and_then(|c| PayoutConnectorEnum::try_from(c).ok())
+            })
+            .map(|c| Self::get_connector_by_name(&c))
     }
 }
 

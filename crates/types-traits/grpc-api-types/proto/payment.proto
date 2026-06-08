@@ -103,6 +103,11 @@ message ConnectorErrorDetails {
   optional string message = 2; // Human-readable error message
   optional string reason = 3;  // Detailed explanation
   optional string connector_transaction_id = 4; // Connector's unique transaction ID for debugging and support reference
+  
+  // Attempt status from the connector flow (Payment/Refund/Dispute).
+  // Extracted from ErrorResponse.attempt_status (domain_types::FlowStatus).
+  // Only one of payment_status, refund_status, or dispute_status will be set.
+  optional FlowStatus status = 5;
 }
 
 // Metadata consolidates all metadata types
@@ -238,6 +243,17 @@ enum DisputeStatus {
   DISPUTE_CHALLENGED = 5; // Dispute is being challenged with evidence
   DISPUTE_WON = 6;
   DISPUTE_LOST = 7;
+}
+
+// Unified flow status wrapping payment, refund, or dispute status.
+// Used to represent the attempt status in error responses and flow results.
+// Only one variant should be set at a time.
+message FlowStatus {
+  oneof status {
+    PaymentStatus payment_status = 1;  // Status for payment flow
+    RefundStatus refund_status = 2;    // Status for refund flow
+    DisputeStatus dispute_status = 3;  // Status for dispute flow
+  }
 }
 
 // Status of a mandate
@@ -462,6 +478,15 @@ enum WebhookEventType {
   RECOVERY_PAYMENT_SUCCESS = 38; // Recovery payment success
   RECOVERY_PAYMENT_PENDING = 39; // Recovery payment pending
   RECOVERY_INVOICE_CANCEL = 40;  // Recovery invoice cancelled
+}
+
+// Type of event for outgoing connector notifications (not webhooks)
+enum NotifyEventType {
+  NOTIFY_EVENT_TYPE_UNSPECIFIED = 0; // Default unspecified event
+
+  // Surcharge events
+  SURCHARGE_PAYMENT_SUCCEEDED = 1; // Surcharge payment succeeded
+  SURCHARGE_REFUND_SUCCEEDED = 2;  // Surcharge refund succeeded
 }
 
 // Currency codes (ISO 4217)
@@ -754,6 +779,8 @@ enum Connector {
   AXISBANK = 119;
   EASEBUZZ = 120;
   TWOC_TWOP_PACO = 121;
+  JUSPAY = 122;
+  TAMARA = 123;
 }
 
 // Payment method types
@@ -1373,6 +1400,49 @@ message EventServiceHandleResponse {
 
   // Integrity fields that downstream can use to verify the webhook payload.
   repeated IntegrityCheck supported_integrity_checks = 6;
+}
+
+// Request for notifying connectors about events
+message NotifyConnectorRequest {
+  // Merchant identification
+  string merchant_id = 1;
+
+  // Unique event identifier
+  string event_id = 2;
+
+  // Event type
+  NotifyEventType event_type = 3;
+
+  // Event content with notify connector content 
+  NotifyConnectorContent content = 4;
+
+  // Timestamp when the event occurred (Unix timestamp in seconds)
+  int64 timestamp = 5;
+}
+
+
+// Content of an event
+message NotifyConnectorContent {
+  oneof content {
+    // surcharge details 
+    SurchargeContent surcharge_content = 1;
+  }
+}
+
+
+// Surcharge details object
+message SurchargeContent {
+  // Connector surcharge identifier
+  string connector_surcharge_id = 1;
+}
+
+// Response for notifying connectors
+message NotifyConnectorResponse {
+  // Status of the notification
+  uint32 status_code = 1;
+
+  // Optional error information if notification failed
+  optional ErrorInfo error = 2;
 }
 
 // Suggested HTTP response for webhook acknowledgement (status, headers, body).
@@ -3482,6 +3552,9 @@ message PaymentMethodServiceTokenizeRequest {
 
   // Environment Configuration
   optional bool test_mode = 9;
+
+  // State Information
+  optional ConnectorState state = 10;
 }
 
 // Response message for tokenizing a payment method
@@ -4315,9 +4388,20 @@ message TwocTwopPacoConfig {
   optional string base_url = 50;
 }
 
+message TamaraConfig {
+  SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
 // Single field auth types
 message InterpaymentsConfig {
   SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
+message JuspayConfig {
+  SecretString api_key = 1;
+  SecretString merchant_id = 2;
   optional string base_url = 50;
 }
 
@@ -4596,8 +4680,14 @@ message ConnectorSpecificConfig {
     // INTERPAYMENTS = 126
     InterpaymentsConfig interpayments = 126;
 
+    // JUSPAY = 122
+    JuspayConfig juspay = 127;
+
+    // TAMARA = 123
+    TamaraConfig tamara = 128;
+
     // DEUTSCHEBANK = 24
-    DeutschebankConfig deutschebank = 127;
+    DeutschebankConfig deutschebank = 129;
   }
 }
 

@@ -38,6 +38,8 @@ use domain_types::{
     router_response_types::VerifyWebhookSourceResponseData,
     surcharge::surcharge_types::{
         SurchargeCalculateRequest, SurchargeCalculateResponse, SurchargeFlowData,
+        SurchargePaymentSucceededRequest, SurchargePaymentSucceededResponse,
+        SurchargeRefundSucceededRequest, SurchargeRefundSucceededResponse,
     },
     types::{PaymentMethodDataType, PaymentMethodDetails, SupportedPaymentMethods},
 };
@@ -111,7 +113,10 @@ pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
 {
 }
 
-pub trait SurchargeServiceTrait: ConnectorCommon + SurchargeCalculateV2 {}
+pub trait SurchargeServiceTrait:
+    ConnectorCommon + SurchargeCalculateV2 + SurchargePaymentSucceededV2 + SurchargeRefundSucceededV2
+{
+}
 
 pub trait PayoutServiceTrait:
     ConnectorCommon
@@ -809,6 +814,26 @@ pub trait SurchargeCalculateV2:
     SurchargeFlowData,
     SurchargeCalculateRequest,
     SurchargeCalculateResponse,
+>
+{
+}
+
+pub trait SurchargePaymentSucceededV2:
+    ConnectorIntegrationV2<
+    connector_flow::SurchargePaymentSucceeded,
+    SurchargeFlowData,
+    SurchargePaymentSucceededRequest,
+    SurchargePaymentSucceededResponse,
+>
+{
+}
+
+pub trait SurchargeRefundSucceededV2:
+    ConnectorIntegrationV2<
+    connector_flow::SurchargeRefundSucceeded,
+    SurchargeFlowData,
+    SurchargeRefundSucceededRequest,
+    SurchargeRefundSucceededResponse,
 >
 {
 }

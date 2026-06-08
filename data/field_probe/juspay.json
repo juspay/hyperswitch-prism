@@ -1,0 +1,1470 @@
+{
+  "connector": "juspay",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "authenticate flow not supported by juspay connector"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant BankDebit(AchBankDebit { account_number: *** alloc::string::String ***, routing_number: *** alloc::string::String ***, card_holder_name: None, bank_account_holder_name: Some(*** alloc::string::String ***), bank_name: None, bank_type: None, bank_holder_type: None }); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant BankTransfer(AchBankTransfer); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "Affirm": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay CONSUMER_FINANCE does not map cleanly from AffirmRedirect — use the native connector for this BNPL"
+      },
+      "Afterpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay CONSUMER_FINANCE does not map cleanly from AfterpayClearpayRedirect — use the native connector for this BNPL"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant Voucher(Alfamart(AlfamartVoucherData)); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "AliPayRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ali_pay_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/txns",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "order_id=probe_txn_001&merchant_id=probe_merchant&payment_method_type=WALLET&payment_method=ALIPAY&format=json&redirect_after_payment=true"
+        }
+      },
+      "AmazonPayRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "amazon_pay_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/txns",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "order_id=probe_txn_001&merchant_id=probe_merchant&payment_method_type=WALLET&payment_method=AMAZONPAY&format=json&redirect_after_payment=true"
+        }
+      },
+      "ApplePay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/txns",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "order_id=probe_txn_001&merchant_id=probe_merchant&payment_method_type=WALLET&payment_method=APPLEPAY&format=json&redirect_after_payment=true"
+        }
+      },
+      "ApplePayDecrypted": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "decrypted_data": {
+                  "application_primary_account_number": "4111111111111111",
+                  "application_expiration_month": "03",
+                  "application_expiration_year": "2030",
+                  "payment_data": {
+                    "online_payment_cryptogram": "AAAAAA==",
+                    "eci_indicator": "05"
+                  }
+                }
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/txns",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "order_id=probe_txn_001&merchant_id=probe_merchant&payment_method_type=WALLET&payment_method=APPLEPAY&format=json&redirect_after_payment=true"
+        }
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_third_party_sdk": {
+              "token": "probe_apple_pay_third_party_token"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/txns",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "order_id=probe_txn_001&merchant_id=probe_merchant&payment_method_type=WALLET&payment_method=APPLEPAY&format=json&redirect_after_payment=true"
+        }
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant BankDebit(BacsBankDebit { account_number: *** alloc::string::String ***, sort_code: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) }); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant BankTransfer(BacsBankTransfer); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay does not support bank redirect variant: BancontactCard { card_number: Some(CardNumber(411111**********)), card_exp_month: Some(*** alloc::string::String ***), card_exp_year: Some(*** alloc::string::String ***), card_holder_name: Some(*** alloc::string::String ***) }"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant BankTransfer(BcaBankTransfer); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant BankDebit(BecsBankDebit { account_number: *** alloc::string::String ***, bsb_number: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) }); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay does not support aggregator wallet variant: BillDeskRedirect(BillDeskRedirection)"
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay does not support bank redirect variant: Bizum"
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay does not support bank redirect variant: Blik { blik_code: Some(\"777124\") }"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay wallet variant not supported: BluecodeRedirect"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant BankTransfer(BniVaBankTransfer); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant Voucher(Boleto(BoletoVoucherData { social_security_number: None, expiration_date: None })); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant BankTransfer(BriVaBankTransfer); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "Card": {
+        "status": "error",
+        "error": "Stuck on field: payment_method_data.card.card_network — Missing required field: payment_method_data.card.card_network"
+      },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay wallet variant not supported: CashappQr(CashappQr)"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay does not support aggregator wallet variant: CashfreeRedirect(CashfreeRedirection)"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant BankTransfer(CimbVaBankTransfer); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant Reward; supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay wallet variant not supported: DanaRedirect"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant BankTransfer(DanamonVaBankTransfer); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant Reward; supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay does not support aggregator wallet variant: EaseBuzzRedirect(EaseBuzzRedirection)"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant Voucher(Efecty); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay does not support bank redirect variant: Eft { provider: \"ozow\" }"
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay does not support bank redirect variant: Eps { bank_name: None, country: None }"
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant Voucher(FamilyMart(JCSVoucherData)); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "GCash": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "gcash_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/txns",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "order_id=probe_txn_001&merchant_id=probe_merchant&payment_method_type=WALLET&payment_method=GCASH&format=json&redirect_after_payment=true"
+        }
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay does not support bank redirect variant: Giropay { bank_account_bic: None, bank_account_iban: None, country: None }"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "go_pay_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/txns",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "order_id=probe_txn_001&merchant_id=probe_merchant&payment_method_type=WALLET&payment_method=GOPAY&format=json&redirect_after_payment=true"
+        }
+      },
+      "GooglePay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "encrypted_data": {
+                  "token_type": "PAYMENT_GATEWAY",
+                  "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/txns",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "order_id=probe_txn_001&merchant_id=probe_merchant&payment_method_type=WALLET&payment_method=GOOGLEPAY&format=json&redirect_after_payment=true"
+        }
+      },
+      "GooglePayDecrypted": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "cryptogram": "AAAAAA==",
+                  "eci_indicator": "05"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/txns",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "order_id=probe_txn_001&merchant_id=probe_merchant&payment_method_type=WALLET&payment_method=GOOGLEPAY&format=json&redirect_after_payment=true"
+        }
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_third_party_sdk": {
+              "token": "probe_google_pay_third_party_token"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/txns",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "order_id=probe_txn_001&merchant_id=probe_merchant&payment_method_type=WALLET&payment_method=GOOGLEPAY&format=json&redirect_after_payment=true"
+        }
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay does not support bank redirect variant: Ideal { bank_name: None }"
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant Voucher(Indomaret(IndomaretVoucherData)); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant BankTransfer(IndonesianBankTransfer { bank_name: None }); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant BankTransfer(InstantBankTransfer); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant BankTransfer(InstantBankTransferFinland); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant BankTransfer(InstantBankTransferPoland); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay does not support bank redirect variant: Interac { country: None, email: None }"
+      },
+      "KakaoPay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "kakao_pay_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/txns",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "order_id=probe_txn_001&merchant_id=probe_merchant&payment_method_type=WALLET&payment_method=KAKAOPAY&format=json&redirect_after_payment=true"
+        }
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay CONSUMER_FINANCE does not map cleanly from KlarnaRedirect — use the native connector for this BNPL"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant Voucher(Lawson(JCSVoucherData)); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "LazyPayRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "lazypay_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/txns",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "order_id=probe_txn_001&merchant_id=probe_merchant&payment_method_type=WALLET&payment_method=LAZYPAY&format=json&redirect_after_payment=true"
+        }
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay does not support bank redirect variant: LocalBankRedirect"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant BankTransfer(LocalBankTransfer { bank_code: None }); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant BankTransfer(MandiriVaBankTransfer); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay wallet variant not supported: MbWay(MbWayData)"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay wallet variant not supported: Mifinity(MifinityData { date_of_birth: *** time::date::Date ***, language_preference: Some(\"en\") })"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant Voucher(MiniStop(JCSVoucherData)); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "momo_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/txns",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "order_id=probe_txn_001&merchant_id=probe_merchant&payment_method_type=WALLET&payment_method=MOMO&format=json&redirect_after_payment=true"
+        }
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant BankTransfer(MultibancoBankTransfer); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "Netbanking": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "netbanking": {
+              "issuer": "HdfcBank"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/txns",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "order_id=probe_txn_001&merchant_id=probe_merchant&payment_method_type=NB&payment_method=JP_HDFC&format=json&redirect_after_payment=true"
+        }
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay does not support bank redirect variant: OnlineBankingCzechRepublic { issuer: CeskaSporitelna }"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay does not support bank redirect variant: OnlineBankingFinland { email: Some(Email(****@example.com)) }"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay does not support bank redirect variant: OnlineBankingFpx { issuer: Maybank }"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay does not support bank redirect variant: OnlineBankingPoland { issuer: BankPekaoSa }"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay does not support bank redirect variant: OnlineBankingSlovakia { issuer: TatraPay }"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay does not support bank redirect variant: OnlineBankingThailand { issuer: BangkokBank }"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay does not support bank redirect variant: OpenBanking"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay does not support bank redirect variant: OpenBankingUk { issuer: None, country: None }"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant Voucher(Oxxo); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant Voucher(PagoEfectivo); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant Voucher(PayEasy(JCSVoucherData)); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay does not support aggregator wallet variant: PayURedirect(PayURedirection)"
+      },
+      "PaypalRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "paypal_redirect": {
+              "email": "test@example.com"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/txns",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "order_id=probe_txn_001&merchant_id=probe_merchant&payment_method_type=WALLET&payment_method=PAYPAL&format=json&redirect_after_payment=true"
+        }
+      },
+      "PaypalSdk": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "paypal_sdk": {
+              "token": "probe_paypal_sdk_token"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/txns",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "order_id=probe_txn_001&merchant_id=probe_merchant&payment_method_type=WALLET&payment_method=PAYPAL&format=json&redirect_after_payment=true"
+        }
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant BankTransfer(PermataBankTransfer); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "PhonePeRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "phonepe_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/txns",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "order_id=probe_txn_001&merchant_id=probe_merchant&payment_method_type=WALLET&payment_method=PHONEPE_WALLET&format=json&redirect_after_payment=true"
+        }
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant BankTransfer(Pix { pix_key: None, cpf: None, cnpj: None, source_bank_account_id: None, destination_bank_account_id: None, expiry_date: None }); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay does not support bank redirect variant: Przelewy24 { bank_name: None }"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant BankTransfer(Pse); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant Voucher(RedCompra); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant Voucher(RedPagos); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay wallet variant not supported: RevolutPay(RevolutPayData)"
+      },
+      "SamsungPay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "samsung_pay_sdk": {
+              "payment_credential": {
+                "method": "3DS",
+                "recurring_payment": false,
+                "card_brand": "VISA",
+                "card_last_four_digits": "1234",
+                "token_data": {
+                  "type": "S",
+                  "version": "100",
+                  "data": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNhbXN1bmdfcHJvYmVfa2V5XzEyMyJ9.eyJwYXltZW50TWV0aG9kVG9rZW4iOiJwcm9iZV9zYW1zdW5nX3Rva2VuIn0.ZHVtbXlfc2lnbmF0dXJl"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/txns",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "order_id=probe_txn_001&merchant_id=probe_merchant&payment_method_type=WALLET&payment_method=SAMSUNGPAY&format=json&redirect_after_payment=true"
+        }
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay wallet variant not supported: Satispay(SatispayData)"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant Voucher(Seicomart(JCSVoucherData)); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "Sepa": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant BankDebit(SepaBankDebit { iban: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) }); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant BankTransfer(SepaBankTransfer); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant BankDebit(SepaGuaranteedBankDebit { iban: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) }); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant Voucher(SevenEleven(JCSVoucherData)); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay does not support bank redirect variant: Sofort { country: None, preferred_language: None }"
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay wallet variant not supported: SwishQr(SwishQrData)"
+      },
+      "TouchNGo": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "touch_n_go_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/txns",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "order_id=probe_txn_001&merchant_id=probe_merchant&payment_method_type=WALLET&payment_method=TOUCHNGO&format=json&redirect_after_payment=true"
+        }
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay does not support bank redirect variant: Trustly { country: None }"
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay wallet variant not supported: TwintRedirect"
+      },
+      "UpiCollect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_collect": {
+              "vpa_id": "test@upi"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/txns",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "order_id=probe_txn_001&merchant_id=probe_merchant&payment_method_type=UPI&payment_method=UPI_COLLECT&format=json&upi_vpa=test%40upi&txn_type=UPI_COLLECT"
+        }
+      },
+      "UpiIntent": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_intent": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/txns",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "order_id=probe_txn_001&merchant_id=probe_merchant&payment_method_type=UPI&payment_method=UPI_PAY&format=json&txn_type=UPI_PAY"
+        }
+      },
+      "UpiQr": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_qr": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/txns",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "order_id=probe_txn_001&merchant_id=probe_merchant&payment_method_type=UPI&payment_method=UPI_PAY&format=json&txn_type=UPI_PAY"
+        }
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay wallet variant not supported: VippsRedirect"
+      },
+      "WeChatPayQr": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "we_chat_pay_qr": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/txns",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "order_id=probe_txn_001&merchant_id=probe_merchant&payment_method_type=WALLET&payment_method=WECHATPAY&format=json&redirect_after_payment=true"
+        }
+      },
+      "Wero": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay wallet variant not supported: Wero(WeroData)"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/v2/txns/probe_connector_txn_001/capture",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "amount=10.00"
+        }
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for juspay"
+      }
+    },
+    "create_customer": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for juspay"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_order_id": "probe_order_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/orders",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "order_id=probe_order_001&amount=10.00&currency=USD&customer_id=IRRELEVANT_PAYMENT_ID&metadata.txns.auto_capture=false"
+        }
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for juspay"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for juspay"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by juspay connector"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by juspay connector"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by juspay connector"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/orders/probe_merchant_txn_001",
+          "method": "Get",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": null
+        }
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for juspay"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by juspay connector"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by juspay connector"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/txns",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "order_id=probe_proxy_txn_001&merchant_id=probe_merchant&payment_method_type=CARD&payment_method=VISA&card_number=%7B%7B%24card_number%7D%7D&card_exp_month=%7B%7B%24card_exp_month%7D%7D&card_exp_year=%7B%7B%24card_exp_year%7D%7D&name_on_card=John+Doe&card_security_code=%7B%7B%24card_cvc%7D%7D&format=json&auth_type=NO_THREE_DS"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for juspay"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for juspay"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for juspay"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/orders/probe_connector_txn_001/refunds",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": "unique_request_id=probe_refund_001&amount=10.00"
+        }
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/orders/probe_connector_txn_001",
+          "method": "Get",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": null
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by juspay connector"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for juspay"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String *** }); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for juspay"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for juspay"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://sandbox.juspay.in/v2/txns/probe_connector_txn_001/void",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "version": "2023-06-30",
+            "via": "HyperSwitch",
+            "x-merchantid": "probe_merchant"
+          },
+          "body": ""
+        }
+      }
+    }
+  }
+}
