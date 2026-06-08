@@ -55,6 +55,8 @@ pub const X_CONNECTOR_SERVICE: &str = "connector-service";
 pub const X_FLOW_NAME: &str = "x-flow";
 /// Header key for shadow mode
 pub const X_SHADOW_MODE: &str = "x-shadow-mode";
+/// Header key for named proxy selection — value must match a key in [proxy.proxies.*] config
+pub const X_PROXY_NAME: &str = "x-proxy-name";
 /// Header key for environment (superposition dimension)
 pub const X_ENVIRONMENT: &str = "x-environment";
 
