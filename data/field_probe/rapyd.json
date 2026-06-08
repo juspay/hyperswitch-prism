@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for rapyd"
       }
     },
     "authorize": {
@@ -100,7 +101,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "apple_pay": {
+            "apple_pay_sdk": {
               "payment_data": {
                 "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
               },
@@ -240,7 +241,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "bluecode": {}
+            "bluecode_redirect": {}
           },
           "capture_method": "AUTOMATIC",
           "address": {
@@ -562,7 +563,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "google_pay": {
+            "google_pay_sdk": {
               "type": "CARD",
               "description": "Visa 1111",
               "info": {
@@ -789,7 +790,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "mifinity": {
+            "mifinity_redirect": {
               "date_of_birth": "1990-01-01",
               "language_preference": "en"
             }
@@ -1120,7 +1121,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "samsung_pay": {
+            "samsung_pay_sdk": {
               "payment_credential": {
                 "method": "3DS",
                 "recurring_payment": false,
@@ -1481,7 +1482,8 @@
     },
     "create_customer": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for rapyd"
       }
     },
     "create_order": {
@@ -1492,22 +1494,26 @@
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by rapyd connector"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by rapyd connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for rapyd"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for rapyd"
       }
     },
     "dispute_get": {
@@ -1517,7 +1523,8 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for rapyd"
       }
     },
     "eligibility": {
@@ -1558,7 +1565,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for rapyd"
       }
     },
     "parse_event": {
@@ -1568,12 +1576,14 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for rapyd"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for rapyd"
       }
     },
     "proxy_authorize": {
@@ -1663,7 +1673,8 @@
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for rapyd"
       }
     },
     "refund": {
@@ -1719,7 +1730,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by rapyd connector"
       }
     },
     "setup_recurring": {
@@ -1767,7 +1779,8 @@
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for rapyd"
       }
     },
     "verify_redirect": {

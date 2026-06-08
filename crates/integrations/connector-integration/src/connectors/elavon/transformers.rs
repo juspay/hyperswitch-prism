@@ -30,8 +30,10 @@ use serde_with::skip_serializing_none;
 
 use super::ElavonRouterData;
 use crate::types::ResponseRouterData;
-use domain_types::errors::ConnectorError;
-use domain_types::errors::IntegrationError;
+use domain_types::{
+    errors::{ConnectorError, IntegrationError},
+    router_data::FlowStatus,
+};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ElavonAuthType {
@@ -759,7 +761,7 @@ pub fn get_elavon_attempt_status(
                     .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
                 message: error_resp.error_message.clone(),
                 reason: error_resp.error_name.clone(),
-                attempt_status: Some(HyperswitchAttemptStatus::Failure),
+                attempt_status: Some(FlowStatus::Payment(HyperswitchAttemptStatus::Failure)),
                 connector_transaction_id: error_resp.ssl_txn_id.clone(),
                 network_decline_code: None,
                 network_advice_code: None,
@@ -831,7 +833,7 @@ impl<
                     .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
                 message: error_payload.error_message.clone(),
                 reason: error_payload.error_name.clone(),
-                attempt_status: Some(HyperswitchAttemptStatus::Failure),
+                attempt_status: Some(FlowStatus::Payment(HyperswitchAttemptStatus::Failure)),
                 connector_transaction_id: error_payload.ssl_txn_id.clone(),
                 network_decline_code: None,
                 network_advice_code: None,
@@ -1074,7 +1076,7 @@ impl<F> TryFrom<ResponseRouterData<ElavonCaptureResponse, Self>>
                     .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
                 message: error_payload.error_message.clone(),
                 reason: error_payload.error_name.clone(),
-                attempt_status: Some(HyperswitchAttemptStatus::Failure),
+                attempt_status: Some(FlowStatus::Payment(HyperswitchAttemptStatus::Failure)),
                 connector_transaction_id: error_payload.ssl_txn_id.clone(),
                 network_decline_code: None,
                 network_advice_code: None,
@@ -1229,7 +1231,7 @@ impl<F> TryFrom<ResponseRouterData<ElavonRefundResponse, Self>>
                     .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
                 message: error_payload.error_message.clone(),
                 reason: error_payload.error_name.clone(),
-                attempt_status: Some(attempt_status),
+                attempt_status: Some(FlowStatus::Payment(attempt_status)),
                 connector_transaction_id: error_payload.ssl_txn_id.clone(),
                 network_decline_code: None,
                 network_advice_code: None,

@@ -90,7 +90,11 @@ pub struct RedsysOperationsResponse {
 #[serde(rename_all = "camelCase")]
 pub struct RedsysErrorResponse {
     pub error_code: String,
-    pub error_code_description: String,
+    /// Redsys sometimes returns only `errorCode` without a description, so this
+    /// must be optional to avoid failing deserialization of the untagged
+    /// `RedsysResponse` enum (which would otherwise mask the real error code).
+    #[serde(default)]
+    pub error_code_description: Option<String>,
 }
 
 /// The final RedsysSyncResponse structure used by transformers

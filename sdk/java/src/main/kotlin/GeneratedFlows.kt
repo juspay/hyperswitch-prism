@@ -6,6 +6,7 @@ package payments
 import types.Payment.*
 import types.Payouts.*
 import types.PaymentMethods.*
+import types.Surcharge.*
 
 import uniffi.connector_service_ffi.acceptReqTransformer
 import uniffi.connector_service_ffi.acceptResTransformer
@@ -69,6 +70,8 @@ import uniffi.connector_service_ffi.setupRecurringReqTransformer
 import uniffi.connector_service_ffi.setupRecurringResTransformer
 import uniffi.connector_service_ffi.submitEvidenceReqTransformer
 import uniffi.connector_service_ffi.submitEvidenceResTransformer
+import uniffi.connector_service_ffi.surchargeCalculateReqTransformer
+import uniffi.connector_service_ffi.surchargeCalculateResTransformer
 import uniffi.connector_service_ffi.tokenAuthorizeReqTransformer
 import uniffi.connector_service_ffi.tokenAuthorizeResTransformer
 import uniffi.connector_service_ffi.tokenSetupRecurringReqTransformer
@@ -114,6 +117,7 @@ object FlowRegistry {
         "reverse" to ::reverseReqTransformer,
         "setup_recurring" to ::setupRecurringReqTransformer,
         "submit_evidence" to ::submitEvidenceReqTransformer,
+        "surcharge_calculate" to ::surchargeCalculateReqTransformer,
         "token_authorize" to ::tokenAuthorizeReqTransformer,
         "token_setup_recurring" to ::tokenSetupRecurringReqTransformer,
         "tokenize" to ::tokenizeReqTransformer,
@@ -152,6 +156,7 @@ object FlowRegistry {
         "reverse" to ::reverseResTransformer,
         "setup_recurring" to ::setupRecurringResTransformer,
         "submit_evidence" to ::submitEvidenceResTransformer,
+        "surcharge_calculate" to ::surchargeCalculateResTransformer,
         "token_authorize" to ::tokenAuthorizeResTransformer,
         "token_setup_recurring" to ::tokenSetupRecurringResTransformer,
         "tokenize" to ::tokenizeResTransformer,
@@ -386,5 +391,16 @@ class RefundClient(
     // refund_get: RefundService.Get — Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
     fun refund_get(request: RefundServiceGetRequest, options: RequestConfig? = null): RefundResponse =
         executeFlow("refund_get", request.toByteArray(), RefundResponse.parser(), options)
+
+}
+
+class SurchargeClient(
+    config: ConnectorConfig,
+    defaults: RequestConfig = RequestConfig.getDefaultInstance(),
+    libPath: String? = null
+) : ConnectorClient(config, defaults, libPath) {
+    // surcharge_calculate: SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing.
+    fun surcharge_calculate(request: SurchargeServiceCalculateRequest, options: RequestConfig? = null): SurchargeServiceCalculateResponse =
+        executeFlow("surcharge_calculate", request.toByteArray(), SurchargeServiceCalculateResponse.parser(), options)
 
 }

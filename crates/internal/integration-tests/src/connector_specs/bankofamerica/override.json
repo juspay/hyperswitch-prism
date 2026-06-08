@@ -1,4 +1,17 @@
 {
+  "PaymentService/Authorize": {
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_exp_year": {
+              "value": "98"
+            }
+          }
+        }
+      }
+    }
+  },
   "PaymentService/Void": {
     "void_authorized_payment": {
       "grpc_req": {
@@ -14,6 +27,22 @@
           "minor_amount": 6000,
           "currency": "USD"
         }
+      }
+    }
+  },
+  "PaymentService/Reverse": {
+    "reverse_fail_invalid_transaction_id": {
+      "assert": {
+        "status": {
+          "one_of": [
+            "VOIDED",
+            "CANCELED",
+            "REVERSED",
+            "FAILED",
+            "PROCESSING_ERROR"
+          ]
+        },
+        "error": null
       }
     }
   }

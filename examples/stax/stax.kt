@@ -13,7 +13,6 @@ import payments.PaymentClient
 import payments.CustomerClient
 import payments.RecurringPaymentClient
 import payments.RefundClient
-import payments.PaymentMethodClient
 import payments.AcceptanceType
 import payments.CaptureMethod
 import payments.Currency
@@ -26,7 +25,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.StaxConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("capture", "create_customer", "get", "recurring_charge", "refund", "refund_get", "token_authorize", "token_setup_recurring", "tokenize", "void")
+val SUPPORTED_FLOWS = listOf<String>("capture", "create_customer", "get", "recurring_charge", "refund", "refund_get", "token_authorize", "token_setup_recurring", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -225,35 +224,6 @@ fun tokenSetupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig)
     println("Status: ${response.status.name}")
 }
 
-// Flow: PaymentMethodService.Tokenize
-fun tokenize(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentMethodClient(config)
-    val request = PaymentMethodServiceTokenizeRequest.newBuilder().apply {
-        amountBuilder.apply {  // Payment Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-        paymentMethodBuilder.apply {
-            cardBuilder.apply {  // Generic card payment.
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
-            }
-        }
-        customerBuilder.apply {  // Customer Information.
-            id = "cust_probe_123"  // Internal customer ID.
-        }
-        addressBuilder.apply {  // Address Information.
-            billingAddressBuilder.apply {
-            }
-        }
-    }.build()
-    val response = client.tokenize(request)
-    println("Token: ${response.paymentMethodToken}")
-}
-
 // Flow: PaymentService.Void
 fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -277,8 +247,7 @@ fun main(args: Array<String>) {
         "refundGet" -> refundGet(txnId)
         "tokenAuthorize" -> tokenAuthorize(txnId)
         "tokenSetupRecurring" -> tokenSetupRecurring(txnId)
-        "tokenize" -> tokenize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, createCustomer, get, recurringCharge, refund, refundGet, tokenAuthorize, tokenSetupRecurring, tokenize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: capture, createCustomer, get, recurringCharge, refund, refundGet, tokenAuthorize, tokenSetupRecurring, void")
     }
 }

@@ -405,6 +405,8 @@ pub struct PaymentMethodToken {
 pub struct BoletoVoucherData {
     /// The shopper's social security number
     pub social_security_number: Option<Secret<String>>,
+    /// Merchant-controlled boleto due date. When absent, connectors fall back to a default window.
+    pub expiration_date: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -597,7 +599,7 @@ pub enum BankDebitData {
     },
     EftBankDebit {
         account_number: Secret<String>,
-        branch_code: Secret<String>,
+        branch_code: Option<Secret<String>>,
         bank_account_holder_name: Option<Secret<String>>,
         bank_name: Option<common_enums::BankNames>,
         bank_type: Option<common_enums::BankType>,

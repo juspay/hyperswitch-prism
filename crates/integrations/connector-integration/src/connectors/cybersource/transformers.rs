@@ -14,15 +14,15 @@ use cards;
 use domain_types::{
     connector_flow::{
         Authenticate, Authorize, Capture, ClientAuthenticationToken, IncrementalAuthorization,
-        PostAuthenticate, PreAuthenticate, RepeatPayment, SetupMandate, Void,
+        PostAuthenticate, PreAuthenticate, RepeatPayment, SetupMandate, Void, VoidPC,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse,
         CybersourceClientAuthenticationResponse as CybersourceClientAuthenticationResponseDomain,
         MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RecurringMandateData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
         ResponseId, SetupMandateRequestData,
@@ -36,7 +36,7 @@ use domain_types::{
     },
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorSpecificConfig, ErrorResponse,
-        PazeDecryptedData,
+        FlowStatus, PazeDecryptedData,
     },
     router_data_v2::RouterDataV2,
     router_request_types,
@@ -177,11 +177,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .and_then(get_cybersource_card_type)
                     {
                         Some(card_network) => Some(card_network.to_string()),
-                        None => domain_types::utils::get_card_issuer(
-                            &(format!("{:?}", ccard.card_number.0)),
-                        )
-                        .ok()
-                        .map(card_issuer_to_string),
+                        None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
+                            .ok()
+                            .map(card_issuer_to_string),
                     };
 
                     (
@@ -1370,7 +1368,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let card_type = match raw_card_type.clone().and_then(get_cybersource_card_type) {
             Some(card_network) => Some(card_network.to_string()),
-            None => domain_types::utils::get_card_issuer(&(format!("{:?}", ccard.card_number.0)))
+            None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
                 .ok()
                 .map(card_issuer_to_string),
         };
@@ -2529,11 +2527,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .and_then(get_cybersource_card_type)
                 {
                     Some(card_network) => Some(card_network.to_string()),
-                    None => domain_types::utils::get_card_issuer(
-                        &(format!("{:?}", ccard.card_number.0)),
-                    )
-                    .ok()
-                    .map(card_issuer_to_string),
+                    None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
+                        .ok()
+                        .map(card_issuer_to_string),
                 };
 
                 let payment_information =
@@ -2770,6 +2766,126 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     })?,
             },
             merchant_defined_information,
+        })
+    }
+}
+
+// VoidPC (post-capture void) request — used with PaymentsCancelPostCaptureData.
+//
+// This targets the CyberSource capture-void endpoint:
+//   POST /pts/v2/captures/{capture_id}/voids
+//
+// This is distinct from the authorization-reversal endpoint
+// (/pts/v2/payments/{id}/reversals) which requires reversalInformation.amountDetails.
+// The capture-void endpoint requires only clientReferenceInformation.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CybersourceVoidPCRequest {
+    client_reference_information: ClientReferenceInformation,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        CybersourceRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for CybersourceVoidPCRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        value: CybersourceRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            client_reference_information: ClientReferenceInformation {
+                code: Some(
+                    value
+                        .router_data
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone(),
+                ),
+            },
+        })
+    }
+}
+
+fn map_cybersource_void_pc_status(
+    status: CybersourcePaymentStatus,
+) -> common_enums::PostCaptureVoidStatus {
+    match status {
+        CybersourcePaymentStatus::Voided
+        | CybersourcePaymentStatus::Reversed
+        | CybersourcePaymentStatus::Cancelled => common_enums::PostCaptureVoidStatus::Succeeded,
+        CybersourcePaymentStatus::Failed
+        | CybersourcePaymentStatus::Declined
+        | CybersourcePaymentStatus::AuthorizedRiskDeclined
+        | CybersourcePaymentStatus::Rejected
+        | CybersourcePaymentStatus::InvalidRequest
+        | CybersourcePaymentStatus::ServerError => common_enums::PostCaptureVoidStatus::Failed,
+        CybersourcePaymentStatus::Authorized
+        | CybersourcePaymentStatus::Succeeded
+        | CybersourcePaymentStatus::Transmitted
+        | CybersourcePaymentStatus::Pending
+        | CybersourcePaymentStatus::Challenge
+        | CybersourcePaymentStatus::AuthorizedPendingReview
+        | CybersourcePaymentStatus::PendingAuthentication
+        | CybersourcePaymentStatus::PendingReview
+        | CybersourcePaymentStatus::Accepted
+        | CybersourcePaymentStatus::StatusNotReceived => {
+            common_enums::PostCaptureVoidStatus::Pending
+        }
+    }
+}
+
+impl<F> TryFrom<ResponseRouterData<CybersourcePaymentsResponse, Self>>
+    for RouterDataV2<F, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<CybersourcePaymentsResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let post_capture_void_status = map_cybersource_void_pc_status(
+            item.response
+                .status
+                .clone()
+                .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
+        );
+        let description = post_capture_void_status
+            .is_post_capture_void_failure()
+            .then(|| {
+                get_error_response(
+                    &item.response.error_information,
+                    &item.response.processor_information,
+                    &item.response.risk_information,
+                    None,
+                    item.http_code,
+                    item.response.id.clone(),
+                )
+                .reason
+            })
+            .flatten();
+        Ok(Self {
+            response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status,
+                connector_reference_id: Some(item.response.id.clone()),
+                description,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
         })
     }
 }
@@ -3439,11 +3555,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .and_then(get_cybersource_card_type)
                 {
                     Some(card_network) => Some(card_network.to_string()),
-                    None => domain_types::utils::get_card_issuer(
-                        &(format!("{:?}", ccard.card_number.0)),
-                    )
-                    .ok()
-                    .map(card_issuer_to_string),
+                    None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
+                        .ok()
+                        .map(card_issuer_to_string),
                 };
 
                 Ok(PaymentInformation::Cards(Box::new(
@@ -3717,11 +3831,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .and_then(get_cybersource_card_type)
                 {
                     Some(card_network) => Some(card_network.to_string()),
-                    None => domain_types::utils::get_card_issuer(
-                        &(format!("{:?}", ccard.card_number.0)),
-                    )
-                    .ok()
-                    .map(card_issuer_to_string),
+                    None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
+                        .ok()
+                        .map(card_issuer_to_string),
                 };
 
                 Ok(PaymentInformation::Cards(Box::new(
@@ -4623,7 +4735,7 @@ pub fn get_error_response(
         message: error_message.unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
         reason,
         status_code,
-        attempt_status,
+        attempt_status: attempt_status.map(FlowStatus::Payment),
         connector_transaction_id: Some(transaction_id),
         network_advice_code,
         network_decline_code,
@@ -5653,5 +5765,22 @@ impl TryFrom<ResponseRouterData<CybersourceClientAuthResponse, Self>>
             }),
             ..item.router_data
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Regression: when card_network is absent, the fallback path must pass the
+    // raw card number to get_card_issuer. Previously the code used
+    // format!("{:?}", card_number) which triggered Debug masking
+    // ("424242**********") and broke the BIN regex match, producing card.type = null.
+    #[test]
+    #[allow(clippy::expect_used)]
+    fn card_type_fallback_returns_visa_001_for_test_card() {
+        let issuer = domain_types::utils::get_card_issuer("4242424242424242")
+            .expect("Visa BIN should be recognized");
+        assert_eq!(card_issuer_to_string(issuer), "001");
     }
 }

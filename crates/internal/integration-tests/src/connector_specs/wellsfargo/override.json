@@ -1,4 +1,98 @@
 {
+  "PaymentService/Authorize": {
+    "no3ds_auto_capture_credit_card": {
+      "grpc_req": {
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_debit_card": {
+      "grpc_req": {
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card": {
+      "grpc_req": {
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_debit_card": {
+      "grpc_req": {
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
+    },
+    "threeds_manual_capture_credit_card": {
+      "grpc_req": {
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
+    },
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
+    }
+  },
+  "PaymentService/SetupRecurring": {
+    "PaymentService/SetupRecurring": {
+      "grpc_req": {
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
+    },
+    "setup_recurring": {
+      "grpc_req": {
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
+    },
+    "setup_recurring_with_webhook": {
+      "grpc_req": {
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
+    },
+    "setup_recurring_with_order_context": {
+      "grpc_req": {
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
+    }
+  },
   "PaymentService/Void": {
     "void_authorized_payment": {
       "grpc_req": {

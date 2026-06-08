@@ -262,6 +262,10 @@ pub enum ConnectorSpecificConfig {
         merchant_id: Option<Secret<String>>,
         base_url: Option<String>,
     },
+    Interpayments {
+        api_key: Secret<String>,
+        base_url: Option<String>,
+    },
     Bambora {
         merchant_id: Secret<String>,
         api_key: Secret<String>,
@@ -728,7 +732,7 @@ pub enum ConnectorSpecificConfig {
         private_key: Option<Secret<String>>,
         base_url: Option<String>,
     },
-    Sanlam {
+    AbsaSanlam {
         api_key: Secret<String>,
         merchant_id: Secret<String>,
         base_url: Option<String>,
@@ -743,6 +747,26 @@ pub enum ConnectorSpecificConfig {
         juspay_kid: Secret<String>,
         merchant_private_key: Secret<String>,
         juspay_public_key: Secret<String>,
+        base_url: Option<String>,
+    },
+    TwocTwopPaco {
+        access_token: Secret<String>,
+        office_id: Secret<String>,
+        paco_kid: Secret<String>,
+        merchant_signing_private_key: Secret<String>,
+        merchant_encryption_private_key: Secret<String>,
+        paco_signing_public_key: Secret<String>,
+        paco_encryption_public_key: Secret<String>,
+        response_audience: Option<Secret<String>>,
+        base_url: Option<String>,
+    },
+    Juspay {
+        api_key: Secret<String>,
+        merchant_id: Secret<String>,
+        base_url: Option<String>,
+    },
+    Tamara {
+        api_key: Secret<String>,
         base_url: Option<String>,
     },
 }
@@ -860,7 +884,7 @@ impl ConnectorSpecificConfig {
                 merchant_account,
                 api_secret
             },
-            Sanlam { api_key, base_url },
+            AbsaSanlam { api_key, base_url },
             Bamboraapac {
                 username,
                 password,
@@ -1058,7 +1082,18 @@ impl ConnectorSpecificConfig {
                 client_id,
                 client_secret
             },
+            Juspay {
+                api_key,
+                merchant_id
+            },
+            Tamara { api_key },
             Imerchantsolutions { api_key },
+            Interpayments { api_key },
+            TwocTwopPaco {
+                access_token,
+                office_id,
+                paco_kid
+            },
         )
     }
 
@@ -1356,7 +1391,7 @@ impl ConnectorSpecificConfig {
                     api_secret,
                     merchant_acceptor_key
                 },
-                Sanlam { api_key, base_url },
+                AbsaSanlam { api_key, base_url },
                 Trustpay {
                     api_key,
                     project_id,
@@ -1464,7 +1499,18 @@ impl ConnectorSpecificConfig {
                     client_id,
                     client_secret
                 },
+                Juspay {
+                    api_key,
+                    merchant_id
+                },
+                Tamara { api_key },
                 Imerchantsolutions { api_key },
+                Interpayments { api_key },
+                TwocTwopPaco {
+                    access_token,
+                    office_id,
+                    paco_kid
+                },
             ),
             serde_json::Value::Object(connector_patch),
         );
@@ -1493,6 +1539,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
         let auth_type = auth.config.ok_or_else(err)?;
 
         match auth_type {
+            AuthType::Aci(aci) => Ok(Self::Aci {
+                api_key: aci.api_key.ok_or_else(err)?,
+                entity_id: aci.entity_id.ok_or_else(err)?,
+                base_url: aci.base_url,
+            }),
             AuthType::Adyen(adyen) => Ok(Self::Adyen {
                 api_key: adyen.api_key.ok_or_else(err)?,
                 merchant_account: adyen.merchant_account.ok_or_else(err)?,
@@ -1714,10 +1765,10 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 secret_key: rapyd.secret_key.ok_or_else(err)?,
                 base_url: rapyd.base_url,
             }),
-            AuthType::Sanlam(sanlam) => Ok(Self::Sanlam {
-                api_key: sanlam.api_key.ok_or_else(err)?,
-                merchant_id: sanlam.merchant_id.ok_or_else(err)?,
-                base_url: sanlam.base_url,
+            AuthType::AbsaSanlam(absa_sanlam) => Ok(Self::AbsaSanlam {
+                api_key: absa_sanlam.api_key.ok_or_else(err)?,
+                merchant_id: absa_sanlam.merchant_id.ok_or_else(err)?,
+                base_url: absa_sanlam.base_url,
             }),
             AuthType::Redsys(redsys) => Ok(Self::Redsys {
                 merchant_id: redsys.merchant_id.ok_or_else(err)?,
@@ -1993,1075 +2044,1238 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 base_url: easebuzz.base_url,
                 secondary_base_url: easebuzz.secondary_base_url,
             }),
+            AuthType::Juspay(juspay) => Ok(Self::Juspay {
+                api_key: juspay.api_key.ok_or_else(err)?,
+                merchant_id: juspay.merchant_id.ok_or_else(err)?,
+                base_url: juspay.base_url,
+            }),
+            AuthType::Tamara(tamara) => Ok(Self::Tamara {
+                api_key: tamara.api_key.ok_or_else(err)?,
+                base_url: tamara.base_url,
+            }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
                 merchant_id: imerchantsolutions.merchant_id,
                 base_url: imerchantsolutions.base_url,
             }),
+            AuthType::Interpayments(interpayments) => Ok(Self::Interpayments {
+                api_key: interpayments.api_key.ok_or_else(err)?,
+                base_url: interpayments.base_url,
+            }),
+            AuthType::TwocTwopPaco(twoc_twop_paco) => Ok(Self::TwocTwopPaco {
+                access_token: twoc_twop_paco.access_token.ok_or_else(err)?,
+                office_id: twoc_twop_paco.office_id.ok_or_else(err)?,
+                paco_kid: twoc_twop_paco.paco_kid.ok_or_else(err)?,
+                merchant_signing_private_key: twoc_twop_paco
+                    .merchant_signing_private_key
+                    .ok_or_else(err)?,
+                merchant_encryption_private_key: twoc_twop_paco
+                    .merchant_encryption_private_key
+                    .ok_or_else(err)?,
+                paco_signing_public_key: twoc_twop_paco.paco_signing_public_key.ok_or_else(err)?,
+                paco_encryption_public_key: twoc_twop_paco
+                    .paco_encryption_public_key
+                    .ok_or_else(err)?,
+                response_audience: twoc_twop_paco.response_audience,
+                base_url: twoc_twop_paco.base_url,
+            }),
+            AuthType::Bamboraapac(bamboraapac) => Ok(Self::Bamboraapac {
+                username: bamboraapac.username.ok_or_else(err)?,
+                password: bamboraapac.password.ok_or_else(err)?,
+                account_number: bamboraapac.account_number.ok_or_else(err)?,
+                base_url: bamboraapac.base_url,
+            }),
+            AuthType::Placetopay(placetopay) => Ok(Self::Placetopay {
+                login: placetopay.login.ok_or_else(err)?,
+                tran_key: placetopay.tran_key.ok_or_else(err)?,
+                base_url: placetopay.base_url,
+            }),
+            AuthType::Finix(finix) => Ok(Self::Finix {
+                finix_user_name: finix.finix_user_name.ok_or_else(err)?,
+                finix_password: finix.finix_password.ok_or_else(err)?,
+                merchant_identity_id: finix.merchant_identity_id.ok_or_else(err)?,
+                merchant_id: finix.merchant_id.ok_or_else(err)?,
+                base_url: finix.base_url,
+            }),
         }
     }
 }
 
-impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorEnum)>
+impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
     for ConnectorSpecificConfig
 {
     type Error = errors::IntegrationError;
 
     fn foreign_try_from(
-        (auth, connector): (&ConnectorAuthType, &connector_types::ConnectorEnum),
+        (auth, connector): (&ConnectorAuthType, &connector_types::ConnectorVariant),
     ) -> Result<Self, Error> {
-        use connector_types::ConnectorEnum;
+        use connector_types::{
+            ConnectorEnum, ConnectorVariant, PayoutConnectorEnum, SurchargeConnectorEnum,
+        };
 
         let err = || errors::IntegrationError::FailedToObtainAuthType {
             context: Default::default(),
         };
 
         match connector {
-            // --- HeaderKey connectors ---
-            ConnectorEnum::Stripe => match auth {
-                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Stripe {
-                    api_key: api_key.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Calida => match auth {
-                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Calida {
-                    api_key: api_key.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Celero => match auth {
-                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Celero {
-                    api_key: api_key.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Helcim => match auth {
-                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Helcim {
-                    api_key: api_key.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Mifinity => match auth {
-                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Mifinity {
-                    key: api_key.clone(),
-                    base_url: None,
-                    brand_id: None,
-                    destination_account_number: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Multisafepay => match auth {
-                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Multisafepay {
-                    api_key: api_key.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Nexixpay => match auth {
-                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Nexixpay {
-                    api_key: api_key.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Revolut => match auth {
-                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Revolut {
-                    secret_api_key: api_key.clone(),
-                    signing_secret: None,
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Shift4 => match auth {
-                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Shift4 {
-                    api_key: api_key.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Stax => match auth {
-                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Stax {
-                    api_key: api_key.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Xendit => match auth {
-                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Xendit {
-                    api_key: api_key.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            // Razorpay supports both HeaderKey and BodyKey
-            ConnectorEnum::Razorpay => match auth {
-                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Razorpay {
-                    api_key: api_key.clone(),
-                    api_secret: None,
-                    base_url: None,
-                }),
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Razorpay {
-                    api_key: api_key.clone(),
-                    api_secret: Some(key1.clone()),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::RazorpayV2 => match auth {
-                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::RazorpayV2 {
-                    api_key: api_key.clone(),
-                    api_secret: None,
-                    base_url: None,
-                }),
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::RazorpayV2 {
-                    api_key: api_key.clone(),
-                    api_secret: Some(key1.clone()),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Imerchantsolutions => match auth {
-                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Imerchantsolutions {
-                    api_key: api_key.clone(),
-                    merchant_id: None,
-                    base_url: None,
-                }),
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Imerchantsolutions {
-                    api_key: api_key.clone(),
-                    merchant_id: Some(key1.clone()),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-
-            // --- BodyKey connectors ---
-            ConnectorEnum::Aci => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Aci {
-                    api_key: api_key.clone(),
-                    entity_id: key1.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Airwallex => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Airwallex {
-                    api_key: api_key.clone(),
-                    client_id: key1.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Authorizedotnet => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Authorizedotnet {
-                    name: api_key.clone(),
-                    transaction_key: key1.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Bambora => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Bambora {
-                    merchant_id: key1.clone(),
-                    api_key: api_key.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Billwerk => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Billwerk {
-                    api_key: api_key.clone(),
-                    public_api_key: key1.clone(),
-                    base_url: None,
-                    secondary_base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Bluesnap => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Bluesnap {
-                    username: key1.clone(),
-                    password: api_key.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Cashfree => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Cashfree {
-                    app_id: key1.clone(),
-                    secret_key: api_key.clone(),
-                    base_url: None,
-                }),
-                ConnectorAuthType::SignatureKey {
-                    api_key: _,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Cashfree {
-                    app_id: key1.clone(),
-                    secret_key: api_secret.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Cryptopay => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Cryptopay {
-                    api_key: api_key.clone(),
-                    api_secret: key1.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Datatrans => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Datatrans {
-                    merchant_id: key1.clone(),
-                    password: api_key.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Globalpay => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Globalpay {
-                    app_id: key1.clone(),
-                    app_key: api_key.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Hipay => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Hipay {
-                    api_key: api_key.clone(),
-                    api_secret: key1.clone(),
-                    base_url: None,
-                    secondary_base_url: None,
-                    third_base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Jpmorgan => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Jpmorgan {
-                    client_id: api_key.clone(),
-                    client_secret: key1.clone(),
-                    base_url: None,
-                    secondary_base_url: None,
-                    company_name: None,
-                    product_name: None,
-                    merchant_purchase_description: None,
-                    statement_descriptor: None,
-                }),
-                _ => Err(err().into()),
-            },
-
-            ConnectorEnum::Sanlam => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Sanlam {
-                    api_key: api_key.clone(),
-                    merchant_id: key1.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Loonio => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Loonio {
-                    merchant_id: api_key.clone(),
-                    merchant_token: key1.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Paysafe => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Paysafe {
-                    username: api_key.clone(),
-                    password: key1.clone(),
-                    base_url: None,
-                    account_id: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Payu => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Payu {
-                    api_key: api_key.clone(),
-                    api_secret: key1.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Placetopay => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Placetopay {
-                    login: api_key.clone(),
-                    tran_key: key1.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Powertranz => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Powertranz {
-                    power_tranz_id: key1.clone(),
-                    power_tranz_password: api_key.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Rapyd => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Rapyd {
-                    access_key: api_key.clone(),
-                    secret_key: key1.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Truelayer => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Truelayer {
-                    client_id: api_key.clone(),
-                    client_secret: key1.clone(),
-                    account_holder_name: None,
-                    merchant_account_id: None,
-                    private_key: None,
-                    kid: None,
-                    base_url: None,
-                    secondary_base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-
-            // --- Connectors supporting both BodyKey and SignatureKey ---
-            ConnectorEnum::Adyen => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Adyen {
-                    api_key: api_key.clone(),
-                    merchant_account: key1.clone(),
-                    review_key: None,
-                    base_url: None,
-                    dispute_base_url: None,
-                    endpoint_prefix: None,
-                }),
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Adyen {
-                    api_key: api_key.clone(),
-                    merchant_account: key1.clone(),
-                    review_key: Some(api_secret.clone()),
-                    base_url: None,
-                    dispute_base_url: None,
-                    endpoint_prefix: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Authipay => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Authipay {
-                    api_key: api_key.clone(),
-                    api_secret: key1.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Fiservemea => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Fiservemea {
-                    api_key: api_key.clone(),
-                    api_secret: key1.clone(),
-                    base_url: None,
-                }),
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1: _,
-                    api_secret,
-                } => Ok(Self::Fiservemea {
-                    api_key: api_key.clone(),
-                    api_secret: api_secret.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Mollie => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Mollie {
-                    api_key: api_key.clone(),
-                    profile_token: Some(key1.clone()),
-                    base_url: None,
-                    secondary_base_url: None,
-                }),
-                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Mollie {
-                    api_key: api_key.clone(),
-                    profile_token: None,
-                    base_url: None,
-                    secondary_base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Nmi => match auth {
-                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Nmi {
-                    api_key: api_key.clone(),
-                    public_key: None,
-                    base_url: None,
-                }),
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Nmi {
-                    api_key: api_key.clone(),
-                    public_key: Some(key1.clone()),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Payme => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Payme {
-                    seller_payme_id: api_key.clone(),
-                    payme_client_key: Some(key1.clone()),
-                    base_url: None,
-                }),
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret: _,
-                } => Ok(Self::Payme {
-                    seller_payme_id: api_key.clone(),
-                    payme_client_key: Some(key1.clone()),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Nexinets => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Nexinets {
-                    merchant_id: key1.clone(),
-                    api_key: api_key.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-
-            // --- SignatureKey connectors ---
-            ConnectorEnum::Bankofamerica => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::BankOfAmerica {
-                    api_key: api_key.clone(),
-                    merchant_account: key1.clone(),
-                    api_secret: api_secret.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Bamboraapac => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Bamboraapac {
-                    username: api_key.clone(),
-                    password: api_secret.clone(),
-                    account_number: key1.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Barclaycard => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Barclaycard {
-                    api_key: api_key.clone(),
-                    merchant_account: key1.clone(),
-                    api_secret: api_secret.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Braintree => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1: _,
-                    api_secret,
-                } => Ok(Self::Braintree {
-                    public_key: api_key.clone(),
-                    private_key: api_secret.clone(),
-                    base_url: None,
-                    merchant_account_id: None,
-                    merchant_config_currency: None,
-                    apple_pay_supported_networks: vec![],
-                    apple_pay_merchant_capabilities: vec![],
-                    apple_pay_label: None,
-                    gpay_merchant_name: None,
-                    gpay_merchant_id: None,
-                    gpay_allowed_auth_methods: vec![],
-                    gpay_allowed_card_networks: vec![],
-                    paypal_client_id: None,
-                    gpay_gateway_merchant_id: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Checkout => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Checkout {
-                    api_key: api_key.clone(),
-                    api_secret: api_secret.clone(),
-                    processing_channel_id: key1.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Cybersource => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Cybersource {
-                    api_key: api_key.clone(),
-                    merchant_account: key1.clone(),
-                    api_secret: api_secret.clone(),
-                    base_url: None,
-                    disable_avs: None,
-                    disable_cvn: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Dlocal => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Dlocal {
-                    x_login: api_key.clone(),
-                    x_trans_key: key1.clone(),
-                    secret: api_secret.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Elavon => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Elavon {
-                    ssl_merchant_id: api_key.clone(),
-                    ssl_user_id: key1.clone(),
-                    ssl_pin: api_secret.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Fiserv => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Fiserv {
-                    api_key: api_key.clone(),
-                    merchant_account: key1.clone(),
-                    api_secret: api_secret.clone(),
-                    base_url: None,
-                    terminal_id: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Fiuu => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Fiuu {
-                    merchant_id: key1.clone(),
-                    verify_key: api_key.clone(),
-                    secret_key: api_secret.clone(),
-                    base_url: None,
-                    secondary_base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Getnet => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Getnet {
-                    api_key: api_key.clone(),
-                    api_secret: api_secret.clone(),
-                    seller_id: key1.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Gigadat => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Gigadat {
-                    security_token: api_secret.clone(),
-                    access_token: api_key.clone(),
-                    campaign_id: key1.clone(),
-                    base_url: None,
-                    site: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Hyperpg => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Hyperpg {
-                    username: api_key.clone(),
-                    password: key1.clone(),
-                    merchant_id: api_secret.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Iatapay => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Iatapay {
-                    client_id: api_key.clone(),
-                    merchant_id: key1.clone(),
-                    client_secret: api_secret.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Noon => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Noon {
-                    api_key: api_key.clone(),
-                    business_identifier: key1.clone(),
-                    application_identifier: api_secret.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Novalnet => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Novalnet {
-                    product_activation_key: api_key.clone(),
-                    payment_access_key: key1.clone(),
-                    tariff_id: api_secret.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Nuvei => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Nuvei {
-                    merchant_id: api_key.clone(),
-                    merchant_site_id: key1.clone(),
-                    merchant_secret: api_secret.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Phonepe => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Phonepe {
-                    merchant_id: api_key.clone(),
-                    salt_key: key1.clone(),
-                    salt_index: api_secret.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Redsys => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Redsys {
-                    merchant_id: api_key.clone(),
-                    terminal_id: key1.clone(),
-                    sha256_pwd: api_secret.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Silverflow => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Silverflow {
-                    api_key: api_key.clone(),
-                    api_secret: api_secret.clone(),
-                    merchant_acceptor_key: key1.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Trustpay => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Trustpay {
-                    api_key: api_key.clone(),
-                    project_id: key1.clone(),
-                    secret_key: api_secret.clone(),
-                    base_url: None,
-                    base_url_bank_redirects: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Trustpayments => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Trustpayments {
-                    username: api_key.clone(),
-                    password: key1.clone(),
-                    site_reference: api_secret.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Tsys => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Tsys {
-                    device_id: api_key.clone(),
-                    transaction_key: key1.clone(),
-                    developer_id: api_secret.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Wellsfargo => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Wellsfargo {
-                    api_key: api_key.clone(),
-                    merchant_account: key1.clone(),
-                    api_secret: api_secret.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Worldpay => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Worldpay {
-                    username: key1.clone(),
-                    password: api_key.clone(),
-                    entity_id: api_secret.clone(),
-                    base_url: None,
-                    merchant_name: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Worldpayvantiv => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Worldpayvantiv {
-                    user: api_key.clone(),
-                    password: api_secret.clone(),
-                    merchant_id: key1.clone(),
-                    base_url: None,
-                    secondary_base_url: None,
-                    report_group: None,
-                    merchant_config_currency: None,
-                }),
-                ConnectorAuthType::MultiAuthKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                    key2: _,
-                } => Ok(Self::Worldpayvantiv {
-                    user: api_key.clone(),
-                    password: api_secret.clone(),
-                    merchant_id: key1.clone(),
-                    base_url: None,
-                    secondary_base_url: None,
-                    report_group: None,
-                    merchant_config_currency: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Worldpayxml => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Worldpayxml {
-                    api_username: api_key.clone(),
-                    api_password: key1.clone(),
-                    merchant_code: api_secret.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Zift => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Zift {
-                    user_name: api_key.clone(),
-                    password: api_secret.clone(),
-                    account_id: key1.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Trustly => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Trustly {
-                    username: api_key.clone(),
-                    password: key1.clone(),
-                    private_key: api_secret.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-
-            // --- Paypal (BodyKey or SignatureKey) ---
-            ConnectorEnum::Paypal => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Paypal {
-                    client_id: key1.clone(),
-                    client_secret: api_key.clone(),
-                    payer_id: None,
-                    base_url: None,
-                }),
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Paypal {
-                    client_id: key1.clone(),
-                    client_secret: api_key.clone(),
-                    payer_id: Some(api_secret.clone()),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-
-            // --- MultiAuthKey connectors ---
-            ConnectorEnum::Forte => match auth {
-                ConnectorAuthType::MultiAuthKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                    key2,
-                } => Ok(Self::Forte {
-                    api_access_id: api_key.clone(),
-                    organization_id: key1.clone(),
-                    location_id: key2.clone(),
-                    api_secret_key: api_secret.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Paybox => match auth {
-                ConnectorAuthType::MultiAuthKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                    key2,
-                } => Ok(Self::Paybox {
-                    site: api_key.clone(),
-                    rank: key1.clone(),
-                    key: api_secret.clone(),
-                    merchant_id: key2.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Paytm => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Paytm {
-                    merchant_id: api_key.clone(),
-                    merchant_key: key1.clone(),
-                    website: api_secret.clone(),
-                    client_id: None,
-                    base_url: None,
-                }),
-                ConnectorAuthType::MultiAuthKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                    key2,
-                } => Ok(Self::Paytm {
-                    merchant_id: api_key.clone(),
-                    merchant_key: key1.clone(),
-                    website: api_secret.clone(),
-                    client_id: Some(key2.clone()),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Volt => match auth {
-                ConnectorAuthType::MultiAuthKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                    key2,
-                } => Ok(Self::Volt {
-                    username: api_key.clone(),
-                    password: api_secret.clone(),
-                    client_id: key1.clone(),
-                    client_secret: key2.clone(),
-                    base_url: None,
-                    secondary_base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-
-            // --- CurrencyAuthKey connectors ---
-            ConnectorEnum::Cashtocode => match auth {
-                ConnectorAuthType::CurrencyAuthKey { auth_key_map } => Ok(Self::Cashtocode {
-                    auth_key_map: auth_key_map.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Payload => match auth {
-                ConnectorAuthType::CurrencyAuthKey { auth_key_map } => Ok(Self::Payload {
-                    auth_key_map: auth_key_map.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Revolv3 => match auth {
-                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Revolv3 {
-                    api_key: api_key.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Peachpayments => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Peachpayments {
-                    api_key: api_key.clone(),
-                    tenant_id: key1.clone(),
-                    base_url: None,
-                    client_merchant_reference_id: None,
-                    merchant_payment_method_route_id: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Finix => match auth {
-                ConnectorAuthType::MultiAuthKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                    key2,
-                } => Ok(Self::Finix {
-                    finix_user_name: api_key.clone(),
-                    finix_password: api_secret.clone(),
-                    merchant_id: key1.clone(),
-                    merchant_identity_id: key2.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Ppro => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(ConnectorSpecificConfig::Ppro {
-                    api_key: api_key.clone(),
-                    merchant_id: key1.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Easebuzz => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => {
-                    Ok(ConnectorSpecificConfig::Easebuzz {
+            ConnectorVariant::Payment(connector_enum) => match connector_enum {
+                // --- HeaderKey connectors ---
+                ConnectorEnum::Stripe => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Stripe {
                         api_key: api_key.clone(),
-                        api_salt: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Calida => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Calida {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Celero => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Celero {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Helcim => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Helcim {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Mifinity => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Mifinity {
+                        key: api_key.clone(),
+                        base_url: None,
+                        brand_id: None,
+                        destination_account_number: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Multisafepay => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Multisafepay {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Nexixpay => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Nexixpay {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Revolut => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Revolut {
+                        secret_api_key: api_key.clone(),
+                        signing_secret: None,
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Shift4 => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Shift4 {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Stax => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Stax {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Xendit => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Xendit {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                // Razorpay supports both HeaderKey and BodyKey
+                ConnectorEnum::Razorpay => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Razorpay {
+                        api_key: api_key.clone(),
+                        api_secret: None,
+                        base_url: None,
+                    }),
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Razorpay {
+                        api_key: api_key.clone(),
+                        api_secret: Some(key1.clone()),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::RazorpayV2 => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::RazorpayV2 {
+                        api_key: api_key.clone(),
+                        api_secret: None,
+                        base_url: None,
+                    }),
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::RazorpayV2 {
+                        api_key: api_key.clone(),
+                        api_secret: Some(key1.clone()),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Imerchantsolutions => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Imerchantsolutions {
+                        api_key: api_key.clone(),
+                        merchant_id: None,
+                        base_url: None,
+                    }),
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Imerchantsolutions {
+                        api_key: api_key.clone(),
+                        merchant_id: Some(key1.clone()),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                // --- BodyKey connectors ---
+                ConnectorEnum::Aci => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Aci {
+                        api_key: api_key.clone(),
+                        entity_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Airwallex => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Airwallex {
+                        api_key: api_key.clone(),
+                        client_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Authorizedotnet => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Authorizedotnet {
+                        name: api_key.clone(),
+                        transaction_key: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Bambora => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Bambora {
+                        merchant_id: key1.clone(),
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Billwerk => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Billwerk {
+                        api_key: api_key.clone(),
+                        public_api_key: key1.clone(),
                         base_url: None,
                         secondary_base_url: None,
-                    })
-                }
-                _ => Err(err().into()),
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Bluesnap => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Bluesnap {
+                        username: key1.clone(),
+                        password: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Cashfree => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Cashfree {
+                        app_id: key1.clone(),
+                        secret_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    ConnectorAuthType::SignatureKey {
+                        api_key: _,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Cashfree {
+                        app_id: key1.clone(),
+                        secret_key: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Cryptopay => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Cryptopay {
+                        api_key: api_key.clone(),
+                        api_secret: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Datatrans => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Datatrans {
+                        merchant_id: key1.clone(),
+                        password: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Globalpay => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Globalpay {
+                        app_id: key1.clone(),
+                        app_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Hipay => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Hipay {
+                        api_key: api_key.clone(),
+                        api_secret: key1.clone(),
+                        base_url: None,
+                        secondary_base_url: None,
+                        third_base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Jpmorgan => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Jpmorgan {
+                        client_id: api_key.clone(),
+                        client_secret: key1.clone(),
+                        base_url: None,
+                        secondary_base_url: None,
+                        company_name: None,
+                        product_name: None,
+                        merchant_purchase_description: None,
+                        statement_descriptor: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+
+                ConnectorEnum::AbsaSanlam => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::AbsaSanlam {
+                        api_key: api_key.clone(),
+                        merchant_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Loonio => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Loonio {
+                        merchant_id: api_key.clone(),
+                        merchant_token: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Paysafe => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Paysafe {
+                        username: api_key.clone(),
+                        password: key1.clone(),
+                        base_url: None,
+                        account_id: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Payu => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Payu {
+                        api_key: api_key.clone(),
+                        api_secret: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Placetopay => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Placetopay {
+                        login: api_key.clone(),
+                        tran_key: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Powertranz => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Powertranz {
+                        power_tranz_id: key1.clone(),
+                        power_tranz_password: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Rapyd => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Rapyd {
+                        access_key: api_key.clone(),
+                        secret_key: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Truelayer => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Truelayer {
+                        client_id: api_key.clone(),
+                        client_secret: key1.clone(),
+                        account_holder_name: None,
+                        merchant_account_id: None,
+                        private_key: None,
+                        kid: None,
+                        base_url: None,
+                        secondary_base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+
+                // --- Connectors supporting both BodyKey and SignatureKey ---
+                ConnectorEnum::Adyen => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Adyen {
+                        api_key: api_key.clone(),
+                        merchant_account: key1.clone(),
+                        review_key: None,
+                        base_url: None,
+                        dispute_base_url: None,
+                        endpoint_prefix: None,
+                    }),
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Adyen {
+                        api_key: api_key.clone(),
+                        merchant_account: key1.clone(),
+                        review_key: Some(api_secret.clone()),
+                        base_url: None,
+                        dispute_base_url: None,
+                        endpoint_prefix: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Authipay => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Authipay {
+                        api_key: api_key.clone(),
+                        api_secret: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Fiservemea => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Fiservemea {
+                        api_key: api_key.clone(),
+                        api_secret: key1.clone(),
+                        base_url: None,
+                    }),
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1: _,
+                        api_secret,
+                    } => Ok(Self::Fiservemea {
+                        api_key: api_key.clone(),
+                        api_secret: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Mollie => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Mollie {
+                        api_key: api_key.clone(),
+                        profile_token: Some(key1.clone()),
+                        base_url: None,
+                        secondary_base_url: None,
+                    }),
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Mollie {
+                        api_key: api_key.clone(),
+                        profile_token: None,
+                        base_url: None,
+                        secondary_base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Nmi => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Nmi {
+                        api_key: api_key.clone(),
+                        public_key: None,
+                        base_url: None,
+                    }),
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Nmi {
+                        api_key: api_key.clone(),
+                        public_key: Some(key1.clone()),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Payme => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Payme {
+                        seller_payme_id: api_key.clone(),
+                        payme_client_key: Some(key1.clone()),
+                        base_url: None,
+                    }),
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret: _,
+                    } => Ok(Self::Payme {
+                        seller_payme_id: api_key.clone(),
+                        payme_client_key: Some(key1.clone()),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Nexinets => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Nexinets {
+                        merchant_id: key1.clone(),
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+
+                // --- SignatureKey connectors ---
+                ConnectorEnum::Bankofamerica => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::BankOfAmerica {
+                        api_key: api_key.clone(),
+                        merchant_account: key1.clone(),
+                        api_secret: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Bamboraapac => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Bamboraapac {
+                        username: api_key.clone(),
+                        password: api_secret.clone(),
+                        account_number: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Barclaycard => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Barclaycard {
+                        api_key: api_key.clone(),
+                        merchant_account: key1.clone(),
+                        api_secret: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Braintree => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1: _,
+                        api_secret,
+                    } => Ok(Self::Braintree {
+                        public_key: api_key.clone(),
+                        private_key: api_secret.clone(),
+                        base_url: None,
+                        merchant_account_id: None,
+                        merchant_config_currency: None,
+                        apple_pay_supported_networks: vec![],
+                        apple_pay_merchant_capabilities: vec![],
+                        apple_pay_label: None,
+                        gpay_merchant_name: None,
+                        gpay_merchant_id: None,
+                        gpay_allowed_auth_methods: vec![],
+                        gpay_allowed_card_networks: vec![],
+                        paypal_client_id: None,
+                        gpay_gateway_merchant_id: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Checkout => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Checkout {
+                        api_key: api_key.clone(),
+                        api_secret: api_secret.clone(),
+                        processing_channel_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Cybersource => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Cybersource {
+                        api_key: api_key.clone(),
+                        merchant_account: key1.clone(),
+                        api_secret: api_secret.clone(),
+                        base_url: None,
+                        disable_avs: None,
+                        disable_cvn: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Dlocal => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Dlocal {
+                        x_login: api_key.clone(),
+                        x_trans_key: key1.clone(),
+                        secret: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Elavon => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Elavon {
+                        ssl_merchant_id: api_key.clone(),
+                        ssl_user_id: key1.clone(),
+                        ssl_pin: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Fiserv => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Fiserv {
+                        api_key: api_key.clone(),
+                        merchant_account: key1.clone(),
+                        api_secret: api_secret.clone(),
+                        base_url: None,
+                        terminal_id: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Fiuu => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Fiuu {
+                        merchant_id: key1.clone(),
+                        verify_key: api_key.clone(),
+                        secret_key: api_secret.clone(),
+                        base_url: None,
+                        secondary_base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Getnet => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Getnet {
+                        api_key: api_key.clone(),
+                        api_secret: api_secret.clone(),
+                        seller_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Gigadat => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Gigadat {
+                        security_token: api_secret.clone(),
+                        access_token: api_key.clone(),
+                        campaign_id: key1.clone(),
+                        base_url: None,
+                        site: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Hyperpg => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Hyperpg {
+                        username: api_key.clone(),
+                        password: key1.clone(),
+                        merchant_id: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Iatapay => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Iatapay {
+                        client_id: api_key.clone(),
+                        merchant_id: key1.clone(),
+                        client_secret: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Noon => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Noon {
+                        api_key: api_key.clone(),
+                        business_identifier: key1.clone(),
+                        application_identifier: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Novalnet => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Novalnet {
+                        product_activation_key: api_key.clone(),
+                        payment_access_key: key1.clone(),
+                        tariff_id: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Nuvei => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Nuvei {
+                        merchant_id: api_key.clone(),
+                        merchant_site_id: key1.clone(),
+                        merchant_secret: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Phonepe => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Phonepe {
+                        merchant_id: api_key.clone(),
+                        salt_key: key1.clone(),
+                        salt_index: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Redsys => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Redsys {
+                        merchant_id: api_key.clone(),
+                        terminal_id: key1.clone(),
+                        sha256_pwd: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Silverflow => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Silverflow {
+                        api_key: api_key.clone(),
+                        api_secret: api_secret.clone(),
+                        merchant_acceptor_key: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Trustpay => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Trustpay {
+                        api_key: api_key.clone(),
+                        project_id: key1.clone(),
+                        secret_key: api_secret.clone(),
+                        base_url: None,
+                        base_url_bank_redirects: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Trustpayments => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Trustpayments {
+                        username: api_key.clone(),
+                        password: key1.clone(),
+                        site_reference: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Tsys => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Tsys {
+                        device_id: api_key.clone(),
+                        transaction_key: key1.clone(),
+                        developer_id: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Wellsfargo => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Wellsfargo {
+                        api_key: api_key.clone(),
+                        merchant_account: key1.clone(),
+                        api_secret: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Worldpay => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Worldpay {
+                        username: key1.clone(),
+                        password: api_key.clone(),
+                        entity_id: api_secret.clone(),
+                        base_url: None,
+                        merchant_name: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Worldpayvantiv => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Worldpayvantiv {
+                        user: api_key.clone(),
+                        password: api_secret.clone(),
+                        merchant_id: key1.clone(),
+                        base_url: None,
+                        secondary_base_url: None,
+                        report_group: None,
+                        merchant_config_currency: None,
+                    }),
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2: _,
+                    } => Ok(Self::Worldpayvantiv {
+                        user: api_key.clone(),
+                        password: api_secret.clone(),
+                        merchant_id: key1.clone(),
+                        base_url: None,
+                        secondary_base_url: None,
+                        report_group: None,
+                        merchant_config_currency: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Worldpayxml => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Worldpayxml {
+                        api_username: api_key.clone(),
+                        api_password: key1.clone(),
+                        merchant_code: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Zift => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Zift {
+                        user_name: api_key.clone(),
+                        password: api_secret.clone(),
+                        account_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Trustly => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Trustly {
+                        username: api_key.clone(),
+                        password: key1.clone(),
+                        private_key: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+
+                // --- Paypal (BodyKey or SignatureKey) ---
+                ConnectorEnum::Paypal => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Paypal {
+                        client_id: key1.clone(),
+                        client_secret: api_key.clone(),
+                        payer_id: None,
+                        base_url: None,
+                    }),
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Paypal {
+                        client_id: key1.clone(),
+                        client_secret: api_key.clone(),
+                        payer_id: Some(api_secret.clone()),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+
+                // --- MultiAuthKey connectors ---
+                ConnectorEnum::Forte => match auth {
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::Forte {
+                        api_access_id: api_key.clone(),
+                        organization_id: key1.clone(),
+                        location_id: key2.clone(),
+                        api_secret_key: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Paybox => match auth {
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::Paybox {
+                        site: api_key.clone(),
+                        rank: key1.clone(),
+                        key: api_secret.clone(),
+                        merchant_id: key2.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Paytm => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Paytm {
+                        merchant_id: api_key.clone(),
+                        merchant_key: key1.clone(),
+                        website: api_secret.clone(),
+                        client_id: None,
+                        base_url: None,
+                    }),
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::Paytm {
+                        merchant_id: api_key.clone(),
+                        merchant_key: key1.clone(),
+                        website: api_secret.clone(),
+                        client_id: Some(key2.clone()),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Volt => match auth {
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::Volt {
+                        username: api_key.clone(),
+                        password: api_secret.clone(),
+                        client_id: key1.clone(),
+                        client_secret: key2.clone(),
+                        base_url: None,
+                        secondary_base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+
+                // --- CurrencyAuthKey connectors ---
+                ConnectorEnum::Cashtocode => match auth {
+                    ConnectorAuthType::CurrencyAuthKey { auth_key_map } => Ok(Self::Cashtocode {
+                        auth_key_map: auth_key_map.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Payload => match auth {
+                    ConnectorAuthType::CurrencyAuthKey { auth_key_map } => Ok(Self::Payload {
+                        auth_key_map: auth_key_map.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Revolv3 => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Revolv3 {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Peachpayments => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Peachpayments {
+                        api_key: api_key.clone(),
+                        tenant_id: key1.clone(),
+                        base_url: None,
+                        client_merchant_reference_id: None,
+                        merchant_payment_method_route_id: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Finix => match auth {
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::Finix {
+                        finix_user_name: api_key.clone(),
+                        finix_password: api_secret.clone(),
+                        merchant_id: key1.clone(),
+                        merchant_identity_id: key2.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Ppro => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => {
+                        Ok(ConnectorSpecificConfig::Ppro {
+                            api_key: api_key.clone(),
+                            merchant_id: key1.clone(),
+                            base_url: None,
+                        })
+                    }
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Easebuzz => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => {
+                        Ok(ConnectorSpecificConfig::Easebuzz {
+                            api_key: api_key.clone(),
+                            api_salt: key1.clone(),
+                            base_url: None,
+                            secondary_base_url: None,
+                        })
+                    }
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Fiservcommercehub => match auth {
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::Fiservcommercehub {
+                        api_key: api_key.clone(),
+                        secret: api_secret.clone(),
+                        merchant_id: key1.clone(),
+                        terminal_id: key2.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Itaubank => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Itaubank {
+                        client_id: api_key.clone(),
+                        client_secret: key1.clone(),
+                        certificates: None,
+                        private_key: None,
+                        base_url: None,
+                    }),
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::Itaubank {
+                        client_id: api_key.clone(),
+                        client_secret: key1.clone(),
+                        certificates: Some(api_secret.clone()),
+                        private_key: Some(key2.clone()),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::PinelabsOnline => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::PinelabsOnline {
+                        client_id: api_key.clone(),
+                        client_secret: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Axisbank => match auth {
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::Axisbank {
+                        merchant_kid: api_key.clone(),
+                        juspay_kid: key1.clone(),
+                        merchant_private_key: api_secret.clone(),
+                        juspay_public_key: key2.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Juspay => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Juspay {
+                        api_key: api_key.clone(),
+                        merchant_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::TwocTwopPaco => Err(err().into()),
+                ConnectorEnum::Tamara => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Tamara {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
             },
-            ConnectorEnum::Fiservcommercehub => match auth {
-                ConnectorAuthType::MultiAuthKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                    key2,
-                } => Ok(Self::Fiservcommercehub {
-                    api_key: api_key.clone(),
-                    secret: api_secret.clone(),
-                    merchant_id: key1.clone(),
-                    terminal_id: key2.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
+            connector_types::ConnectorVariant::Surcharge(connector_enum) => match connector_enum {
+                SurchargeConnectorEnum::Interpayments => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Interpayments {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
             },
-            ConnectorEnum::Itaubank => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Itaubank {
-                    client_id: api_key.clone(),
-                    client_secret: key1.clone(),
-                    certificates: None,
-                    private_key: None,
-                    base_url: None,
-                }),
-                ConnectorAuthType::MultiAuthKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                    key2,
-                } => Ok(Self::Itaubank {
-                    client_id: api_key.clone(),
-                    client_secret: key1.clone(),
-                    certificates: Some(api_secret.clone()),
-                    private_key: Some(key2.clone()),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
+            connector_types::ConnectorVariant::Payout(connector_enum) => match connector_enum {
+                PayoutConnectorEnum::Loonio => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Loonio {
+                        merchant_id: api_key.clone(),
+                        merchant_token: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                PayoutConnectorEnum::Paypal => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Paypal {
+                        client_id: key1.clone(),
+                        client_secret: api_key.clone(),
+                        payer_id: None,
+                        base_url: None,
+                    }),
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Paypal {
+                        client_id: key1.clone(),
+                        client_secret: api_key.clone(),
+                        payer_id: Some(api_secret.clone()),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                PayoutConnectorEnum::Itaubank => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Itaubank {
+                        client_id: api_key.clone(),
+                        client_secret: key1.clone(),
+                        certificates: None,
+                        private_key: None,
+                        base_url: None,
+                    }),
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::Itaubank {
+                        client_id: api_key.clone(),
+                        client_secret: key1.clone(),
+                        certificates: Some(api_secret.clone()),
+                        private_key: Some(key2.clone()),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
             },
-            ConnectorEnum::PinelabsOnline => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::PinelabsOnline {
-                    client_id: api_key.clone(),
-                    client_secret: key1.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
-            ConnectorEnum::Axisbank => match auth {
-                ConnectorAuthType::MultiAuthKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                    key2,
-                } => Ok(Self::Axisbank {
-                    merchant_kid: api_key.clone(),
-                    juspay_kid: key1.clone(),
-                    merchant_private_key: api_secret.clone(),
-                    juspay_public_key: key2.clone(),
-                    base_url: None,
-                }),
-                _ => Err(err().into()),
-            },
+        }
+    }
+}
+
+/// Unified status enum for different flow types in ErrorResponse
+#[derive(Clone, Debug, serde::Serialize, PartialEq, Eq)]
+pub enum FlowStatus {
+    Payment(common_enums::enums::AttemptStatus),
+    Refund(common_enums::enums::RefundStatus),
+    Dispute(common_enums::enums::DisputeStatus),
+}
+
+impl FlowStatus {
+    /// Extract AttemptStatus if this is a Payment variant
+    pub fn as_attempt_status(&self) -> Option<common_enums::enums::AttemptStatus> {
+        match self {
+            FlowStatus::Payment(status) => Some(*status),
+            _ => None,
+        }
+    }
+
+    /// Extract RefundStatus if this is a Refund variant
+    pub fn as_refund_status(&self) -> Option<common_enums::enums::RefundStatus> {
+        match self {
+            FlowStatus::Refund(status) => Some(*status),
+            _ => None,
+        }
+    }
+
+    /// Extract DisputeStatus if this is a Dispute variant
+    pub fn as_dispute_status(&self) -> Option<common_enums::enums::DisputeStatus> {
+        match self {
+            FlowStatus::Dispute(status) => Some(*status),
+            _ => None,
         }
     }
 }
@@ -3072,7 +3286,7 @@ pub struct ErrorResponse {
     pub message: String,
     pub reason: Option<String>,
     pub status_code: u16,
-    pub attempt_status: Option<common_enums::enums::AttemptStatus>,
+    pub attempt_status: Option<FlowStatus>,
     pub connector_transaction_id: Option<String>,
     pub network_decline_code: Option<String>,
     pub network_advice_code: Option<String>,
@@ -3105,13 +3319,16 @@ impl ErrorResponse {
         http_status_code: u16,
         fallback_status: common_enums::enums::AttemptStatus,
     ) -> Option<common_enums::enums::AttemptStatus> {
-        self.attempt_status.or_else(|| {
-            if (200..300).contains(&http_status_code) {
-                Some(fallback_status)
-            } else {
-                None
-            }
-        })
+        self.attempt_status
+            .as_ref()
+            .and_then(|fs| fs.as_attempt_status())
+            .or_else(|| {
+                if (200..300).contains(&http_status_code) {
+                    Some(fallback_status)
+                } else {
+                    None
+                }
+            })
     }
 
     pub fn get_not_implemented() -> Self {

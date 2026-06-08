@@ -43,6 +43,7 @@ impl
                 }
             }),
             test_mode: None,
+            description: value.description.clone(),
         })
     }
 }
@@ -1519,6 +1520,7 @@ impl
                 }
             }),
             test_mode: None,
+            description: value.description.clone(),
         })
     }
 }
@@ -1559,6 +1561,7 @@ impl
                 }
             }),
             test_mode: None,
+            description: None,
         })
     }
 }
@@ -1599,6 +1602,7 @@ impl
                 }
             }),
             test_mode: None,
+            description: None,
         })
     }
 }
@@ -1639,6 +1643,7 @@ impl
                 }
             }),
             test_mode: None,
+            description: None,
         })
     }
 }
@@ -1679,6 +1684,7 @@ impl
                 }
             }),
             test_mode: None,
+            description: None,
         })
     }
 }
@@ -1719,6 +1725,7 @@ impl
                 }
             }),
             test_mode: None,
+            description: None,
         })
     }
 }
@@ -1759,6 +1766,7 @@ impl
                 }
             }),
             test_mode: None,
+            description: None,
         })
     }
 }
@@ -1791,6 +1799,7 @@ pub fn generate_payout_create_response(
                     message: Some(err.message.clone()),
                     reason: err.reason.clone(),
                     connector_transaction_id: err.connector_transaction_id.clone(),
+                    status: None,
                 }),
                 issuer_details: None,
             }),
@@ -1836,6 +1845,7 @@ pub fn generate_payout_transfer_response(
                     message: Some(err.message.clone()),
                     reason: err.reason.clone(),
                     connector_transaction_id: err.connector_transaction_id.clone(),
+                    status: None,
                 }),
                 issuer_details: None,
             }),
@@ -1881,6 +1891,7 @@ pub fn generate_payout_get_response(
                     message: Some(err.message.clone()),
                     reason: err.reason.clone(),
                     connector_transaction_id: err.connector_transaction_id.clone(),
+                    status: None,
                 }),
                 issuer_details: None,
             }),
@@ -1926,6 +1937,7 @@ pub fn generate_payout_void_response(
                     message: Some(err.message.clone()),
                     reason: err.reason.clone(),
                     connector_transaction_id: err.connector_transaction_id.clone(),
+                    status: None,
                 }),
                 issuer_details: None,
             }),
@@ -1971,6 +1983,7 @@ pub fn generate_payout_stage_response(
                     message: Some(err.message.clone()),
                     reason: err.reason.clone(),
                     connector_transaction_id: err.connector_transaction_id.clone(),
+                    status: None,
                 }),
                 issuer_details: None,
             }),
@@ -2016,6 +2029,7 @@ pub fn generate_payout_create_link_response(
                     message: Some(err.message.clone()),
                     reason: err.reason.clone(),
                     connector_transaction_id: err.connector_transaction_id.clone(),
+                    status: None,
                 }),
                 issuer_details: None,
             }),
@@ -2064,6 +2078,7 @@ pub fn generate_payout_create_recipient_response(
                         message: Some(err.message.clone()),
                         reason: err.reason.clone(),
                         connector_transaction_id: err.connector_transaction_id.clone(),
+                        status: None,
                     }),
                     issuer_details: None,
                 }),
@@ -2113,6 +2128,7 @@ pub fn generate_payout_enroll_disburse_account_response(
                         message: Some(err.message.clone()),
                         reason: err.reason.clone(),
                         connector_transaction_id: err.connector_transaction_id.clone(),
+                        status: None,
                     }),
                     issuer_details: None,
                 }),

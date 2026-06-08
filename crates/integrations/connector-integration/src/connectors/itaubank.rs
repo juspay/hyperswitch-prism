@@ -9,15 +9,12 @@ use domain_types::{
     connector_types::*,
     errors::{self},
     payment_method_data::PaymentMethodDataTypes,
-    payouts::payouts_types::*,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
-    router_request_types::VerifyWebhookSourceRequestData,
-    router_response_types::{Response, VerifyWebhookSourceResponseData},
+    router_response_types::Response,
     types::Connectors,
 };
-use hyperswitch_masking::ExposeInterface;
-use hyperswitch_masking::{Mask, Maskable};
+use hyperswitch_masking::Maskable;
 use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
@@ -27,19 +24,14 @@ use interfaces::{
 };
 use serde::Serialize;
 
-use crate::types::ResponseRouterData;
-
 use self::transformers::{
     ItaubankAccessTokenRequest, ItaubankAccessTokenResponse, ItaubankAuthType,
-    ItaubankErrorResponse, ItaubankPayoutGetResponse, ItaubankTransferRequest,
-    ItaubankTransferResponse,
+    ItaubankErrorResponse,
 };
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
     pub(crate) const ACCEPT: &str = "Accept";
     pub(crate) const USER_AGENT: &str = "User-Agent";
-    pub(crate) const AUTHORIZATION: &str = "Authorization";
-    pub(crate) const X_ITAU_API_KEY: &str = "x-itau-apikey";
 }
 
 use std::fmt::Debug;
@@ -50,29 +42,9 @@ use super::macros;
 macros::create_all_prerequisites!(
     connector_name: Itaubank,
     generic_type: T,
-    api: [
-        (
-            flow: PayoutGet,
-            response_body: ItaubankPayoutGetResponse,
-            router_data: RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-        )
-    ],
+    api: [],
     amount_converters: [],
     member_functions: {}
-);
-
-macros::macro_connector_payout_implementation!(
-    connector: Itaubank,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    payout_flows: [
-        PayoutCreate,
-        PayoutVoid,
-        PayoutStage,
-        PayoutCreateLink,
-        PayoutCreateRecipient,
-        PayoutEnrollDisburseAccount
-    ]
 );
 
 fn construct_itaubank_error_message(error_res: &ItaubankErrorResponse) -> String {
@@ -128,6 +100,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: Result<ItaubankErrorResponse, _> =
             res.response.parse_struct("ItaubankErrorResponse");
@@ -350,576 +323,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-}
-
-// ===== PAYOUT TRANSFER FLOW =====
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PayoutTransferV2 for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PayoutTransfer,
-        PayoutFlowData,
-        PayoutTransferRequest,
-        PayoutTransferResponse,
-    > for Itaubank<T>
-{
-    fn get_http_method(&self) -> common_utils::request::Method {
-        common_utils::request::Method::Post
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        "application/json"
-    }
-
-    fn get_certificate(
-        &self,
-        req: &RouterDataV2<
-            PayoutTransfer,
-            PayoutFlowData,
-            PayoutTransferRequest,
-            PayoutTransferResponse,
-        >,
-    ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, errors::IntegrationError> {
-        let auth = ItaubankAuthType::try_from(&req.connector_config)?;
-        Ok(auth.certificates)
-    }
-
-    fn get_certificate_key(
-        &self,
-        req: &RouterDataV2<
-            PayoutTransfer,
-            PayoutFlowData,
-            PayoutTransferRequest,
-            PayoutTransferResponse,
-        >,
-    ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, errors::IntegrationError> {
-        let auth = ItaubankAuthType::try_from(&req.connector_config)?;
-        Ok(auth.private_key)
-    }
-
-    fn get_url(
-        &self,
-        req: &RouterDataV2<
-            PayoutTransfer,
-            PayoutFlowData,
-            PayoutTransferRequest,
-            PayoutTransferResponse,
-        >,
-    ) -> CustomResult<String, errors::IntegrationError> {
-        let base_url = build_env_specific_endpoint(
-            self.base_url(&req.resource_common_data.connectors),
-            req.resource_common_data.test_mode,
-        );
-        Ok(format!("{base_url}/v1/transferencias"))
-    }
-
-    fn get_headers(
-        &self,
-        req: &RouterDataV2<
-            PayoutTransfer,
-            PayoutFlowData,
-            PayoutTransferRequest,
-            PayoutTransferResponse,
-        >,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
-        let access_token = req.resource_common_data.get_access_token().map_err(|_| {
-            errors::IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
-            }
-        })?;
-        let auth = ItaubankAuthType::try_from(&req.connector_config)?;
-
-        Ok(vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                "application/json".to_string().into(),
-            ),
-            (headers::ACCEPT.to_string(), "*/*".to_string().into()),
-            (
-                headers::AUTHORIZATION.to_string(),
-                format!("Bearer {access_token}").into_masked(),
-            ),
-            (
-                headers::USER_AGENT.to_string(),
-                "Hyperswitch".to_string().into(),
-            ),
-            (
-                headers::X_ITAU_API_KEY.to_string(),
-                auth.client_id.expose().into_masked(),
-            ),
-        ])
-    }
-
-    fn get_request_body(
-        &self,
-        req: &RouterDataV2<
-            PayoutTransfer,
-            PayoutFlowData,
-            PayoutTransferRequest,
-            PayoutTransferResponse,
-        >,
-    ) -> CustomResult<Option<RequestContent>, errors::IntegrationError> {
-        let connector_req = ItaubankTransferRequest::try_from(req)?;
-        Ok(Some(RequestContent::Json(Box::new(connector_req))))
-    }
-
-    fn handle_response_v2(
-        &self,
-        data: &RouterDataV2<
-            PayoutTransfer,
-            PayoutFlowData,
-            PayoutTransferRequest,
-            PayoutTransferResponse,
-        >,
-        event_builder: Option<&mut events::Event>,
-        res: Response,
-    ) -> CustomResult<
-        RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
-        errors::ConnectorError,
-    > {
-        let response: Result<ItaubankTransferResponse, _> =
-            res.response.parse_struct("ItaubankTransferResponse");
-
-        match response {
-            Ok(transfer_res) => {
-                event_builder.map(|i| i.set_connector_response(&transfer_res));
-                Ok(RouterDataV2 {
-                    response: Ok(PayoutTransferResponse {
-                        merchant_payout_id: None,
-                        payout_status: transfer_res.transfer_status.get_payout_status(),
-                        connector_payout_id: Some(transfer_res.id),
-                        status_code: res.status_code,
-                    }),
-                    ..data.clone()
-                })
-            }
-            Err(_) => {
-                tracing::error!(
-                    "Failed to parse transfer response from Itaubank. Status: {}, Raw: {:?}",
-                    res.status_code,
-                    res.response
-                );
-                Err(errors::ConnectorError::ResponseDeserializationFailed {
-                    context: Default::default(),
-                }
-                .into())
-            }
-        }
-    }
-
-    fn get_error_response_v2(
-        &self,
-        res: Response,
-        event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-}
-
-// ===== PAYOUT GET FLOW =====
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PayoutGetV2 for Itaubank<T>
-{
-}
-
-macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: Itaubank,
-    curl_response: ItaubankPayoutGetResponse,
-    flow_name: PayoutGet,
-    resource_common_data: PayoutFlowData,
-    flow_request: PayoutGetRequest,
-    flow_response: PayoutGetResponse,
-    http_method: Get,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    other_functions: {
-        fn get_headers(
-            &self,
-            req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
-            let access_token = req.resource_common_data.get_access_token().map_err(|_| {
-                errors::IntegrationError::FailedToObtainAuthType {
-                    context: Default::default(),
-                }
-            })?;
-            let auth = ItaubankAuthType::try_from(&req.connector_config)?;
-
-            Ok(vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    "application/json".to_string().into(),
-                ),
-                (headers::ACCEPT.to_string(), "*/*".to_string().into()),
-                (
-                    headers::AUTHORIZATION.to_string(),
-                    format!("Bearer {access_token}").into_masked(),
-                ),
-                (
-                    headers::USER_AGENT.to_string(),
-                    "Hyperswitch".to_string().into(),
-                ),
-                (
-                    headers::X_ITAU_API_KEY.to_string(),
-                    auth.client_id.expose().into_masked(),
-                )
-            ])
-        }
-        fn get_url(
-            &self,
-            req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-        ) -> CustomResult<String, errors::IntegrationError> {
-            let base_url = build_env_specific_endpoint(
-                self.base_url(&req.resource_common_data.connectors),
-                req.resource_common_data.test_mode,
-            );
-            let connector_payout_id = req.request.connector_payout_id.clone().ok_or(errors::IntegrationError::MissingConnectorTransactionID{ context: Default::default() })?;
-            Ok(format!("{}v1/pagamentos_sispag/{}", base_url, connector_payout_id))
-        }
-        fn get_certificate(
-            &self,
-            req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-        ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, errors::IntegrationError> {
-            let auth = ItaubankAuthType::try_from(&req.connector_config)?;
-            Ok(auth.certificates)
-        }
-        fn get_certificate_key(
-            &self,
-            req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-        ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, errors::IntegrationError> {
-            let auth = ItaubankAuthType::try_from(&req.connector_config)?;
-            Ok(auth.private_key)
-        }
-    }
-);
-
-fn build_env_specific_endpoint(base_url: &str, test_mode: Option<bool>) -> String {
-    if test_mode.unwrap_or(true) {
-        format!("{base_url}/itau-ep9-gtw-sispag-ext")
-    } else {
-        format!("{base_url}/sispag")
+        self.build_error_response(res, event_builder, _connector_config)
     }
 }
 
 // ===== NO-OP PAYMENT TRAIT IMPLS =====
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAuthorizeV2<T> for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        Authorize,
-        PaymentFlowData,
-        PaymentsAuthorizeData<T>,
-        PaymentsResponseData,
-    > for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentSyncV2 for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
-    for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentVoidV2 for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
-    for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentVoidPostCaptureV2 for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        VoidPC,
-        PaymentFlowData,
-        PaymentsCancelPostCaptureData,
-        PaymentsResponseData,
-    > for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentCapture for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
-    for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::RefundV2 for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
-    for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::RefundSyncV2 for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
-    for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SetupMandateV2<T> for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
-        PaymentsResponseData,
-    > for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::RepeatPaymentV2<T> for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
-    > for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ClientAuthentication for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ClientAuthenticationToken,
-        PaymentFlowData,
-        ClientAuthenticationTokenRequestData,
-        PaymentsResponseData,
-    > for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::MandateRevokeV2 for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        MandateRevoke,
-        PaymentFlowData,
-        MandateRevokeRequestData,
-        MandateRevokeResponseData,
-    > for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentOrderCreate for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        CreateOrder,
-        PaymentFlowData,
-        PaymentCreateOrderData,
-        PaymentCreateOrderResponse,
-    > for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerSessionAuthentication for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ServerSessionAuthenticationToken,
-        PaymentFlowData,
-        ServerSessionAuthenticationTokenRequestData,
-        ServerSessionAuthenticationTokenResponseData,
-    > for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentIncrementalAuthorization for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentTokenV2<T> for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PaymentMethodToken,
-        PaymentFlowData,
-        PaymentMethodTokenizationData<T>,
-        PaymentMethodTokenResponse,
-    > for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentPreAuthenticateV2<T> for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PreAuthenticate,
-        PaymentFlowData,
-        PaymentsPreAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAuthenticateV2<T> for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        Authenticate,
-        PaymentFlowData,
-        PaymentsAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentPostAuthenticateV2<T> for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PostAuthenticate,
-        PaymentFlowData,
-        PaymentsPostAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::AcceptDispute for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
-    for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SubmitEvidenceV2 for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>
-    for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::DisputeDefend for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
-    for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::CreateConnectorCustomer for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        CreateConnectorCustomer,
-        PaymentFlowData,
-        ConnectorCustomerData,
-        ConnectorCustomerResponse,
-    > for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::VerifyWebhookSourceV2 for Itaubank<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        VerifyWebhookSource,
-        VerifyWebhookSourceFlowData,
-        VerifyWebhookSourceRequestData,
-        VerifyWebhookSourceResponseData,
-    > for Itaubank<T>
-{
-}
+// VerifyWebhookSource is provided by default_impl_verify_webhook_source_v2! in default_implementations.rs
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Itaubank<T>
@@ -940,3 +351,35 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Itaubank<T>
 {
 }
+
+macros::macro_connector_flow_status_impls!(
+    connector: Itaubank,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    not_implemented: [
+        Authorize,
+        PSync,
+        Refund,
+        RSync,
+        SetupMandate,
+        RepeatPayment,
+    ],
+    not_supported: [
+        Void,
+        VoidPC,
+        Capture,
+        ClientAuthenticationToken,
+        MandateRevoke,
+        CreateOrder,
+        ServerSessionAuthenticationToken,
+        IncrementalAuthorization,
+        PaymentMethodToken,
+        PreAuthenticate,
+        Authenticate,
+        PostAuthenticate,
+        Accept,
+        SubmitEvidence,
+        DefendDispute,
+        CreateConnectorCustomer,
+    ],
+);

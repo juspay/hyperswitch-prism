@@ -17,7 +17,7 @@ use domain_types::{
         BankDebitData, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes,
         RawCardNumber, WalletData,
     },
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
     utils::{get_unimplemented_payment_method_error_message, ForeignTryFrom},
@@ -1518,7 +1518,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NmiVaultResponse, Sel
                     message: response.responsetext.clone(),
                     reason: Some(response.responsetext.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: Some(response.transactionid.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -1570,6 +1570,8 @@ pub struct NmiSetupMandateRequest<
     zip: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     country: Option<common_enums::CountryAlpha2>,
+    #[serde(flatten)]
+    shipping_details: NmiShippingDetails,
 }
 
 /// Payment method for SetupMandate - supports Card and ACH
@@ -1715,6 +1717,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             state: common_data.get_optional_billing_state(),
             zip: common_data.get_optional_billing_zip(),
             country: common_data.get_optional_billing_country(),
+            shipping_details: NmiShippingDetails {
+                shipping_firstname: common_data.get_optional_shipping_first_name(),
+                shipping_lastname: common_data.get_optional_shipping_last_name(),
+                shipping_address1: common_data.get_optional_shipping_line1(),
+                shipping_address2: common_data.get_optional_shipping_line2(),
+                shipping_city: common_data.get_optional_shipping_city(),
+                shipping_state: common_data.get_optional_shipping_state(),
+                shipping_zip: common_data.get_optional_shipping_zip(),
+                shipping_country: common_data.get_optional_shipping_country(),
+                shipping_email: common_data.get_optional_shipping_email(),
+            },
         })
     }
 }
@@ -1760,7 +1773,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         mandate_reference,
                         connector_metadata: None,
                         network_txn_id: None,
-                        connector_response_reference_id: Some(response.transactionid.clone()),
+                        // Hyperswitch parity: NMI maps connector_response_reference_id to the
+                        // merchant `orderid` (echoed back), not the connector `transactionid`
+                        // (which is already the resource_id / ConnectorTransactionId above).
+                        connector_response_reference_id: Some(response.orderid.clone()),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                     }),
@@ -1773,7 +1789,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     message: response.responsetext.clone(),
                     reason: Some(response.responsetext.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: Some(response.transactionid.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -1804,6 +1820,27 @@ pub struct NmiRepeatPaymentRequest {
     currency: common_enums::Currency,
     orderid: String,
     customer_vault_id: Secret<String>,
+    #[serde(flatten)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    merchant_defined_field: Option<NmiMerchantDefinedField>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    last_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    address1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    address2: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    city: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    state: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    zip: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    country: Option<common_enums::CountryAlpha2>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    phone: Option<Secret<String>>,
 }
 
 pub type NmiRepeatPaymentResponse = NmiSetupMandateResponse;
@@ -1864,16 +1901,32 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             })?;
 
+        let common_data = &router_data.resource_common_data;
+
         Ok(Self {
             transaction_type: TransactionType::Sale,
             security_key: auth.api_key,
             amount,
             currency: router_data.request.currency,
-            orderid: router_data
-                .resource_common_data
-                .connector_request_reference_id
-                .clone(),
+            orderid: common_data.connector_request_reference_id.clone(),
             customer_vault_id: Secret::new(customer_vault_id),
+            // Mirror the Authorize/SetupMandate flows: NMI expects the billing
+            // address and merchant_defined_field_* as flat top-level fields, which
+            // the hyperswitch reference also sends on recurring (MIT) charges.
+            merchant_defined_field: router_data
+                .request
+                .metadata
+                .as_ref()
+                .map(|m| NmiMerchantDefinedField::new(m.peek())),
+            first_name: common_data.get_optional_billing_first_name(),
+            last_name: common_data.get_optional_billing_last_name(),
+            address1: common_data.get_optional_billing_line1(),
+            address2: common_data.get_optional_billing_line2(),
+            city: common_data.get_optional_billing_city(),
+            state: common_data.get_optional_billing_state(),
+            zip: common_data.get_optional_billing_zip(),
+            country: common_data.get_optional_billing_country(),
+            phone: common_data.get_optional_billing_phone_number(),
         })
     }
 }
@@ -1898,7 +1951,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: Some(response.transactionid.clone()),
+                    // Hyperswitch parity: NMI maps connector_response_reference_id to the
+                    // merchant `orderid` (echoed back), not the connector `transactionid`
+                    // (which is already the resource_id / ConnectorTransactionId above).
+                    connector_response_reference_id: Some(response.orderid.clone()),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                 }),
@@ -1910,7 +1966,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     message: response.responsetext.clone(),
                     reason: Some(response.responsetext.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: Some(response.transactionid.clone()),
                     network_decline_code: None,
                     network_advice_code: None,

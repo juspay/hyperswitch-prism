@@ -1184,12 +1184,16 @@ dependencies = [
 name = "composite-service"
 version = "0.1.0"
 dependencies = [
+ "base64 0.21.7",
  "connector-integration",
  "domain_types",
  "grpc-api-types",
  "hyperswitch_masking",
+ "interfaces",
  "prost 0.14.3",
  "prost-types",
+ "serde",
+ "serde_json",
  "tonic 0.14.5",
  "ucs_common_enums",
  "ucs_common_utils",
@@ -3262,6 +3266,7 @@ dependencies = [
  "log_utils",
  "once_cell",
  "prometheus",
+ "prost 0.14.3",
  "prost-types",
  "rand 0.8.5",
  "reqwest 0.11.27",
@@ -8225,6 +8230,7 @@ dependencies = [
  "hex",
  "http 1.4.0",
  "hyperswitch_masking",
+ "josekit",
  "md5",
  "multipart",
  "nanoid",

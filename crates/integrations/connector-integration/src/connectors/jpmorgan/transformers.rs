@@ -4,20 +4,20 @@ use common_utils::{fp_utils::when, pii::SecretSerdeValue};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, Refund, RepeatPayment,
-        ServerAuthenticationToken, SetupMandate, Void,
+        ServerAuthenticationToken, SetupMandate, Void, VoidPC,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse,
         JpmorganClientAuthenticationResponse as JpmorganClientAuthenticationResponseDomain,
         MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        SetupMandateRequestData,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ResponseId, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData, SetupMandateRequestData,
     },
     payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -689,6 +689,100 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+/// VoidPC (post-capture void/reversal) request transformer.
+///
+/// JPMorgan uses the same `PATCH /payments/{id}` endpoint with `{"isVoid": true}`
+/// for both pre-capture void and post-capture reversal. The transaction ID is used
+/// to build the URL in the connector implementation.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        JpmorganRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for requests::JpmorganVoidPcRequest
+{
+    type Error = Error;
+    fn try_from(
+        _item: JpmorganRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self { is_void: true })
+    }
+}
+
+impl<F> TryFrom<ResponseRouterData<responses::JpmorganPaymentsResponse, Self>>
+    for RouterDataV2<F, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>
+{
+    type Error = ResponseError;
+    fn try_from(
+        item: ResponseRouterData<responses::JpmorganPaymentsResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        // Map JPMorgan's transaction state directly to `PostCaptureVoidStatus` —
+        // the Reverse flow has its own status enum, so we don't go through
+        // `AttemptStatus`. `Closed` / `Authorized` mean the PATCH was accepted
+        // but the transaction did not move to `Voided`, so the reversal did
+        // not apply. `Declined` / `Error` are matched explicitly to keep the
+        // match exhaustive.
+        let post_capture_void_status = match item.response.transaction_state {
+            responses::JpmorganTransactionState::Voided => {
+                common_enums::PostCaptureVoidStatus::Succeeded
+            }
+            responses::JpmorganTransactionState::Pending => {
+                common_enums::PostCaptureVoidStatus::Pending
+            }
+            responses::JpmorganTransactionState::Closed
+            | responses::JpmorganTransactionState::Authorized
+            | responses::JpmorganTransactionState::Declined
+            | responses::JpmorganTransactionState::Error => {
+                common_enums::PostCaptureVoidStatus::Failed
+            }
+        };
+
+        let response = if post_capture_void_status.is_post_capture_void_failure() {
+            Err(ErrorResponse {
+                attempt_status: None,
+                code: item.response.response_code.clone(),
+                message: item
+                    .response
+                    .response_message
+                    .clone()
+                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                reason: item.response.response_message.clone(),
+                status_code: item.http_code,
+                connector_transaction_id: Some(item.response.transaction_id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status,
+                connector_reference_id: Some(item.response.transaction_id.clone()),
+                description: None,
+                status_code: item.http_code,
+            })
+        };
+
+        Ok(Self {
+            response,
+            ..item.router_data
+        })
+    }
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         JpmorganRouterData<
@@ -806,7 +900,7 @@ fn build_payments_response_result(
 ) -> Result<Result<PaymentsResponseData, ErrorResponse>, ResponseError> {
     if is_payment_failure(status) {
         Ok(Err(ErrorResponse {
-            attempt_status: Some(status),
+            attempt_status: Some(FlowStatus::Payment(status)),
             code: response.response_code.clone(),
             message: response
                 .response_message

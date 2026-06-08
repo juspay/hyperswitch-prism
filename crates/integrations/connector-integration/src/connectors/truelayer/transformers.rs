@@ -12,7 +12,7 @@ use domain_types::{
         VerifyWebhookSourceFlowData,
     },
     payment_method_data::{BankRedirectData, PaymentMethodData, PaymentMethodDataTypes},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::RedirectForm,
@@ -252,6 +252,7 @@ struct Beneficiary {
     _type: String,
     merchant_account_id: Secret<String>,
     account_holder_name: Secret<String>,
+    reference: String,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -307,6 +308,13 @@ struct HostedPageResponse {
     uri: String,
 }
 
+fn normalize_connector_request_reference_id(reference_id: &str) -> String {
+    reference_id
+        .chars()
+        .map(|c| if c == '_' { '-' } else { c })
+        .collect()
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         TruelayerRouterData<
@@ -357,6 +365,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         _type: "merchant_account".to_string(),
                         merchant_account_id: metadata.merchant_account_id.clone(),
                         account_holder_name: metadata.account_holder_name.clone(),
+                        reference: normalize_connector_request_reference_id(
+                            &item
+                                .router_data
+                                .resource_common_data
+                                .connector_request_reference_id,
+                        ),
                     },
                 };
 
@@ -457,7 +471,7 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPaymentsResponseData, Self>>
                     .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: item.response.failure_reason.clone(),
                 status_code: item.http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: Some(item.response.id),
                 network_advice_code: None,
                 network_decline_code: None,
@@ -495,7 +509,6 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPaymentsResponseData, Self>>
             Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status,
-                    connector_customer: Some(item.response.user.id.clone()),
                     ..item.router_data.resource_common_data
                 },
                 response: Ok(PaymentsResponseData::TransactionResponse {
@@ -530,6 +543,7 @@ pub struct TruelayerPSyncResponse {
     status: TruelayerPaymentStatus,
     failure_reason: Option<String>,
     failure_stage: Option<String>,
+    payment_source: Option<TruelayerPaymentSource>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
@@ -575,7 +589,7 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
                             .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                         reason: response.failure_reason.clone(),
                         status_code: item.http_code,
-                        attempt_status: Some(status),
+                        attempt_status: Some(FlowStatus::Payment(status)),
                         connector_transaction_id: Some(response.id),
                         network_advice_code: None,
                         network_decline_code: None,
@@ -594,6 +608,9 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
                     Ok(Self {
                         resource_common_data: PaymentFlowData {
                             status,
+                            sender_payment_instrument_id: response
+                                .payment_source
+                                .and_then(|source| source.id),
                             ..item.router_data.resource_common_data
                         },
                         response: Ok(PaymentsResponseData::TransactionResponse {
@@ -649,7 +666,7 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
                             .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                         reason: response.failure_reason.clone(),
                         status_code: item.http_code,
-                        attempt_status: Some(status),
+                        attempt_status: Some(FlowStatus::Payment(status)),
                         connector_transaction_id: Some(response.payment_id.clone()),
                         network_advice_code: None,
                         network_decline_code: None,
@@ -981,6 +998,13 @@ pub struct TruelayerWebhookBody {
     pub refund_id: Option<String>,
     pub failure_reason: Option<String>,
     pub failure_stage: Option<String>,
+    pub user_id: Option<String>,
+    pub payment_source: Option<TruelayerPaymentSource>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TruelayerPaymentSource {
+    pub id: Option<String>,
 }
 
 pub fn get_webhook_event(

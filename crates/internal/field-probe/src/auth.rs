@@ -284,7 +284,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             public_key: None,
             base_url: None,
         },
-        ConnectorEnum::Sanlam => ConnectorSpecificConfig::Sanlam {
+        ConnectorEnum::AbsaSanlam => ConnectorSpecificConfig::AbsaSanlam {
             api_key: k(),
             merchant_id: m(),
             base_url: None,
@@ -663,6 +663,26 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             juspay_kid: k(),
             merchant_private_key: s(),
             juspay_public_key: s(),
+            base_url: None,
+        },
+        ConnectorEnum::TwocTwopPaco => ConnectorSpecificConfig::TwocTwopPaco {
+            access_token: s(),
+            office_id: s(),
+            paco_kid: s(),
+            merchant_signing_private_key: s(),
+            merchant_encryption_private_key: s(),
+            paco_signing_public_key: s(),
+            paco_encryption_public_key: s(),
+            response_audience: None,
+            base_url: None,
+        },
+        ConnectorEnum::Juspay => ConnectorSpecificConfig::Juspay {
+            api_key: k(),
+            merchant_id: m(),
+            base_url: None,
+        },
+        ConnectorEnum::Tamara => ConnectorSpecificConfig::Tamara {
+            api_key: k(),
             base_url: None,
         },
     }
