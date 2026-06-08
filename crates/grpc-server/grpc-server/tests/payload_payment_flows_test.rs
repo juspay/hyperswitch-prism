@@ -406,8 +406,7 @@ async fn test_authorize_psync_void() {
         let mut grpc_request = Request::new(request);
         add_payload_metadata(&mut grpc_request);
 
-        let auth_response = client
-            .authorize(grpc_request)
+        let auth_response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();
@@ -469,8 +468,7 @@ async fn test_authorize_capture_refund_rsync() {
         let mut grpc_request = Request::new(request);
         add_payload_metadata(&mut grpc_request);
 
-        let auth_response = client
-            .authorize(grpc_request)
+        let auth_response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();

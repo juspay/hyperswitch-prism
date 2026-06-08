@@ -118,7 +118,7 @@ async fn test_config_override() -> Result<(), Box<dyn std::error::Error>> {
             .insert("x-key1", "".parse().expect("valid header value"));
 
         // Make the request
-        let response = client.authorize(request).await;
+        let response = Box::pin(client.authorize(request)).await;
 
         // The config override was processed if the request reached the connector layer.
         // Integration errors (missing required fields) now correctly return tonic::Status
