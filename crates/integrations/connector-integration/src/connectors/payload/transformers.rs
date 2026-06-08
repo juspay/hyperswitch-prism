@@ -767,12 +767,16 @@ impl<
     fn try_from(
         item: ResponseRouterData<PayloadPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        // RepeatPayment should not return mandate_reference as the mandate already exists
+        // RepeatPayment must return mandate_reference so HS's payment_response post-processing
+        // can populate `mandate_reference_id` on the payment_attempt row.
+        // See: hyperswitch/crates/router/src/core/payments/operations/payment_response.rs:3330
+        // (HS legacy treats RepeatPayment as Authorize-with-mandate and extracts
+        // `response.connector_payment_method_id` into MandateReference — we mirror that here).
         Ok(handle_payment_response(
             item.response,
             item.router_data,
             item.http_code,
-            false,
+            true,
         ))
     }
 }
