@@ -2021,7 +2021,7 @@ impl PaymentMethodService for PaymentMethod {
                             tonic::Status::invalid_argument("Invalid payment method data")
                         })?);
 
-                    self.handle_tokenize_internal::<VaultTokenHolder>(
+                    Box::pin(self.handle_tokenize_internal::<VaultTokenHolder>(
                         &config,
                         payload,
                         metadata_payload.connector.clone(),
@@ -2032,7 +2032,7 @@ impl PaymentMethodService for PaymentMethod {
                         request_id,
                         Some(token_data),
                         payment_method_data,
-                        )
+                        ))
                         .await?
 
                     },
@@ -2042,7 +2042,7 @@ impl PaymentMethodService for PaymentMethod {
                             tracing::error!("PAYMENT_AUTHORIZE_FLOW: failed to get payment method data action - error: {:?}", err);
                             tonic::Status::invalid_argument("Invalid payment method data")
                         })?);
-                        self.handle_tokenize_internal::<DefaultPCIHolder>(
+                        Box::pin(self.handle_tokenize_internal::<DefaultPCIHolder>(
                         &config,
                         payload,
                         metadata_payload.connector.clone(),
@@ -2053,7 +2053,7 @@ impl PaymentMethodService for PaymentMethod {
                         request_id,
                         None,
                         payment_method_data,
-                        ).await?
+                        )).await?
                     },
                     PaymentMethodDataAction::Default => {
                         let payment_method_data = payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(payload.payment_method.clone().ok_or(tonic::Status::invalid_argument("missing request_details in the payload"))?)
@@ -2061,7 +2061,7 @@ impl PaymentMethodService for PaymentMethod {
                                 tracing::error!("Failed to convert payment method data: {:?}", err);
                                 tonic::Status::invalid_argument("Invalid payment method data")
                             })?;
-                        self.handle_tokenize_internal::<DefaultPCIHolder>(
+                        Box::pin(self.handle_tokenize_internal::<DefaultPCIHolder>(
                         &config,
                         payload,
                         metadata_payload.connector.clone(),
@@ -2072,7 +2072,7 @@ impl PaymentMethodService for PaymentMethod {
                         request_id,
                         None,
                         payment_method_data,
-                        ).await?
+                        )).await?
                     }
                 };
                 Ok(tonic::Response::new(payment_method_tokenize_response))
