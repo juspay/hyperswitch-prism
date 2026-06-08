@@ -507,12 +507,6 @@
         "error": "client_authentication_token flow not supported by payconex connector"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: create_connector_customer flow for payconex"
-      }
-    },
     "create_order": {
       "default": {
         "status": "not_implemented",
@@ -529,6 +523,12 @@
       "default": {
         "status": "not_supported",
         "error": "server_session_authentication_token flow not supported by payconex connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for payconex"
       }
     },
     "dispute_accept": {
