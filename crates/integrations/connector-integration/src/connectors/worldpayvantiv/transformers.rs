@@ -1778,11 +1778,7 @@ impl TryFrom<ResponseRouterData<VantivSyncResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
-            connector_response_reference_id: item
-                .response
-                .payment_detail
-                .as_ref()
-                .and_then(|detail| detail.merchant_txn_id.clone()),
+            connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
         };
