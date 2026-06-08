@@ -129,9 +129,11 @@ pub struct PowertranzPaymentsResponse {
     #[serde(default)]
     pub approved: Option<bool>,
     pub transaction_identifier: String,
+    pub original_trxn_identifier: Option<String>,
     #[serde(rename = "IsoResponseCode")]
     pub iso_response_code: String,
     pub response_message: String,
+    pub order_identifier: String,
     /// Authorization code (present in sync responses)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub authorization_code: Option<String>,
@@ -556,14 +558,18 @@ impl<T: PaymentMethodDataTypes, F> TryFrom<ResponseRouterData<PowertranzPayments
             &response.iso_response_code,
         );
 
+        let connector_transaction_id = response
+            .original_trxn_identifier
+            .unwrap_or_else(|| response.transaction_identifier.clone());
+
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(response.transaction_identifier),
+                resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(response.order_identifier),
                 incremental_authorization_allowed: None,
                 status_code: http_code,
             }),
@@ -631,24 +637,47 @@ impl<F> TryFrom<ResponseRouterData<PowertranzCaptureResponse, Self>>
             http_code,
         } = item;
 
-        // Determine payment status
         let status = get_payment_status(
             response.transaction_type,
             response.approved,
             &response.iso_response_code,
         );
 
-        Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(response.transaction_identifier),
+        let connector_transaction_id = response
+            .original_trxn_identifier
+            .clone()
+            .unwrap_or_else(|| response.transaction_identifier.clone());
+
+        let has_error = response.errors.as_ref().is_some_and(|e| !e.is_empty())
+            || !ISO_SUCCESS_CODES.contains(&response.iso_response_code.as_str());
+
+        let response_result = if has_error {
+            let err = build_powertranz_error_response(
+                &response.errors,
+                &response.iso_response_code,
+                &response.response_message,
+                http_code,
+            );
+            Err(domain_types::router_data::ErrorResponse {
+                attempt_status: Some(status),
+                connector_transaction_id: Some(connector_transaction_id),
+                ..err
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(response.order_identifier),
                 incremental_authorization_allowed: None,
                 status_code: http_code,
-            }),
+            })
+        };
+
+        Ok(Self {
+            response: response_result,
             resource_common_data: PaymentFlowData {
                 status,
                 ..router_data.resource_common_data
