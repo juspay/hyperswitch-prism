@@ -1,6 +1,6 @@
 use crate::types::ResponseRouterData;
 use common_enums::{enums::Currency, AttemptStatus, CaptureMethod};
-use common_utils::types::MinorUnit;
+use common_utils::{fp_utils::when, types::MinorUnit};
 use domain_types::errors::{ConnectorError, IntegrationError};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
@@ -14,7 +14,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
@@ -226,7 +226,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         // Parse expiry year and month
-        let expiry_year = card_data
+        let exp_year_str = card_data.card_exp_year.peek().to_string();
+        let exp_month_str = card_data.card_exp_month.peek().to_string();
+
+        // Vault token placeholders cannot be parsed as numeric types.
+        // Silverflow requires numeric expiry values, so proxy flows are not supported.
+        when(
+            exp_year_str.contains("{{") || exp_month_str.contains("{{"),
+            || {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "Silverflow requires numeric expiry values; vault token placeholders are not supported for proxy flows".to_string(),
+                    connector: "Silverflow",
+                    context: Default::default(),
+                }))
+            },
+        )?;
+
+        use error_stack::ResultExt;
+        let expiry_year: u16 = card_data
             .card_exp_year
             .clone()
             .expose()
@@ -235,7 +252,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             })?;
 
-        let expiry_month = card_data
+        let expiry_month: u8 = card_data
             .card_exp_month
             .clone()
             .expose()

@@ -11,12 +11,14 @@ import types.Payment.*
 import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.CustomerClient
+import payments.MerchantAuthenticationClient
 import payments.EventClient
 import payments.RecurringPaymentClient
 import payments.RefundClient
 import payments.AcceptanceType
 import payments.AuthenticationType
 import payments.CaptureMethod
+import payments.CardNetwork
 import payments.Currency
 import payments.FutureUsage
 import payments.HttpMethod
@@ -28,7 +30,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.AuthorizedotnetConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_customer", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_customer", "create_server_session_authentication_token", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "reverse", "setup_recurring", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -103,6 +105,13 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
         reason = "customer_request"  // Reason for the refund.
+    }.build()
+}
+
+private fun buildReverseRequest(connectorTransactionIdStr: String): PaymentServiceReverseRequest {
+    return PaymentServiceReverseRequest.newBuilder().apply {
+        merchantReverseId = "probe_reverse_001"  // Identification.
+        connectorTransactionId = connectorTransactionIdStr
     }.build()
 }
 
@@ -246,6 +255,21 @@ fun createCustomer(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Customer: ${response.connectorCustomerId}")
 }
 
+// Flow: MerchantAuthenticationService.CreateServerSessionAuthenticationToken
+fun createServerSessionAuthenticationToken(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = MerchantAuthenticationClient(config)
+    val request = MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest.newBuilder().apply {
+        paymentBuilder.apply {  // PayoutSessionContext payout = 6; // future FrmSessionContext frm = 7; // future.
+            amountBuilder.apply {
+                minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+                currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            }
+        }
+    }.build()
+    val response = client.create_server_session_authentication_token(request)
+    println("Session token: ${response.sessionToken} (statusCode=${response.statusCode})")
+}
+
 // Flow: PaymentService.Get
 fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -300,6 +324,7 @@ fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
             cardExpYearBuilder.value = "2030"
             cardCvcBuilder.value = "123"
             cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            cardNetwork = CardNetwork.VISA
         }
         addressBuilder.apply {
             billingAddressBuilder.apply {
@@ -328,6 +353,7 @@ fun proxySetupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig)
             cardExpYearBuilder.value = "2030"
             cardCvcBuilder.value = "123"
             cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            cardNetwork = CardNetwork.VISA
         }
         customerBuilder.apply {
             connectorCustomerId = "probe_customer_001"  // Customer ID in the connector system.
@@ -400,6 +426,14 @@ fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: PaymentService.Reverse
+fun reverse(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = buildReverseRequest("probe_connector_txn_001")
+    val response = client.reverse(request)
+    println("Status: ${response.status.name}")
+}
+
 // Flow: PaymentService.SetupRecurring
 fun setupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -465,6 +499,7 @@ fun main(args: Array<String>) {
         "authorize" -> authorize(txnId)
         "capture" -> capture(txnId)
         "createCustomer" -> createCustomer(txnId)
+        "createServerSessionAuthenticationToken" -> createServerSessionAuthenticationToken(txnId)
         "get" -> get(txnId)
         "handleEvent" -> handleEvent(txnId)
         "parseEvent" -> parseEvent(txnId)
@@ -473,8 +508,9 @@ fun main(args: Array<String>) {
         "recurringCharge" -> recurringCharge(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
+        "reverse" -> reverse(txnId)
         "setupRecurring" -> setupRecurring(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createCustomer, get, handleEvent, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createCustomer, createServerSessionAuthenticationToken, get, handleEvent, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, reverse, setupRecurring, void")
     }
 }

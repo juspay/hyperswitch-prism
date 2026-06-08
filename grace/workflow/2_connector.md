@@ -7,8 +7,9 @@ You are the **sole owner** of implementing **{FLOW}** for **{CONNECTOR}**. You h
 You coordinate by **spawning subagents via the Task tool** for heavy work (links discovery, tech spec generation, code implementation, committing and PR creation). You handle lightweight phases yourself (setup, file discovery).
 
 **HARD GUARDRAIL — MANDATORY SUBAGENT DELEGATION**: You MUST use the Task tool to spawn separate subagents for Phases 1, 2, 4, and 5. Do NOT read the subagent workflow files (`2.1_links.md`, `2.2_techspec.md`, `2.3_codegen.md`, `2.4_pr.md`) yourself — each subagent reads its own file. You are FORBIDDEN from doing the following yourself:
+
 - **Phase 1 (Links)**: Do NOT use WebFetch to search for documentation URLs. Do NOT browse connector websites. Do NOT write to `integration-source-links.json`. ONLY spawn the Links Agent (`2.1_links.md`) via Task tool.
-- **Phase 2 (Tech Spec)**: Do NOT read `integration-source-links.json` to extract URLs. Do NOT create URL files. Do NOT run `grace techspec`. Do NOT activate the virtualenv. ONLY spawn the Tech Spec Agent (`2.2_techspec.md`) via Task tool.
+- **Phase 2 (Tech Spec)**: Do NOT read `integration-source-links.json` to extract URLs. Do NOT create URL files. Do NOT run `grace techspec`. Do NOT activate the virtualenv. Do NOT use WebFetch to scrape connector docs. Do NOT synthesize the spec yourself or write to `grace/rulesbook/codegen/references/`. ONLY spawn the Tech Spec Agent (`2.2_techspec.md`) via Task tool — it picks Path A or Path B internally.
 - **Phase 4 (Codegen)**: Do NOT read pattern guides or tech specs for implementation. Do NOT write connector code. Do NOT run `cargo build`. Do NOT run `grpcurl`. ONLY spawn the Code Generation Agent (`2.3_codegen.md`) via Task tool.
 - **Phase 5 (Commit & PR)**: Do NOT run `git add`, `git commit`, `git cherry-pick`, `git push`, or `gh pr create`. Do NOT stage files or create branches. ONLY spawn the PR Agent (`2.4_pr.md`) via Task tool. The PR Agent handles ALL git commit, cherry-pick, push, and PR creation work.
 
@@ -18,18 +19,18 @@ Follow the phases below in order. Do not skip or reorder. Do not run phases in p
 
 **Credentials**: Available in `creds.json` at the repo root. If credentials fail during testing (HTTP 401/403), report FAILED — do NOT ask the user.
 
-**Note**: Connector names in `{CONNECTORS_FILE}` use the exact casing provided (e.g., `Adyen`, `Paypal`). Use this casing (`{Connector_Name}`) when running `grace techspec`. Use lowercase (`{connector}`) for file names, branch names, and directory paths.
+**Note**: Connector names in `{CONNECTORS_FILE}` use the exact casing provided (e.g., `Adyen`, `Paypal`). Use this casing (`{Connector_Name}`) when invoking the Tech Spec Agent (it flows into both `grace techspec` for Path A and the Claude-native workflow for Path B). Use lowercase (`{connector}`) for file names, branch names, and directory paths.
 
 ---
 
 ## Inputs
 
-| Parameter | Description | Example |
-|-----------|-------------|---------|
-| `{CONNECTOR}` | Connector name (exact casing from JSON) | `Adyen` |
-| `{FLOW}` | Payment flow being implemented | `BankDebit` |
-| `{CONNECTORS_FILE}` | JSON file with connector names | `connectors.json` |
-| `{BRANCH}` | Git branch all work happens on | `feat/bank-debit` |
+| Parameter           | Description                             | Example           |
+| ------------------- | --------------------------------------- | ----------------- |
+| `{CONNECTOR}`       | Connector name (exact casing from JSON) | `Adyen`           |
+| `{FLOW}`            | Payment flow being implemented          | `BankDebit`       |
+| `{CONNECTORS_FILE}` | JSON file with connector names          | `connectors.json` |
+| `{BRANCH}`          | Git branch all work happens on          | `feat/bank-debit` |
 
 ---
 
@@ -40,6 +41,7 @@ Follow the phases below in order. Do not skip or reorder. Do not run phases in p
 You MUST use the **Task tool** to spawn a **Links Agent** for documentation discovery. Do NOT search for documentation links yourself. Do NOT read the workflow file yourself — the subagent reads it on its own.
 
 **Spawn a Task with these parameters:**
+
 ```
 Task(
   subagent_type="general",
@@ -58,11 +60,14 @@ Variables:
 
 ## Phase 2: Tech Spec Generation (SPAWN SUBAGENT)
 
-**GUARDRAIL: You MUST spawn a subagent. Do NOT extract URLs, create URL files, run `grace techspec`, or activate any virtualenv yourself. Violation = broken architecture.**
+**GUARDRAIL: You MUST spawn a subagent. Do NOT extract URLs, create URL files, run `grace techspec`, activate any virtualenv, scrape docs via WebFetch, or synthesize a spec yourself. Violation = broken architecture.**
 
-You MUST use the **Task tool** to spawn a **Tech Spec Agent**. Do NOT extract URLs, run grace techspec, or do any tech spec work yourself. Do NOT read the workflow file yourself — the subagent reads it on its own.
+You MUST use the **Task tool** to spawn a **Tech Spec Agent**. Do NOT extract URLs, run `grace techspec`, scrape docs, or do any tech spec work yourself. Do NOT read the workflow file yourself — the subagent reads it on its own.
+
+**Note**: `2.2_techspec.md` detects the grace CLI environment internally and picks one of two paths: Path A (`grace techspec`) when `grace/.env` is configured with real API keys, or Path B (Claude-native, following `.skills/generate-tech-spec/references/techspec-generation-native.md`) when it is not. Both paths produce a spec under `grace/rulesbook/codegen/references/` that this Connector Agent can read in Phase 3 — no behaviour change is required on the orchestrator side.
 
 **Spawn a Task with these parameters:**
+
 ```
 Task(
   subagent_type="general",
@@ -90,7 +95,9 @@ git status                                  # verify on {BRANCH} branch
 
 If not on `{BRANCH}`, something is wrong — do NOT create a new branch, report FAILED.
 
-### 3b: Find the tech spec
+### 3b: Find (or create) the tech spec
+
+The tech spec is a **hard dependency** for Phase 4 (codegen) — without it, there is nothing for the Code Generation Agent to read. The normal flow already creates it in Phase 2, and the Tech Spec Agent is idempotent (re-running it is a no-op if a spec already exists). If for any reason no spec is present at this point, recover by re-running the dependency chain — do NOT skip straight to SKIPPED.
 
 **Important**: All searches must run from the repo root (where `Cargo.toml` is). Verify with `pwd` if unsure. Do NOT skip this search — actually run it.
 
@@ -100,9 +107,19 @@ Glob search the entire references directory (case-insensitive, specs may be in s
 find grace/rulesbook/codegen/references -iname "*{connector}*{flow}*" -o -iname "*{connector}*" | head -20
 ```
 
-If no results, also try with underscores/hyphens (e.g., `wells_fargo` vs `wellsfargo`). If still nothing -> report SKIPPED, go to Phase 6.
+If no results, also try with underscores/hyphens (e.g., `wells_fargo` vs `wellsfargo`).
 
 Note: Specs may be in a flat `specs/` folder (e.g., `specs/adyen_bank_debit.md`) OR in a per-connector subfolder (e.g., `Braintree/Technical_specification/bank_debit_spec.md`). The connector name may be capitalized. Search recursively.
+
+**Recovery — if the spec is still missing after the search above:**
+
+The tech spec depends on documentation URLs (produced by the Links Agent), which feed the Tech Spec Agent. Re-run that chain via the same subagent spawns used in Phases 1 and 2:
+
+1. **(Re-)spawn the Links Agent** (`2.1_links.md`) — unless `data/integration-source-links.json` already has a non-empty entry for `{Connector_Name}` (in which case skip this step and reuse the existing entry).
+2. **(Re-)spawn the Tech Spec Agent** (`2.2_techspec.md`) — it picks Path A (`grace techspec`) or Path B (Claude-native, per `.skills/generate-tech-spec/references/techspec-generation-native.md`) based on its internal environment check.
+3. **Re-run the `find` command above.**
+
+Only if the spec is still missing after this recovery → report SKIPPED, go to Phase 6 with reason `"Tech spec could not be created — Links Agent or Tech Spec Agent failed during recovery."` Capture the failure reason from whichever recovery subagent returned FAILED so it surfaces in the final report.
 
 ### 3c: Find connector source files
 
@@ -123,6 +140,7 @@ Store `{TECHSPEC_PATH}` and `{CONNECTOR_SOURCE_FILES}` for the next phase.
 You MUST use the **Task tool** to spawn a **Code Generation Agent**. Do NOT read pattern guides, write implementation code, run cargo build, or run grpcurl yourself. Do NOT read the workflow file yourself — the subagent reads it on its own.
 
 **Spawn a Task with these parameters:**
+
 ```
 Task(
   subagent_type="general",
@@ -140,6 +158,7 @@ Variables:
 **Gate**: If the Code Generation Agent returns FAILED, proceed to Phase 5 (Commit & PR) anyway — the PR Agent will commit the incomplete code and create a "do not merge" PR for visibility.
 
 Store the codegen result:
+
 - `{CODEGEN_STATUS}` = `SUCCESS` or `FAILED`
 - `{CODEGEN_FAILURE_REASON}` = reason string (empty if SUCCESS)
 - `{CODEGEN_GRPCURL_OUTPUT}` = the full `GRPCURL_OUTPUT` section from the codegen agent's output — this MUST include the complete grpcurl command(s) with headers and payload, plus the complete response JSON. This is passed to the PR Agent for the PR description. If the codegen agent did not return `GRPCURL_OUTPUT`, extract whatever grpcurl output is visible in the agent's response.
@@ -155,6 +174,7 @@ Store the codegen result:
 You MUST use the **Task tool** to spawn a **PR Agent**. Do NOT read the workflow file yourself — the subagent reads it on its own.
 
 **Spawn a Task with these parameters:**
+
 ```
 Task(
   subagent_type="general",
@@ -183,6 +203,7 @@ git branch --show-current
 ```
 
 If not on `{BRANCH}`, switch back:
+
 ```bash
 git checkout {BRANCH}
 ```
@@ -202,17 +223,18 @@ REASON: <if not SUCCESS, explain why>
 ```
 
 **STATUS definitions (strict):**
+
 - **SUCCESS**: Build passed AND grpcurl Authorize passed AND code was committed AND PR was created. All must be true. No exceptions.
 - **FAILED**: Any phase failed after attempting it (build errors, test errors, service won't start, credentials rejected, PR creation failed, etc.)
-- **SKIPPED**: Connector was skipped before implementation (no tech spec found, no source files, already implemented, no credentials)
+- **SKIPPED**: Connector was skipped before implementation (no tech spec and creation recovery in Phase 3b also failed, no source files, already implemented, no credentials)
 
 ---
 
 ## Subagent Reference
 
-| Agent | File | Purpose |
-|-------|------|---------|
-| Links Agent | `2.1_links.md` | Find and verify backend API documentation links |
-| Tech Spec Agent | `2.2_techspec.md` | Generate tech spec via grace CLI |
-| Code Generation Agent | `2.3_codegen.md` | Read, analyze, implement, build, and grpcurl test |
-| PR Agent | `2.4_pr.md` | Commit on dev branch, cherry-pick to clean branch, scrub creds, create PR in juspay/hyperswitch-prism |
+| Agent                 | File              | Purpose                                                                                               |
+| --------------------- | ----------------- | ----------------------------------------------------------------------------------------------------- |
+| Links Agent           | `2.1_links.md`    | Find and verify backend API documentation links                                                       |
+| Tech Spec Agent       | `2.2_techspec.md` | Generate tech spec via grace CLI (Path A) or Claude-native fallback (Path B); selected by env check   |
+| Code Generation Agent | `2.3_codegen.md`  | Read, analyze, implement, build, and grpcurl test                                                     |
+| PR Agent              | `2.4_pr.md`       | Commit on dev branch, cherry-pick to clean branch, scrub creds, create PR in juspay/hyperswitch-prism |

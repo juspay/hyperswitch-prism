@@ -15,7 +15,7 @@ include $(SDK_ROOT)/../common.mk
 # SDK-specific paths continued
 GENERATED_OUT    := $(SDK_ROOT)/src/payments/generated
 PACKAGE_DIR      := $(ARTIFACTS_DIR)/sdk-javascript
-PACKAGE_VERSION  := $(shell node -p "require('$(SDK_ROOT)/package.json').version")
+PACKAGE_VERSION  := $(if $(VERSION),$(VERSION),$(shell node -p "require('$(SDK_ROOT)/package.json').version"))
 JS_TARBALL       := $(PACKAGE_DIR)/hyperswitch-prism-$(PACKAGE_VERSION).tgz
 
 # ---------------------------------------------------------------------------
@@ -65,14 +65,19 @@ generate-bindings:
 # from the .proto files using protobufjs (pbjs/pbts). Output is placed in the
 # generated output directory alongside the native FFI library.
 # ---------------------------------------------------------------------------
+PROTO_EXCLUDES_JS := health_check.proto composite_payment.proto composite_services.proto
+
+# Auto-discover proto files (excluding known internal ones)
+PROTO_FILES_JS := $(shell ls $(PROTO_DIR)/*.proto | xargs -n1 basename | grep -v -E "$(subst . ,|,$(PROTO_EXCLUDES_JS))")
+
 generate-proto: install-deps
 	@echo "Generating static protobuf JS module..."
+	@echo "  Proto files: $(PROTO_FILES_JS)"
 	@mkdir -p $(GENERATED_OUT)
 	@cd $(SDK_ROOT) && ./node_modules/.bin/pbjs \
 		-t static-module -w commonjs --no-delimited --no-convert --alt-comment \
 		-p $(PROTO_DIR) \
-		$(PROTO_DIR)/payment.proto $(PROTO_DIR)/payouts.proto $(PROTO_DIR)/payment_methods.proto \
-		$(PROTO_DIR)/sdk_config.proto \
+		$(addprefix $(PROTO_DIR)/,$(PROTO_FILES_JS)) \
 		-o $(GENERATED_OUT)/proto.js
 	@echo "Proto JS generated: $(GENERATED_OUT)/proto.js"
 	@cd $(SDK_ROOT) && ./node_modules/.bin/pbts \
@@ -130,7 +135,13 @@ build-ts: install-deps
 pack-archive: build-ts
 	@echo "Packing npm archive..."
 	@mkdir -p $(PACKAGE_DIR)
+ifdef VERSION
+	@cd $(SDK_ROOT) && npm version $(VERSION) --no-git-tag-version --allow-same-version
+endif
 	@npm pack --pack-destination $(PACKAGE_DIR)
+ifdef VERSION
+	@cd $(SDK_ROOT) && npm version 0.0.0-dev --no-git-tag-version --allow-same-version
+endif
 	@echo "Tarball created: $(JS_TARBALL)"
 
 # ---------------------------------------------------------------------------

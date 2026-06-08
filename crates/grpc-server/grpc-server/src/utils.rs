@@ -239,9 +239,10 @@ where
             "<masked serialization error>".to_string()
         }
     };
+    let connector_name = connector.get_connector_name();
     current_span.record("service_name", service_name);
     current_span.record("request_body", req_body_json);
-    current_span.record("gateway", connector.to_string());
+    current_span.record("gateway", connector_name);
     current_span.record("merchant_id", merchant_id);
     current_span.record("tenant_id", tenant_id);
     current_span.record("request_id", request_id);
@@ -289,6 +290,69 @@ where
     tracing::info!("Golden Log Line (incoming)");
 }
 
+/// Generic gRPC logging wrapper that accepts a custom parser function.
+/// This allows different parsing strategies for different flow types
+/// (e.g., authenticated flows vs unauthenticated webhook flows).
+pub async fn grpc_logging_wrapper_with_parser<T, P, F, R>(
+    request: tonic::Request<T>,
+    service_name: &str,
+    config: Arc<configs::Config>,
+    flow_name: FlowName,
+    parser: P,
+    handler: F,
+) -> Result<tonic::Response<R>, tonic::Status>
+where
+    T: serde::Serialize
+        + std::fmt::Debug
+        + Send
+        + 'static
+        + hyperswitch_masking::ErasedMaskSerialize,
+    P: FnOnce(tonic::Request<T>, Arc<configs::Config>) -> Result<RequestData<T>, tonic::Status>,
+    F: FnOnce(
+        RequestData<T>,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<tonic::Response<R>, tonic::Status>> + Send>,
+    >,
+    R: serde::Serialize + std::fmt::Debug + hyperswitch_masking::ErasedMaskSerialize,
+{
+    let current_span = tracing::Span::current();
+    let start_time = tokio::time::Instant::now();
+    let masked_request_data =
+        MaskedSerdeValue::from_masked_optional(request.get_ref(), "grpc_request");
+    let mut event_metadata_payload = None;
+    let mut event_headers = HashMap::new();
+
+    let grpc_response = async {
+        let request_data = parser(request, config.clone())?;
+        log_before_initialization(&request_data, service_name).into_grpc_status()?;
+        event_headers = request_data.masked_metadata.get_all_masked();
+        event_metadata_payload = Some(request_data.extracted_metadata.clone());
+
+        let result = handler(request_data).await;
+
+        let duration = start_time.elapsed().as_millis();
+        current_span.record("response_time", duration);
+        log_after_initialization(&result);
+        result
+    }
+    .await;
+
+    create_and_emit_grpc_event(
+        masked_request_data,
+        &grpc_response,
+        start_time,
+        flow_name,
+        service_name,
+        &config,
+        event_metadata_payload.as_ref(),
+        event_headers,
+    );
+
+    grpc_response
+}
+
+/// Original gRPC logging wrapper for authenticated flows.
+/// Maintains backward compatibility with existing code.
 pub async fn grpc_logging_wrapper<T, F, Fut, R>(
     request: tonic::Request<T>,
     service_name: &str,
@@ -355,11 +419,14 @@ fn create_and_emit_grpc_event<R>(
 ) where
     R: serde::Serialize,
 {
+    let connector = metadata_payload
+        .map(|md| md.connector.get_connector_name())
+        .unwrap_or_else(|| "unknown".to_string());
     let mut grpc_event = Event {
         request_id: metadata_payload.map_or("unknown".to_string(), |md| md.request_id.clone()),
         timestamp: chrono::Utc::now().timestamp_millis().into(),
         flow_type: flow_name,
-        connector: metadata_payload.map_or("unknown".to_string(), |md| md.connector.to_string()),
+        connector,
         url: None,
         method: None,
         stage: EventStage::GrpcRequest,
@@ -430,6 +497,7 @@ macro_rules! implement_connector_operation {
         request_data_constructor: $request_data_constructor:path,
         common_flow_data_constructor: $common_flow_data_constructor:path,
         generate_response_fn: $generate_response_fn:path,
+        connector_data_type: $connector_data_type:ty,
         all_keys_required: $all_keys_required:expr,
         has_payment_method_data: true
     ) => {
@@ -458,10 +526,13 @@ macro_rules! implement_connector_operation {
                 extensions: _
             } = request;
 
-            let (connector, request_id, connector_config) = (metadata_payload.connector, metadata_payload.request_id, metadata_payload.connector_config);
+            let request_id = metadata_payload.request_id.clone();
+            let connector_config = metadata_payload.connector_config.clone();
 
-            // Get connector data
-            let connector_data: ConnectorData<domain_types::payment_method_data::DefaultPCIHolder> = connector_integration::types::ConnectorData::get_connector_by_name(&connector);
+            // Get connector data using ConnectorDataProvider trait
+            let connector_data: $connector_data_type =
+                connector_integration::types::ConnectorDataProvider::from_connector_variant(&metadata_payload.connector)
+                    .ok_or_else(|| tonic::Status::unimplemented("Invalid connector type for this flow"))?;
 
             // Get connector integration
             let connector_integration: interfaces::connector_integration_v2::BoxedConnectorIntegrationV2<
@@ -556,6 +627,8 @@ macro_rules! implement_connector_operation {
                 resource_id: &metadata_payload.resource_id,
                 shadow_mode: metadata_payload.shadow_mode,
                 tenant_id: &metadata_payload.tenant_id,
+                merchant_id: metadata_payload.merchant_id.as_str(),
+                return_raw_connector_data: config.common.return_raw_connector_data,
             };
             let response_result = external_services::service::execute_connector_processing_step(
                 &config.proxy,
@@ -595,6 +668,7 @@ macro_rules! implement_connector_operation {
         request_data_constructor: $request_data_constructor:path,
         common_flow_data_constructor: $common_flow_data_constructor:path,
         generate_response_fn: $generate_response_fn:path,
+        connector_data_type: $connector_data_type:ty,
         all_keys_required: $all_keys_required:expr,
         has_payment_method_data: option
     ) => {
@@ -622,10 +696,13 @@ macro_rules! implement_connector_operation {
                 extensions: _
             } = request;
 
-            let (connector, request_id, connector_config) = (metadata_payload.connector, metadata_payload.request_id, metadata_payload.connector_config);
+            let request_id = metadata_payload.request_id.clone();
+            let connector_config = metadata_payload.connector_config.clone();
 
-            // Get connector data
-            let connector_data: ConnectorData<domain_types::payment_method_data::DefaultPCIHolder> = connector_integration::types::ConnectorData::get_connector_by_name(&connector);
+            // Get connector data using ConnectorDataProvider trait
+            let connector_data: $connector_data_type =
+                connector_integration::types::ConnectorDataProvider::from_connector_variant(&metadata_payload.connector)
+                    .ok_or_else(|| tonic::Status::unimplemented("Invalid connector type for this flow"))?;
 
             // Get connector integration
             let connector_integration: interfaces::connector_integration_v2::BoxedConnectorIntegrationV2<
@@ -636,8 +713,23 @@ macro_rules! implement_connector_operation {
                 $response_data_type,
             > = connector_data.connector.get_connector_integration_v2();
 
-            // Create connector request data with None for payment_method_data
-            let specific_request_data = $request_data_constructor((payload.clone(), None::<domain_types::payment_method_data::PaymentMethodData<domain_types::payment_method_data::DefaultPCIHolder>>))
+            let payment_method_data: Option<domain_types::payment_method_data::PaymentMethodData<domain_types::payment_method_data::DefaultPCIHolder>> =
+                match payload.payment_method.clone() {
+                    Some(pm) => match domain_types::types::PaymentMethodDataAction::get_payment_method_data_action(pm.clone()).into_grpc_status()? {
+                        domain_types::types::PaymentMethodDataAction::Card(card_details) => {
+                            Some(domain_types::payment_method_data::PaymentMethodData::Card(
+                                domain_types::payment_method_data::Card::<domain_types::payment_method_data::DefaultPCIHolder>::foreign_try_from(card_details)
+                                    .into_grpc_status()?
+                            ))
+                        }
+                        domain_types::types::PaymentMethodDataAction::Default => {
+                            Some(domain_types::payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(pm).into_grpc_status()?)
+                        }
+                        _ => None,
+                    },
+                    None => None,
+                };
+            let specific_request_data = $request_data_constructor((payload.clone(), payment_method_data))
                 .into_grpc_status()?;
 
             // Create common request data
@@ -673,7 +765,7 @@ macro_rules! implement_connector_operation {
 
             // Execute connector processing
             let event_params = external_services::service::EventProcessingParams {
-                connector_name: &connector.to_string(),
+                connector_name: &metadata_payload.connector.get_connector_name(),
                 service_name: &service_name,
                 service_type: $crate::utils::service_type_str(&config.server.type_),
                 flow_name,
@@ -684,6 +776,8 @@ macro_rules! implement_connector_operation {
                 resource_id: &metadata_payload.resource_id,
                 shadow_mode: metadata_payload.shadow_mode,
                 tenant_id: &metadata_payload.tenant_id,
+                merchant_id: metadata_payload.merchant_id.as_str(),
+                return_raw_connector_data: config.common.return_raw_connector_data,
             };
             let response_result = external_services::service::execute_connector_processing_step(
                 &config.proxy,
@@ -722,6 +816,7 @@ macro_rules! implement_connector_operation {
         request_data_constructor: $request_data_constructor:path,
         common_flow_data_constructor: $common_flow_data_constructor:path,
         generate_response_fn: $generate_response_fn:path,
+        connector_data_type: $connector_data_type:ty,
         all_keys_required: $all_keys_required:expr
     ) => {
         async fn $fn_name(
@@ -747,10 +842,13 @@ macro_rules! implement_connector_operation {
                 extensions: _
             } = request;
 
-            let (connector, request_id, connector_config) = (metadata_payload.connector, metadata_payload.request_id, metadata_payload.connector_config);
+            let request_id = metadata_payload.request_id.clone();
+            let connector_config = metadata_payload.connector_config.clone();
 
-            // Get connector data
-            let connector_data: ConnectorData<domain_types::payment_method_data::DefaultPCIHolder> = connector_integration::types::ConnectorData::get_connector_by_name(&connector);
+            // Get connector data using ConnectorDataProvider trait
+            let connector_data: $connector_data_type =
+                connector_integration::types::ConnectorDataProvider::from_connector_variant(&metadata_payload.connector)
+                    .ok_or_else(|| tonic::Status::unimplemented("Invalid connector type for this flow"))?;
 
             // Get connector integration
             let connector_integration: interfaces::connector_integration_v2::BoxedConnectorIntegrationV2<
@@ -797,7 +895,7 @@ macro_rules! implement_connector_operation {
 
             // Execute connector processing
             let event_params = external_services::service::EventProcessingParams {
-                connector_name: &connector.to_string(),
+                connector_name: &metadata_payload.connector.get_connector_name(),
                 service_name: &service_name,
                 service_type: $crate::utils::service_type_str(&config.server.type_),
                 flow_name,
@@ -808,6 +906,8 @@ macro_rules! implement_connector_operation {
                 resource_id: &metadata_payload.resource_id,
                 shadow_mode: metadata_payload.shadow_mode,
                 tenant_id: &metadata_payload.tenant_id,
+                merchant_id: metadata_payload.merchant_id.as_str(),
+                return_raw_connector_data: config.common.return_raw_connector_data,
             };
             let response_result = external_services::service::execute_connector_processing_step(
                 &config.proxy,

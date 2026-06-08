@@ -6,7 +6,7 @@
 // Run a scenario:  npx tsx novalnet.ts checkout_autocapture
 
 import { PaymentClient, EventClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, Currency, FutureUsage, HttpMethod, PaymentMethodType } = types;
+const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage, HttpMethod, PaymentMethodType } = types;
 export const SUPPORTED_FLOWS = ["authorize", "capture", "get", "incremental_authorization", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
@@ -126,7 +126,8 @@ function _buildProxyAuthorizeRequest(): types.IPaymentServiceProxyAuthorizeReque
             "cardExpMonth": {"value": "03"},
             "cardExpYear": {"value": "2030"},
             "cardCvc": {"value": "123"},
-            "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
+            "cardHolderName": {"value": "John Doe"},  // Cardholder Information.
+            "cardNetwork": CardNetwork.VISA
         },
         "customer": {
             "email": {"value": "test@example.com"}  // Customer's email address.
@@ -155,7 +156,8 @@ function _buildProxySetupRecurringRequest(): types.IPaymentServiceProxySetupRecu
             "cardExpMonth": {"value": "03"},
             "cardExpYear": {"value": "2030"},
             "cardCvc": {"value": "123"},
-            "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
+            "cardHolderName": {"value": "John Doe"},  // Cardholder Information.
+            "cardNetwork": CardNetwork.VISA
         },
         "customer": {
             "email": {"value": "test@example.com"}  // Customer's email address.

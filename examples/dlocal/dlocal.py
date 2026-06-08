@@ -92,6 +92,7 @@ def _build_proxy_authorize_request():
             card_exp_year=payment_methods_pb2.SecretString(value="2030"),
             card_cvc=payment_methods_pb2.SecretString(value="123"),
             card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
+            card_network=payment_methods_pb2.CardNetwork.Value("VISA"),
         ),
         customer=payment_pb2.Customer(
             email=payment_methods_pb2.SecretString(value="test@example.com"),  # Customer's email address.
@@ -120,6 +121,7 @@ def _build_proxy_setup_recurring_request():
             card_exp_year=payment_methods_pb2.SecretString(value="2030"),
             card_cvc=payment_methods_pb2.SecretString(value="123"),
             card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
+            card_network=payment_methods_pb2.CardNetwork.Value("VISA"),
         ),
         customer=payment_pb2.Customer(
             email=payment_methods_pb2.SecretString(value="test@example.com"),  # Customer's email address.

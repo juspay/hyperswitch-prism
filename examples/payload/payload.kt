@@ -11,12 +11,14 @@ import types.Payment.*
 import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.MerchantAuthenticationClient
+import payments.CustomerClient
 import payments.EventClient
 import payments.RecurringPaymentClient
 import payments.RefundClient
 import payments.AcceptanceType
 import payments.AuthenticationType
 import payments.CaptureMethod
+import payments.CardNetwork
 import payments.CountryAlpha2
 import payments.Currency
 import payments.FutureUsage
@@ -28,7 +30,7 @@ import payments.Environment
 import payments.ConnectorSpecificConfig
 import types.Payment.PayloadConfig
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_client_authentication_token", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_client_authentication_token", "create_customer", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -287,6 +289,19 @@ fun createClientAuthenticationToken(txnId: String, config: ConnectorConfig = _de
     println("StatusCode: ${response.statusCode}")
 }
 
+// Flow: CustomerService.Create
+fun createCustomer(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = CustomerClient(config)
+    val request = CustomerServiceCreateRequest.newBuilder().apply {
+        merchantCustomerId = "cust_probe_123"  // Identification.
+        customerName = "John Doe"  // Name of the customer.
+        emailBuilder.value = "test@example.com"  // Email address of the customer.
+        phoneNumber = "4155552671"  // Phone number of the customer.
+    }.build()
+    val response = client.create(request)
+    println("Customer: ${response.connectorCustomerId}")
+}
+
 // Flow: PaymentService.Get
 fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -325,6 +340,7 @@ fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
             cardExpYearBuilder.value = "2030"
             cardCvcBuilder.value = "123"
             cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            cardNetwork = CardNetwork.VISA
         }
         addressBuilder.apply {
             billingAddressBuilder.apply {
@@ -365,6 +381,7 @@ fun proxySetupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig)
             cardExpYearBuilder.value = "2030"
             cardCvcBuilder.value = "123"
             cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            cardNetwork = CardNetwork.VISA
         }
         addressBuilder.apply {
             billingAddressBuilder.apply {
@@ -562,6 +579,7 @@ fun main(args: Array<String>) {
         "authorize" -> authorize(txnId)
         "capture" -> capture(txnId)
         "createClientAuthenticationToken" -> createClientAuthenticationToken(txnId)
+        "createCustomer" -> createCustomer(txnId)
         "get" -> get(txnId)
         "parseEvent" -> parseEvent(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
@@ -572,6 +590,6 @@ fun main(args: Array<String>) {
         "setupRecurring" -> setupRecurring(txnId)
         "tokenAuthorize" -> tokenAuthorize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, get, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createCustomer, get, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, void")
     }
 }

@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "authenticate flow not supported by helcim connector"
       }
     },
     "authorize": {
@@ -526,37 +527,44 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for helcim"
       }
     },
     "create_customer": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for helcim"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_order flow not supported by helcim connector"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for helcim"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for helcim"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by helcim connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by helcim connector"
       }
     },
     "dispute_get": {
@@ -566,7 +574,8 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by helcim connector"
       }
     },
     "eligibility": {
@@ -604,7 +613,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by helcim connector"
       }
     },
     "parse_event": {
@@ -614,12 +624,14 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by helcim connector"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by helcim connector"
       }
     },
     "proxy_authorize": {
@@ -636,7 +648,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "address": {
             "billing_address": {
@@ -661,23 +674,26 @@
             "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"ipAddress\":\"1.2.3.4\",\"cardData\":{\"cardNumber\":\"4111111111111111\",\"cardExpiry\":\"0330\",\"cardCVV\":\"123\"},\"invoice\":{\"invoiceNumber\":\"probe_proxy_txn_001\",\"lineItems\":[{\"description\":\"No Description\",\"quantity\":1,\"price\":10.0,\"total\":10.0}]},\"billingAddress\":{\"name\":\"John\",\"street1\":\"123 Main St\",\"postalCode\":\"98101\"}}"
+          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"ipAddress\":\"1.2.3.4\",\"cardData\":{\"cardNumber\":\"{{$card_number}}\",\"cardExpiry\":\"{{$card_exp_month}}{{$card_exp_year}}\",\"cardCVV\":\"{{$card_cvc}}\"},\"invoice\":{\"invoiceNumber\":\"probe_proxy_txn_001\",\"lineItems\":[{\"description\":\"No Description\",\"quantity\":1,\"price\":10.0,\"total\":10.0}]},\"billingAddress\":{\"name\":\"John\",\"street1\":\"123 Main St\",\"postalCode\":\"98101\"}}"
         }
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for helcim"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for helcim"
       }
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for helcim"
       }
     },
     "refund": {
@@ -731,12 +747,14 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for helcim"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for helcim"
       }
     },
     "token_authorize": {
@@ -747,12 +765,14 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for helcim"
       }
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for helcim"
       }
     },
     "verify_redirect": {

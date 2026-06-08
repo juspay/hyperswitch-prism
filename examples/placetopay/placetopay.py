@@ -10,13 +10,17 @@ import sys
 from payments import PaymentClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "get", "proxy_authorize", "refund", "void"]
+SUPPORTED_FLOWS = ["authorize", "capture", "get", "proxy_authorize", "refund", "reverse", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    # connector_config=payment_pb2.ConnectorSpecificConfig(
-    #     placetopay=payment_pb2.PlacetopayConfig(api_key=...),
-    # ),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        placetopay=payment_pb2.PlacetopayConfig(
+            login=payment_methods_pb2.SecretString(value="YOUR_LOGIN"),
+            tran_key=payment_methods_pb2.SecretString(value="YOUR_TRAN_KEY"),
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
 
 
@@ -93,6 +97,7 @@ def _build_proxy_authorize_request():
             card_exp_year=payment_methods_pb2.SecretString(value="2030"),
             card_cvc=payment_methods_pb2.SecretString(value="123"),
             card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
+            card_network=payment_methods_pb2.CardNetwork.Value("VISA"),
         ),
         address=payment_pb2.PaymentAddress(
             billing_address=payment_pb2.Address(),
@@ -126,6 +131,12 @@ def _build_refund_request(connector_transaction_id: str):
             currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
         ),
         reason="customer_request",  # Reason for the refund.
+    )
+
+def _build_reverse_request(connector_transaction_id: str):
+    return payment_pb2.PaymentServiceReverseRequest(
+        merchant_reverse_id="probe_reverse_001",  # Identification.
+        connector_transaction_id=connector_transaction_id,
     )
 
 def _build_void_request(connector_transaction_id: str):
@@ -280,6 +291,15 @@ async def process_proxy_authorize(merchant_transaction_id: str, config: sdk_conf
     proxy_response = await payment_client.proxy_authorize(_build_proxy_authorize_request())
 
     return {"status": proxy_response.status}
+
+
+async def process_reverse(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.Reverse"""
+    payment_client = PaymentClient(config)
+
+    reverse_response = await payment_client.reverse(_build_reverse_request("12345"))
+
+    return {"status": reverse_response.status}
 
 
 async def process_void(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

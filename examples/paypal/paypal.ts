@@ -6,7 +6,7 @@
 // Run a scenario:  npx tsx paypal.ts checkout_autocapture
 
 import { PaymentClient, MerchantAuthenticationClient, EventClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, Currency, FutureUsage, HttpMethod, PaymentMethodType } = types;
+const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage, HttpMethod, PaymentMethodType } = types;
 export const SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "create_order", "create_server_authentication_token", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
@@ -31,7 +31,6 @@ function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaym
             "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         },
-        "shippingCost": 0,  // Cost of shipping for the order.
         "paymentMethod": {  // Payment method to be used.
             "card": {  // Generic card payment.
                 "cardNumber": {"value": "4111111111111111"},  // Card Identification.
@@ -165,7 +164,8 @@ function _buildProxyAuthorizeRequest(): types.IPaymentServiceProxyAuthorizeReque
             "cardExpMonth": {"value": "03"},
             "cardExpYear": {"value": "2030"},
             "cardCvc": {"value": "123"},
-            "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
+            "cardHolderName": {"value": "John Doe"},  // Cardholder Information.
+            "cardNetwork": CardNetwork.VISA
         },
         "address": {
             "billingAddress": {
@@ -180,8 +180,7 @@ function _buildProxyAuthorizeRequest(): types.IPaymentServiceProxyAuthorizeReque
                 "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
                 "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
-        },
-        "shippingCost": 0  // Cost of shipping for the order.
+        }
     };
 }
 
@@ -197,7 +196,8 @@ function _buildProxySetupRecurringRequest(): types.IPaymentServiceProxySetupRecu
             "cardExpMonth": {"value": "03"},
             "cardExpYear": {"value": "2030"},
             "cardCvc": {"value": "123"},
-            "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
+            "cardHolderName": {"value": "John Doe"},  // Cardholder Information.
+            "cardNetwork": CardNetwork.VISA
         },
         "address": {
             "billingAddress": {

@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "authenticate flow not supported by dlocal connector"
       }
     },
     "authorize": {
@@ -518,37 +519,44 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for dlocal"
       }
     },
     "create_customer": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by dlocal connector"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_order flow not supported by dlocal connector"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by dlocal connector"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by dlocal connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by dlocal connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for dlocal"
       }
     },
     "dispute_get": {
@@ -558,7 +566,8 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for dlocal"
       }
     },
     "eligibility": {
@@ -600,7 +609,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by dlocal connector"
       }
     },
     "parse_event": {
@@ -610,12 +620,14 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by dlocal connector"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by dlocal connector"
       }
     },
     "proxy_authorize": {
@@ -632,7 +644,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "customer": {
             "email": "test@example.com"
@@ -659,7 +672,7 @@
             "x-trans-key": "probe_key",
             "x-version": "2.1"
           },
-          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"country\":\"US\",\"payment_method_id\":\"CARD\",\"payment_method_flow\":\"DIRECT\",\"payer\":{\"name\":\"John\",\"email\":\"test@example.com\",\"document\":\"12345678\"},\"card\":{\"holder_name\":\"John Doe\",\"number\":\"4111111111111111\",\"cvv\":\"123\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"capture\":\"true\"},\"order_id\":\"probe_proxy_txn_001\",\"callback_url\":\"https://example.com/return\"}"
+          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"country\":\"US\",\"payment_method_id\":\"CARD\",\"payment_method_flow\":\"DIRECT\",\"payer\":{\"name\":\"John\",\"email\":\"test@example.com\",\"document\":\"12345678\"},\"card\":{\"holder_name\":\"John Doe\",\"number\":\"{{$card_number}}\",\"cvv\":\"{{$card_cvc}}\",\"expiration_month\":\"{{$card_exp_month}}\",\"expiration_year\":\"{{$card_exp_year}}\",\"capture\":\"true\"},\"order_id\":\"probe_proxy_txn_001\",\"callback_url\":\"https://example.com/return\"}"
         }
       }
     },
@@ -677,7 +690,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "customer": {
             "email": "test@example.com"
@@ -707,7 +721,7 @@
             "x-trans-key": "probe_key",
             "x-version": "2.1"
           },
-          "body": "{\"amount\":0.0,\"currency\":\"USD\",\"country\":\"US\",\"payment_method_id\":\"CARD\",\"payment_method_flow\":\"DIRECT\",\"payer\":{\"name\":\"John\",\"email\":\"test@example.com\",\"document\":\"12345678\"},\"card\":{\"holder_name\":\"John Doe\",\"number\":\"4111111111111111\",\"cvv\":\"123\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"capture\":\"false\",\"save\":true},\"order_id\":\"probe_proxy_mandate_001\"}"
+          "body": "{\"amount\":0.0,\"currency\":\"USD\",\"country\":\"US\",\"payment_method_id\":\"CARD\",\"payment_method_flow\":\"DIRECT\",\"payer\":{\"name\":\"John\",\"email\":\"test@example.com\",\"document\":\"12345678\"},\"card\":{\"holder_name\":\"John Doe\",\"number\":\"{{$card_number}}\",\"cvv\":\"{{$card_cvc}}\",\"expiration_month\":\"{{$card_exp_month}}\",\"expiration_year\":\"{{$card_exp_year}}\",\"capture\":\"false\",\"save\":true},\"order_id\":\"probe_proxy_mandate_001\"}"
         }
       }
     },
@@ -762,7 +776,8 @@
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for dlocal"
       }
     },
     "refund": {
@@ -820,7 +835,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by dlocal connector"
       }
     },
     "setup_recurring": {
@@ -890,7 +906,8 @@
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for dlocal"
       }
     },
     "verify_redirect": {

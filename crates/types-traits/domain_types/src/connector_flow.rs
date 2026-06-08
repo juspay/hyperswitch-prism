@@ -94,6 +94,15 @@ pub struct PayoutCreateRecipient;
 #[derive(Debug, Clone)]
 pub struct PayoutEnrollDisburseAccount;
 
+#[derive(Debug, Clone)]
+pub struct SurchargeCalculate;
+
+#[derive(Debug, Clone)]
+pub struct SurchargePaymentSucceeded;
+
+#[derive(Debug, Clone)]
+pub struct SurchargeRefundSucceeded;
+
 #[derive(strum::Display)]
 #[strum(serialize_all = "snake_case")]
 pub enum FlowName {
@@ -130,4 +139,7 @@ pub enum FlowName {
     PayoutCreateLink,
     PayoutCreateRecipient,
     PayoutEnrollDisburseAccount,
+    SurchargeCalculate,
+    SurchargePaymentSucceeded,
+    SurchargeRefundSucceeded,
 }

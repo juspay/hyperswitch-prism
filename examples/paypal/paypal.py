@@ -38,7 +38,6 @@ def _build_authorize_request(capture_method: str):
             minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
             currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
         ),
-        shipping_cost=0,  # Cost of shipping for the order.
         payment_method=payment_methods_pb2.PaymentMethod(  # Payment method to be used.
             card=payment_methods_pb2.CardDetails(
                 card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
@@ -151,6 +150,7 @@ def _build_proxy_authorize_request():
             card_exp_year=payment_methods_pb2.SecretString(value="2030"),
             card_cvc=payment_methods_pb2.SecretString(value="123"),
             card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
+            card_network=payment_methods_pb2.CardNetwork.Value("VISA"),
         ),
         address=payment_pb2.PaymentAddress(
             billing_address=payment_pb2.Address(),
@@ -165,7 +165,6 @@ def _build_proxy_authorize_request():
                 token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
             ),
         ),
-        shipping_cost=0,  # Cost of shipping for the order.
     )
 
 def _build_proxy_setup_recurring_request():
@@ -181,6 +180,7 @@ def _build_proxy_setup_recurring_request():
             card_exp_year=payment_methods_pb2.SecretString(value="2030"),
             card_cvc=payment_methods_pb2.SecretString(value="123"),
             card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
+            card_network=payment_methods_pb2.CardNetwork.Value("VISA"),
         ),
         address=payment_pb2.PaymentAddress(
             billing_address=payment_pb2.Address(),

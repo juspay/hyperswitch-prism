@@ -329,5 +329,16 @@
   "zift": {
     "api_key": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
     "_comment": "Configuration for zift connector"
+  },
+  "twoc_twop_paco": {
+    "access_token": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
+    "office_id": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
+    "merchant_id": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
+    "paco_kid": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
+    "merchant_signing_private_key": { "value": "<REPLACE_WITH_PEM>" },
+    "merchant_encryption_private_key": { "value": "<REPLACE_WITH_PEM>" },
+    "paco_signing_public_key": { "value": "<REPLACE_WITH_PEM>" },
+    "paco_encryption_public_key": { "value": "<REPLACE_WITH_PEM>" },
+    "_comment": "Configuration for twoc_twop_paco connector"
   }
 }

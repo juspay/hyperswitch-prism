@@ -5,9 +5,9 @@
 // Authorizedotnet — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx authorizedotnet.ts checkout_autocapture
 
-import { PaymentClient, CustomerClient, EventClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, Currency, FutureUsage, HttpMethod, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "create_customer", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "void"];
+import { PaymentClient, CustomerClient, MerchantAuthenticationClient, EventClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
+const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage, HttpMethod, PaymentMethodType } = types;
+export const SUPPORTED_FLOWS = ["authorize", "capture", "create_customer", "create_server_session_authentication_token", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "reverse", "setup_recurring", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -69,6 +69,17 @@ function _buildCreateCustomerRequest(): types.ICustomerServiceCreateRequest {
     };
 }
 
+function _buildCreateServerSessionAuthenticationTokenRequest(): types.IMerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest {
+    return {
+        "payment": {  // PayoutSessionContext payout = 6; // future FrmSessionContext frm = 7; // future.
+            "amount": {
+                "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+                "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            }
+        }
+    };
+}
+
 function _buildGetRequest(connectorTransactionId: string): types.IPaymentServiceGetRequest {
     return {
         "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
@@ -117,7 +128,8 @@ function _buildProxyAuthorizeRequest(): types.IPaymentServiceProxyAuthorizeReque
             "cardExpMonth": {"value": "03"},
             "cardExpYear": {"value": "2030"},
             "cardCvc": {"value": "123"},
-            "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
+            "cardHolderName": {"value": "John Doe"},  // Cardholder Information.
+            "cardNetwork": CardNetwork.VISA
         },
         "address": {
             "billingAddress": {
@@ -141,7 +153,8 @@ function _buildProxySetupRecurringRequest(): types.IPaymentServiceProxySetupRecu
             "cardExpMonth": {"value": "03"},
             "cardExpYear": {"value": "2030"},
             "cardCvc": {"value": "123"},
-            "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
+            "cardHolderName": {"value": "John Doe"},  // Cardholder Information.
+            "cardNetwork": CardNetwork.VISA
         },
         "customer": {
             "connectorCustomerId": "probe_customer_001"  // Customer ID in the connector system.
@@ -197,6 +210,13 @@ function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
         "merchantRefundId": "probe_refund_001",  // Identification.
         "connectorTransactionId": "probe_connector_txn_001",
         "refundId": "probe_refund_id_001"  // Deprecated.
+    };
+}
+
+function _buildReverseRequest(connectorTransactionId: string): types.IPaymentServiceReverseRequest {
+    return {
+        "merchantReverseId": "probe_reverse_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId
     };
 }
 
@@ -386,6 +406,15 @@ async function createCustomer(merchantTransactionId: string, config: types.IConn
     return createResponse;
 }
 
+// Flow: MerchantAuthenticationService.CreateServerSessionAuthenticationToken
+async function createServerSessionAuthenticationToken(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const merchantAuthenticationClient = new MerchantAuthenticationClient(config);
+
+    const createResponse = await merchantAuthenticationClient.createServerSessionAuthenticationToken(_buildCreateServerSessionAuthenticationTokenRequest());
+
+    return createResponse;
+}
+
 // Flow: PaymentService.Get
 async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -458,6 +487,15 @@ async function refundGet(merchantTransactionId: string, config: types.IConnector
     return refundResponse;
 }
 
+// Flow: PaymentService.Reverse
+async function reverse(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const reverseResponse = await paymentClient.reverse(_buildReverseRequest('probe_connector_txn_001'));
+
+    return reverseResponse;
+}
+
 // Flow: PaymentService.SetupRecurring
 async function setupRecurring(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -479,7 +517,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createCustomer, get, handleEvent, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateCustomerRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createCustomer, createServerSessionAuthenticationToken, get, handleEvent, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, reverse, setupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateCustomerRequest, _buildCreateServerSessionAuthenticationTokenRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildReverseRequest, _buildSetupRecurringRequest, _buildVoidRequest
 };
 
 // CLI runner

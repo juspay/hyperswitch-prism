@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for easebuzz"
       }
     },
     "authorize": {
@@ -472,12 +473,14 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for easebuzz"
       }
     },
     "create_customer": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for easebuzz"
       }
     },
     "create_order": {
@@ -503,22 +506,26 @@
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for easebuzz"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for easebuzz"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for easebuzz"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for easebuzz"
       }
     },
     "dispute_get": {
@@ -528,7 +535,8 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for easebuzz"
       }
     },
     "eligibility": {
@@ -565,7 +573,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for easebuzz"
       }
     },
     "parse_event": {
@@ -575,12 +584,14 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for easebuzz"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for easebuzz"
       }
     },
     "proxy_authorize": {
@@ -591,17 +602,20 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for easebuzz"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for easebuzz"
       }
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for easebuzz"
       }
     },
     "refund": {
@@ -649,12 +663,14 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for easebuzz"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for easebuzz"
       }
     },
     "token_authorize": {
@@ -665,12 +681,14 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for easebuzz"
       }
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for easebuzz"
       }
     },
     "verify_redirect": {
@@ -680,7 +698,8 @@
     },
     "void": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void flow for easebuzz"
       }
     }
   }

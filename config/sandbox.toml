@@ -1,5 +1,7 @@
 [common]
 environment = "sandbox"
+# Whether to return raw connector request/response in the response (default: true)
+return_raw_connector_data = true
 
 [log.console]
 enabled = true
@@ -21,10 +23,12 @@ bypass_proxy_urls = ["localhost", "local"]
 mitm_proxy_enabled = false
 
 [connectors]
+tamara.base_url = "https://api-sandbox.tamara.co"
+juspay.base_url = "https://sandbox.juspay.in/"
 peachpayments.base_url = "https://apitest.bankint.ppay.io/v/1"
 finix.base_url = "https://finix.sandbox-payments-api.com"
 fiservcommercehub.base_url = "https://connect-cert.fiservapis.com/ch/"
-sanlam.base_url = "sbx"
+absa_sanlam.base_url = "sbx"
 revolv3.base_url = "https://api-sandbox.revolv3.com"
 ppro.base_url = "https://api.sandbox.eu.ppro.com"
 mollie.base_url = "https://api.mollie.com/v2"
@@ -44,6 +48,8 @@ bluesnap.secondary_base_url = "https://sandpay.bluesnap.com"
 multisafepay.base_url = "https://testapi.multisafepay.com/v1/json"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 imerchantsolutions.base_url = "https://imerchantsolutions.com/api"
+interpayments.base_url = "https://api-test.interpayments.com/v1"
+twoc_twop_paco.base_url = "https://core.demo-paco.2c2p.com"
 jpmorgan.base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
 jpmorgan.secondary_base_url = "https://id.payments.jpmorgan.com"
 nmi.base_url = "https://secure.nmi.com"
@@ -76,7 +82,7 @@ fiuu.secondary_base_url = "https://sandbox.merchant.razer.com/"
 fiuu.third_base_url = "https://api.merchant.razer.com/"
 payload.base_url = "https://api.payload.com"
 forte.base_url = "https://sandbox.forte.net/api/v3"
-payu.base_url = "https://test.payu.in/"
+payu.base_url = "https://secure.snd.payu.com/"
 paytm.base_url = "https://securestage.paytmpayments.com/"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 novalnet.base_url = "https://payport.novalnet.de/v2"

@@ -87,7 +87,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PazeConsumer: ["firstName", "lastName", "fullName", "emailAddress"],
   PazeAddress: ["name", "line1", "line2", "line3", "city", "state", "zip"],
   PazeDecryptedData: ["clientId"],
-  MifinityWallet: ["dateOfBirth"],
+  MifinityRedirectWallet: ["dateOfBirth"],
   PaypalRedirectWallet: ["email"],
   ApplePayThirdPartySdkWallet: ["token"],
   GooglePayThirdPartySdkWallet: ["token"],
@@ -137,6 +137,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PayloadClientAuthenticationResponse: ["clientToken"],
   MultisafepayClientAuthenticationResponse: ["apiToken"],
   NexixpayClientAuthenticationResponse: ["securityToken"],
+  RevolutClientAuthenticationResponse: ["token"],
   StripeClientAuthenticationResponse: ["clientSecret"],
   GpayTokenParameters: ["publicKey"],
   SecretInfoToInitiateSdk: ["display", "payment"],
@@ -182,7 +183,9 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   CustomerServiceCreateRequest: ["email", "metadata", "connectorFeatureData"],
   CustomerServiceUpdateRequest: ["email", "metadata", "connectorFeatureData"],
   StripeConfig: ["apiKey"],
+  AciConfig: ["apiKey", "entityId"],
   BamboraConfig: ["merchantId", "apiKey"],
+  BamboraapacConfig: ["username", "password", "accountNumber"],
   CalidaConfig: ["apiKey"],
   CeleroConfig: ["apiKey"],
   NexinetsConfig: ["merchantId", "apiKey"],
@@ -206,6 +209,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   CryptopayConfig: ["apiKey", "apiSecret"],
   DatatransConfig: ["merchantId", "password"],
   FiservemeaConfig: ["apiKey", "apiSecret"],
+  FinixConfig: ["finixUserName", "finixPassword", "merchantIdentityId", "merchantId"],
   GlobalpayConfig: ["appId", "appKey"],
   HipayConfig: ["apiKey", "apiSecret"],
   JpmorganConfig: ["clientId", "clientSecret", "companyName", "productName", "merchantPurchaseDescription", "statementDescriptor"],
@@ -240,8 +244,8 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   WorldpayxmlConfig: ["apiUsername", "apiPassword", "merchantCode"],
   ZiftConfig: ["userName", "password", "accountId"],
   FiservcommercehubConfig: ["apiKey", "secret", "merchantId", "terminalId"],
-  SanlamConfig: ["apiKey", "merchantId"],
-  ItaubankConfig: ["clientSecret", "clientId"],
+  AbsaSanlamConfig: ["apiKey", "merchantId"],
+  ItaubankConfig: ["clientSecret", "clientId", "certificates", "privateKey"],
   GigadatConfig: ["campaignId", "accessToken", "securityToken"],
   PhonepeConfig: ["merchantId", "saltKey", "saltIndex"],
   ForteConfig: ["apiAccessId", "organizationId", "locationId", "apiSecretKey"],
@@ -253,6 +257,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   NmiConfig: ["apiKey", "publicKey"],
   PaymeConfig: ["sellerPaymeId", "paymeClientKey"],
   PayloadCurrencyAuthData: ["apiKey", "processingAccountId"],
+  PlacetopayConfig: ["login", "tranKey"],
   EbanxConfig: ["apiKey"],
   FiuuConfig: ["merchantId", "verifyKey", "secretKey"],
   GlobepayConfig: ["apiKey"],
@@ -265,8 +270,12 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   EasebuzzConfig: ["apiKey", "apiSalt"],
   TruelayerConfig: ["clientId", "clientSecret", "merchantAccountId", "accountHolderName", "privateKey", "kid"],
   PinelabsOnlineConfig: ["clientId", "clientSecret"],
-  ImerchantsolutionsConfig: ["apiKey"],
+  ImerchantsolutionsConfig: ["apiKey", "merchantId"],
   AxisbankConfig: ["merchantKid", "juspayKid", "merchantPrivateKey", "juspayPublicKey"],
+  TwocTwopPacoConfig: ["accessToken", "officeId", "pacoKid", "merchantSigningPrivateKey", "merchantEncryptionPrivateKey", "pacoSigningPublicKey", "pacoEncryptionPublicKey", "responseAudience"],
+  TamaraConfig: ["apiKey"],
+  InterpaymentsConfig: ["apiKey"],
+  JuspayConfig: ["apiKey", "merchantId"],
   PaymentServiceTokenAuthorizeRequest: ["connectorToken", "metadata", "connectorFeatureData"],
   PaymentServiceTokenSetupRecurringRequest: ["connectorToken", "metadata", "connectorFeatureData"],
   PaymentServiceProxyAuthorizeRequest: ["metadata", "connectorFeatureData"],
@@ -275,7 +284,9 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   AchBankTransferPayout: ["bankAccountNumber", "bankRoutingNumber"],
   BacsBankTransferPayout: ["bankAccountNumber", "bankSortCode"],
   SepaBankTransferPayout: ["iban", "bic"],
-  PixBankTransferPayout: ["bankAccountNumber", "pixKey", "taxId"],
+  PixBankTransferPayout: ["bankAccountNumber", "taxId", "ispb"],
+  PixKeyBankTransferPayout: ["pixKey"],
+  PixEmvBankTransferPayout: ["emv"],
   ApplePayDecrypt: ["dpan", "expiryMonth", "expiryYear", "cardHolderName"],
   Paypal: ["email", "telephoneNumber", "paypalId"],
   Venmo: ["telephoneNumber"],
@@ -290,10 +301,11 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PayoutServiceCreateRecipientRequest: ["accessToken"],
   PayoutServiceEnrollDisburseAccountRequest: ["accessToken"],
   PayoutMethodEligibilityRequest: ["connectorFeatureData", "accessToken"],
+  SurchargeServiceCalculateRequest: ["postalCode"],
 };
 
 const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
-  PaymentMethod: { "card": "CardDetails", "cardRedirect": "CardRedirect", "cardProxy": "ProxyCardDetails", "token": "TokenPaymentMethodType", "applePay": "AppleWallet", "googlePay": "GoogleWallet", "applePayThirdPartySdk": "ApplePayThirdPartySdkWallet", "googlePayThirdPartySdk": "GooglePayThirdPartySdkWallet", "paypalSdk": "PaypalSdkWallet", "amazonPayRedirect": "AmazonPayRedirectWallet", "cashappQr": "CashappQrWallet", "paypalRedirect": "PaypalRedirectWallet", "weChatPayQr": "WeChatPayQrWallet", "aliPayRedirect": "AliPayRedirectWallet", "revolutPay": "RevolutPayWallet", "mifinity": "MifinityWallet", "bluecode": "Bluecode", "paze": "PazeWallet", "samsungPay": "SamsungWallet", "mbWay": "MBWay", "satispay": "Satispay", "wero": "Wero", "lazypayRedirect": "LazyPayRedirectWallet", "phonepeRedirect": "PhonePeRedirectWallet", "billdeskRedirect": "BillDeskRedirectWallet", "cashfreeRedirect": "CashfreeRedirectWallet", "payuRedirect": "PayURedirectWallet", "easebuzzRedirect": "EaseBuzzRedirectWallet", "kakaoPayRedirect": "KakaoPayRedirectWallet", "mbWayRedirect": "MbWayRedirectWallet", "momoRedirect": "MomoRedirectWallet", "touchNGoRedirect": "TouchNGoRedirectWallet", "twintRedirect": "TwintRedirectWallet", "vippsRedirect": "VippsRedirectWallet", "weChatPayRedirect": "WeChatPayRedirectWallet", "aliPayHk": "AliPayHKWallet", "danaRedirect": "DanaRedirectWallet", "gcashRedirect": "GcashRedirectWallet", "goPayRedirect": "GoPayRedirectWallet", "swishQr": "SwishQrWallet", "mobilePayRedirect": "MobilePayRedirectWallet", "venmo": "VenmoWallet", "skrill": "SkrillWallet", "paysera": "PayseraWallet", "upiCollect": "UpiCollect", "upiIntent": "UpiIntent", "upiQr": "UpiQr", "onlineBankingThailand": "OnlineBankingThailand", "onlineBankingCzechRepublic": "OnlineBankingCzechRepublic", "onlineBankingFinland": "OnlineBankingFinland", "onlineBankingFpx": "OnlineBankingFPX", "onlineBankingPoland": "OnlineBankingPoland", "onlineBankingSlovakia": "OnlineBankingSlovakia", "openBankingUk": "OpenBankingUK", "openBankingPis": "OpenBankingPIS", "localBankRedirect": "LocalBankRedirect", "ideal": "Ideal", "sofort": "Sofort", "trustly": "Trustly", "giropay": "Giropay", "eps": "Eps", "przelewy24": "Przelewy24", "pse": "Pse", "bancontactCard": "BancontactCard", "blik": "Blik", "openBanking": "OpenBanking", "interac": "Interac", "bizum": "Bizum", "eftBankRedirect": "EftBankRedirect", "duitNow": "DuitNow", "crypto": "CryptoCurrency", "classicReward": "ClassicReward", "eVoucher": "EVoucher", "instantBankTransfer": "InstantBankTransfer", "achBankTransfer": "AchBankTransfer", "sepaBankTransfer": "SepaBankTransfer", "bacsBankTransfer": "BacsBankTransfer", "multibancoBankTransfer": "MultibancoBankTransfer", "instantBankTransferFinland": "InstantBankTransferFinland", "instantBankTransferPoland": "InstantBankTransferPoland", "pix": "PixPayment", "permataBankTransfer": "PermataBankTransfer", "bcaBankTransfer": "BCABankTransfer", "bniVaBankTransfer": "BNIVaBankTransfer", "briVaBankTransfer": "BRIVaBankTransfer", "cimbVaBankTransfer": "CIMBVaBankTransfer", "danamonVaBankTransfer": "DanamonVaBankTransfer", "mandiriVaBankTransfer": "MandiriVaBankTransfer", "localBankTransfer": "LocalBankTransfer", "indonesianBankTransfer": "IndonesianBankTransfer", "ach": "Ach", "sepa": "Sepa", "bacs": "Bacs", "becs": "Becs", "sepaGuaranteedDebit": "SepaGuaranteedDebit", "eft": "Eft", "affirm": "Affirm", "afterpayClearpay": "AfterpayClearpay", "klarna": "Klarna", "cardDetailsForNetworkTransactionId": "CardDetailsForNetworkTransactionId", "networkToken": "NetworkTokenData", "decryptedWalletTokenDetailsForNetworkTransactionId": "DecryptedWalletTokenDetailsForNetworkTransactionId", "givex": "Givex", "paySafeCard": "PaySafeCard", "boleto": "Boleto", "efecty": "Efecty", "pagoEfectivo": "PagoEfectivo", "redCompra": "RedCompra", "redPagos": "RedPagos", "alfamart": "Alfamart", "indomaret": "Indomaret", "oxxo": "Oxxo", "sevenEleven": "SevenEleven", "lawson": "Lawson", "miniStop": "MiniStop", "familyMart": "FamilyMart", "seicomart": "Seicomart", "payEasy": "PayEasy", "netbanking": "NetbankingPayment" },
+  PaymentMethod: { "card": "CardDetails", "cardRedirect": "CardRedirect", "cardProxy": "ProxyCardDetails", "token": "TokenPaymentMethodType", "applePaySdk": "AppleWallet", "googlePaySdk": "GoogleWallet", "paypalSdk": "PaypalSdkWallet", "pazeSdk": "PazeWallet", "samsungPaySdk": "SamsungWallet", "applePayThirdPartySdk": "ApplePayThirdPartySdkWallet", "googlePayThirdPartySdk": "GooglePayThirdPartySdkWallet", "amazonPayRedirect": "AmazonPayRedirectWallet", "paypalRedirect": "PaypalRedirectWallet", "aliPayRedirect": "AliPayRedirectWallet", "revolutPayRedirect": "RevolutPayRedirectWallet", "mifinityRedirect": "MifinityRedirectWallet", "bluecodeRedirect": "BluecodeRedirectWallet", "satispayRedirect": "SatispayRedirectWallet", "weroRedirect": "WeroRedirectWallet", "lazypayRedirect": "LazyPayRedirectWallet", "phonepeRedirect": "PhonePeRedirectWallet", "billdeskRedirect": "BillDeskRedirectWallet", "cashfreeRedirect": "CashfreeRedirectWallet", "payuRedirect": "PayURedirectWallet", "easebuzzRedirect": "EaseBuzzRedirectWallet", "kakaoPayRedirect": "KakaoPayRedirectWallet", "mbWayRedirect": "MbWayRedirectWallet", "momoRedirect": "MomoRedirectWallet", "touchNGoRedirect": "TouchNGoRedirectWallet", "twintRedirect": "TwintRedirectWallet", "vippsRedirect": "VippsRedirectWallet", "weChatPayRedirect": "WeChatPayRedirectWallet", "aliPayHkRedirect": "AliPayHKRedirectWallet", "danaRedirect": "DanaRedirectWallet", "gcashRedirect": "GcashRedirectWallet", "goPayRedirect": "GoPayRedirectWallet", "mobilePayRedirect": "MobilePayRedirectWallet", "venmoRedirect": "VenmoRedirectWallet", "skrillRedirect": "SkrillRedirectWallet", "payseraRedirect": "PayseraRedirectWallet", "revolutPay": "RevolutPayWallet", "mbWay": "MBWay", "satispay": "Satispay", "wero": "Wero", "cashappQr": "CashappQrWallet", "weChatPayQr": "WeChatPayQrWallet", "swishQr": "SwishQrWallet", "upiCollect": "UpiCollect", "upiIntent": "UpiIntent", "upiQr": "UpiQr", "onlineBankingThailand": "OnlineBankingThailand", "onlineBankingCzechRepublic": "OnlineBankingCzechRepublic", "onlineBankingFinland": "OnlineBankingFinland", "onlineBankingFpx": "OnlineBankingFPX", "onlineBankingPoland": "OnlineBankingPoland", "onlineBankingSlovakia": "OnlineBankingSlovakia", "openBankingUk": "OpenBankingUK", "openBankingPis": "OpenBankingPIS", "localBankRedirect": "LocalBankRedirect", "ideal": "Ideal", "sofort": "Sofort", "trustly": "Trustly", "giropay": "Giropay", "eps": "Eps", "przelewy24": "Przelewy24", "pse": "Pse", "bancontactCard": "BancontactCard", "blik": "Blik", "openBanking": "OpenBanking", "interac": "Interac", "bizum": "Bizum", "eftBankRedirect": "EftBankRedirect", "duitNow": "DuitNow", "crypto": "CryptoCurrency", "classicReward": "ClassicReward", "eVoucher": "EVoucher", "instantBankTransfer": "InstantBankTransfer", "achBankTransfer": "AchBankTransfer", "sepaBankTransfer": "SepaBankTransfer", "bacsBankTransfer": "BacsBankTransfer", "multibancoBankTransfer": "MultibancoBankTransfer", "instantBankTransferFinland": "InstantBankTransferFinland", "instantBankTransferPoland": "InstantBankTransferPoland", "pix": "PixPayment", "permataBankTransfer": "PermataBankTransfer", "bcaBankTransfer": "BCABankTransfer", "bniVaBankTransfer": "BNIVaBankTransfer", "briVaBankTransfer": "BRIVaBankTransfer", "cimbVaBankTransfer": "CIMBVaBankTransfer", "danamonVaBankTransfer": "DanamonVaBankTransfer", "mandiriVaBankTransfer": "MandiriVaBankTransfer", "localBankTransfer": "LocalBankTransfer", "indonesianBankTransfer": "IndonesianBankTransfer", "ach": "Ach", "sepa": "Sepa", "bacs": "Bacs", "becs": "Becs", "sepaGuaranteedDebit": "SepaGuaranteedDebit", "eft": "Eft", "affirm": "Affirm", "afterpayClearpay": "AfterpayClearpay", "klarna": "Klarna", "alma": "Alma", "cardDetailsForNetworkTransactionId": "CardDetailsForNetworkTransactionId", "networkToken": "NetworkTokenData", "decryptedWalletTokenDetailsForNetworkTransactionId": "DecryptedWalletTokenDetailsForNetworkTransactionId", "givex": "Givex", "paySafeCard": "PaySafeCard", "boleto": "Boleto", "efecty": "Efecty", "pagoEfectivo": "PagoEfectivo", "redCompra": "RedCompra", "redPagos": "RedPagos", "alfamart": "Alfamart", "indomaret": "Indomaret", "oxxo": "Oxxo", "sevenEleven": "SevenEleven", "lawson": "Lawson", "miniStop": "MiniStop", "familyMart": "FamilyMart", "seicomart": "Seicomart", "payEasy": "PayEasy", "netbanking": "NetbankingPayment" },
   AppleWallet: { "paymentData": "PaymentData", "paymentMethod": "PaymentMethod" },
   PaymentData: { "decryptedData": "ApplePayDecryptedData" },
   ApplePayDecryptedData: { "paymentData": "ApplePayCryptogramData" },
@@ -307,6 +319,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   PazeDecryptedData: { "token": "PazeToken", "dynamicData": "PazeDynamicData", "billingAddress": "PazeAddress", "consumer": "PazeConsumer" },
   ErrorInfo: { "unifiedDetails": "UnifiedErrorDetails", "issuerDetails": "IssuerErrorDetails", "connectorDetails": "ConnectorErrorDetails" },
   IssuerErrorDetails: { "networkDetails": "NetworkErrorDetails" },
+  ConnectorErrorDetails: { "status": "FlowStatus" },
   Identifier: { "noResponseIdMarker": "Empty" },
   ConnectorState: { "accessToken": "AccessToken" },
   NetworkParams: { "cartesBancaires": "CartesBancairesParams" },
@@ -324,6 +337,9 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   NmiData: { "amount": "Money" },
   RequestDetails: { "headers": "HeadersEntry" },
   EventServiceHandleResponse: { "eventContent": "EventContent", "eventAckResponse": "EventAckResponse" },
+  NotifyConnectorRequest: { "content": "NotifyConnectorContent" },
+  NotifyConnectorContent: { "surchargeContent": "SurchargeContent" },
+  NotifyConnectorResponse: { "error": "ErrorInfo" },
   EventAckResponse: { "headers": "HeadersEntry" },
   EventContent: { "paymentsResponse": "PaymentServiceGetResponse", "refundsResponse": "RefundResponse", "disputesResponse": "DisputeResponse" },
   InteracCustomerInfo: { "customerInfo": "CustomerInfo" },
@@ -332,7 +348,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   ConnectorResponseData: { "additionalPaymentMethodData": "AdditionalPaymentMethodConnectorResponse", "extendedAuthorizationResponseData": "ExtendedAuthorizationResponseData" },
   PaymentMethodUpdate: { "card": "CardDetailUpdate" },
   ClientAuthenticationTokenData: { "googlePay": "GpayClientAuthenticationResponse", "paypal": "PaypalClientAuthenticationResponse", "applePay": "ApplepayClientAuthenticationResponse", "connectorSpecific": "ConnectorSpecificClientAuthenticationResponse" },
-  ConnectorSpecificClientAuthenticationResponse: { "stripe": "StripeClientAuthenticationResponse", "adyen": "AdyenClientAuthenticationResponse", "checkout": "CheckoutClientAuthenticationResponse", "cybersource": "CybersourceClientAuthenticationResponse", "nuvei": "NuveiClientAuthenticationResponse", "mollie": "MollieClientAuthenticationResponse", "globalpay": "GlobalpayClientAuthenticationResponse", "bluesnap": "BluesnapClientAuthenticationResponse", "rapyd": "RapydClientAuthenticationResponse", "shift4": "Shift4ClientAuthenticationResponse", "bankOfAmerica": "BankOfAmericaClientAuthenticationResponse", "wellsfargo": "WellsfargoClientAuthenticationResponse", "fiserv": "FiservClientAuthenticationResponse", "elavon": "ElavonClientAuthenticationResponse", "noon": "NoonClientAuthenticationResponse", "paysafe": "PaysafeClientAuthenticationResponse", "bamboraapac": "BamboraapacClientAuthenticationResponse", "jpmorgan": "JpmorganClientAuthenticationResponse", "billwerk": "BillwerkClientAuthenticationResponse", "datatrans": "DatatransClientAuthenticationResponse", "bambora": "BamboraClientAuthenticationResponse", "payload": "PayloadClientAuthenticationResponse", "multisafepay": "MultisafepayClientAuthenticationResponse", "nexinets": "NexinetsClientAuthenticationResponse", "nexixpay": "NexixpayClientAuthenticationResponse" },
+  ConnectorSpecificClientAuthenticationResponse: { "stripe": "StripeClientAuthenticationResponse", "adyen": "AdyenClientAuthenticationResponse", "checkout": "CheckoutClientAuthenticationResponse", "cybersource": "CybersourceClientAuthenticationResponse", "nuvei": "NuveiClientAuthenticationResponse", "mollie": "MollieClientAuthenticationResponse", "globalpay": "GlobalpayClientAuthenticationResponse", "bluesnap": "BluesnapClientAuthenticationResponse", "rapyd": "RapydClientAuthenticationResponse", "shift4": "Shift4ClientAuthenticationResponse", "bankOfAmerica": "BankOfAmericaClientAuthenticationResponse", "wellsfargo": "WellsfargoClientAuthenticationResponse", "fiserv": "FiservClientAuthenticationResponse", "elavon": "ElavonClientAuthenticationResponse", "noon": "NoonClientAuthenticationResponse", "paysafe": "PaysafeClientAuthenticationResponse", "bamboraapac": "BamboraapacClientAuthenticationResponse", "jpmorgan": "JpmorganClientAuthenticationResponse", "billwerk": "BillwerkClientAuthenticationResponse", "datatrans": "DatatransClientAuthenticationResponse", "bambora": "BamboraClientAuthenticationResponse", "payload": "PayloadClientAuthenticationResponse", "multisafepay": "MultisafepayClientAuthenticationResponse", "nexinets": "NexinetsClientAuthenticationResponse", "nexixpay": "NexixpayClientAuthenticationResponse", "revolut": "RevolutClientAuthenticationResponse" },
   GpayClientAuthenticationResponse: { "googlePaySession": "GooglePaySessionResponse" },
   GooglePaySessionResponse: { "merchantInfo": "GpayMerchantInfo", "shippingAddressParameters": "GpayShippingAddressParameters", "allowedPaymentMethods": "GpayAllowedPaymentMethods", "transactionInfo": "GpayTransactionInfo", "secrets": "SecretInfoToInitiateSdk" },
   GpayAllowedPaymentMethods: { "parameters": "GpayAllowedMethodsParameters", "tokenizationSpecification": "GpayTokenizationSpecification" },
@@ -392,7 +408,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   DisputeServiceSubmitEvidenceResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   DisputeServiceDefendResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   DisputeServiceAcceptResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
-  PaymentMethodServiceTokenizeRequest: { "amount": "Money", "paymentMethod": "PaymentMethod", "customer": "Customer", "address": "PaymentAddress" },
+  PaymentMethodServiceTokenizeRequest: { "amount": "Money", "paymentMethod": "PaymentMethod", "customer": "Customer", "address": "PaymentAddress", "state": "ConnectorState" },
   PaymentMethodServiceTokenizeResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "state": "ConnectorState" },
   PaymentMethodServiceGetRequest: { "state": "ConnectorState" },
   PaymentMethodServiceGetResponse: { "paymentMethod": "PaymentMethod", "customer": "Customer", "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
@@ -409,23 +425,24 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   CashtocodeConfig: { "authKeyMap": "AuthKeyMapEntry" },
   AuthKeyMapEntry: { "value": "PayloadCurrencyAuthData" },
   PayloadConfig: { "authKeyMap": "AuthKeyMapEntry" },
-  ConnectorSpecificConfig: { "adyen": "AdyenConfig", "airwallex": "AirwallexConfig", "bambora": "BamboraConfig", "bankofamerica": "BankOfAmericaConfig", "billwerk": "BillwerkConfig", "bluesnap": "BluesnapConfig", "braintree": "BraintreeConfig", "cashtocode": "CashtocodeConfig", "cryptopay": "CryptopayConfig", "cybersource": "CybersourceConfig", "datatrans": "DatatransConfig", "dlocal": "DlocalConfig", "elavon": "ElavonConfig", "fiserv": "FiservConfig", "fiservemea": "FiservemeaConfig", "forte": "ForteConfig", "getnet": "GetnetConfig", "globalpay": "GlobalpayConfig", "hipay": "HipayConfig", "helcim": "HelcimConfig", "iatapay": "IatapayConfig", "jpmorgan": "JpmorganConfig", "mifinity": "MifinityConfig", "mollie": "MollieConfig", "multisafepay": "MultisafepayConfig", "nexinets": "NexinetsConfig", "nexixpay": "NexixpayConfig", "nmi": "NmiConfig", "noon": "NoonConfig", "novalnet": "NovalnetConfig", "nuvei": "NuveiConfig", "paybox": "PayboxConfig", "payme": "PaymeConfig", "payu": "PayuConfig", "powertranz": "PowertranzConfig", "rapyd": "RapydConfig", "redsys": "RedsysConfig", "shift4": "Shift4Config", "stax": "StaxConfig", "stripe": "StripeConfig", "trustpay": "TrustpayConfig", "tsys": "TsysConfig", "volt": "VoltConfig", "wellsfargo": "WellsfargoConfig", "worldpay": "WorldpayConfig", "worldpayvantiv": "WorldpayvantivConfig", "xendit": "XenditConfig", "phonepe": "PhonepeConfig", "cashfree": "CashfreeConfig", "paytm": "PaytmConfig", "calida": "CalidaConfig", "payload": "PayloadConfig", "authipay": "AuthipayConfig", "silverflow": "SilverflowConfig", "celero": "CeleroConfig", "trustpayments": "TrustpaymentsConfig", "paysafe": "PaysafeConfig", "barclaycard": "BarclaycardConfig", "worldpayxml": "WorldpayxmlConfig", "revolut": "RevolutConfig", "loonio": "LoonioConfig", "gigadat": "GigadatConfig", "hyperpg": "HyperpgConfig", "zift": "ZiftConfig", "screenstream": "ScreenstreamConfig", "ebanx": "EbanxConfig", "fiuu": "FiuuConfig", "globepay": "GlobepayConfig", "coinbase": "CoinbaseConfig", "coingate": "CoingateConfig", "revolv3": "Revolv3Config", "authorizedotnet": "AuthorizedotnetConfig", "peachpayments": "PeachpaymentsConfig", "paypal": "PaypalConfig", "truelayer": "TruelayerConfig", "fiservcommercehub": "FiservcommercehubConfig", "itaubank": "ItaubankConfig", "ppro": "PproConfig", "trustly": "TrustlyConfig", "sanlam": "SanlamConfig", "pinelabsOnline": "PinelabsOnlineConfig", "imerchantsolutions": "ImerchantsolutionsConfig", "axisbank": "AxisbankConfig", "easebuzz": "EasebuzzConfig" },
+  ConnectorSpecificConfig: { "adyen": "AdyenConfig", "airwallex": "AirwallexConfig", "bambora": "BamboraConfig", "bankofamerica": "BankOfAmericaConfig", "billwerk": "BillwerkConfig", "bluesnap": "BluesnapConfig", "braintree": "BraintreeConfig", "cashtocode": "CashtocodeConfig", "cryptopay": "CryptopayConfig", "cybersource": "CybersourceConfig", "datatrans": "DatatransConfig", "dlocal": "DlocalConfig", "elavon": "ElavonConfig", "fiserv": "FiservConfig", "fiservemea": "FiservemeaConfig", "forte": "ForteConfig", "getnet": "GetnetConfig", "globalpay": "GlobalpayConfig", "hipay": "HipayConfig", "helcim": "HelcimConfig", "iatapay": "IatapayConfig", "jpmorgan": "JpmorganConfig", "mifinity": "MifinityConfig", "mollie": "MollieConfig", "multisafepay": "MultisafepayConfig", "nexinets": "NexinetsConfig", "nexixpay": "NexixpayConfig", "nmi": "NmiConfig", "noon": "NoonConfig", "novalnet": "NovalnetConfig", "nuvei": "NuveiConfig", "paybox": "PayboxConfig", "payme": "PaymeConfig", "payu": "PayuConfig", "powertranz": "PowertranzConfig", "rapyd": "RapydConfig", "redsys": "RedsysConfig", "shift4": "Shift4Config", "stax": "StaxConfig", "stripe": "StripeConfig", "trustpay": "TrustpayConfig", "tsys": "TsysConfig", "volt": "VoltConfig", "wellsfargo": "WellsfargoConfig", "worldpay": "WorldpayConfig", "worldpayvantiv": "WorldpayvantivConfig", "xendit": "XenditConfig", "phonepe": "PhonepeConfig", "cashfree": "CashfreeConfig", "paytm": "PaytmConfig", "calida": "CalidaConfig", "payload": "PayloadConfig", "authipay": "AuthipayConfig", "silverflow": "SilverflowConfig", "celero": "CeleroConfig", "trustpayments": "TrustpaymentsConfig", "paysafe": "PaysafeConfig", "barclaycard": "BarclaycardConfig", "worldpayxml": "WorldpayxmlConfig", "revolut": "RevolutConfig", "loonio": "LoonioConfig", "gigadat": "GigadatConfig", "hyperpg": "HyperpgConfig", "zift": "ZiftConfig", "screenstream": "ScreenstreamConfig", "ebanx": "EbanxConfig", "fiuu": "FiuuConfig", "globepay": "GlobepayConfig", "coinbase": "CoinbaseConfig", "coingate": "CoingateConfig", "revolv3": "Revolv3Config", "authorizedotnet": "AuthorizedotnetConfig", "peachpayments": "PeachpaymentsConfig", "paypal": "PaypalConfig", "truelayer": "TruelayerConfig", "fiservcommercehub": "FiservcommercehubConfig", "itaubank": "ItaubankConfig", "ppro": "PproConfig", "trustly": "TrustlyConfig", "absaSanlam": "AbsaSanlamConfig", "pinelabsOnline": "PinelabsOnlineConfig", "imerchantsolutions": "ImerchantsolutionsConfig", "axisbank": "AxisbankConfig", "easebuzz": "EasebuzzConfig", "twocTwopPaco": "TwocTwopPacoConfig", "bamboraapac": "BamboraapacConfig", "placetopay": "PlacetopayConfig", "finix": "FinixConfig", "aci": "AciConfig", "interpayments": "InterpaymentsConfig", "juspay": "JuspayConfig", "tamara": "TamaraConfig" },
   PaymentServiceTokenAuthorizeRequest: { "amount": "Money", "customer": "Customer", "address": "PaymentAddress", "browserInfo": "BrowserInformation", "state": "ConnectorState", "billingDescriptor": "BillingDescriptor", "l2L3Data": "L2L3Data", "customerAcceptance": "CustomerAcceptance" },
   PaymentServiceTokenSetupRecurringRequest: { "amount": "Money", "customer": "Customer", "address": "PaymentAddress", "state": "ConnectorState", "customerAcceptance": "CustomerAcceptance", "setupMandateDetails": "SetupMandateDetails", "billingDescriptor": "BillingDescriptor" },
   PaymentServiceProxyAuthorizeRequest: { "amount": "Money", "cardProxy": "ProxyCardDetails", "customer": "Customer", "address": "PaymentAddress", "authenticationData": "AuthenticationData", "browserInfo": "BrowserInformation", "state": "ConnectorState", "setupMandateDetails": "SetupMandateDetails", "billingDescriptor": "BillingDescriptor", "redirectionResponse": "RedirectionResponse", "l2L3Data": "L2L3Data", "customerAcceptance": "CustomerAcceptance" },
   PaymentServiceProxySetupRecurringRequest: { "amount": "Money", "cardProxy": "ProxyCardDetails", "customer": "Customer", "address": "PaymentAddress", "state": "ConnectorState", "setupMandateDetails": "SetupMandateDetails", "customerAcceptance": "CustomerAcceptance", "authenticationData": "AuthenticationData", "browserInfo": "BrowserInformation" },
   PayoutAddress: { "shippingAddress": "Address", "billingAddress": "Address" },
-  PayoutMethod: { "card": "CardPayout", "ach": "AchBankTransferPayout", "bacs": "BacsBankTransferPayout", "sepa": "SepaBankTransferPayout", "pix": "PixBankTransferPayout", "applePayDecrypt": "ApplePayDecrypt", "paypal": "Paypal", "venmo": "Venmo", "interac": "InteracPayout", "openBankingUk": "OpenBankingUkPayout", "passthrough": "Passthrough" },
-  PayoutServiceCreateRequest: { "address": "PayoutAddress", "payoutMethodData": "PayoutMethod", "amount": "Money", "customer": "Customer", "browserInfo": "BrowserInformation" },
+  PayoutMethod: { "card": "CardPayout", "ach": "AchBankTransferPayout", "bacs": "BacsBankTransferPayout", "sepa": "SepaBankTransferPayout", "pix": "PixBankTransferPayout", "applePayDecrypt": "ApplePayDecrypt", "paypal": "Paypal", "venmo": "Venmo", "interac": "InteracPayout", "openBankingUk": "OpenBankingUkPayout", "passthrough": "Passthrough", "pixKey": "PixKeyBankTransferPayout", "pixEmv": "PixEmvBankTransferPayout" },
+  SourceBankData: { "ach": "AchBankTransferPayout", "bacs": "BacsBankTransferPayout", "sepa": "SepaBankTransferPayout", "pix": "PixBankTransferPayout", "pixKey": "PixKeyBankTransferPayout", "pixEmv": "PixEmvBankTransferPayout" },
+  PayoutServiceCreateRequest: { "address": "PayoutAddress", "payoutMethodData": "PayoutMethod", "amount": "Money", "customer": "Customer", "browserInfo": "BrowserInformation", "sourceBankData": "SourceBankData" },
   PayoutServiceCreateResponse: { "error": "ErrorInfo" },
-  PayoutServiceTransferRequest: { "address": "PayoutAddress", "payoutMethodData": "PayoutMethod", "amount": "Money", "customer": "Customer", "browserInfo": "BrowserInformation" },
+  PayoutServiceTransferRequest: { "address": "PayoutAddress", "payoutMethodData": "PayoutMethod", "amount": "Money", "customer": "Customer", "browserInfo": "BrowserInformation", "sourceBankData": "SourceBankData" },
   PayoutServiceTransferResponse: { "error": "ErrorInfo" },
   PayoutServiceStageRequest: { "address": "PayoutAddress", "amount": "Money", "customer": "Customer", "browserInfo": "BrowserInformation" },
   PayoutServiceStageResponse: { "error": "ErrorInfo" },
   PayoutServiceGetResponse: { "error": "ErrorInfo" },
   PayoutServiceVoidRequest: { "address": "PayoutAddress" },
   PayoutServiceVoidResponse: { "error": "ErrorInfo" },
-  PayoutServiceCreateLinkRequest: { "address": "PayoutAddress", "payoutMethodData": "PayoutMethod", "amount": "Money", "customer": "Customer", "browserInfo": "BrowserInformation" },
+  PayoutServiceCreateLinkRequest: { "address": "PayoutAddress", "payoutMethodData": "PayoutMethod", "amount": "Money", "customer": "Customer", "browserInfo": "BrowserInformation", "sourceBankData": "SourceBankData" },
   PayoutServiceCreateLinkResponse: { "error": "ErrorInfo" },
   PayoutServiceCreateRecipientRequest: { "address": "PayoutAddress", "payoutMethodData": "PayoutMethod", "amount": "Money", "customer": "Customer" },
   PayoutServiceCreateRecipientResponse: { "error": "ErrorInfo" },
@@ -441,6 +458,8 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   FfiConnectorHttpResponse: { "headers": "HeadersEntry" },
   ConnectorError: { "errorInfo": "ErrorInfo" },
   FfiResult: { "httpRequest": "FfiConnectorHttpRequest", "httpResponse": "FfiConnectorHttpResponse", "integrationError": "IntegrationError", "connectorError": "ConnectorError" },
+  SurchargeServiceCalculateRequest: { "amount": "Money" },
+  SurchargeServiceCalculateResponse: { "surchargeAmount": "Money", "error": "ErrorInfo" },
 };
 
 function _wrapSecretStrings(obj: unknown, msgName: string): unknown {
@@ -548,6 +567,11 @@ export class GrpcEventClient {
   async handleEvent(req: unknown): Promise<unknown> {
     return callGrpc(this.ffi, this.config, "event/handle_event",
       req, types.EventServiceHandleRequest, types.EventServiceHandleResponse);
+  }
+  /** EventService.NotifyConnector — Notify connectors about events (payment succeeded, refund succeeded, refund failed). */
+  async notifyConnector(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "event/notify_connector",
+      req, types.NotifyConnectorRequest, types.NotifyConnectorResponse);
   }
 }
 
@@ -758,6 +782,17 @@ export class GrpcRefundClient {
   }
 }
 
+// SurchargeService
+export class GrpcSurchargeClient {
+  constructor(private ffi: GrpcFfi, private config: GrpcConfig) {}
+
+  /** SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing. */
+  async calculate(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "surcharge/calculate",
+      req, types.SurchargeServiceCalculateRequest, types.SurchargeServiceCalculateResponse);
+  }
+}
+
 // ── Top-level GrpcClient ──────────────────────────────────────────────────────
 
 export class GrpcClient {
@@ -771,6 +806,7 @@ export class GrpcClient {
   public payout: GrpcPayoutClient;
   public recurringPayment: GrpcRecurringPaymentClient;
   public refund: GrpcRefundClient;
+  public surcharge: GrpcSurchargeClient;
 
   constructor(config: GrpcConfig, libPath?: string) {
     const ffi = loadGrpcFfi(libPath);
@@ -784,5 +820,6 @@ export class GrpcClient {
     this.payout = new GrpcPayoutClient(ffi, config);
     this.recurringPayment = new GrpcRecurringPaymentClient(ffi, config);
     this.refund = new GrpcRefundClient(ffi, config);
+    this.surcharge = new GrpcSurchargeClient(ffi, config);
   }
 }

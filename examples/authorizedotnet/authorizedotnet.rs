@@ -18,6 +18,7 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "authorize",
     "capture",
     "create_customer",
+    "create_server_session_authentication_token",
     "get",
     "parse_event",
     "proxy_authorize",
@@ -25,6 +26,7 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "recurring_charge",
     "refund",
     "refund_get",
+    "reverse",
     "setup_recurring",
     "void",
 ];
@@ -113,6 +115,14 @@ pub fn build_create_customer_request() -> CustomerServiceCreateRequest {
     }
 }
 
+pub fn build_create_server_session_authentication_token_request(
+) -> MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest {
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest {
+        // domain_context: {"payment": {"amount": {"minor_amount": 1000, "currency": "USD"}}}
+        ..Default::default()
+    }
+}
+
 pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetRequest {
     PaymentServiceGetRequest {
         merchant_transaction_id: Some("probe_merchant_txn_001".to_string()), // Identification.
@@ -166,6 +176,7 @@ pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
             card_exp_year: Some(Secret::new("2030".to_string())),
             card_cvc: Some(Secret::new("123".to_string())),
             card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
+            card_network: Some(CardNetwork::Visa.into()),
             ..Default::default()
         }),
         address: Some(PaymentAddress {
@@ -195,6 +206,7 @@ pub fn build_proxy_setup_recurring_request() -> PaymentServiceProxySetupRecurrin
             card_exp_year: Some(Secret::new("2030".to_string())),
             card_cvc: Some(Secret::new("123".to_string())),
             card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
+            card_network: Some(CardNetwork::Visa.into()),
             ..Default::default()
         }),
         customer: Some(Customer {
@@ -266,6 +278,14 @@ pub fn build_refund_get_request() -> RefundServiceGetRequest {
         merchant_refund_id: Some("probe_refund_001".to_string()), // Identification.
         connector_transaction_id: "probe_connector_txn_001".to_string(),
         refund_id: "probe_refund_id_001".to_string(), // Deprecated.
+        ..Default::default()
+    }
+}
+
+pub fn build_reverse_request(connector_transaction_id: &str) -> PaymentServiceReverseRequest {
+    PaymentServiceReverseRequest {
+        merchant_reverse_id: Some("probe_reverse_001".to_string()), // Identification.
+        connector_transaction_id: connector_transaction_id.to_string(),
         ..Default::default()
     }
 }
@@ -564,6 +584,22 @@ pub async fn process_create_customer(
     Ok(format!("customer_id: {}", response.connector_customer_id))
 }
 
+// Flow: MerchantAuthenticationService.CreateServerSessionAuthenticationToken
+#[allow(dead_code)]
+pub async fn process_create_server_session_authentication_token(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .create_server_session_authentication_token(
+            build_create_server_session_authentication_token_request(),
+            &HashMap::new(),
+            None,
+        )
+        .await?;
+    Ok(format!("status: {:?}", response.status_code))
+}
+
 // Flow: PaymentService.Get
 #[allow(dead_code)]
 pub async fn process_get(
@@ -640,6 +676,22 @@ pub async fn process_refund_get(
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: PaymentService.Reverse
+#[allow(dead_code)]
+pub async fn process_reverse(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .reverse(
+            build_reverse_request("probe_connector_txn_001"),
+            &HashMap::new(),
+            None,
+        )
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: PaymentService.SetupRecurring
 #[allow(dead_code)]
 pub async fn process_setup_recurring(
@@ -693,16 +745,20 @@ async fn main() {
         "process_authorize" => process_authorize(&client, "txn_001").await,
         "process_capture" => process_capture(&client, "txn_001").await,
         "process_create_customer" => process_create_customer(&client, "txn_001").await,
+        "process_create_server_session_authentication_token" => {
+            process_create_server_session_authentication_token(&client, "txn_001").await
+        }
         "process_get" => process_get(&client, "txn_001").await,
         "process_parse_event" => process_parse_event(&client, "txn_001").await,
         "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
         "process_proxy_setup_recurring" => process_proxy_setup_recurring(&client, "txn_001").await,
         "process_recurring_charge" => process_recurring_charge(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
+        "process_reverse" => process_reverse(&client, "txn_001").await,
         "process_setup_recurring" => process_setup_recurring(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_customer, process_get, process_parse_event, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_refund_get, process_setup_recurring, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_customer, process_create_server_session_authentication_token, process_get, process_parse_event, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_refund_get, process_reverse, process_setup_recurring, process_void", flow);
             return;
         }
     };

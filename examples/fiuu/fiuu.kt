@@ -13,9 +13,12 @@ import payments.PaymentClient
 import payments.EventClient
 import payments.RecurringPaymentClient
 import payments.RefundClient
+import payments.AcceptanceType
 import payments.AuthenticationType
 import payments.CaptureMethod
+import payments.CardNetwork
 import payments.Currency
+import payments.FutureUsage
 import payments.HttpMethod
 import payments.PaymentMethodType
 import payments.ConnectorConfig
@@ -25,7 +28,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.FiuuConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "parse_event", "proxy_authorize", "recurring_charge", "refund", "refund_get", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -288,6 +291,7 @@ fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
             cardExpYearBuilder.value = "2030"
             cardCvcBuilder.value = "123"
             cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            cardNetwork = CardNetwork.VISA
         }
         addressBuilder.apply {
             billingAddressBuilder.apply {
@@ -299,6 +303,39 @@ fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
         webhookUrl = "https://example.com/webhook"
     }.build()
     val response = client.proxy_authorize(request)
+    println("Status: ${response.status.name}")
+}
+
+// Flow: PaymentService.ProxySetupRecurring
+fun proxySetupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = PaymentServiceProxySetupRecurringRequest.newBuilder().apply {
+        merchantRecurringPaymentId = "probe_proxy_mandate_001"
+        amountBuilder.apply {
+            minorAmount = 0L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        cardProxyBuilder.apply {  // Card proxy for vault-aliased payments.
+            cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+            cardExpMonthBuilder.value = "03"
+            cardExpYearBuilder.value = "2030"
+            cardCvcBuilder.value = "123"
+            cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            cardNetwork = CardNetwork.VISA
+        }
+        addressBuilder.apply {
+            billingAddressBuilder.apply {
+            }
+        }
+        webhookUrl = "https://example.com/webhook"
+        customerAcceptanceBuilder.apply {
+            acceptanceType = AcceptanceType.OFFLINE  // Type of acceptance (e.g., online, offline).
+            acceptedAt = 0L  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+        }
+        authType = AuthenticationType.NO_THREE_DS
+        setupFutureUsage = FutureUsage.OFF_SESSION
+    }.build()
+    val response = client.proxy_setup_recurring(request)
     println("Status: ${response.status.name}")
 }
 
@@ -361,6 +398,46 @@ fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: PaymentService.SetupRecurring
+fun setupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = PaymentServiceSetupRecurringRequest.newBuilder().apply {
+        merchantRecurringPaymentId = "probe_mandate_001"  // Identification.
+        amountBuilder.apply {  // Mandate Details.
+            minorAmount = 0L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        paymentMethodBuilder.apply {
+            cardBuilder.apply {  // Generic card payment.
+                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+                cardExpMonthBuilder.value = "03"
+                cardExpYearBuilder.value = "2030"
+                cardCvcBuilder.value = "737"
+                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            }
+        }
+        addressBuilder.apply {  // Address Information.
+            billingAddressBuilder.apply {
+            }
+        }
+        authType = AuthenticationType.NO_THREE_DS  // Type of authentication to be used.
+        enrolledFor3Ds = false  // Indicates if the customer is enrolled for 3D Secure.
+        returnUrl = "https://example.com/mandate-return"  // URL to redirect after setup.
+        webhookUrl = "https://example.com/webhook"  // URL for webhook notifications.
+        setupFutureUsage = FutureUsage.OFF_SESSION  // Indicates future usage intention.
+        requestIncrementalAuthorization = false  // Indicates if incremental authorization is requested.
+        customerAcceptanceBuilder.apply {  // Details of customer acceptance.
+            acceptanceType = AcceptanceType.OFFLINE  // Type of acceptance (e.g., online, offline).
+            acceptedAt = 0L  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+        }
+    }.build()
+    val response = client.setup_recurring(request)
+    when (response.status.name) {
+        "FAILED" -> throw RuntimeException("Setup failed: ${response.error.unifiedDetails.message}")
+        else     -> println("Mandate stored: ${response.connectorRecurringPaymentId}")
+    }
+}
+
 // Flow: PaymentService.Void
 fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -387,10 +464,12 @@ fun main(args: Array<String>) {
         "handleEvent" -> handleEvent(txnId)
         "parseEvent" -> parseEvent(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
+        "proxySetupRecurring" -> proxySetupRecurring(txnId)
         "recurringCharge" -> recurringCharge(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
+        "setupRecurring" -> setupRecurring(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, handleEvent, parseEvent, proxyAuthorize, recurringCharge, refund, refundGet, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, handleEvent, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, void")
     }
 }

@@ -9,12 +9,13 @@ import asyncio
 import sys
 from payments import PaymentClient
 from payments import MerchantAuthenticationClient
+from payments import CustomerClient
 from payments import EventClient
 from payments import RecurringPaymentClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "void"]
+SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "create_customer", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -93,6 +94,14 @@ def _build_create_client_authentication_token_request():
         ),
     )
 
+def _build_create_customer_request():
+    return payment_pb2.CustomerServiceCreateRequest(
+        merchant_customer_id="cust_probe_123",  # Identification.
+        customer_name="John Doe",  # Name of the customer.
+        email=payment_methods_pb2.SecretString(value="test@example.com"),  # Email address of the customer.
+        phone_number="4155552671",  # Phone number of the customer.
+    )
+
 def _build_get_request(connector_transaction_id: str):
     return payment_pb2.PaymentServiceGetRequest(
         merchant_transaction_id="probe_merchant_txn_001",  # Identification.
@@ -133,6 +142,7 @@ def _build_proxy_authorize_request():
             card_exp_year=payment_methods_pb2.SecretString(value="2030"),
             card_cvc=payment_methods_pb2.SecretString(value="123"),
             card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
+            card_network=payment_methods_pb2.CardNetwork.Value("VISA"),
         ),
         address=payment_pb2.PaymentAddress(
             billing_address=payment_pb2.Address(
@@ -168,6 +178,7 @@ def _build_proxy_setup_recurring_request():
             card_exp_year=payment_methods_pb2.SecretString(value="2030"),
             card_cvc=payment_methods_pb2.SecretString(value="123"),
             card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
+            card_network=payment_methods_pb2.CardNetwork.Value("VISA"),
         ),
         address=payment_pb2.PaymentAddress(
             billing_address=payment_pb2.Address(
@@ -470,6 +481,15 @@ async def process_create_client_authentication_token(merchant_transaction_id: st
     create_response = await merchantauthentication_client.create_client_authentication_token(_build_create_client_authentication_token_request())
 
     return {"session_data": create_response.session_data}
+
+
+async def process_create_customer(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: CustomerService.Create"""
+    customer_client = CustomerClient(config)
+
+    create_response = await customer_client.create(_build_create_customer_request())
+
+    return {"customer_id": create_response.connector_customer_id}
 
 
 async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

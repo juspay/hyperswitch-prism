@@ -94,7 +94,7 @@ impl {{CONNECTOR_NAME_PASCAL}}Test {
             webhook_url: Some("https://google.com".to_string()),
             complete_authorize_url: None,
             customer_id: None,
-            surcharge_details: None,
+            surcharge_content: None,
             request_incremental_authorization: false,
             metadata: None,
             authentication_data: None,

@@ -15,7 +15,7 @@ use domain_types::{
     payment_method_data::{
         PaymentMethodData, PaymentMethodDataTypes, UpiData, UpiSource, WalletData,
     },
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, FlowStatus},
     router_data_v2::RouterDataV2,
     router_request_types::BrowserInformation,
     router_response_types::RedirectForm,
@@ -846,7 +846,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: item.http_code,
-                    attempt_status,
+                    attempt_status: attempt_status.map(FlowStatus::Payment),
                     connector_transaction_id,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -1107,7 +1107,9 @@ impl TryFrom<ResponseRouterData<PhonepeSyncResponse, Self>>
                             message: response.message.clone(),
                             reason: None,
                             status_code: item.http_code,
-                            attempt_status: Some(common_enums::AttemptStatus::Failure),
+                            attempt_status: Some(FlowStatus::Payment(
+                                common_enums::AttemptStatus::Failure,
+                            )),
                             connector_transaction_id: data.transaction_id.clone(),
                             network_decline_code: None,
                             network_advice_code: None,
@@ -1138,7 +1140,7 @@ impl TryFrom<ResponseRouterData<PhonepeSyncResponse, Self>>
                     message: error_message,
                     reason: None,
                     status_code: item.http_code,
-                    attempt_status,
+                    attempt_status: attempt_status.map(FlowStatus::Payment),
                     connector_transaction_id: response
                         .data
                         .as_ref()
@@ -1659,7 +1661,7 @@ impl TryFrom<ResponseRouterData<PhonepeCaptureResponse, Self>>
                 message: error_message.clone(),
                 reason: Some(error_message),
                 status_code: item.http_code,
-                attempt_status,
+                attempt_status: attempt_status.map(FlowStatus::Payment),
                 connector_transaction_id,
                 network_decline_code: None,
                 network_advice_code: None,
@@ -2405,7 +2407,7 @@ impl TryFrom<ResponseRouterData<PhonepeVoidResponse, Self>>
                 message: error_message.clone(),
                 reason: Some(error_message),
                 status_code: item.http_code,
-                attempt_status,
+                attempt_status: attempt_status.map(FlowStatus::Payment),
                 connector_transaction_id,
                 network_decline_code: None,
                 network_advice_code: None,

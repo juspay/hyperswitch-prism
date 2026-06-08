@@ -6,24 +6,15 @@ use common_enums::CurrencyUnit;
 use common_utils::{consts, errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{
-        Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken, CreateOrder,
-        DefendDispute, IncrementalAuthorization, MandateRevoke, PSync, PaymentMethodToken,
-        PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment, ServerAuthenticationToken,
-        ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence, Void, VoidPC,
+        Authorize, Capture, ClientAuthenticationToken, PSync, PostAuthenticate, PreAuthenticate,
+        RSync, Refund, RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
-        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
-        ConnectorCustomerResponse, DisputeDefendData, DisputeFlowData, DisputeResponseData,
-        MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
-        PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        ClientAuthenticationTokenRequestData, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsPostAuthenticateData,
         PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
         RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        SetupMandateRequestData, SubmitEvidenceData,
+        SetupMandateRequestData,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -41,11 +32,12 @@ use serde::Serialize;
 use transformers as nexixpay;
 use transformers::{
     NexixpayCaptureRequest, NexixpayCaptureResponse, NexixpayClientAuthRequest,
-    NexixpayClientAuthResponse, NexixpayPaymentsRequest, NexixpayPaymentsResponse,
-    NexixpayPostAuthenticateRequest, NexixpayPostAuthenticateResponse,
+    NexixpayClientAuthResponse, NexixpayMandatePaymentRequest, NexixpayPaymentsRequest,
+    NexixpayPaymentsResponse, NexixpayPostAuthenticateRequest, NexixpayPostAuthenticateResponse,
     NexixpayPreAuthenticateRequest, NexixpayPreAuthenticateResponse, NexixpayRSyncResponse,
-    NexixpayRefundRequest, NexixpayRefundResponse, NexixpaySyncResponse, NexixpayVoidRequest,
-    NexixpayVoidResponse,
+    NexixpayRefundRequest, NexixpayRefundResponse, NexixpayRepeatPaymentResponse,
+    NexixpaySetupMandateRequest, NexixpaySetupMandateResponse, NexixpaySyncResponse,
+    NexixpayVoidRequest, NexixpayVoidResponse,
 };
 use uuid::Uuid;
 
@@ -118,6 +110,18 @@ macros::create_all_prerequisites!(
             request_body: NexixpayClientAuthRequest,
             response_body: NexixpayClientAuthResponse,
             router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: NexixpaySetupMandateRequest,
+            response_body: NexixpaySetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: NexixpayMandatePaymentRequest,
+            response_body: NexixpayRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -180,16 +184,6 @@ macros::create_all_prerequisites!(
 // Main service trait - aggregates all other traits
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Nexixpay<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Nexixpay<T>
 {
 }
@@ -212,11 +206,6 @@ macros::macro_connector_payout_implementation!(
 );
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::MandateRevokeV2 for Nexixpay<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Nexixpay<T>
 {
 }
@@ -227,12 +216,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentVoidPostCaptureV2 for Nexixpay<T>
+    connector_types::PaymentCapture for Nexixpay<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentCapture for Nexixpay<T>
+    connector_types::SetupMandateV2<T> for Nexixpay<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RepeatPaymentV2<T> for Nexixpay<T>
 {
 }
 
@@ -248,49 +242,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // ===== ADVANCED FLOW TRAIT IMPLEMENTATIONS =====
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SetupMandateV2<T> for Nexixpay<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::RepeatPaymentV2<T> for Nexixpay<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentIncrementalAuthorization for Nexixpay<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentOrderCreate for Nexixpay<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerSessionAuthentication for Nexixpay<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerAuthentication for Nexixpay<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentTokenV2<T> for Nexixpay<T>
-{
-}
-
 // ===== AUTHENTICATION FLOW TRAIT IMPLEMENTATIONS =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentPreAuthenticateV2<T> for Nexixpay<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAuthenticateV2<T> for Nexixpay<T>
 {
 }
 
@@ -300,21 +254,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // ===== DISPUTE FLOW TRAIT IMPLEMENTATIONS =====
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::AcceptDispute for Nexixpay<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::DisputeDefend for Nexixpay<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SubmitEvidenceV2 for Nexixpay<T>
-{
-}
-
 // ===== WEBHOOK TRAIT IMPLEMENTATIONS =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Nexixpay<T>
@@ -340,11 +279,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // ===== CONNECTOR CUSTOMER TRAIT IMPLEMENTATIONS =====
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::CreateConnectorCustomer for Nexixpay<T>
-{
-}
-
 // ===== MAIN CONNECTOR INTEGRATION IMPLEMENTATIONS =====
 // Authorize Flow
 macros::macro_connector_implementation!(
@@ -469,15 +403,6 @@ macros::macro_connector_implementation!(
 );
 
 // Payment Void Post Capture
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        VoidPC,
-        PaymentFlowData,
-        PaymentsCancelPostCaptureData,
-        PaymentsResponseData,
-    > for Nexixpay<T>
-{
-}
 
 // Payment Capture
 macros::macro_connector_implementation!(
@@ -606,36 +531,78 @@ macros::macro_connector_implementation!(
 );
 
 // Setup Mandate
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
-        PaymentsResponseData,
-    > for Nexixpay<T>
-{
-}
+// NexiXPay has no dedicated "tokenize the card without moving funds" endpoint, so
+// SetupMandate reuses the `/orders/3steps/init` endpoint (same request shape as
+// PreAuthenticate — see the `NexixpaySetupMandateRequest` type alias) with
+// `recurrence.action = CONTRACT_CREATION` + `contractType = MIT_UNSCHEDULED` +
+// `actionType = VERIFY` and `amount = 0`. The merchant-assigned `contractId`
+// (derived from `connector_request_reference_id`) is surfaced back as
+// `mandate_reference.connector_mandate_id` so a future RepeatPayment / MIT call
+// can replay it — mirroring hyperswitch. The Nexi `operationId` is NOT the
+// mandate anchor; it is kept on `connector_feature_data` / `preprocessing_id`
+// only so the downstream PostAuthenticate / PSync flows can drive the 3DS
+// handshake. Status comes back as `AuthenticationPending` (3DS challenge
+// required) for a real card — the customer completes the 3DS hop on Nexi's
+// hosted page.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Nexixpay,
+    curl_request: Json(NexixpaySetupMandateRequest<T>),
+    curl_response: NexixpaySetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/orders/3steps/init", self.connector_base_url_payments(req)))
+        }
+    }
+);
 
-// Repeat Payment
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
-    > for Nexixpay<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        MandateRevoke,
-        PaymentFlowData,
-        MandateRevokeRequestData,
-        MandateRevokeResponseData,
-    > for Nexixpay<T>
-{
-}
+// Repeat Payment (MIT) — POST /orders/mit replaying the stored contractId
+// (surfaced by SetupMandate as mandate_reference.connector_mandate_id). Single
+// off-session call, no 3DS. Mirrors hyperswitch, which routes off-session
+// Authorize payments to /orders/mit.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Nexixpay,
+    curl_request: Json(NexixpayMandatePaymentRequest<T>),
+    curl_response: NexixpayRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/orders/mit", self.connector_base_url_payments(req)))
+        }
+    }
+);
 
 // Sdk Session Token - ClientAuthenticationToken
 // Uses the /orders/hpp endpoint to create a hosted payment page order
@@ -669,69 +636,18 @@ macros::macro_connector_implementation!(
 );
 
 // Order Create
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        CreateOrder,
-        PaymentFlowData,
-        PaymentCreateOrderData,
-        PaymentCreateOrderResponse,
-    > for Nexixpay<T>
-{
-}
 
 // Session Token
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ServerSessionAuthenticationToken,
-        PaymentFlowData,
-        ServerSessionAuthenticationTokenRequestData,
-        ServerSessionAuthenticationTokenResponseData,
-    > for Nexixpay<T>
-{
-}
 
 // Dispute Accept
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
-    for Nexixpay<T>
-{
-}
 
 // Dispute Defend
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
-    for Nexixpay<T>
-{
-}
 
 // Submit Evidence
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>
-    for Nexixpay<T>
-{
-}
 
 // Payment Token (required by PaymentTokenV2 trait)
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PaymentMethodToken,
-        PaymentFlowData,
-        PaymentMethodTokenizationData<T>,
-        PaymentMethodTokenResponse,
-    > for Nexixpay<T>
-{
-}
 
 // Access Token (required by ServerAuthentication trait)
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ServerAuthenticationToken,
-        PaymentFlowData,
-        ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData,
-    > for Nexixpay<T>
-{
-}
 
 // ===== AUTHENTICATION FLOW CONNECTOR INTEGRATIONS =====
 // Pre Authentication (Step 1 - Initialize)
@@ -764,15 +680,6 @@ macros::macro_connector_implementation!(
 );
 
 // Authentication
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        Authenticate,
-        PaymentFlowData,
-        PaymentsAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Nexixpay<T>
-{
-}
 
 // Post Authentication (Step 3 - Validation)
 macros::macro_connector_implementation!(
@@ -805,15 +712,6 @@ macros::macro_connector_implementation!(
 
 // ===== CONNECTOR CUSTOMER CONNECTOR INTEGRATIONS =====
 // Create Connector Customer
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        domain_types::connector_flow::CreateConnectorCustomer,
-        PaymentFlowData,
-        ConnectorCustomerData,
-        ConnectorCustomerResponse,
-    > for Nexixpay<T>
-{
-}
 
 // ===== SOURCE VERIFICATION IMPLEMENTATIONS =====
 
@@ -863,6 +761,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: nexixpay::NexixpayErrorResponse = res
             .response
@@ -911,3 +810,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         })
     }
 }
+
+macros::macro_connector_flow_status_impls!(
+    connector: Nexixpay,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    not_implemented: [
+        IncrementalAuthorization,
+        VoidPC,
+        MandateRevoke,
+        CreateOrder,
+        ServerSessionAuthenticationToken,
+        PaymentMethodToken,
+        ServerAuthenticationToken,
+        Authenticate,
+    ],
+    not_supported: [
+        Accept,
+        DefendDispute,
+        SubmitEvidence,
+        CreateConnectorCustomer,
+    ],
+);

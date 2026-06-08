@@ -1,3 +1,4 @@
+use domain_types::router_data::ConnectorSpecificConfig;
 use std::fmt::Debug;
 
 use common_utils::{
@@ -10,25 +11,17 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,
-        CreateConnectorCustomer, CreateOrder, DefendDispute, IncrementalAuthorization,
-        MandateRevoke, PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund,
-        RepeatPayment, ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate,
-        SubmitEvidence, Void, VoidPC,
+        Authenticate, Authorize, Capture, ClientAuthenticationToken, IncrementalAuthorization,
+        MandateRevoke, PSync, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
+        SetupMandate, Void, VoidPC,
     },
     connector_types::{
-        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
-        ConnectorCustomerResponse, DisputeDefendData, DisputeFlowData, DisputeResponseData,
-        MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
-        PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        SetupMandateRequestData, SubmitEvidenceData,
+        ClientAuthenticationTokenRequestData, MandateRevokeRequestData, MandateRevokeResponseData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, SetupMandateRequestData,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::ErrorResponse,
@@ -59,11 +52,13 @@ use transformers::{
     CybersourcePaymentsIncrementalAuthorizationRequest,
     CybersourcePaymentsIncrementalAuthorizationResponse, CybersourcePaymentsRequest,
     CybersourcePaymentsResponse, CybersourcePaymentsResponse as CybersourceCaptureResponse,
+    CybersourcePaymentsResponse as CybersourceVoidPCResponse,
     CybersourcePaymentsResponse as CybersourceVoidResponse,
     CybersourcePaymentsResponse as CybersourceSetupMandateResponse,
     CybersourcePaymentsResponse as CybersourceRepeatPaymentResponse, CybersourceRefundRequest,
     CybersourceRefundResponse, CybersourceRepeatPaymentRequest, CybersourceRsyncResponse,
-    CybersourceTransactionResponse, CybersourceVoidRequest, CybersourceZeroMandateRequest,
+    CybersourceTransactionResponse, CybersourceVoidPCRequest, CybersourceVoidRequest,
+    CybersourceZeroMandateRequest,
 };
 
 use super::macros;
@@ -76,8 +71,6 @@ pub(crate) mod headers {
     pub(crate) const ACCEPT: &str = "Accept";
     pub(crate) const CONNECTOR_UNAUTHORIZED_ERROR: &str = "Authentication Error from the connector";
 }
-
-// Trait implementations with generic type parameters
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ClientAuthentication for Cybersource<T>
@@ -112,15 +105,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        VoidPC,
-        PaymentFlowData,
-        PaymentsCancelPostCaptureData,
-        PaymentsResponseData,
-    > for Cybersource<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Cybersource<T>
 {
 }
@@ -135,10 +119,41 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Cybersource<T>
 {
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentOrderCreate for Cybersource<T>
-{
+    fn next_authentication_step(
+        &self,
+        auth_type: common_enums::AuthenticationType,
+        payment_method: common_enums::PaymentMethod,
+        redirect_state: connector_types::RedirectState,
+        completed_step: Option<connector_types::AuthenticationStep>,
+    ) -> connector_types::AuthenticationStep {
+        use connector_types::{AuthenticationStep, RedirectState};
+        if auth_type == common_enums::AuthenticationType::ThreeDs
+            && payment_method == common_enums::PaymentMethod::Card
+        {
+            match (redirect_state, completed_step) {
+                (RedirectState::InitialRequest, _) => AuthenticationStep::PreAuthenticate,
+
+                (RedirectState::RedirectWithParams, None) => AuthenticationStep::Authenticate,
+
+                (RedirectState::RedirectWithParams, Some(AuthenticationStep::Authenticate)) => {
+                    AuthenticationStep::Authorize
+                }
+
+                (RedirectState::RedirectWithoutParams, None) => {
+                    AuthenticationStep::PostAuthenticate
+                }
+
+                (
+                    RedirectState::RedirectWithoutParams,
+                    Some(AuthenticationStep::PostAuthenticate),
+                ) => AuthenticationStep::Authorize,
+
+                _ => AuthenticationStep::Authorize,
+            }
+        } else {
+            AuthenticationStep::Authorize
+        }
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Cybersource<T>
@@ -149,19 +164,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::AcceptDispute for Cybersource<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SubmitEvidenceV2 for Cybersource<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentIncrementalAuthorization for Cybersource<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::DisputeDefend for Cybersource<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -181,18 +184,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerSessionAuthentication for Cybersource<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerAuthentication for Cybersource<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentTokenV2<T> for Cybersource<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentPreAuthenticateV2<T> for Cybersource<T>
 {
 }
@@ -207,10 +198,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::CreateConnectorCustomer for Cybersource<T>
-{
-}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::MandateRevokeV2 for Cybersource<T>
 {
@@ -260,6 +247,12 @@ macros::create_all_prerequisites!(
             request_body: CybersourceVoidRequest,
             response_body: CybersourceVoidResponse,
             router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ),
+        (
+            flow: VoidPC,
+            request_body: CybersourceVoidPCRequest,
+            response_body: CybersourceVoidPCResponse,
+            router_data: RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
         ),
         (
             flow: Refund,
@@ -459,6 +452,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: Result<
             cybersource::CybersourceErrorResponse,
@@ -839,6 +833,44 @@ macros::macro_connector_implementation!(
     }
 );
 
+// Add implementation for VoidPC (post-capture reversal)
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Cybersource,
+    curl_request: Json(CybersourceVoidPCRequest),
+    curl_response: CybersourceVoidPCResponse,
+    flow_name: VoidPC,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsCancelPostCaptureData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // VoidPostCapture voids a CAPTURE (not an authorization).
+            // CyberSource uses a dedicated endpoint for capture voids:
+            //   POST /pts/v2/captures/{capture_id}/voids
+            // The authorization-reversal endpoint (/pts/v2/payments/{id}/reversals)
+            // is for pre-capture reversals only and requires reversalInformation.amountDetails.
+            let capture_id = req.request.connector_transaction_id.clone();
+            Ok(format!(
+                "{}pts/v2/captures/{capture_id}/voids",
+                self.connector_base_url_payments(req),
+            ))
+        }
+    }
+);
+
 // Add implementation for Refund
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
@@ -1098,8 +1130,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        self.build_error_response(res, event_builder)
+        self.build_error_response(res, event_builder, _connector_config)
     }
 }
 
@@ -1266,79 +1299,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        self.build_error_response(res, event_builder)
+        self.build_error_response(res, event_builder, _connector_config)
     }
 }
 
-// Stub implementations for unsupported flows
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
+macros::macro_connector_flow_status_impls!(
+    connector: Cybersource,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    not_implemented: [
         CreateOrder,
-        PaymentFlowData,
-        PaymentCreateOrderData,
-        PaymentCreateOrderResponse,
-    > for Cybersource<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>
-    for Cybersource<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
-    for Cybersource<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
-    for Cybersource<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
         ServerSessionAuthenticationToken,
-        PaymentFlowData,
-        ServerSessionAuthenticationTokenRequestData,
-        ServerSessionAuthenticationTokenResponseData,
-    > for Cybersource<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
         PaymentMethodToken,
-        PaymentFlowData,
-        PaymentMethodTokenizationData<T>,
-        PaymentMethodTokenResponse,
-    > for Cybersource<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
         ServerAuthenticationToken,
-        PaymentFlowData,
-        ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData,
-    > for Cybersource<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
         CreateConnectorCustomer,
-        PaymentFlowData,
-        ConnectorCustomerData,
-        ConnectorCustomerResponse,
-    > for Cybersource<T>
-{
-}
-
-// SourceVerification implementations for all flows
-
-// Authentication flow SourceVerification implementations
+    ],
+    not_supported: [
+        SubmitEvidence,
+        DefendDispute,
+        Accept,
+    ],
+);

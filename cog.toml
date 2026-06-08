@@ -1,0 +1,15 @@
+tag_prefix = "v"
+ignore_merge_commits = true
+
+[commit_types]
+feat     = { changelog_title = "<!-- 0 -->Features" }
+fix      = { changelog_title = "<!-- 1 -->Bug Fixes" }
+perf     = { changelog_title = "<!-- 2 -->Performance" }
+refactor = { changelog_title = "<!-- 3 -->Refactors" }
+test     = { changelog_title = "<!-- 4 -->Testing" }
+docs     = { changelog_title = "<!-- 5 -->Documentation" }
+proto    = { changelog_title = "<!-- 6 -->Proto / API Contract" }
+chore    = { changelog_title = "<!-- 7 -->Miscellaneous Tasks" }
+build    = { changelog_title = "<!-- 8 -->Build System / Dependencies" }
+revert   = { changelog_title = "<!-- 9 -->Reverts" }
+ci       = { changelog_title = "Continuous Integration", omit_from_changelog = true }

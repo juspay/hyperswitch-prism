@@ -82,7 +82,9 @@ mod tests {
                     amount: None,
                     connector_response: None,
                     recurring_mandate_payment_data: None,
-                    l2_l3_data: None
+                    l2_l3_data: None,
+                    merchant_request_id: None,
+                    sender_payment_instrument_id: None,
 },
                 connector_config: ConnectorSpecificConfig::Adyen {
                     api_key: Secret::new(api_key),
@@ -182,7 +184,7 @@ mod tests {
                     continue_redirection_url: None,
                     redirect_response: None,
                     threeds_method_comp_ind: None,
-                    tokenization: None
+                    tokenization: None,
 },
                 response: Err(ErrorResponse::default())
 };
@@ -279,7 +281,9 @@ mod tests {
                     amount: None,
                     connector_response: None,
                     recurring_mandate_payment_data: None,
-                    l2_l3_data: None
+                    l2_l3_data: None,
+                    merchant_request_id: None,
+                    sender_payment_instrument_id: None,
 },
                 connector_config: ConnectorSpecificConfig::Adyen {
                     api_key: Secret::new(api_key),
@@ -337,7 +341,7 @@ mod tests {
                     continue_redirection_url: None,
                     redirect_response: None,
                     threeds_method_comp_ind: None,
-                    tokenization: None
+                    tokenization: None,
 },
                 response: Err(ErrorResponse::default())
 };

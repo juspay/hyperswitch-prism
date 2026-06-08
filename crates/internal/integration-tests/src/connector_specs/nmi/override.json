@@ -1,1 +1,128 @@
-{}
+{
+  "PaymentService/Authorize": {
+    "no3ds_auto_capture_debit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4751271111111118"
+            }
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_debit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4751271111111118"
+            }
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4532111111111112"
+            }
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4532111111111112"
+            }
+          }
+        }
+      }
+    }
+  },
+  "PaymentService/SetupRecurring": {
+    "PaymentService/SetupRecurring": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 0
+        }
+      }
+    },
+    "setup_recurring": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 0
+        }
+      }
+    },
+    "setup_recurring_with_order_context": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 0
+        }
+      }
+    },
+    "setup_recurring_with_webhook": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 0
+        }
+      }
+    }
+  },
+  "RecurringPaymentService/Charge": {
+    "RecurringPaymentService/Charge": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "08",
+            "card_exp_year": "30",
+            "card_cvc": "999"
+          }
+        }
+      }
+    },
+    "recurring_charge": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "08",
+            "card_exp_year": "30",
+            "card_cvc": "999"
+          }
+        }
+      }
+    },
+    "recurring_charge_low_amount": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "08",
+            "card_exp_year": "30",
+            "card_cvc": "999"
+          }
+        }
+      }
+    },
+    "recurring_charge_with_order_context": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "08",
+            "card_exp_year": "30",
+            "card_cvc": "999"
+          }
+        }
+      }
+    }
+  }
+}

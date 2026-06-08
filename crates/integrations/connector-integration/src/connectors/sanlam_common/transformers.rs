@@ -1,4 +1,4 @@
-use crate::{connectors::sanlam::SanlamRouterData, types::ResponseRouterData};
+use crate::{connectors::absa_sanlam::AbsaSanlamRouterData, types::ResponseRouterData};
 use common_enums::{AttemptStatus, BankNames, BankType, Currency};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
@@ -8,8 +8,11 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::Authorize,
-    connector_types::{PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, ResponseId},
-    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    connector_types::{
+        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, ResponseId,
+        WebhookDetailsResponse,
+    },
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError},
     payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -19,26 +22,26 @@ use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
-pub struct SanlamAuthType {
-    pub(super) api_key: Secret<String>,
-    pub(super) merchant_id: Secret<String>,
+pub struct AbsaSanlamAuthType {
+    pub api_key: Secret<String>,
+    pub merchant_id: Secret<String>,
 }
 
-impl TryFrom<&ConnectorSpecificConfig> for SanlamAuthType {
+impl TryFrom<&ConnectorSpecificConfig> for AbsaSanlamAuthType {
     type Error = error_stack::Report<IntegrationError>;
     fn try_from(item: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match item {
-            ConnectorSpecificConfig::Sanlam { api_key, merchant_id, .. } => Ok(Self {
+            ConnectorSpecificConfig::AbsaSanlam { api_key, merchant_id, .. } => Ok(Self {
                 api_key: api_key.to_owned(),
                 merchant_id: merchant_id.to_owned(),
             }),
             _ => Err(IntegrationError::FailedToObtainAuthType {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
-                        "Ensure the connector is configured with a Sanlam-specific config containing a valid api_key.".to_string(),
+                        "Ensure the connector is configured with a AbsaSanlam-specific config containing a valid api_key.".to_string(),
                     ),
                     additional_context: Some(
-                        "ConnectorSpecificConfig did not match the Sanlam variant; received an unexpected config variant.".to_string(),
+                        "ConnectorSpecificConfig did not match the AbsaSanlam variant; received an unexpected config variant.".to_string(),
                     ),
                     doc_url: None,
                 },
@@ -49,21 +52,21 @@ impl TryFrom<&ConnectorSpecificConfig> for SanlamAuthType {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct SanlamMetaData {
+pub struct AbsaSanlamMetaData {
     pub batch_user_reference: Option<String>,
 }
 
-impl TryFrom<SecretSerdeValue> for SanlamMetaData {
+impl TryFrom<SecretSerdeValue> for AbsaSanlamMetaData {
     type Error = error_stack::Report<IntegrationError>;
     fn try_from(metadata: SecretSerdeValue) -> Result<Self, Self::Error> {
         let metadata = metadata
             .expose()
-            .parse_value::<Self>("SanlamMetaData")
+            .parse_value::<Self>("AbsaSanlamMetaData")
             .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "metadata",
                 context: IntegrationErrorContext {
                     additional_context: Some(
-                        "Failed to deserialize connector metadata into SanlamMetaData; ensure 'batch_user_reference' is a valid optional string.".to_string(),
+                        "Failed to deserialize connector metadata into AbsaSanlamMetaData; ensure 'batch_user_reference' is a valid optional string.".to_string(),
                     ),
                     suggested_action: Some(
                         "Verify the connector metadata is valid JSON with an optional 'batch_user_reference' string field.".to_string(),
@@ -76,12 +79,12 @@ impl TryFrom<SecretSerdeValue> for SanlamMetaData {
 }
 
 #[derive(Debug, Serialize)]
-pub struct SanlamPaymentsRequest {
+pub struct AbsaSanlamPaymentsRequest {
     pub user_reference: String,
     pub amount: MinorUnit,
     pub currency: Currency,
     #[serde(rename = "payment_method")]
-    pub payment_method: SanlamPaymentMethod,
+    pub payment_method: AbsaSanlamPaymentMethod,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub statement_descriptor: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -90,22 +93,22 @@ pub struct SanlamPaymentsRequest {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum SanlamPaymentMethod {
+pub enum AbsaSanlamPaymentMethod {
     EftDebitOrder(EftDebitOrder),
 }
 
 #[derive(Debug, Serialize)]
 pub struct EftDebitOrder {
     pub homing_account: Secret<String>,
-    pub homing_branch: Secret<String>,
+    pub homing_branch: Option<Secret<String>>,
     pub homing_account_name: Secret<String>,
-    pub bank_name: SanlamBankNames,
-    pub bank_type: SanlamBankType,
+    pub bank_name: AbsaSanlamBankNames,
+    pub bank_type: AbsaSanlamBankType,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum SanlamBankNames {
+pub enum AbsaSanlamBankNames {
     Absa,
     Capitec,
     Fnb,
@@ -115,7 +118,7 @@ pub enum SanlamBankNames {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum SanlamBankType {
+pub enum AbsaSanlamBankType {
     Savings,
     Cheque,
     Transmission,
@@ -126,7 +129,7 @@ pub enum SanlamBankType {
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
-        SanlamRouterData<
+        AbsaSanlamRouterData<
             RouterDataV2<
                 Authorize,
                 PaymentFlowData,
@@ -135,11 +138,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             >,
             T,
         >,
-    > for SanlamPaymentsRequest
+    > for AbsaSanlamPaymentsRequest
 {
     type Error = error_stack::Report<IntegrationError>;
     fn try_from(
-        item: SanlamRouterData<
+        item: AbsaSanlamRouterData<
             RouterDataV2<
                 Authorize,
                 PaymentFlowData,
@@ -163,7 +166,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             field_name: "bank_account_holder_name",
                             context: IntegrationErrorContext {
                                 additional_context: Some(
-                                    "EFT debit order requires 'bank_account_holder_name' to populate the homing_account_name field in the Sanlam payments request.".to_string(),
+                                    "EFT debit order requires 'bank_account_holder_name' to populate the homing_account_name field in the AbsaSanlam payments request.".to_string(),
                                 ),
                                 suggested_action: Some(
                                     "Provide the bank account holder name in the EFT bank debit payment method data.".to_string(),
@@ -174,13 +177,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     )?;
 
                     let bank_name = bank_name
-                        .map(SanlamBankNames::try_from)
+                        .map(AbsaSanlamBankNames::try_from)
                         .transpose()?
                         .ok_or(IntegrationError::MissingRequiredField {
                             field_name: "bank_name",
                             context: IntegrationErrorContext {
                                 additional_context: Some(
-                                    "EFT debit order requires 'bank_name' to be provided and mapped to a supported Sanlam bank (e.g., Absa).".to_string(),
+                                    "EFT debit order requires 'bank_name' to be provided and mapped to a supported AbsaSanlam bank (e.g., Absa).".to_string(),
                                 ),
                                 suggested_action: Some(
                                     "Provide a supported bank name in the EFT bank debit payment method data.".to_string(),
@@ -189,7 +192,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             },
                         })?;
 
-                    let bank_type = bank_type.map(SanlamBankType::from).ok_or(
+                    let bank_type = bank_type.map(AbsaSanlamBankType::from).ok_or(
                         IntegrationError::MissingRequiredField {
                             field_name: "bank_type",
                             context: IntegrationErrorContext {
@@ -204,7 +207,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         },
                     )?;
 
-                    Ok(SanlamPaymentMethod::EftDebitOrder(EftDebitOrder {
+                    Ok(AbsaSanlamPaymentMethod::EftDebitOrder(EftDebitOrder {
                         homing_account: account_number.clone(),
                         homing_branch: branch_code.clone(),
                         homing_account_name: homing_account_name.clone(),
@@ -213,8 +216,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }))
                 }
                 _ => Err(error_stack::report!(IntegrationError::NotSupported {
-                    message: get_unimplemented_payment_method_error_message("Sanlam"),
-                    connector: "Sanlam",
+                    message: get_unimplemented_payment_method_error_message("AbsaSanlam"),
+                    connector: "AbsaSanlam",
                     context: Default::default(),
                 }))?,
             },
@@ -238,8 +241,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(error_stack::report!(IntegrationError::NotSupported {
-                    message: get_unimplemented_payment_method_error_message("Sanlam"),
-                    connector: "Sanlam",
+                    message: get_unimplemented_payment_method_error_message("AbsaSanlam"),
+                    connector: "AbsaSanlam",
                     context: Default::default(),
                 }))
             }
@@ -249,7 +252,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .router_data
             .request
             .metadata
-            .map(SanlamMetaData::try_from)
+            .map(AbsaSanlamMetaData::try_from)
             .transpose()?
             .and_then(|m| m.batch_user_reference);
 
@@ -272,21 +275,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-impl TryFrom<BankNames> for SanlamBankNames {
+impl TryFrom<BankNames> for AbsaSanlamBankNames {
     type Error = error_stack::Report<IntegrationError>;
     fn try_from(bank: BankNames) -> Result<Self, Self::Error> {
         match bank {
             BankNames::Absa => Ok(Self::Absa),
             bank => Err(IntegrationError::NotSupported {
                 message: format!("Invalid BankName for EFT Debit order payment: {bank:?}"),
-                connector: "Sanlam",
+                connector: "AbsaSanlam",
                 context: Default::default(),
             })?,
         }
     }
 }
 
-impl From<BankType> for SanlamBankType {
+impl From<BankType> for AbsaSanlamBankType {
     fn from(value: BankType) -> Self {
         match value {
             BankType::Checking => Self::Cheque,
@@ -300,8 +303,8 @@ impl From<BankType> for SanlamBankType {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct SanlamPaymentsResponse {
-    pub status: SanlamPaymentStatus,
+pub struct AbsaSanlamPaymentsResponse {
+    pub status: AbsaSanlamPaymentEnqueueStatus,
     pub topic: String,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
@@ -309,19 +312,19 @@ pub struct SanlamPaymentsResponse {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum SanlamPaymentStatus {
+pub enum AbsaSanlamPaymentEnqueueStatus {
     Queued,
     Rejected,
     Unknown,
 }
 
 impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<ResponseRouterData<SanlamPaymentsResponse, Self>>
+    TryFrom<ResponseRouterData<AbsaSanlamPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<SanlamPaymentsResponse, Self>,
+        item: ResponseRouterData<AbsaSanlamPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let status = AttemptStatus::from(item.response.status);
         let response = if is_payment_failure(status) {
@@ -368,11 +371,120 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     }
 }
 
-impl From<SanlamPaymentStatus> for AttemptStatus {
-    fn from(status: SanlamPaymentStatus) -> Self {
+impl From<AbsaSanlamPaymentEnqueueStatus> for AttemptStatus {
+    fn from(status: AbsaSanlamPaymentEnqueueStatus) -> Self {
         match status {
-            SanlamPaymentStatus::Queued | SanlamPaymentStatus::Unknown => Self::Pending,
-            SanlamPaymentStatus::Rejected => Self::Failure,
+            AbsaSanlamPaymentEnqueueStatus::Queued | AbsaSanlamPaymentEnqueueStatus::Unknown => {
+                Self::Pending
+            }
+            AbsaSanlamPaymentEnqueueStatus::Rejected => Self::Failure,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum AbsaSanlamWebhookEvent {
+    Payment(AbsaSanlamPaymentWebhookEvent),
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AbsaSanlamPaymentWebhookEvent {
+    pub event_type: AbsaSanlamWebhookEventType,
+    pub payment: AbsaSanlamWebhookPayment,
+    pub error: Option<AbsaSanlamWebhookError>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AbsaSanlamWebhookError {
+    pub code: Option<String>,
+    pub message: Option<String>,
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub enum AbsaSanlamWebhookEventType {
+    #[serde(rename = "payment.succeeded")]
+    PaymentSucceeded,
+    #[serde(rename = "payment.failed")]
+    PaymentFailed,
+    #[serde(rename = "dispute.opened")]
+    DisputeOpened,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AbsaSanlamWebhookPayment {
+    pub user_reference: String,
+    pub status: AbsaSanlamPaymentStatus,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AbsaSanlamPaymentStatus {
+    Success,
+    Failure,
+    Dispute,
+}
+
+impl TryFrom<AbsaSanlamWebhookEvent> for WebhookDetailsResponse {
+    type Error = error_stack::Report<WebhookError>;
+    fn try_from(item: AbsaSanlamWebhookEvent) -> Result<Self, Self::Error> {
+        match item {
+            AbsaSanlamWebhookEvent::Payment(payment_event) => {
+                let status = AttemptStatus::try_from(&payment_event.payment.status)?;
+                if is_payment_failure(status) {
+                    Ok(Self {
+                        status,
+                        resource_id: Some(ResponseId::ConnectorTransactionId(
+                            payment_event.payment.user_reference.clone(),
+                        )),
+                        error_code: payment_event.error.as_ref().and_then(|e| e.code.clone()),
+                        error_message: payment_event.error.as_ref().and_then(|e| e.message.clone()),
+                        error_reason: payment_event.error.as_ref().and_then(|e| e.reason.clone()),
+                        connector_response_reference_id: Some(payment_event.payment.user_reference),
+                        mandate_reference: None,
+                        network_txn_id: None,
+                        raw_connector_response: None,
+                        response_headers: None,
+                        amount_captured: None,
+                        minor_amount_captured: None,
+                        payment_method_update: None,
+                        status_code: 200,
+                        sender_payment_instrument_id: None,
+                    })
+                } else {
+                    Ok(Self {
+                        status,
+                        resource_id: Some(ResponseId::ConnectorTransactionId(
+                            payment_event.payment.user_reference.clone(),
+                        )),
+                        mandate_reference: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: Some(payment_event.payment.user_reference),
+                        raw_connector_response: None,
+                        response_headers: None,
+                        amount_captured: None,
+                        minor_amount_captured: None,
+                        payment_method_update: None,
+                        error_code: None,
+                        error_message: None,
+                        error_reason: None,
+                        status_code: 200,
+                        sender_payment_instrument_id: None,
+                    })
+                }
+            }
+        }
+    }
+}
+
+impl TryFrom<&AbsaSanlamPaymentStatus> for AttemptStatus {
+    type Error = error_stack::Report<WebhookError>;
+    fn try_from(item: &AbsaSanlamPaymentStatus) -> Result<Self, Self::Error> {
+        match item {
+            AbsaSanlamPaymentStatus::Success => Ok(Self::Charged),
+            AbsaSanlamPaymentStatus::Failure => Ok(Self::Failure),
+            AbsaSanlamPaymentStatus::Dispute => Err(WebhookError::WebhookResponseEncodingFailed)?,
         }
     }
 }

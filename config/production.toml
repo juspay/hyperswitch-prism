@@ -1,5 +1,7 @@
 [common]
 environment = "production"
+# Whether to return raw connector request/response in the response (default: true)
+return_raw_connector_data = true
 
 [log.console]
 enabled = true
@@ -21,10 +23,12 @@ bypass_proxy_urls = ["localhost", "local"]
 mitm_proxy_enabled = false
 
 [connectors]
+tamara.base_url = "https://api.tamara.co"
+juspay.base_url = "https://api.juspay.in/"
 peachpayments.base_url = "https://api.bankint.peachpayments.com/v/1"
 finix.base_url = "https://finix.live-payments-api.com"
 fiservcommercehub.base_url = "https://connect.fiservapis.com/ch/"
-sanlam.base_url = "live"
+absa_sanlam.base_url = "live"
 revolv3.base_url = "https://api.revolv3.com"
 ppro.base_url = "https://api.eu.ppro.com"
 mollie.base_url = "https://api.mollie.com/v2"
@@ -44,6 +48,8 @@ bluesnap.secondary_base_url = "https://pay.bluesnap.com"
 multisafepay.base_url = "https://testapi.multisafepay.com/v1/json"
 iatapay.base_url = "https://iata-pay.iata.org/api/v1"
 imerchantsolutions.base_url = "https://imerchantsolutions.com/api"
+interpayments.base_url = "https://api.interpayments.com/v1"
+twoc_twop_paco.base_url = "https://core.paco.2c2p.com"
 jpmorgan.base_url = "https://api-ms.payments.jpmorgan.com/api/v2"
 jpmorgan.secondary_base_url = "https://id.payments.jpmorgan.com"
 nmi.base_url = "https://secure.nmi.com"
@@ -108,7 +114,7 @@ billwerk.secondary_base_url = "https://card.reepay.com/"
 nuvei.base_url = "https://secure.safecharge.com/ppp/api/v1"
 worldpayxml.base_url = "https://secure.worldpay.com/jsp/merchant/xml/paymentService.jsp"
 tsys.base_url = "https://gateway.transit-pass.com/"
-bankofamerica.base_url = "https://apitest.merchant-services.bankofamerica.com/"
+bankofamerica.base_url = "https://api.merchant-services.bankofamerica.com/"
 powertranz.base_url = "https://staging.ptranz.com/api"
 revolut.base_url = "https://merchant.revolut.com/"
 wellsfargo.base_url = "https://api.cybersource.com/"
@@ -117,6 +123,7 @@ truelayer.base_url = "https://api.truelayer.com"
 truelayer.secondary_base_url = "https://auth.truelayer.com"
 trustly.base_url = "https://api.trustly.com/1"
 itaubank.base_url = "https://api.itau.com.br"
+itaubank.secondary_base_url = "https://sts.itau.com.br"
 pinelabs_online.base_url = "https://api.pluralpay.in/api/pay/v1"
 easebuzz.base_url = "https://pay.easebuzz.in"
 easebuzz.secondary_base_url = "https://dashboard.easebuzz.in"

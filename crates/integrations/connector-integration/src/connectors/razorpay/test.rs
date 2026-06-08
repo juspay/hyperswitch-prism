@@ -12,6 +12,7 @@ mod tests {
         connector_types::{PaymentFlowData, PaymentsAuthorizeData},
         payment_address::{Address, PhoneDetails},
         payment_method_data::{Card, DefaultPCIHolder, PaymentMethodData, RawCardNumber},
+        router_data::ConnectorSpecificConfig,
         router_request_types::BrowserInformation,
         router_response_types::Response,
     };
@@ -113,6 +114,9 @@ mod tests {
                     connector_response: None,
                     recurring_mandate_payment_data: None,
                     l2_l3_data: None,
+
+                    merchant_request_id: None,
+                    sender_payment_instrument_id: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -305,6 +309,8 @@ mod tests {
                     minor_amount_capturable: None,
                     amount: None,
                     l2_l3_data: None,
+                    sender_payment_instrument_id: None,
+                    merchant_request_id: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -448,6 +454,8 @@ mod tests {
                     minor_amount_capturable: None,
                     amount: None,
                     l2_l3_data: None,
+                    sender_payment_instrument_id: None,
+                    merchant_request_id: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -613,6 +621,8 @@ mod tests {
                     minor_amount_capturable: None,
                     amount: None,
                     l2_l3_data: None,
+                    merchant_request_id: None,
+                    sender_payment_instrument_id: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -776,7 +786,16 @@ mod tests {
                     PaymentFlowData,
                     PaymentsAuthorizeData<DefaultPCIHolder>,
                     PaymentsResponseData,
-                >>::get_error_response_v2(&**connector, http_response, None)
+                >>::get_error_response_v2(
+                    &**connector,
+                    http_response,
+                    None,
+                    &ConnectorSpecificConfig::Razorpay {
+                        api_key: "dummy_api_key".to_string().into(),
+                        api_secret: Some("dummy_api_secret".to_string().into()),
+                        base_url: None,
+                    },
+                )
                 .unwrap();
 
             let actual_json = to_value(&result).unwrap();
@@ -786,7 +805,7 @@ mod tests {
                 "message": "The id provided does not exist",
                 "reason": "input_validation_failed",
                 "status_code": 400,
-                "attempt_status": "failure",
+                "attempt_status": { "Payment": "failure" },
                 "connector_transaction_id": null,
                 "network_advice_code": null,
                 "network_decline_code": null,
@@ -825,7 +844,16 @@ mod tests {
                     PaymentFlowData,
                     PaymentsAuthorizeData<DefaultPCIHolder>,
                     PaymentsResponseData,
-                >>::get_error_response_v2(&**connector, http_response, None);
+                >>::get_error_response_v2(
+                    &**connector,
+                    http_response,
+                    None,
+                    &ConnectorSpecificConfig::Razorpay {
+                        api_key: "dummy_api_key".to_string().into(),
+                        api_secret: Some("dummy_api_secret".to_string().into()),
+                        base_url: None,
+                    },
+                );
 
             assert!(
                 result.is_err(),
@@ -866,7 +894,16 @@ mod tests {
                 PaymentFlowData,
                 PaymentsAuthorizeData<DefaultPCIHolder>,
                 PaymentsResponseData,
-            >>::get_error_response_v2(&**connector, http_response, None);
+            >>::get_error_response_v2(
+                &**connector,
+                http_response,
+                None,
+                &ConnectorSpecificConfig::Razorpay {
+                    api_key: "dummy_api_key".to_string().into(),
+                    api_secret: Some("dummy_api_secret".to_string().into()),
+                    base_url: None,
+                },
+            );
 
         assert!(
             result.is_err(),
@@ -949,6 +986,8 @@ mod tests {
                 order_details: None,
                 minor_amount_capturable: None,
                 l2_l3_data: None,
+                sender_payment_instrument_id: None,
+                merchant_request_id: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
                 api_key: "dummy_api_key".to_string().into(),
@@ -1148,6 +1187,8 @@ mod tests {
                 recurring_mandate_payment_data: None,
                 order_details: None,
                 l2_l3_data: None,
+                merchant_request_id: None,
+                sender_payment_instrument_id: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
                 api_key: "dummy_api_key".to_string().into(),
@@ -1349,6 +1390,8 @@ mod tests {
                     recurring_mandate_payment_data: None,
                     order_details: None,
                     l2_l3_data: None,
+                    sender_payment_instrument_id: None,
+                    merchant_request_id: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -1468,6 +1511,8 @@ mod tests {
                     recurring_mandate_payment_data: None,
                     order_details: None,
                     l2_l3_data: None,
+                    merchant_request_id: None,
+                    sender_payment_instrument_id: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -1590,6 +1635,8 @@ mod tests {
                     recurring_mandate_payment_data: None,
                     order_details: None,
                     l2_l3_data: None,
+                    sender_payment_instrument_id: None,
+                    merchant_request_id: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "invalid_key".to_string().into(),
@@ -1754,6 +1801,8 @@ mod tests {
                 order_details: None,
                 minor_amount_capturable: None,
                 l2_l3_data: None,
+                merchant_request_id: None,
+                sender_payment_instrument_id: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
                 api_key: "dummy_api_key".to_string().into(),
@@ -1885,6 +1934,8 @@ mod tests {
                 recurring_mandate_payment_data: None,
                 order_details: None,
                 l2_l3_data: None,
+                sender_payment_instrument_id: None,
+                merchant_request_id: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
                 api_key: "dummy_api_key".to_string().into(),
@@ -2005,6 +2056,8 @@ mod tests {
                 recurring_mandate_payment_data: None,
                 order_details: None,
                 l2_l3_data: None,
+                sender_payment_instrument_id: None,
+                merchant_request_id: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
                 api_key: "dummy_api_key".to_string().into(),
@@ -2080,7 +2133,16 @@ mod tests {
                 PaymentFlowData,
                 domain_types::connector_types::PaymentCreateOrderData,
                 domain_types::connector_types::PaymentCreateOrderResponse,
-            >>::get_error_response_v2(&**connector, http_response, None)
+            >>::get_error_response_v2(
+                &**connector,
+                http_response,
+                None,
+                &ConnectorSpecificConfig::Razorpay {
+                    api_key: "dummy_api_key".to_string().into(),
+                    api_secret: Some("dummy_api_secret".to_string().into()),
+                    base_url: None,
+                },
+            )
             .unwrap();
 
         let actual_json = to_value(&result).unwrap();
@@ -2089,7 +2151,7 @@ mod tests {
             "message": "Order receipt should be unique.",
             "reason": "input_validation_failed",
             "status_code": 400,
-            "attempt_status": "failure",
+            "attempt_status": {"Payment": "failure"},
             "connector_transaction_id": null,
             "network_advice_code": null,
             "network_decline_code": null,
@@ -2114,7 +2176,16 @@ mod tests {
                 PaymentFlowData,
                 domain_types::connector_types::PaymentCreateOrderData,
                 domain_types::connector_types::PaymentCreateOrderResponse,
-            >>::get_error_response_v2(&**connector, http_response, None);
+            >>::get_error_response_v2(
+                &**connector,
+                http_response,
+                None,
+                &ConnectorSpecificConfig::Razorpay {
+                    api_key: "dummy_api_key".to_string().into(),
+                    api_secret: Some("dummy_api_secret".to_string().into()),
+                    base_url: None,
+                },
+            );
 
         assert!(result.is_err(), "Expected error for invalid JSON");
     }
@@ -2139,7 +2210,16 @@ mod tests {
                 PaymentFlowData,
                 domain_types::connector_types::PaymentCreateOrderData,
                 domain_types::connector_types::PaymentCreateOrderResponse,
-            >>::get_error_response_v2(&**connector, http_response, None)
+            >>::get_error_response_v2(
+                &**connector,
+                http_response,
+                None,
+                &ConnectorSpecificConfig::Razorpay {
+                    api_key: "dummy_api_key".to_string().into(),
+                    api_secret: Some("dummy_api_secret".to_string().into()),
+                    base_url: None,
+                },
+            )
             .unwrap();
 
         let actual_json = to_value(&result).unwrap();
@@ -2148,7 +2228,7 @@ mod tests {
             "message": "Some generic message",
             "reason": "Some generic message",
             "status_code": 400,
-            "attempt_status": "failure",
+            "attempt_status": {"Payment": "failure"},
             "connector_transaction_id": null,
             "network_advice_code": null,
             "network_decline_code": null,

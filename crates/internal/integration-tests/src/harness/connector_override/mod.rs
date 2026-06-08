@@ -10,6 +10,7 @@ mod default;
 mod helcim;
 mod json_merge;
 mod loader;
+mod redsys;
 
 /// Connector-specific behavior extension points.
 ///
@@ -77,6 +78,10 @@ impl OverrideRegistry {
 
         if connector.eq_ignore_ascii_case("helcim") {
             return Box::new(helcim::HelcimConnectorOverride::new());
+        }
+
+        if connector.eq_ignore_ascii_case("redsys") {
+            return Box::new(redsys::RedsysConnectorOverride::new());
         }
 
         Box::new(default::DefaultConnectorOverride::new(

@@ -3,258 +3,334 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "authenticate flow not supported by itaubank connector"
       }
     },
     "authorize": {
       "Ach": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "AchBankTransfer": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Affirm": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Afterpay": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Alfamart": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "AliPayRedirect": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "AmazonPayRedirect": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "ApplePay": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Bacs": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "BacsBankTransfer": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "BancontactCard": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "BcaBankTransfer": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Becs": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "BillDeskRedirect": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Bizum": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Blik": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Bluecode": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "BniVaBankTransfer": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Boleto": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "BriVaBankTransfer": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Card": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "CashappQr": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "CashfreeRedirect": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "CimbVaBankTransfer": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "ClassicReward": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Crypto": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Dana": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "DuitNow": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "EaseBuzzRedirect": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Efecty": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Eft": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Eps": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "FamilyMart": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "GCash": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Giropay": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Givex": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GoPay": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "GooglePay": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Ideal": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Indomaret": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "IndonesianBankTransfer": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "InstantBankTransfer": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "InstantBankTransferFinland": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "InstantBankTransferPoland": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Interac": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "KakaoPay": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Klarna": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Lawson": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "LazyPayRedirect": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "LocalBankRedirect": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "LocalBankTransfer": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "MbWay": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Mifinity": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "MiniStop": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "MobilePayRedirect": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Momo": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "MultibancoBankTransfer": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Netbanking": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "OnlineBankingFinland": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "OnlineBankingFpx": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "OnlineBankingPoland": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "OnlineBankingThailand": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "OpenBanking": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "OpenBankingPis": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Oxxo": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "PagoEfectivo": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "PayEasy": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "PaySafeCard": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PayURedirect": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "PaypalRedirect": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "PaypalSdk": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Paysera": {
         "status": "not_supported",
@@ -265,106 +341,136 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "PhonePeRedirect": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Pix": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Przelewy24": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Pse": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "RedCompra": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "RedPagos": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "RevolutPay": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "SamsungPay": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Satispay": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Seicomart": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Sepa": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "SepaBankTransfer": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "SevenEleven": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Skrill": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Sofort": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Swish": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "TouchNGo": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Trustly": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Twint": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "UpiCollect": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "UpiIntent": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "UpiQr": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Vipps": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "WeChatPayQr": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Wero": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       }
     },
     "capture": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "capture flow not supported by itaubank connector"
       }
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by itaubank connector"
       }
     },
     "create_customer": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by itaubank connector"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_order flow not supported by itaubank connector"
       }
     },
     "create_server_authentication_token": {
@@ -386,17 +492,20 @@
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by itaubank connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by itaubank connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by itaubank connector"
       }
     },
     "dispute_get": {
@@ -406,7 +515,8 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by itaubank connector"
       }
     },
     "eligibility": {
@@ -416,7 +526,8 @@
     },
     "get": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_sync flow for itaubank"
       }
     },
     "handle_event": {
@@ -426,7 +537,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by itaubank connector"
       }
     },
     "parse_event": {
@@ -436,67 +548,80 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by itaubank connector"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by itaubank connector"
       }
     },
     "proxy_authorize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for itaubank"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for itaubank"
       }
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "mandate_revoke flow not supported by itaubank connector"
       }
     },
     "refund": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund flow for itaubank"
       }
     },
     "refund_get": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund_sync flow for itaubank"
       }
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by itaubank connector"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for itaubank"
       }
     },
     "token_authorize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       }
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for itaubank"
       }
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by itaubank connector"
       }
     },
     "verify_redirect": {
@@ -506,7 +631,8 @@
     },
     "void": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void flow not supported by itaubank connector"
       }
     }
   }

@@ -5,7 +5,9 @@ use std::{
 
 use base64::Engine;
 use common_enums::{CurrencyUnit, PaymentMethodType};
-use common_utils::{consts, metadata::MaskedMetadata, AmountConvertor, CustomResult, MinorUnit};
+use common_utils::{
+    consts, fp_utils::when, metadata::MaskedMetadata, AmountConvertor, CustomResult, MinorUnit,
+};
 use error_stack::{report, Result, ResultExt};
 use regex::Regex;
 use serde::Serialize;
@@ -382,6 +384,14 @@ pub(crate) fn extract_connector_request_reference_id(identifier: &Option<String>
 pub fn get_card_issuer(
     card_number: &str,
 ) -> core::result::Result<CardIssuer, error_stack::Report<IntegrationError>> {
+    // Vault template tokens (e.g. {{$card_number}}) are not real card numbers —
+    // card issuer detection is not supported for proxy/vault flows.
+    when(card_number.contains("{{"), || {
+        Err(error_stack::Report::new(IntegrationError::NotImplemented(
+            "Card issuer detection is not supported for vault token placeholders".into(),
+            Default::default(),
+        )))
+    })?;
     for (k, v) in CARD_REGEX.iter() {
         let regex: Regex = v
             .clone()

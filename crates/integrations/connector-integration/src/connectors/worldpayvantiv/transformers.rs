@@ -14,7 +14,7 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     ResponseTransformationErrorContext,
 };
@@ -1360,7 +1360,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         message: sale_response.message.clone(),
                         reason: Some(sale_response.message.clone()),
                         status_code: item.http_code,
-                        attempt_status: Some(status),
+                        attempt_status: Some(FlowStatus::Payment(status)),
                         connector_transaction_id: Some(sale_response.cnp_txn_id.clone()),
                         network_decline_code: None,
                         network_advice_code: None,
@@ -1412,7 +1412,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         message: auth_response.message.clone(),
                         reason: Some(auth_response.message.clone()),
                         status_code: item.http_code,
-                        attempt_status: Some(status),
+                        attempt_status: Some(FlowStatus::Payment(status)),
                         connector_transaction_id: Some(auth_response.cnp_txn_id.clone()),
                         network_decline_code: None,
                         network_advice_code: None,
@@ -1460,7 +1460,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     message: item.response.message.clone(),
                     reason: Some(item.response.message.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -2097,7 +2097,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                 message: item.response.message.clone(),
                 reason: Some(item.response.message.clone()),
                 status_code: item.http_code,
-                attempt_status: Some(common_enums::AttemptStatus::Failure),
+                attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
                 connector_transaction_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
@@ -2229,7 +2229,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                     message: capture_response.message.clone(),
                     reason: Some(capture_response.message.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(status),
+                    attempt_status: Some(FlowStatus::Payment(status)),
                     connector_transaction_id: Some(capture_response.cnp_txn_id.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -2273,7 +2273,9 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                 message: item.response.message.clone(),
                 reason: Some(item.response.message.clone()),
                 status_code: item.http_code,
-                attempt_status: Some(common_enums::AttemptStatus::CaptureFailed),
+                attempt_status: Some(FlowStatus::Payment(
+                    common_enums::AttemptStatus::CaptureFailed,
+                )),
                 connector_transaction_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
@@ -2365,7 +2367,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                     message: auth_reversal_response.message.clone(),
                     reason: Some(auth_reversal_response.message.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(status),
+                    attempt_status: Some(FlowStatus::Payment(status)),
                     connector_transaction_id: Some(auth_reversal_response.cnp_txn_id.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -2414,7 +2416,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                     message: void_response.message.clone(),
                     reason: Some(void_response.message.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(status),
+                    attempt_status: Some(FlowStatus::Payment(status)),
                     connector_transaction_id: Some(void_response.cnp_txn_id.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -2458,7 +2460,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                 message: item.response.message.clone(),
                 reason: Some(item.response.message.clone()),
                 status_code: item.http_code,
-                attempt_status: Some(common_enums::AttemptStatus::VoidFailed),
+                attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::VoidFailed)),
                 connector_transaction_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
@@ -2493,7 +2495,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                     message: void_response.message.clone(),
                     reason: Some(void_response.message.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(status),
+                    attempt_status: Some(FlowStatus::Payment(status)),
                     connector_transaction_id: Some(void_response.cnp_txn_id.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -2509,16 +2511,14 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                     ..item.router_data
                 })
             } else {
-                let payments_response = PaymentsResponseData::TransactionResponse {
-                    resource_id: ResponseId::ConnectorTransactionId(
-                        void_response.cnp_txn_id.clone(),
-                    ),
-                    redirection_data: None,
-                    mandate_reference: None,
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: Some(void_response.id.clone()),
-                    incremental_authorization_allowed: None,
+                let post_capture_void_status = get_post_capture_void_status(void_response.response);
+                let description = post_capture_void_status
+                    .is_post_capture_void_failure()
+                    .then(|| void_response.message.clone());
+                let payments_response = PaymentsResponseData::PostCaptureVoidResponse {
+                    post_capture_void_status,
+                    connector_reference_id: Some(void_response.cnp_txn_id.clone()),
+                    description,
                     status_code: item.http_code,
                 };
 
@@ -2537,7 +2537,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                 message: item.response.message.clone(),
                 reason: Some(item.response.message.clone()),
                 status_code: item.http_code,
-                attempt_status: Some(common_enums::AttemptStatus::VoidFailed),
+                attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::VoidFailed)),
                 connector_transaction_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
@@ -2679,7 +2679,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                     message: auth_response.message.clone(),
                     reason: Some(auth_response.message.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(attempt_status),
+                    attempt_status: Some(FlowStatus::Payment(attempt_status)),
                     connector_transaction_id: Some(auth_response.cnp_txn_id.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -2716,7 +2716,9 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                 message: item.response.message.clone(),
                 reason: Some(item.response.message.clone()),
                 status_code: item.http_code,
-                attempt_status: Some(common_enums::AttemptStatus::AuthorizationFailed),
+                attempt_status: Some(FlowStatus::Payment(
+                    common_enums::AttemptStatus::AuthorizationFailed,
+                )),
                 connector_transaction_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
@@ -2878,4 +2880,125 @@ fn is_payment_failure(status: common_enums::AttemptStatus) -> bool {
             | common_enums::AttemptStatus::CaptureFailed
             | common_enums::AttemptStatus::VoidFailed
     )
+}
+
+fn get_post_capture_void_status(
+    response: WorldpayvantivResponseCode,
+) -> common_enums::PostCaptureVoidStatus {
+    match response {
+        WorldpayvantivResponseCode::Approved
+        | WorldpayvantivResponseCode::PartiallyApproved
+        | WorldpayvantivResponseCode::OfflineApproval
+        | WorldpayvantivResponseCode::TransactionReceived => {
+            common_enums::PostCaptureVoidStatus::Succeeded
+        }
+        WorldpayvantivResponseCode::InsufficientFunds
+        | WorldpayvantivResponseCode::CallIssuer
+        | WorldpayvantivResponseCode::ExceedsApprovalAmountLimit
+        | WorldpayvantivResponseCode::ExceedsActivityAmountLimit
+        | WorldpayvantivResponseCode::InvalidEffectiveDate
+        | WorldpayvantivResponseCode::InvalidAccountNumber
+        | WorldpayvantivResponseCode::AccountNumberDoesNotMatchPaymentType
+        | WorldpayvantivResponseCode::InvalidExpirationDate
+        | WorldpayvantivResponseCode::InvalidCVV
+        | WorldpayvantivResponseCode::InvalidCardValidationNum
+        | WorldpayvantivResponseCode::ExpiredCard
+        | WorldpayvantivResponseCode::InvalidPin
+        | WorldpayvantivResponseCode::InvalidTransactionType
+        | WorldpayvantivResponseCode::AccountNumberNotOnFile
+        | WorldpayvantivResponseCode::AccountNumberLocked
+        | WorldpayvantivResponseCode::InvalidLocation
+        | WorldpayvantivResponseCode::InvalidMerchantId
+        | WorldpayvantivResponseCode::InvalidLocation2
+        | WorldpayvantivResponseCode::InvalidMerchantClassCode
+        | WorldpayvantivResponseCode::InvalidExpirationDate2
+        | WorldpayvantivResponseCode::InvalidData
+        | WorldpayvantivResponseCode::InvalidPin2
+        | WorldpayvantivResponseCode::ExceedsNumberofPINEntryTries
+        | WorldpayvantivResponseCode::InvalidCryptoBox
+        | WorldpayvantivResponseCode::InvalidRequestFormat
+        | WorldpayvantivResponseCode::InvalidApplicationData
+        | WorldpayvantivResponseCode::InvalidMerchantCategoryCode
+        | WorldpayvantivResponseCode::TransactionCannotBeCompleted
+        | WorldpayvantivResponseCode::TransactionTypeNotSupportedForCard
+        | WorldpayvantivResponseCode::TransactionTypeNotAllowedAtTerminal
+        | WorldpayvantivResponseCode::GenericDecline
+        | WorldpayvantivResponseCode::DeclineByCard
+        | WorldpayvantivResponseCode::DoNotHonor
+        | WorldpayvantivResponseCode::InvalidMerchant
+        | WorldpayvantivResponseCode::PickUpCard
+        | WorldpayvantivResponseCode::CardOk
+        | WorldpayvantivResponseCode::CallVoiceOperator
+        | WorldpayvantivResponseCode::StopRecurring
+        | WorldpayvantivResponseCode::NoChecking
+        | WorldpayvantivResponseCode::NoCreditAccount
+        | WorldpayvantivResponseCode::NoCreditAccountType
+        | WorldpayvantivResponseCode::InvalidCreditPlan
+        | WorldpayvantivResponseCode::InvalidTransactionCode
+        | WorldpayvantivResponseCode::TransactionNotPermittedToCardholderAccount
+        | WorldpayvantivResponseCode::TransactionNotPermittedToMerchant
+        | WorldpayvantivResponseCode::PINTryExceeded
+        | WorldpayvantivResponseCode::SecurityViolation
+        | WorldpayvantivResponseCode::HardCapturePickUpCard
+        | WorldpayvantivResponseCode::ResponseReceivedTooLate
+        | WorldpayvantivResponseCode::SoftDecline
+        | WorldpayvantivResponseCode::ContactCardIssuer
+        | WorldpayvantivResponseCode::CallVoiceCenter
+        | WorldpayvantivResponseCode::InvalidMerchantTerminal
+        | WorldpayvantivResponseCode::InvalidAmount
+        | WorldpayvantivResponseCode::ResubmitTransaction
+        | WorldpayvantivResponseCode::InvalidTransaction
+        | WorldpayvantivResponseCode::MerchantNotFound
+        | WorldpayvantivResponseCode::PickUpCard2
+        | WorldpayvantivResponseCode::ExpiredCard2
+        | WorldpayvantivResponseCode::SuspectedFraud
+        | WorldpayvantivResponseCode::ContactCardIssuer2
+        | WorldpayvantivResponseCode::DoNotHonor2
+        | WorldpayvantivResponseCode::InvalidMerchant2
+        | WorldpayvantivResponseCode::InsufficientFunds2
+        | WorldpayvantivResponseCode::AccountNumberNotOnFile2
+        | WorldpayvantivResponseCode::InvalidAmount2
+        | WorldpayvantivResponseCode::InvalidCardNumber
+        | WorldpayvantivResponseCode::InvalidExpirationDate3
+        | WorldpayvantivResponseCode::InvalidCVV2
+        | WorldpayvantivResponseCode::InvalidCardValidationNum2
+        | WorldpayvantivResponseCode::InvalidPin3
+        | WorldpayvantivResponseCode::CardRestricted
+        | WorldpayvantivResponseCode::OverCreditLimit
+        | WorldpayvantivResponseCode::AccountClosed
+        | WorldpayvantivResponseCode::AccountFrozen
+        | WorldpayvantivResponseCode::InvalidTransactionType2
+        | WorldpayvantivResponseCode::InvalidMerchantId2
+        | WorldpayvantivResponseCode::ProcessorNotAvailable
+        | WorldpayvantivResponseCode::NetworkTimeOut
+        | WorldpayvantivResponseCode::SystemError
+        | WorldpayvantivResponseCode::DuplicateTransaction
+        | WorldpayvantivResponseCode::VoiceAuthRequired
+        | WorldpayvantivResponseCode::AuthenticationRequired
+        | WorldpayvantivResponseCode::SecurityCodeRequired
+        | WorldpayvantivResponseCode::SecurityCodeNotMatch
+        | WorldpayvantivResponseCode::ZipCodeNotMatch
+        | WorldpayvantivResponseCode::AddressNotMatch
+        | WorldpayvantivResponseCode::AVSFailure
+        | WorldpayvantivResponseCode::CVVFailure
+        | WorldpayvantivResponseCode::ServiceNotAllowed
+        | WorldpayvantivResponseCode::CreditNotSupported
+        | WorldpayvantivResponseCode::InvalidCreditAmount
+        | WorldpayvantivResponseCode::CreditAmountExceedsDebitAmount
+        | WorldpayvantivResponseCode::RefundNotSupported
+        | WorldpayvantivResponseCode::InvalidRefundAmount
+        | WorldpayvantivResponseCode::RefundAmountExceedsOriginalAmount
+        | WorldpayvantivResponseCode::VoidNotSupported
+        | WorldpayvantivResponseCode::VoidNotAllowed
+        | WorldpayvantivResponseCode::CaptureNotSupported
+        | WorldpayvantivResponseCode::CaptureNotAllowed
+        | WorldpayvantivResponseCode::InvalidCaptureAmount
+        | WorldpayvantivResponseCode::CaptureAmountExceedsAuthAmount
+        | WorldpayvantivResponseCode::TransactionAlreadySettled
+        | WorldpayvantivResponseCode::TransactionAlreadyVoided
+        | WorldpayvantivResponseCode::TransactionAlreadyCaptured
+        | WorldpayvantivResponseCode::TransactionNotFound => {
+            common_enums::PostCaptureVoidStatus::Failed
+        }
+    }
 }

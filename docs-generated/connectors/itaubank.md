@@ -26,7 +26,10 @@ config = sdk_config_pb2.ConnectorConfig(
         itaubank=payment_pb2.ItaubankConfig(
             client_secret=payment_methods_pb2.SecretString(value="YOUR_CLIENT_SECRET"),
             client_id=payment_methods_pb2.SecretString(value="YOUR_CLIENT_ID"),
+            certificates=payment_methods_pb2.SecretString(value="YOUR_CERTIFICATES"),
+            private_key=payment_methods_pb2.SecretString(value="YOUR_PRIVATE_KEY"),
             base_url="YOUR_BASE_URL",
+            secondary_base_url="YOUR_SECONDARY_BASE_URL",
         ),
     ),
 )
@@ -51,7 +54,10 @@ const config = ConnectorConfig.create({
         itaubank: {
             clientSecret: { value: 'YOUR_CLIENT_SECRET' },
             clientId: { value: 'YOUR_CLIENT_ID' },
+            certificates: { value: 'YOUR_CERTIFICATES' },
+            privateKey: { value: 'YOUR_PRIVATE_KEY' },
             baseUrl: 'YOUR_BASE_URL',
+            secondaryBaseUrl: 'YOUR_SECONDARY_BASE_URL',
         }
     },
 });
@@ -72,7 +78,10 @@ val config = ConnectorConfig.newBuilder()
             .setItaubank(ItaubankConfig.newBuilder()
                 .setClientSecret(SecretString.newBuilder().setValue("YOUR_CLIENT_SECRET").build())
                 .setClientId(SecretString.newBuilder().setValue("YOUR_CLIENT_ID").build())
+                .setCertificates(SecretString.newBuilder().setValue("YOUR_CERTIFICATES").build())
+                .setPrivateKey(SecretString.newBuilder().setValue("YOUR_PRIVATE_KEY").build())
                 .setBaseUrl("YOUR_BASE_URL")
+                .setSecondaryBaseUrl("YOUR_SECONDARY_BASE_URL")
                 .build())
             .build()
     )
@@ -95,7 +104,10 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Itaubank(ItaubankConfig {
                 client_secret: Some(hyperswitch_masking::Secret::new("YOUR_CLIENT_SECRET".to_string())),  // Authentication credential
                 client_id: Some(hyperswitch_masking::Secret::new("YOUR_CLIENT_ID".to_string())),  // Authentication credential
+                certificates: Some(hyperswitch_masking::Secret::new("YOUR_CERTIFICATES".to_string())),  // Authentication credential
+                private_key: Some(hyperswitch_masking::Secret::new("YOUR_PRIVATE_KEY".to_string())),  // Authentication credential
                 base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                secondary_base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
                 ..Default::default()
             })),
         }),
@@ -128,4 +140,4 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/itaubank/itaubank.py) · [TypeScript](../../examples/itaubank/itaubank.ts#L34) · [Kotlin](../../examples/itaubank/itaubank.kt#L37) · [Rust](../../examples/itaubank/itaubank.rs)
+**Examples:** [Python](../../examples/itaubank/itaubank.py) · [TypeScript](../../examples/itaubank/itaubank.ts#L37) · [Kotlin](../../examples/itaubank/itaubank.kt#L40) · [Rust](../../examples/itaubank/itaubank.rs)

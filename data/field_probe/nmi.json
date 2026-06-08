@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for nmi"
       }
     },
     "authorize": {
@@ -238,7 +239,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "google_pay": {
+            "google_pay_sdk": {
               "type": "CARD",
               "description": "Visa 1111",
               "info": {
@@ -279,7 +280,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "google_pay": {
+            "google_pay_sdk": {
               "type": "CARD",
               "description": "Visa 1111",
               "info": {
@@ -607,37 +608,44 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by nmi connector"
       }
     },
     "create_customer": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for nmi"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_order flow not supported by nmi connector"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by nmi connector"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by nmi connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by nmi connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by nmi connector"
       }
     },
     "dispute_get": {
@@ -647,7 +655,8 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by nmi connector"
       }
     },
     "eligibility": {
@@ -684,7 +693,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by nmi connector"
       }
     },
     "parse_event": {
@@ -694,7 +704,8 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for nmi"
       }
     },
     "pre_authenticate": {
@@ -747,7 +758,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "address": {
             "billing_address": {}
@@ -763,7 +775,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "security_key=probe_key&type=sale&amount=10.0&currency=USD&orderid=probe_proxy_txn_001&ccnumber=4111111111111111&ccexp=0330&cvv=123"
+          "body": "security_key=probe_key&type=sale&amount=10.0&currency=USD&orderid=probe_proxy_txn_001&ccnumber=%7B%7B%24card_number%7D%7D&ccexp=%7B%7B%24card_exp_month%7D%7D%7B%7B%24card_exp_year%7D%7D&cvv=%7B%7B%24card_cvc%7D%7D"
         }
       }
     },
@@ -781,7 +793,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "address": {
             "billing_address": {}
@@ -800,7 +813,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "type=validate&security_key=probe_key&orderid=probe_proxy_mandate_001&customer_vault=add_customer&ccnumber=4111111111111111&ccexp=0330&cvv=123"
+          "body": "type=validate&security_key=probe_key&orderid=probe_proxy_mandate_001&customer_vault=add_customer&ccnumber=%7B%7B%24card_number%7D%7D&ccexp=%7B%7B%24card_exp_month%7D%7D%7B%7B%24card_exp_year%7D%7D&cvv=%7B%7B%24card_cvc%7D%7D"
         }
       }
     },
@@ -842,7 +855,8 @@
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for nmi"
       }
     },
     "refund": {
@@ -890,7 +904,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by nmi connector"
       }
     },
     "setup_recurring": {
@@ -949,7 +964,8 @@
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for nmi"
       }
     },
     "verify_redirect": {

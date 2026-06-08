@@ -25,6 +25,7 @@ config = sdk_config_pb2.ConnectorConfig(
     connector_config=payment_pb2.ConnectorSpecificConfig(
         imerchantsolutions=payment_pb2.ImerchantsolutionsConfig(
             api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
+            merchant_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ID"),
             base_url="YOUR_BASE_URL",
         ),
     ),
@@ -49,6 +50,7 @@ const config = ConnectorConfig.create({
     auth: {
         imerchantsolutions: {
             apiKey: { value: 'YOUR_API_KEY' },
+            merchantId: { value: 'YOUR_MERCHANT_ID' },
             baseUrl: 'YOUR_BASE_URL',
         }
     },
@@ -69,6 +71,7 @@ val config = ConnectorConfig.newBuilder()
         ConnectorSpecificConfig.newBuilder()
             .setImerchantsolutions(ImerchantsolutionsConfig.newBuilder()
                 .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
+                .setMerchantId(SecretString.newBuilder().setValue("YOUR_MERCHANT_ID").build())
                 .setBaseUrl("YOUR_BASE_URL")
                 .build())
             .build()
@@ -91,6 +94,7 @@ let config = ConnectorConfig {
     connector_config: Some(ConnectorSpecificConfig {
             config: Some(connector_specific_config::Config::Imerchantsolutions(ImerchantsolutionsConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
+                merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ID".to_string())),  // Authentication credential
                 base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
                 ..Default::default()
             })),
@@ -123,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py#L119) · [JavaScript](../../examples/imerchantsolutions/imerchantsolutions.js) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L110) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs#L155)
+**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py#L132) · [JavaScript](../../examples/imerchantsolutions/imerchantsolutions.js) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L114) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs#L183)
 
 ### Card Payment (Authorize + Capture)
 
@@ -137,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py#L138) · [JavaScript](../../examples/imerchantsolutions/imerchantsolutions.js) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L126) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs#L171)
+**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py#L151) · [JavaScript](../../examples/imerchantsolutions/imerchantsolutions.js) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L130) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs#L199)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py#L163) · [JavaScript](../../examples/imerchantsolutions/imerchantsolutions.js) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L148) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs#L194)
+**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py#L176) · [JavaScript](../../examples/imerchantsolutions/imerchantsolutions.js) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L152) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs#L222)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py#L188) · [JavaScript](../../examples/imerchantsolutions/imerchantsolutions.js) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L170) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs#L217)
+**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py#L201) · [JavaScript](../../examples/imerchantsolutions/imerchantsolutions.js) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L174) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs#L245)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py#L210) · [JavaScript](../../examples/imerchantsolutions/imerchantsolutions.js) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L189) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs#L236)
+**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py#L223) · [JavaScript](../../examples/imerchantsolutions/imerchantsolutions.js) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L193) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs#L264)
 
 ## API Reference
 
@@ -164,6 +168,8 @@ Retrieve current payment status from the connector.
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
@@ -301,7 +307,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py) · [TypeScript](../../examples/imerchantsolutions/imerchantsolutions.ts#L243) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L207) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs)
+**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py) · [TypeScript](../../examples/imerchantsolutions/imerchantsolutions.ts#L270) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L211) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs)
 
 #### PaymentService.Capture
 
@@ -312,7 +318,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py) · [TypeScript](../../examples/imerchantsolutions/imerchantsolutions.ts#L252) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L219) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs)
+**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py) · [TypeScript](../../examples/imerchantsolutions/imerchantsolutions.ts#L279) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L223) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs)
 
 #### PaymentService.Get
 
@@ -323,7 +329,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py) · [TypeScript](../../examples/imerchantsolutions/imerchantsolutions.ts#L261) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L229) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs)
+**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py) · [TypeScript](../../examples/imerchantsolutions/imerchantsolutions.ts#L288) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L233) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -334,7 +340,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py) · [TypeScript](../../examples/imerchantsolutions/imerchantsolutions.ts#L270) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L237) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs)
+**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py) · [TypeScript](../../examples/imerchantsolutions/imerchantsolutions.ts#L315) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L272) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs)
 
 #### PaymentService.Refund
 
@@ -345,7 +351,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py) · [TypeScript](../../examples/imerchantsolutions/imerchantsolutions.ts#L279) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L265) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs)
+**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py) · [TypeScript](../../examples/imerchantsolutions/imerchantsolutions.ts#L324) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L301) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs)
 
 #### PaymentService.Void
 
@@ -356,7 +362,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py) · [TypeScript](../../examples/imerchantsolutions/imerchantsolutions.ts) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L287) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs)
+**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py) · [TypeScript](../../examples/imerchantsolutions/imerchantsolutions.ts) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L323) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs)
 
 ### Refunds
 
@@ -369,4 +375,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py) · [TypeScript](../../examples/imerchantsolutions/imerchantsolutions.ts#L288) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L275) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs)
+**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py) · [TypeScript](../../examples/imerchantsolutions/imerchantsolutions.ts#L333) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L311) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs)

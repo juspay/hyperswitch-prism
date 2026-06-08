@@ -173,6 +173,9 @@ pub struct JpmorganClientAuthResponse {
 pub type JpmorganPSyncResponse = JpmorganPaymentsResponse;
 pub type JpmorganCaptureResponse = JpmorganPaymentsResponse;
 pub type JpmorganVoidResponse = JpmorganPaymentsResponse;
+/// VoidPC (post-capture void/reversal) response — JPMorgan returns the same payment
+/// response shape for both pre-capture void and post-capture void operations.
+pub type JpmorganVoidPcResponse = JpmorganPaymentsResponse;
 pub type JpmorganRSyncResponse = JpmorganRefundResponse;
 pub type JpmorganSetupMandateResponse = JpmorganPaymentsResponse;
 pub type JpmorganRepeatPaymentResponse = JpmorganPaymentsResponse;

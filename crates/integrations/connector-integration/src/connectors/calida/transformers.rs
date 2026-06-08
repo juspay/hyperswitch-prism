@@ -12,7 +12,7 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -352,7 +352,7 @@ impl<F> TryFrom<ResponseRouterData<CalidaSyncResponse, Self>>
                 code: NO_ERROR_CODE.to_string(),
                 message: NO_ERROR_MESSAGE.to_string(),
                 reason: Some(NO_ERROR_MESSAGE.to_string()),
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: Some(response.order_id.clone()),
                 status_code: http_code,
                 network_advice_code: None,

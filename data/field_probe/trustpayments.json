@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "authenticate flow not supported by trustpayments connector"
       }
     },
     "authorize": {
@@ -48,7 +49,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "apple_pay": {
+            "apple_pay_sdk": {
               "payment_data": {
                 "decrypted_data": {
                   "application_primary_account_number": "4111111111111111",
@@ -258,7 +259,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "google_pay": {
+            "google_pay_sdk": {
               "type": "CARD",
               "description": "Visa 1111",
               "info": {
@@ -588,37 +589,44 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by trustpayments connector"
       }
     },
     "create_customer": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by trustpayments connector"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for trustpayments"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by trustpayments connector"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by trustpayments connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by trustpayments connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by trustpayments connector"
       }
     },
     "dispute_get": {
@@ -628,7 +636,8 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by trustpayments connector"
       }
     },
     "eligibility": {
@@ -695,12 +704,14 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by trustpayments connector"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by trustpayments connector"
       }
     },
     "proxy_authorize": {
@@ -717,7 +728,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "address": {
             "billing_address": {}
@@ -734,7 +746,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"alias\":\"probe_user\",\"version\":\"1.00\",\"request\":[{\"accounttypedescription\":\"ECOM\",\"baseamount\":\"1000\",\"credentialsonfile\":\"1\",\"currencyiso3a\":\"USD\",\"orderreference\":\"probe_proxy_txn_001\",\"requesttypedescriptions\":[\"AUTH\"],\"sitereference\":\"probe_site_ref\",\"settlestatus\":\"0\",\"pan\":\"4111111111111111\",\"expirydate\":\"03/30\",\"securitycode\":\"123\"}]}"
+          "body": "{\"alias\":\"probe_user\",\"version\":\"1.00\",\"request\":[{\"accounttypedescription\":\"ECOM\",\"baseamount\":\"1000\",\"credentialsonfile\":\"1\",\"currencyiso3a\":\"USD\",\"orderreference\":\"probe_proxy_txn_001\",\"requesttypedescriptions\":[\"AUTH\"],\"sitereference\":\"probe_site_ref\",\"settlestatus\":\"0\",\"pan\":\"{{$card_number}}\",\"expirydate\":\"{{$card_exp_month}}/{{$card_exp_year}}\",\"securitycode\":\"{{$card_cvc}}\"}]}"
         }
       }
     },
@@ -752,7 +764,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "address": {
             "billing_address": {}
@@ -772,7 +785,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"alias\":\"probe_user\",\"version\":\"1.00\",\"request\":[{\"accounttypedescription\":\"ECOM\",\"baseamount\":\"0\",\"credentialsonfile\":\"1\",\"currencyiso3a\":\"USD\",\"orderreference\":\"probe_proxy_mandate_001\",\"requesttypedescriptions\":[\"AUTH\"],\"sitereference\":\"probe_site_ref\",\"settlestatus\":\"0\",\"pan\":\"4111111111111111\",\"expirydate\":\"03/30\",\"securitycode\":\"123\"}]}"
+          "body": "{\"alias\":\"probe_user\",\"version\":\"1.00\",\"request\":[{\"accounttypedescription\":\"ECOM\",\"baseamount\":\"0\",\"credentialsonfile\":\"1\",\"currencyiso3a\":\"USD\",\"orderreference\":\"probe_proxy_mandate_001\",\"requesttypedescriptions\":[\"AUTH\"],\"sitereference\":\"probe_site_ref\",\"settlestatus\":\"0\",\"pan\":\"{{$card_number}}\",\"expirydate\":\"{{$card_exp_month}}/{{$card_exp_year}}\",\"securitycode\":\"{{$card_cvc}}\"}]}"
         }
       }
     },
@@ -815,7 +828,8 @@
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for trustpayments"
       }
     },
     "refund": {
@@ -865,7 +879,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for trustpayments"
       }
     },
     "setup_recurring": {
@@ -925,7 +940,8 @@
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for trustpayments"
       }
     },
     "verify_redirect": {

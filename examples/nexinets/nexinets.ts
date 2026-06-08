@@ -6,7 +6,7 @@
 // Run a scenario:  npx tsx nexinets.ts checkout_autocapture
 
 import { PaymentClient, MerchantAuthenticationClient, RecurringPaymentClient, types } from 'hyperswitch-prism';
-const { Environment, AuthenticationType, CaptureMethod, Currency, PaymentMethodType } = types;
+const { Environment, AuthenticationType, CaptureMethod, CardNetwork, Currency, PaymentMethodType } = types;
 export const SUPPORTED_FLOWS = ["authorize", "create_client_authentication_token", "get", "proxy_authorize", "recurring_charge", "refund"];
 
 const _defaultConfig: types.IConnectorConfig = {
@@ -84,7 +84,8 @@ function _buildProxyAuthorizeRequest(): types.IPaymentServiceProxyAuthorizeReque
             "cardExpMonth": {"value": "03"},
             "cardExpYear": {"value": "2030"},
             "cardCvc": {"value": "123"},
-            "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
+            "cardHolderName": {"value": "John Doe"},  // Cardholder Information.
+            "cardNetwork": CardNetwork.VISA
         },
         "address": {
             "billingAddress": {

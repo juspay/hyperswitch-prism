@@ -1,17 +1,17 @@
 version: v2
 deps:
   - buf.build/googleapis/googleapis
+# Module root must match import paths (bare filenames like payment_methods.proto).
 modules:
-  - path: .
-    excludes:
-      - examples/example-hs-grpc/proto
+  - path: crates/types-traits/grpc-api-types/proto
 lint:
   use:
-    - STANDARD
-  ignore_only:
-    ENUM_VALUE_PREFIX:
-      - crates/types-traits/grpc-api-types/proto
-    ENUM_ZERO_VALUE_SUFFIX:
-      - crates/types-traits/grpc-api-types/proto 
-    SERVICE_SUFFIX:
-      - crates/types-traits/grpc-api-types/proto/health_check.proto
+    - MINIMAL
+  except:
+    # Legacy flat layout: package types + grpc.health.v1 share one directory.
+    - DIRECTORY_SAME_PACKAGE
+    - PACKAGE_DIRECTORY_MATCH
+
+breaking:
+  use:
+    - FILE

@@ -30,7 +30,16 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
 fn build_client() -> ConnectorClient {
     // Configure the connector with authentication
     let config = ConnectorConfig {
-        connector_config: None, // TODO: Add your connector config here,
+        connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Aci(AciConfig {
+                api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())), // Authentication credential
+                entity_id: Some(hyperswitch_masking::Secret::new(
+                    "YOUR_ENTITY_ID".to_string(),
+                )), // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
         options: Some(SdkOptions {
             environment: Environment::Sandbox.into(),
         }),
@@ -117,6 +126,7 @@ pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
             card_exp_year: Some(Secret::new("2030".to_string())),
             card_cvc: Some(Secret::new("123".to_string())),
             card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
+            card_network: Some(CardNetwork::Visa.into()),
             ..Default::default()
         }),
         address: Some(PaymentAddress {
@@ -147,6 +157,7 @@ pub fn build_proxy_setup_recurring_request() -> PaymentServiceProxySetupRecurrin
             card_exp_year: Some(Secret::new("2030".to_string())),
             card_cvc: Some(Secret::new("123".to_string())),
             card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
+            card_network: Some(CardNetwork::Visa.into()),
             ..Default::default()
         }),
         address: Some(PaymentAddress {

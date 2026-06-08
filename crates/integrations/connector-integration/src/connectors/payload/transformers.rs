@@ -8,11 +8,12 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, RSync, Refund, SetupMandate, Void,
+        Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer, RSync, Refund,
+        SetupMandate, Void,
     },
     connector_types::{
-        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
-        ConnectorSpecificClientAuthenticationResponse, MandateReference,
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
+        ConnectorCustomerResponse, ConnectorSpecificClientAuthenticationResponse, MandateReference,
         PayloadClientAuthenticationResponse as PayloadClientAuthenticationResponseDomain,
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
@@ -36,13 +37,14 @@ use crate::types::ResponseRouterData;
 
 pub use super::requests::{
     PayloadBankAccountRequestData, PayloadCaptureRequest, PayloadCardsRequestData,
-    PayloadPaymentsRequest, PayloadRefundRequest, PayloadRepeatPaymentRequest, PayloadVoidRequest,
+    PayloadCustomerRequest, PayloadPaymentsRequest, PayloadRefundRequest,
+    PayloadRepeatPaymentRequest, PayloadVoidRequest,
 };
 pub use super::responses::{
-    PayloadAuthorizeResponse, PayloadCaptureResponse, PayloadErrorResponse, PayloadEventDetails,
-    PayloadPSyncResponse, PayloadPaymentsResponse, PayloadRSyncResponse, PayloadRefundResponse,
-    PayloadRepeatPaymentResponse, PayloadSetupMandateResponse, PayloadVoidResponse,
-    PayloadWebhookEvent, PayloadWebhooksTrigger,
+    PayloadAuthorizeResponse, PayloadCaptureResponse, PayloadCustomerResponse,
+    PayloadErrorResponse, PayloadEventDetails, PayloadPSyncResponse, PayloadPaymentsResponse,
+    PayloadRSyncResponse, PayloadRefundResponse, PayloadRepeatPaymentResponse,
+    PayloadSetupMandateResponse, PayloadVoidResponse, PayloadWebhookEvent, PayloadWebhooksTrigger,
 };
 
 type Error = error_stack::Report<IntegrationError>;
@@ -119,6 +121,16 @@ impl TryFrom<&ConnectorSpecificConfig> for PayloadAuthType {
     }
 }
 
+impl PayloadAuthType {
+    // The api_key / processing_account_id pair is the same across currencies in
+    // the Payload sandbox, so any currency-keyed entry yields the same id.
+    fn primary_processing_id(&self) -> Option<Secret<String>> {
+        self.auths
+            .values()
+            .find_map(|a| a.processing_account_id.clone())
+    }
+}
+
 // Helper function to build card request data
 fn build_payload_cards_request_data<T: PaymentMethodDataTypes>(
     payment_method_data: &PaymentMethodData<T>,
@@ -175,6 +187,7 @@ fn build_payload_cards_request_data<T: PaymentMethodDataTypes>(
             billing_address,
             processing_id: payload_auth.processing_account_id,
             keep_active: is_mandate,
+            customer_id: resource_common_data.connector_customer.clone(),
         })
     } else {
         Err(IntegrationError::NotSupported {
@@ -256,6 +269,7 @@ fn build_payload_bank_account_request_data(
                 status,
                 processing_id: payload_auth.processing_account_id,
                 keep_active: false,
+                customer_id: resource_common_data.connector_customer.clone(),
             })
         }
         BankDebitData::SepaBankDebit { .. }
@@ -1039,6 +1053,82 @@ impl TryFrom<ResponseRouterData<PayloadClientAuthResponse, Self>>
         Ok(Self {
             response: Ok(PaymentsResponseData::ClientAuthenticationTokenResponse {
                 session_data,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
+}
+
+// ===== CREATE CONNECTOR CUSTOMER =====
+// Mirrors the hyperswitch reference at
+// hyperswitch/crates/hyperswitch_connectors/src/connectors/payload/transformers.rs
+// (TryFrom<&ConnectorCustomerRouterData> for CustomerRequest). UCS wires this
+// ahead of Authorize via ValidationTrait::should_create_connector_customer().
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PayloadRouterData<
+            RouterDataV2<
+                CreateConnectorCustomer,
+                PaymentFlowData,
+                ConnectorCustomerData,
+                ConnectorCustomerResponse,
+            >,
+            T,
+        >,
+    > for PayloadCustomerRequest
+{
+    type Error = Error;
+
+    fn try_from(
+        item: PayloadRouterData<
+            RouterDataV2<
+                CreateConnectorCustomer,
+                PaymentFlowData,
+                ConnectorCustomerData,
+                ConnectorCustomerResponse,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        let email = router_data.request.get_email()?;
+        let name = router_data.request.get_name()?;
+
+        let primary_processing_id =
+            PayloadAuthType::try_from(&router_data.connector_config)?.primary_processing_id();
+
+        Ok(Self {
+            // `keep_active` controls whether the saved payment methods on this
+            // customer stay active. UCS calls CreateConnectorCustomer ahead of
+            // Authorize before we know if this is a mandate, so default to
+            // false (one-time). Subsequent Authorize-time `keep_active` is set
+            // independently on the transaction request.
+            keep_active: false,
+            email,
+            name,
+            primary_processing_id,
+        })
+    }
+}
+
+impl TryFrom<ResponseRouterData<PayloadCustomerResponse, Self>>
+    for RouterDataV2<
+        CreateConnectorCustomer,
+        PaymentFlowData,
+        ConnectorCustomerData,
+        ConnectorCustomerResponse,
+    >
+{
+    type Error = ResponseError;
+
+    fn try_from(
+        item: ResponseRouterData<PayloadCustomerResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(ConnectorCustomerResponse {
+                connector_customer_id: item.response.id,
                 status_code: item.http_code,
             }),
             ..item.router_data
