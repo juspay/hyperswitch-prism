@@ -75,7 +75,7 @@ impl CompositePaymentMethodRequest for CompositePaymentMethodCreateRequest {
         self.test_mode
     }
     fn merchant_request_id(&self) -> Option<String> {
-        None
+        self.merchant_payment_method_id.clone()
     }
 }
 
@@ -99,7 +99,7 @@ impl CompositePaymentMethodRequest for CompositePaymentMethodGetRequest {
         self.test_mode
     }
     fn merchant_request_id(&self) -> Option<String> {
-        None
+        self.merchant_payment_method_id.clone()
     }
 }
 
