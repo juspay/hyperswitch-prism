@@ -34,8 +34,8 @@ use serde::Serialize;
 use std::fmt::Debug;
 use transformers::{
     self as payload, PayloadAuthorizeResponse, PayloadCaptureRequest, PayloadCaptureResponse,
-    PayloadClientAuthRequest, PayloadClientAuthResponse, PayloadCustomerRequest,
-    PayloadCustomerResponse, PayloadErrorResponse, PayloadPSyncResponse, PayloadCardsRequestData,
+    PayloadCardsRequestData, PayloadClientAuthRequest, PayloadClientAuthResponse,
+    PayloadCustomerRequest, PayloadCustomerResponse, PayloadErrorResponse, PayloadPSyncResponse,
     PayloadPaymentsRequest, PayloadRSyncResponse, PayloadRefundRequest, PayloadRefundResponse,
     PayloadRepeatPaymentRequest, PayloadRepeatPaymentResponse, PayloadSetupMandateResponse,
     PayloadVoidRequest, PayloadVoidResponse,
