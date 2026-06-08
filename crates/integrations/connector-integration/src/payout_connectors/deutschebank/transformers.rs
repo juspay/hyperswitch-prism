@@ -15,7 +15,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     utils,
 };
-use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 const DEUTSCHEBANK_BICFI: &str = "DEUTDEDDXXX";
@@ -203,12 +203,9 @@ impl
     }
 }
 
-pub fn derive_vop_id(connector_request_reference_id: &str) -> String {
-    uuid::Uuid::new_v5(
-        &uuid::Uuid::NAMESPACE_OID,
-        connector_request_reference_id.as_bytes(),
-    )
-    .to_string()
+pub fn derive_vop_id(merchant_id: &str, connector_request_reference_id: &str) -> String {
+    let salted = format!("{merchant_id}:{connector_request_reference_id}");
+    uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_OID, salted.as_bytes()).to_string()
 }
 
 pub fn build_eligibility_response(
@@ -821,17 +818,12 @@ fn current_iso_utc_seconds() -> String {
     let fmt = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
     time::OffsetDateTime::now_utc()
         .format(&fmt)
-        .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string())
+        .expect("static format_description always formats OffsetDateTime")
 }
 
 fn current_iso_date() -> String {
     use time::format_description::well_known::Iso8601;
     let date = time::OffsetDateTime::now_utc().date();
     date.format(&Iso8601::DATE)
-        .unwrap_or_else(|_| "1970-01-01".to_string())
-}
-
-#[allow(dead_code)]
-fn _ensure_expose_in_scope(s: Secret<String>) -> String {
-    s.expose()
+        .expect("Iso8601::DATE always formats Date")
 }

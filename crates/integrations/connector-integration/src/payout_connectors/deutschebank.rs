@@ -64,6 +64,9 @@ const VOP_PATH: &str = "/v1/cseal/payments/sepa/vop-check/vop";
 const PAYMENT_PATH: &str = "/v2/cseal/payments/credit-transfer/sepa/payment";
 const STATUS_PATH: &str = "/v2/cseal/payments/credit-transfer/sepa/status";
 
+const CORRELATION_PREFIX_VOP: &str = "ACID";
+const CORRELATION_PREFIX_PAYMENT: &str = "PYMT";
+
 pub struct DeutschebankPayouts;
 
 impl DeutschebankPayouts {
@@ -135,7 +138,7 @@ fn current_iso_utc_seconds() -> String {
     let fmt = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
     time::OffsetDateTime::now_utc()
         .format(&fmt)
-        .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string())
+        .expect("static format_description always formats OffsetDateTime")
 }
 
 fn serialize_json<T: serde::Serialize>(value: &T) -> CustomResult<Vec<u8>, IntegrationError> {
@@ -179,7 +182,13 @@ impl ConnectorCommon for DeutschebankPayouts {
         let response: DeutschebankErrorResponse = res
             .response
             .parse_struct("DeutschebankErrorResponse")
-            .unwrap_or_default();
+            .unwrap_or_else(|err| {
+                tracing::warn!(
+                    deserialization_error = ?err,
+                    "Failed to parse Deutsche Bank error response",
+                );
+                DeutschebankErrorResponse::default()
+            });
 
         with_error_response_body!(event_builder, response);
 
@@ -343,8 +352,11 @@ impl
         let body_struct = DeutschebankVopRequest::try_from(req)?;
         let body_bytes = serialize_json(&body_struct)?;
 
-        let mut headers = self.build_identity_headers(&auth, "ACID");
-        let vop_id = derive_vop_id(&req.resource_common_data.connector_request_reference_id);
+        let mut headers = self.build_identity_headers(&auth, CORRELATION_PREFIX_VOP);
+        let vop_id = derive_vop_id(
+            req.resource_common_data.merchant_id.get_string_repr(),
+            &req.resource_common_data.connector_request_reference_id,
+        );
         headers.push((
             headers::X_VERIFICATIONOFPAYEE_IDENTIFIER.to_string(),
             vop_id.into(),
@@ -399,7 +411,10 @@ impl
             })?;
         event_builder.map(|i| i.set_connector_response(&response));
 
-        let vop_id = derive_vop_id(&data.resource_common_data.connector_request_reference_id);
+        let vop_id = derive_vop_id(
+            data.resource_common_data.merchant_id.get_string_repr(),
+            &data.resource_common_data.connector_request_reference_id,
+        );
         let resp = build_eligibility_response(response, vop_id, res.status_code)?;
 
         RouterDataV2::try_from(ResponseRouterData {
@@ -517,7 +532,7 @@ impl
             }
         })?;
 
-        let mut headers = self.build_identity_headers(&auth, "PYMT");
+        let mut headers = self.build_identity_headers(&auth, CORRELATION_PREFIX_PAYMENT);
         headers.push((
             headers::X_VERIFICATIONOFPAYEE_IDENTIFIER.to_string(),
             vop_id.into(),
@@ -654,7 +669,7 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
         let body_struct = DeutschebankStatusRequest::try_from(req)?;
         let body_bytes = serialize_json(&body_struct)?;
 
-        let mut headers = self.build_identity_headers(&auth, "PYMT");
+        let mut headers = self.build_identity_headers(&auth, CORRELATION_PREFIX_PAYMENT);
         self.append_cseal_headers(
             &mut headers,
             common_utils::request::Method::Post,
