@@ -32,13 +32,13 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    self as tsys_xml, TsysXmlAddCustomerRequest, TsysXmlAddCustomerResponse,
-    TsysXmlAuthorizeRequest, TsysXmlAuthorizeResponse, TsysXmlCaptureRequest,
-    TsysXmlCaptureResponse, TsysXmlCardAuthenticationRequest, TsysXmlCardAuthenticationResponse,
-    TsysXmlRSyncRequest, TsysXmlRSyncResponse, TsysXmlRepeatPaymentRequest,
-    TsysXmlRepeatPaymentResponse, TsysXmlReturnRequest, TsysXmlReturnResponse,
-    TsysXmlTransactionInquiryRequest, TsysXmlTransactionInquiryResponse, TsysXmlVoidRequest,
-    TsysXmlVoidResponse,
+    self as tsys_transit, TsysTransitAddCustomerRequest, TsysTransitAddCustomerResponse,
+    TsysTransitAuthorizeRequest, TsysTransitAuthorizeResponse, TsysTransitCaptureRequest,
+    TsysTransitCaptureResponse, TsysTransitCardAuthenticationRequest,
+    TsysTransitCardAuthenticationResponse, TsysTransitRSyncRequest, TsysTransitRSyncResponse,
+    TsysTransitRepeatPaymentRequest, TsysTransitRepeatPaymentResponse, TsysTransitReturnRequest,
+    TsysTransitReturnResponse, TsysTransitTransactionInquiryRequest,
+    TsysTransitTransactionInquiryResponse, TsysTransitVoidRequest, TsysTransitVoidResponse,
 };
 
 use super::macros::{self, GetSoapXml};
@@ -54,75 +54,75 @@ pub(crate) mod headers {
 // AMOUNT CONVERTER
 // =============================================================================
 // TransIT expects amounts as a decimal string in major currency units (e.g. "1.25").
-macros::create_amount_converter_wrapper!(connector_name: TsysXml, amount_type: StringMajorUnit);
+macros::create_amount_converter_wrapper!(connector_name: TsysTransit, amount_type: StringMajorUnit);
 
 // =============================================================================
 // CONNECTOR STRUCT + PREREQUISITES
 // =============================================================================
 macros::create_all_prerequisites!(
-    connector_name: TsysXml,
+    connector_name: TsysTransit,
     generic_type: T,
     api: [
         (
             flow: Authorize,
-            request_body: TsysXmlAuthorizeRequest<T>,
-            response_body: TsysXmlAuthorizeResponse,
+            request_body: TsysTransitAuthorizeRequest<T>,
+            response_body: TsysTransitAuthorizeResponse,
             response_format: xml,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ),
         (
             flow: PSync,
-            request_body: TsysXmlTransactionInquiryRequest,
-            response_body: TsysXmlTransactionInquiryResponse,
+            request_body: TsysTransitTransactionInquiryRequest,
+            response_body: TsysTransitTransactionInquiryResponse,
             response_format: xml,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ),
         (
             flow: Capture,
-            request_body: TsysXmlCaptureRequest,
-            response_body: TsysXmlCaptureResponse,
+            request_body: TsysTransitCaptureRequest,
+            response_body: TsysTransitCaptureResponse,
             response_format: xml,
             router_data: RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
         ),
         (
             flow: Refund,
-            request_body: TsysXmlReturnRequest,
-            response_body: TsysXmlReturnResponse,
+            request_body: TsysTransitReturnRequest,
+            response_body: TsysTransitReturnResponse,
             response_format: xml,
             router_data: RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ),
         (
             flow: RSync,
-            request_body: TsysXmlRSyncRequest,
-            response_body: TsysXmlRSyncResponse,
+            request_body: TsysTransitRSyncRequest,
+            response_body: TsysTransitRSyncResponse,
             response_format: xml,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         ),
         (
             flow: Void,
-            request_body: TsysXmlVoidRequest,
-            response_body: TsysXmlVoidResponse,
+            request_body: TsysTransitVoidRequest,
+            response_body: TsysTransitVoidResponse,
             response_format: xml,
             router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         ),
         (
             flow: CreateConnectorCustomer,
-            request_body: TsysXmlAddCustomerRequest,
-            response_body: TsysXmlAddCustomerResponse,
+            request_body: TsysTransitAddCustomerRequest,
+            response_body: TsysTransitAddCustomerResponse,
             response_format: xml,
             router_data: RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,
         ),
         (
             flow: SetupMandate,
-            request_body: TsysXmlCardAuthenticationRequest,
-            response_body: TsysXmlCardAuthenticationResponse,
+            request_body: TsysTransitCardAuthenticationRequest,
+            response_body: TsysTransitCardAuthenticationResponse,
             response_format: xml,
             router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ),
         (
             flow: RepeatPayment,
-            request_body: TsysXmlRepeatPaymentRequest<T>,
-            response_body: TsysXmlRepeatPaymentResponse,
+            request_body: TsysTransitRepeatPaymentRequest<T>,
+            response_body: TsysTransitRepeatPaymentResponse,
             response_format: xml,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
@@ -135,14 +135,14 @@ macros::create_all_prerequisites!(
             &self,
             req: &'a RouterDataV2<F, PaymentFlowData, Req, Res>,
         ) -> &'a str {
-            &req.resource_common_data.connectors.tsys_xml.base_url
+            &req.resource_common_data.connectors.tsys_transit.base_url
         }
 
         pub fn connector_base_url_refunds<'a, F, Req, Res>(
             &self,
             req: &'a RouterDataV2<F, RefundFlowData, Req, Res>,
         ) -> &'a str {
-            &req.resource_common_data.connectors.tsys_xml.base_url
+            &req.resource_common_data.connectors.tsys_transit.base_url
         }
     }
 );
@@ -151,10 +151,10 @@ macros::create_all_prerequisites!(
 // CONNECTOR COMMON IMPLEMENTATION
 // =============================================================================
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
-    for TsysXml<T>
+    for TsysTransit<T>
 {
     fn id(&self) -> &'static str {
-        "tsys_xml"
+        "tsysTransit"
     }
 
     fn get_currency_unit(&self) -> CurrencyUnit {
@@ -167,7 +167,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        connectors.tsys_xml.base_url.as_ref()
+        connectors.tsys_transit.base_url.as_ref()
     }
 
     fn get_auth_header(
@@ -185,12 +185,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: tsys_xml::TsysXmlErrorResponse = res
+        let response: tsys_transit::TsysTransitErrorResponse = res
             .response
-            .parse_struct("TsysXmlErrorResponse")
+            .parse_struct("TsysTransitErrorResponse")
             .change_context(utils::response_deserialization_fail(
                 res.status_code,
-                "tsys_xml: response body did not match the expected format; confirm API version and connector documentation.",
+                "tsysTransit: response body did not match the expected format; confirm API version and connector documentation.",
             ))?;
 
         with_error_response_body!(event_builder, response);
@@ -218,27 +218,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 // REQUIRED MARKER TRAITS
 // =============================================================================
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ConnectorServiceTrait<T> for TsysXml<T>
+    connector_types::ConnectorServiceTrait<T> for TsysTransit<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ValidationTrait for TsysXml<T>
+    connector_types::ValidationTrait for TsysTransit<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for TsysXml<T>
+    connector_types::IncomingWebhook for TsysTransit<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::VerifyRedirectResponse for TsysXml<T>
+    connector_types::VerifyRedirectResponse for TsysTransit<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> SourceVerification
-    for TsysXml<T>
+    for TsysTransit<T>
 {
 }
 
@@ -246,7 +246,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Sour
 // (NoAlgorithm) for now — the response body is parsed via the XML response
 // pattern in the macro layer, not via this trait.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> BodyDecoding
-    for TsysXml<T>
+    for TsysTransit<T>
 {
 }
 
@@ -254,49 +254,49 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 // trait-marker impls stay in the `macro_connector_flow_status_impls!`
 // `not_implemented` block below.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAuthorizeV2<T> for TsysXml<T>
+    connector_types::PaymentAuthorizeV2<T> for TsysTransit<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentSyncV2 for TsysXml<T>
+    connector_types::PaymentSyncV2 for TsysTransit<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentCapture for TsysXml<T>
+    connector_types::PaymentCapture for TsysTransit<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::RefundV2 for TsysXml<T>
+    connector_types::RefundV2 for TsysTransit<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::RefundSyncV2 for TsysXml<T>
+    connector_types::RefundSyncV2 for TsysTransit<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentVoidV2 for TsysXml<T>
+    connector_types::PaymentVoidV2 for TsysTransit<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::CreateConnectorCustomer for TsysXml<T>
+    connector_types::CreateConnectorCustomer for TsysTransit<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SetupMandateV2<T> for TsysXml<T>
+    connector_types::SetupMandateV2<T> for TsysTransit<T>
 {
 }
 
 // RepeatPayment (MIT replay) reuses the Authorize XML shape — Path A / Path B
 // dispatch is handled inside the request transformer via `decode_mandate_dispatch`.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::RepeatPaymentV2<T> for TsysXml<T>
+    connector_types::RepeatPaymentV2<T> for TsysTransit<T>
 {
 }
 
@@ -305,9 +305,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // =============================================================================
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: TsysXml,
-    curl_request: SoapXml(TsysXmlAuthorizeRequest<T>),
-    curl_response: TsysXmlAuthorizeResponse,
+    connector: TsysTransit,
+    curl_request: SoapXml(TsysTransitAuthorizeRequest<T>),
+    curl_response: TsysTransitAuthorizeResponse,
     flow_name: Authorize,
     resource_common_data: PaymentFlowData,
     flow_request: PaymentsAuthorizeData<T>,
@@ -342,9 +342,9 @@ macros::macro_connector_implementation!(
 // =============================================================================
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: TsysXml,
-    curl_request: SoapXml(TsysXmlTransactionInquiryRequest),
-    curl_response: TsysXmlTransactionInquiryResponse,
+    connector: TsysTransit,
+    curl_request: SoapXml(TsysTransitTransactionInquiryRequest),
+    curl_response: TsysTransitTransactionInquiryResponse,
     flow_name: PSync,
     resource_common_data: PaymentFlowData,
     flow_request: PaymentsSyncData,
@@ -379,9 +379,9 @@ macros::macro_connector_implementation!(
 // =============================================================================
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: TsysXml,
-    curl_request: SoapXml(TsysXmlCaptureRequest),
-    curl_response: TsysXmlCaptureResponse,
+    connector: TsysTransit,
+    curl_request: SoapXml(TsysTransitCaptureRequest),
+    curl_response: TsysTransitCaptureResponse,
     flow_name: Capture,
     resource_common_data: PaymentFlowData,
     flow_request: PaymentsCaptureData,
@@ -416,9 +416,9 @@ macros::macro_connector_implementation!(
 // =============================================================================
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: TsysXml,
-    curl_request: SoapXml(TsysXmlReturnRequest),
-    curl_response: TsysXmlReturnResponse,
+    connector: TsysTransit,
+    curl_request: SoapXml(TsysTransitReturnRequest),
+    curl_response: TsysTransitReturnResponse,
     flow_name: Refund,
     resource_common_data: RefundFlowData,
     flow_request: RefundsData,
@@ -459,9 +459,9 @@ macros::macro_connector_implementation!(
 // `AttemptStatus`.
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: TsysXml,
-    curl_request: SoapXml(TsysXmlRSyncRequest),
-    curl_response: TsysXmlRSyncResponse,
+    connector: TsysTransit,
+    curl_request: SoapXml(TsysTransitRSyncRequest),
+    curl_response: TsysTransitRSyncResponse,
     flow_name: RSync,
     resource_common_data: RefundFlowData,
     flow_request: RefundSyncData,
@@ -496,9 +496,9 @@ macros::macro_connector_implementation!(
 // =============================================================================
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: TsysXml,
-    curl_request: SoapXml(TsysXmlVoidRequest),
-    curl_response: TsysXmlVoidResponse,
+    connector: TsysTransit,
+    curl_request: SoapXml(TsysTransitVoidRequest),
+    curl_response: TsysTransitVoidResponse,
     flow_name: Void,
     resource_common_data: PaymentFlowData,
     flow_request: PaymentVoidData,
@@ -533,9 +533,9 @@ macros::macro_connector_implementation!(
 // =============================================================================
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: TsysXml,
-    curl_request: SoapXml(TsysXmlAddCustomerRequest),
-    curl_response: TsysXmlAddCustomerResponse,
+    connector: TsysTransit,
+    curl_request: SoapXml(TsysTransitAddCustomerRequest),
+    curl_response: TsysTransitAddCustomerResponse,
     flow_name: CreateConnectorCustomer,
     resource_common_data: PaymentFlowData,
     flow_request: ConnectorCustomerData,
@@ -567,9 +567,9 @@ macros::macro_connector_implementation!(
 // =============================================================================
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: TsysXml,
-    curl_request: SoapXml(TsysXmlCardAuthenticationRequest),
-    curl_response: TsysXmlCardAuthenticationResponse,
+    connector: TsysTransit,
+    curl_request: SoapXml(TsysTransitCardAuthenticationRequest),
+    curl_response: TsysTransitCardAuthenticationResponse,
     flow_name: SetupMandate,
     resource_common_data: PaymentFlowData,
     flow_request: SetupMandateRequestData<T>,
@@ -602,16 +602,16 @@ macros::macro_connector_implementation!(
 //
 // TransIT does not expose a distinct "RecurringCharge" endpoint — MIT replays
 // fire the same `<Sale>` (auto-capture) / `<Auth>` (manual capture) XML against
-// the same POST `/` endpoint. The request transformer (`TryFrom<&TsysXmlRouterData
+// the same POST `/` endpoint. The request transformer (`TryFrom<&TsysTransitRouterData
 // <RouterDataV2<RepeatPayment, ..., RepeatPaymentData<T>, ...>>>`) converts the
-// upstream `RepeatPaymentData` into the same `TsysXmlAuthorizeRequest` body that
+// upstream `RepeatPaymentData` into the same `TsysTransitAuthorizeRequest` body that
 // the Authorize flow emits, with the mandate id propagated so the existing
 // `decode_mandate_dispatch()` logic picks Path A (NTID) or Path B (vault).
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: TsysXml,
-    curl_request: SoapXml(TsysXmlRepeatPaymentRequest<T>),
-    curl_response: TsysXmlRepeatPaymentResponse,
+    connector: TsysTransit,
+    curl_request: SoapXml(TsysTransitRepeatPaymentRequest<T>),
+    curl_response: TsysTransitRepeatPaymentResponse,
     flow_name: RepeatPayment,
     resource_common_data: PaymentFlowData,
     flow_request: RepeatPaymentData<T>,
@@ -642,13 +642,13 @@ macros::macro_connector_implementation!(
 // FLOW STATUS IMPLEMENTATIONS — remaining flows are scaffolded as `not_implemented`.
 // =============================================================================
 macros::macro_connector_payout_implementation!(
-    connector: TsysXml,
+    connector: TsysTransit,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
 );
 
 macros::macro_connector_flow_status_impls!(
-    connector: TsysXml,
+    connector: TsysTransit,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [

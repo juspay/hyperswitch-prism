@@ -803,7 +803,7 @@ enum Connector {
   TAMARA = 123;
   PAYCONEX = 124;
   QWIKCILVER = 125;
-  TSYS_XML = 126;
+  TSYS_TRANSIT = 126;
 }
 
 // Payment method types
@@ -4548,7 +4548,7 @@ message AxisbankConfig {
   optional string base_url = 50;
 }
 
-message TsysXmlConfig {
+message TsysTransitConfig {
   SecretString device_id = 1;
   SecretString transaction_key = 2;
   SecretString developer_id = 3;
@@ -4895,8 +4895,8 @@ message ConnectorSpecificConfig {
     // QWIKCILVER = 125
     QwikcilverConfig qwikcilver = 130;
 
-    // TSYS_XML = 126
-    TsysXmlConfig tsys_xml = 131;
+    // TSYS_TRANSIT = 126
+    TsysTransitConfig tsys_transit = 131;
   }
 }
 

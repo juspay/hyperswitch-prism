@@ -376,13 +376,13 @@ macro_rules! expand_fn_handle_response {
             use error_stack::ResultExt;
             paste::paste! {let bridge = self.[< $flow:snake >];}
 
-            if stringify!($connector) == "TsysXml" {
+            if stringify!($connector) == "TsysTransit" {
                 tracing::info!(
-                    connector = stringify!($connector),
+                    connector = "tsysTransit",
                     flow = stringify!($flow),
                     http_status = res.status_code,
                     raw_response = %String::from_utf8_lossy(res.response.as_ref()),
-                    "tsys_xml raw connector response"
+                    "tsysTransit raw connector response"
                 );
             }
 
@@ -418,13 +418,13 @@ macro_rules! expand_fn_handle_response {
             macro_types::ConnectorError,
         > {
             paste::paste! {let bridge = self.[< $flow:snake >];}
-            if stringify!($connector) == "TsysXml" {
+            if stringify!($connector) == "TsysTransit" {
                 tracing::info!(
-                    connector = stringify!($connector),
+                    connector = "tsysTransit",
                     flow = stringify!($flow),
                     http_status = res.status_code,
                     raw_response = %String::from_utf8_lossy(res.response.as_ref()),
-                    "tsys_xml raw connector response"
+                    "tsysTransit raw connector response"
                 );
             }
             let response_body = bridge.response(res.response, res.status_code)?;

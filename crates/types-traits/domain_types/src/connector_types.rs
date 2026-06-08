@@ -145,7 +145,7 @@ pub enum ConnectorEnum {
     PinelabsOnline,
     Easebuzz,
     Axisbank,
-    TsysXml,
+    TsysTransit,
     TwocTwopPaco,
     Juspay,
     Payconex,
@@ -384,7 +384,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Easebuzz => Ok(Self::Easebuzz),
             grpc_api_types::payments::Connector::Imerchantsolutions => Ok(Self::Imerchantsolutions),
             grpc_api_types::payments::Connector::Axisbank => Ok(Self::Axisbank),
-            grpc_api_types::payments::Connector::TsysXml => Ok(Self::TsysXml),
+            grpc_api_types::payments::Connector::TsysTransit => Ok(Self::TsysTransit),
             grpc_api_types::payments::Connector::TwocTwopPaco => Ok(Self::TwocTwopPaco),
             grpc_api_types::payments::Connector::Juspay => Ok(Self::Juspay),
             grpc_api_types::payments::Connector::Payconex => Ok(Self::Payconex),
@@ -4882,7 +4882,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Qwikcilver(_) => Ok(Self::Payment(ConnectorEnum::Qwikcilver)),
             AuthType::Payconex(_) => Ok(Self::Payment(ConnectorEnum::Payconex)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
-            AuthType::TsysXml(_) => Ok(Self::Payment(ConnectorEnum::TsysXml)),
+            AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),
             AuthType::Interpayments(_) => {
                 Ok(Self::Surcharge(SurchargeConnectorEnum::Interpayments))

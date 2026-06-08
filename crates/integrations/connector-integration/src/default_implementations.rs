@@ -212,7 +212,7 @@ default_impl_verify_webhook_source_v2!(
         Stripe,
         Trustpayments,
         Tsys,
-        TsysXml,
+        TsysTransit,
         TwocTwopPaco,
         Volt,
         Wellsfargo,

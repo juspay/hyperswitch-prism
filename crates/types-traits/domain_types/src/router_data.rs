@@ -613,7 +613,7 @@ pub enum ConnectorSpecificConfig {
         developer_id: Secret<String>,
         base_url: Option<String>,
     },
-    TsysXml {
+    TsysTransit {
         device_id: Secret<String>,
         transaction_key: Secret<String>,
         developer_id: Secret<String>,
@@ -1010,7 +1010,7 @@ impl ConnectorSpecificConfig {
                 transaction_key,
                 developer_id
             },
-            TsysXml {
+            TsysTransit {
                 device_id,
                 transaction_key,
                 developer_id
@@ -1441,7 +1441,7 @@ impl ConnectorSpecificConfig {
                     transaction_key,
                     developer_id
                 },
-                TsysXml {
+                TsysTransit {
                     device_id,
                     transaction_key,
                     developer_id
@@ -2112,11 +2112,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 merchant_id: imerchantsolutions.merchant_id,
                 base_url: imerchantsolutions.base_url,
             }),
-            AuthType::TsysXml(tsys_xml) => Ok(Self::TsysXml {
-                device_id: tsys_xml.device_id.ok_or_else(err)?,
-                transaction_key: tsys_xml.transaction_key.ok_or_else(err)?,
-                developer_id: tsys_xml.developer_id.ok_or_else(err)?,
-                base_url: tsys_xml.base_url,
+            AuthType::TsysTransit(tsys_transit) => Ok(Self::TsysTransit {
+                device_id: tsys_transit.device_id.ok_or_else(err)?,
+                transaction_key: tsys_transit.transaction_key.ok_or_else(err)?,
+                developer_id: tsys_transit.developer_id.ok_or_else(err)?,
+                base_url: tsys_transit.base_url,
             }),
             AuthType::Interpayments(interpayments) => Ok(Self::Interpayments {
                 api_key: interpayments.api_key.ok_or_else(err)?,
@@ -3248,12 +3248,12 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
-                ConnectorEnum::TsysXml => match auth {
+                ConnectorEnum::TsysTransit => match auth {
                     ConnectorAuthType::SignatureKey {
                         api_key,
                         key1,
                         api_secret,
-                    } => Ok(Self::TsysXml {
+                    } => Ok(Self::TsysTransit {
                         device_id: key1.clone(),
                         transaction_key: api_key.clone(),
                         developer_id: api_secret.clone(),
