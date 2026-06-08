@@ -42,6 +42,24 @@ use serde::{Deserialize, Serialize};
 
 use crate::{connectors::qwikcilver::QwikcilverRouterData, types::ResponseRouterData};
 
+/// Pine Labs developer portal. Surfaced on every Qwikcilver error so callers
+/// can self-serve the schema / sandbox creds / endpoint reference without
+/// pinging us.
+pub(crate) const QWIKCILVER_INTEGRATION_DOC_URL: &str = "https://developers.qwikcilver.com/";
+
+/// Build an `IntegrationErrorContext` with all three diagnostic fields wired
+/// up consistently — keeps the error sites below from drowning in literals.
+pub(crate) fn qc_err_ctx(
+    additional_context: impl Into<String>,
+    suggested_action: impl Into<String>,
+) -> domain_types::errors::IntegrationErrorContext {
+    domain_types::errors::IntegrationErrorContext {
+        additional_context: Some(additional_context.into()),
+        suggested_action: Some(suggested_action.into()),
+        doc_url: Some(QWIKCILVER_INTEGRATION_DOC_URL.to_string()),
+    }
+}
+
 // ============================================================================
 // AUTH — resolved from `ConnectorSpecificConfig::Qwikcilver`
 //
@@ -80,7 +98,13 @@ impl TryFrom<&ConnectorSpecificConfig> for QwikcilverAuthType {
                 password: password.clone(),
             }),
             _ => Err(IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: qc_err_ctx(
+                    "x-connector-config did not deserialize as the `Qwikcilver` variant — \
+                     the resolved variant doesn't carry the required Pine Labs fields.",
+                    "Send `x-connector-config: {\"config\":{\"Qwikcilver\":{\"bootstrap_bearer_token\":\"…\",\
+                     \"terminal_id\":\"…\",\"username\":\"…\",\"password\":\"…\"}}}` exactly. \
+                     Header value parsing is case-sensitive; the variant key must be `Qwikcilver`.",
+                ),
             }
             .into()),
         }
@@ -219,6 +243,10 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         let mut data = item.router_data;
+        // Persist the raw connector response on every path (success + error) so
+        // it's available for audit logs, debugging, and event-bus consumers.
+        data.resource_common_data.raw_connector_response =
+            serde_json::to_string(&item.response).ok().map(Secret::new);
         if item.response.response_code != QWIKCILVER_SUCCESS_CODE {
             // Token-bootstrap errors are NOT payment attempt failures —
             // leave attempt_status unset so they don't surface in payment
@@ -308,7 +336,7 @@ pub struct QwikcilverCard {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct QwikcilverRedeemRequest {
-    pub idempotencykey: String,
+    pub idempotency_key: String,
     pub invoice_number: String,
     pub amount: FloatMajorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -353,14 +381,24 @@ where
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
-                context: Default::default(),
+                context: qc_err_ctx(
+                    format!(
+                        "Failed to convert Redeem amount {} {} to FloatMajorUnit. \
+                         Qwikcilver expects major-unit decimals (e.g. 0.20 AED).",
+                        item.router_data.request.minor_amount.get_amount_as_i64(),
+                        item.router_data.request.currency,
+                    ),
+                    "Verify `amount.minor_amount` is a non-negative integer and \
+                     `amount.currency` is a 3-letter ISO 4217 code that Pine Labs supports \
+                     for your terminal (e.g. AED, INR).",
+                ),
             })?;
         let invoice_number = item
             .router_data
             .resource_common_data
             .connector_request_reference_id
             .clone();
-        let idempotencykey = item
+        let idempotency_key = item
             .router_data
             .request
             .merchant_order_id
@@ -368,7 +406,7 @@ where
             .unwrap_or_else(|| invoice_number.clone());
         let notes = item.router_data.resource_common_data.description.clone();
         Ok(Self {
-            idempotencykey,
+            idempotency_key,
             invoice_number,
             amount: amount.clone(),
             notes,
@@ -434,6 +472,8 @@ where
     ) -> Result<Self, Self::Error> {
         let mut data = item.router_data;
         let body = item.response;
+        data.resource_common_data.raw_connector_response =
+            serde_json::to_string(&body).ok().map(Secret::new);
         if body.response_code != QWIKCILVER_SUCCESS_CODE {
             data.response = Err(make_error_response(
                 body.response_code,
@@ -516,16 +556,26 @@ impl QwikcilverRefundMetadata {
         let raw = req.refund_connector_metadata.as_ref().ok_or_else(|| {
             error_stack::report!(IntegrationError::MissingRequiredField {
                 field_name: "refund_metadata",
-                context: Default::default(),
+                context: qc_err_ctx(
+                    "Qwikcilver Cancel Redeem needs the wallet number and the original \
+                     batch/transaction ids of the Redeem being reversed.",
+                    "Send `refund_metadata` as a JSON-string on the gRPC request: \
+                     `{\"wallet_number\":\"<wn>\",\"original_batch_number\":<i64>,\
+                     \"original_transaction_id\":<i64>,\"date_at_client\":\"<ISO-8601>\"}`. \
+                     Batch and txn id come from the Redeem response's `connector_transaction_id` \
+                     (`\"<batch>:<txn>\"`).",
+                ),
             })
         })?;
         serde_json::from_value(raw.clone().expose()).map_err(|e| {
             error_stack::report!(IntegrationError::InvalidDataFormat {
                 field_name: "refund_metadata",
-                context: domain_types::errors::IntegrationErrorContext {
-                    additional_context: Some(format!("invalid Qwikcilver refund_metadata: {e}")),
-                    ..Default::default()
-                },
+                context: qc_err_ctx(
+                    format!("invalid Qwikcilver refund_metadata: {e}"),
+                    "Ensure `refund_metadata` is a JSON-encoded string (not a nested object) \
+                     and that `original_batch_number` / `original_transaction_id` are JSON numbers, \
+                     not strings.",
+                ),
             })
         })
     }
@@ -549,7 +599,14 @@ where
         }
         _ => Err(error_stack::report!(IntegrationError::MissingRequiredField {
             field_name: "payment_method.qwikcilver_direct.wallet_number",
-            context: Default::default(),
+            context: qc_err_ctx(
+                "Qwikcilver Redeem requires the destination wallet number via the typed \
+                 `qwikcilver_direct` payment_method variant — no other PaymentMethod variant \
+                 is supported on this connector.",
+                "Send the body with \
+                 `payment_method.payment_method.qwikcilver_direct.wallet_number: \"<wallet-number>\"`. \
+                 Verify with the curl recipe at docs/qwikcilver-grpcurl-recipes.md.",
+            ),
         })),
     }
 }
@@ -591,7 +648,15 @@ where
             .ok_or_else(|| {
                 error_stack::report!(IntegrationError::MissingRequiredField {
                     field_name: "refund_metadata.{original_batch_number,original_transaction_id}",
-                    context: Default::default(),
+                    context: qc_err_ctx(
+                        "Couldn't locate the original Redeem's batch/transaction pair — \
+                         neither `refund_metadata` carried them explicitly nor was \
+                         `connector_transaction_id` a parseable `<batch>:<txn>` composite.",
+                        "Either set both `refund_metadata.original_batch_number` and \
+                         `refund_metadata.original_transaction_id` (both i64), or pass the \
+                         original Redeem's `connector_transaction_id` verbatim — Prism stores \
+                         it as `\"<batch>:<txn>\"` precisely so it round-trips into Cancel Redeem.",
+                    ),
                 })
             })?;
         Ok(Self {
@@ -647,6 +712,8 @@ impl
     ) -> Result<Self, Self::Error> {
         let mut data = item.router_data;
         let body = item.response;
+        data.resource_common_data.raw_connector_response =
+            serde_json::to_string(&body).ok().map(Secret::new);
         if body.response_code != QWIKCILVER_SUCCESS_CODE {
             data.response = Err(make_error_response(
                 body.response_code,
@@ -723,12 +790,28 @@ where
             .amount_converter
             .convert(req.amount, req.currency)
             .change_context(IntegrationError::AmountConversionFailed {
-                context: Default::default(),
+                context: qc_err_ctx(
+                    format!(
+                        "Failed to convert Recharge amount {} {} to FloatMajorUnit.",
+                        req.amount.get_amount_as_i64(),
+                        req.currency,
+                    ),
+                    "Verify `amount.minor_amount` is a non-negative integer and \
+                     `amount.currency` is supported by your Pine Labs program (e.g. AED for \
+                     `Blue Retail UAE Refund eCard`).",
+                ),
             })?;
         let idempotency_key = req.merchant_recharge_id.clone().ok_or_else(|| {
             error_stack::report!(IntegrationError::MissingRequiredField {
                 field_name: "merchant_recharge_id",
-                context: Default::default(),
+                context: qc_err_ctx(
+                    "Qwikcilver Add Card needs an idempotency key so repeated submissions of \
+                     the same recharge don't double-credit the wallet.",
+                    "Set `merchant_recharge_id` on every PaymentMethodService.Recharge request \
+                     to a value unique per logical recharge attempt (e.g. \
+                     `\"rch-<merchant>-<order>-<timestamp>\"`). Pine Labs maps it onto both \
+                     `IdempotencyKey` and `InvoiceNumber` on the wire.",
+                ),
             })
         })?;
         Ok(Self {
@@ -782,6 +865,8 @@ impl
     ) -> Result<Self, Self::Error> {
         let mut data = item.router_data;
         let body = item.response;
+        data.resource_common_data.raw_connector_response =
+            serde_json::to_string(&body).ok().map(Secret::new);
         if body.response_code != QWIKCILVER_SUCCESS_CODE {
             // Recharge failure: surface the connector error, leave
             // attempt_status unset (Recharge isn't an AttemptStatus flow).
@@ -928,12 +1013,13 @@ impl QwikcilverCreateFeatureData {
         serde_json::from_value(raw.clone().expose()).map_err(|e| {
             error_stack::report!(IntegrationError::InvalidDataFormat {
                 field_name: "connector_feature_data",
-                context: domain_types::errors::IntegrationErrorContext {
-                    additional_context: Some(format!(
-                        "invalid Qwikcilver connector_feature_data for Create: {e}"
-                    )),
-                    ..Default::default()
-                },
+                context: qc_err_ctx(
+                    format!("invalid Qwikcilver connector_feature_data for Create: {e}"),
+                    "Send `connector_feature_data` as a JSON-string (e.g. \
+                     `\"{\\\"wallet_program_group_name\\\":\\\"…\\\",\\\"date_at_client\\\":\\\"…\\\",\
+                     \\\"currency\\\":\\\"AED\\\"}\"`) — not a nested JSON object. The string is \
+                     parsed server-side after secret-unwrap.",
+                ),
             })
         })
     }
@@ -971,26 +1057,46 @@ where
         let customer = req.customer.clone().ok_or_else(|| {
             error_stack::report!(IntegrationError::MissingRequiredField {
                 field_name: "customer",
-                context: Default::default(),
+                context: qc_err_ctx(
+                    "Qwikcilver provisions wallets against a real customer record — the \
+                     `customer` block on PaymentMethodService.Create is required, not optional.",
+                    "Send a full `customer` object including `first_name` and `phone_number` \
+                     at minimum. `phone_number` becomes the wallet's `ExternalWalletId`.",
+                ),
             })
         })?;
         let phone = customer.phone_number.clone().ok_or_else(|| {
             error_stack::report!(IntegrationError::MissingRequiredField {
                 field_name: "customer.phone_number",
-                context: Default::default(),
+                context: qc_err_ctx(
+                    "Pine Labs uses the customer's phone number as `ExternalWalletId`, which is \
+                     how subsequent lookups (Get / Recharge / Redeem) identify the wallet's owner.",
+                    "Set `customer.phone_number` to the mobile number in E.164 or local format. \
+                     Country-code rules vary by Pine Labs region/program.",
+                ),
             })
         })?;
         let first = customer.first_name.clone().ok_or_else(|| {
             error_stack::report!(IntegrationError::MissingRequiredField {
                 field_name: "customer.first_name",
-                context: Default::default(),
+                context: qc_err_ctx(
+                    "Qwikcilver requires a non-empty first name on wallet creation — the wallet \
+                     holder name is rendered on receipts and reports.",
+                    "Set `customer.first_name`. `last_name` is optional but recommended.",
+                ),
             })
         })?;
         let feature = QwikcilverCreateFeatureData::from_request(req)?;
         let program = feature.wallet_program_group_name.ok_or_else(|| {
             error_stack::report!(IntegrationError::MissingRequiredField {
                 field_name: "connector_feature_data.wallet_program_group_name",
-                context: Default::default(),
+                context: qc_err_ctx(
+                    "Pine Labs requires a region-specific program identifier to know which \
+                     `WalletProgramGroup` the new wallet belongs to.",
+                    "Set `connector_feature_data` as a JSON-string containing \
+                     `wallet_program_group_name` (e.g. `\"PAWC-AFG Payblue Wallet UAE\"`). \
+                     Ask Pine Labs ops for the exact program name configured against your terminal.",
+                ),
             })
         })?;
         Ok(Self {
@@ -1233,6 +1339,8 @@ impl
     ) -> Result<Self, Self::Error> {
         let mut data = item.router_data;
         let body = item.response;
+        data.resource_common_data.raw_connector_response =
+            serde_json::to_string(&body).ok().map(Secret::new);
         if body.response_code != QWIKCILVER_SUCCESS_CODE {
             data.response = Err(make_error_response(
                 body.response_code,
@@ -1307,6 +1415,8 @@ impl
     ) -> Result<Self, Self::Error> {
         let mut data = item.router_data;
         let body = item.response.0;
+        data.resource_common_data.raw_connector_response =
+            serde_json::to_string(&body).ok().map(Secret::new);
         if body.response_code != QWIKCILVER_SUCCESS_CODE {
             data.response = Err(make_error_response(
                 body.response_code,
@@ -1396,7 +1506,15 @@ pub(crate) fn resolve_date_at_client(
         .ok_or_else(|| {
             error_stack::report!(IntegrationError::MissingRequiredField {
                 field_name: "connector_feature_data.date_at_client",
-                context: Default::default(),
+                context: qc_err_ctx(
+                    "Qwikcilver hard-requires a `DateAtClient` header on every authenticated \
+                     call (including the JWT-bootstrap), and Prism never substitutes a server-\
+                     side `now()` so the value is fully reconcilable from the caller's request.",
+                    "Send `connector_feature_data` as a JSON-string with a `date_at_client` key \
+                     in ISO-8601/RFC-3339 (e.g. `\"2026-06-08T12:00:00Z\"`). For composite Refund, \
+                     it also needs to live inside `refund_metadata`. The Postman collection uses \
+                     `{{$isoTimestamp}}` to set it per send.",
+                ),
             })
         })
 }

@@ -22,7 +22,7 @@ use domain_types::{
         RefundsResponseData, ServerAuthenticationTokenRequestData,
         ServerAuthenticationTokenResponseData,
     },
-    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -231,12 +231,16 @@ macros::create_all_prerequisites!(
                 .access_token_secret()
                 .ok_or_else(|| {
                     IntegrationError::FailedToObtainAuthType {
-                        context: IntegrationErrorContext {
-                            additional_context: Some(
-                                "Qwikcilver requires a session token from `/authorize`".to_string(),
-                            ),
-                            ..Default::default()
-                        },
+                        context: qwikcilver::qc_err_ctx(
+                            "Qwikcilver requires a session JWT from `/authorize` on every \
+                             authenticated call, but no `access_token` was found on the flow's \
+                             common data — the bootstrap step did not run or its response was \
+                             discarded.",
+                            "Hit the composite endpoint (e.g. `/composite/payments/authorize`) \
+                             which auto-bootstraps, OR call \
+                             `/payments/server_authentication_token` first and pass the resulting \
+                             token back via `state.access_token` on the next request.",
+                        ),
                     }
                     .into()
                 })
@@ -537,13 +541,15 @@ macros::macro_connector_implementation!(
                 .ok_or_else(|| {
                     IntegrationError::MissingRequiredField {
                         field_name: "connector_payment_method_id",
-                        context: IntegrationErrorContext {
-                            additional_context: Some(
-                                "Qwikcilver Recharge needs the wallet number in \
-                                 `connector_payment_method_id`".to_string(),
-                            ),
-                            ..Default::default()
-                        },
+                        context: qwikcilver::qc_err_ctx(
+                            "Qwikcilver Recharge issues a new card against an existing wallet — \
+                             we URL-encode the wallet number into the path \
+                             `/wallet/{wallet_number}/card`, so we cannot proceed without it.",
+                            "Set `connector_payment_method_id` to the wallet number returned by \
+                             a prior PaymentMethodService.Create (or any wallet you provisioned \
+                             at the connector). Do not rely on `merchant_payment_method_id` for \
+                             this — that's the merchant-side reference, not the wallet PAN.",
+                        ),
                     }
                 })?;
             Ok(format!(
@@ -643,13 +649,14 @@ macros::macro_connector_implementation!(
                 .ok_or_else(|| {
                     IntegrationError::MissingRequiredField {
                         field_name: "connector_payment_method_id",
-                        context: IntegrationErrorContext {
-                            additional_context: Some(
-                                "Qwikcilver Get needs the wallet number in \
-                                 `connector_payment_method_id`".to_string(),
-                            ),
-                            ..Default::default()
-                        },
+                        context: qwikcilver::qc_err_ctx(
+                            "Qwikcilver Get fetches a wallet by its PAN — we URL-encode the \
+                             wallet number into the path `/wallet/{wallet_number}`, so without \
+                             it there's no resource to look up.",
+                            "Set `connector_payment_method_id` to the wallet number returned by \
+                             a prior PaymentMethodService.Create response \
+                             (`create_response.connector_payment_method_id`).",
+                        ),
                     }
                 })?;
             Ok(format!(

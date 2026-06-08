@@ -25,6 +25,10 @@ trait CompositePaymentMethodRequest {
     fn metadata(&self) -> Option<Secret<String>>;
     fn connector_feature_data(&self) -> Option<Secret<String>>;
     fn test_mode(&self) -> Option<bool>;
+    /// Per-request idempotency / correlation token propagated to the bootstrap
+    /// step. `None` for flows whose proto request doesn't carry one (Create,
+    /// Get) — those callers can rely on the bootstrap's default reference id.
+    fn merchant_request_id(&self) -> Option<String>;
 }
 
 impl CompositePaymentMethodRequest for CompositePaymentMethodRechargeRequest {
@@ -45,6 +49,9 @@ impl CompositePaymentMethodRequest for CompositePaymentMethodRechargeRequest {
     }
     fn test_mode(&self) -> Option<bool> {
         self.test_mode
+    }
+    fn merchant_request_id(&self) -> Option<String> {
+        self.merchant_request_id.clone()
     }
 }
 
@@ -67,6 +74,9 @@ impl CompositePaymentMethodRequest for CompositePaymentMethodCreateRequest {
     fn test_mode(&self) -> Option<bool> {
         self.test_mode
     }
+    fn merchant_request_id(&self) -> Option<String> {
+        None
+    }
 }
 
 impl CompositePaymentMethodRequest for CompositePaymentMethodGetRequest {
@@ -87,6 +97,9 @@ impl CompositePaymentMethodRequest for CompositePaymentMethodGetRequest {
     }
     fn test_mode(&self) -> Option<bool> {
         self.test_mode
+    }
+    fn merchant_request_id(&self) -> Option<String> {
+        None
     }
 }
 
@@ -153,6 +166,7 @@ where
             metadata: payload.metadata(),
             connector_feature_data: payload.connector_feature_data(),
             test_mode: payload.test_mode(),
+            merchant_request_id: payload.merchant_request_id(),
         };
         let mut token_request = tonic::Request::new(token_payload);
         *token_request.metadata_mut() = metadata.clone();

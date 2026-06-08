@@ -4191,9 +4191,17 @@ impl
             payment_method: PaymentMethod::Card, // Default for access token operations
             address,
             auth_type: common_enums::AuthenticationType::default(),
+            // `merchant_request_id` (the caller's per-request idempotency
+            // token, propagated from the parent composite call) is preferred
+            // when present; `merchant_access_token_id` is the historical
+            // fallback. Either way this surfaces a stable, unique value to
+            // connectors that key wire-level idempotency on it.
             connector_request_reference_id: extract_connector_request_reference_id(
-                &value.merchant_access_token_id,
-            ), // No request_ref_id available for access token requests
+                &value
+                    .merchant_request_id
+                    .clone()
+                    .or(value.merchant_access_token_id.clone()),
+            ),
             customer_id: None,
             connector_customer: None,
             description: None,
@@ -4221,7 +4229,7 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
-            merchant_request_id: None,
+            merchant_request_id: value.merchant_request_id,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
         })

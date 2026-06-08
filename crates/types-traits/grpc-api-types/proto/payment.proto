@@ -2343,6 +2343,11 @@ message MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
   // Environment Configuration
   optional bool test_mode =
       5; // A boolean value to indicate if the connector is in Test mode
+
+  // Per-request idempotency / correlation token propagated from the parent
+  // composite request. Required by connectors (e.g. 2C2P PACO, Qwikcilver)
+  // that demand a per-request token on the bootstrap call too.
+  optional string merchant_request_id = 6;
 }
 
 // Response message for creating an access token
