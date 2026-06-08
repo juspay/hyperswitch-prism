@@ -657,6 +657,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .authorisation_id
                 .as_ref()
                 .map(|auth_id| auth_id.id.clone()),
+            network_txn_link_id: None,
             connector_response_reference_id: Some(order_status.order_code.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
@@ -724,6 +725,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlCaptureResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(capture_received.order_code.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
@@ -791,6 +793,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlVoidResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(cancel_received.order_code.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
@@ -865,6 +868,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                             mandate_reference: None,
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(order_status.order_code.clone()),
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
@@ -932,6 +936,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                         .authorisation_id
                         .as_ref()
                         .map(|auth_id| auth_id.id.clone()),
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(order_status.order_code.clone()),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
@@ -985,6 +990,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(order_code),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,

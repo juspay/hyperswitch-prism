@@ -408,6 +408,7 @@ fn create_payment_get_request(transaction_id: &str) -> PaymentServiceGetRequest 
         payment_experience: None,
 
         merchant_request_id: None,
+        payment_method_type: None,
     }
 }
 

@@ -1680,6 +1680,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             mandate_reference: mandate_reference.map(Box::new),
             connector_metadata: Some(connector_meta),
             network_txn_id: item.response.scheme_id.clone(),
+            network_txn_link_id: None,
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
@@ -1793,6 +1794,7 @@ impl<
                     mandate_reference: mandate_reference.map(Box::new),
                     connector_metadata: Some(connector_meta),
                     network_txn_id: item.response.scheme_id.clone(),
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(
                         item.response.reference.unwrap_or(item.response.id),
                     ),
@@ -1908,6 +1910,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             mandate_reference: mandate_reference.map(Box::new),
             connector_metadata: Some(connector_meta),
             network_txn_id: item.response.scheme_id.clone(),
+            network_txn_link_id: None,
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
@@ -2008,6 +2011,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentsResponse, Self>>
             mandate_reference: mandate_reference.map(Box::new),
             connector_metadata: None,
             network_txn_id: item.response.scheme_id.clone(),
+            network_txn_link_id: None,
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
@@ -2084,6 +2088,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentVoidResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: item.response.scheme_id.clone(),
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
@@ -2220,6 +2225,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentCaptureResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
                 network_txn_id: item.response.scheme_id.clone(),
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.reference,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
