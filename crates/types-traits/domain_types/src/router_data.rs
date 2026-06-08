@@ -765,6 +765,11 @@ pub enum ConnectorSpecificConfig {
         merchant_id: Secret<String>,
         base_url: Option<String>,
     },
+    Payconex {
+        api_key: Secret<String>,
+        account_id: Secret<String>,
+        base_url: Option<String>,
+    },
     Tamara {
         api_key: Secret<String>,
         base_url: Option<String>,
@@ -1085,6 +1090,10 @@ impl ConnectorSpecificConfig {
             Juspay {
                 api_key,
                 merchant_id
+            },
+            Payconex {
+                api_key,
+                account_id
             },
             Tamara { api_key },
             Imerchantsolutions { api_key },
@@ -1502,6 +1511,10 @@ impl ConnectorSpecificConfig {
                 Juspay {
                     api_key,
                     merchant_id
+                },
+                Payconex {
+                    api_key,
+                    account_id
                 },
                 Tamara { api_key },
                 Imerchantsolutions { api_key },
@@ -2048,6 +2061,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: juspay.api_key.ok_or_else(err)?,
                 merchant_id: juspay.merchant_id.ok_or_else(err)?,
                 base_url: juspay.base_url,
+            }),
+            AuthType::Payconex(payconex) => Ok(Self::Payconex {
+                api_key: payconex.api_key.ok_or_else(err)?,
+                account_id: payconex.account_id.ok_or_else(err)?,
+                base_url: payconex.base_url,
             }),
             AuthType::Tamara(tamara) => Ok(Self::Tamara {
                 api_key: tamara.api_key.ok_or_else(err)?,
@@ -3138,6 +3156,14 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         client_secret: key1.clone(),
                         certificates: Some(api_secret.clone()),
                         private_key: Some(key2.clone()),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Payconex => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Payconex {
+                        api_key: api_key.clone(),
+                        account_id: key1.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),

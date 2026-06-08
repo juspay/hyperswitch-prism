@@ -396,6 +396,7 @@ pub struct Connectors {
     pub twoc_twop_paco: ConnectorParams,
     pub interpayments: ConnectorParams,
     pub juspay: ConnectorParams,
+    pub payconex: ConnectorParams,
     pub tamara: ConnectorParams,
 }
 

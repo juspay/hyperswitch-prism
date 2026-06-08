@@ -23,6 +23,7 @@ bypass_proxy_urls = ["localhost", "local"]
 mitm_proxy_enabled = false
 
 [connectors]
+payconex.base_url = "https://secure.payconex.net"
 tamara.base_url = "https://api.tamara.co"
 juspay.base_url = "https://api.juspay.in/"
 peachpayments.base_url = "https://api.bankint.peachpayments.com/v/1"
