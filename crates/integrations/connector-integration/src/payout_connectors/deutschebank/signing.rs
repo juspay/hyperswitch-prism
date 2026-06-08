@@ -1,12 +1,4 @@
-//! Deutsche Bank CSEAL request signing.
-//!
-//! CSEAL uses the legacy IETF "HTTP Signatures" draft (`Signature` header with
-//! `keyId` / `algorithm` / `headers` / `signature` parameters) plus a `Digest`
-//! header for the request body. The signing input is the covered headers
-//! joined by `\n`, each as `<lowercase-name>: <value>`. `(request-target)`
-//! is included as `<method-lowercase> <path>`.
-//!
-//! Mirrors the postman pre-request script bundled with the DB BaaS sandbox kit.
+//! Deutsche Bank CSEAL request signing
 
 use base64::Engine;
 use common_utils::request::Method;
@@ -16,25 +8,12 @@ use ring::{rand, signature};
 use sha2::{Digest, Sha256};
 use time::{Month, OffsetDateTime, Weekday};
 
-/// Headers computed for a single CSEAL request.
 pub struct CsealHeaders {
-    /// RFC 7231 / RFC 1123 GMT date (e.g. `Tue, 27 May 2026 14:33:00 GMT`).
     pub date: String,
-    /// `SHA-256=<base64(sha256(body))>` — `None` for GET requests.
     pub digest: Option<String>,
-    /// The full `Signature` header value (keyId/algorithm/headers/signature).
     pub signature: String,
 }
 
-/// Compute the three CSEAL headers for a request.
-///
-/// - `method`: HTTP method.
-/// - `path`: URL path component including leading slash (e.g.
-///   `/v1/cseal/payments/sepa/vop-check/vop`). Query string included verbatim
-///   if present.
-/// - `body`: request body bytes, or `&[]` for GET.
-/// - `key_id`: keyId placed in the Signature header.
-/// - `signing_private_key`: PEM-encoded RSA private key (PKCS#8 or PKCS#1).
 pub fn build_cseal_headers(
     method: Method,
     path: &str,
@@ -53,9 +32,7 @@ pub fn build_cseal_headers(
     };
 
     let (digest, signing_string, headers_covered) = if matches!(method, Method::Get) {
-        let signing_string = format!(
-            "date: {date}\n(request-target): {method_lower} {path}"
-        );
+        let signing_string = format!("date: {date}\n(request-target): {method_lower} {path}");
         (None, signing_string, "date (request-target)")
     } else {
         let digest_value = compute_digest(body);
@@ -85,8 +62,6 @@ pub fn build_cseal_headers(
     })
 }
 
-/// Format an RFC 7231 IMF-fixdate (e.g. `Tue, 27 May 2026 14:33:00 GMT`).
-/// Hand-rolled to avoid pulling in the `time` formatting feature.
 fn format_http_date(dt: OffsetDateTime) -> String {
     let weekday = match dt.weekday() {
         Weekday::Monday => "Mon",
@@ -129,26 +104,22 @@ fn compute_digest(body: &[u8]) -> String {
     )
 }
 
-/// Sign data with RSA-SHA256 (PKCS#1 v1.5). Accepts both PKCS#8 (`BEGIN PRIVATE KEY`)
-/// and PKCS#1 (`BEGIN RSA PRIVATE KEY`) PEM inputs. Returns base64-encoded signature.
 fn sign_rsa_sha256(
     data: &[u8],
     private_key_pem: &Secret<String>,
 ) -> Result<String, error_stack::Report<IntegrationError>> {
     let pem = private_key_pem.peek();
-    let der = extract_der_from_pem(pem).ok_or_else(|| {
-        IntegrationError::InvalidConnectorConfig {
+    let der =
+        extract_der_from_pem(pem).ok_or_else(|| IntegrationError::InvalidConnectorConfig {
             config: "signing_private_key",
             context: IntegrationErrorContext {
                 additional_context: Some("PEM body could not be base64-decoded".to_string()),
                 ..Default::default()
             },
-        }
-    })?;
+        })?;
 
     let key_pair = signature::RsaKeyPair::from_pkcs8(&der)
         .or_else(|_| {
-            // Fall back to wrapping PKCS#1 as PKCS#8.
             let wrapped = wrap_pkcs1_as_pkcs8(&der);
             signature::RsaKeyPair::from_pkcs8(&wrapped)
         })
@@ -188,10 +159,7 @@ fn extract_der_from_pem(pem: &str) -> Option<Vec<u8>> {
         .ok()
 }
 
-/// Wrap a PKCS#1 RSA private key (bare RSAPrivateKey DER) in a PKCS#8
-/// PrivateKeyInfo so `ring::signature::RsaKeyPair::from_pkcs8` accepts it.
 fn wrap_pkcs1_as_pkcs8(pkcs1: &[u8]) -> Vec<u8> {
-    // OID rsaEncryption (1.2.840.113549.1.1.1) + NULL params.
     const ALG_ID: &[u8] = &[
         0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00,
     ];

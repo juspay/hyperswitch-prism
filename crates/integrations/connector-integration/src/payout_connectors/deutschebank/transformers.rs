@@ -32,6 +32,7 @@ pub struct DeutschebankAuthType {
     pub signing_private_key: Secret<String>,
     pub client_certificate: Secret<String>,
     pub client_certificate_key: Secret<String>,
+    pub server_ca_bundle: Option<Secret<String>>,
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for DeutschebankAuthType {
@@ -47,6 +48,7 @@ impl TryFrom<&ConnectorSpecificConfig> for DeutschebankAuthType {
                 signing_private_key,
                 client_certificate,
                 client_certificate_key,
+                server_ca_bundle,
                 ..
             } => Ok(Self {
                 apikey: apikey.to_owned(),
@@ -56,6 +58,7 @@ impl TryFrom<&ConnectorSpecificConfig> for DeutschebankAuthType {
                 signing_private_key: signing_private_key.to_owned(),
                 client_certificate: client_certificate.to_owned(),
                 client_certificate_key: client_certificate_key.to_owned(),
+                server_ca_bundle: server_ca_bundle.to_owned(),
             }),
             _ => Err(error_stack::report!(
                 IntegrationError::FailedToObtainAuthType {
@@ -67,8 +70,6 @@ impl TryFrom<&ConnectorSpecificConfig> for DeutschebankAuthType {
 }
 
 // ===== ERROR RESPONSE =====
-// DB BaaS errors come in a few shapes; we capture the common fields and gracefully
-// fall back to status-code-derived defaults when none match.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DeutschebankErrorResponse {
     pub code: Option<String>,
@@ -94,13 +95,9 @@ pub struct DeutschebankErrorEntry {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum DeutschebankVopMatchStatus {
-    /// Match — proceed with credit transfer.
     Mtch,
-    /// Close match — proceed with credit transfer.
     Cmtc,
-    /// Not applicable / unreachable — fail.
     Noap,
-    /// No match — gateway hard-blocks downstream. Fail.
     Nmtc,
 }
 
@@ -141,9 +138,19 @@ pub struct DeutschebankVopDebtor {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeutschebankVopResponse {
-    /// DB's "match" outcome — alias `result` for resilience to schema variants.
-    #[serde(rename = "match", alias = "result", alias = "matchStatus")]
+    #[serde(
+        rename = "payeeNameMatch",
+        alias = "match",
+        alias = "result",
+        alias = "matchStatus"
+    )]
     pub match_status: Option<DeutschebankVopMatchStatus>,
+    #[serde(
+        rename = "additionalInfo",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub additional_info: Option<String>,
 }
 
 impl
@@ -196,11 +203,17 @@ impl
     }
 }
 
-// The connector reads the VoP-ID from the `x-verificationofpayee-identifier` response header,
-// then constructs the response via this helper. The response body only carries the match outcome.
+pub fn derive_vop_id(connector_request_reference_id: &str) -> String {
+    uuid::Uuid::new_v5(
+        &uuid::Uuid::NAMESPACE_OID,
+        connector_request_reference_id.as_bytes(),
+    )
+    .to_string()
+}
+
 pub fn build_eligibility_response(
     vop_body: DeutschebankVopResponse,
-    vop_id_from_header: Option<String>,
+    vop_id: String,
     http_code: u16,
 ) -> Result<PayoutEligibilityResponse, error_stack::Report<ConnectorError>> {
     let match_status =
@@ -215,8 +228,7 @@ pub fn build_eligibility_response(
         DeutschebankVopMatchStatus::Mtch | DeutschebankVopMatchStatus::Cmtc
     );
 
-    // VoP-ID is only meaningful when the payee is eligible; otherwise we discard it.
-    let connector_payout_id = if is_eligible { vop_id_from_header } else { None };
+    let connector_payout_id = if is_eligible { Some(vop_id) } else { None };
 
     Ok(PayoutEligibilityResponse {
         merchant_payout_id: None,
@@ -252,11 +264,8 @@ impl TryFrom<ResponseRouterData<PayoutEligibilityResponse, Self>>
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum DeutschebankPaymentStatus {
-    /// Accepted by DB (final success in the 3-state model).
     Accp,
-    /// Pending settlement.
     Pdng,
-    /// Rejected.
     Rjct,
 }
 
@@ -270,7 +279,7 @@ impl From<DeutschebankPaymentStatus> for PayoutStatus {
     }
 }
 
-// ===== Initiate Payment (SEPA Customer Credit Transfer Initiation) =====
+// ===== Initiate Payment =====
 
 #[derive(Debug, Serialize)]
 pub struct DeutschebankSepaPaymentRequest {
@@ -407,9 +416,6 @@ pub struct DeutschebankInstructedAmount {
     pub value: common_utils::types::FloatMajorUnit,
 }
 
-/// Holds extra context produced while building the payment request — the
-/// connector layer needs the `end_to_end_id` and `debtor_iban` to compose the
-/// downstream `connector_payout_id` after a successful Transfer.
 pub struct DeutschebankSepaPaymentBuilt {
     pub request: DeutschebankSepaPaymentRequest,
     pub end_to_end_id: String,
@@ -461,9 +467,21 @@ impl
             .resource_common_data
             .connector_request_reference_id
             .clone();
-        let end_to_end_id = uuid::Uuid::new_v4().simple().to_string().to_uppercase();
-        let message_id = end_to_end_id.clone();
-        let creation_date_time = current_iso_utc();
+
+        let end_to_end_id = uuid::Uuid::new_v5(
+            &uuid::Uuid::NAMESPACE_OID,
+            format!("dbank-e2e:{reference}").as_bytes(),
+        )
+        .simple()
+        .to_string()
+        .to_uppercase();
+        let message_id = uuid::Uuid::new_v5(
+            &uuid::Uuid::NAMESPACE_OID,
+            format!("dbank-msg:{reference}").as_bytes(),
+        )
+        .simple()
+        .to_string();
+        let creation_date_time = current_iso_utc_seconds();
         let execution_date = current_iso_date();
 
         let amount = utils::convert_amount(
@@ -480,7 +498,7 @@ impl
         let request = DeutschebankSepaPaymentRequest {
             customer_credit_transfer_initiation: DeutschebankCustomerCreditTransferInitiation {
                 group_header: DeutschebankGroupHeader {
-                    message_identification: message_id,
+                    message_identification: message_id.clone(),
                     creation_date_time,
                     control_sum: amount,
                     number_of_transactions: "1".to_string(),
@@ -489,7 +507,7 @@ impl
                     },
                 },
                 payment_information: vec![DeutschebankPaymentInformation {
-                    payment_information_identification: reference.clone(),
+                    payment_information_identification: message_id.clone(),
                     payment_method: "TRF",
                     batch_booking: false,
                     control_sum: amount,
@@ -520,7 +538,7 @@ impl
                         },
                         payment_identification: DeutschebankPaymentIdentification {
                             end_to_end_identification: end_to_end_id.clone(),
-                            instruction_identification: reference,
+                            instruction_identification: message_id.clone(),
                         },
                         amount: DeutschebankAmountWrapper {
                             instructed_amount: DeutschebankInstructedAmount {
@@ -555,14 +573,10 @@ impl
     }
 }
 
-/// SEPA credit-transfer initiation response. DB nests the status deep inside
-/// `customerPaymentStatusReport.originalPaymentInformationAndStatus[].transactionInformationAndStatus[]`.
-/// We tolerate missing fields and fall back to Pending so the caller polls Status.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeutschebankSepaPaymentResponse {
     #[serde(rename = "customerPaymentStatusReport")]
     pub customer_payment_status_report: Option<DeutschebankCustomerPaymentStatusReport>,
-    // Some error/edge responses may put a top-level status — accept either shape.
     #[serde(rename = "transactionStatus", alias = "status")]
     pub top_level_status: Option<DeutschebankPaymentStatus>,
 }
@@ -599,13 +613,8 @@ pub struct DeutschebankTransactionInformationAndStatus {
     pub original_end_to_end_identification: Option<String>,
 }
 
-/// Encodes the compound `endToEndIdentification|debtor_iban` payload that downstream
-/// PayoutGet uses to reconstruct the status-enquiry body.
 pub fn encode_connector_payout_id(end_to_end_id: &str, debtor_iban: &Secret<String>) -> String {
-    format!(
-        "{end_to_end_id}{VOP_ID_SEPARATOR}{}",
-        debtor_iban.peek()
-    )
+    format!("{end_to_end_id}{VOP_ID_SEPARATOR}{}", debtor_iban.peek())
 }
 
 pub fn decode_connector_payout_id(
@@ -640,8 +649,6 @@ pub struct DeutschebankStatusDebtorAccount {
     pub identification: DeutschebankIbanIdentification,
 }
 
-/// Status enquiry returns the same `customerPaymentStatusReport` envelope as
-/// the initiation response, so we share the extraction logic.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeutschebankStatusResponse {
     #[serde(rename = "customerPaymentStatusReport")]
@@ -701,14 +708,10 @@ impl TryFrom<ResponseRouterData<DeutschebankSepaPaymentResponse, Self>>
     fn try_from(
         item: ResponseRouterData<DeutschebankSepaPaymentResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        // PayoutTransfer's response handler decodes the encoded payout-id externally
-        // — here we only know the status. The connector layer wraps this with the
-        // composed connector_payout_id before returning.
         let payout_status = item
             .response
             .extract_status()
             .map(PayoutStatus::from)
-            // If DB returns 2xx without a status, treat as Pending so the upstream caller polls.
             .unwrap_or(PayoutStatus::Pending);
         Ok(Self {
             response: Ok(PayoutTransferResponse {
@@ -753,9 +756,7 @@ fn extract_payee_iban(
     payout_method_data: Option<&PayoutMethodData>,
 ) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
     match payout_method_data {
-        Some(PayoutMethodData::Bank(Bank::Sepa(SepaBankTransfer { iban, .. }))) => {
-            Ok(iban.clone())
-        }
+        Some(PayoutMethodData::Bank(Bank::Sepa(SepaBankTransfer { iban, .. }))) => Ok(iban.clone()),
         _ => Err(error_stack::report!(IntegrationError::NotSupported {
             message: "Deutsche Bank only supports SEPA bank payouts".to_string(),
             connector: "Deutschebank",
@@ -776,8 +777,8 @@ fn extract_payee_bic(
         Some(PayoutMethodData::Bank(Bank::Sepa(SepaBankTransfer { bic: Some(bic), .. }))) => {
             Ok(bic.clone())
         }
-        Some(PayoutMethodData::Bank(Bank::Sepa(_))) => {
-            Err(error_stack::report!(IntegrationError::MissingRequiredField {
+        Some(PayoutMethodData::Bank(Bank::Sepa(_))) => Err(error_stack::report!(
+            IntegrationError::MissingRequiredField {
                 field_name: "payout_method_data.bank.sepa.bic",
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -785,8 +786,8 @@ fn extract_payee_bic(
                     ),
                     ..Default::default()
                 },
-            }))
-        }
+            }
+        )),
         _ => Err(error_stack::report!(IntegrationError::NotSupported {
             message: "Deutsche Bank only supports SEPA bank payouts".to_string(),
             connector: "Deutschebank",
@@ -800,7 +801,8 @@ fn extract_debtor_iban(
 ) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
     match source_bank_data {
         Some(Bank::Sepa(SepaBankTransfer { iban, .. })) => Ok(iban.clone()),
-        _ => Err(error_stack::report!(IntegrationError::MissingRequiredField {
+        _ => Err(
+            error_stack::report!(IntegrationError::MissingRequiredField {
             field_name: "source_bank_data.sepa.iban",
             context: IntegrationErrorContext {
                 additional_context: Some(
@@ -809,14 +811,16 @@ fn extract_debtor_iban(
                 ),
                 ..Default::default()
             },
-        })),
+        }),
+        ),
     }
 }
 
-fn current_iso_utc() -> String {
-    use time::format_description::well_known::Rfc3339;
+fn current_iso_utc_seconds() -> String {
+    use time::macros::format_description;
+    let fmt = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
     time::OffsetDateTime::now_utc()
-        .format(&Rfc3339)
+        .format(&fmt)
         .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string())
 }
 
@@ -827,7 +831,6 @@ fn current_iso_date() -> String {
         .unwrap_or_else(|_| "1970-01-01".to_string())
 }
 
-// `ExposeInterface` import is required for downstream wrapping helpers.
 #[allow(dead_code)]
 fn _ensure_expose_in_scope(s: Secret<String>) -> String {
     s.expose()

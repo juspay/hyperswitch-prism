@@ -41,7 +41,7 @@ use crate::types::ResponseRouterData;
 use crate::with_error_response_body;
 use signing::{build_cseal_headers, CsealHeaders};
 use transformers::{
-    build_eligibility_response, encode_connector_payout_id, DeutschebankAuthType,
+    build_eligibility_response, derive_vop_id, encode_connector_payout_id, DeutschebankAuthType,
     DeutschebankErrorResponse, DeutschebankSepaPaymentBuilt, DeutschebankSepaPaymentResponse,
     DeutschebankStatusRequest, DeutschebankStatusResponse, DeutschebankVopRequest,
     DeutschebankVopResponse,
@@ -58,7 +58,6 @@ pub(crate) mod headers {
     pub(crate) const X_CUSTOMER_IDENTIFIER: &str = "x-customer-identifier";
     pub(crate) const I_APICONSUMER_IDENTIFIER: &str = "i-apiconsumer-identifier";
     pub(crate) const X_VERIFICATIONOFPAYEE_IDENTIFIER: &str = "x-verificationofpayee-identifier";
-    pub(crate) const PRODUCT_CODE: &str = "product-code";
 }
 
 const VOP_PATH: &str = "/v1/cseal/payments/sepa/vop-check/vop";
@@ -72,10 +71,10 @@ impl DeutschebankPayouts {
         &Self
     }
 
-    /// Identifier + apikey headers required by every DB BaaS endpoint.
     fn build_identity_headers(
         &self,
         auth: &DeutschebankAuthType,
+        correlation_prefix: &str,
     ) -> Vec<(String, Maskable<String>)> {
         vec![
             (
@@ -96,21 +95,19 @@ impl DeutschebankPayouts {
             ),
             (
                 headers::X_CORRELATION_IDENTIFIER.to_string(),
-                uuid::Uuid::new_v4()
-                    .simple()
-                    .to_string()
-                    .to_uppercase()
-                    .into(),
+                format!(
+                    "{correlation_prefix}{}",
+                    uuid::Uuid::new_v4().simple().to_string().to_uppercase()
+                )
+                .into(),
             ),
             (
                 headers::X_APICONSUMER_REQUEST_TIMESTAMP.to_string(),
-                current_iso_utc().into(),
+                current_iso_utc_seconds().into(),
             ),
         ]
     }
 
-    /// Append the CSEAL `Date`/`Digest`/`Signature` headers computed over the
-    /// outgoing body for a single request.
     fn append_cseal_headers(
         &self,
         headers_out: &mut Vec<(String, Maskable<String>)>,
@@ -133,10 +130,11 @@ impl DeutschebankPayouts {
     }
 }
 
-fn current_iso_utc() -> String {
-    use time::format_description::well_known::Rfc3339;
+fn current_iso_utc_seconds() -> String {
+    use time::macros::format_description;
+    let fmt = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
     time::OffsetDateTime::now_utc()
-        .format(&Rfc3339)
+        .format(&fmt)
         .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string())
 }
 
@@ -197,7 +195,16 @@ impl ConnectorCommon for DeutschebankPayouts {
             .clone()
             .or(response.error_message.clone())
             .or_else(|| first_error.and_then(|e| e.message.clone()))
-            .unwrap_or_else(|| format!("Deutsche Bank request failed (HTTP {})", res.status_code));
+            .unwrap_or_else(|| {
+                if code == NO_ERROR_CODE {
+                    format!("Deutsche Bank request failed (HTTP {})", res.status_code)
+                } else {
+                    format!(
+                        "Deutsche Bank request failed: {code} (HTTP {})",
+                        res.status_code
+                    )
+                }
+            });
         let reason = response
             .reason
             .clone()
@@ -221,20 +228,38 @@ impl ConnectorCommon for DeutschebankPayouts {
 
 impl PayoutServiceTrait for DeutschebankPayouts {}
 
-// Common: every CSEAL flow returns the mTLS client cert + key.
-fn cert_pem(
-    auth: &DeutschebankAuthType,
-) -> CustomResult<Option<Secret<String>>, IntegrationError> {
-    Ok(Some(auth.client_certificate.clone()))
+fn cert_pem(auth: &DeutschebankAuthType) -> CustomResult<Option<Secret<String>>, IntegrationError> {
+    Ok(Some(Secret::new(b64_pem(
+        auth.client_certificate.clone().expose(),
+    ))))
 }
 
 fn cert_key_pem(
     auth: &DeutschebankAuthType,
 ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
-    Ok(Some(auth.client_certificate_key.clone()))
+    Ok(Some(Secret::new(b64_pem(
+        auth.client_certificate_key.clone().expose(),
+    ))))
 }
 
-// ===== PAYOUT ELIGIBILITY (REAL) — VoP Check =====
+fn b64_pem(mut pem: String) -> String {
+    use base64::Engine as _;
+    if !pem.ends_with('\n') {
+        pem.push('\n');
+    }
+    common_utils::consts::BASE64_ENGINE.encode(pem)
+}
+
+fn server_ca_pem(
+    auth: &DeutschebankAuthType,
+) -> CustomResult<Option<Secret<String>>, IntegrationError> {
+    Ok(auth
+        .server_ca_bundle
+        .clone()
+        .map(|pem| Secret::new(b64_pem(pem.expose()))))
+}
+
+// ===== PAYOUT ELIGIBILITY — VoP Check =====
 
 impl PayoutEligibilityV2 for DeutschebankPayouts {}
 
@@ -278,6 +303,18 @@ impl
         cert_key_pem(&DeutschebankAuthType::try_from(&req.connector_config)?)
     }
 
+    fn get_ca_certificate(
+        &self,
+        req: &RouterDataV2<
+            PayoutEligibility,
+            PayoutFlowData,
+            PayoutEligibilityRequest,
+            PayoutEligibilityResponse,
+        >,
+    ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
+        server_ca_pem(&DeutschebankAuthType::try_from(&req.connector_config)?)
+    }
+
     fn get_url(
         &self,
         req: &RouterDataV2<
@@ -306,17 +343,11 @@ impl
         let body_struct = DeutschebankVopRequest::try_from(req)?;
         let body_bytes = serialize_json(&body_struct)?;
 
-        let mut headers = self.build_identity_headers(&auth);
-        headers.push((
-            headers::PRODUCT_CODE.to_string(),
-            "SEPA-VOP".to_string().into(),
-        ));
-        // VoP requests have no caller-provided VoP-ID; DB issues one in the response.
-        // We still emit a placeholder to mirror the postman max-payload (some DB tenants
-        // require the header field to be present, even if empty/random). Use a fresh UUID.
+        let mut headers = self.build_identity_headers(&auth, "ACID");
+        let vop_id = derive_vop_id(&req.resource_common_data.connector_request_reference_id);
         headers.push((
             headers::X_VERIFICATIONOFPAYEE_IDENTIFIER.to_string(),
-            uuid::Uuid::new_v4().to_string().into(),
+            vop_id.into(),
         ));
         self.append_cseal_headers(
             &mut headers,
@@ -368,16 +399,8 @@ impl
             })?;
         event_builder.map(|i| i.set_connector_response(&response));
 
-        let vop_id_from_header = res.headers.as_ref().and_then(|headers| {
-            domain_types::utils::get_http_header(
-                headers::X_VERIFICATIONOFPAYEE_IDENTIFIER,
-                headers,
-            )
-            .ok()
-            .map(str::to_string)
-        });
-
-        let resp = build_eligibility_response(response, vop_id_from_header, res.status_code)?;
+        let vop_id = derive_vop_id(&data.resource_common_data.connector_request_reference_id);
+        let resp = build_eligibility_response(response, vop_id, res.status_code)?;
 
         RouterDataV2::try_from(ResponseRouterData {
             response: resp,
@@ -396,7 +419,7 @@ impl
     }
 }
 
-// ===== PAYOUT TRANSFER (REAL) — Initiate SEPA Credit Transfer =====
+// ===== PAYOUT TRANSFER =====
 
 impl PayoutTransferV2 for DeutschebankPayouts {}
 
@@ -438,6 +461,18 @@ impl
         >,
     ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
         cert_key_pem(&DeutschebankAuthType::try_from(&req.connector_config)?)
+    }
+
+    fn get_ca_certificate(
+        &self,
+        req: &RouterDataV2<
+            PayoutTransfer,
+            PayoutFlowData,
+            PayoutTransferRequest,
+            PayoutTransferResponse,
+        >,
+    ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
+        server_ca_pem(&DeutschebankAuthType::try_from(&req.connector_config)?)
     }
 
     fn get_url(
@@ -482,7 +517,7 @@ impl
             }
         })?;
 
-        let mut headers = self.build_identity_headers(&auth);
+        let mut headers = self.build_identity_headers(&auth, "PYMT");
         headers.push((
             headers::X_VERIFICATIONOFPAYEE_IDENTIFIER.to_string(),
             vop_id.into(),
@@ -532,9 +567,6 @@ impl
             })?;
         event_builder.map(|i| i.set_connector_response(&response));
 
-        // Re-derive the end-to-end identifier + debtor IBAN so we can pack them into
-        // `connector_payout_id` for the downstream PayoutGet polling step. We rebuild
-        // against the same request input so the id matches what DB received.
         let built = DeutschebankSepaPaymentBuilt::try_from(data).change_context(
             ConnectorError::ResponseDeserializationFailed {
                 context: Default::default(),
@@ -568,7 +600,7 @@ impl
     }
 }
 
-// ===== PAYOUT GET (REAL) — Status Enquiry =====
+// ===== PAYOUT GET =====
 
 impl PayoutGetV2 for DeutschebankPayouts {}
 
@@ -597,6 +629,13 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
         cert_key_pem(&DeutschebankAuthType::try_from(&req.connector_config)?)
     }
 
+    fn get_ca_certificate(
+        &self,
+        req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
+    ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
+        server_ca_pem(&DeutschebankAuthType::try_from(&req.connector_config)?)
+    }
+
     fn get_url(
         &self,
         req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
@@ -615,7 +654,7 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
         let body_struct = DeutschebankStatusRequest::try_from(req)?;
         let body_bytes = serialize_json(&body_struct)?;
 
-        let mut headers = self.build_identity_headers(&auth);
+        let mut headers = self.build_identity_headers(&auth, "PYMT");
         self.append_cseal_headers(
             &mut headers,
             common_utils::request::Method::Post,

@@ -4414,9 +4414,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Bamboraapac(_) => Ok(Self::Payment(ConnectorEnum::Bamboraapac)),
             AuthType::Placetopay(_) => Ok(Self::Payment(ConnectorEnum::Placetopay)),
             AuthType::Finix(_) => Ok(Self::Payment(ConnectorEnum::Finix)),
-            AuthType::Deutschebank(_) => {
-                Ok(Self::Payout(PayoutConnectorEnum::Deutschebank))
-            }
+            AuthType::Deutschebank(_) => Ok(Self::Payout(PayoutConnectorEnum::Deutschebank)),
         }
     }
 }

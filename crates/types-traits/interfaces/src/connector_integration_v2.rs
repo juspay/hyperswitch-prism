@@ -137,6 +137,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
                 .set_optional_body(self.get_request_body(req)?)
                 .add_certificate(self.get_certificate(req)?)
                 .add_certificate_key(self.get_certificate_key(req)?)
+                .add_ca_certificate_pem(self.get_ca_certificate(req)?)
                 .build(),
         ))
     }
@@ -244,6 +245,15 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
 
     /// returns private key string
     fn get_certificate_key(
+        &self,
+        _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
+    ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, IntegrationError> {
+        Ok(None)
+    }
+
+    /// returns an extra CA certificate (PEM, may be a bundle) to add as a trust
+    /// anchor for this connector's outbound HTTPS client
+    fn get_ca_certificate(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
     ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, IntegrationError> {

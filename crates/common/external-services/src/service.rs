@@ -899,6 +899,7 @@ pub async fn call_connector_api(
         should_bypass_proxy,
         request.certificate,
         request.certificate_key,
+        request.ca_certificate,
         test_mode,
     )?;
 
@@ -1057,6 +1058,7 @@ pub fn create_client(
     should_bypass_proxy: bool,
     client_certificate: Option<Secret<String>>,
     client_certificate_key: Option<Secret<String>>,
+    additional_ca_pem: Option<Secret<String>>,
     test_mode: bool,
 ) -> CustomResult<Client, ApiClientError> {
     match (client_certificate.clone(), client_certificate_key.clone()) {
@@ -1064,18 +1066,16 @@ pub fn create_client(
             let client_builder = get_client_builder(proxy_config, should_bypass_proxy, test_mode)?;
 
             let identity = create_identity_from_certificate_and_key(
-                encoded_certificate.clone(),
+                encoded_certificate,
                 encoded_certificate_key,
             )?;
-            let certificate_list = create_certificate(encoded_certificate)?;
-            let client_builder = certificate_list
-                .into_iter()
-                .fold(client_builder, |client_builder, certificate| {
-                    client_builder.add_root_certificate(certificate)
-                });
+            let mut client_builder = client_builder.identity(identity).use_rustls_tls();
+            if let Some(ca_pem) = additional_ca_pem {
+                for ca_cert in create_certificate(ca_pem)? {
+                    client_builder = client_builder.add_root_certificate(ca_cert);
+                }
+            }
             client_builder
-                .identity(identity)
-                .use_rustls_tls()
                 .build()
                 .change_context(ApiClientError::ClientConstructionFailed)
                 .attach_printable("Failed to construct client with certificate and certificate key")

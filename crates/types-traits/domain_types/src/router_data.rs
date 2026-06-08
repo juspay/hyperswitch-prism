@@ -768,6 +768,7 @@ pub enum ConnectorSpecificConfig {
         signing_private_key: Secret<String>,
         client_certificate: Secret<String>,
         client_certificate_key: Secret<String>,
+        server_ca_bundle: Option<Secret<String>>,
         base_url: Option<String>,
     },
 }
@@ -2098,6 +2099,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 signing_private_key: deutschebank.signing_private_key.ok_or_else(err)?,
                 client_certificate: deutschebank.client_certificate.ok_or_else(err)?,
                 client_certificate_key: deutschebank.client_certificate_key.ok_or_else(err)?,
+                server_ca_bundle: deutschebank.server_ca_bundle,
                 base_url: deutschebank.base_url,
             }),
         }
