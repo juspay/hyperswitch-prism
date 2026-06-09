@@ -1737,9 +1737,11 @@ pub enum DocumentKind {
     Cpf,
     /// Cadastro Nacional da Pessoa Jurídica - the Brazilian business identifier.
     Cnpj,
-    /// Generic / non-Brazilian national document (e.g. the Philippine PSN required by
-    /// dLocal for GCash). Carried through as-is; the connector validates it per country.
+    /// Generic / other non-Brazilian national document. Carried through as-is; the
+    /// connector validates it per country.
     Other,
+    /// Philippine PhilSys Number (PSN) — a 12-digit national ID required by dLocal for GCash.
+    Psn,
 }
 
 /// Customer's country-specific identification document

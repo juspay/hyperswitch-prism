@@ -3422,6 +3422,7 @@ impl TryFrom<grpc_payment_types::DocumentKind> for crate::payment_method_data::D
             grpc_payment_types::DocumentKind::Cpf => Ok(Self::Cpf),
             grpc_payment_types::DocumentKind::Cnpj => Ok(Self::Cnpj),
             grpc_payment_types::DocumentKind::Other => Ok(Self::Other),
+            grpc_payment_types::DocumentKind::Psn => Ok(Self::Psn),
             grpc_payment_types::DocumentKind::Unspecified => Err(()),
         }
     }
