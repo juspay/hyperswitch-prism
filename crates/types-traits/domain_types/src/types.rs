@@ -3412,6 +3412,28 @@ impl ForeignTryFrom<grpc_api_types::payments::Money> for common_utils::types::Mo
     }
 }
 
+/// Maps the gRPC `CustomerDocumentDetails` to the domain type.
+///
+/// Returns `None` when the document type is `UNSPECIFIED` or the document number
+/// is missing — i.e. there is no usable customer document. Shared by the Authorize,
+/// SetupMandate (CIT) and RepeatPayment (MIT) request conversions.
+fn map_customer_document_details(
+    doc: &grpc_payment_types::CustomerDocumentDetails,
+) -> Option<CustomerDocumentDetails> {
+    let document_type = match doc.document_type() {
+        grpc_payment_types::DocumentKind::Cpf => crate::payment_method_data::DocumentKind::Cpf,
+        grpc_payment_types::DocumentKind::Cnpj => crate::payment_method_data::DocumentKind::Cnpj,
+        grpc_payment_types::DocumentKind::Other => crate::payment_method_data::DocumentKind::Other,
+        grpc_payment_types::DocumentKind::Unspecified => return None,
+    };
+    doc.document_number
+        .clone()
+        .map(|document_number| CustomerDocumentDetails {
+            document_type,
+            document_number,
+        })
+}
+
 impl<
         T: PaymentMethodDataTypes
             + Default
@@ -3463,26 +3485,7 @@ impl<
             .customer
             .as_ref()
             .and_then(|customer| customer.customer_document_details.as_ref())
-            .and_then(|doc| {
-                let document_type = match doc.document_type() {
-                    grpc_payment_types::DocumentKind::Cpf => {
-                        Some(crate::payment_method_data::DocumentKind::Cpf)
-                    }
-                    grpc_payment_types::DocumentKind::Cnpj => {
-                        Some(crate::payment_method_data::DocumentKind::Cnpj)
-                    }
-                    grpc_payment_types::DocumentKind::Other => {
-                        Some(crate::payment_method_data::DocumentKind::Other)
-                    }
-                    grpc_payment_types::DocumentKind::Unspecified => None,
-                };
-                document_type.zip(doc.document_number.clone()).map(
-                    |(document_type, document_number)| CustomerDocumentDetails {
-                        document_type,
-                        document_number,
-                    },
-                )
-            });
+            .and_then(map_customer_document_details);
         let merchant_config_currency = common_enums::Currency::foreign_try_from(amount.currency())?;
 
         let connector_feature_data = value
@@ -3706,26 +3709,7 @@ impl<
             .customer
             .as_ref()
             .and_then(|customer| customer.customer_document_details.as_ref())
-            .and_then(|doc| {
-                let document_type = match doc.document_type() {
-                    grpc_payment_types::DocumentKind::Cpf => {
-                        Some(crate::payment_method_data::DocumentKind::Cpf)
-                    }
-                    grpc_payment_types::DocumentKind::Cnpj => {
-                        Some(crate::payment_method_data::DocumentKind::Cnpj)
-                    }
-                    grpc_payment_types::DocumentKind::Other => {
-                        Some(crate::payment_method_data::DocumentKind::Other)
-                    }
-                    grpc_payment_types::DocumentKind::Unspecified => None,
-                };
-                document_type.zip(doc.document_number.clone()).map(
-                    |(document_type, document_number)| CustomerDocumentDetails {
-                        document_type,
-                        document_number,
-                    },
-                )
-            });
+            .and_then(map_customer_document_details);
         let amount = value.amount.ok_or_else(|| {
             report!(IntegrationError::MissingRequiredField {
                 field_name: "amount",
@@ -9194,26 +9178,7 @@ impl<
             .customer
             .as_ref()
             .and_then(|customer| customer.customer_document_details.as_ref())
-            .and_then(|doc| {
-                let document_type = match doc.document_type() {
-                    grpc_payment_types::DocumentKind::Cpf => {
-                        Some(crate::payment_method_data::DocumentKind::Cpf)
-                    }
-                    grpc_payment_types::DocumentKind::Cnpj => {
-                        Some(crate::payment_method_data::DocumentKind::Cnpj)
-                    }
-                    grpc_payment_types::DocumentKind::Other => {
-                        Some(crate::payment_method_data::DocumentKind::Other)
-                    }
-                    grpc_payment_types::DocumentKind::Unspecified => None,
-                };
-                document_type.zip(doc.document_number.clone()).map(
-                    |(document_type, document_number)| CustomerDocumentDetails {
-                        document_type,
-                        document_number,
-                    },
-                )
-            });
+            .and_then(map_customer_document_details);
         let customer_acceptance = value.customer_acceptance.clone().ok_or_else(|| {
             error_stack::Report::new(IntegrationError::InvalidDataFormat {
                 field_name: "unknown",
@@ -11299,26 +11264,7 @@ impl<
         // Proto DocumentKind -> domain DocumentKind; UNSPECIFIED document_type means
         // no usable document, so the whole detail is treated as None.
         let customer_document_details: Option<CustomerDocumentDetails> =
-            value.customer_document_details.as_ref().and_then(|doc| {
-                let document_type = match doc.document_type() {
-                    grpc_payment_types::DocumentKind::Cpf => {
-                        Some(crate::payment_method_data::DocumentKind::Cpf)
-                    }
-                    grpc_payment_types::DocumentKind::Cnpj => {
-                        Some(crate::payment_method_data::DocumentKind::Cnpj)
-                    }
-                    grpc_payment_types::DocumentKind::Other => {
-                        Some(crate::payment_method_data::DocumentKind::Other)
-                    }
-                    grpc_payment_types::DocumentKind::Unspecified => None,
-                };
-                document_type.zip(doc.document_number.clone()).map(
-                    |(document_type, document_number)| CustomerDocumentDetails {
-                        document_type,
-                        document_number,
-                    },
-                )
-            });
+            value.customer_document_details.as_ref().and_then(map_customer_document_details);
 
         // Extract mandate reference_id
         let mandate_ref = match value.connector_recurring_payment_id {
