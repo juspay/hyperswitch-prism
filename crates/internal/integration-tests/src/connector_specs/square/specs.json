@@ -1,0 +1,6 @@
+{
+  "connector": "square",
+  "supported_suites": [
+    "PaymentService/Authorize"
+  ]
+}

@@ -211,6 +211,7 @@ default_impl_verify_webhook_source_v2!(
         Zift,
         Juspay,
         Payconex,
+        Square,
     ],
 );
 // PayPal has its own implementation in paypal.rs

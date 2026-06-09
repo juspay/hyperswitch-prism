@@ -24,6 +24,7 @@ bypass_urls = ["localhost", "local"]
 [connectors]
 payconex.base_url = "https://cert.payconex.net"
 tamara.base_url = "https://api-sandbox.tamara.co"
+square.base_url = "https://connect.squareupsandbox.com"
 juspay.base_url = "https://sandbox.juspay.in/"
 peachpayments.base_url = "https://apitest.bankint.ppay.io/v/1"
 finix.base_url = "https://finix.sandbox-payments-api.com"
