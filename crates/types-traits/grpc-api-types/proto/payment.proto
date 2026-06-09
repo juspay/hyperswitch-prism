@@ -2826,9 +2826,9 @@ message PaymentServiceSetupRecurringResponse {
   optional bool incremental_authorization_allowed =
       11; // Indicates if incremental authorization is allowed
 
-  // Field 12 (captured_amount) removed: setup_mandate is a zero-auth mandate
-  // registration and never captures an amount.
-  reserved 12;
+  // Captured Amount Details
+  optional int64 captured_amount =
+      12; // Captured amount in minor currency units
 
   // State Information
   optional ConnectorState state = 13; // State data for access token storage and

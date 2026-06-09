@@ -9800,6 +9800,9 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
         })
         .transpose()?;
 
+    let captured_amount = router_data_v2.resource_common_data.amount_captured;
+    let minor_captured_amount = captured_amount;
+
     let response = match transaction_response {
         Ok(response) => match response {
             PaymentsResponseData::TransactionResponse {
@@ -9910,6 +9913,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                     connector_feature_data: convert_connector_metadata_to_secret_string(
                         connector_metadata,
                     ),
+                    captured_amount: minor_captured_amount,
                 }
             }
             _ => {
@@ -9962,6 +9966,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                 raw_connector_request,
                 connector_response,
                 connector_feature_data: None,
+                captured_amount: None,
             }
         }
     };
