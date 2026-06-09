@@ -29,7 +29,7 @@ use domain_types::{
         ServerAuthenticationTokenResponseData, ServerSessionAuthenticationTokenRequestData,
         ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, ConnectorFlowError, IntegrationError},
     payment_method_data::{DefaultPCIHolder, PaymentMethodDataTypes, VaultTokenHolder},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -1064,7 +1064,12 @@ impl PaymentService for Payments {
                     // handle_response field removed from proto (field 5 reserved)
                     let consume_or_trigger_flow = common_enums::CallConnectorAction::Trigger;
 
-                    let response_result = Box::pin(
+                    // Clone router_data before moving it into execute_connector_processing_step
+                    // so we can reconstruct an error RouterData if the connector returns a
+                    // 4xx/5xx HTTP response (which surfaces as ConnectorFlowError::Response rather
+                    // than RouterData.response = Err).
+                    let router_data_for_error = router_data.clone();
+                    let connector_result = Box::pin(
                         external_services::service::execute_connector_processing_step(
                             &config.proxy,
                             connector_integration,
@@ -1077,8 +1082,27 @@ impl PaymentService for Payments {
                             api_tag,
                         ),
                     )
-                    .await
-                    .into_grpc_status()?;
+                    .await;
+
+                    // For PSync, connector 4xx/5xx error responses (e.g. a 404 "payment not
+                    // found") are valid business outcomes — not UCS infrastructure failures.
+                    // Reconstruct RouterData with response = Err(ErrorResponse) so that
+                    // generate_payment_sync_response returns Ok(PaymentServiceGetResponse {
+                    // error: Some(...) }) with gRPC OK status, instead of propagating a gRPC
+                    // NotFound/error status to HS.
+                    let response_result = match connector_result {
+                        Ok(rd) => rd,
+                        Err(err) => match err.current_context() {
+                            ConnectorFlowError::Response(
+                                ConnectorError::ConnectorErrorResponse(error_response),
+                            ) => {
+                                let mut error_router_data = router_data_for_error;
+                                error_router_data.response = Err(error_response.clone());
+                                error_router_data
+                            }
+                            _ => return Err(err.into_grpc_status()),
+                        },
+                    };
 
                     // Generate response
                     let final_response =
